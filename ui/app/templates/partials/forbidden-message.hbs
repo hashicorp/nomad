@@ -1,6 +1,6 @@
-<div class="empty-message">
-  <h3 class="empty-message-headline">Not Authorized</h3>
-  <p class="empty-message-body">
+<div data-test-error class="empty-message">
+  <h3 data-test-error-title class="empty-message-headline">Not Authorized</h3>
+  <p data-test-error-message class="empty-message-body">
     {{#if token.secret}}
       Your {{#link-to "settings.tokens"}}ACL token{{/link-to}} does not provide the required permissions. Contact your administrator if this is an error.
     {{else}}

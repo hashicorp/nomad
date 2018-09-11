@@ -1,12 +1,19 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import RSVP from 'rsvp';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
-const { Route, inject, RSVP } = Ember;
-
 export default Route.extend(WithForbiddenState, {
-  store: inject.service(),
-  system: inject.service(),
+  store: service(),
+  system: service(),
+
+  breadcrumbs: [
+    {
+      label: 'Clients',
+      args: ['clients.index'],
+    },
+  ],
 
   beforeModel() {
     return this.get('system.leader');

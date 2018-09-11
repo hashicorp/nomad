@@ -1,7 +1,5 @@
-import Ember from 'ember';
+import { copy } from '@ember/object/internals';
 import ApplicationSerializer from './application';
-
-const { copy } = Ember;
 
 export default ApplicationSerializer.extend({
   normalize(typeHash, hash) {

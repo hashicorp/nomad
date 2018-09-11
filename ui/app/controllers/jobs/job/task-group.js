@@ -1,13 +1,11 @@
-import Ember from 'ember';
+import { alias } from '@ember/object/computed';
+import Controller from '@ember/controller';
+import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 
-const { Controller, computed, inject } = Ember;
-
 export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
-  jobController: inject.controller('jobs.job'),
-
   queryParams: {
     currentPage: 'page',
     searchTerm: 'search',
@@ -27,15 +25,9 @@ export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
     return this.get('model.allocations') || [];
   }),
 
-  listToSort: computed.alias('allocations'),
-  listToSearch: computed.alias('listSorted'),
-  sortedAllocations: computed.alias('listSearched'),
-
-  breadcrumbs: computed('jobController.breadcrumbs.[]', 'model.{name}', function() {
-    return this.get('jobController.breadcrumbs').concat([
-      { label: this.get('model.name'), args: ['jobs.job.task-group', this.get('model.name')] },
-    ]);
-  }),
+  listToSort: alias('allocations'),
+  listToSearch: alias('listSorted'),
+  sortedAllocations: alias('listSearched'),
 
   actions: {
     gotoAllocation(allocation) {

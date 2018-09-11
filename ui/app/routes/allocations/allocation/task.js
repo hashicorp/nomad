@@ -1,9 +1,19 @@
-import Ember from 'ember';
-
-const { Route, inject, Error: EmberError } = Ember;
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import EmberError from '@ember/error';
 
 export default Route.extend({
-  store: inject.service(),
+  store: service(),
+
+  breadcrumbs(model) {
+    if (!model) return [];
+    return [
+      {
+        label: model.get('name'),
+        args: ['allocations.allocation.task', model.get('allocation'), model],
+      },
+    ];
+  },
 
   model({ name }) {
     const allocation = this.modelFor('allocations.allocation');

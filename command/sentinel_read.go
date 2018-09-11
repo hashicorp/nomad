@@ -45,9 +45,11 @@ func (c *SentinelReadCommand) Synopsis() string {
 	return "Inspects an existing Sentinel policies"
 }
 
+func (c *SentinelReadCommand) Name() string { return "sentinel read" }
+
 func (c *SentinelReadCommand) Run(args []string) int {
 	var raw bool
-	flags := c.Meta.FlagSet("sentinel read", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&raw, "raw", false, "")
 	if err := flags.Parse(args); err != nil {
@@ -57,7 +59,8 @@ func (c *SentinelReadCommand) Run(args []string) int {
 	// Check that we got exactly one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <name>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

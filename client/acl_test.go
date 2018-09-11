@@ -17,7 +17,7 @@ func TestClient_ACL_resolveTokenValue(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
@@ -66,7 +66,7 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
@@ -106,7 +106,7 @@ func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -122,7 +122,7 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})

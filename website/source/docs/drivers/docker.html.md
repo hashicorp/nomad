@@ -74,7 +74,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
       command = "my-command"
     }
     ```
-    
+
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
@@ -82,6 +82,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
+
+* `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
 * `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
@@ -210,11 +212,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `port_map` - (Optional) A key-value map of port labels (see below).
 
-* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
-  the container access to devices on the host. Note that this also requires the
-  nomad agent and docker daemon to be configured to allow privileged
-  containers.
-
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
   For example:
@@ -275,7 +272,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
         "name-of-the-volume:/path/in/container"
       ]
       # Name of the Docker Volume Driver used by the container
-      volume_driver = "flocker"
+      volume_driver = "pxd"
     }
     ```
 
@@ -298,7 +295,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
               foo = "bar"
             }
             driver_config {
-              name = "flocker"
+              name = "pxd"
               options = {
                 foo = "bar"
               }
@@ -328,6 +325,56 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
+
+* `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_add = [
+        "SYS_TIME",
+      ]
+    }
+    ```
+
+* `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_drop = [
+        "MKNOD",
+      ]
+    }
+    ```
+
+* `cpu_hard_limit` - (Optional) `true` or `false` (default). Use hard CPU
+  limiting instead of soft limiting. By default this is `false` which means
+  soft limiting is used and containers are able to burst above their CPU limit
+  when there is idle capacity.
+
+* `cpu_cfs_period` - (Optional) An integer value that specifies the duration in microseconds of the period
+  during which the CPU usage quota is measured. The default is 100000 (0.1 second) and the maximum allowed
+  value is 1000000 (1 second). See [here](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu#sect-cfs)
+  for more details.
+
+* `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's
+   IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
+   See [IPv6 Docker containers](/docs/job-specification/service.html#IPv6 Docker containers) for details.
+
+* `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
+  the container's filesystem as read only.
+
+* `pids_limit` - (Optional) An integer value that specifies the pid limit for
+  the container. Defaults to unlimited.
 
 ### Container Name
 
@@ -536,7 +583,7 @@ of the Linux Kernel and Docker daemon.
 ## Client Configuration
 
 The `docker` driver has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `docker.endpoint` - If using a non-standard socket, HTTP or another location,
   or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
@@ -594,6 +641,18 @@ options](/docs/agent/configuration/client.html#options):
   allow containers to use `privileged` mode, which gives the containers full
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
+
+* `docker.caps.whitelist`: A list of allowed Linux capabilities. Defaults to
+  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`,
+  which is the list of capabilities allowed by docker by default, as
+  [defined here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Allows the operator to control which capabilities can be obtained by
+  tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
+  shortcut for whitelisting all capabilities.
+
+* `docker.cleanup.container`: Defaults to `true`. This option can be used to
+  disable Nomad from removing a container when the task exits. Under a name
+  conflict, Nomad may still remove the dead container.
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If

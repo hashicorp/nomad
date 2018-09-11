@@ -109,7 +109,7 @@ type vaultClientHeapEntry struct {
 	index int
 }
 
-// Wrapper around the actual heap to provide additional symantics on top of
+// Wrapper around the actual heap to provide additional semantics on top of
 // functions provided by the heap interface. In order to achieve that, an
 // additional map is placed beside the actual heap. This map can be used to
 // check if an entry is already present in the heap.
@@ -428,6 +428,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	fatal := false
 	if renewalErr != nil &&
 		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
+			strings.Contains(renewalErr.Error(), "lease is not renewable") ||
 			strings.Contains(renewalErr.Error(), "token not found") ||
 			strings.Contains(renewalErr.Error(), "permission denied")) {
 		fatal = true

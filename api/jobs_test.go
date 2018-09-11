@@ -12,48 +12,76 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJobs_Register(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
-	resp, qm, err := jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(resp); n != 0 {
-		t.Fatalf("expected 0 jobs, got: %d", n)
-	}
+	resp, _, err := jobs.List(nil)
+	require.Nil(err)
+	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
 
 	// Create a job and attempt to register it
 	job := testJob()
 	resp2, wm, err := jobs.Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp2 == nil || resp2.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotEmpty(resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
-	resp, qm, err = jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	resp, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
+	require.Nil(err)
 
 	// Check that we got the expected response
 	if len(resp) != 1 || resp[0].ID != *job.ID {
 		t.Fatalf("bad: %#v", resp[0])
 	}
+}
+
+func TestJobs_Parse(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	jobs := c.Jobs()
+
+	checkJob := func(job *Job, expectedRegion string) {
+		if job == nil {
+			t.Fatal("job should not be nil")
+		}
+
+		region := job.Region
+
+		if region == nil {
+			if expectedRegion != "" {
+				t.Fatalf("expected job region to be '%s' but was unset", expectedRegion)
+			}
+		} else {
+			if expectedRegion != *region {
+				t.Fatalf("expected job region '%s', but got '%s'", expectedRegion, *region)
+			}
+		}
+	}
+	job, err := jobs.ParseHCL(mock.HCL(), true)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	checkJob(job, "global")
+
+	job, err = jobs.ParseHCL(mock.HCL(), false)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	checkJob(job, "")
 }
 
 func TestJobs_Validate(t *testing.T) {
@@ -132,9 +160,18 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
 						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
+						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								KillTimeout: helper.TimeToPtr(5 * time.Second),
@@ -194,9 +231,18 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
 						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
+						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
@@ -258,9 +304,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Services: []*Service{
 									{
-										Name:      "global-redis-check",
-										Tags:      []string{"global", "cache"},
-										PortLabel: "db",
+										Name:       "redis-cache",
+										Tags:       []string{"global", "cache"},
+										CanaryTags: []string{"canary", "global", "cache"},
+										PortLabel:  "db",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",
@@ -308,13 +355,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 				JobModifyIndex:    helper.Uint64ToPtr(0),
 				Datacenters:       []string{"dc1"},
 				Update: &UpdateStrategy{
-					Stagger:         helper.TimeToPtr(30 * time.Second),
-					MaxParallel:     helper.IntToPtr(1),
-					HealthCheck:     helper.StringToPtr("checks"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(false),
-					Canary:          helper.IntToPtr(0),
+					Stagger:          helper.TimeToPtr(30 * time.Second),
+					MaxParallel:      helper.IntToPtr(1),
+					HealthCheck:      helper.StringToPtr("checks"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(false),
+					Canary:           helper.IntToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -326,6 +374,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:    helper.TimeToPtr(25 * time.Second),
 							Mode:     helper.StringToPtr("delay"),
 						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
+						},
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  helper.BoolToPtr(false),
 							Migrate: helper.BoolToPtr(false),
@@ -333,14 +389,16 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 
 						Update: &UpdateStrategy{
-							Stagger:         helper.TimeToPtr(30 * time.Second),
-							MaxParallel:     helper.IntToPtr(1),
-							HealthCheck:     helper.StringToPtr("checks"),
-							MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(false),
-							Canary:          helper.IntToPtr(0),
+							Stagger:          helper.TimeToPtr(30 * time.Second),
+							MaxParallel:      helper.IntToPtr(1),
+							HealthCheck:      helper.StringToPtr("checks"),
+							MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(false),
+							Canary:           helper.IntToPtr(0),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:   "redis",
@@ -368,8 +426,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Services: []*Service{
 									{
-										Name:        "global-redis-check",
+										Name:        "redis-cache",
 										Tags:        []string{"global", "cache"},
+										CanaryTags:  []string{"canary", "global", "cache"},
 										PortLabel:   "db",
 										AddressMode: "auto",
 										Checks: []ServiceCheck{
@@ -460,13 +519,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ID:       helper.StringToPtr("bar"),
 				ParentID: helper.StringToPtr("lol"),
 				Update: &UpdateStrategy{
-					Stagger:         helper.TimeToPtr(1 * time.Second),
-					MaxParallel:     helper.IntToPtr(1),
-					HealthCheck:     helper.StringToPtr("checks"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(false),
-					Canary:          helper.IntToPtr(0),
+					Stagger:          helper.TimeToPtr(1 * time.Second),
+					MaxParallel:      helper.IntToPtr(1),
+					HealthCheck:      helper.StringToPtr("checks"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(false),
+					Canary:           helper.IntToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -514,13 +574,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ModifyIndex:       helper.Uint64ToPtr(0),
 				JobModifyIndex:    helper.Uint64ToPtr(0),
 				Update: &UpdateStrategy{
-					Stagger:         helper.TimeToPtr(1 * time.Second),
-					MaxParallel:     helper.IntToPtr(1),
-					HealthCheck:     helper.StringToPtr("checks"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(false),
-					Canary:          helper.IntToPtr(0),
+					Stagger:          helper.TimeToPtr(1 * time.Second),
+					MaxParallel:      helper.IntToPtr(1),
+					HealthCheck:      helper.StringToPtr("checks"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(false),
+					Canary:           helper.IntToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -534,18 +595,28 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:         helper.TimeToPtr(2 * time.Second),
-							MaxParallel:     helper.IntToPtr(2),
-							HealthCheck:     helper.StringToPtr("manual"),
-							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(true),
-							Canary:          helper.IntToPtr(1),
+							Stagger:          helper.TimeToPtr(2 * time.Second),
+							MaxParallel:      helper.IntToPtr(2),
+							HealthCheck:      helper.StringToPtr("manual"),
+							MinHealthyTime:   helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(true),
+							Canary:           helper.IntToPtr(1),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
@@ -566,18 +637,28 @@ func TestJobs_Canonicalize(t *testing.T) {
 						RestartPolicy: &RestartPolicy{
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Attempts: helper.IntToPtr(2),
-							Interval: helper.TimeToPtr(1 * time.Minute),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: helper.TimeToPtr(30 * time.Minute),
+							Mode:     helper.StringToPtr("fail"),
+						},
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      helper.IntToPtr(0),
+							Interval:      helper.TimeToPtr(0),
+							DelayFunction: helper.StringToPtr("exponential"),
+							Delay:         helper.TimeToPtr(30 * time.Second),
+							MaxDelay:      helper.TimeToPtr(1 * time.Hour),
+							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:         helper.TimeToPtr(1 * time.Second),
-							MaxParallel:     helper.IntToPtr(1),
-							HealthCheck:     helper.StringToPtr("checks"),
-							MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(false),
-							Canary:          helper.IntToPtr(0),
+							Stagger:          helper.TimeToPtr(1 * time.Second),
+							MaxParallel:      helper.IntToPtr(1),
+							HealthCheck:      helper.StringToPtr("checks"),
+							MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(false),
+							Canary:           helper.IntToPtr(0),
 						},
+						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:        "task1",
@@ -604,70 +685,47 @@ func TestJobs_Canonicalize(t *testing.T) {
 
 func TestJobs_EnforceRegister(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
 
 	// Listing jobs before registering returns nothing
-	resp, qm, err := jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(resp); n != 0 {
-		t.Fatalf("expected 0 jobs, got: %d", n)
-	}
+	resp, _, err := jobs.List(nil)
+	require.Nil(err)
+	require.Empty(resp)
 
 	// Create a job and attempt to register it with an incorrect index.
 	job := testJob()
 	resp2, _, err := jobs.EnforceRegister(job, 10, nil)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
-		t.Fatalf("expected enforcement error: %v", err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
 
 	// Register
 	resp2, wm, err := jobs.EnforceRegister(job, 0, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp2 == nil || resp2.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotZero(resp2.EvalID)
 	assertWriteMeta(t, wm)
 
 	// Query the jobs back out again
-	resp, qm, err = jobs.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	resp, qm, err := jobs.List(nil)
+	require.Nil(err)
+	require.Len(resp, 1)
+	require.Equal(*job.ID, resp[0].ID)
 	assertQueryMeta(t, qm)
 
-	// Check that we got the expected response
-	if len(resp) != 1 {
-		t.Fatalf("bad length: %d", len(resp))
-	}
-
-	if resp[0].ID != *job.ID {
-		t.Fatalf("bad: %#v", resp[0])
-	}
-	curIndex := resp[0].JobModifyIndex
-
 	// Fail at incorrect index
+	curIndex := resp[0].JobModifyIndex
 	resp2, _, err = jobs.EnforceRegister(job, 123456, nil)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
-		t.Fatalf("expected enforcement error: %v", err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), RegisterEnforceIndexErrPrefix)
 
 	// Works at correct index
 	resp3, wm, err := jobs.EnforceRegister(job, curIndex, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if resp3 == nil || resp3.EvalID == "" {
-		t.Fatalf("missing eval id")
-	}
+	require.Nil(err)
+	require.NotNil(resp3)
+	require.NotZero(resp3.EvalID)
 	assertWriteMeta(t, wm)
 }
 
@@ -795,12 +853,9 @@ func TestJobs_PrefixList(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
-	results, qm, err := jobs.PrefixList("dummy")
+	results, _, err := jobs.PrefixList("dummy")
 	if err != nil {
 		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(results); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
@@ -816,7 +871,7 @@ func TestJobs_PrefixList(t *testing.T) {
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
-	results, qm, err = jobs.PrefixList((*job.ID)[:1])
+	results, _, err = jobs.PrefixList((*job.ID)[:1])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -834,12 +889,9 @@ func TestJobs_List(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Listing when nothing exists returns empty
-	results, qm, err := jobs.List(nil)
+	results, _, err := jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
 	}
 	if n := len(results); n != 0 {
 		t.Fatalf("expected 0 jobs, got: %d", n)
@@ -855,7 +907,7 @@ func TestJobs_List(t *testing.T) {
 
 	// Query the job again and ensure it exists
 	// Listing when nothing exists returns empty
-	results, qm, err = jobs.List(nil)
+	results, _, err = jobs.List(nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -872,7 +924,7 @@ func TestJobs_Allocations(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Looking up by a non-existent job returns nothing
+	// Looking up by a nonexistent job returns nothing
 	allocs, qm, err := jobs.Allocations("job1", true, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -894,7 +946,7 @@ func TestJobs_Evaluations(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Looking up by a non-existent job ID returns nothing
+	// Looking up by a nonexistent job ID returns nothing
 	evals, qm, err := jobs.Evaluations("job1", nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -1036,7 +1088,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Force-eval on a non-existent job fails
+	// Force-eval on a nonexistent job fails
 	_, _, err := jobs.PeriodicForce("job1", nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
@@ -1280,6 +1332,42 @@ func TestJobs_Constrain(t *testing.T) {
 	}
 }
 
+func TestJobs_AddAffinity(t *testing.T) {
+	t.Parallel()
+	job := &Job{Affinities: nil}
+
+	// Create and add an affinity
+	out := job.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
+	if n := len(job.Affinities); n != 1 {
+		t.Fatalf("expected 1 affinity, got: %d", n)
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Adding another affinity preserves the original
+	job.AddAffinity(NewAffinity("${node.datacenter}", "=", "dc2", 50))
+	expect := []*Affinity{
+		{
+			LTarget: "kernel.version",
+			RTarget: "4.6",
+			Operand: "=",
+			Weight:  100,
+		},
+		{
+			LTarget: "${node.datacenter}",
+			RTarget: "dc2",
+			Operand: "=",
+			Weight:  50,
+		},
+	}
+	if !reflect.DeepEqual(job.Affinities, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Affinities)
+	}
+}
+
 func TestJobs_Sort(t *testing.T) {
 	t.Parallel()
 	jobs := []*JobListStub{
@@ -1296,6 +1384,57 @@ func TestJobs_Sort(t *testing.T) {
 	}
 	if !reflect.DeepEqual(jobs, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", jobs, expect)
+	}
+}
+
+func TestJobs_AddSpread(t *testing.T) {
+	t.Parallel()
+	job := &Job{Spreads: nil}
+
+	// Create and add a Spread
+	spreadTarget := NewSpreadTarget("r1", 50)
+
+	spread := NewSpread("${meta.rack}", 100, []*SpreadTarget{spreadTarget})
+	out := job.AddSpread(spread)
+	if n := len(job.Spreads); n != 1 {
+		t.Fatalf("expected 1 spread, got: %d", n)
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Adding another spread preserves the original
+	spreadTarget2 := NewSpreadTarget("dc1", 100)
+
+	spread2 := NewSpread("${node.datacenter}", 100, []*SpreadTarget{spreadTarget2})
+	job.AddSpread(spread2)
+
+	expect := []*Spread{
+		{
+			Attribute: "${meta.rack}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+			},
+		},
+		{
+			Attribute: "${node.datacenter}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "dc1",
+					Percent: 100,
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(job.Spreads, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Spreads)
 	}
 }
 

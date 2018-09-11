@@ -12,4 +12,8 @@
   .is-light {
     color: $text;
   }
+
+  &.is-elastic {
+    height: auto;
+  }
 }

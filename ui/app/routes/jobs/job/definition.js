@@ -1,6 +1,4 @@
-import Ember from 'ember';
-
-const { Route } = Ember;
+import Route from '@ember/routing/route';
 
 export default Route.extend({
   model() {
@@ -9,5 +7,14 @@ export default Route.extend({
       job,
       definition,
     }));
+  },
+
+  resetController(controller, isExiting) {
+    if (isExiting) {
+      const job = controller.get('job');
+      job.rollbackAttributes();
+      job.resetId();
+      controller.set('isEditing', false);
+    }
   },
 });

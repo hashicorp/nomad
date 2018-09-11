@@ -1,11 +1,9 @@
-import Ember from 'ember';
+import { bool, equal } from '@ember/object/computed';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
-
-const { computed } = Ember;
 
 export default Model.extend({
   shortId: shortUUIDProperty('id'),
@@ -16,12 +14,12 @@ export default Model.extend({
   statusDescription: attr('string'),
   failedTGAllocs: fragmentArray('placement-failure', { defaultValue: () => [] }),
 
-  hasPlacementFailures: computed.bool('failedTGAllocs.length'),
-
-  // TEMPORARY: https://github.com/emberjs/data/issues/5209
-  originalJobId: attr('string'),
+  hasPlacementFailures: bool('failedTGAllocs.length'),
+  isBlocked: equal('status', 'blocked'),
 
   job: belongsTo('job'),
 
   modifyIndex: attr('number'),
+
+  waitUntil: attr('date'),
 });

@@ -1,11 +1,10 @@
 package scheduler
 
 import (
-	"log"
-	"os"
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -19,7 +18,7 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 		NodeAllocation: make(map[string][]*structs.Allocation),
 	}
 
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 
 	ctx := NewEvalContext(state, plan, logger)
 	return state, ctx

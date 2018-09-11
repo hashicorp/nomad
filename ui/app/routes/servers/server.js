@@ -1,6 +1,4 @@
-import Ember from 'ember';
+import Route from '@ember/routing/route';
 import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
-
-const { Route } = Ember;
 
 export default Route.extend(WithModelErrorHandling);

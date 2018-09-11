@@ -68,6 +68,15 @@ type monitor struct {
 // write output information to the provided ui. The length parameter determines
 // the number of characters for identifiers in the ui.
 func newMonitor(ui cli.Ui, client *api.Client, length int) *monitor {
+	if colorUi, ok := ui.(*cli.ColoredUi); ok {
+		// Disable Info color for monitored output
+		ui = &cli.ColoredUi{
+			ErrorColor: colorUi.ErrorColor,
+			WarnColor:  colorUi.WarnColor,
+			InfoColor:  cli.UiColorNone,
+			Ui:         colorUi.Ui,
+		}
+	}
 	mon := &monitor{
 		ui: &cli.PrefixedUi{
 			InfoPrefix:   "==> ",
@@ -190,7 +199,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				return 1
 			}
 
-			evalID = sanatizeUUIDPrefix(evalID)
+			evalID = sanitizeUUIDPrefix(evalID)
 			evals, _, err := m.client.Evaluations().PrefixList(evalID)
 			if err != nil {
 				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
@@ -364,8 +373,30 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 
 	// Print scores
 	if scores {
-		for name, score := range metrics.Scores {
-			out += fmt.Sprintf("%s* Score %q = %f\n", prefix, name, score)
+		if len(metrics.ScoreMetaData) > 0 {
+			scoreOutput := make([]string, len(metrics.ScoreMetaData)+1)
+
+			for i, scoreMeta := range metrics.ScoreMetaData {
+				// Add header as first row
+				if i == 0 {
+					scoreOutput[0] = "Node|"
+					for scorerName := range scoreMeta.Scores {
+						scoreOutput[0] += fmt.Sprintf("%v|", scorerName)
+					}
+					scoreOutput[0] += "Final Score"
+				}
+				scoreOutput[i+1] = fmt.Sprintf("%v|", scoreMeta.NodeID)
+				for _, scoreVal := range scoreMeta.Scores {
+					scoreOutput[i+1] += fmt.Sprintf("%v|", scoreVal)
+				}
+				scoreOutput[i+1] += fmt.Sprintf("%v", scoreMeta.NormScore)
+			}
+			out += formatList(scoreOutput)
+		} else {
+			// Backwards compatibility for old allocs
+			for name, score := range metrics.Scores {
+				out += fmt.Sprintf("%s* Score %q = %f\n", prefix, name, score)
+			}
 		}
 	}
 

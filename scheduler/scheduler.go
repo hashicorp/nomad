@@ -48,7 +48,7 @@ type Factory func(*log.Logger, State, Planner) Scheduler
 // a time. The evaluation may result in task allocations which are computed
 // optimistically, as there are many concurrent evaluations being processed.
 // The task allocations are submitted as a plan, and the current leader will
-// coordinate the commmits to prevent oversubscription or improper allocations
+// coordinate the commits to prevent oversubscription or improper allocations
 // based on stale state.
 type Scheduler interface {
 	// Process is used to handle a new evaluation. The scheduler is free to

@@ -48,7 +48,7 @@ There are no parameters, but the request _body_ contains the entire job file.
 $ curl \
     --request POST \
     --data @my-job.nomad \
-    https://nomad.rocks/v1/validate/job
+    https://localhost:4646/v1/validate/job
 ```
 
 ### Sample Response

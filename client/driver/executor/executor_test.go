@@ -2,7 +2,6 @@ package executor
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,14 +12,11 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/go-ps"
 )
-
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
-}
 
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
@@ -30,13 +26,13 @@ func testExecutorContext(t *testing.T) (*ExecutorContext, *allocdir.AllocDir) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
-		log.Fatalf("AllocDir.Build() failed: %v", err)
+		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
 	if err := allocDir.NewTaskDir(task.Name).Build(false, nil, cstructs.FSIsolationNone); err != nil {
 		allocDir.Destroy()
-		log.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
+		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
 	ctx := &ExecutorContext{
@@ -54,7 +50,7 @@ func TestExecutor_Start_Invalid(t *testing.T) {
 	execCmd := ExecCommand{Cmd: invalid, Args: []string{"1"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	executor := NewExecutor(testlog.Logger(t))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error")
@@ -70,7 +66,7 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/date", Args: []string{"fail"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	executor := NewExecutor(testlog.Logger(t))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error")
@@ -98,7 +94,7 @@ func TestExecutor_Start_Wait(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	executor := NewExecutor(testlog.Logger(t))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error")
@@ -137,7 +133,7 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10000"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	executor := NewExecutor(testlog.Logger(t))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error")
@@ -180,7 +176,7 @@ func TestExecutor_Start_Kill(t *testing.T) {
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10 && hello world"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	executor := NewExecutor(testlog.Logger(t))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error")
@@ -229,8 +225,8 @@ func TestExecutor_MakeExecutable(t *testing.T) {
 	// Set its permissions to be non-executable
 	f.Chmod(os.FileMode(0610))
 
-	// Make a fake exececutor
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	// Make a fake executor
+	executor := NewExecutor(testlog.Logger(t))
 
 	err = executor.(*UniversalExecutor).makeExecutable(f.Name())
 	if err != nil {
@@ -258,8 +254,8 @@ func TestScanPids(t *testing.T) {
 	p4 := NewFakeProcess(3, 10)
 	p5 := NewFakeProcess(20, 18)
 
-	// Make a fake exececutor
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags)).(*UniversalExecutor)
+	// Make a fake executor
+	executor := NewExecutor(testlog.Logger(t)).(*UniversalExecutor)
 
 	nomadPids, err := executor.scanPids(5, []ps.Process{p1, p2, p3, p4, p5})
 	if err != nil {

@@ -25,6 +25,6 @@ Assuming master is the branch you want the website to reflect
 
 1. On master, bump the version in `website/config.rb`
 2. Delete the remote stable-website branch (`git push -d origin stable-website`)
-3. Create the new stable webiste, `git checkout -b stable-website`
+3. Create the new stable website, `git checkout -b stable-website`
 4. `git push origin stable-website`
 5. In Slack run, `hashibot deploy nomad`

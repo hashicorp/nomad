@@ -49,7 +49,7 @@ func DefaultResources() *Resources {
 // IN nomad/structs/structs.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      helper.IntToPtr(100),
+		CPU:      helper.IntToPtr(20),
 		MemoryMB: helper.IntToPtr(10),
 		IOPS:     helper.IntToPtr(0),
 	}

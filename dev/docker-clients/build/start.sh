@@ -1,5 +1,5 @@
 #!/usr/local/bin/dumb-init /bin/sh
-# Script created following Hashicorp's model for Consul: 
+# Script created following HashiCorp's model for Consul: 
 # https://github.com/hashicorp/docker-consul/blob/master/0.X/docker-entrypoint.sh
 # Comments in this file originate from the project above, simply replacing 'Consul' with 'Nomad'.
 set -e
@@ -16,7 +16,7 @@ set -e
 NOMAD_DATA_DIR=/nomad/data
 NOMAD_CONFIG_DIR=/etc/nomad
 
-# You can also set the NOMAD_LOCAL_CONFIG environemnt variable to pass some
+# You can also set the NOMAD_LOCAL_CONFIG environment variable to pass some
 # Nomad configuration JSON without having to bind any volumes.
 if [ -n "$NOMAD_LOCAL_CONFIG" ]; then
 	echo "$NOMAD_LOCAL_CONFIG" > "$NOMAD_CONFIG_DIR/local.json"

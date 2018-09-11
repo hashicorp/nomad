@@ -48,6 +48,8 @@ func (c *OperatorRaftListCommand) Synopsis() string {
 	return "Display the current Raft peer configuration"
 }
 
+func (c *OperatorRaftListCommand) Name() string { return "operator raft list-peers" }
+
 func (c *OperatorRaftListCommand) Run(args []string) int {
 	var stale bool
 
@@ -79,14 +81,14 @@ func (c *OperatorRaftListCommand) Run(args []string) int {
 	}
 
 	// Format it as a nice table.
-	result := []string{"Node|ID|Address|State|Voter"}
+	result := []string{"Node|ID|Address|State|Voter|RaftProtocol"}
 	for _, s := range reply.Servers {
 		state := "follower"
 		if s.Leader {
 			state = "leader"
 		}
-		result = append(result, fmt.Sprintf("%s|%s|%s|%s|%v",
-			s.Node, s.ID, s.Address, state, s.Voter))
+		result = append(result, fmt.Sprintf("%s|%s|%s|%s|%v|%s",
+			s.Node, s.ID, s.Address, state, s.Voter, s.RaftProtocol))
 	}
 	c.Ui.Output(columnize.SimpleFormat(result))
 

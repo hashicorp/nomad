@@ -15,7 +15,7 @@
   <div class="chart-tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
     <ol>
       {{#each _data as |datum index|}}
-        <li class="{{if (eq datum.index activeDatum.index) "active"}}">
+        <li class="{{if (eq datum.label activeDatum.label) "active"}}">
           <span class="label {{if (eq datum.value 0) "is-empty"}}">
             <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
             {{datum.label}}

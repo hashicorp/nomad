@@ -9,9 +9,9 @@ description: |-
 # Sentinel Policies HTTP API
 
 The `/sentinel/policies` and `/sentinel/policy/` endpoints are used to manage Sentinel policies.
-For more details about Sentinel policies, please see the [Sentinel Policy Guide](/guides/sentinel-policy.html).
+For more details about Sentinel policies, please see the [Sentinel Policy Guide](/guides/security/sentinel-policy.html).
 
-Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
+Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 
 ~> **Enterprise Only!** This API endpoint and functionality only exists in
 Nomad Enterprise. This is not present in the open source version of Nomad.
@@ -38,7 +38,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/sentinel/policies
+    https://localhost:4646/v1/sentinel/policies
 ```
 
 ### Sample Response
@@ -106,7 +106,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/sentinel/policy/my-policy
+    https://localhost:4646/v1/sentinel/policy/my-policy
 ```
 
 ## Read Policy
@@ -131,7 +131,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/sentinel/policy/foo
+    https://localhost:4646/v1/sentinel/policy/foo
 ```
 
 ### Sample Response
@@ -175,6 +175,6 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/sentinel/policy/foo
+    https://localhost:4646/v1/sentinel/policy/foo
 ```
 

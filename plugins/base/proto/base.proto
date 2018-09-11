@@ -1,0 +1,64 @@
+syntax = "proto3";
+package hashicorp.nomad.plugins.base.proto;
+option go_package = "proto";
+
+import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
+
+// BasePlugin is the methods that all Nomad plugins must support.
+service BasePlugin {
+
+  // PluginInfo describes the type and version of a plugin.
+  rpc PluginInfo(PluginInfoRequest) returns (PluginInfoResponse) {}
+
+  // ConfigSchema returns the schema for parsing the plugins configuration.
+  rpc ConfigSchema(ConfigSchemaRequest) returns (ConfigSchemaResponse) {}
+
+  // SetConfig is used to set the configuration.
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {}
+}
+
+// PluginType enumerates the type of plugins Nomad supports
+enum PluginType {
+  UNKNOWN = 0;
+  DRIVER = 2;
+  DEVICE = 3;
+}
+
+// PluginInfoRequest is used to request the plugins basic information.
+message PluginInfoRequest {}
+
+// PluginInfoResponse returns basic information about the plugin such
+// that Nomad can decide whether to load the plugin or not.
+message PluginInfoResponse {
+  // type indicates what type of plugin this is.
+  PluginType type = 1;
+  
+  // plugin_api_version indicates the version of the Nomad Plugin API
+  // this plugin is built against.
+  string plugin_api_version = 2;
+
+  // plugin_version is the semver version of this individual plugin.
+  // This is divorce from Nomad’s development and versioning.
+  string plugin_version = 3;
+
+  // name is the name of the plugin
+  string name = 4;
+}
+
+// ConfigSchemaRequest is used to request the configurations schema.
+message ConfigSchemaRequest {}
+
+// ConfigSchemaResponse returns the plugins configuration schema.
+message ConfigSchemaResponse {
+  // spec is the plugins configuration schema
+  hashicorp.nomad.plugins.shared.hclspec.Spec spec = 1;
+}
+
+// SetConfigRequest is used to set the configuration
+message SetConfigRequest {
+  // msgpack_config is the configuration encoded as MessagePack.
+  bytes msgpack_config = 1;    
+}
+
+// SetConfigResponse is used to respond to setting the configuration
+message SetConfigResponse {}

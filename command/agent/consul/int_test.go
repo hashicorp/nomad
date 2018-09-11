@@ -2,7 +2,6 @@ package consul_test
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,30 +10,20 @@ import (
 	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
-func testLogger() *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, "", log.LstdFlags)
-	}
-	return log.New(ioutil.Discard, "", 0)
-}
-
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
 // services and checks with Consul using an embedded Consul agent.
 func TestConsul_Integration(t *testing.T) {
-	if _, ok := driver.BuiltinDrivers["mock_driver"]; !ok {
-		t.Skip(`test requires mock_driver; run with "-tags nomad_test"`)
-	}
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
@@ -87,8 +76,17 @@ func TestConsul_Integration(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "1h",
 	}
+
 	// Choose a port that shouldn't be in use
-	task.Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "http", Value: 3}}
+	netResource := &structs.NetworkResource{
+		Device:        "eth0",
+		IP:            "127.0.0.1",
+		MBits:         50,
+		ReservedPorts: []structs.Port{{Label: "http", Value: 3}},
+	}
+	alloc.Resources.Networks[0] = netResource
+	alloc.TaskResources["web"].Networks[0] = netResource
+	task.Resources.Networks[0] = netResource
 	task.Services = []*structs.Service{
 		{
 			Name:      "httpd",
@@ -96,13 +94,12 @@ func TestConsul_Integration(t *testing.T) {
 			Tags:      []string{"nomad", "test", "http"},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      "httpd-http-check",
-					Type:      "http",
-					Path:      "/",
-					Protocol:  "http",
-					PortLabel: "http",
-					Interval:  9000 * time.Hour,
-					Timeout:   1, // fail as fast as possible
+					Name:     "httpd-http-check",
+					Type:     "http",
+					Path:     "/",
+					Protocol: "http",
+					Interval: 9000 * time.Hour,
+					Timeout:  1, // fail as fast as possible
 				},
 				{
 					Name:     "httpd-script-check",
@@ -125,7 +122,7 @@ func TestConsul_Integration(t *testing.T) {
 		},
 	}
 
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	logUpdate := func(name, state string, event *structs.TaskEvent, lazySync bool) {
 		logger.Printf("[TEST] test.updater: name=%q state=%q event=%v", name, state, event)
 	}
@@ -138,14 +135,14 @@ func TestConsul_Integration(t *testing.T) {
 	consulClient, err := consulapi.NewClient(consulConfig)
 	assert.Nil(err)
 
-	serviceClient := consul.NewServiceClient(consulClient.Agent(), true, logger)
+	serviceClient := consul.NewServiceClient(consulClient.Agent(), logger, true)
 	defer serviceClient.Shutdown() // just-in-case cleanup
 	consulRan := make(chan struct{})
 	go func() {
 		serviceClient.Run()
 		close(consulRan)
 	}()
-	tr := client.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
+	tr := taskrunner.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
 	tr.MarkReceived()
 	go tr.Run()
 	defer func() {

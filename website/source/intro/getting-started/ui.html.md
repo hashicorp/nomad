@@ -1,12 +1,12 @@
 ---
 layout: "intro"
-page_title: "Nomad Web UI"
+page_title: "Web UI"
 sidebar_current: "getting-started-ui"
 description: |-
   Visit the Nomad Web UI to inspect jobs, allocations, and more.
 ---
 
-# Nomad Web UI
+# Web UI
 
 At this point we have a fully functioning cluster with a job running in it. We have
 learned how to inspect a job using `nomad status`, next we'll learn how to inspect
@@ -48,7 +48,7 @@ for the task group.
 [![Nomad UI Task Group Detail][img-task-group-detail]][img-task-group-detail]
 
 Click on the allocation in the allocations table. This page lists all tasks for an allocation as well
-as the recent events for each task. It is similar to the `nomad alloc-status` command.
+as the recent events for each task. It is similar to the `nomad alloc status` command.
 
 [![Nomad UI Alloc Status][img-alloc-status]][img-alloc-status]
 

@@ -1,7 +1,5 @@
-import Ember from 'ember';
+import Component from '@ember/component';
 import { lazyClick } from '../helpers/lazy-click';
-
-const { Component } = Ember;
 
 export default Component.extend({
   tagName: 'tr',

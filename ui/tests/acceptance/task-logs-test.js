@@ -1,9 +1,7 @@
-import Ember from 'ember';
-import { find } from 'ember-native-dom-helpers';
+import { run } from '@ember/runloop';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
-
-const { run } = Ember;
+import TaskLogs from 'nomad-ui/tests/pages/allocations/task/logs';
 
 let allocation;
 let task;
@@ -18,13 +16,13 @@ moduleForAcceptance('Acceptance | task logs', {
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     run.later(run, run.cancelTimers, 1000);
-    visit(`/allocations/${allocation.id}/${task.name}/logs`);
+    TaskLogs.visit({ id: allocation.id, name: task.name });
   },
 });
 
 test('/allocation/:id/:task_name/logs should have a log component', function(assert) {
   assert.equal(currentURL(), `/allocations/${allocation.id}/${task.name}/logs`, 'No redirect');
-  assert.ok(find('.task-log'), 'Task log component found');
+  assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
 });
 
 test('the stdout log immediately starts streaming', function(assert) {

@@ -16,7 +16,7 @@ type EvalStatusCommand struct {
 
 func (c *EvalStatusCommand) Help() string {
 	helpText := `
-Usage: nomad eval-status [options] <evaluation>
+Usage: nomad eval status [options] <evaluation>
 
   Display information about evaluations. This command can be used to inspect the
   current status of an evaluation as well as determine the reason an evaluation
@@ -77,11 +77,13 @@ func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *EvalStatusCommand) Name() string { return "eval status" }
+
 func (c *EvalStatusCommand) Run(args []string) int {
 	var monitor, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("eval-status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -121,7 +123,8 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -139,7 +142,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	evalID = sanatizeUUIDPrefix(evalID)
+	evalID = sanitizeUUIDPrefix(evalID)
 	evals, _, err := client.Evaluations().PrefixList(evalID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying evaluation: %v", err))
@@ -207,9 +210,19 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Status Description|%s", statusDesc),
 		fmt.Sprintf("Type|%s", eval.Type),
 		fmt.Sprintf("TriggeredBy|%s", eval.TriggeredBy),
-		fmt.Sprintf("%s|%s", triggerNoun, triggerSubj),
+	}
+
+	if triggerNoun != "" && triggerSubj != "" {
+		basic = append(basic, fmt.Sprintf("%s|%s", triggerNoun, triggerSubj))
+	}
+
+	basic = append(basic,
 		fmt.Sprintf("Priority|%d", eval.Priority),
-		fmt.Sprintf("Placement Failures|%s", failureString),
+		fmt.Sprintf("Placement Failures|%s", failureString))
+
+	if !eval.WaitUntil.IsZero() {
+		basic = append(basic,
+			fmt.Sprintf("Wait Until|%s", formatTime(eval.WaitUntil)))
 	}
 
 	if verbose {

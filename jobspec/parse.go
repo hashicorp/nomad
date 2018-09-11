@@ -103,11 +103,15 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		return err
 	}
 	delete(m, "constraint")
+	delete(m, "affinity")
 	delete(m, "meta")
-	delete(m, "update")
-	delete(m, "periodic")
-	delete(m, "vault")
+	delete(m, "migrate")
 	delete(m, "parameterized")
+	delete(m, "periodic")
+	delete(m, "reschedule")
+	delete(m, "update")
+	delete(m, "vault")
+	delete(m, "spread")
 
 	// Set the ID and name to the object key
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
@@ -130,16 +134,20 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	valid := []string{
 		"all_at_once",
 		"constraint",
+		"affinity",
+		"spread",
 		"datacenters",
-		"parameterized",
 		"group",
 		"id",
 		"meta",
+		"migrate",
 		"name",
 		"namespace",
+		"parameterized",
 		"periodic",
 		"priority",
 		"region",
+		"reschedule",
 		"task",
 		"type",
 		"update",
@@ -157,6 +165,13 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		}
 	}
 
+	// Parse affinities
+	if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+		if err := parseAffinities(&result.Affinities, o); err != nil {
+			return multierror.Prefix(err, "affinity ->")
+		}
+	}
+
 	// If we have an update strategy, then parse that
 	if o := listVal.Filter("update"); len(o.Items) > 0 {
 		if err := parseUpdate(&result.Update, o); err != nil {
@@ -171,10 +186,31 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		}
 	}
 
+	// Parse spread
+	if o := listVal.Filter("spread"); len(o.Items) > 0 {
+		if err := parseSpread(&result.Spreads, o); err != nil {
+			return multierror.Prefix(err, "spread ->")
+		}
+	}
+
 	// If we have a parameterized definition, then parse that
 	if o := listVal.Filter("parameterized"); len(o.Items) > 0 {
 		if err := parseParameterizedJob(&result.ParameterizedJob, o); err != nil {
 			return multierror.Prefix(err, "parameterized ->")
+		}
+	}
+
+	// If we have a reschedule stanza, then parse that
+	if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
+		if err := parseReschedulePolicy(&result.Reschedule, o); err != nil {
+			return multierror.Prefix(err, "reschedule ->")
+		}
+	}
+
+	// If we have a migration strategy, then parse that
+	if o := listVal.Filter("migrate"); len(o.Items) > 0 {
+		if err := parseMigrate(&result.Migrate, o); err != nil {
+			return multierror.Prefix(err, "migrate ->")
 		}
 	}
 
@@ -269,12 +305,16 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		valid := []string{
 			"count",
 			"constraint",
+			"affinity",
 			"restart",
 			"meta",
 			"task",
 			"ephemeral_disk",
 			"update",
+			"reschedule",
 			"vault",
+			"migrate",
+			"spread",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -285,12 +325,15 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			return err
 		}
 		delete(m, "constraint")
+		delete(m, "affinity")
 		delete(m, "meta")
 		delete(m, "task")
 		delete(m, "restart")
 		delete(m, "ephemeral_disk")
 		delete(m, "update")
 		delete(m, "vault")
+		delete(m, "migrate")
+		delete(m, "spread")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -306,6 +349,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			}
 		}
 
+		// Parse affinities
+		if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+			if err := parseAffinities(&g.Affinities, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', affinity ->", n))
+			}
+		}
+
 		// Parse restart policy
 		if o := listVal.Filter("restart"); len(o.Items) > 0 {
 			if err := parseRestartPolicy(&g.RestartPolicy, o); err != nil {
@@ -313,6 +363,19 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			}
 		}
 
+		// Parse spread
+		if o := listVal.Filter("spread"); len(o.Items) > 0 {
+			if err := parseSpread(&g.Spreads, o); err != nil {
+				return multierror.Prefix(err, "spread ->")
+			}
+		}
+
+		// Parse reschedule policy
+		if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
+			if err := parseReschedulePolicy(&g.ReschedulePolicy, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', reschedule ->", n))
+			}
+		}
 		// Parse ephemeral disk
 		if o := listVal.Filter("ephemeral_disk"); len(o.Items) > 0 {
 			g.EphemeralDisk = &api.EphemeralDisk{}
@@ -325,6 +388,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("update"); len(o.Items) > 0 {
 			if err := parseUpdate(&g.Update, o); err != nil {
 				return multierror.Prefix(err, "update ->")
+			}
+		}
+
+		// If we have a migration strategy, then parse that
+		if o := listVal.Filter("migrate"); len(o.Items) > 0 {
+			if err := parseMigrate(&g.Migrate, o); err != nil {
+				return multierror.Prefix(err, "migrate ->")
 			}
 		}
 
@@ -401,6 +471,50 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 	}
 
 	var result api.RestartPolicy
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &result,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*final = &result
+	return nil
+}
+
+func parseReschedulePolicy(final **api.ReschedulePolicy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'reschedule' block allowed")
+	}
+
+	// Get our job object
+	obj := list.Items[0]
+
+	// Check for invalid keys
+	valid := []string{
+		"attempts",
+		"interval",
+		"unlimited",
+		"delay",
+		"max_delay",
+		"delay_function",
+	}
+	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+		return err
+	}
+
+	var result api.ReschedulePolicy
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		WeaklyTypedInput: true,
@@ -498,6 +612,82 @@ func parseConstraints(result *[]*api.Constraint, list *ast.ObjectList) error {
 	return nil
 }
 
+func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
+	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"attribute",
+			"operator",
+			"regexp",
+			"set_contains",
+			"set_contains_any",
+			"set_contains_all",
+			"value",
+			"version",
+			"weight",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		m["LTarget"] = m["attribute"]
+		m["RTarget"] = m["value"]
+		m["Operand"] = m["operator"]
+
+		// If "version" is provided, set the operand
+		// to "version" and the value to the "RTarget"
+		if affinity, ok := m[structs.ConstraintVersion]; ok {
+			m["Operand"] = structs.ConstraintVersion
+			m["RTarget"] = affinity
+		}
+
+		// If "regexp" is provided, set the operand
+		// to "regexp" and the value to the "RTarget"
+		if affinity, ok := m[structs.ConstraintRegex]; ok {
+			m["Operand"] = structs.ConstraintRegex
+			m["RTarget"] = affinity
+		}
+
+		// If "set_contains_any" is provided, set the operand
+		// to "set_contains_any" and the value to the "RTarget"
+		if affinity, ok := m[structs.ConstraintSetContaintsAny]; ok {
+			m["Operand"] = structs.ConstraintSetContaintsAny
+			m["RTarget"] = affinity
+		}
+
+		// If "set_contains_all" is provided, set the operand
+		// to "set_contains_all" and the value to the "RTarget"
+		if affinity, ok := m[structs.ConstraintSetContainsAll]; ok {
+			m["Operand"] = structs.ConstraintSetContainsAll
+			m["RTarget"] = affinity
+		}
+
+		// set_contains is a synonym of set_contains_all
+		if affinity, ok := m[structs.ConstraintSetContains]; ok {
+			m["Operand"] = structs.ConstraintSetContains
+			m["RTarget"] = affinity
+		}
+
+		// Build the affinity
+		var a api.Affinity
+		if err := mapstructure.WeakDecode(m, &a); err != nil {
+			return err
+		}
+		if a.Operand == "" {
+			a.Operand = "="
+		}
+
+		*result = append(*result, &a)
+	}
+
+	return nil
+}
+
 func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
@@ -528,6 +718,95 @@ func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error 
 	}
 	*result = &ephemeralDisk
 
+	return nil
+}
+
+func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
+	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"attribute",
+			"weight",
+			"target",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		// We need this later
+		var listVal *ast.ObjectList
+		if ot, ok := o.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("spread should be an object")
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+		delete(m, "target")
+		// Build spread
+		var s api.Spread
+		if err := mapstructure.WeakDecode(m, &s); err != nil {
+			return err
+		}
+
+		// Parse spread target
+		if o := listVal.Filter("target"); len(o.Items) > 0 {
+			if err := parseSpreadTarget(&s.SpreadTarget, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("error parsing spread target"))
+			}
+		}
+
+		*result = append(*result, &s)
+	}
+
+	return nil
+}
+
+func parseSpreadTarget(result *[]*api.SpreadTarget, list *ast.ObjectList) error {
+
+	seen := make(map[string]struct{})
+	for _, item := range list.Items {
+		n := item.Keys[0].Token.Value().(string)
+
+		// Make sure we haven't already found this
+		if _, ok := seen[n]; ok {
+			return fmt.Errorf("target '%s' defined more than once", n)
+		}
+		seen[n] = struct{}{}
+
+		// We need this later
+		var listVal *ast.ObjectList
+		if ot, ok := item.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("target should be an object")
+		}
+
+		// Check for invalid keys
+		valid := []string{
+			"percent",
+			"value",
+		}
+		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, item.Val); err != nil {
+			return err
+		}
+
+		// Decode spread target
+		var g api.SpreadTarget
+		g.Value = n
+		if err := mapstructure.WeakDecode(m, &g); err != nil {
+			return err
+		}
+		*result = append(*result, &g)
+	}
 	return nil
 }
 
@@ -578,6 +857,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"artifact",
 			"config",
 			"constraint",
+			"affinity",
 			"dispatch_payload",
 			"driver",
 			"env",
@@ -604,6 +884,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		delete(m, "artifact")
 		delete(m, "config")
 		delete(m, "constraint")
+		delete(m, "affinity")
 		delete(m, "dispatch_payload")
 		delete(m, "env")
 		delete(m, "logs")
@@ -670,6 +951,13 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			if err := parseConstraints(&t.Constraints, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf(
 					"'%s', constraint ->", n))
+			}
+		}
+
+		// Parse affinities
+		if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+			if err := parseAffinities(&t.Affinities, o); err != nil {
+				return multierror.Prefix(err, "affinity ->")
 			}
 		}
 
@@ -909,9 +1197,11 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 		valid := []string{
 			"name",
 			"tags",
+			"canary_tags",
 			"port",
 			"check",
 			"address_mode",
+			"check_restart",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -982,6 +1272,8 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"method",
 			"check_restart",
 			"address_mode",
+			"grpc_service",
+			"grpc_use_tls",
 		}
 		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
@@ -1241,8 +1533,45 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"health_check",
 		"min_healthy_time",
 		"healthy_deadline",
+		"progress_deadline",
 		"auto_revert",
 		"canary",
+	}
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		return err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           result,
+	})
+	if err != nil {
+		return err
+	}
+	return dec.Decode(m)
+}
+
+func parseMigrate(result **api.MigrateStrategy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'migrate' block allowed")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"max_parallel",
+		"health_check",
+		"min_healthy_time",
+		"healthy_deadline",
 	}
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return err

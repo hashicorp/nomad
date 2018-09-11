@@ -28,7 +28,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/regions
+    https://localhost:4646/v1/regions
 ```
 
 ### Sample Response

@@ -5,15 +5,17 @@ import (
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStatusVersion(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -44,7 +46,7 @@ func TestStatusVersion(t *testing.T) {
 
 func TestStatusPing(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -57,7 +59,7 @@ func TestStatusPing(t *testing.T) {
 
 func TestStatusLeader(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -79,7 +81,7 @@ func TestStatusLeader(t *testing.T) {
 
 func TestStatusPeers(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 
@@ -100,7 +102,7 @@ func TestStatusPeers(t *testing.T) {
 
 func TestStatusMembers(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	assert := assert.New(t)
@@ -119,7 +121,7 @@ func TestStatusMembers(t *testing.T) {
 
 func TestStatusMembers_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	assert := assert.New(t)
@@ -168,4 +170,38 @@ func TestStatusMembers_ACL(t *testing.T) {
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Status.Members", arg, &out))
 		assert.Len(out.Members, 1)
 	}
+}
+
+func TestStatus_HasClientConn(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	require := require.New(t)
+
+	arg := &structs.NodeSpecificRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     "global",
+			AllowStale: true,
+		},
+	}
+
+	// Try without setting a node id
+	var out structs.NodeConnQueryResponse
+	require.NotNil(msgpackrpc.CallWithCodec(codec, "Status.HasNodeConn", arg, &out))
+
+	// Set a bad node id
+	arg.NodeID = uuid.Generate()
+	var out2 structs.NodeConnQueryResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Status.HasNodeConn", arg, &out2))
+	require.False(out2.Connected)
+
+	// Create a connection on that node
+	s1.addNodeConn(&RPCContext{
+		NodeID: arg.NodeID,
+	})
+	var out3 structs.NodeConnQueryResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Status.HasNodeConn", arg, &out3))
+	require.True(out3.Connected)
+	require.NotZero(out3.Established)
 }

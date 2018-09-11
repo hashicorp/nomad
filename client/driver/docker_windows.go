@@ -11,3 +11,7 @@ const (
 func getPortBinding(ip string, port string) []docker.PortBinding {
 	return []docker.PortBinding{{HostIP: "", HostPort: port}}
 }
+
+func tweakCapabilities(basics, adds, drops []string) ([]string, error) {
+	return nil, nil
+}

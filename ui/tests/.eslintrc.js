@@ -5,6 +5,7 @@ module.exports = {
     selectSearch: true,
     removeMultipleOption: true,
     clearSelected: true,
+    getCodeMirrorInstance: true,
   },
   env: {
     embertest: true,

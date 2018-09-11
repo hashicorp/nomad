@@ -21,6 +21,22 @@ Vagrant.configure(2) do |config|
 		vmCfg.vm.provision "shell",
 			privileged: false,
 			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
+	end
+
+	config.vm.define "linux-ui", autostart: false, primary: false do |vmCfg|
+		vmCfg.vm.box = LINUX_BASE_BOX
+		vmCfg.vm.hostname = "linux"
+		vmCfg = configureProviders vmCfg,
+			cpus: suggestedCPUCores()
+
+		vmCfg = configureLinuxProvisioners(vmCfg)
+
+		vmCfg.vm.synced_folder '.',
+			'/opt/gopath/src/github.com/hashicorp/nomad'
+
+		vmCfg.vm.provision "shell",
+			privileged: false,
+			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
 
         # Expose the nomad api and ui to the host
         vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
@@ -121,14 +137,19 @@ def configureLinuxProvisioners(vmCfg)
 		path: './scripts/vagrant-linux-priv-rkt.sh'
 
 	vmCfg.vm.provision "shell",
-		privileged: false,
+		privileged: true,
 		path: './scripts/vagrant-linux-priv-ui.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-protoc.sh'
 
 	return vmCfg
 end
 
 def configureProviders(vmCfg, cpus: "2", memory: "2048")
 	vmCfg.vm.provider "virtualbox" do |v|
+		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
 		v.memory = memory
 		v.cpus = cpus
 	end
@@ -142,6 +163,7 @@ def configureProviders(vmCfg, cpus: "2", memory: "2048")
 	end
 
 	vmCfg.vm.provider "virtualbox" do |v|
+		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
 		v.memory = memory
 		v.cpus = cpus
 	end
@@ -154,7 +176,7 @@ def suggestedCPUCores()
 	when /darwin/
 		Integer(`sysctl -n hw.ncpu`) / 2
 	when /linux/
-		Integer(`cat /proc/cpuinfo | grep processor | wc -l`) / 2
+		Integer(`grep -c ^processor /proc/cpuinfo`) / 2
 	else
 		2
 	end

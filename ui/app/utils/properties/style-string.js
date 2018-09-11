@@ -1,6 +1,4 @@
-import Ember from 'ember';
-
-const { computed } = Ember;
+import { computed } from '@ember/object';
 
 // An Ember.Computed property for transforming an object into an
 // html compatible style attribute

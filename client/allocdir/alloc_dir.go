@@ -2,6 +2,7 @@ package allocdir
 
 import (
 	"archive/tar"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,11 +11,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"gopkg.in/tomb.v1"
-
 	"github.com/hashicorp/go-multierror"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
+	tomb "gopkg.in/tomb.v1"
 )
 
 const (
@@ -42,7 +43,7 @@ var (
 	// task.
 	TmpDirName = "tmp"
 
-	// The set of directories that exist inside eache shared alloc directory.
+	// The set of directories that exist inside each shared alloc directory.
 	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
 
 	// The name of the directory that exists inside each task directory
@@ -75,23 +76,14 @@ type AllocDir struct {
 	logger *log.Logger
 }
 
-// AllocFileInfo holds information about a file inside the AllocDir
-type AllocFileInfo struct {
-	Name     string
-	IsDir    bool
-	Size     int64
-	FileMode string
-	ModTime  time.Time
-}
-
 // AllocDirFS exposes file operations on the alloc dir
 type AllocDirFS interface {
-	List(path string) ([]*AllocFileInfo, error)
-	Stat(path string) (*AllocFileInfo, error)
+	List(path string) ([]*cstructs.AllocFileInfo, error)
+	Stat(path string) (*cstructs.AllocFileInfo, error)
 	ReadAt(path string, offset int64) (io.ReadCloser, error)
 	Snapshot(w io.Writer) error
-	BlockUntilExists(path string, t *tomb.Tomb) (chan error, error)
-	ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error)
+	BlockUntilExists(ctx context.Context, path string) (chan error, error)
+	ChangeEvents(ctx context.Context, path string, curOffset int64) (*watch.FileChanges, error)
 }
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
@@ -335,7 +327,7 @@ func (d *AllocDir) Build() error {
 }
 
 // List returns the list of files at a path relative to the alloc dir
-func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
+func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
@@ -345,11 +337,11 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	finfos, err := ioutil.ReadDir(p)
 	if err != nil {
-		return []*AllocFileInfo{}, err
+		return []*cstructs.AllocFileInfo{}, err
 	}
-	files := make([]*AllocFileInfo, len(finfos))
+	files := make([]*cstructs.AllocFileInfo, len(finfos))
 	for idx, info := range finfos {
-		files[idx] = &AllocFileInfo{
+		files[idx] = &cstructs.AllocFileInfo{
 			Name:     info.Name(),
 			IsDir:    info.IsDir(),
 			Size:     info.Size(),
@@ -361,7 +353,7 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 }
 
 // Stat returns information about the file at a path relative to the alloc dir
-func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
+func (d *AllocDir) Stat(path string) (*cstructs.AllocFileInfo, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
@@ -374,7 +366,7 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 		return nil, err
 	}
 
-	return &AllocFileInfo{
+	return &cstructs.AllocFileInfo{
 		Size:     info.Size(),
 		Name:     info.Name(),
 		IsDir:    info.IsDir(),
@@ -411,8 +403,8 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 }
 
 // BlockUntilExists blocks until the passed file relative the allocation
-// directory exists. The block can be cancelled with the passed tomb.
-func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, error) {
+// directory exists. The block can be cancelled with the passed context.
+func (d *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan error, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
@@ -423,6 +415,11 @@ func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, erro
 	p := filepath.Join(d.AllocDir, path)
 	watcher := getFileWatcher(p)
 	returnCh := make(chan error, 1)
+	t := &tomb.Tomb{}
+	go func() {
+		<-ctx.Done()
+		t.Kill(nil)
+	}()
 	go func() {
 		returnCh <- watcher.BlockUntilExists(t)
 		close(returnCh)
@@ -431,14 +428,20 @@ func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, erro
 }
 
 // ChangeEvents watches for changes to the passed path relative to the
-// allocation directory. The offset should be the last read offset. The tomb is
+// allocation directory. The offset should be the last read offset. The context is
 // used to clean up the watch.
-func (d *AllocDir) ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error) {
+func (d *AllocDir) ChangeEvents(ctx context.Context, path string, curOffset int64) (*watch.FileChanges, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
 	}
+
+	t := &tomb.Tomb{}
+	go func() {
+		<-ctx.Done()
+		t.Kill(nil)
+	}()
 
 	// Get the path relative to the alloc directory
 	p := filepath.Join(d.AllocDir, path)

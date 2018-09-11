@@ -35,7 +35,7 @@ Usage: nomad quota init
 Init Options:
 
   -json
-    Create an example JSON quota specification. 
+    Create an example JSON quota specification.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -54,9 +54,11 @@ func (c *QuotaInitCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
+func (c *QuotaInitCommand) Name() string { return "quota init" }
+
 func (c *QuotaInitCommand) Run(args []string) int {
 	var jsonOutput bool
-	flags := c.Meta.FlagSet("quota init", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&jsonOutput, "json", false, "")
 
@@ -67,7 +69,8 @@ func (c *QuotaInitCommand) Run(args []string) int {
 	// Check that we get no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

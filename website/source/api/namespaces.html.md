@@ -38,12 +38,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/namespaces
+    https://localhost:4646/v1/namespaces
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/namespaces?prefix=prod
+    https://localhost:4646/v1/namespaces?prefix=prod
 ```
 
 ### Sample Response
@@ -89,7 +89,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/namespace/api-prod
+    https://localhost:4646/v1/namespace/api-prod
 ```
 
 ### Sample Response
@@ -143,14 +143,14 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @namespace.json \
-    https://nomad.rocks/v1/namespace/api-prod
+    https://localhost:4646/v1/namespace/api-prod
 ```
 
 ```text
 $ curl \
     --request POST \
     --data @namespace.json \
-    https://nomad.rocks/v1/namespace
+    https://localhost:4646/v1/namespace
 ```
 
 ## Delete Namespace
@@ -178,5 +178,5 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/namespace/api-prod
+    https://localhost:4646/v1/namespace/api-prod
 ```

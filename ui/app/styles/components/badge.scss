@@ -33,4 +33,13 @@
   &.is-faded {
     color: rgba($text, 0.8);
   }
+
+  &.is-small {
+    padding: 0.15em 0.5em;
+  }
+
+  &.is-secondary {
+    color: darken($grey-blue, 30%);
+    background: lighten($grey-blue, 10%);
+  }
 }

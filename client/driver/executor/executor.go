@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -28,6 +29,8 @@ import (
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 
+	syslog "github.com/RackSec/srslog"
+
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
@@ -37,6 +40,11 @@ const (
 	// tree for finding out the pids that the executor and it's child processes
 	// have forked
 	pidScanInterval = 5 * time.Second
+
+	// processOutputCloseTolerance is the length of time we will wait for the
+	// launched process to close its stdout/stderr before we force close it. If
+	// data is written after this tolerance, we will not capture it.
+	processOutputCloseTolerance = 2 * time.Second
 )
 
 var (
@@ -110,6 +118,11 @@ type ExecCommand struct {
 	// ResourceLimits determines whether resource limits are enforced by the
 	// executor.
 	ResourceLimits bool
+
+	// Cgroup marks whether we put the process in a cgroup. Setting this field
+	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
+	// Using the cgroup does allow more precise cleanup of processes.
+	BasicProcessCgroup bool
 }
 
 // ProcessState holds information about the state of a user process.
@@ -129,7 +142,7 @@ type nomadPid struct {
 	cpuStatsSys   *stats.CpuStats
 }
 
-// SyslogServerState holds the address and islation information of a launched
+// SyslogServerState holds the address and isolation information of a launched
 // syslog server
 type SyslogServerState struct {
 	IsolationConfig *dstructs.IsolationConfig
@@ -159,8 +172,8 @@ type UniversalExecutor struct {
 	processExited       chan interface{}
 	fsIsolationEnforced bool
 
-	lre         *logging.FileRotator
-	lro         *logging.FileRotator
+	lre         *logRotatorWrapper
+	lro         *logRotatorWrapper
 	rotatorLock sync.Mutex
 
 	syslogServer *logging.SyslogServer
@@ -207,7 +220,7 @@ func (e *UniversalExecutor) SetContext(ctx *ExecutorContext) error {
 // LaunchCmd launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Printf("[DEBUG] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
+	e.logger.Printf("[INFO] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
 
 	// Ensure the context has been set first
 	if e.ctx == nil {
@@ -227,6 +240,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	// set the task dir as the working directory for the command
 	e.cmd.Dir = e.ctx.TaskDir
 
+	// start command in separate process group
+	if err := e.setNewProcessGroup(); err != nil {
+		return nil, err
+	}
+
 	// configuring the chroot, resource container, and start the plugin
 	// process in the chroot.
 	if err := e.configureIsolation(); err != nil {
@@ -244,8 +262,8 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	if err := e.configureLoggers(); err != nil {
 		return nil, err
 	}
-	e.cmd.Stdout = e.lro
-	e.cmd.Stderr = e.lre
+	e.cmd.Stdout = e.lro.processOutWriter
+	e.cmd.Stderr = e.lre.processOutWriter
 
 	// Look up the binary path and make it executable
 	absPath, err := e.lookupBin(e.ctx.TaskEnv.ReplaceEnv(command.Cmd))
@@ -277,6 +295,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	if err := e.cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.cmd.Args, err)
 	}
+
+	// Close the files. This is copied from the os/exec package.
+	e.lro.processOutWriter.Close()
+	e.lre.processOutWriter.Close()
+
 	go e.collectPids()
 	go e.wait()
 	ic := e.resConCtx.getIsolationConfig()
@@ -340,7 +363,12 @@ func (e *UniversalExecutor) configureLoggers() error {
 		if err != nil {
 			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.Task.Name, err)
 		}
-		e.lro = lro
+
+		r, err := newLogRotatorWrapper(e.logger, lro)
+		if err != nil {
+			return err
+		}
+		e.lro = r
 	}
 
 	if e.lre == nil {
@@ -349,7 +377,12 @@ func (e *UniversalExecutor) configureLoggers() error {
 		if err != nil {
 			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.Task.Name, err)
 		}
-		e.lre = lre
+
+		r, err := newLogRotatorWrapper(e.logger, lre)
+		if err != nil {
+			return err
+		}
+		e.lre = r
 	}
 	return nil
 }
@@ -367,14 +400,14 @@ func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error 
 	if e.lro == nil {
 		return fmt.Errorf("log rotator for stdout doesn't exist")
 	}
-	e.lro.MaxFiles = logConfig.MaxFiles
-	e.lro.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+	e.lro.rotatorWriter.MaxFiles = logConfig.MaxFiles
+	e.lro.rotatorWriter.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
 
 	if e.lre == nil {
 		return fmt.Errorf("log rotator for stderr doesn't exist")
 	}
-	e.lre.MaxFiles = logConfig.MaxFiles
-	e.lre.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+	e.lre.rotatorWriter.MaxFiles = logConfig.MaxFiles
+	e.lre.rotatorWriter.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
 	return nil
 }
 
@@ -385,10 +418,10 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.rotatorLock.Lock()
 	if e.lro != nil && e.lre != nil {
 		fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
-		e.lro.MaxFiles = task.LogConfig.MaxFiles
-		e.lro.FileSize = fileSize
-		e.lre.MaxFiles = task.LogConfig.MaxFiles
-		e.lre.FileSize = fileSize
+		e.lro.rotatorWriter.MaxFiles = task.LogConfig.MaxFiles
+		e.lro.rotatorWriter.FileSize = fileSize
+		e.lre.rotatorWriter.MaxFiles = task.LogConfig.MaxFiles
+		e.lre.rotatorWriter.FileSize = fileSize
 	}
 	e.rotatorLock.Unlock()
 	return nil
@@ -425,7 +458,7 @@ func (e *UniversalExecutor) wait() {
 			}
 		}
 	} else {
-		e.logger.Printf("[DEBUG] executor: unexpected Wait() error type: %v", err)
+		e.logger.Printf("[WARN] executor: unexpected Cmd.Wait() error type: %v", err)
 	}
 
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
@@ -435,10 +468,14 @@ var (
 	// finishedErr is the error message received when trying to kill and already
 	// exited process.
 	finishedErr = "os: process already finished"
+
+	// noSuchProcessErr is the error message received when trying to kill a non
+	// existing process (e.g. when killing a process group).
+	noSuchProcessErr = "no such process"
 )
 
 // ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
-// reminants of a child UniversalExecutor.
+// remnants of a child UniversalExecutor.
 func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
 	return clientCleanup(ic, pid)
 }
@@ -465,18 +502,18 @@ func (e *UniversalExecutor) Exit() error {
 	}
 
 	// Prefer killing the process via the resource container.
-	if e.cmd.Process != nil && !e.command.ResourceLimits {
+	if e.cmd.Process != nil && !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
 				e.cmd.Process.Pid, err)
-		} else if err := proc.Kill(); err != nil && err.Error() != finishedErr {
+		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
 		}
 	}
 
-	if e.command.ResourceLimits {
+	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
 		if err := e.resConCtx.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
@@ -493,27 +530,7 @@ func (e *UniversalExecutor) ShutDown() error {
 	if err != nil {
 		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
 	}
-	if runtime.GOOS == "windows" {
-		if err := proc.Kill(); err != nil && err.Error() != finishedErr {
-			return err
-		}
-		return nil
-	}
-
-	// Set default kill signal, as some drivers don't support configurable
-	// signals (such as rkt)
-	var osSignal os.Signal
-	if e.command.TaskKillSignal != nil {
-		osSignal = e.command.TaskKillSignal
-	} else {
-		osSignal = os.Interrupt
-	}
-
-	if err = proc.Signal(osSignal); err != nil && err.Error() != finishedErr {
-		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-
-	return nil
+	return e.shutdownProcess(proc)
 }
 
 // pidStats returns the resource usage stats per pid
@@ -787,4 +804,124 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	}
 
 	return nil
+}
+
+func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
+	// Ensure the context has been set first
+	if e.ctx == nil {
+		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
+	}
+
+	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
+	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
+	if err != nil {
+		return nil, err
+	}
+	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
+	if err := e.configureLoggers(); err != nil {
+		return nil, err
+	}
+
+	e.syslogServer = logging.NewSyslogServer(l, e.syslogChan, e.logger)
+	go e.syslogServer.Start()
+	go e.collectLogs(e.lre.rotatorWriter, e.lro.rotatorWriter)
+	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
+	return &SyslogServerState{Addr: syslogAddr}, nil
+}
+
+func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
+	for logParts := range e.syslogChan {
+		// If the severity of the log line is err then we write to stderr
+		// otherwise all messages go to stdout
+		if logParts.Severity == syslog.LOG_ERR {
+			we.Write(logParts.Message)
+			we.Write([]byte{'\n'})
+		} else {
+			wo.Write(logParts.Message)
+			wo.Write([]byte{'\n'})
+		}
+	}
+}
+
+// logRotatorWrapper wraps our log rotator and exposes a pipe that can feed the
+// log rotator data. The processOutWriter should be attached to the process and
+// data will be copied from the reader to the rotator.
+type logRotatorWrapper struct {
+	processOutWriter  *os.File
+	processOutReader  *os.File
+	rotatorWriter     *logging.FileRotator
+	hasFinishedCopied chan struct{}
+	logger            *log.Logger
+}
+
+// newLogRotatorWrapper takes a rotator and returns a wrapper that has the
+// processOutWriter to attach to the processes stdout or stderr.
+func newLogRotatorWrapper(logger *log.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create os.Pipe for extracting logs: %v", err)
+	}
+
+	wrap := &logRotatorWrapper{
+		processOutWriter:  w,
+		processOutReader:  r,
+		rotatorWriter:     rotator,
+		hasFinishedCopied: make(chan struct{}),
+		logger:            logger,
+	}
+	wrap.start()
+	return wrap, nil
+}
+
+// start starts a go-routine that copies from the pipe into the rotator. This is
+// called by the constructor and not the user of the wrapper.
+func (l *logRotatorWrapper) start() {
+	go func() {
+		defer close(l.hasFinishedCopied)
+		_, err := io.Copy(l.rotatorWriter, l.processOutReader)
+		if err != nil {
+			// Close reader to propagate io error across pipe.
+			// Note that this may block until the process exits on
+			// Windows due to
+			// https://github.com/PowerShell/PowerShell/issues/4254
+			// or similar issues. Since this is already running in
+			// a goroutine its safe to block until the process is
+			// force-killed.
+			l.processOutReader.Close()
+		}
+	}()
+	return
+}
+
+// Close closes the rotator and the process writer to ensure that the Wait
+// command exits.
+func (l *logRotatorWrapper) Close() {
+	// Wait up to the close tolerance before we force close
+	select {
+	case <-l.hasFinishedCopied:
+	case <-time.After(processOutputCloseTolerance):
+	}
+
+	// Closing the read side of a pipe may block on Windows if the process
+	// is being debugged as in:
+	// https://github.com/PowerShell/PowerShell/issues/4254
+	// The pipe will be closed and cleaned up when the process exits.
+	closeDone := make(chan struct{})
+	go func() {
+		defer close(closeDone)
+		err := l.processOutReader.Close()
+		if err != nil && !strings.Contains(err.Error(), "file already closed") {
+			l.logger.Printf("[WARN] executor: error closing read-side of process output pipe: %v", err)
+		}
+
+	}()
+
+	select {
+	case <-closeDone:
+	case <-time.After(processOutputCloseTolerance):
+		l.logger.Printf("[WARN] executor: timed out waiting for read-side of process output pipe to close")
+	}
+
+	l.rotatorWriter.Close()
+	return
 }

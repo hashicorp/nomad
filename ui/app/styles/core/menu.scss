@@ -13,11 +13,24 @@
         background: transparent;
         box-shadow: inset -3px 0 0 $blue;
         color: $blue;
+
+        .icon {
+          fill: $blue;
+        }
+      }
+
+      .icon {
+        margin-right: 0.5em;
+        fill: lighten($text, 30%);
       }
     }
 
     .menu-item {
       margin: 0.5rem 1.5rem;
+
+      &.is-wide {
+        margin: 0.5rem 1rem;
+      }
     }
   }
 
@@ -33,6 +46,14 @@
     }
 
     &:not(:first-child) {
+      border-top: 1px solid $grey-blue;
+    }
+  }
+
+  .collapsed-only + .menu-label {
+    border-top: none;
+
+    @media #{$mq-hidden-gutter} {
       border-top: 1px solid $grey-blue;
     }
   }

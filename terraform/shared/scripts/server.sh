@@ -7,7 +7,7 @@ CONFIGDIR=/ops/shared/config
 CONSULCONFIGDIR=/etc/consul.d
 VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
-HADOOP_VERSION=hadoop-2.7.4
+HADOOP_VERSION=hadoop-2.7.6
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
@@ -20,6 +20,7 @@ DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print
 CLOUD=$1
 SERVER_COUNT=$2
 RETRY_JOIN=$3
+NOMAD_BINARY=$4
 
 # Consul
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul.json
@@ -41,6 +42,15 @@ sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
 sudo systemctl start vault.service
 
 # Nomad
+
+## Replace existing Nomad binary if remote file exists
+if [[ `wget -S --spider $NOMAD_BINARY  2>&1 | grep 'HTTP/1.1 200 OK'` ]]; then
+  curl -L $NOMAD_BINARY > nomad.zip
+  sudo unzip -o nomad.zip -d /usr/local/bin
+  sudo chmod 0755 /usr/local/bin/nomad
+  sudo chown root:root /usr/local/bin/nomad
+fi
+
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/nomad.hcl
 sudo cp $CONFIGDIR/nomad.hcl $NOMADCONFIGDIR
 sudo cp $CONFIGDIR/nomad.service /etc/systemd/system/nomad.service

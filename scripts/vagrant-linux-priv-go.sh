@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 function install_go() {
-	local go_version=1.9.2
+	local go_version=1.10.2
 	local download=
-	
+
 	download="https://storage.googleapis.com/golang/go${go_version}.linux-amd64.tar.gz"
 
 	if [ -d /usr/local/go ] ; then

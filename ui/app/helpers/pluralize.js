@@ -1,6 +1,4 @@
-import Ember from 'ember';
-
-const { Helper } = Ember;
+import Helper from '@ember/component/helper';
 
 export function pluralize([term, count]) {
   return count === 1 ? term : term.pluralize();

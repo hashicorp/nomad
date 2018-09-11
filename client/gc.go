@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -66,7 +67,7 @@ type AllocGarbageCollector struct {
 func NewAllocGarbageCollector(logger *log.Logger, statsCollector stats.NodeStatsCollector, ac AllocCounter, config *GCConfig) *AllocGarbageCollector {
 	// Require at least 1 to make progress
 	if config.ParallelDestroys <= 0 {
-		logger.Printf("[WARN] client.gc: garbage collector defaulting parallism to 1 due to invalid input value of %d", config.ParallelDestroys)
+		logger.Printf("[WARN] client.gc: garbage collector defaulting parallelism to 1 due to invalid input value of %d", config.ParallelDestroys)
 		config.ParallelDestroys = 1
 	}
 
@@ -169,7 +170,7 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 // destroyAllocRunner is used to destroy an allocation runner. It will acquire a
 // lock to restrict parallelism and then destroy the alloc runner, returning
 // once the allocation has been destroyed.
-func (a *AllocGarbageCollector) destroyAllocRunner(ar *AllocRunner, reason string) {
+func (a *AllocGarbageCollector) destroyAllocRunner(ar *allocrunner.AllocRunner, reason string) {
 	id := "<nil>"
 	if alloc := ar.Alloc(); alloc != nil {
 		id = alloc.ID
@@ -212,7 +213,7 @@ func (a *AllocGarbageCollector) Collect(allocID string) bool {
 	return false
 }
 
-// CollectAll garbage collects all termianated allocations on a node
+// CollectAll garbage collects all terminated allocations on a node
 func (a *AllocGarbageCollector) CollectAll() {
 	for {
 		select {
@@ -327,7 +328,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 }
 
 // MarkForCollection starts tracking an allocation for Garbage Collection
-func (a *AllocGarbageCollector) MarkForCollection(ar *AllocRunner) {
+func (a *AllocGarbageCollector) MarkForCollection(ar *allocrunner.AllocRunner) {
 	if ar.Alloc() == nil {
 		a.destroyAllocRunner(ar, "alloc is nil")
 		return
@@ -342,7 +343,7 @@ func (a *AllocGarbageCollector) MarkForCollection(ar *AllocRunner) {
 // a PQ
 type GCAlloc struct {
 	timeStamp   time.Time
-	allocRunner *AllocRunner
+	allocRunner *allocrunner.AllocRunner
 	index       int
 }
 
@@ -396,7 +397,7 @@ func NewIndexedGCAllocPQ() *IndexedGCAllocPQ {
 
 // Push an alloc runner into the GC queue. Returns true if alloc was added,
 // false if the alloc already existed.
-func (i *IndexedGCAllocPQ) Push(ar *AllocRunner) bool {
+func (i *IndexedGCAllocPQ) Push(ar *allocrunner.AllocRunner) bool {
 	i.pqLock.Lock()
 	defer i.pqLock.Unlock()
 

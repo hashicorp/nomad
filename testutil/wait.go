@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -18,7 +19,7 @@ type testFn func() (bool, error)
 type errorFn func(error)
 
 func WaitForResult(test testFn, error errorFn) {
-	WaitForResultRetries(2000*TestMultiplier(), test, error)
+	WaitForResultRetries(500*TestMultiplier(), test, error)
 }
 
 func WaitForResultRetries(retries int64, test testFn, error errorFn) {
@@ -56,10 +57,15 @@ func AssertUntil(until time.Duration, test testFn, error errorFn) {
 // the tests are being run under.
 func TestMultiplier() int64 {
 	if IsTravis() {
-		return 3
+		return 4
 	}
 
 	return 1
+}
+
+// Timeout takes the desired timeout and increases it if running in Travis
+func Timeout(original time.Duration) time.Duration {
+	return original * time.Duration(TestMultiplier())
 }
 
 func IsTravis() bool {
@@ -69,6 +75,7 @@ func IsTravis() bool {
 
 type rpcFn func(string, interface{}, interface{}) error
 
+// WaitForLeader blocks until a leader is elected.
 func WaitForLeader(t testing.T, rpc rpcFn) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.GenericRequest{}
@@ -77,5 +84,50 @@ func WaitForLeader(t testing.T, rpc rpcFn) {
 		return leader != "", err
 	}, func(err error) {
 		t.Fatalf("failed to find leader: %v", err)
+	})
+}
+
+// WaitForRunning runs a job and blocks until it is running.
+func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) {
+	registered := false
+	WaitForResult(func() (bool, error) {
+		if !registered {
+			args := &structs.JobRegisterRequest{}
+			args.Job = job
+			args.WriteRequest.Region = "global"
+			var jobResp structs.JobRegisterResponse
+			err := rpc("Job.Register", args, &jobResp)
+			if err != nil {
+				return false, fmt.Errorf("Job.Register error: %v", err)
+			}
+
+			// Only register once
+			registered = true
+		}
+
+		args := &structs.JobSummaryRequest{}
+		args.JobID = job.ID
+		args.QueryOptions.Region = "global"
+		var resp structs.JobSummaryResponse
+		err := rpc("Job.Summary", args, &resp)
+		if err != nil {
+			return false, fmt.Errorf("Job.Summary error: %v", err)
+		}
+
+		tgs := len(job.TaskGroups)
+		summaries := len(resp.JobSummary.Summary)
+		if tgs != summaries {
+			return false, fmt.Errorf("task_groups=%d summaries=%d", tgs, summaries)
+		}
+
+		for tg, summary := range resp.JobSummary.Summary {
+			if summary.Running == 0 {
+				return false, fmt.Errorf("task_group=%s %#v", tg, resp.JobSummary.Summary)
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("job not running: %v", err)
 	})
 }

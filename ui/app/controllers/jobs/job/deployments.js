@@ -1,13 +1,7 @@
-import Ember from 'ember';
+import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-
-const { Controller, computed, inject } = Ember;
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend(WithNamespaceResetting, {
-  jobController: inject.controller('jobs.job'),
-
-  job: computed.alias('model'),
-  deployments: computed.alias('model.deployments'),
-
-  breadcrumbs: computed.alias('jobController.breadcrumbs'),
+  job: alias('model'),
 });

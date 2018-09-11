@@ -152,7 +152,7 @@ job "docs" {
 ### Batch Job
 
 This example job executes the `uptime` command on 10 Nomad clients in the fleet,
-restricting the eligble nodes to Linux machines.
+restricting the eligible nodes to Linux machines.
 
 ```hcl
 job "docs" {
@@ -212,7 +212,7 @@ job "docs" {
 When submitting this job, you would run:
 
 ```
-$ VAULT_TOKEN="..." nomad run example.nomad
+$ VAULT_TOKEN="..." nomad job run example.nomad
 ```
 
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
@@ -223,4 +223,4 @@ $ VAULT_TOKEN="..." nomad run example.nomad
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [update]: /docs/job-specification/update.html "Nomad update Job Specification"
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
-[scheduler]: /docs/runtime/schedulers.html "Nomad Scheduler Types"
+[scheduler]: /docs/schedulers.html "Nomad Scheduler Types"

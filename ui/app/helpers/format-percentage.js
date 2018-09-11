@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { helper } from '@ember/component/helper';
 
 /**
  * Percentage Calculator
@@ -35,4 +35,4 @@ function safeNumber(value) {
   return isNaN(value) ? 0 : +value;
 }
 
-export default Ember.Helper.helper(formatPercentage);
+export default helper(formatPercentage);

@@ -33,7 +33,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request PUT \
-    https://nomad.rocks/v1/system/gc
+    https://localhost:4646/v1/system/gc
 ```
 
 ## Reconcile Summaries
@@ -55,5 +55,5 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/system/reconcile/summaries
+    https://localhost:4646/v1/system/reconcile/summaries
 ```

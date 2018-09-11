@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import moment from 'moment';
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide, pickOne } from '../utils';
 
@@ -10,16 +11,20 @@ const REF_TIME = new Date();
 export default Factory.extend({
   id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
 
-  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
   jobVersion: () => faker.random.number(10),
 
+  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
   modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+
+  createIndex: () => faker.random.number({ min: 10, max: 2000 }),
+  createTime() {
+    return faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000;
+  },
+
+  namespace: null,
 
   clientStatus: faker.list.random(...CLIENT_STATUSES),
   desiredStatus: faker.list.random(...DESIRED_STATUSES),
-
-  // Meta property for hinting at task events
-  useMessagePassthru: false,
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
@@ -57,6 +62,63 @@ export default Factory.extend({
     },
   }),
 
+  rescheduleAttempts: 0,
+  rescheduleSuccess: false,
+
+  rescheduled: trait({
+    // Create another allocation carrying the events of this as well as the reschduleSuccess state.
+    // Pass along rescheduleAttempts after decrementing.
+    // After rescheduleAttempts hits zero, a final allocation is made with no nextAllocation and
+    // a clientStatus of failed or running, depending on rescheduleSuccess
+    afterCreate(allocation, server) {
+      const attempts = allocation.rescheduleAttempts - 1;
+      const previousEvents =
+        (allocation.rescheduleTracker && allocation.rescheduleTracker.Events) || [];
+
+      let rescheduleTime;
+      if (previousEvents.length) {
+        const lastEvent = previousEvents[previousEvents.length - 1];
+        rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(5, 'minutes');
+      } else {
+        rescheduleTime = faker.date.past(2 / 365, REF_TIME);
+      }
+
+      rescheduleTime *= 1000000;
+
+      const rescheduleTracker = {
+        Events: previousEvents.concat([
+          {
+            PrevAllocID: allocation.id,
+            PrevNodeID: null, //allocation.node.id,
+            RescheduleTime: rescheduleTime,
+          },
+        ]),
+      };
+
+      let nextAllocation;
+      if (attempts > 0) {
+        nextAllocation = server.create('allocation', 'rescheduled', {
+          rescheduleAttempts: Math.max(attempts, 0),
+          rescheduleSuccess: allocation.rescheduleSuccess,
+          previousAllocation: allocation.id,
+          clientStatus: 'failed',
+          rescheduleTracker,
+          followupEvalId: server.create('evaluation', {
+            waitUntil: rescheduleTime,
+          }).id,
+        });
+      } else {
+        nextAllocation = server.create('allocation', {
+          previousAllocation: allocation.id,
+          clientStatus: allocation.rescheduleSuccess ? 'running' : 'failed',
+          rescheduleTracker,
+        });
+      }
+
+      allocation.update({ nextAllocation: nextAllocation.id, clientStatus: 'failed' });
+    },
+  }),
+
   afterCreate(allocation, server) {
     Ember.assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',
@@ -68,6 +130,7 @@ export default Factory.extend({
     );
 
     const job = allocation.jobId ? server.db.jobs.find(allocation.jobId) : pickOne(server.db.jobs);
+    const namespace = allocation.namespace || job.namespace;
     const node = allocation.nodeId
       ? server.db.nodes.find(allocation.nodeId)
       : pickOne(server.db.nodes);
@@ -79,7 +142,6 @@ export default Factory.extend({
       server.create('task-state', {
         allocation,
         name: server.db.tasks.find(id).name,
-        useMessagePassthru: allocation.useMessagePassthru,
       })
     );
 
@@ -91,6 +153,7 @@ export default Factory.extend({
     );
 
     allocation.update({
+      namespace,
       jobId: job.id,
       nodeId: node.id,
       taskStateIds: states.mapBy('id'),

@@ -234,7 +234,7 @@ func (p PendingPlans) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-// Push is used to add a new evalution to the slice
+// Push is used to add a new evaluation to the slice
 func (p *PendingPlans) Push(e interface{}) {
 	*p = append(*p, e.(*pendingPlan))
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -113,9 +114,9 @@ func (c *fakeChecksAPI) Checks() (map[string]*api.AgentCheck, error) {
 
 // testWatcherSetup sets up a fakeChecksAPI and a real checkWatcher with a test
 // logger and faster poll frequency.
-func testWatcherSetup() (*fakeChecksAPI, *checkWatcher) {
+func testWatcherSetup(t *testing.T) (*fakeChecksAPI, *checkWatcher) {
 	fakeAPI := newFakeChecksAPI()
-	cw := newCheckWatcher(testLogger(), fakeAPI)
+	cw := newCheckWatcher(testlog.Logger(t), fakeAPI)
 	cw.pollFreq = 10 * time.Millisecond
 	return fakeAPI, cw
 }
@@ -141,7 +142,7 @@ func TestCheckWatcher_Skip(t *testing.T) {
 	check := testCheck()
 	check.CheckRestart = nil
 
-	cw := newCheckWatcher(testLogger(), newFakeChecksAPI())
+	cw := newCheckWatcher(testlog.Logger(t), newFakeChecksAPI())
 	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check, restarter1)
 
@@ -155,7 +156,7 @@ func TestCheckWatcher_Skip(t *testing.T) {
 func TestCheckWatcher_Healthy(t *testing.T) {
 	t.Parallel()
 
-	fakeAPI, cw := testWatcherSetup()
+	fakeAPI, cw := testWatcherSetup(t)
 
 	check1 := testCheck()
 	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check1)
@@ -190,7 +191,7 @@ func TestCheckWatcher_Healthy(t *testing.T) {
 func TestCheckWatcher_HealthyWarning(t *testing.T) {
 	t.Parallel()
 
-	fakeAPI, cw := testWatcherSetup()
+	fakeAPI, cw := testWatcherSetup(t)
 
 	check1 := testCheck()
 	check1.CheckRestart.Limit = 1
@@ -218,7 +219,7 @@ func TestCheckWatcher_HealthyWarning(t *testing.T) {
 func TestCheckWatcher_Flapping(t *testing.T) {
 	t.Parallel()
 
-	fakeAPI, cw := testWatcherSetup()
+	fakeAPI, cw := testWatcherSetup(t)
 
 	check1 := testCheck()
 	check1.CheckRestart.Grace = 0
@@ -247,7 +248,7 @@ func TestCheckWatcher_Flapping(t *testing.T) {
 func TestCheckWatcher_Unwatch(t *testing.T) {
 	t.Parallel()
 
-	fakeAPI, cw := testWatcherSetup()
+	fakeAPI, cw := testWatcherSetup(t)
 
 	// Unwatch immediately
 	check1 := testCheck()
@@ -276,7 +277,7 @@ func TestCheckWatcher_Unwatch(t *testing.T) {
 func TestCheckWatcher_MultipleChecks(t *testing.T) {
 	t.Parallel()
 
-	fakeAPI, cw := testWatcherSetup()
+	fakeAPI, cw := testWatcherSetup(t)
 
 	check1 := testCheck()
 	check1.CheckRestart.Limit = 1

@@ -1,9 +1,9 @@
-import Ember from 'ember';
+import { none } from '@ember/object/computed';
+import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragment, fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
-
-const { computed } = Ember;
 
 export default Fragment.extend({
   name: attr('string'),
@@ -12,12 +12,21 @@ export default Fragment.extend({
   finishedAt: attr('date'),
   failed: attr('boolean'),
 
-  isActive: computed.none('finishedAt'),
+  isActive: none('finishedAt'),
 
   allocation: fragmentOwner(),
   task: computed('allocation.taskGroup.tasks.[]', function() {
     const tasks = this.get('allocation.taskGroup.tasks');
     return tasks && tasks.findBy('name', this.get('name'));
+  }),
+
+  driver: alias('task.driver'),
+
+  // TaskState represents a task running on a node, so in addition to knowing the
+  // driver via the task, the health of the driver is also known via the node
+  driverStatus: computed('task.driver', 'allocation.node.drivers.[]', function() {
+    const nodeDrivers = this.get('allocation.node.drivers') || [];
+    return nodeDrivers.findBy('name', this.get('task.driver'));
   }),
 
   resources: fragment('resources'),

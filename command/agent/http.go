@@ -11,6 +11,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/NYTimes/gziphandler"
@@ -47,11 +48,12 @@ var (
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
-	agent    *Agent
-	mux      *http.ServeMux
-	listener net.Listener
-	logger   *log.Logger
-	Addr     string
+	agent      *Agent
+	mux        *http.ServeMux
+	listener   net.Listener
+	listenerCh chan struct{}
+	logger     *log.Logger
+	Addr       string
 }
 
 // NewHTTPServer starts new HTTP server over the agent
@@ -68,15 +70,11 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// If TLS is enabled, wrap the listener with a TLS listener
 	if config.TLSConfig.EnableHTTP {
-		tlsConf := &tlsutil.Config{
-			VerifyIncoming:       config.TLSConfig.VerifyHTTPSClient,
-			VerifyOutgoing:       true,
-			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
-			CAFile:               config.TLSConfig.CAFile,
-			CertFile:             config.TLSConfig.CertFile,
-			KeyFile:              config.TLSConfig.KeyFile,
-			KeyLoader:            config.TLSConfig.GetKeyLoader(),
+		tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
+		if err != nil {
+			return nil, err
 		}
+
 		tlsConfig, err := tlsConf.IncomingTLSConfig()
 		if err != nil {
 			return nil, err
@@ -89,11 +87,12 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// Create the server
 	srv := &HTTPServer{
-		agent:    agent,
-		mux:      mux,
-		listener: ln,
-		logger:   agent.logger,
-		Addr:     ln.Addr().String(),
+		agent:      agent,
+		mux:        mux,
+		listener:   ln,
+		listenerCh: make(chan struct{}),
+		logger:     agent.logger,
+		Addr:       ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
 
@@ -103,7 +102,10 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		return nil, err
 	}
 
-	go http.Serve(ln, gzip(mux))
+	go func() {
+		defer close(srv.listenerCh)
+		http.Serve(ln, gzip(mux))
+	}()
 
 	return srv, nil
 }
@@ -130,12 +132,14 @@ func (s *HTTPServer) Shutdown() {
 	if s != nil {
 		s.logger.Printf("[DEBUG] http: Shutting down http server")
 		s.listener.Close()
+		<-s.listenerCh // block until http.Serve has returned.
 	}
 }
 
 // registerHandlers is used to attach our handlers to the mux
 func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
+	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
 
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))
@@ -182,7 +186,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
 
-	s.mux.HandleFunc("/v1/operator/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
+	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
 
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
@@ -272,7 +278,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Printf("[DEBUG] http: Request %v (%v)", reqURL, time.Now().Sub(start))
+			s.logger.Printf("[DEBUG] http: Request %v %v (%v)", req.Method, reqURL, time.Now().Sub(start))
 		}()
 		obj, err := handler(resp, req)
 
@@ -281,17 +287,22 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		if err != nil {
 			s.logger.Printf("[ERR] http: Request %v, error: %v", reqURL, err)
 			code := 500
+			errMsg := err.Error()
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
 			} else {
-				switch err.Error() {
-				case structs.ErrPermissionDenied.Error(), structs.ErrTokenNotFound.Error():
+				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
+				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
+					errMsg = structs.ErrPermissionDenied.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
+					errMsg = structs.ErrTokenNotFound.Error()
 					code = 403
 				}
 			}
 
 			resp.WriteHeader(code)
-			resp.Write([]byte(err.Error()))
+			resp.Write([]byte(errMsg))
 			return
 		}
 
@@ -442,7 +453,7 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	return parseWait(resp, req, b)
 }
 
-// parseWriteRequest is a convience method for endpoints that need to parse a
+// parseWriteRequest is a convenience method for endpoints that need to parse a
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
 	parseNamespace(req, &w.Namespace)

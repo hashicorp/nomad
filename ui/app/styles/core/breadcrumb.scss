@@ -1,0 +1,17 @@
+.breadcrumb {
+  margin: 0 1.5rem;
+
+  a {
+    text-decoration: none;
+    opacity: 0.7;
+
+    &:hover {
+      text-decoration: none;
+      opacity: 1;
+    }
+  }
+
+  li.is-active a {
+    opacity: 1;
+  }
+}

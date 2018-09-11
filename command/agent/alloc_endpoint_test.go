@@ -15,11 +15,12 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_AllocsList(t *testing.T) {
@@ -78,9 +79,9 @@ func TestHTTP_AllocsList(t *testing.T) {
 		}
 		expectedMsg := "Task's sibling failed"
 		displayMsg1 := allocs[0].TaskStates["test"].Events[0].DisplayMessage
-		assert.Equal(t, expectedMsg, displayMsg1, "DisplayMessage should be set")
+		require.Equal(t, expectedMsg, displayMsg1, "DisplayMessage should be set")
 		displayMsg2 := allocs[0].TaskStates["test"].Events[0].DisplayMessage
-		assert.Equal(t, expectedMsg, displayMsg2, "DisplayMessage should be set")
+		require.Equal(t, expectedMsg, displayMsg2, "DisplayMessage should be set")
 	})
 }
 
@@ -151,7 +152,7 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 		}
 		expectedMsg := "Task's sibling failed"
 		displayMsg1 := n[0].TaskStates["test"].Events[0].DisplayMessage
-		assert.Equal(t, expectedMsg, displayMsg1, "DisplayMessage should be set")
+		require.Equal(t, expectedMsg, displayMsg1, "DisplayMessage should be set")
 
 	})
 }
@@ -262,31 +263,77 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 
 func TestHTTP_AllocStats(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/foo", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+	require := require.New(t)
 
-		// Make the request
-		_, err = s.Server.ClientAllocRequest(respW, req)
-		if !strings.Contains(err.Error(), resourceNotFoundErr) {
-			t.Fatalf("err: %v", err)
+	httpTest(t, nil, func(s *TestAgent) {
+		// Local node, local resp
+		{
+			// Make the HTTP request
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+
+			s.server = srv
+		}
+
+		// no client, server resp
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+
+			s.client = c
 		}
 	})
 }
 
 func TestHTTP_AllocStats_ACL(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
 
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/stats", nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/stats", uuid.Generate()), nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -295,8 +342,8 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 		{
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure
@@ -305,8 +352,8 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with a valid token
@@ -317,8 +364,8 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Contains(err.Error(), "unknown allocation ID")
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
 		}
 
 		// Try request with a management token
@@ -327,8 +374,8 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			setToken(req, s.RootToken)
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Contains(err.Error(), "unknown allocation ID")
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
 		}
 	})
 }
@@ -353,35 +400,35 @@ func TestHTTP_AllocSnapshot(t *testing.T) {
 
 func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// Request without a token fails
 		req, err := http.NewRequest("GET", "/v1/client/allocation/123/snapshot", nil)
-		assert.Nil(err)
+		require.Nil(err)
 
 		// Make the unauthorized request
 		respW := httptest.NewRecorder()
 		_, err = s.Server.ClientAllocRequest(respW, req)
-		assert.NotNil(err)
-		assert.EqualError(err, structs.ErrPermissionDenied.Error())
+		require.NotNil(err)
+		require.EqualError(err, structs.ErrPermissionDenied.Error())
 
 		// Create an allocation
 		alloc := mock.Alloc()
 
-		validMigrateToken, err := nomad.GenerateMigrateToken(alloc.ID, s.Agent.Client().Node().SecretID)
-		assert.Nil(err)
+		validMigrateToken, err := structs.GenerateMigrateToken(alloc.ID, s.Agent.Client().Node().SecretID)
+		require.Nil(err)
 
 		// Request with a token succeeds
 		url := fmt.Sprintf("/v1/client/allocation/%s/snapshot", alloc.ID)
 		req, err = http.NewRequest("GET", url, nil)
-		assert.Nil(err)
+		require.Nil(err)
 
 		req.Header.Set("X-Nomad-Token", validMigrateToken)
 
 		// Make the unauthorized request
 		respW = httptest.NewRecorder()
 		_, err = s.Server.ClientAllocRequest(respW, req)
-		assert.NotContains(err.Error(), structs.ErrPermissionDenied.Error())
+		require.NotContains(err.Error(), structs.ErrPermissionDenied.Error())
 	})
 }
 
@@ -389,7 +436,10 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 // snapshotting a valid tar is not returned.
 func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpTest(t, func(c *Config) {
+		// Disable the schedulers
+		c.Server.NumSchedulers = helper.IntToPtr(0)
+	}, func(s *TestAgent) {
 		// Create an alloc
 		state := s.server.State()
 		alloc := mock.Alloc()
@@ -427,7 +477,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		// Remove the task dir to break Snapshot
 		os.RemoveAll(allocDir.TaskDirs["web"].LocalDir)
 
-		// Assert Snapshot fails
+		// require Snapshot fails
 		if err := allocDir.Snapshot(ioutil.Discard); err != nil {
 			s.logger.Printf("[DEBUG] agent.test: snapshot returned error: %v", err)
 		} else {
@@ -445,7 +495,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		}
 
 		// Make the request via the mux to make sure the error returned
-		// by Snapshot is properly propogated via HTTP
+		// by Snapshot is properly propagated via HTTP
 		s.Server.mux.ServeHTTP(respW, req)
 		resp := respW.Result()
 		r := tar.NewReader(resp.Body)
@@ -472,7 +522,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 				// Found it!
 				markerFound = true
 				buf := make([]byte, int(header.Size))
-				if _, err := r.Read(buf); err != nil {
+				if _, err := r.Read(buf); err != nil && err != io.EOF {
 					t.Errorf("Unexpected error reading error marker %s: %v", errorFilename, err)
 				} else {
 					markerContents = string(buf)
@@ -493,31 +543,84 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 
 func TestHTTP_AllocGC(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+	path := fmt.Sprintf("/v1/client/allocation/%s/gc", uuid.Generate())
 	httpTest(t, nil, func(s *TestAgent) {
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/gc", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+		// Local node, local resp
+		{
+			req, err := http.NewRequest("GET", path, nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
 
-		// Make the request
-		_, err = s.Server.ClientAllocRequest(respW, req)
-		if !strings.Contains(err.Error(), "unable to collect allocation") {
-			t.Fatalf("err: %v", err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			if !structs.IsErrUnknownAllocation(err) {
+				t.Fatalf("unexpected err: %v", err)
+			}
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			req, err := http.NewRequest("GET", path, nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			if !structs.IsErrUnknownAllocation(err) {
+				t.Fatalf("unexpected err: %v", err)
+			}
+
+			s.server = srv
+		}
+
+		// no client, server resp
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			req, err := http.NewRequest("GET", path, nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			if !structs.IsErrUnknownAllocation(err) {
+				t.Fatalf("unexpected err: %v", err)
+			}
+
+			s.client = c
 		}
 	})
 }
 
 func TestHTTP_AllocGC_ACL(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
+	path := fmt.Sprintf("/v1/client/allocation/%s/gc", uuid.Generate())
 
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/allocation/123/gc", nil)
+		req, err := http.NewRequest("GET", path, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -526,8 +629,8 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 		{
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure
@@ -536,8 +639,8 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with a valid token
@@ -548,8 +651,8 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Contains(err.Error(), "not present")
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
 		}
 
 		// Try request with a management token
@@ -558,26 +661,69 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			setToken(req, s.RootToken)
 			_, err := s.Server.ClientAllocRequest(respW, req)
-			assert.NotNil(err)
-			assert.Contains(err.Error(), "not present")
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
 		}
 	})
 }
 
 func TestHTTP_AllocAllGC(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/client/gc", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		respW := httptest.NewRecorder()
+		// Local node, local resp
+		{
+			req, err := http.NewRequest("GET", "/v1/client/gc", nil)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
 
-		// Make the request
-		_, err = s.Server.ClientGCRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientGCRequest(respW, req)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/gc?node_id=%s", uuid.Generate()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientGCRequest(respW, req)
+			require.NotNil(err)
+			require.Contains(err.Error(), "Unknown node")
+
+			s.server = srv
+		}
+
+		// client stats from server, should not error
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/gc?node_id=%s", c.NodeID()), nil)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientGCRequest(respW, req)
+			require.Nil(err)
+
+			s.client = c
 		}
 	})
 
@@ -585,20 +731,20 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 
 func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 	t.Parallel()
-	assert := assert.New(t)
+	require := require.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/client/gc", nil)
-		assert.Nil(err)
+		require.Nil(err)
 
 		// Try request without a token and expect failure
 		{
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientGCRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure
@@ -607,8 +753,8 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
 			setToken(req, token)
 			_, err := s.Server.ClientGCRequest(respW, req)
-			assert.NotNil(err)
-			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.NotNil(err)
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with a valid token
@@ -617,8 +763,8 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.NodePolicy(acl.PolicyWrite))
 			setToken(req, token)
 			_, err := s.Server.ClientGCRequest(respW, req)
-			assert.Nil(err)
-			assert.Equal(http.StatusOK, respW.Code)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
 		}
 
 		// Try request with a management token
@@ -626,9 +772,8 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			setToken(req, s.RootToken)
 			_, err := s.Server.ClientGCRequest(respW, req)
-			assert.Nil(err)
-			assert.Equal(http.StatusOK, respW.Code)
+			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
 		}
 	})
-
 }

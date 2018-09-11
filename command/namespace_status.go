@@ -37,8 +37,10 @@ func (c *NamespaceStatusCommand) Synopsis() string {
 	return "Display a namespace's status"
 }
 
+func (c *NamespaceStatusCommand) Name() string { return "namespace status" }
+
 func (c *NamespaceStatusCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("namespace status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -48,7 +50,8 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 	// Check that we got one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <namespace>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

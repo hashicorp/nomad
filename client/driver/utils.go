@@ -178,7 +178,7 @@ func GetAbsolutePath(bin string) (string, error) {
 // dstructs.DefaultUnprivilegedUser if none was given.
 func getExecutorUser(task *structs.Task) string {
 	if task.User == "" {
-		return dstructs.DefaultUnpriviledgedUser
+		return dstructs.DefaultUnprivilegedUser
 	}
 	return task.User
 }

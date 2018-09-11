@@ -1,0 +1,208 @@
+syntax = "proto3";
+package hashicorp.nomad.plugins.device;
+option go_package = "proto";
+
+import "google/protobuf/timestamp.proto";
+
+// DevicePlugin is the API exposed by device plugins
+service DevicePlugin {
+  // Fingerprint allows the device plugin to return a set of   
+  // detected devices and provide a mechanism to update the state of
+  // the device.
+  rpc Fingerprint(FingerprintRequest) returns (stream FingerprintResponse) {}
+
+  // Reserve is called by the client before starting an allocation
+  // that requires access to the plugin’s devices. The plugin can use
+  // this to run any setup steps and provides the mounting details to 
+  // the Nomad client
+  rpc Reserve(ReserveRequest) returns (ReserveResponse) {}
+
+  // Stats returns a stream of device statistics.
+  rpc Stats(StatsRequest) returns (stream StatsResponse) {}
+}
+
+// FingerprintRequest is used to request for devices to be fingerprinted.
+message FingerprintRequest {}
+
+// FingerprintResponse returns a set of detected devices.
+message FingerprintResponse {
+    // device_group is a group of devices that share a vendor, device_type, and
+    // device_name. This is returned as a set so that a single plugin could
+    // potentially detect several device types and models.
+    repeated DeviceGroup device_group = 1;
+}
+
+// DeviceGroup is a group of devices that share a vendor, device type and name.
+message DeviceGroup {
+  // vendor is the name of the vendor of the device
+  string vendor = 1;
+
+  // device_type is the type of the device (gpu, fpga, etc).
+  string device_type = 2;
+  
+  // device_name is the name of the device.
+  string device_name = 3;
+
+  // devices is the set of devices detected by the plugin.
+  repeated DetectedDevice devices = 4;
+
+  // attributes allows adding attributes to be used for constraints or
+  // affinities.
+  map<string, string> attributes = 5;
+}
+
+// DetectedDevice is a single detected device.
+message DetectedDevice {
+  // ID is the ID of the device. This ID is used during allocation and must be
+  // stable across restarts of the device driver.
+  string ID = 1;
+
+  // Health of the device.
+  bool healthy = 2;
+  
+  // health_description allows the device plugin to optionally 
+  // annotate the health field with a human readable reason.
+  string health_description = 3;
+
+  // hw_locality is optionally set to expose hardware locality information for
+  // more optimal placement decisions.
+  DeviceLocality hw_locality = 4;
+}
+
+// DeviceLocality is used to expose HW locality information about a device.
+message DeviceLocality {
+  // pci_bus_id is the PCI bus ID for the device. If reported, it
+  // allows Nomad to make NUMA aware optimizations.
+  string pci_bus_id = 1; 
+}
+
+
+// ReserveRequest is used to ask the device driver for information on 
+// how to allocate the requested devices.
+message ReserveRequest {
+  // device_ids are the requested devices.
+  repeated string device_ids = 1;
+}
+
+// ReserveResponse informs Nomad how to expose the requested devices
+// to the the task.
+message ReserveResponse {
+  // container_res contains information on how to mount the device
+  // into a task isolated using container technologies (where the 
+  // host is shared)
+  ContainerReservation container_res = 1;
+}
+
+// ContainerReservation returns how to mount the device into a 
+// container that shares the host OS.
+message ContainerReservation {
+  // List of environment variable to be set
+  map<string, string> envs = 1;
+
+  // Mounts for the task.
+  repeated Mount mounts = 2;
+
+  // Devices for the task.
+  repeated DeviceSpec devices = 3;
+}
+
+// Mount specifies a host volume to mount into a task.
+// where device library or tools are installed on host and task
+message Mount {
+  // Path of the mount within the task.
+  string task_path = 1;
+
+  // Path of the mount on the host.
+  string host_path = 2;
+
+  // If set, the mount is read-only.
+  bool read_only = 3;
+}
+
+// DeviceSpec specifies a host device to mount into a task.
+message DeviceSpec {
+  // Path of the device within the task.
+  string task_path = 1;
+
+  // Path of the device on the host.
+  string host_path = 2;
+
+  // Cgroups permissions of the device, candidates are one or more of
+  // * r - allows task to read from the specified device.
+  // * w - allows task to write to the specified device.
+  // * m - allows task to create device files that do not yet exist
+  string permissions = 3;
+}
+
+
+// StatsRequest is used to parameterize the retrieval of statistics.
+message StatsRequest {}
+
+// StatsResponse returns the statistics for each device group.
+message StatsResponse {
+  // groups contains statistics for each device group.
+  repeated DeviceGroupStats groups = 1;
+}
+
+// DeviceGroupStats contains statistics for each device of a particular
+// device group, identified by the vendor, type and name of the device.
+message DeviceGroupStats {
+  string vendor = 1;
+  string type = 2;
+  string name = 3;
+
+  // instance_stats is a mapping of each device ID to its statistics.
+  map<string, DeviceStats> instance_stats = 4;
+}
+
+// DeviceStats is the statistics for an individual device
+message DeviceStats {
+  // summary exposes a single summary metric that should be the most  
+  // informative to users.
+  StatValue summary = 1;
+
+  // stats contains the verbose statistics for the device.
+  StatObject stats = 2;
+
+  // timestamp is the time the statistics were collected.
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// StatObject is a collection of statistics either exposed at the top 
+// level or via nested StatObjects.
+message StatObject {
+  // nested is a mapping of object name to a nested stats object.
+  map<string, StatObject> nested = 1;
+
+  // attributes is a mapping of statistic name to its value.
+  map<string, StatValue> attributes  = 2;
+}
+
+// StatValue exposes the values of a particular statistic. The value may 
+// be of type double, integer, string or boolean. Numeric types can be 
+// exposed as a single value or as a fraction.
+message StatValue {
+  // float_numerator_val exposes a floating point value. If denominator 
+  // is set it is assumed to be a fractional value, otherwise it is a 
+  // scalar.
+  double float_numerator_val = 1;
+  double float_denominator_val = 2;
+
+  // int_numerator_val exposes a int value. If denominator 
+  // is set it is assumed to be a fractional value, otherwise it is a 
+  // scalar.
+  int64 int_numerator_val = 3;
+  int64 int_denominator_val = 4;
+
+  // string_val exposes a string value. These are likely annotations.
+  string string_val = 5;
+
+  // bool_val exposes a boolean statistic. 
+  bool bool_val = 6;
+  
+  // unit gives the unit type: °F, %, MHz, MB, etc.
+  string unit = 7;
+
+  // desc provides a human readable description of the statistic.
+  string desc = 8;
+}

@@ -152,6 +152,12 @@ func TestJobDiff(t *testing.T) {
 					},
 					{
 						Type: DiffTypeDeleted,
+						Name: "Dispatched",
+						Old:  "false",
+						New:  "",
+					},
+					{
+						Type: DiffTypeDeleted,
 						Name: "Meta[foo]",
 						Old:  "bar",
 						New:  "",
@@ -212,6 +218,12 @@ func TestJobDiff(t *testing.T) {
 						Name: "AllAtOnce",
 						Old:  "",
 						New:  "true",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Dispatched",
+						Old:  "",
+						New:  "false",
 					},
 					{
 						Type: DiffTypeAdded,
@@ -734,6 +746,110 @@ func TestJobDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "RTarget",
 								Old:  "bar",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Affinities edited
+			Old: &Job{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "bar",
+						RTarget: "bar",
+						Operand: "bar",
+						Weight:  20,
+						str:     "bar",
+					},
+				},
+			},
+			New: &Job{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "baz",
+						RTarget: "baz",
+						Operand: "baz",
+						Weight:  20,
+						str:     "baz",
+					},
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Operand",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Weight",
+								Old:  "",
+								New:  "20",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Operand",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Weight",
+								Old:  "20",
 								New:  "",
 							},
 						},
@@ -1292,6 +1408,110 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			// Affinities edited
+			Old: &TaskGroup{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "bar",
+						RTarget: "bar",
+						Operand: "bar",
+						Weight:  20,
+						str:     "bar",
+					},
+				},
+			},
+			New: &TaskGroup{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "baz",
+						RTarget: "baz",
+						Operand: "baz",
+						Weight:  20,
+						str:     "baz",
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Operand",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Weight",
+								Old:  "",
+								New:  "20",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Operand",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Weight",
+								Old:  "20",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// RestartPolicy added
 			Old: &TaskGroup{},
 			New: &TaskGroup{
@@ -1495,6 +1715,254 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			// ReschedulePolicy added
+			Old: &TaskGroup{},
+			New: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      1,
+					Interval:      15 * time.Second,
+					Delay:         5 * time.Second,
+					MaxDelay:      20 * time.Second,
+					DelayFunction: "exponential",
+					Unlimited:     false,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Attempts",
+								Old:  "",
+								New:  "1",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Delay",
+								Old:  "",
+								New:  "5000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DelayFunction",
+								Old:  "",
+								New:  "exponential",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Interval",
+								Old:  "",
+								New:  "15000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "MaxDelay",
+								Old:  "",
+								New:  "20000000000",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Unlimited",
+								Old:  "",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// ReschedulePolicy deleted
+			Old: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      1,
+					Interval:      15 * time.Second,
+					Delay:         5 * time.Second,
+					MaxDelay:      20 * time.Second,
+					DelayFunction: "exponential",
+					Unlimited:     false,
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Attempts",
+								Old:  "1",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Delay",
+								Old:  "5000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "DelayFunction",
+								Old:  "exponential",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Interval",
+								Old:  "15000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "MaxDelay",
+								Old:  "20000000000",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// ReschedulePolicy edited
+			Old: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      1,
+					Interval:      1 * time.Second,
+					DelayFunction: "exponential",
+					Delay:         20 * time.Second,
+					MaxDelay:      1 * time.Minute,
+					Unlimited:     false,
+				},
+			},
+			New: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts:      2,
+					Interval:      2 * time.Second,
+					DelayFunction: "constant",
+					Delay:         30 * time.Second,
+					MaxDelay:      1 * time.Minute,
+					Unlimited:     true,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Attempts",
+								Old:  "1",
+								New:  "2",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Delay",
+								Old:  "20000000000",
+								New:  "30000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "DelayFunction",
+								Old:  "exponential",
+								New:  "constant",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Interval",
+								Old:  "1000000000",
+								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "true",
+							},
+						},
+					},
+				},
+			},
+		}, {
+			// ReschedulePolicy edited with context
+			Contextual: true,
+			Old: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts: 1,
+					Interval: 1 * time.Second,
+				},
+			},
+			New: &TaskGroup{
+				ReschedulePolicy: &ReschedulePolicy{
+					Attempts: 1,
+					Interval: 2 * time.Second,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "ReschedulePolicy",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "Attempts",
+								Old:  "1",
+								New:  "1",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Delay",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "DelayFunction",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Interval",
+								Old:  "1000000000",
+								New:  "2000000000",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MaxDelay",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Unlimited",
+								Old:  "false",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Update strategy deleted
 			Old: &TaskGroup{
 				Update: &UpdateStrategy{
@@ -1536,6 +2004,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							{
 								Type: DiffTypeDeleted,
 								Name: "MinHealthyTime",
+								Old:  "0",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "ProgressDeadline",
 								Old:  "0",
 								New:  "",
 							},
@@ -1589,6 +2063,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "0",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ProgressDeadline",
+								Old:  "",
+								New:  "0",
+							},
 						},
 					},
 				},
@@ -1598,22 +2078,24 @@ func TestTaskGroupDiff(t *testing.T) {
 			// Update strategy edited
 			Old: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     5,
-					HealthCheck:     "foo",
-					MinHealthyTime:  1 * time.Second,
-					HealthyDeadline: 30 * time.Second,
-					AutoRevert:      true,
-					Canary:          2,
+					MaxParallel:      5,
+					HealthCheck:      "foo",
+					MinHealthyTime:   1 * time.Second,
+					HealthyDeadline:  30 * time.Second,
+					ProgressDeadline: 29 * time.Second,
+					AutoRevert:       true,
+					Canary:           2,
 				},
 			},
 			New: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     7,
-					HealthCheck:     "bar",
-					MinHealthyTime:  2 * time.Second,
-					HealthyDeadline: 31 * time.Second,
-					AutoRevert:      false,
-					Canary:          1,
+					MaxParallel:      7,
+					HealthCheck:      "bar",
+					MinHealthyTime:   2 * time.Second,
+					HealthyDeadline:  31 * time.Second,
+					ProgressDeadline: 32 * time.Second,
+					AutoRevert:       false,
+					Canary:           1,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1659,6 +2141,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "1000000000",
 								New:  "2000000000",
 							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ProgressDeadline",
+								Old:  "29000000000",
+								New:  "32000000000",
+							},
 						},
 					},
 				},
@@ -1669,22 +2157,24 @@ func TestTaskGroupDiff(t *testing.T) {
 			Contextual: true,
 			Old: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     5,
-					HealthCheck:     "foo",
-					MinHealthyTime:  1 * time.Second,
-					HealthyDeadline: 30 * time.Second,
-					AutoRevert:      true,
-					Canary:          2,
+					MaxParallel:      5,
+					HealthCheck:      "foo",
+					MinHealthyTime:   1 * time.Second,
+					HealthyDeadline:  30 * time.Second,
+					ProgressDeadline: 30 * time.Second,
+					AutoRevert:       true,
+					Canary:           2,
 				},
 			},
 			New: &TaskGroup{
 				Update: &UpdateStrategy{
-					MaxParallel:     7,
-					HealthCheck:     "foo",
-					MinHealthyTime:  1 * time.Second,
-					HealthyDeadline: 30 * time.Second,
-					AutoRevert:      true,
-					Canary:          2,
+					MaxParallel:      7,
+					HealthCheck:      "foo",
+					MinHealthyTime:   1 * time.Second,
+					HealthyDeadline:  30 * time.Second,
+					ProgressDeadline: 30 * time.Second,
+					AutoRevert:       true,
+					Canary:           2,
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1729,6 +2219,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "MinHealthyTime",
 								Old:  "1000000000",
 								New:  "1000000000",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "ProgressDeadline",
+								Old:  "30000000000",
+								New:  "30000000000",
 							},
 						},
 					},
@@ -2315,6 +2811,110 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "RTarget",
 								Old:  "bar",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Affinities edited",
+			Old: &Task{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "bar",
+						RTarget: "bar",
+						Operand: "bar",
+						Weight:  20,
+						str:     "bar",
+					},
+				},
+			},
+			New: &Task{
+				Affinities: []*Affinity{
+					{
+						LTarget: "foo",
+						RTarget: "foo",
+						Operand: "foo",
+						Weight:  20,
+						str:     "foo",
+					},
+					{
+						LTarget: "baz",
+						RTarget: "baz",
+						Operand: "baz",
+						Weight:  20,
+						str:     "baz",
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Operand",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "RTarget",
+								Old:  "",
+								New:  "baz",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Weight",
+								Old:  "",
+								New:  "20",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Affinity",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "LTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Operand",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RTarget",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Weight",
+								Old:  "20",
 								New:  "",
 							},
 						},
@@ -3181,6 +3781,99 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
+			Name:       "Services tags edited (no checks) with context",
+			Contextual: true,
+			Old: &Task{
+				Services: []*Service{
+					{
+						Tags:       []string{"foo", "bar"},
+						CanaryTags: []string{"foo", "bar"},
+					},
+				},
+			},
+			New: &Task{
+				Services: []*Service{
+					{
+						Tags:       []string{"bar", "bam"},
+						CanaryTags: []string{"bar", "bam"},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Service",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "CanaryTags",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "CanaryTags",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "CanaryTags",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "CanaryTags",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Tags",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Tags",
+										Old:  "",
+										New:  "bam",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Tags",
+										Old:  "bar",
+										New:  "bar",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Tags",
+										Old:  "foo",
+										New:  "",
+									},
+								},
+							},
+						},
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AddressMode",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Name",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "PortLabel",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name: "Service Checks edited",
 			Old: &Task{
 				Services: []*Service{
@@ -3311,6 +4004,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeAdded,
+										Name: "GRPCUseTLS",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "Interval",
 										Old:  "",
 										New:  "1000000000",
@@ -3361,6 +4060,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeDeleted,
 										Name: "Command",
 										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "GRPCUseTLS",
+										Old:  "false",
 										New:  "",
 									},
 									{
@@ -3518,6 +4223,18 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Command",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCService",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "GRPCUseTLS",
+										Old:  "false",
+										New:  "false",
 									},
 									{
 										Type: DiffTypeEdited,

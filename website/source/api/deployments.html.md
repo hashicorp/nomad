@@ -28,19 +28,19 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `prefix` `(string: "")`- Specifies a string to filter deployments on based on
+- `prefix` `(string: "")`- Specifies a string to filter deployments based on
   an index prefix. This is specified as a querystring parameter.
 
 ### Sample Request
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/deployments
+    https://localhost:4646/v1/deployments
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/deployments?prefix=25ba81c
+    https://localhost:4646/v1/deployments?prefix=25ba81c
 ```
 
 ### Sample Response
@@ -52,6 +52,7 @@ $ curl \
     "JobID": "example",
     "JobVersion": 1,
     "JobModifyIndex": 17,
+    "JobSpecModifyIndex": 17,
     "JobCreateIndex": 7,
     "TaskGroups": {
       "cache": {
@@ -97,7 +98,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/deployment/70638f62-5c19-193e-30d6-f9d6e689ab8e
+    https://localhost:4646/v1/deployment/70638f62-5c19-193e-30d6-f9d6e689ab8e
 ```
 
 ### Sample Response
@@ -108,6 +109,7 @@ $ curl \
   "JobID": "example",
   "JobVersion": 1,
   "JobModifyIndex": 17,
+  "JobSpecModifyIndex": 17,
   "JobCreateIndex": 7,
   "TaskGroups": {
     "cache": {
@@ -153,7 +155,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/deployment/allocations/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/deployment/allocations/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response
@@ -290,7 +292,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/deployment/fail/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/deployment/fail/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response
@@ -344,7 +346,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/deployment/pause/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/deployment/pause/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response
@@ -408,7 +410,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/deployment/promote/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/deployment/promote/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response
@@ -474,7 +476,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/deployment/allocation-health/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/deployment/allocation-health/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response

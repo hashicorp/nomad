@@ -9,13 +9,13 @@ description: |-
 # ACL Tokens HTTP API
 
 The `/acl/bootstrap`, `/acl/tokens`, and `/acl/token/` endpoints are used to manage ACL tokens.
-For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
+For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 
 ## Bootstrap Token
 
 This endpoint is used to bootstrap the ACL system and provide the initial management token.
 This request is always forwarded to the authoritative region. It can only be invoked once
-until a [bootstrap reset](/guides/acl.html#reseting-acl-bootstrap) is performed.
+until a [bootstrap reset](/guides/security/acl.html#reseting-acl-bootstrap) is performed.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
@@ -34,7 +34,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/acl/bootstrap
+    https://localhost:4646/v1/acl/bootstrap
 ```
 
 ### Sample Response
@@ -75,7 +75,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/tokens
+    https://localhost:4646/v1/acl/tokens
 ```
 
 ### Sample Response
@@ -139,7 +139,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/acl/token
+    https://localhost:4646/v1/acl/token
 ```
 
 ### Sample Response
@@ -205,7 +205,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
+    https://localhost:4646/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
 ```
 
 ### Sample Response
@@ -247,7 +247,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
+    https://localhost:4646/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
 ```
 
 ### Sample Response
@@ -290,7 +290,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
-    https://nomad.rocks/v1/acl/token/self
+    https://localhost:4646/v1/acl/token/self
 ```
 
 ### Sample Response
@@ -337,6 +337,6 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
+    https://localhost:4646/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
 ```
 
