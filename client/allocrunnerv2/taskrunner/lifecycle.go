@@ -16,8 +16,8 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 		return ErrTaskNotRunning
 	}
 
-	// Append the event (it will get emitted by UpdateState)
-	tr.AppendEvent(event)
+	// Emit the event since it may take a long time to kill
+	tr.EmitEvent(event)
 
 	// Tell the restart tracker that a restart triggered the exit
 	tr.restartTracker.SetRestartTriggered(failure)
@@ -66,8 +66,8 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 		return ErrTaskNotRunning
 	}
 
-	// Append the event (it will get emitted by UpdateState)
-	tr.AppendEvent(event)
+	// Emit the event since it may take a long time to kill
+	tr.EmitEvent(event)
 
 	// Run the hooks prior to killing the task
 	tr.kill()
