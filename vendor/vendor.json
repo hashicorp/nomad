@@ -7,7 +7,7 @@
 		{"path":"github.com/Azure/go-ansiterm","checksumSHA1":"9NFR6RG8H2fNyKHscGmuGLQhRm4=","revision":"d6e3b3328b783f23731bc4d058875b0371ff8109","revisionTime":"2017-09-29T23:40:23Z","version":"master","versionExact":"master"},
 		{"path":"github.com/Azure/go-ansiterm/winterm","checksumSHA1":"3/UphB+6Hbx5otA4PjFjvObT+L4=","revision":"d6e3b3328b783f23731bc4d058875b0371ff8109","revisionTime":"2017-09-29T23:40:23Z","version":"master","versionExact":"master"},
 		{"path":"github.com/DataDog/datadog-go/statsd","checksumSHA1":"WvApwvvSe3i/3KO8300dyeFmkbI=","revision":"b10af4b12965a1ad08d164f57d14195b4140d8de","revisionTime":"2017-08-09T10:47:06Z"},
-		{"path":"github.com/Microsoft/go-winio","checksumSHA1":"AzjRkOQtVBTwIw4RJLTygFhJs3s=","revision":"f533f7a102197536779ea3a8cb881d639e21ec5a","revisionTime":"2017-05-24T00:36:31Z"},
+		{"path":"github.com/Microsoft/go-winio","checksumSHA1":"PbR6ZKoLeSZl8aXxDQqXih0wSgE=","revision":"97e4973ce50b2ff5f09635a57e2b88a037aae829","revisionTime":"2018-08-23T22:24:21Z"},
 		{"path":"github.com/NYTimes/gziphandler","checksumSHA1":"jktW57+vJsziNVPeXMCoujTzdW4=","revision":"97ae7fbaf81620fe97840685304a78a306a39c64","revisionTime":"2017-09-16T00:36:49Z"},
 		{"path":"github.com/Nvveen/Gotty","checksumSHA1":"Aqy8/FoAIidY/DeQ5oTYSZ4YFVc=","revision":"cd527374f1e5bff4938207604a14f2e38a9cf512","revisionTime":"2012-06-04T00:48:16Z"},
 		{"path":"github.com/RackSec/srslog","checksumSHA1":"GkeYcZh0B14rtg15JAVDPVwjNoY=","revision":"259aed10dfa74ea2961eddd1d9847619f6e98837","revisionTime":"2016-01-20T22:33:50Z"},
