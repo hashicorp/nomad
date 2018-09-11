@@ -161,6 +161,54 @@ func newTestDockerClient(t *testing.T) *docker.Client {
 	return client
 }
 
+func dockerSetupCgroup(t *testing.T, task *structs.Task, cgroup string) (*docker.Client, *DockerHandle, func()) {
+	client := newTestDockerClient(t)
+	return dockerSetupWithClientCgroup(t, task, client, cgroup)
+}
+
+func dockerSetupWithClientCgroup(t *testing.T, task *structs.Task, client *docker.Client, cgroup string) (*docker.Client, *DockerHandle, func()) {
+	t.Helper()
+	tctx := testDockerDriverContexts(t, task)
+	tctx.DriverCtx.config.Options[dockerCgroupParentConfigOption] = cgroup
+	driver := NewDockerDriver(tctx.DriverCtx)
+	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
+
+	presp, err := driver.Prestart(tctx.ExecCtx, task)
+	if err != nil {
+		if presp != nil && presp.CreatedResources != nil {
+			driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		}
+		tctx.AllocDir.Destroy()
+		t.Fatalf("error in prestart: %v", err)
+	}
+	// Update the exec ctx with the driver network env vars
+	tctx.ExecCtx.TaskEnv = tctx.EnvBuilder.SetDriverNetwork(presp.Network).Build()
+
+	sresp, err := driver.Start(tctx.ExecCtx, task)
+	if err != nil {
+		driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		tctx.AllocDir.Destroy()
+		t.Fatalf("Failed to start driver: %s\nStack\n%s", err, debug.Stack())
+	}
+
+	if sresp.Handle == nil {
+		driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		tctx.AllocDir.Destroy()
+		t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
+	}
+
+	// At runtime this is handled by TaskRunner
+	tctx.ExecCtx.TaskEnv = tctx.EnvBuilder.SetDriverNetwork(sresp.Network).Build()
+
+	cleanup := func() {
+		driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
+		sresp.Handle.Kill()
+		tctx.AllocDir.Destroy()
+	}
+
+	return client, sresp.Handle.(*DockerHandle), cleanup
+}
+
 // This test should always pass, even if docker daemon is not available
 func TestDockerDriver_Fingerprint(t *testing.T) {
 	if !tu.IsTravis() {
@@ -2477,7 +2525,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 			"command":                "/bin/nc",
 			"args":                   []string{"-l", "127.0.0.1", "-p", "0"},
 			"advertise_ipv6_address": expectedAdvertise,
-		},
+                },
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
@@ -2599,3 +2647,46 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 	assert.Nil(t, err, "Error inspecting container: %v", err)
 	assert.Equal(t, int64(1000000), container.HostConfig.CPUPeriod, "cpu_cfs_period option incorrectly set")
 }
+
+
+
+func TestDockerDriver_CgroupParent(t *testing.T) {
+    expected := "scheduler_allocations.slice"
+
+    task := &structs.Task{
+        Name:   "nc-demo",
+        Driver: "docker",
+        Config: map[string]interface{}{
+			"image":        "busybox",
+			"load":         "busybox.tar",
+			"command":      "/bin/nc",
+			"args":         []string{"-l", "127.0.0.1", "-p", "0"},
+			"network_mode": "host",
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	client, handle, cleanup := dockerSetupCgroup(t, task, expected)
+	defer cleanup()
+
+	waitForExist(t, client, handle)
+
+	container, err := client.InspectContainer(handle.ContainerID())
+	if err != nil {
+
+		t.Fatalf("err: %v", err)
+	}
+
+	actual := container.HostConfig.CgroupParent
+	if actual != expected {
+		t.Fatalf("Got CgroupParent mode %q; want %q", expected, actual)
+	}
+}
+
