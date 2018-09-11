@@ -8219,6 +8219,7 @@ type DesiredUpdates struct {
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
 	Canary            uint64
+	Evict             uint64
 }
 
 func (d *DesiredUpdates) GoString() string {
