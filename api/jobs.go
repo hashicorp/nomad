@@ -1024,6 +1024,7 @@ type DesiredUpdates struct {
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
 	Canary            uint64
+	Evict             uint64
 }
 
 type JobDispatchRequest struct {
