@@ -16,8 +16,8 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 		return ErrTaskNotRunning
 	}
 
-	// Emit the event
-	tr.EmitEvent(event)
+	// Append the event (it will get emitted by UpdateState)
+	tr.AppendEvent(event)
 
 	// Tell the restart tracker that a restart triggered the exit
 	tr.restartTracker.SetRestartTriggered(failure)
@@ -66,8 +66,8 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 		return ErrTaskNotRunning
 	}
 
-	// Emit the event
-	tr.EmitEvent(event)
+	// Append the event (it will get emitted by UpdateState)
+	tr.AppendEvent(event)
 
 	// Run the hooks prior to killing the task
 	tr.kill()
@@ -89,7 +89,7 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	}
 
 	// Store that the task has been destroyed and any associated error.
-	tr.SetState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
+	tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
 
 	if destroyErr != nil {
 		return destroyErr
