@@ -2525,7 +2525,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 			"command":                "/bin/nc",
 			"args":                   []string{"-l", "127.0.0.1", "-p", "0"},
 			"advertise_ipv6_address": expectedAdvertise,
-                },
+              },
 		Resources: &structs.Resources{
 			MemoryMB: 256,
 			CPU:      512,
