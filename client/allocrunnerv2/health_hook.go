@@ -103,6 +103,7 @@ func newAllocHealthWatcherHook(logger log.Logger, alloc *structs.Allocation, hs 
 		consul:       consul,
 		healthSetter: hs,
 		listener:     listener,
+		watchLock:    newWatchSema(),
 	}
 
 	h.logger = logger.Named(h.Name())
