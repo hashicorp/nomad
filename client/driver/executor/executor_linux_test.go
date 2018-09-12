@@ -1,11 +1,13 @@
 package executor
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,8 +81,19 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}
-	cmd.stdout = testlog.NewWriter(t)
-	cmd.stderr = testlog.NewWriter(t)
+
+	tl, err := NewTaskLogger(task.Name, &LogConfig{
+		LogDir:        td.LogDir,
+		MaxFiles:      task.LogConfig.MaxFiles,
+		MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
+	}, testLogger(t))
+	if err != nil {
+		t.Fatalf("NewTaskLogger() failed: %v", err)
+	}
+
+	cmd.StdoutFD = tl.StdoutFD()
+	cmd.StderrFD = tl.StderrFD()
+
 	return cmd, allocDir
 }
 
@@ -110,7 +124,6 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 
 	// Check if the resource constraints were applied
 	memLimits := filepath.Join(ps.IsolationConfig.CgroupPaths["memory"], "memory.limit_in_bytes")
-	t.Logf("Reading mem limits: %s", memLimits)
 	data, err := ioutil.ReadFile(memLimits)
 	require.NoError(err)
 
@@ -124,33 +137,40 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	_, err = os.Stat(memLimits)
 	require.Error(err)
 
-	/*	expected := `/:
-		alloc/
-		bin/
-		dev/
-		etc/
-		lib/
-		lib64/
-		local/
-		proc/
-		secrets/
-		tmp/
-		usr/
+	expected := `/:
+alloc/
+bin/
+dev/
+etc/
+lib/
+lib64/
+local/
+proc/
+secrets/
+sys/
+tmp/
+usr/
 
-		/etc/:
-		ld.so.cache
-		ld.so.conf
-		ld.so.conf.d/`
-			/*file := filepath.Join(ctx.LogDir, "web.stdout.0")
-			output, err := ioutil.ReadFile(file)
-			if err != nil {
-				t.Fatalf("Couldn't read file %v", file)
-			}
+/etc/:
+ld.so.cache
+ld.so.conf
+ld.so.conf.d/`
+	file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
+	stat, err := os.Stat(file)
+	require.NoError(err)
+	require.NotZero(stat.Sys().(*syscall.Stat_t).Uid)
 
-			act := strings.TrimSpace(string(output))
-			if act != expected {
-				t.Errorf("Command output incorrectly: want %v; got %v", expected, act)
-			}*/
+	tu.WaitForResult(func() (bool, error) {
+		output, err := ioutil.ReadFile(file)
+		if err != nil {
+			return false, err
+		}
+		act := strings.TrimSpace(string(output))
+		if act != expected {
+			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
+		}
+		return true, nil
+	}, func(err error) { t.Error(err) })
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
@@ -178,21 +198,12 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	require.NoError(executor.Destroy())
 
-	/*
-		file := filepath.Join(ctx.LogDir, "web.stdout.0")
-		finfo, err := os.Stat(file)
-		if err != nil {
-			t.Fatalf("error stating stdout file: %v", err)
-		}
-		if finfo.Size() == 0 {
-			t.Fatal("Nothing in stdout; expected at least one byte.")
-		}
-		time.Sleep(2 * time.Second)
-		finfo1, err := os.Stat(file)
-		if err != nil {
-			t.Fatalf("error stating stdout file: %v", err)
-		}
-		if finfo.Size() != finfo1.Size() {
-			t.Fatalf("Expected size: %v, actual: %v", finfo.Size(), finfo1.Size())
-		}*/
+	file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
+	finfo, err := os.Stat(file)
+	require.NoError(err)
+	require.NotZero(finfo.Size())
+	time.Sleep(2 * time.Second)
+	finfo1, err := os.Stat(file)
+	require.NoError(err)
+	require.Equal(finfo.Size(), finfo1.Size())
 }

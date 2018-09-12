@@ -1,5 +1,6 @@
 package driver
 
+/*
 import (
 	"encoding/gob"
 	"log"
@@ -216,3 +217,4 @@ func (p *ExecutorPluginPre0_9_0) Server(*plugin.MuxBroker) (interface{}, error) 
 func (p *ExecutorPluginPre0_9_0) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
 	return &ExecutorRPCPre0_9_0{client: c, logger: p.logger}, nil
 }
+*/

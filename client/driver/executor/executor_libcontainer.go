@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/davecgh/go-spew/spew"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -75,6 +74,7 @@ type LibcontainerExecutor struct {
 	syslogChan   chan *logging.SyslogMessage
 }
 
+// Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	// Find the nomad executable to launch the executor process with
 	bin, err := discover.NomadExecutable()
@@ -82,21 +82,22 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
+	l.command = command
+
+	// create a new factory which will store the container state in the allocDir
 	factory, err := libcontainer.New(
 		path.Join(command.TaskDir, "../alloc/container"),
 		libcontainer.Cgroupfs,
 		libcontainer.InitArgs(bin, "libcontainer-shim"),
 	)
 	if err != nil {
-		wrapped := fmt.Errorf("failed to create factory: %v", err)
-		return nil, wrapped
+		return nil, fmt.Errorf("failed to create factory: %v", err)
 	}
 
-	// A container is groups processes under the same isolation enforcement
+	// A container groups processes under the same isolation enforcement
 	container, err := factory.Create(l.id, newLibcontainerConfig(command))
 	if err != nil {
-		wrapped := fmt.Errorf("failed to create container(%s): %v", l.id, err)
-		return nil, wrapped
+		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
 	}
 	l.container = container
 
@@ -110,6 +111,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, err
 	}
 
+	l.logger.Info("stdout", "name", stdout.Fd())
+
+	// the task process will be started by the container
 	process := &libcontainer.Process{
 		Args:   combined,
 		Env:    command.Env,
@@ -123,6 +127,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.userCpuStats = stats.NewCpuStats()
 	l.systemCpuStats = stats.NewCpuStats()
 
+	// Starts the task
 	if err := container.Run(process); err != nil {
 		container.Destroy()
 		return nil, err
@@ -134,6 +139,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, err
 	}
 
+	// start a goroutine to wait on the process to complete, so Wait calls can
+	// be multiplexed
 	l.userProcExited = make(chan struct{})
 	go l.wait()
 
@@ -145,6 +152,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}, nil
 }
 
+// Wait waits until a process has exited and returns it's exitcode and errors
 func (l *LibcontainerExecutor) Wait() (*ProcessState, error) {
 	<-l.userProcExited
 	return l.exitState, nil
@@ -156,6 +164,8 @@ func (l *LibcontainerExecutor) wait() {
 	ic := l.getIsolationConfig()
 	ps, err := l.userProc.Wait()
 	if err != nil {
+		// If the process has exited before we called wait an error is returned
+		// the process state is embedded in the error
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			ps = exitErr.ProcessState
 		} else {
@@ -165,11 +175,12 @@ func (l *LibcontainerExecutor) wait() {
 		}
 	}
 
+	l.command.Close()
+
 	exitCode := 1
 	var signal int
 	if status, ok := ps.Sys().(syscall.WaitStatus); ok {
 		exitCode = status.ExitStatus()
-		spew.Dump(status.Signaled())
 		if status.Signaled() {
 			const exitSignalBase = 128
 			signal = int(status.Signal())
@@ -186,6 +197,8 @@ func (l *LibcontainerExecutor) wait() {
 	}
 }
 
+// Destroy forcefully stops all processes started and cleans up any resources
+// created (such as mountpoints, devices, etc).
 func (l *LibcontainerExecutor) Destroy() error {
 	if l.container == nil {
 		return nil
@@ -203,18 +216,22 @@ func (l *LibcontainerExecutor) Destroy() error {
 	return nil
 }
 
+// Kill
 func (l *LibcontainerExecutor) Kill() error {
 	return l.container.Signal(os.Interrupt, true)
 }
 
+// UpdateResources updates the resource isolation with new values to be enforced
 func (l *LibcontainerExecutor) UpdateResources(resources *Resources) error {
 	return nil
 }
 
+// Version returns the api version of the executor
 func (l *LibcontainerExecutor) Version() (*ExecutorVersion, error) {
-	return &ExecutorVersion{Version: "1.1.0"}, nil
+	return &ExecutorVersion{Version: ExecutorVersionLatest}, nil
 }
 
+// Stats returns the resource statistics for processes managed by the executor
 func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	lstats, err := l.container.Stats()
 	if err != nil {
@@ -265,10 +282,12 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	return &taskResUsage, nil
 }
 
+// Signal sends a signal to the process managed by the executor
 func (l *LibcontainerExecutor) Signal(s os.Signal) error {
 	return l.userProc.Signal(s)
 }
 
+// Exec starts an additional process inside the executor
 func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
 	combined := append([]string{cmd}, args...)
 	// Capture output
@@ -404,6 +423,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	id := uuid.Generate()
 
+	// If resources are not limited then manually create cgroups needed
 	if !command.ResourceLimits {
 		// Manually create freezer and devices cgroups
 		cfg.Cgroups.Paths = map[string]string{}

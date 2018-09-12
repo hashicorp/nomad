@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,10 +35,12 @@ const (
 	// have forked
 	pidScanInterval = 5 * time.Second
 
-	// processOutputCloseTolerance is the length of time we will wait for the
-	// launched process to close its stdout/stderr before we force close it. If
-	// data is written after this tolerance, we will not capture it.
-	processOutputCloseTolerance = 2 * time.Second
+	// ExecutorVersionLatest is the current and latest version of the executor
+	ExecutorVersionLatest = "2.0.0"
+
+	// ExecutorVersionPre0_9 is the version of executor use prior to the release
+	// of 0.9.x
+	ExecutorVersionPre0_9 = "1.1.0"
 )
 
 var (
@@ -82,13 +83,13 @@ type ExecCommand struct {
 	// Resources defined by the task
 	Resources *Resources
 
-	// StdoutFD is the file descriptor the procoess stdout should be written to
-	StdoutFD uintptr
-	stdout   io.Writer
+	// StdoutPath is the path the procoess stdout should be written to
+	StdoutPath string
+	stdout     *os.File
 
-	// StderrFD is the file descriptor the procoess stderr should be written to
-	StderrFD uintptr
-	stderr   io.Writer
+	// StderrPath is the path the procoess stderr should be written to
+	StderrPath string
+	stderr     *os.File
 
 	// Env is the list of KEY=val pairs of environment variables to be set
 	Env []string
@@ -115,26 +116,39 @@ type ExecCommand struct {
 	BasicProcessCgroup bool
 }
 
-func (c *ExecCommand) Stdout() (io.Writer, error) {
+// Stdout returns a writer for the configured file descriptor
+func (c *ExecCommand) Stdout() (*os.File, error) {
 	if c.stdout == nil {
-		f := os.NewFile(c.StdoutFD, "stdout")
-		if f == nil {
-			return nil, fmt.Errorf("failed to create stdout from fd: %v", c.StdoutFD)
+		f, err := os.Open(c.StdoutPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create stdout: %v", err)
 		}
 		c.stdout = f
 	}
 	return c.stdout, nil
 }
 
-func (c *ExecCommand) Stderr() (io.Writer, error) {
+// Stderr returns a writer for the configured file descriptor
+func (c *ExecCommand) Stderr() (*os.File, error) {
 	if c.stderr == nil {
-		f := os.NewFile(c.StderrFD, "stderr")
-		if f == nil {
-			return nil, fmt.Errorf("failed to create stderr from fd: %v", c.StderrFD)
+		f, err := os.Open(c.StderrPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create stderr: %v", err)
 		}
 		c.stderr = f
 	}
 	return c.stderr, nil
+}
+
+func (c *ExecCommand) Close() {
+	stdout, err := c.Stdout()
+	if err == nil {
+		stdout.Close()
+	}
+	stderr, err := c.Stderr()
+	if err == nil {
+		stderr.Close()
+	}
 }
 
 // ProcessState holds information about the state of a user process.
@@ -194,16 +208,19 @@ func NewExecutor(logger hclog.Logger) Executor {
 
 	var exec Executor
 
-	exec = &LibcontainerExecutor{
+	// TODO: only use libcontainer on linux /w cgroups
+	exec = newLibcontainerExecutor(logger)
+	return exec
+}
+
+func newLibcontainerExecutor(logger hclog.Logger) Executor {
+	return &LibcontainerExecutor{
 		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
 		logger:         logger,
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
 	}
-	/*
-		exec = 	*/
-	return exec
 }
 
 func newUniversalExecutor(logger hclog.Logger) *UniversalExecutor {
@@ -220,7 +237,7 @@ func newUniversalExecutor(logger hclog.Logger) *UniversalExecutor {
 
 // Version returns the api version of the executor
 func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
-	return &ExecutorVersion{Version: "1.1.0"}, nil
+	return &ExecutorVersion{Version: ExecutorVersionLatest}, nil
 }
 
 // Launch launches the main process and returns its state. It also
@@ -347,6 +364,8 @@ func (e *UniversalExecutor) wait() {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: nil, Time: time.Now()}
 		return
 	}
+
+	e.command.Close()
 
 	exitCode := 1
 	var signal int

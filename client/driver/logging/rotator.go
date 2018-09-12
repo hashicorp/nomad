@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -47,8 +48,11 @@ type FileRotator struct {
 	bufw        *bufio.Writer
 	bufLock     sync.Mutex
 
+	uid int // user id of the file owner
+	gid int // group id of the file owner
+
 	flushTicker *time.Ticker
-	logger      *log.Logger
+	logger      hclog.Logger
 	purgeCh     chan struct{}
 	doneCh      chan struct{}
 
@@ -58,7 +62,8 @@ type FileRotator struct {
 
 // NewFileRotator returns a new file rotator
 func NewFileRotator(path string, baseFile string, maxFiles int,
-	fileSize int64, logger *log.Logger) (*FileRotator, error) {
+	fileSize int64, uid, gid int, logger hclog.Logger) (*FileRotator, error) {
+	logger = logger.Named("rotator")
 	rotator := &FileRotator{
 		MaxFiles: maxFiles,
 		FileSize: fileSize,
@@ -70,7 +75,10 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		logger:      logger,
 		purgeCh:     make(chan struct{}, 1),
 		doneCh:      make(chan struct{}, 1),
+		uid:         uid,
+		gid:         gid,
 	}
+
 	if err := rotator.lastFile(); err != nil {
 		return nil, err
 	}
@@ -93,7 +101,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 			f.flushBuffer()
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
-				f.logger.Printf("[ERROR] driver.rotator: error creating next file: %v", err)
+				f.logger.Error("error creating next file", "err", err)
 				return 0, err
 			}
 		}
@@ -141,7 +149,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		// Increment the total number of bytes in the file
 		f.currentWr += int64(n)
 		if err != nil {
-			f.logger.Printf("[ERROR] driver.rotator: error writing to file: %v", err)
+			f.logger.Error("error writing to file", "err", err)
 			return
 		}
 	}
@@ -214,6 +222,9 @@ func (f *FileRotator) createFile() error {
 	if err != nil {
 		return err
 	}
+	if err = cFile.Chown(f.uid, f.gid); err != nil {
+		return err
+	}
 	f.currentFile = cFile
 	fi, err := f.currentFile.Stat()
 	if err != nil {
@@ -257,7 +268,7 @@ func (f *FileRotator) purgeOldFiles() {
 			var fIndexes []int
 			files, err := ioutil.ReadDir(f.path)
 			if err != nil {
-				f.logger.Printf("[ERROR] driver.rotator: error getting directory listing: %v", err)
+				f.logger.Error("error getting directory listing", "err", err)
 				return
 			}
 			// Inserting all the rotated files in a slice
@@ -266,7 +277,7 @@ func (f *FileRotator) purgeOldFiles() {
 					fileIdx := strings.TrimPrefix(fi.Name(), fmt.Sprintf("%s.", f.baseFileName))
 					n, err := strconv.Atoi(fileIdx)
 					if err != nil {
-						f.logger.Printf("[ERROR] driver.rotator: error extracting file index: %v", err)
+						f.logger.Error("error extracting file index", "err", err)
 						continue
 					}
 					fIndexes = append(fIndexes, n)
@@ -287,7 +298,7 @@ func (f *FileRotator) purgeOldFiles() {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
 				err := os.RemoveAll(fname)
 				if err != nil {
-					f.logger.Printf("[ERROR] driver.rotator: error removing file: %v", err)
+					f.logger.Error("error removing file", "filename", fname, "err", err)
 				}
 			}
 			f.oldestLogFileIdx = fIndexes[0]

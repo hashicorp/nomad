@@ -14,6 +14,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -447,7 +448,7 @@ func (h *mockDriverHandle) handleLogging() {
 	// Setup a log rotator
 	logFileSize := int64(h.task.LogConfig.MaxFileSizeMB * 1024 * 1024)
 	lro, err := logging.NewFileRotator(h.ctx.TaskDir.LogDir, fmt.Sprintf("%v.stdout", h.taskName),
-		h.task.LogConfig.MaxFiles, logFileSize, h.logger)
+		h.task.LogConfig.MaxFiles, logFileSize, -1, -1, hclog.Default()) //TODO: plumb hclog
 	if err != nil {
 		h.exitErr = err
 		close(h.doneCh)

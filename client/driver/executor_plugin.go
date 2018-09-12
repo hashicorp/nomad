@@ -151,9 +151,9 @@ func (e *ExecutorRPCServer) Signal(args os.Signal, resp *interface{}) error {
 	return e.Impl.Signal(args)
 }
 
-func (e *ExecutorRPCServer) Exec(args ExecCmdArgs, result *ExecCmdReturn) error {
+func (e *ExecutorRPCServer) Exec(args ExecArgs, result *ExecReturn) error {
 	out, code, err := e.Impl.Exec(args.Deadline, args.Name, args.Args)
-	ret := &ExecCmdReturn{
+	ret := &ExecReturn{
 		Output: out,
 		Code:   code,
 	}

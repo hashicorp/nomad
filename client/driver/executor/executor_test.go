@@ -1,12 +1,16 @@
 package executor
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	tu "github.com/hashicorp/nomad/testutil"
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -62,9 +66,16 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}
-
-	cmd.stdout = testlog.NewWriter(t)
-	cmd.stderr = testlog.NewWriter(t)
+	tl, err := NewTaskLogger(task.Name, &LogConfig{
+		LogDir:        td.LogDir,
+		MaxFiles:      task.LogConfig.MaxFiles,
+		MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
+	}, testLogger(t))
+	if err != nil {
+		t.Fatalf("NewTaskLogger() failed: %v", err)
+	}
+	cmd.StdoutFD = tl.StdoutFD()
+	cmd.StderrFD = tl.StderrFD()
 	return cmd, allocDir
 }
 
@@ -139,13 +150,22 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			require.NoError(err)
 			require.NoError(executor.Destroy())
 
-			//expected := "hello world"
-			//file := filepath.Join(ctx.LogDir, "web.stdout.0")
-			//output, err := ioutil.ReadFile(file)
-			//require.NoError(err)
+			expected := "hello world"
+			file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
+			tu.WaitForResult(func() (bool, error) {
+				output, err := ioutil.ReadFile(file)
+				if err != nil {
+					return false, err
+				}
 
-			//act := strings.TrimSpace(string(output))
-			//require.Equal(act, expected)
+				act := strings.TrimSpace(string(output))
+				if expected != act {
+					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
+				}
+				return true, nil
+			}, func(err error) {
+				require.NoError(err)
+			})
 		})
 	}
 }
@@ -205,7 +225,7 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require.NoError(err)
 			require.NoError(executor.Destroy())
 
-			/*file := filepath.Join(ctx.LogDir, "web.stdout.0")
+			file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
 
 			output, err := ioutil.ReadFile(file)
@@ -217,7 +237,7 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			act := strings.TrimSpace(string(output))
 			if act != expected {
 				t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
-			}*/
+			}
 		})
 	}
 }
