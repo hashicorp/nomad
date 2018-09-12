@@ -5,11 +5,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/plugins/base"
 )
 
 const DriverGoPlugin = "driver"
 
-type Driver interface {
+type DriverPlugin interface {
+	base.BasePlugin
+
 	Fingerprint() *Fingerprint
 	Capabilities() *Capabilities
 	RecoverTask(*TaskHandle) error

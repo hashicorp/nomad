@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/plugins/base"
 )
 
 type DriverHarness struct {
@@ -19,9 +20,9 @@ type DriverHarness struct {
 	t      testing.T
 }
 
-func NewDriverHarness(t testing.T, d Driver) *DriverHarness {
+func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		DriverGoPlugin: &DriverPlugin{impl: d},
+		DriverGoPlugin: &PluginDriver{impl: d},
 	})
 
 	raw, err := client.Dispense(DriverGoPlugin)
@@ -60,6 +61,7 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig) func() {
 // Each function can be set as a closure to make assertions about how data
 // is passed through the base plugin layer.
 type MockDriver struct {
+	base.MockPlugin
 	RecoverTaskF func(*TaskHandle) error
 	StartTaskF   func(*TaskConfig) (*TaskHandle, error)
 	WaitTaskF    func(string) chan *TaskResult

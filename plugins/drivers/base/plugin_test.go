@@ -43,7 +43,7 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 		},
 	}
 
-	driver := &baseDriver{impl: impl}
+	driver := &driverPluginServer{impl: impl}
 	_, err := driver.RecoverTask(context.TODO(), req)
 	require.NoError(err)
 }
@@ -69,7 +69,7 @@ func TestBaseDriver_StartTask(t *testing.T) {
 		},
 	}
 
-	driver := &baseDriver{impl: impl}
+	driver := &driverPluginServer{impl: impl}
 	resp, err := driver.StartTask(context.TODO(), req)
 	require.NoError(err)
 	require.Equal(req.Task.Id, resp.Handle.Config.Id)
@@ -105,7 +105,7 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 		},
 	}
 
-	driver := &baseDriver{impl: impl}
+	driver := &driverPluginServer{impl: impl}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	var finished bool
