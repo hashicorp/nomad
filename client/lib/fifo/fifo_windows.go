@@ -3,19 +3,27 @@ package fifo
 import (
 	"io"
 	"net"
+	"os"
+	"sync"
+	"time"
 
 	winio "github.com/Microsoft/go-winio"
 )
 
-const PipeBufferSize = int(^uint16(0))
+// PipeBufferSize is the size of the input and output buffers for the windows
+// named pipe
+const PipeBufferSize = int32(^uint16(0))
 
-type FIFO struct {
+type winFIFO struct {
 	listener net.Listener
 	conn     net.Conn
+	connLock sync.Mutex
 }
 
-func (f *FIFO) Read(p []byte) (n int, err error) {
-	if f.conn != nil {
+func (f *winFIFO) Read(p []byte) (n int, err error) {
+	f.connLock.Lock()
+	defer f.connLock.Unlock()
+	if f.conn == nil {
 		c, err := f.listener.Accept()
 		if err != nil {
 			return 0, err
@@ -23,29 +31,23 @@ func (f *FIFO) Read(p []byte) (n int, err error) {
 
 		f.conn = c
 	}
-	return f.conn.Read(p)
-}
 
-func (f *FIFO) Write(p []byte) (n int, err error) {
-	if f.conn != nil {
-		c, err := f.listener.Accept()
-		if err != nil {
-			return 0, err
-		}
-
-		f.conn = c
+	// If the connection is closed then we need to close the listener
+	// to emulate unix fifo behavior
+	n, err = f.conn.Read(p)
+	if err == io.EOF {
+		f.listener.Close()
 	}
-	return f.conn.Write(p)
+	return n, err
 }
 
-func (f *FIFO) Close() error {
-	if f.conn != nil {
-		return nil
-	}
-	return f.conn.Close()
+func (f *winFIFO) Close() error {
+	return f.listener.Close()
 }
 
-func New(path string) (io.ReadWriteCloser, error) {
+// New creates a fifo at the given path and returns a reader for it. The fifo
+// must not already exist
+func New(path string) (io.ReadCloser, error) {
 	l, err := winio.ListenPipe(path, &winio.PipeConfig{
 		InputBufferSize:  PipeBufferSize,
 		OutputBufferSize: PipeBufferSize,
@@ -54,16 +56,24 @@ func New(path string) (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 
-	return &FIFO{
+	return &winFIFO{
 		listener: l,
-	}
+	}, nil
 }
 
-func Open(path string) (io.ReadWriteCloser, error) {
-	conn, err := winio.DialPipe(path, nil)
-	if err != nil {
-		return nil, err
+// OpenWriter opens a fifo that already exists and returns a writer for it
+func OpenWriter(path string) (io.WriteCloser, error) {
+	return winio.DialPipe(path, nil)
+}
+
+// Remove a fifo that already exists at a given path
+func Remove(path string) error {
+	dur := 500 * time.Millisecond
+	conn, err := winio.DialPipe(path, &dur)
+	if err == nil {
+		return conn.Close()
 	}
 
-	return &FIFO{conn: conn}, nil
+	os.Remove(path)
+	return nil
 }
