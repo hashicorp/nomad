@@ -1,4 +1,4 @@
-## 0.8.5 
+## 0.8.5  (September 13, 2018)
 
 IMPROVEMENTS:
 * core: Failed deployments no longer block migrations [[GH-4659](https://github.com/hashicorp/nomad/issues/4659)]
