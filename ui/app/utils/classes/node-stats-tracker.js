@@ -21,19 +21,24 @@ const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   }),
 
   append(frame) {
+    const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
+
     const cpuUsed = Math.floor(frame.CPUTicksConsumed) || 0;
-    this.get('cpu').push({
-      timestamp: frame.Timestamp,
+    this.get('cpu').addObject({
+      timestamp,
       used: cpuUsed,
       percent: percent(cpuUsed, this.get('reservedCPU')),
     });
 
     const memoryUsed = frame.Memory.Used;
-    this.get('memory').push({
-      timestamp: frame.Timestamp,
+    this.get('memory').addObject({
+      timestamp,
       used: memoryUsed,
       percent: percent(memoryUsed / 1024 / 1024, this.get('reservedMemory')),
     });
+
+    // this.notifyPropertyChange('cpu');
+    // this.notifyPropertyChange('memory');
   },
 
   // Static figures, denominators for stats
