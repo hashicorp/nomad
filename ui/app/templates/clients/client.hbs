@@ -85,11 +85,47 @@
       <div class="columns">
         <div class="column">
           CPU
-          {{stats-time-series data=stats.cpu chartClass="is-info"}}
+          <div style="height: 200px">
+            {{stats-time-series data=stats.cpu chartClass="is-info"}}
+          </div>
+          <div class="columns">
+            <div class="column">
+              <div class="inline-chart">
+                <progress
+                  class="progress is-info is-small"
+                  value="{{stats.cpu.lastObject.percent}}"
+                  max="1">
+                  {{stats.cpu.lastObject.percent}}
+                </progress>
+              </div>
+            </div>
+            <div class="column is-minimum">
+              {{format-percentage stats.cpu.lastObject.percent total=1}}
+            </div>
+          </div>
+          {{stats.cpu.lastObject.used}} Mhz / {{stats.reservedCPU}} Mhz reserved
         </div>
         <div class="column">
           Memory
-          {{stats-time-series data=stats.memory chartClass="is-danger"}}
+          <div style="height: 200px">
+            {{stats-time-series data=stats.memory chartClass="is-danger"}}
+          </div>
+          <div class="columns">
+            <div class="column">
+              <div class="inline-chart">
+                <progress
+                  class="progress is-danger is-small"
+                  value="{{stats.memory.lastObject.percent}}"
+                  max="1">
+                  {{stats.memory.lastObject.percent}}
+                </progress>
+              </div>
+            </div>
+            <div class="column is-minimum">
+              {{format-percentage stats.memory.lastObject.percent total=1}}
+            </div>
+          </div>
+          {{format-bytes stats.memory.lastObject.used}} MiB / {{stats.reservedMemory}} MiB reserved
         </div>
       </div>
     </div>
