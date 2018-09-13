@@ -33,7 +33,7 @@ client {
 - `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
   for allocation data. By default, this is the top-level
   [data_dir](/docs/configuration/index.html#data_dir) suffixed with
-  "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path.
+  "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
   Specifies a key-value mapping that defines the chroot environment for jobs
