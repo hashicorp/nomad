@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/logging"
+	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -85,11 +87,11 @@ type ExecCommand struct {
 
 	// StdoutPath is the path the procoess stdout should be written to
 	StdoutPath string
-	stdout     *os.File
+	stdout     io.WriteCloser
 
 	// StderrPath is the path the procoess stderr should be written to
 	StderrPath string
-	stderr     *os.File
+	stderr     io.WriteCloser
 
 	// Env is the list of KEY=val pairs of environment variables to be set
 	Env []string
@@ -117,9 +119,9 @@ type ExecCommand struct {
 }
 
 // Stdout returns a writer for the configured file descriptor
-func (c *ExecCommand) Stdout() (*os.File, error) {
+func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 	if c.stdout == nil {
-		f, err := os.Open(c.StdoutPath)
+		f, err := fifo.OpenWriter(c.StdoutPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stdout: %v", err)
 		}
@@ -129,9 +131,9 @@ func (c *ExecCommand) Stdout() (*os.File, error) {
 }
 
 // Stderr returns a writer for the configured file descriptor
-func (c *ExecCommand) Stderr() (*os.File, error) {
+func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 	if c.stderr == nil {
-		f, err := os.Open(c.StderrPath)
+		f, err := fifo.OpenWriter(c.StderrPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stderr: %v", err)
 		}

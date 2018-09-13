@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -124,16 +123,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, err
 	}
 
-	// TODO plumb hclog into here
-	tl, err := executor.NewTaskLogger(task.Name, &executor.LogConfig{
-		LogDir:        ctx.TaskDir.LogDir,
-		MaxFiles:      task.LogConfig.MaxFiles,
-		MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
-	}, hclog.Default())
-	if err != nil {
-		return nil, err
-	}
-
 	execCmd := &executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
@@ -147,9 +136,10 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 			IOPS:     task.Resources.IOPS,
 			DiskMB:   task.Resources.DiskMB,
 		},
-		Env:      ctx.TaskEnv.List(),
-		TaskDir:  ctx.TaskDir.Dir,
-		StdoutFD: tl.StdoutFD(),
+		Env:        ctx.TaskEnv.List(),
+		TaskDir:    ctx.TaskDir.Dir,
+		StdoutPath: ctx.StdoutFifo,
+		StderrPath: ctx.StderrFifo,
 	}
 
 	ps, err := exec.Launch(execCmd)

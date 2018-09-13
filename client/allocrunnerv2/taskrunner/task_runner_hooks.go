@@ -243,6 +243,9 @@ func (tr *TaskRunner) exited() error {
 		}
 	}
 
+	tr.logmon.Stop()
+	tr.logmonPluginClient.Kill()
+
 	return merr.ErrorOrNil()
 
 }

@@ -3,11 +3,13 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
@@ -16,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/logmon"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -103,6 +106,10 @@ type TaskRunner struct {
 
 	// taskDir is the directory structure for this task.
 	taskDir *allocdir.TaskDir
+
+	// logmon is the handle to the log monitor process for the task.
+	logmon             logmon.LogMon
+	logmonPluginClient *plugin.Client
 
 	// envBuilder is used to build the task's environment
 	envBuilder *env.Builder
@@ -375,6 +382,17 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	}
 }
 
+func (tr *TaskRunner) launchLogmon() error {
+	l, c, err := logmon.LaunchLogMon(tr.logger)
+	if err != nil {
+		return err
+	}
+
+	tr.logmon = l
+	tr.logmonPluginClient = c
+	return nil
+}
+
 // runDriver runs the driver and waits for it to exit
 func (tr *TaskRunner) runDriver() error {
 	// Run prestart
@@ -387,6 +405,28 @@ func (tr *TaskRunner) runDriver() error {
 
 	// Create a new context for Start since the environment may have been updated.
 	ctx = driver.NewExecContext(tr.taskDir, tr.envBuilder.Build())
+
+	// Launch logmon instance for the task.
+	err = tr.launchLogmon()
+	if err != nil {
+		tr.logger.Error("failed to launch logmon process", "error", err)
+		return err
+	}
+
+	err = tr.logmon.Start(&logmon.LogConfig{
+		LogDir:        tr.taskDir.LogDir,
+		FifoDir:       tr.taskDir.LogDir,
+		StdoutLogFile: fmt.Sprintf("%s.stdout", tr.task.Name),
+		StderrLogFile: fmt.Sprintf("%s.stderr", tr.task.Name),
+		MaxFiles:      tr.task.LogConfig.MaxFiles,
+		MaxFileSizeMB: tr.task.LogConfig.MaxFileSizeMB,
+	})
+	if err != nil {
+		tr.logger.Error("failed to start logmon", "error", err)
+		return err
+	}
+	ctx.StdoutFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stdout", tr.task.Name))
+	ctx.StderrFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stderr", tr.task.Name))
 
 	// Start the job
 	sresp, err := tr.driver.Start(ctx, tr.task)

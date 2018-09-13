@@ -111,8 +111,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, err
 	}
 
-	l.logger.Info("stdout", "name", stdout.Fd())
-
 	// the task process will be started by the container
 	process := &libcontainer.Process{
 		Args:   combined,
