@@ -46,6 +46,7 @@ var (
 		"executor",
 		"keygen",
 		"keyring",
+		"logmon",
 		"node-drain",
 		"node-status",
 		"server-force-leave",
