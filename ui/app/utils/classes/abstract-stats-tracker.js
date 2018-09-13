@@ -19,9 +19,7 @@ export default Mixin.create({
     assert('Url must be defined', url);
 
     return this.get('fetch')(url)
-      .then(res => {
-        return res.json();
-      })
+      .then(res => res.json())
       .then(frame => this.append(frame));
   },
 });
