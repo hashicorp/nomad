@@ -8,7 +8,7 @@ import LineChart from 'nomad-ui/components/line-chart';
 
 export default LineChart.extend({
   xProp: 'timestamp',
-  yProp: 'value',
+  yProp: 'percent',
   timeseries: true,
 
   xFormat() {
