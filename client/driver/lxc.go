@@ -580,7 +580,7 @@ func extractVgName(baseLvName string) (string, error) {
 
 func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container, commonConfig *LxcCommonDriverConfig) error {
 	// Set the network type to none
-	if err := c.SetConfigItem("lxc.network.type", "none"); err != nil {
+	if err := c.SetConfigItem("lxc.net.0.type", "none"); err != nil {
 		return fmt.Errorf("error setting network type configuration: %v", err)
 	}
 
