@@ -77,7 +77,8 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
 	logger := testlog.WithPrefix(t, fmt.Sprintf("[%s] ", config.NodeName))
-	catalog := consul.NewMockCatalog(logger)
+	hclogger := testlog.HCLogger(t)
+	catalog := consul.NewMockCatalog(hclogger)
 
 	for i := 10; i >= 0; i-- {
 		// Get random ports

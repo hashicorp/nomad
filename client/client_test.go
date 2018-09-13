@@ -602,11 +602,11 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new client
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
+	c1.config.Logger = logger
 	catalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t)
-	mockService.Logger = logger
-	c2, err := NewClient(c1.config, catalog, mockService, logger)
+	mockService := consulApi.NewMockConsulServiceClient(t, logger)
+	c2, err := NewClient(c1.config, catalog, mockService)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

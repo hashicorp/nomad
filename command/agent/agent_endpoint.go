@@ -221,9 +221,9 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Set the servers list into the client
-	s.agent.logger.Printf("[TRACE] Adding servers %+q to the client's primary server list", servers)
+	s.agent.logger.Trace("adding servers to the client's primary server list", "servers", servers, "path", "/v1/agent/servers", "method", "PUT")
 	if _, err := client.SetServers(servers); err != nil {
-		s.agent.logger.Printf("[ERR] Attempt to add servers %q to client failed: %v", servers, err)
+		s.agent.logger.Error("failed adding servers to client's server list", "servers", servers, "error", err, "path", "/v1/agent/servers", "method", "PUT")
 		//TODO is this the right error to return?
 		return nil, CodedError(400, err.Error())
 	}

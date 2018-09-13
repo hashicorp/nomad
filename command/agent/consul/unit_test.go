@@ -117,7 +117,7 @@ func setupFake(t *testing.T) *testFakeCtx {
 	fc := NewMockAgent()
 	tt := testTask()
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, testlog.Logger(t), true),
+		ServiceClient: NewServiceClient(fc, testlog.HCLogger(t), true),
 		FakeConsul:    fc,
 		Task:          tt,
 		MockExec:      tt.DriverExec.(*mockExec),

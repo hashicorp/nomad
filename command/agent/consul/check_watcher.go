@@ -3,8 +3,9 @@ package consul
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -50,7 +51,7 @@ type checkRestart struct {
 	// checks should be counted.
 	graceUntil time.Time
 
-	logger *log.Logger
+	logger log.Logger
 }
 
 // apply restart state for check and restart task if necessary. Current
@@ -62,8 +63,7 @@ type checkRestart struct {
 func (c *checkRestart) apply(now time.Time, status string) bool {
 	healthy := func() {
 		if !c.unhealthyState.IsZero() {
-			c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became healthy; canceling restart",
-				c.allocID, c.taskName, c.checkName)
+			c.logger.Debug("canceling restart because check became healthy")
 			c.unhealthyState = time.Time{}
 		}
 	}
@@ -89,8 +89,7 @@ func (c *checkRestart) apply(now time.Time, status string) bool {
 	if c.unhealthyState.IsZero() {
 		// First failure, set restart deadline
 		if c.timeLimit != 0 {
-			c.logger.Printf("[DEBUG] consul.health: alloc %q task %q check %q became unhealthy. Restarting in %s if not healthy",
-				c.allocID, c.taskName, c.checkName, c.timeLimit)
+			c.logger.Debug("check became unhealthy. Will restart if check doesn't become healthy", "time_limit", c.timeLimit)
 		}
 		c.unhealthyState = now
 	}
@@ -101,7 +100,7 @@ func (c *checkRestart) apply(now time.Time, status string) bool {
 	// Must test >= because if limit=1, restartAt == first failure
 	if now.Equal(restartAt) || now.After(restartAt) {
 		// hasn't become healthy by deadline, restart!
-		c.logger.Printf("[DEBUG] consul.health: restarting alloc %q task %q due to unhealthy check %q", c.allocID, c.taskName, c.checkName)
+		c.logger.Debug("restarting due to unhealthy check")
 
 		// Tell TaskRunner to restart due to failure
 		const failure = true
@@ -139,17 +138,17 @@ type checkWatcher struct {
 	// squelch repeated error messages.
 	lastErr bool
 
-	logger *log.Logger
+	logger log.Logger
 }
 
 // newCheckWatcher creates a new checkWatcher but does not call its Run method.
-func newCheckWatcher(logger *log.Logger, consul ChecksAPI) *checkWatcher {
+func newCheckWatcher(logger log.Logger, consul ChecksAPI) *checkWatcher {
 	return &checkWatcher{
 		consul:        consul,
 		pollFreq:      defaultPollFreq,
 		checkUpdateCh: make(chan checkWatchUpdate, 8),
 		done:          make(chan struct{}),
-		logger:        logger,
+		logger:        logger.ResetNamed("consul.health"),
 	}
 }
 
@@ -193,8 +192,8 @@ func (w *checkWatcher) Run(ctx context.Context) {
 
 			// Add/update a check
 			checks[update.checkID] = update.checkRestart
-			w.logger.Printf("[DEBUG] consul.health: watching alloc %q task %q check %q",
-				update.checkRestart.allocID, update.checkRestart.taskName, update.checkRestart.checkName)
+			w.logger.Debug("watching check", "alloc_id", update.checkRestart.allocID,
+				"task", update.checkRestart.taskName, "check", update.checkRestart.checkName)
 
 			// if first check was added make sure polling is enabled
 			if len(checks) == 1 {
@@ -215,7 +214,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 			if err != nil {
 				if !w.lastErr {
 					w.lastErr = true
-					w.logger.Printf("[ERR] consul.health: error retrieving health checks: %q", err)
+					w.logger.Error("failed retrieving health checks", "error", err)
 				}
 				continue
 			}
@@ -239,7 +238,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 				if !ok {
 					// Only warn if outside grace period to avoid races with check registration
 					if now.After(check.graceUntil) {
-						w.logger.Printf("[WARN] consul.health: watched check %q (%s) not found in Consul", check.checkName, cid)
+						w.logger.Warn("watched check not found in Consul", "check", check.checkName, "check_id", cid)
 					}
 					continue
 				}
@@ -286,7 +285,7 @@ func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.S
 		graceUntil:     time.Now().Add(check.CheckRestart.Grace),
 		timeLimit:      check.Interval * time.Duration(check.CheckRestart.Limit-1),
 		ignoreWarnings: check.CheckRestart.IgnoreWarnings,
-		logger:         w.logger,
+		logger:         w.logger.With("alloc_id", allocID, "task", taskName, "check", check.Name),
 	}
 
 	update := checkWatchUpdate{

@@ -116,7 +116,7 @@ func (c *fakeChecksAPI) Checks() (map[string]*api.AgentCheck, error) {
 // logger and faster poll frequency.
 func testWatcherSetup(t *testing.T) (*fakeChecksAPI, *checkWatcher) {
 	fakeAPI := newFakeChecksAPI()
-	cw := newCheckWatcher(testlog.Logger(t), fakeAPI)
+	cw := newCheckWatcher(testlog.HCLogger(t), fakeAPI)
 	cw.pollFreq = 10 * time.Millisecond
 	return fakeAPI, cw
 }
@@ -142,7 +142,7 @@ func TestCheckWatcher_Skip(t *testing.T) {
 	check := testCheck()
 	check.CheckRestart = nil
 
-	cw := newCheckWatcher(testlog.Logger(t), newFakeChecksAPI())
+	cw := newCheckWatcher(testlog.HCLogger(t), newFakeChecksAPI())
 	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check, restarter1)
 
