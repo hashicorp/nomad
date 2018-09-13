@@ -1,0 +1,26 @@
+{{metricLabel}}
+<div style="height: 200px">
+  {{stats-time-series data=data chartClass=chartClass}}
+</div>
+<div class="columns">
+  <div class="column">
+    <div class="inline-chart">
+      <progress
+        class="progress {{chartClass}} is-small"
+        value="{{data.lastObject.percent}}"
+        max="1">
+        {{data.lastObject.percent}}
+      </progress>
+    </div>
+  </div>
+  <div class="column is-minimum">
+    {{format-percentage data.lastObject.percent total=1}}
+  </div>
+</div>
+{{#if (eq metric "cpu")}}
+  {{data.lastObject.used}} Mhz / {{reservedAmount}} Mhz reserved
+{{else if (eq metric "memory")}}
+  {{format-bytes data.lastObject.used}} MiB / {{reservedAmount}} MiB reserved
+{{else}}
+  {{data.lastObject.used}} / {{reservedAmount}} reserved
+{{/if}}
