@@ -78,6 +78,24 @@
   {{/if}}
 
   <div class="boxed-section">
+    <div class="boxed-section-head is-hollow">
+      Resource Utilization
+    </div>
+    <div class="boxed-section-body">
+      <div class="columns">
+        <div class="column">
+          CPU
+          {{stats-time-series data=stats.cpu chartClass="is-info"}}
+        </div>
+        <div class="column">
+          Memory
+          {{stats-time-series data=stats.memory chartClass="is-danger"}}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boxed-section">
     <div class="boxed-section-head">
       <div>Allocations <span class="badge is-white">{{model.allocations.length}}</span></div>
       {{search-box
