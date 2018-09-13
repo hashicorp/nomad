@@ -37,17 +37,6 @@ export default Controller.extend(Sortable, Searchable, {
     return this.get('model.drivers').sortBy('name');
   }),
 
-  stats: stats('model', function statsFetch() {
-    return url => this.get('token').authorizedRequest(url);
-  }),
-
-  pollStats: task(function*() {
-    do {
-      yield this.get('stats').poll();
-      yield timeout(1000);
-    } while (!Ember.testing);
-  }),
-
   actions: {
     gotoAllocation(allocation) {
       this.transitionToRoute('allocations.allocation', allocation);
