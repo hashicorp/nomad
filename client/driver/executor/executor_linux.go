@@ -129,7 +129,8 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	e.resConCtx.groups.Path = filepath.Join("/nomad", cgroupName)
 
 	// Allow access to /dev/
-	e.resConCtx.groups.Resources.AllowAllDevices = true
+	allowAllDevs := true
+	e.resConCtx.groups.Resources.AllowAllDevices = &allowAllDevs
 
 	// Use a cgroup but don't apply limits
 	if !e.command.ResourceLimits {
@@ -140,7 +141,7 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 		// Total amount of memory allowed to consume
 		e.resConCtx.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
-		var memSwappiness int64 = 0
+		var memSwappiness uint64 = 0
 		e.resConCtx.groups.Resources.MemorySwappiness = &memSwappiness
 	}
 
@@ -149,7 +150,7 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	}
 
 	// Set the relative CPU shares for this cgroup.
-	e.resConCtx.groups.Resources.CpuShares = int64(resources.CPU)
+	e.resConCtx.groups.Resources.CpuShares = uint64(resources.CPU)
 
 	if resources.IOPS != 0 {
 		// Validate it is in an acceptable range.
