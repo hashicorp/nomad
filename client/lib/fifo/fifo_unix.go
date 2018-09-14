@@ -26,3 +26,11 @@ func OpenWriter(path string) (io.WriteCloser, error) {
 func Remove(path string) error {
 	return os.Remove(path)
 }
+
+func IsClosedErr(err error) bool {
+	err2, ok := err.(*os.PathError)
+	if ok {
+		return err2.Err == os.ErrClosed
+	}
+	return false
+}

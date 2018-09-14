@@ -77,3 +77,7 @@ func Remove(path string) error {
 	os.Remove(path)
 	return nil
 }
+
+func IsClosedErr(err error) bool {
+	return err == winio.ErrFileClosed
+}
