@@ -19,16 +19,18 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   }),
 
   append(frame) {
+    const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
+
     const cpuUsed = Math.floor(frame.ResourceUsage.CpuStats.TotalTicks) || 0;
-    this.get('cpu').push({
-      timestamp: frame.Timestamp,
+    this.get('cpu').pushObject({
+      timestamp,
       used: cpuUsed,
       percent: percent(cpuUsed, this.get('reservedCPU')),
     });
 
     const memoryUsed = frame.ResourceUsage.MemoryStats.RSS;
-    this.get('memory').push({
-      timestamp: frame.Timestamp,
+    this.get('memory').pushObject({
+      timestamp,
       used: memoryUsed,
       percent: percent(memoryUsed / 1024 / 1024, this.get('reservedMemory')),
     });
@@ -41,16 +43,18 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
       // allocation, don't attempt to append data for the task.
       if (!stats) continue;
 
+      const frameTimestamp = new Date(Math.floor(taskFrame.Timestamp / 1000000));
+
       const taskCpuUsed = Math.floor(taskFrame.ResourceUsage.CpuStats.TotalTicks) || 0;
-      stats.cpu.push({
-        timestamp: taskFrame.Timestamp,
+      stats.cpu.pushObject({
+        timestamp: frameTimestamp,
         used: taskCpuUsed,
         percent: percent(taskCpuUsed, stats.reservedCPU),
       });
 
       const taskMemoryUsed = taskFrame.ResourceUsage.MemoryStats.RSS;
-      stats.memory.push({
-        timestamp: taskFrame.Timestamp,
+      stats.memory.pushObject({
+        timestamp: frameTimestamp,
         used: taskMemoryUsed,
         percent: percent(taskMemoryUsed / 1024 / 1024, stats.reservedMemory),
       });
