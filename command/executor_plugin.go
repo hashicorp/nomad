@@ -47,7 +47,7 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 		Plugins: driver.GetPluginMap(
 			stdo,
 			hclog.LevelFromString(executorConfig.LogLevel),
-			executorConfig.fsIsolation,
+			executorConfig.FSIsolation,
 		),
 	})
 	return 0
