@@ -9,6 +9,8 @@ import { task, timeout } from 'ember-concurrency';
 export default Component.extend({
   token: service(),
 
+  classNames: ['primary-metric'],
+
   // One of Node, Allocation, or TaskState
   resource: null,
 
