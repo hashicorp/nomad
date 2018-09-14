@@ -14,31 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// watchSema acts as a semaphore to allow one watcher at a time.
-type watchSema struct {
-	ch chan int
-}
-
-func newWatchSema() *watchSema {
-	return &watchSema{ch: make(chan int, 1)}
-}
-
-// acquire the semaphore.
-func (w *watchSema) acquire() {
-	w.ch <- 1
-}
-
-// release the semaphore.
-func (w *watchSema) release() {
-	<-w.ch
-}
-
-// wait blocks until the semaphore is free to be acquired.
-func (w *watchSema) wait() {
-	w.acquire()
-	w.release()
-}
-
 // healthMutator is able to set/clear alloc health.
 type healthSetter interface {
 	// Set health via the mutator
@@ -65,9 +40,10 @@ type allocHealthWatcherHook struct {
 	// Update and synchronous hooks.
 	hookLock sync.Mutex
 
-	// watchLock is acquired by the health watching/setting goroutine to
-	// ensure only one health watching goroutine is running at a time.
-	watchLock *watchSema
+	// watchDone is created before calling watchHealth and is closed when
+	// watchHealth exits. Must be passed into watchHealth to avoid races.
+	// Initialized already closed as Update may be called before Prerun.
+	watchDone chan struct{}
 
 	// ranOnce is set once Prerun or Update have run at least once. This
 	// prevents Prerun from running if an Update has already been
@@ -97,13 +73,17 @@ func newAllocHealthWatcherHook(logger log.Logger, alloc *structs.Allocation, hs 
 		return noopAllocHealthWatcherHook{}
 	}
 
+	// Initialize watchDone with a closed chan in case Update runs before Prerun
+	closedDone := make(chan struct{})
+	close(closedDone)
+
 	h := &allocHealthWatcherHook{
 		alloc:        alloc,
 		cancelFn:     func() {}, // initialize to prevent nil func panics
+		watchDone:    closedDone,
 		consul:       consul,
 		healthSetter: hs,
 		listener:     listener,
-		watchLock:    newWatchSema(),
 	}
 
 	h.logger = logger.Named(h.Name())
@@ -151,7 +131,10 @@ func (h *allocHealthWatcherHook) init() error {
 	tracker := allochealth.NewTracker(ctx, h.logger, h.alloc,
 		h.listener, h.consul, minHealthyTime, useChecks)
 	tracker.Start()
-	go h.watchHealth(ctx, tracker)
+
+	// Create a new done chan and start watching for health updates
+	h.watchDone = make(chan struct{})
+	go h.watchHealth(ctx, tracker, h.watchDone)
 	return nil
 }
 
@@ -179,7 +162,7 @@ func (h *allocHealthWatcherHook) Update(req *interfaces.RunnerUpdateRequest) err
 	h.cancelFn()
 
 	// Wait until the watcher exits
-	h.watchLock.wait()
+	<-h.watchDone
 
 	// Deployment has changed, reset status
 	if req.Alloc.DeploymentID != h.alloc.DeploymentID {
@@ -200,7 +183,7 @@ func (h *allocHealthWatcherHook) Destroy() error {
 	h.listener.Close()
 
 	// Wait until the watcher exits
-	h.watchLock.wait()
+	<-h.watchDone
 
 	return nil
 }
@@ -208,9 +191,8 @@ func (h *allocHealthWatcherHook) Destroy() error {
 // watchHealth watches alloc health until it is set, the alloc is stopped, or
 // the context is canceled. watchHealth will be canceled and restarted on
 // Updates so calls are serialized with a lock.
-func (h *allocHealthWatcherHook) watchHealth(ctx context.Context, tracker *allochealth.Tracker) {
-	h.watchLock.acquire()
-	defer h.watchLock.release()
+func (h *allocHealthWatcherHook) watchHealth(ctx context.Context, tracker *allochealth.Tracker, done chan<- struct{}) {
+	defer close(done)
 
 	select {
 	case <-ctx.Done():
