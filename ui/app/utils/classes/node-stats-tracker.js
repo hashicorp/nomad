@@ -14,8 +14,6 @@ const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Set via the stats computed property macro
   node: null,
 
-  bufferSize: 100,
-
   url: computed('node', function() {
     return `/v1/client/stats?node_id=${this.get('node.id')}`;
   }),

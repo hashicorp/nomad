@@ -15,25 +15,33 @@ export default function RollingArray(maxLength, ...items) {
   array._splice = array.splice;
   array._unshift = array.unshift;
 
-  array.push = function(...items) {
-    const returnValue = this._push(...items);
+  // All mutable array methods build on top of insertAt
+  array._insertAt = array.insertAt;
 
+  // Bring the length back down to maxLength by removing from the front
+  array._limit = function() {
     const surplus = this.length - this.maxLength;
     if (surplus > 0) {
       this.splice(0, surplus);
     }
+  };
 
-    return Math.min(returnValue, this.maxLength);
+  array.push = function(...items) {
+    this._push(...items);
+    this._limit();
+    return this.length;
   };
 
   array.splice = function(...args) {
     const returnValue = this._splice(...args);
+    this._limit();
+    return returnValue;
+  };
 
-    const surplus = this.length - this.maxLength;
-    if (surplus > 0) {
-      this._splice(0, surplus);
-    }
-
+  array.insertAt = function(...args) {
+    const returnValue = this._insertAt(...args);
+    this._limit();
+    this.arrayContentDidChange();
     return returnValue;
   };
 

@@ -14,8 +14,6 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Set via the stats computed property macro
   allocation: null,
 
-  bufferSize: 100,
-
   url: computed('allocation', function() {
     return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
   }),
