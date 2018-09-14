@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -47,7 +48,7 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testLogger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -66,17 +67,19 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}
-	tl, err := NewTaskLogger(task.Name, &LogConfig{
-		LogDir:        td.LogDir,
-		MaxFiles:      task.LogConfig.MaxFiles,
-		MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
-	}, testLogger(t))
-	if err != nil {
-		t.Fatalf("NewTaskLogger() failed: %v", err)
-	}
-	cmd.StdoutFD = tl.StdoutFD()
-	cmd.StderrFD = tl.StderrFD()
 	return cmd, allocDir
+}
+
+type bufferCloser struct {
+	bytes.Buffer
+}
+
+func (_ *bufferCloser) Close() error { return nil }
+
+func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
+	cmd.stdout = &stdout
+	cmd.stderr = &stderr
+	return
 }
 
 func testLogger(t *testing.T) hclog.Logger {
@@ -256,7 +259,7 @@ func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 	f.Chmod(os.FileMode(0610))
 
 	// Make a fake executor
-	executor := newUniversalExecutor(testLogger(t))
+	executor := NewExecutor(testLogger(t)).(*UniversalExecutor)
 
 	err = executor.makeExecutable(f.Name())
 	if err != nil {
@@ -285,7 +288,7 @@ func TestUniversalExecutor_ScanPids(t *testing.T) {
 	p5 := NewFakeProcess(20, 18)
 
 	// Make a fake executor
-	executor := newUniversalExecutor(testLogger(t))
+	executor := NewExecutor(testLogger(t)).(*UniversalExecutor)
 
 	nomadPids, err := executor.scanPids(5, []ps.Process{p1, p2, p3, p4, p5})
 	if err != nil {

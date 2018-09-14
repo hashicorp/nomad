@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
-	"github.com/hashicorp/nomad/helper/uuid"
 
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -207,25 +206,6 @@ func NewExecutor(logger hclog.Logger) Executor {
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "err", err)
 	}
-
-	var exec Executor
-
-	// TODO: only use libcontainer on linux /w cgroups
-	exec = newLibcontainerExecutor(logger)
-	return exec
-}
-
-func newLibcontainerExecutor(logger hclog.Logger) Executor {
-	return &LibcontainerExecutor{
-		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
-		logger:         logger,
-		totalCpuStats:  stats.NewCpuStats(),
-		userCpuStats:   stats.NewCpuStats(),
-		systemCpuStats: stats.NewCpuStats(),
-	}
-}
-
-func newUniversalExecutor(logger hclog.Logger) *UniversalExecutor {
 	return &UniversalExecutor{
 		logger:         logger,
 		processExited:  make(chan interface{}),
@@ -234,7 +214,6 @@ func newUniversalExecutor(logger hclog.Logger) *UniversalExecutor {
 		systemCpuStats: stats.NewCpuStats(),
 		pids:           make(map[int]*nomadPid),
 	}
-
 }
 
 // Version returns the api version of the executor
@@ -388,7 +367,7 @@ func (e *UniversalExecutor) wait() {
 			}
 		}
 	} else {
-		e.logger.Warn("unexpected Cmd.Wait() error type", "err", err)
+		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
 	}
 
 	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: nil, Time: time.Now()}

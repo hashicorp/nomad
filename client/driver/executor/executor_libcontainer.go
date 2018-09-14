@@ -74,6 +74,16 @@ type LibcontainerExecutor struct {
 	syslogChan   chan *logging.SyslogMessage
 }
 
+func NewLibcontainerExecutor(logger hclog.Logger) Executor {
+	return &LibcontainerExecutor{
+		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
+		logger:         logger,
+		totalCpuStats:  stats.NewCpuStats(),
+		userCpuStats:   stats.NewCpuStats(),
+		systemCpuStats: stats.NewCpuStats(),
+	}
+}
+
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	// Find the nomad executable to launch the executor process with

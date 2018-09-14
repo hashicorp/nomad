@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	tu "github.com/hashicorp/nomad/testutil"
@@ -62,7 +61,7 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testLogger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -81,18 +80,6 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}
-
-	tl, err := NewTaskLogger(task.Name, &LogConfig{
-		LogDir:        td.LogDir,
-		MaxFiles:      task.LogConfig.MaxFiles,
-		MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
-	}, testLogger(t))
-	if err != nil {
-		t.Fatalf("NewTaskLogger() failed: %v", err)
-	}
-
-	cmd.StdoutFD = tl.StdoutFD()
-	cmd.StderrFD = tl.StderrFD()
 
 	return cmd, allocDir
 }
