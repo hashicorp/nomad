@@ -1,8 +1,8 @@
-{{metricLabel}}
-<div style="height: 200px">
+<h4 class="title is-5">{{metricLabel}}</h4>
+<div class="primary-graphic">
   {{stats-time-series data=data chartClass=chartClass}}
 </div>
-<div class="columns">
+<div class="columns secondary-graphic">
   <div class="column">
     <div class="inline-chart">
       <progress
@@ -14,13 +14,15 @@
     </div>
   </div>
   <div class="column is-minimum">
-    {{format-percentage data.lastObject.percent total=1}}
+    <span class="nowrap">{{format-percentage data.lastObject.percent total=1}}</span>
   </div>
 </div>
-{{#if (eq metric "cpu")}}
-  {{data.lastObject.used}} Mhz / {{reservedAmount}} Mhz reserved
-{{else if (eq metric "memory")}}
-  {{format-bytes data.lastObject.used}} MiB / {{reservedAmount}} MiB reserved
-{{else}}
-  {{data.lastObject.used}} / {{reservedAmount}} reserved
-{{/if}}
+<div class="annotation">
+  {{#if (eq metric "cpu")}}
+    <strong>{{data.lastObject.used}} Mhz</strong> / {{reservedAmount}} Mhz reserved
+  {{else if (eq metric "memory")}}
+    <strong>{{format-bytes data.lastObject.used}}</strong> / {{reservedAmount}} MiB reserved
+  {{else}}
+    <strong>{{data.lastObject.used}}</strong> / {{reservedAmount}} reserved
+  {{/if}}
+</div>
