@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 // configure new process group for child process
@@ -66,4 +68,10 @@ func (e *UniversalExecutor) shutdownProcess(proc *os.Process) error {
 	e.logger.Info("sent Ctrl-Break to process", "pid", proc.Pid)
 
 	return nil
+}
+
+func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+	logger = logger.Named("executor")
+	logger.Error("isolation executor is not supported on windows, using default")
+	return NewExecutor(logger)
 }

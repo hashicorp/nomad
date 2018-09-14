@@ -95,7 +95,6 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	execCmd.Args = []string{"-F", "/", "/etc/"}
 	defer allocDir.Destroy()
 
-	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
 	execCmd.User = dstructs.DefaultUnprivilegedUser
 
@@ -168,7 +167,6 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	// too quickly to ensure executor.Exit() stops the process.
 	execCmd.Cmd = "/bin/bash"
 	execCmd.Args = []string{"-c", "while true; do /bin/echo X; /bin/sleep 1; done"}
-	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
 	execCmd.User = "nobody"
 

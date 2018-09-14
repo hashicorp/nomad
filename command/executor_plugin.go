@@ -44,7 +44,11 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 	}
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: driver.HandshakeConfig,
-		Plugins:         driver.GetPluginMap(stdo, hclog.LevelFromString(executorConfig.LogLevel)),
+		Plugins: driver.GetPluginMap(
+			stdo,
+			hclog.LevelFromString(executorConfig.LogLevel),
+			executorConfig.fsIsolation,
+		),
 	})
 	return 0
 }

@@ -239,8 +239,9 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
-		LogFile:  pluginLogFile,
-		LogLevel: d.config.LogLevel,
+		LogFile:     pluginLogFile,
+		LogLevel:    d.config.LogLevel,
+		FSIsolation: true,
 	}
 
 	execIntf, pluginClient, err := createExecutor(d.config.LogOutput, d.config, executorConfig)
@@ -261,7 +262,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
-		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
 		TaskKillSignal: taskKillSignal,

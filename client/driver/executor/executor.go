@@ -98,9 +98,6 @@ type ExecCommand struct {
 	// TaskKillSignal is an optional field which signal to kill the process
 	TaskKillSignal os.Signal
 
-	// FSIsolation determines whether the command would be run in a chroot.
-	FSIsolation bool
-
 	// User is the user which the executor uses to run the command.
 	User string
 

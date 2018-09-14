@@ -110,8 +110,9 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
-		LogFile:  pluginLogFile,
-		LogLevel: d.config.LogLevel,
+		LogFile:     pluginLogFile,
+		LogLevel:    d.config.LogLevel,
+		FSIsolation: true,
 	}
 	exec, pluginClient, err := createExecutor(d.config.LogOutput, d.config, executorConfig)
 	if err != nil {
@@ -127,7 +128,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		Cmd:            command,
 		Args:           driverConfig.Args,
 		TaskKillSignal: taskKillSignal,
-		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
 		Resources: &executor.Resources{

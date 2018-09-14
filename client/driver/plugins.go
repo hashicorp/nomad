@@ -14,13 +14,15 @@ var HandshakeConfig = plugin.HandshakeConfig{
 	MagicCookieValue: "e4327c2e01eabfd75a8a67adb114fb34a757d57eee7728d857a8cec6e91a7255",
 }
 
-func GetPluginMap(w io.Writer, logLevel hclog.Level) map[string]plugin.Plugin {
+func GetPluginMap(w io.Writer, logLevel hclog.Level, fsIsolation bool) map[string]plugin.Plugin {
 	e := new(ExecutorPlugin)
 
 	e.logger = hclog.New(&hclog.LoggerOptions{
 		Output: w,
 		Level:  logLevel,
 	})
+
+	e.fsIsolation = fsIsolation
 
 	return map[string]plugin.Plugin{
 		"executor": e,

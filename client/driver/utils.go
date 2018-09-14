@@ -49,7 +49,7 @@ func createExecutor(w io.Writer, clientConfig *config.Config,
 		Cmd: exec.Command(bin, "executor", string(c)),
 	}
 	config.HandshakeConfig = HandshakeConfig
-	config.Plugins = GetPluginMap(w, hclog.LevelFromString(clientConfig.LogLevel))
+	config.Plugins = GetPluginMap(w, hclog.LevelFromString(clientConfig.LogLevel), executorConfig.FSIsolation)
 	config.MaxPort = clientConfig.ClientMaxPort
 	config.MinPort = clientConfig.ClientMinPort
 
@@ -78,7 +78,7 @@ func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
-	config.Plugins = GetPluginMap(w, hclog.Debug)
+	config.Plugins = GetPluginMap(w, hclog.Debug, false)
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()

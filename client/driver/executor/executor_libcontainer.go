@@ -19,7 +19,6 @@ import (
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -75,7 +74,7 @@ type LibcontainerExecutor struct {
 	syslogChan   chan *logging.SyslogMessage
 }
 
-func NewLibcontainerExecutor(logger hclog.Logger) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 	logger = logger.Named("executor")
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
@@ -371,65 +370,60 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
 func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
-	if command.FSIsolation {
-		cfg.Rootfs = command.TaskDir
-		cfg.Namespaces = lconfigs.Namespaces{
-			{Type: lconfigs.NEWNS},
-		}
-		cfg.MaskPaths = []string{
-			"/proc/kcore",
-			"/sys/firmware",
-		}
+	cfg.Rootfs = command.TaskDir
+	cfg.Namespaces = lconfigs.Namespaces{
+		{Type: lconfigs.NEWNS},
+	}
+	cfg.MaskPaths = []string{
+		"/proc/kcore",
+		"/sys/firmware",
+	}
 
-		cfg.ReadonlyPaths = []string{
-			"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
-		}
+	cfg.ReadonlyPaths = []string{
+		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
+	}
 
-		cfg.Devices = lconfigs.DefaultAutoCreatedDevices
-		cfg.Mounts = []*lconfigs.Mount{
-			/*{
-				Source:      "proc",
-				Destination: "/proc",
-				Device:      "proc",
-				Flags:       defaultMountFlags,
-			},*/
-			{
-				Source:      "tmpfs",
-				Destination: "/dev",
-				Device:      "tmpfs",
-				Flags:       syscall.MS_NOSUID | syscall.MS_STRICTATIME,
-				Data:        "mode=755",
-			},
-			{
-				Source:      "devpts",
-				Destination: "/dev/pts",
-				Device:      "devpts",
-				Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
-				Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
-			},
-			{
-				Device:      "tmpfs",
-				Source:      "shm",
-				Destination: "/dev/shm",
-				Data:        "mode=1777,size=65536k",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Source:      "mqueue",
-				Destination: "/dev/mqueue",
-				Device:      "mqueue",
-				Flags:       defaultMountFlags,
-			},
-			{
-				Source:      "sysfs",
-				Destination: "/sys",
-				Device:      "sysfs",
-				Flags:       defaultMountFlags | syscall.MS_RDONLY,
-			},
-		}
-	} else {
-		cfg.Rootfs = "/"
-		cfg.Cgroups.AllowAllDevices = helper.BoolToPtr(true)
+	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	cfg.Mounts = []*lconfigs.Mount{
+		/*{
+			Source:      "proc",
+			Destination: "/proc",
+			Device:      "proc",
+			Flags:       defaultMountFlags,
+		},*/
+		{
+			Source:      "tmpfs",
+			Destination: "/dev",
+			Device:      "tmpfs",
+			Flags:       syscall.MS_NOSUID | syscall.MS_STRICTATIME,
+			Data:        "mode=755",
+		},
+		{
+			Source:      "devpts",
+			Destination: "/dev/pts",
+			Device:      "devpts",
+			Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
+			Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
+		},
+		{
+			Device:      "tmpfs",
+			Source:      "shm",
+			Destination: "/dev/shm",
+			Data:        "mode=1777,size=65536k",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Source:      "mqueue",
+			Destination: "/dev/mqueue",
+			Device:      "mqueue",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Source:      "sysfs",
+			Destination: "/sys",
+			Device:      "sysfs",
+			Flags:       defaultMountFlags | syscall.MS_RDONLY,
+		},
 	}
 }
 

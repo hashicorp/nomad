@@ -162,13 +162,18 @@ func (e *ExecutorRPCServer) Exec(args ExecArgs, result *ExecReturn) error {
 }
 
 type ExecutorPlugin struct {
-	logger hclog.Logger
-	Impl   *ExecutorRPCServer
+	logger      hclog.Logger
+	fsIsolation bool
+	Impl        *ExecutorRPCServer
 }
 
 func (p *ExecutorPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
 	if p.Impl == nil {
-		p.Impl = &ExecutorRPCServer{Impl: executor.NewExecutor(p.logger), logger: p.logger}
+		if p.fsIsolation {
+			p.Impl = &ExecutorRPCServer{Impl: executor.NewExecutorWithIsolation(p.logger), logger: p.logger}
+		} else {
+			p.Impl = &ExecutorRPCServer{Impl: executor.NewExecutor(p.logger), logger: p.logger}
+		}
 	}
 	return p.Impl, nil
 }
