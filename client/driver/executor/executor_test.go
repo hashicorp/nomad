@@ -48,7 +48,7 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testLogger(t), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -67,6 +67,7 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}
+	configureTLogging(cmd)
 	return cmd, allocDir
 }
 
@@ -82,13 +83,6 @@ func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferClos
 	return
 }
 
-func testLogger(t *testing.T) hclog.Logger {
-	return hclog.New(&hclog.LoggerOptions{
-		Output: testlog.NewWriter(t),
-		Level:  hclog.Trace,
-	})
-}
-
 func TestExecutor_Start_Invalid(pt *testing.T) {
 	pt.Parallel()
 	invalid := "/bin/foobar"
@@ -100,7 +94,7 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 			execCmd.Cmd = invalid
 			execCmd.Args = []string{"1"}
 			defer allocDir.Destroy()
-			executor := factory(testLogger(t))
+			executor := factory(testlog.HCLogger(t))
 			defer executor.Destroy()
 
 			_, err := executor.Launch(execCmd)
@@ -119,7 +113,7 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 			execCmd.Cmd = "/bin/date"
 			execCmd.Args = []string{"fail"}
 			defer allocDir.Destroy()
-			executor := factory(testLogger(t))
+			executor := factory(testlog.HCLogger(t))
 			defer executor.Destroy()
 
 			ps, err := executor.Launch(execCmd)
@@ -142,7 +136,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			execCmd.Cmd = "/bin/echo"
 			execCmd.Args = []string{"hello world"}
 			defer allocDir.Destroy()
-			executor := factory(testLogger(t))
+			executor := factory(testlog.HCLogger(t))
 			defer executor.Destroy()
 
 			ps, err := executor.Launch(execCmd)
@@ -154,13 +148,8 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			require.NoError(executor.Destroy())
 
 			expected := "hello world"
-			file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
 			tu.WaitForResult(func() (bool, error) {
-				output, err := ioutil.ReadFile(file)
-				if err != nil {
-					return false, err
-				}
-
+				output := execCmd.stdout.(*bufferCloser).String()
 				act := strings.TrimSpace(string(output))
 				if expected != act {
 					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
@@ -183,7 +172,7 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10000"}
 			defer allocDir.Destroy()
-			executor := factory(testLogger(t))
+			executor := factory(testlog.HCLogger(t))
 			defer executor.Destroy()
 
 			ps, err := executor.Launch(execCmd)
@@ -217,7 +206,7 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10 && hello world"}
 			defer allocDir.Destroy()
-			executor := factory(testLogger(t))
+			executor := factory(testlog.HCLogger(t))
 			defer executor.Destroy()
 
 			ps, err := executor.Launch(execCmd)
@@ -228,14 +217,8 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require.NoError(err)
 			require.NoError(executor.Destroy())
 
-			file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
-
-			output, err := ioutil.ReadFile(file)
-			if err != nil {
-				t.Fatalf("Couldn't read file %v", file)
-			}
-
+			output := execCmd.stdout.(*bufferCloser).String()
 			expected := ""
 			act := strings.TrimSpace(string(output))
 			if act != expected {
@@ -259,7 +242,7 @@ func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 	f.Chmod(os.FileMode(0610))
 
 	// Make a fake executor
-	executor := NewExecutor(testLogger(t)).(*UniversalExecutor)
+	executor := NewExecutor(testlog.HCLogger(t)).(*UniversalExecutor)
 
 	err = executor.makeExecutable(f.Name())
 	if err != nil {
@@ -288,7 +271,7 @@ func TestUniversalExecutor_ScanPids(t *testing.T) {
 	p5 := NewFakeProcess(20, 18)
 
 	// Make a fake executor
-	executor := NewExecutor(testLogger(t)).(*UniversalExecutor)
+	executor := NewExecutor(testlog.HCLogger(t)).(*UniversalExecutor)
 
 	nomadPids, err := executor.scanPids(5, []ps.Process{p1, p2, p3, p4, p5})
 	if err != nil {

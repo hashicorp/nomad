@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	tu "github.com/hashicorp/nomad/testutil"
@@ -61,7 +61,7 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testLogger(t), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -80,6 +80,7 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}
+	configureTLogging(cmd)
 
 	return cmd, allocDir
 }
@@ -98,7 +99,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	execCmd.ResourceLimits = true
 	execCmd.User = dstructs.DefaultUnprivilegedUser
 
-	executor := libcontainerFactory(testLogger(t))
+	executor := libcontainerFactory(testlog.HCLogger(t))
 	defer executor.Destroy()
 
 	ps, err := executor.Launch(execCmd)
@@ -142,16 +143,8 @@ usr/
 ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
-	file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
-	stat, err := os.Stat(file)
-	require.NoError(err)
-	require.NotZero(stat.Sys().(*syscall.Stat_t).Uid)
-
 	tu.WaitForResult(func() (bool, error) {
-		output, err := ioutil.ReadFile(file)
-		if err != nil {
-			return false, err
-		}
+		output := execCmd.stdout.(*bufferCloser).String()
 		act := strings.TrimSpace(string(output))
 		if act != expected {
 			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
@@ -168,7 +161,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd, allocDir := testExecutorCommandWithChroot(t)
 	defer allocDir.Destroy()
 
-	executor := libcontainerFactory(testLogger(t))
+	executor := libcontainerFactory(testlog.HCLogger(t))
 	defer executor.Destroy()
 
 	// Need to run a command which will produce continuous output but not
@@ -185,12 +178,9 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	require.NoError(executor.Destroy())
 
-	file := filepath.Join(allocDir.TaskDirs["web"].LogDir, "web.stdout.0")
-	finfo, err := os.Stat(file)
-	require.NoError(err)
-	require.NotZero(finfo.Size())
+	output := execCmd.stdout.(*bufferCloser).String()
+	require.NotZero(len(output))
 	time.Sleep(2 * time.Second)
-	finfo1, err := os.Stat(file)
-	require.NoError(err)
-	require.Equal(finfo.Size(), finfo1.Size())
+	output1 := execCmd.stdout.(*bufferCloser).String()
+	require.Equal(len(output), len(output1))
 }
