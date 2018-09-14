@@ -21,6 +21,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/discover"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -75,6 +76,10 @@ type LibcontainerExecutor struct {
 }
 
 func NewLibcontainerExecutor(logger hclog.Logger) Executor {
+	logger = logger.Named("executor")
+	if err := shelpers.Init(); err != nil {
+		logger.Error("unable to initialize stats", "error", err)
+	}
 	return &LibcontainerExecutor{
 		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
 		logger:         logger,
@@ -177,7 +182,7 @@ func (l *LibcontainerExecutor) wait() {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			ps = exitErr.ProcessState
 		} else {
-			l.logger.Error("failed to call wait on user process", "err", err)
+			l.logger.Error("failed to call wait on user process", "error", err)
 			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
 			return
 		}

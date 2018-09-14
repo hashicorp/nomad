@@ -204,7 +204,7 @@ type UniversalExecutor struct {
 func NewExecutor(logger hclog.Logger) Executor {
 	logger = logger.Named("executor")
 	if err := shelpers.Init(); err != nil {
-		logger.Error("unable to initialize stats", "err", err)
+		logger.Error("unable to initialize stats", "error", err)
 	}
 	return &UniversalExecutor{
 		logger:         logger,
@@ -397,7 +397,7 @@ func (e *UniversalExecutor) Destroy() error {
 	if e.cmd.Process != nil && !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
-			e.logger.Error("can't find process", "pid", e.cmd.Process.Pid, "err", err)
+			e.logger.Error("can't find process", "pid", e.cmd.Process.Pid, "error", err)
 		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid %d: %v", e.cmd.Process.Pid, err))
@@ -431,7 +431,7 @@ func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, erro
 	for pid, np := range pids {
 		p, err := process.NewProcess(int32(pid))
 		if err != nil {
-			e.logger.Trace("unable to create new process", "pid", pid)
+			e.logger.Trace("unable to create new process", "pid", pid, "error", err)
 			continue
 		}
 		ms := &cstructs.MemoryStats{}
@@ -517,7 +517,7 @@ func (e *UniversalExecutor) collectPids() {
 		case <-timer.C:
 			pids, err := e.getAllPids()
 			if err != nil {
-				e.logger.Debug("error collecting pids", "err", err)
+				e.logger.Debug("error collecting pids", "error", err)
 			}
 			e.pidLock.Lock()
 
@@ -640,7 +640,7 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	e.logger.Debug("sending signal to PID", "signal", s, "pid", e.cmd.Process.Pid)
 	err := e.cmd.Process.Signal(s)
 	if err != nil {
-		e.logger.Error("sending signal failed", "signal", s, "err", err)
+		e.logger.Error("sending signal failed", "signal", s, "error", err)
 		return err
 	}
 
