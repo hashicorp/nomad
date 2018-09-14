@@ -31,7 +31,7 @@ func NewMockConsulOp(op, allocID, task string) MockConsulOp {
 // MockConsulServiceClient implements the ConsulServiceAPI interface to record
 // and log task registration/deregistration.
 type MockConsulServiceClient struct {
-	Ops []MockConsulOp
+	ops []MockConsulOp
 	mu  sync.Mutex
 
 	logger log.Logger
@@ -84,4 +84,10 @@ func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.Al
 	}
 
 	return nil, nil
+}
+
+func (m *MockConsulServiceClient) GetOps() []MockConsulOp {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.ops
 }
