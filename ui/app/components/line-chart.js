@@ -244,6 +244,8 @@ export default Component.extend(WindowResizable, {
       'data'
     );
 
+    if (!data || !data.length) return;
+
     // Map the mouse coordinate to the index in the data array
     const bisector = d3Array.bisector(d => d[xProp]).left;
     const x = xScale.invert(mouseX);
@@ -253,8 +255,15 @@ export default Component.extend(WindowResizable, {
     const dLeft = data[index - 1];
     const dRight = data[index];
 
-    // Pick the closer point
-    const datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
+    let datum;
+
+    // If there is only one point, it's the activeDatum
+    if (dLeft && !dRight) {
+      datum = dLeft;
+    } else {
+      // Pick the closer point
+      datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
+    }
 
     this.set('activeDatum', datum);
     this.set('tooltipPosition', {
