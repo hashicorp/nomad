@@ -16,5 +16,5 @@ consul {
 
 vault {
   enabled = true
-  address = "vault.service.consul"
+  address = "http://active.vault.service.consul:8200"
 }
