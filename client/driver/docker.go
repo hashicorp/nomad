@@ -17,15 +17,15 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/fsouza/go-dockerclient"
+	metrics "github.com/armon/go-metrics"
+	docker "github.com/fsouza/go-dockerclient"
 
-	"github.com/docker/docker/cli/config/configfile"
-	"github.com/docker/docker/reference"
+	"github.com/docker/cli/cli/config/configfile"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/registry"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -2190,13 +2190,13 @@ func authFromHelper(helperName string) authBackend {
 		helper := dockerAuthHelperPrefix + helperName
 		cmd := exec.Command(helper, "get")
 
-		repoParsed, err := reference.ParseNamed(repo)
+		repoInfo, err := parseRepositoryInfo(repo)
 		if err != nil {
 			return nil, err
 		}
 
 		// Ensure that the HTTPs prefix exists
-		repoAddr := fmt.Sprintf("https://%s", repoParsed.Hostname())
+		repoAddr := fmt.Sprintf("https://%s", repoInfo.Index.Name)
 
 		cmd.Stdin = strings.NewReader(repoAddr)
 		output, err := cmd.Output()
