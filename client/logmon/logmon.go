@@ -12,6 +12,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/lib/fifo"
+	"github.com/hashicorp/nomad/helper/discover"
 )
 
 const (
@@ -60,12 +61,17 @@ type LogMon interface {
 }
 
 func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: Handshake,
 		Plugins: map[string]plugin.Plugin{
 			"logmon": NewPlugin(NewLogMon(hclog.L().Named("logmon"))),
 		},
-		Cmd: exec.Command("/proc/self/exe", "logmon"),
+		Cmd: exec.Command(bin, "logmon"),
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
