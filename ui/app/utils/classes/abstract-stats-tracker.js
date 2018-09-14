@@ -4,6 +4,8 @@ import { assert } from '@ember/debug';
 export default Mixin.create({
   url: '',
 
+  bufferSize: 500,
+
   fetch() {
     assert('StatsTrackers need a fetch method, which should have an interface like window.fetch');
   },
