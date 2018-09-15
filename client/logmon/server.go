@@ -21,7 +21,8 @@ func (s *logmonServer) Start(ctx context.Context, req *proto.StartRequest) (*pro
 		MaxFileSizeMB: int(req.MaxFileSizeMb),
 		UID:           int(req.Uid),
 		GID:           int(req.Gid),
-		FifoDir:       req.FifoDir,
+		StdoutFifo:    req.StdoutFifo,
+		StderrFifo:    req.StderrFifo,
 	}
 
 	err := s.impl.Start(cfg)

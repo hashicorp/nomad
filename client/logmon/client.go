@@ -19,7 +19,8 @@ func (c *logmonClient) Start(cfg *LogConfig) error {
 		MaxFileSizeMb:  uint32(cfg.MaxFileSizeMB),
 		Uid:            uint32(cfg.UID),
 		Gid:            uint32(cfg.GID),
-		FifoDir:        cfg.FifoDir,
+		StdoutFifo:     cfg.StdoutFifo,
+		StderrFifo:     cfg.StderrFifo,
 	}
 	_, err := c.client.Start(context.Background(), req)
 	return err

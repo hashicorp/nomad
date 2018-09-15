@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -33,14 +32,17 @@ type LogConfig struct {
 	// LogDir is the host path where logs are to be written to
 	LogDir string
 
-	// FifoDir is the host path where the fifo created
-	FifoDir string
-
 	// StdoutLogFile is the path relative to LogDir for stdout logging
 	StdoutLogFile string
 
 	// StderrLogFile is the path relative to LogDir for stderr logging
 	StderrLogFile string
+
+	// StdoutFifo is the path on the host to the stdout pipe
+	StdoutFifo string
+
+	// StderrFifo is the path on the host to the stderr pipe
+	StderrFifo string
 
 	// MaxFiles is the max rotated files allowed
 	MaxFiles int
@@ -146,7 +148,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 		return nil, fmt.Errorf("failed to create stdout logfile for %q: %v", cfg.StdoutLogFile, err)
 	}
 
-	wrapperOut, err := newLogRotatorWrapper(filepath.Join(cfg.FifoDir, cfg.StdoutLogFile), logger, lro)
+	wrapperOut, err := newLogRotatorWrapper(cfg.StdoutFifo, logger, lro)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +161,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 		return nil, fmt.Errorf("failed to create stderr logfile for %q: %v", cfg.StderrLogFile, err)
 	}
 
-	wrapperErr, err := newLogRotatorWrapper(filepath.Join(cfg.FifoDir, cfg.StderrLogFile), logger, lre)
+	wrapperErr, err := newLogRotatorWrapper(cfg.StderrFifo, logger, lre)
 	if err != nil {
 		return nil, err
 	}

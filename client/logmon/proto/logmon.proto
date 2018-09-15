@@ -15,7 +15,8 @@ message StartRequest {
     uint32 max_file_size_mb = 5;
     uint32 uid = 6;
     uint32 gid = 7;
-    string fifo_dir = 8;
+    string stdout_fifo = 8;
+    string stderr_fifo = 9;
 }
 
 message StartResponse {
