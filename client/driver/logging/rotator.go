@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -222,9 +223,13 @@ func (f *FileRotator) createFile() error {
 	if err != nil {
 		return err
 	}
-	if err = cFile.Chown(f.uid, f.gid); err != nil {
-		return err
+
+	if runtime.GOOS != "windows" {
+		if err = cFile.Chown(f.uid, f.gid); err != nil {
+			return err
+		}
 	}
+
 	f.currentFile = cFile
 	fi, err := f.currentFile.Stat()
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/logmon"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -413,11 +415,22 @@ func (tr *TaskRunner) runDriver() error {
 		return err
 	}
 
+	var stdoutFifo, stderrFifo string
+	if runtime.GOOS == "windows" {
+		id := uuid.Generate()[:8]
+		stdoutFifo = fmt.Sprintf("//./pipe/%s.stdout.%s", id, tr.task.Name)
+		stderrFifo = fmt.Sprintf("//./pipe/%s.stderr.%s", id, tr.task.Name)
+	} else {
+		stdoutFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stdout", tr.task.Name))
+		stderrFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stderr", tr.task.Name))
+	}
+
 	err = tr.logmon.Start(&logmon.LogConfig{
 		LogDir:        tr.taskDir.LogDir,
-		FifoDir:       tr.taskDir.LogDir,
 		StdoutLogFile: fmt.Sprintf("%s.stdout", tr.task.Name),
 		StderrLogFile: fmt.Sprintf("%s.stderr", tr.task.Name),
+		StdoutFifo:    stdoutFifo,
+		StderrFifo:    stderrFifo,
 		MaxFiles:      tr.task.LogConfig.MaxFiles,
 		MaxFileSizeMB: tr.task.LogConfig.MaxFileSizeMB,
 	})
@@ -425,8 +438,8 @@ func (tr *TaskRunner) runDriver() error {
 		tr.logger.Error("failed to start logmon", "error", err)
 		return err
 	}
-	ctx.StdoutFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stdout", tr.task.Name))
-	ctx.StderrFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stderr", tr.task.Name))
+	ctx.StdoutFifo = stdoutFifo
+	ctx.StderrFifo = stderrFifo
 
 	// Start the job
 	sresp, err := tr.driver.Start(ctx, tr.task)
