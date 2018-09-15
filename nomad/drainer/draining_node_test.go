@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,14 +14,7 @@ import (
 // testDrainingNode creates a *drainingNode with a 1h deadline but no allocs
 func testDrainingNode(t *testing.T) *drainingNode {
 	t.Helper()
-
-	sconfig := &state.StateStoreConfig{
-		LogOutput: testlog.NewWriter(t),
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(sconfig)
-	require.Nil(t, err)
-
+	state := state.TestStateStore(t)
 	node := mock.Node()
 	node.DrainStrategy = &structs.DrainStrategy{
 		DrainSpec: structs.DrainSpec{

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -13,6 +14,9 @@ import (
 type propertySet struct {
 	// ctx is used to lookup the plan and state
 	ctx Context
+
+	// logger is the logger for the property set
+	logger log.Logger
 
 	// jobID is the job we are operating on
 	jobID string
@@ -55,6 +59,7 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 		jobID:          job.ID,
 		namespace:      job.Namespace,
 		existingValues: make(map[string]uint64),
+		logger:         ctx.Logger().Named("property_set"),
 	}
 
 	return p
@@ -81,7 +86,7 @@ func (p *propertySet) setConstraint(constraint *structs.Constraint, taskGroup st
 		c, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
 			p.errorBuilding = fmt.Errorf("failed to convert RTarget %q to uint64: %v", v, err)
-			p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", p.errorBuilding)
+			p.logger.Error("failed to convert RTarget to uint64", "RTarget", v, "error", err)
 			return
 		}
 
@@ -130,7 +135,7 @@ func (p *propertySet) populateExisting() {
 	allocs, err := p.ctx.State().AllocsByJob(ws, p.namespace, p.jobID, false)
 	if err != nil {
 		p.errorBuilding = fmt.Errorf("failed to get job's allocations: %v", err)
-		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", p.errorBuilding)
+		p.logger.Error("failed to get job's allocations", "job", p.jobID, "namespace", p.namespace, "error", err)
 		return
 	}
 
@@ -141,7 +146,7 @@ func (p *propertySet) populateExisting() {
 	nodes, err := p.buildNodeMap(allocs)
 	if err != nil {
 		p.errorBuilding = err
-		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", err)
+		p.logger.Error("failed to build node map", "error", err)
 		return
 	}
 
@@ -179,7 +184,7 @@ func (p *propertySet) PopulateProposed() {
 	nodes, err := p.buildNodeMap(both)
 	if err != nil {
 		p.errorBuilding = err
-		p.ctx.Logger().Printf("[ERR] scheduler.dynamic-constraint: %v", err)
+		p.logger.Error("failed to build node map", "error", err)
 		return
 	}
 

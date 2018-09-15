@@ -36,11 +36,11 @@ func TestClient(t testing.T, cb func(c *config.Config)) *Client {
 		cb(conf)
 	}
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
+	conf.Logger = logger
 	catalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t)
-	mockService.Logger = logger
-	client, err := NewClient(conf, catalog, mockService, logger)
+	mockService := consulApi.NewMockConsulServiceClient(t, logger)
+	client, err := NewClient(conf, catalog, mockService)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

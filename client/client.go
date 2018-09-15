@@ -16,28 +16,30 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/lib"
 	multierror "github.com/hashicorp/go-multierror"
+	consulApi "github.com/hashicorp/nomad/client/consul"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	hstats "github.com/hashicorp/nomad/helper/stats"
+	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	vaultapi "github.com/hashicorp/vault/api"
+
+	"github.com/boltdb/bolt"
+	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/config"
-	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
-	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
-	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -196,7 +198,7 @@ var (
 )
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI, logger *log.Logger) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -219,7 +221,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		connPool:             pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
 		tlsWrap:              tlsWrap,
 		streamingRpcs:        structs.NewStreamingRpcRegistry(),
-		logger:               logger,
+		logger:               cfg.Logger.ResetNamed("").StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
 		allocs:               make(map[string]*allocrunner.AllocRunner),
 		allocUpdates:         make(chan *structs.Allocation, 64),
 		shutdownCh:           make(chan struct{}),
@@ -245,7 +247,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	// Add the stats collector
-	statsCollector := stats.NewHostStatsCollector(logger, c.config.AllocDir)
+	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir)
 	c.hostStatsCollector = statsCollector
 
 	// Add the garbage collector
@@ -257,7 +259,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		ParallelDestroys:    cfg.GCParallelDestroys,
 		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
 	}
-	c.garbageCollector = NewAllocGarbageCollector(logger, statsCollector, c, gcConfig)
+	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
 	go c.garbageCollector.Run()
 
 	// Setup the node
@@ -287,7 +289,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
 		if _, err := c.setServersImpl(c.configCopy.Servers, true); err != nil {
-			logger.Printf("[WARN] client: None of the configured servers are valid: %v", err)
+			c.logger.Printf("[WARN] client: None of the configured servers are valid: %v", err)
 		}
 	}
 	c.configLock.RUnlock()
@@ -308,13 +310,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
-		logger.Printf("[ERR] client: failed to restore state: %v", err)
-		logger.Printf("[ERR] client: Nomad is unable to start due to corrupt state. "+
+		c.logger.Printf("[ERR] client: failed to restore state: %v", err)
+		c.logger.Printf("[ERR] client: Nomad is unable to start due to corrupt state. "+
 			"The safest way to proceed is to manually stop running task processes "+
 			"and remove Nomad's state (%q) and alloc (%q) directories before "+
 			"restarting. Lost allocations will be rescheduled.",
 			c.config.StateDir, c.config.AllocDir)
-		logger.Printf("[ERR] client: Corrupt state is often caused by a bug. Please " +
+		c.logger.Printf("[ERR] client: Corrupt state is often caused by a bug. Please " +
 			"report as much information as possible to " +
 			"https://github.com/hashicorp/nomad/issues")
 		return nil, fmt.Errorf("failed to restore state")

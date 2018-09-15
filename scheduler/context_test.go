@@ -18,7 +18,7 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 		NodeAllocation: make(map[string][]*structs.Allocation),
 	}
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 
 	ctx := NewEvalContext(state, plan, logger)
 	return state, ctx

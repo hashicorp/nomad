@@ -3,7 +3,6 @@ package nomad
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -52,7 +52,7 @@ func testFSM(t *testing.T) *nomadFSM {
 		EvalBroker: broker,
 		Periodic:   dispatcher,
 		Blocked:    NewBlockedEvals(broker),
-		LogOutput:  os.Stderr,
+		Logger:     testlog.HCLogger(t),
 		Region:     "global",
 	}
 	fsm, err := NewFSM(fsmConfig)

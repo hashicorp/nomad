@@ -78,7 +78,7 @@ func (t times) Less(i, j int) bool { return t[i].Before(t[j]) }
 // testPeriodicDispatcher returns an enabled PeriodicDispatcher which uses the
 // MockJobEvalDispatcher.
 func testPeriodicDispatcher(t *testing.T) (*PeriodicDispatch, *MockJobEvalDispatcher) {
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	m := NewMockJobEvalDispatcher()
 	d := NewPeriodicDispatch(logger, m)
 	d.SetEnabled(true)

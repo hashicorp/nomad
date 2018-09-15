@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -14,12 +13,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	golog "log"
+
 	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+	uuidparse "github.com/hashicorp/go-uuid"
+	clientconfig "github.com/hashicorp/nomad/client/config"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
-	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -50,8 +53,9 @@ type Agent struct {
 	config     *Config
 	configLock sync.Mutex
 
-	logger    *log.Logger
-	logOutput io.Writer
+	logger     log.Logger
+	httpLogger log.Logger
+	logOutput  io.Writer
 
 	// consulService is Nomad's custom Consul client for managing services
 	// and checks.
@@ -75,14 +79,22 @@ type Agent struct {
 func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
-		logger:     log.New(logOutput, "", log.LstdFlags|log.Lmicroseconds),
 		logOutput:  logOutput,
 		shutdownCh: make(chan struct{}),
 		InmemSink:  inmem,
 	}
 
+	// Create the loggers
+	a.logger = log.New(&log.LoggerOptions{
+		Name:       "agent",
+		Level:      log.LevelFromString(config.LogLevel),
+		Output:     logOutput,
+		JSONFormat: false, // TODO(alex,hclog) Add a config option
+	})
+	a.httpLogger = a.logger.ResetNamed("http")
+
 	// Global logger should match internal logger as much as possible
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	golog.SetFlags(golog.LstdFlags | golog.Lmicroseconds)
 
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
@@ -105,11 +117,12 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 
 // convertServerConfig takes an agent config and log output and returns a Nomad
 // Config.
-func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Config, error) {
+func convertServerConfig(agentConfig *Config, logger log.Logger, logOutput io.Writer) (*nomad.Config, error) {
 	conf := agentConfig.NomadConfig
 	if conf == nil {
 		conf = nomad.DefaultConfig()
 	}
+	conf.Logger = logger
 	conf.LogOutput = logOutput
 	conf.DevMode = agentConfig.DevMode
 	conf.Build = agentConfig.Version.VersionNumber()
@@ -309,7 +322,7 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 // serverConfig is used to generate a new server configuration struct
 // for initializing a nomad server.
 func (a *Agent) serverConfig() (*nomad.Config, error) {
-	return convertServerConfig(a.config, a.logOutput)
+	return convertServerConfig(a.config, a.logger, a.logOutput)
 }
 
 // clientConfig is used to generate a new client configuration struct
@@ -338,6 +351,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 			a.config.AdvertiseAddrs.RPC)
 	}
 
+	conf.Logger = a.logger
 	conf.LogOutput = a.logOutput
 	conf.LogLevel = a.config.LogLevel
 	conf.DevMode = a.config.DevMode
@@ -368,8 +382,8 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		}
 	}
 	if len(invalidConsulKeys) > 0 {
-		a.logger.Printf("[WARN] agent: Invalid keys: %v", strings.Join(invalidConsulKeys, ","))
-		a.logger.Printf(`Nomad client ignores consul related configuration in client options.
+		a.logger.Warn("invalid consul keys", "keys", strings.Join(invalidConsulKeys, ","))
+		a.logger.Warn(`Nomad client ignores consul related configuration in client options.
 		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
 		to configure Nomad to work with Consul.`)
 	}
@@ -480,7 +494,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulCatalog, a.logger)
+	server, err := nomad.NewServer(conf, a.consulCatalog)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -650,7 +664,7 @@ func (a *Agent) setupClient() error {
 		}
 	}
 
-	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger)
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
@@ -702,7 +716,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 		return &check
 	}
 	if a.config.TLSConfig.VerifyHTTPSClient {
-		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because verify_https_client enabled")
+		a.logger.Warn("not registering Nomad HTTPS Health Check because verify_https_client enabled")
 		return nil
 	}
 
@@ -788,12 +802,12 @@ func (a *Agent) findLoopbackDevice() (string, string, string, error) {
 func (a *Agent) Leave() error {
 	if a.client != nil {
 		if err := a.client.Leave(); err != nil {
-			a.logger.Printf("[ERR] agent: client leave failed: %v", err)
+			a.logger.Error("client leave failed", "error", err)
 		}
 	}
 	if a.server != nil {
 		if err := a.server.Leave(); err != nil {
-			a.logger.Printf("[ERR] agent: server leave failed: %v", err)
+			a.logger.Error("server leave failed", "error", err)
 		}
 	}
 	return nil
@@ -808,23 +822,23 @@ func (a *Agent) Shutdown() error {
 		return nil
 	}
 
-	a.logger.Println("[INFO] agent: requesting shutdown")
+	a.logger.Info("requesting shutdown")
 	if a.client != nil {
 		if err := a.client.Shutdown(); err != nil {
-			a.logger.Printf("[ERR] agent: client shutdown failed: %v", err)
+			a.logger.Error("client shutdown failed", "error", err)
 		}
 	}
 	if a.server != nil {
 		if err := a.server.Shutdown(); err != nil {
-			a.logger.Printf("[ERR] agent: server shutdown failed: %v", err)
+			a.logger.Error("server shutdown failed", "error", err)
 		}
 	}
 
 	if err := a.consulService.Shutdown(); err != nil {
-		a.logger.Printf("[ERR] agent: shutting down Consul client failed: %v", err)
+		a.logger.Error("shutting down Consul client failed", "error", err)
 	}
 
-	a.logger.Println("[INFO] agent: shutdown complete")
+	a.logger.Info("shutdown complete")
 	a.shutdown = true
 	close(a.shutdownCh)
 	return nil
@@ -875,7 +889,7 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
-		a.logger.Printf("[INFO] agent: error when parsing TLS certificate %v", err)
+		a.logger.Error("parsing TLS certificate", "error", err)
 		return false, false
 	} else if !isEqual {
 		return true, true
@@ -930,9 +944,9 @@ func (a *Agent) Reload(newConfig *Config) error {
 	a.config.TLSConfig = newConfig.TLSConfig.Copy()
 
 	if newConfig.TLSConfig.IsEmpty() {
-		a.logger.Println("[WARN] agent: Downgrading agent's existing TLS configuration to plaintext")
+		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
 	} else {
-		a.logger.Println("[INFO] agent: Upgrading from plaintext configuration to TLS")
+		a.logger.Info("upgrading from plaintext configuration to TLS")
 	}
 
 	return nil

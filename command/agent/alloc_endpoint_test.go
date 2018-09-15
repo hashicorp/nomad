@@ -479,7 +479,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 
 		// require Snapshot fails
 		if err := allocDir.Snapshot(ioutil.Discard); err != nil {
-			s.logger.Printf("[DEBUG] agent.test: snapshot returned error: %v", err)
+			t.Logf("[DEBUG] agent.test: snapshot returned error: %v", err)
 		} else {
 			t.Errorf("expected Snapshot() to fail but it did not")
 		}

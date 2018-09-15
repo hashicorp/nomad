@@ -1,10 +1,11 @@
 package scheduler
 
 import (
-	"log"
 	"regexp"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -18,7 +19,7 @@ type Context interface {
 	Plan() *structs.Plan
 
 	// Logger provides a way to log
-	Logger() *log.Logger
+	Logger() log.Logger
 
 	// Metrics returns the current metrics
 	Metrics() *structs.AllocMetric
@@ -67,13 +68,13 @@ type EvalContext struct {
 	EvalCache
 	state       State
 	plan        *structs.Plan
-	logger      *log.Logger
+	logger      log.Logger
 	metrics     *structs.AllocMetric
 	eligibility *EvalEligibility
 }
 
 // NewEvalContext constructs a new EvalContext
-func NewEvalContext(s State, p *structs.Plan, log *log.Logger) *EvalContext {
+func NewEvalContext(s State, p *structs.Plan, log log.Logger) *EvalContext {
 	ctx := &EvalContext{
 		state:   s,
 		plan:    p,
@@ -91,7 +92,7 @@ func (e *EvalContext) Plan() *structs.Plan {
 	return e.plan
 }
 
-func (e *EvalContext) Logger() *log.Logger {
+func (e *EvalContext) Logger() log.Logger {
 	return e.logger
 }
 

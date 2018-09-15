@@ -1,11 +1,14 @@
 package nomad
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -31,7 +34,8 @@ var (
 
 // Search endpoint is used to look up matches for a given prefix and context
 type Search struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // getMatches extracts matches for an iterator, and returns a list of ids for
@@ -60,7 +64,7 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 		default:
 			matchID, ok := getEnterpriseMatch(raw)
 			if !ok {
-				s.srv.logger.Printf("[ERR] nomad.resources: unexpected type for resources context: %T", t)
+				s.logger.Error("unexpected type for resources context", "type", fmt.Sprintf("%T", t))
 				continue
 			}
 

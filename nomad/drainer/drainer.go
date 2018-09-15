@@ -2,9 +2,10 @@ package drainer
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
+
+	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -63,16 +64,16 @@ type NodeTracker interface {
 }
 
 // DrainingJobWatcherFactory returns a new DrainingJobWatcher
-type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger) DrainingJobWatcher
+type DrainingJobWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, log.Logger) DrainingJobWatcher
 
 // DrainingNodeWatcherFactory returns a new DrainingNodeWatcher
-type DrainingNodeWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, *log.Logger, NodeTracker) DrainingNodeWatcher
+type DrainingNodeWatcherFactory func(context.Context, *rate.Limiter, *state.StateStore, log.Logger, NodeTracker) DrainingNodeWatcher
 
 // DrainDeadlineNotifierFactory returns a new DrainDeadlineNotifier
 type DrainDeadlineNotifierFactory func(context.Context) DrainDeadlineNotifier
 
 // GetDrainingJobWatcher returns a draining job watcher
-func GetDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger) DrainingJobWatcher {
+func GetDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger log.Logger) DrainingJobWatcher {
 	return NewDrainingJobWatcher(ctx, limiter, state, logger)
 }
 
@@ -83,7 +84,7 @@ func GetDeadlineNotifier(ctx context.Context) DrainDeadlineNotifier {
 
 // GetNodeWatcherFactory returns a DrainingNodeWatcherFactory
 func GetNodeWatcherFactory() DrainingNodeWatcherFactory {
-	return func(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger, tracker NodeTracker) DrainingNodeWatcher {
+	return func(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger log.Logger, tracker NodeTracker) DrainingNodeWatcher {
 		return NewNodeDrainWatcher(ctx, limiter, state, logger, tracker)
 	}
 }
@@ -109,7 +110,7 @@ type allocMigrateBatcher struct {
 
 // NodeDrainerConfig is used to configure a new node drainer.
 type NodeDrainerConfig struct {
-	Logger               *log.Logger
+	Logger               log.Logger
 	Raft                 RaftApplier
 	JobFactory           DrainingJobWatcherFactory
 	NodeFactory          DrainingNodeWatcherFactory
@@ -128,7 +129,7 @@ type NodeDrainerConfig struct {
 // nodes.
 type NodeDrainer struct {
 	enabled bool
-	logger  *log.Logger
+	logger  log.Logger
 
 	// nodes is the set of draining nodes
 	nodes map[string]*drainingNode
@@ -172,7 +173,7 @@ type NodeDrainer struct {
 func NewNodeDrainer(c *NodeDrainerConfig) *NodeDrainer {
 	return &NodeDrainer{
 		raft:                    c.Raft,
-		logger:                  c.Logger,
+		logger:                  c.Logger.Named("drain"),
 		jobFactory:              c.JobFactory,
 		nodeFactory:             c.NodeFactory,
 		deadlineNotifierFactory: c.DrainDeadlineFactory,
@@ -246,17 +247,17 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	for _, node := range nodes {
 		draining, ok := n.nodes[node]
 		if !ok {
-			n.logger.Printf("[DEBUG] nomad.drain: skipping untracked deadlined node %q", node)
+			n.logger.Debug("skipping untracked deadlined node", "node_id", node)
 			continue
 		}
 
 		allocs, err := draining.RemainingAllocs()
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.drain: failed to retrive allocs on deadlined node %q: %v", node, err)
+			n.logger.Error("failed to retrive allocs on deadlined node", "node_id", node, "error", err)
 			continue
 		}
 
-		n.logger.Printf("[DEBUG] nomad.drain: node %q deadlined causing %d allocs to be force stopped", node, len(allocs))
+		n.logger.Debug("node deadlined causing allocs to be force stopped", "node_id", node, "num_allocs", len(allocs))
 		forceStop = append(forceStop, allocs...)
 	}
 	n.l.RUnlock()
@@ -272,7 +273,7 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	// Raft transaction size.
 	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, nodes) {
 		if _, err := n.raft.NodesDrainComplete(nodes, event); err != nil {
-			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
+			n.logger.Error("ailed to unset drain for nodes", "error", err)
 		}
 	}
 }
@@ -308,7 +309,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 
 		isDone, err := draining.IsDone()
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.drain: error checking if node %q is done draining: %v", node, err)
+			n.logger.Error("error checking if node is done draining", "node_id", node, "error", err)
 			continue
 		}
 
@@ -320,7 +321,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 
 		remaining, err := draining.RemainingAllocs()
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.drain: node %q is done draining but encountered an error getting remaining allocs: %v", node, err)
+			n.logger.Error("node is done draining but encountered an error getting remaining allocs", "node_id", node, "error", err)
 			continue
 		}
 
@@ -333,8 +334,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 		future := structs.NewBatchFuture()
 		n.drainAllocs(future, remainingAllocs)
 		if err := future.Wait(); err != nil {
-			n.logger.Printf("[ERR] nomad.drain: failed to drain %d remaining allocs from done nodes: %v",
-				len(remainingAllocs), err)
+			n.logger.Error("failed to drain remaining allocs from done nodes", "num_allocs", len(remainingAllocs), "error", err)
 		}
 	}
 
@@ -347,7 +347,7 @@ func (n *NodeDrainer) handleMigratedAllocs(allocs []*structs.Allocation) {
 	// Raft transaction size.
 	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, done) {
 		if _, err := n.raft.NodesDrainComplete(nodes, event); err != nil {
-			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for nodes: %v", err)
+			n.logger.Error("failed to unset drain for nodes", "error", err)
 		}
 	}
 }

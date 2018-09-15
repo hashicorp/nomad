@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -14,8 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	log "github.com/hashicorp/go-hclog"
+
+	"github.com/NYTimes/gziphandler"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/rs/cors"
@@ -52,7 +53,7 @@ type HTTPServer struct {
 	mux        *http.ServeMux
 	listener   net.Listener
 	listenerCh chan struct{}
-	logger     *log.Logger
+	logger     log.Logger
 	Addr       string
 }
 
@@ -91,7 +92,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		mux:        mux,
 		listener:   ln,
 		listenerCh: make(chan struct{}),
-		logger:     agent.logger,
+		logger:     agent.httpLogger,
 		Addr:       ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
@@ -130,7 +131,7 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 // Shutdown is used to shutdown the HTTP server
 func (s *HTTPServer) Shutdown() {
 	if s != nil {
-		s.logger.Printf("[DEBUG] http: Shutting down http server")
+		s.logger.Debug("shutting down http server")
 		s.listener.Close()
 		<-s.listenerCh // block until http.Serve has returned.
 	}
@@ -278,14 +279,13 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Printf("[DEBUG] http: Request %v %v (%v)", req.Method, reqURL, time.Now().Sub(start))
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
 		}()
 		obj, err := handler(resp, req)
 
 		// Check for an error
 	HAS_ERR:
 		if err != nil {
-			s.logger.Printf("[ERR] http: Request %v, error: %v", reqURL, err)
 			code := 500
 			errMsg := err.Error()
 			if http, ok := err.(HTTPCodedError); ok {
@@ -303,6 +303,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 
 			resp.WriteHeader(code)
 			resp.Write([]byte(errMsg))
+			s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
 			return
 		}
 

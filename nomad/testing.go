@@ -37,6 +37,7 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken) {
 func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
+	config.Logger = testlog.HCLogger(t)
 	config.Build = "0.8.0+unittest"
 	config.DevMode = true
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
@@ -76,8 +77,7 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Enable raft as leader if we have bootstrap on
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
-	logger := testlog.WithPrefix(t, fmt.Sprintf("[%s] ", config.NodeName))
-	catalog := consul.NewMockCatalog(logger)
+	catalog := consul.NewMockCatalog(config.Logger)
 
 	for i := 10; i >= 0; i-- {
 		// Get random ports
@@ -89,7 +89,7 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 
 		// Create server
-		server, err := NewServer(config, catalog, logger)
+		server, err := NewServer(config, catalog)
 		if err == nil {
 			return server
 		} else if i == 0 {

@@ -236,7 +236,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 				Config: map[string]interface{}{
 					"foo":          "1",
 					"bar":          "2",
-					"non-existant": "3",
+					"non-existent": "3",
 				},
 			},
 		},
@@ -244,7 +244,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 
 	_, err := NewPluginLoader(lconfig)
 	require.Error(err)
-	require.Contains(err.Error(), "No argument or block type is named \"non-existant\"")
+	require.Contains(err.Error(), "No argument or block type is named \"non-existent\"")
 }
 
 func TestPluginLoader_External_VersionOverlap(t *testing.T) {
@@ -452,7 +452,7 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 				Config: map[string]interface{}{
 					"foo":          "1",
 					"bar":          "2",
-					"non-existant": "3",
+					"non-existent": "3",
 				},
 			},
 		},
@@ -460,7 +460,7 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 
 	_, err := NewPluginLoader(lconfig)
 	require.Error(err)
-	require.Contains(err.Error(), "No argument or block type is named \"non-existant\"")
+	require.Contains(err.Error(), "No argument or block type is named \"non-existent\"")
 }
 
 func TestPluginLoader_InternalOverrideExternal(t *testing.T) {

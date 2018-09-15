@@ -570,7 +570,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger,
+			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
 			serverEnabled: true,
 		}
@@ -593,7 +593,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 			config.Server.RetryInterval = 0
 		}
 
-		c.agent.logger.Printf("[WARN] agent: Using deprecated retry_join fields. Upgrade configuration to use server_join")
+		c.agent.logger.Warn("using deprecated retry_join fields. Upgrade configuration to use server_join")
 	}
 
 	if config.Server.Enabled &&
@@ -603,7 +603,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger,
+			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
 			serverEnabled: true,
 		}
@@ -621,7 +621,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger,
+			logger:        c.agent.logger.Named("joiner"),
 			clientJoin:    c.agent.client.SetServers,
 			clientEnabled: true,
 		}
@@ -704,7 +704,7 @@ WAIT:
 // reloadHTTPServer shuts down the existing HTTP server and restarts it. This
 // is helpful when reloading the agent configuration.
 func (c *Command) reloadHTTPServer() error {
-	c.agent.logger.Println("[INFO] agent: Reloading HTTP server with new TLS configuration")
+	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
 
 	c.httpServer.Shutdown()
 
@@ -741,23 +741,23 @@ func (c *Command) handleReload() {
 
 	shouldReloadAgent, shouldReloadHTTP := c.agent.ShouldReload(newConf)
 	if shouldReloadAgent {
-		c.agent.logger.Printf("[DEBUG] agent: starting reload of agent config")
+		c.agent.logger.Debug("starting reload of agent config")
 		err := c.agent.Reload(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
+			c.agent.logger.Error("failed to reload the config", "error", err)
 			return
 		}
 	}
 
 	if s := c.agent.Server(); s != nil {
-		c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
-		sconf, err := convertServerConfig(newConf, c.logOutput)
+		c.agent.logger.Debug("starting reload of server config")
+		sconf, err := convertServerConfig(newConf, c.agent.logger, c.logOutput)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+			c.agent.logger.Error("failed to convert server config", "error", err)
 			return
 		} else {
 			if err := s.Reload(sconf); err != nil {
-				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
+				c.agent.logger.Error("reloading server config failed", "error", err)
 				return
 			}
 		}
@@ -765,13 +765,13 @@ func (c *Command) handleReload() {
 
 	if s := c.agent.Client(); s != nil {
 		clientConfig, err := c.agent.clientConfig()
-		c.agent.logger.Printf("[DEBUG] agent: starting reload of client config")
+		c.agent.logger.Debug("starting reload of client config")
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			c.agent.logger.Error("reloading client config failed", "error", err)
 			return
 		}
 		if err := c.agent.Client().Reload(clientConfig); err != nil {
-			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			c.agent.logger.Error("reloading client config failed", "error", err)
 			return
 		}
 	}
@@ -783,7 +783,7 @@ func (c *Command) handleReload() {
 	if shouldReloadHTTP {
 		err := c.reloadHTTPServer()
 		if err != nil {
-			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
+			c.agent.httpLogger.Error("reloading config failed", "error", err)
 			return
 		}
 	}

@@ -179,9 +179,7 @@ OUTER:
 		// Get the proposed allocations
 		proposed, err := option.ProposedAllocs(iter.ctx)
 		if err != nil {
-			iter.ctx.Logger().Printf(
-				"[ERR] sched.binpack: failed to get proposed allocations: %v",
-				err)
+			iter.ctx.Logger().Named("binpack").Error("failed retrieving proposed allocations", "error", err)
 			continue
 		}
 
@@ -292,9 +290,7 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 		// Get the proposed allocations
 		proposed, err := option.ProposedAllocs(iter.ctx)
 		if err != nil {
-			iter.ctx.Logger().Printf(
-				"[ERR] sched.job-anti-aff: failed to get proposed allocations: %v",
-				err)
+			iter.ctx.Logger().Named("job_anti_affinity").Error("failed retrieving proposed allocations", "error", err)
 			continue
 		}
 

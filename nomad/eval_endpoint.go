@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -20,7 +22,8 @@ const (
 
 // Eval endpoint is used for eval interactions
 type Eval struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // GetEval is used to request information about a specific evaluation
