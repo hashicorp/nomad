@@ -533,7 +533,7 @@ func (c *ServiceClient) sync() error {
 		}
 	}
 
-	c.logger.Debug("sync complete", "registed_services", sreg, "deregistered_services", sdereg,
+	c.logger.Debug("sync complete", "registered_services", sreg, "deregistered_services", sdereg,
 		"registered_checks", creg, "deregistered_checks", cdereg)
 	return nil
 }

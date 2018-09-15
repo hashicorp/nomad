@@ -365,7 +365,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	// Setup the Consul syncer
 	if err := s.setupConsulSyncer(); err != nil {
 		s.logger.Error("failed to create server consul syncer", "error", err)
-		return nil, fmt.Errorf("failed to create server Consul syncer: %v", "error", err)
+		return nil, fmt.Errorf("failed to create server Consul syncer: %v", err)
 	}
 
 	// Setup the deployment watcher.

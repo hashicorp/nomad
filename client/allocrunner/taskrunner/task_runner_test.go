@@ -134,7 +134,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 
 	vclient := vaultclient.NewMockVaultClient()
 	cclient := consul.NewMockAgent()
-	serviceClient := consul.NewServiceClient(cclient, logger, true)
+	serviceClient := consul.NewServiceClient(cclient, testlog.HCLogger(t), true)
 	go serviceClient.Run()
 	tr := NewTaskRunner(logger, conf, db, upd.Update, taskDir, alloc, task, vclient, serviceClient)
 	if !restarts {
@@ -633,7 +633,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
 
 	// Use mockConsulServiceClient
-	consul := consulApi.NewMockConsulServiceClient(t)
+	consul := consulApi.NewMockConsulServiceClient(t, testlog.HCLogger(t))
 	ctx.tr.consul = consul
 
 	ctx.tr.MarkReceived()
@@ -1851,7 +1851,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	// backed by a mock consul whose checks are always unhealthy.
 	consulAgent := consul.NewMockAgent()
 	consulAgent.SetStatus("critical")
-	consulClient := consul.NewServiceClient(consulAgent, ctx.tr.logger, true)
+	consulClient := consul.NewServiceClient(consulAgent, testlog.HCLogger(t), true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 

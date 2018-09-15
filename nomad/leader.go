@@ -931,7 +931,7 @@ func (s *Server) replicateACLPolicies(stopCh chan struct{}) {
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Debug("starting ACL policy replication from authoritative region", "authorative_region", req.Region)
+	s.logger.Debug("starting ACL policy replication from authoritative region", "authoritative_region", req.Region)
 
 START:
 	for {
@@ -1073,7 +1073,7 @@ func (s *Server) replicateACLTokens(stopCh chan struct{}) {
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Debug("starting ACL token replication from authoritative region", "authorative_region", req.Region)
+	s.logger.Debug("starting ACL token replication from authoritative region", "authoritative_region", req.Region)
 
 START:
 	for {

@@ -16,16 +16,7 @@ import (
 
 func testNodeDrainWatcher(t *testing.T) (*nodeDrainWatcher, *state.StateStore, *MockNodeTracker) {
 	t.Helper()
-
-	sconfig := &state.StateStoreConfig{
-		LogOutput: testlog.NewWriter(t),
-		Region:    "global",
-	}
-	state, err := state.NewStateStore(sconfig)
-	if err != nil {
-		t.Fatalf("failed to create state store: %v", err)
-	}
-
+	state := state.TestStateStore(t)
 	limiter := rate.NewLimiter(100.0, 100)
 	logger := testlog.HCLogger(t)
 	m := NewMockNodeTracker()
