@@ -122,7 +122,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	return h.consul.UpdateTask(oldTaskServices, newTaskServices)
 }
 
-func (h *serviceHook) Exited(ctx context.Context, req *interfaces.TaskExitedRequest, _ *interfaces.TaskExitedResponse) error {
+func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
