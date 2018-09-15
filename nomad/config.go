@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -71,6 +73,9 @@ type Config struct {
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
+
+	// Logger is the logger used by the server.
+	Logger log.Logger
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.

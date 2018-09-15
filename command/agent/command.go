@@ -751,7 +751,7 @@ func (c *Command) handleReload() {
 
 	if s := c.agent.Server(); s != nil {
 		c.agent.logger.Debug("starting reload of server config")
-		sconf, err := convertServerConfig(newConf, c.logOutput)
+		sconf, err := convertServerConfig(newConf, c.agent.logger, c.logOutput)
 		if err != nil {
 			c.agent.logger.Error("failed to convert server config", "error", err)
 			return

@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/driver"
@@ -50,7 +52,8 @@ var (
 
 // Job endpoint is used for job interactions
 type Job struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // Register is used to upsert a job for scheduling
@@ -90,10 +93,10 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		// Check if override is set and we do not have permissions
 		if args.PolicyOverride {
 			if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySentinelOverride) {
-				j.srv.logger.Printf("[WARN] nomad.job: policy override attempted without permissions for Job %q", args.Job.ID)
+				j.logger.Warn("policy override attempted without permissions for job", "job", args.Job.ID)
 				return structs.ErrPermissionDenied
 			}
-			j.srv.logger.Printf("[WARN] nomad.job: policy override set for Job %q", args.Job.ID)
+			j.logger.Warn("policy override set for job", "job", args.Job.ID)
 		}
 	}
 
@@ -186,11 +189,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		// Commit this update via Raft
 		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
 		if err, ok := fsmErr.(error); ok && err != nil {
-			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
+			j.logger.Error("registering job failed", "error", err, "fsm", true)
 			return err
 		}
 		if err != nil {
-			j.srv.logger.Printf("[ERR] nomad.job: Register failed: %v", err)
+			j.logger.Error("registering job failed", "error", err, "raft", true)
 			return err
 		}
 
@@ -226,7 +229,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// but that the EvalUpdate does not.
 	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		j.logger.Error("eval create failed", "error", err, "method", "register")
 		return err
 	}
 
@@ -495,7 +498,7 @@ func (j *Job) Stable(args *structs.JobStabilityRequest, reply *structs.JobStabil
 	// Commit this stability request via Raft
 	_, modifyIndex, err := j.srv.raftApply(structs.JobStabilityRequestType, args)
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Job stability request failed: %v", err)
+		j.logger.Error("submitting job stability request failed", "error", err)
 		return err
 	}
 
@@ -585,7 +588,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	_, evalIndex, err := j.srv.raftApply(structs.AllocUpdateDesiredTransitionRequestType, updateTransitionReq)
 
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		j.logger.Error("eval create failed", "error", err, "method", "evaluate")
 		return err
 	}
 
@@ -630,7 +633,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Deregister failed: %v", err)
+		j.logger.Error("deregister failed", "error", err)
 		return err
 	}
 
@@ -663,7 +666,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Commit this evaluation via Raft
 	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+		j.logger.Error("eval create failed", "error", err, "method", "deregister")
 		return err
 	}
 
@@ -748,7 +751,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobBatchDeregisterRequestType, args)
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: batch deregister failed: %v", err)
+		j.logger.Error("batch deregister failed", "error", err)
 		return err
 	}
 
@@ -1211,7 +1214,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Create the scheduler and run it
-	sched, err := scheduler.NewScheduler(eval.Type, j.srv.logger, snap, planner)
+	sched, err := scheduler.NewScheduler(eval.Type, j.logger, snap, planner)
 	if err != nil {
 		return err
 	}
@@ -1433,11 +1436,11 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// Commit this update via Raft
 	fsmErr, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
 	if err, ok := fsmErr.(error); ok && err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
+		j.logger.Error("dispatched job register failed", "error", err, "fsm", true)
 		return err
 	}
 	if err != nil {
-		j.srv.logger.Printf("[ERR] nomad.job: Dispatched job register failed: %v", err)
+		j.logger.Error("dispatched job register failed", "error", err, "raft", true)
 		return err
 	}
 
@@ -1466,7 +1469,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		// Commit this evaluation via Raft
 		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 		if err != nil {
-			j.srv.logger.Printf("[ERR] nomad.job: Eval create failed: %v", err)
+			j.logger.Error("eval create failed", "error", err, "method", "dispatch")
 			return err
 		}
 

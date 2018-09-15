@@ -27,7 +27,7 @@ func testNodeDrainWatcher(t *testing.T) (*nodeDrainWatcher, *state.StateStore, *
 	}
 
 	limiter := rate.NewLimiter(100.0, 100)
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	m := NewMockNodeTracker()
 	w := NewNodeDrainWatcher(context.Background(), limiter, state, logger, m)
 	return w, state, m

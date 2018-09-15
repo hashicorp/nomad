@@ -253,7 +253,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -361,7 +361,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

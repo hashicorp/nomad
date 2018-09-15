@@ -136,9 +136,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 		// to verify the client supports this.
 		if driverInfo, ok := option.Drivers[driver]; ok {
 			if driverInfo == nil {
-				c.ctx.Logger().
-					Printf("[WARN] scheduler.DriverChecker: node %v has no driver info set for %v",
-						option.ID, driver)
+				c.ctx.Logger().Named("driver_checker").Warn("node has no driver info set", "node_id", option.ID, "driver", driver)
 				return false
 			}
 
@@ -152,9 +150,7 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 
 		enabled, err := strconv.ParseBool(value)
 		if err != nil {
-			c.ctx.Logger().
-				Printf("[WARN] scheduler.DriverChecker: node %v has invalid driver setting %v: %v",
-					option.ID, driverStr, value)
+			c.ctx.Logger().Named("driver_checker").Warn("node has invalid driver setting", "node_id", option.ID, "driver", driver, "val", value)
 			return false
 		}
 
@@ -241,8 +237,7 @@ func (iter *DistinctHostsIterator) satisfiesDistinctHosts(option *structs.Node) 
 	// Get the proposed allocations
 	proposed, err := iter.ctx.ProposedAllocs(option.ID)
 	if err != nil {
-		iter.ctx.Logger().Printf(
-			"[ERR] scheduler.dynamic-constraint: failed to get proposed allocations: %v", err)
+		iter.ctx.Logger().Named("distinct_hosts").Error("failed to get proposed allocations", "error", err)
 		return false
 	}
 

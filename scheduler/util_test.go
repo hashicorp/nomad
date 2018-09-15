@@ -622,7 +622,7 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 
 func TestSetStatus(t *testing.T) {
 	h := NewHarness(t)
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
@@ -1079,7 +1079,7 @@ func TestDesiredUpdates(t *testing.T) {
 }
 
 func TestUtil_AdjustQueuedAllocations(t *testing.T) {
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.CreateIndex = 4

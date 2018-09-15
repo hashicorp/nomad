@@ -3,13 +3,14 @@ package deploymentwatcher
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -91,7 +92,7 @@ type deploymentWatcher struct {
 	// by holding the lock or using the setter and getter methods.
 	latestEval uint64
 
-	logger *log.Logger
+	logger log.Logger
 	ctx    context.Context
 	exitFn context.CancelFunc
 	l      sync.RWMutex
@@ -100,7 +101,7 @@ type deploymentWatcher struct {
 // newDeploymentWatcher returns a deployment watcher that is used to watch
 // deployments and trigger the scheduler as needed.
 func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
-	logger *log.Logger, state *state.StateStore, d *structs.Deployment,
+	logger log.Logger, state *state.StateStore, d *structs.Deployment,
 	j *structs.Job, triggers deploymentTriggers) *deploymentWatcher {
 
 	ctx, exitFn := context.WithCancel(parent)
@@ -112,7 +113,7 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 		j:                  j,
 		state:              state,
 		deploymentTriggers: triggers,
-		logger:             logger,
+		logger:             logger.With("deployment_id", d.ID, "job", j.NamespacedID()),
 		ctx:                ctx,
 		exitFn:             exitFn,
 	}
@@ -395,14 +396,14 @@ FAIL:
 			deadlineHit = true
 			fail, rback, err := w.shouldFail()
 			if err != nil {
-				w.logger.Printf("[ERR] nomad.deployment_watcher: failed to determine whether to rollback job for deployment %q: %v", w.deploymentID, err)
+				w.logger.Error("failed to determine whether to rollback job", "error", err)
 			}
 			if !fail {
-				w.logger.Printf("[DEBUG] nomad.deployment_watcher: skipping deadline for deployment %q", w.deploymentID)
+				w.logger.Debug("skipping deadline")
 				continue
 			}
 
-			w.logger.Printf("[DEBUG] nomad.deployment_watcher: deadline for deployment %q hit and rollback is %v", w.deploymentID, rback)
+			w.logger.Debug("deadline hit", "rollback", rback)
 			rollback = rback
 			break FAIL
 		case <-w.deploymentUpdateCh:
@@ -431,7 +432,7 @@ FAIL:
 					return
 				}
 
-				w.logger.Printf("[ERR] nomad.deployment_watcher: failed to retrieve allocations for deployment %q: %v", w.deploymentID, err)
+				w.logger.Error("failed to retrieve allocations", "error", err)
 				return
 			}
 			allocIndex = updates.index
@@ -444,7 +445,7 @@ FAIL:
 					return
 				}
 
-				w.logger.Printf("[ERR] nomad.deployment_watcher: failed handling allocation updates: %v", err)
+				w.logger.Error("failed handling allocation updates", "error", err)
 				return
 			}
 
@@ -474,7 +475,7 @@ FAIL:
 		var err error
 		j, err = w.latestStableJob()
 		if err != nil {
-			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to lookup latest stable job for %q: %v", w.j.ID, err)
+			w.logger.Error("failed to lookup latest stable job", "error", err)
 		}
 
 		// Description should include that the job is being rolled back to
@@ -490,7 +491,7 @@ FAIL:
 	e := w.getEval()
 	u := w.getDeploymentStatusUpdate(structs.DeploymentStatusFailed, desc)
 	if index, err := w.upsertDeploymentStatusUpdate(u, e, j); err != nil {
-		w.logger.Printf("[ERR] nomad.deployment_watcher: failed to update deployment %q status: %v", w.deploymentID, err)
+		w.logger.Error("failed to update deployment status", "error", err)
 	} else {
 		w.setLatestEval(index)
 	}
@@ -685,7 +686,7 @@ func (w *deploymentWatcher) createBatchedUpdate(allowReplacements []string, forI
 
 		// Create the eval
 		if index, err := w.createUpdate(replacements, w.getEval()); err != nil {
-			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to create evaluation for deployment %q: %v", w.deploymentID, err)
+			w.logger.Error("failed to create evaluation for deployment", "deployment_id", w.deploymentID, "error", err)
 		} else {
 			w.setLatestEval(index)
 		}

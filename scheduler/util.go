@@ -2,11 +2,12 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"reflect"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -431,12 +432,12 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 }
 
 // setStatus is used to update the status of the evaluation
-func setStatus(logger *log.Logger, planner Planner,
+func setStatus(logger log.Logger, planner Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
 	tgMetrics map[string]*structs.AllocMetric, status, desc string,
 	queuedAllocs map[string]int, deploymentID string) error {
 
-	logger.Printf("[DEBUG] sched: %#v: setting status to %s", eval, status)
+	logger.Debug("setting eval status", "status", status)
 	newEval := eval.Copy()
 	newEval.Status = status
 	newEval.StatusDescription = desc
@@ -495,8 +496,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// Get the existing node
 		node, err := ctx.State().NodeByID(ws, update.Alloc.NodeID)
 		if err != nil {
-			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v",
-				eval, update.Alloc.NodeID, err)
+			ctx.Logger().Error("failed to get node", "node_id", update.Alloc.NodeID, "error", err)
 			continue
 		}
 		if node == nil {
@@ -550,7 +550,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 	}
 
 	if len(updates) > 0 {
-		ctx.Logger().Printf("[DEBUG] sched: %#v: %d in-place updates of %d", eval, inplaceCount, len(updates))
+		ctx.Logger().Debug("made in-place updates", "in-place", inplaceCount, "total_updates", len(updates))
 	}
 	return updates[:n], updates[n:]
 }
@@ -682,7 +682,7 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 
 // adjustQueuedAllocations decrements the number of allocations pending per task
 // group based on the number of allocations successfully placed
-func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
+func adjustQueuedAllocations(logger log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
 	if result == nil {
 		return
 	}
@@ -703,7 +703,7 @@ func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, que
 			if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
 				queuedAllocs[allocation.TaskGroup]--
 			} else {
-				logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
+				logger.Error("allocation placed but task group is not in list of unplaced allocations", "task_group", allocation.TaskGroup)
 			}
 		}
 	}
@@ -764,7 +764,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		ws := memdb.NewWatchSet()
 		node, err := ctx.State().NodeByID(ws, existing.NodeID)
 		if err != nil {
-			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v", evalID, existing.NodeID, err)
+			ctx.Logger().Error("failed to get node", "node_id", existing.NodeID, "error", err)
 			return true, false, nil
 		}
 		if node == nil {

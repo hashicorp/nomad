@@ -3,13 +3,14 @@ package nomad
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/rpc"
 	"testing"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/drainer"
@@ -22,7 +23,7 @@ import (
 
 func allocPromoter(errCh chan<- error, ctx context.Context,
 	state *state.StateStore, codec rpc.ClientCodec, nodeID string,
-	logger *log.Logger) {
+	logger log.Logger) {
 
 	nindex := uint64(1)
 	for {
@@ -54,7 +55,7 @@ func allocPromoter(errCh chan<- error, ctx context.Context,
 				Timestamp: now,
 			}
 			updates = append(updates, newAlloc)
-			logger.Printf("Marked deployment health for alloc %q", alloc.ID)
+			logger.Trace("marked deployment health for alloc", "alloc_id", alloc.ID)
 		}
 
 		if len(updates) == 0 {

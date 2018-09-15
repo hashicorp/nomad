@@ -3,13 +3,13 @@ package state
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"sort"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -33,8 +33,8 @@ type IndexEntry struct {
 
 // StateStoreConfig is used to configure a new state store
 type StateStoreConfig struct {
-	// LogOutput is used to configure the output of the state store's logs
-	LogOutput io.Writer
+	// Logger is used to output the state store's logs
+	Logger log.Logger
 
 	// Region is the region of the server embedding the state store.
 	Region string
@@ -48,7 +48,7 @@ type StateStoreConfig struct {
 // returned as a result of a read against the state store should be
 // considered a constant and NEVER modified in place.
 type StateStore struct {
-	logger *log.Logger
+	logger log.Logger
 	db     *memdb.MemDB
 
 	// config is the passed in configuration
@@ -69,7 +69,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(config.LogOutput, "", log.LstdFlags|log.Lmicroseconds),
+		logger:    config.Logger.Named("state_store"),
 		db:        db,
 		config:    config,
 		abandonCh: make(chan struct{}),
@@ -1605,7 +1605,7 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 					hasSummaryChanged = true
 				}
 			} else {
-				s.logger.Printf("[ERR] state_store: unable to update queued for job %q and task group %q", eval.JobID, tg)
+				s.logger.Error("unable to update queued for job and task group", "job_id", eval.JobID, "task_group", tg, "namespace", eval.Namespace)
 			}
 		}
 
@@ -1681,9 +1681,8 @@ func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID 
 		return fmt.Errorf("eval lookup failed: %v", err)
 	}
 	if existing == nil {
-		err := fmt.Errorf("unable to find eval id %q", evalID)
-		s.logger.Printf("[ERR] state_store: %v", err)
-		return err
+		s.logger.Error("unable to find eval", "eval_id", evalID)
+		return fmt.Errorf("unable to find eval id %q", evalID)
 	}
 	eval := existing.(*structs.Evaluation).Copy()
 	// Update the indexes
@@ -3012,7 +3011,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			case structs.AllocClientStatusPending:
 				tg.Starting += 1
 			default:
-				s.logger.Printf("[ERR] state_store: invalid client status: %v in allocation %q", alloc.ClientStatus, alloc.ID)
+				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
 			}
 			summary.Summary[alloc.TaskGroup] = tg
 		}
@@ -3448,8 +3447,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if existingAlloc == nil {
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.DesiredStatus)
+			s.logger.Error("new allocation inserted into state store with bad desired status",
+				"alloc_id", alloc.ID, "desired_status", alloc.DesiredStatus)
 		}
 		switch alloc.ClientStatus {
 		case structs.AllocClientStatusPending:
@@ -3460,8 +3459,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			summaryChanged = true
 		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
 			structs.AllocClientStatusComplete:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.ClientStatus)
+			s.logger.Error("new allocation inserted into state store with bad client status",
+				"alloc_id", alloc.ID, "client_status", alloc.ClientStatus)
 		}
 	} else if existingAlloc.ClientStatus != alloc.ClientStatus {
 		// Incrementing the client of the bin of the current state
@@ -3488,8 +3487,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			tgSummary.Lost -= 1
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
-			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
-				existingAlloc.ID, existingAlloc.ClientStatus)
+			s.logger.Error("invalid old client status for allocatio",
+				"alloc_id", existingAlloc.ID, "client_status", existingAlloc.ClientStatus)
 		}
 		summaryChanged = true
 	}

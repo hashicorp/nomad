@@ -117,11 +117,12 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 
 // convertServerConfig takes an agent config and log output and returns a Nomad
 // Config.
-func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Config, error) {
+func convertServerConfig(agentConfig *Config, logger log.Logger, logOutput io.Writer) (*nomad.Config, error) {
 	conf := agentConfig.NomadConfig
 	if conf == nil {
 		conf = nomad.DefaultConfig()
 	}
+	conf.Logger = logger
 	conf.LogOutput = logOutput
 	conf.DevMode = agentConfig.DevMode
 	conf.Build = agentConfig.Version.VersionNumber()
@@ -321,7 +322,7 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 // serverConfig is used to generate a new server configuration struct
 // for initializing a nomad server.
 func (a *Agent) serverConfig() (*nomad.Config, error) {
-	return convertServerConfig(a.config, a.logOutput)
+	return convertServerConfig(a.config, a.logger, a.logOutput)
 }
 
 // clientConfig is used to generate a new client configuration struct
@@ -493,8 +494,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	// TODO(alex,hclog)
-	server, err := nomad.NewServer(conf, a.consulCatalog, a.logger.ResetNamed("").StandardLogger(&log.StandardLoggerOptions{InferLevels: true}))
+	server, err := nomad.NewServer(conf, a.consulCatalog)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
