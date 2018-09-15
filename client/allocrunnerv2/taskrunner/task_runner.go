@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -129,6 +130,11 @@ type TaskRunner struct {
 	// baseLabels are used when emitting tagged metrics. All task runner metrics
 	// will have these tags, and optionally more.
 	baseLabels []metrics.Label
+
+	// resourceUsage is written via UpdateStats and read via
+	// LatestResourceUsage. May be nil at all times.
+	resourceUsage     *cstructs.TaskResourceUsage
+	resourceUsageLock sync.Mutex
 }
 
 type Config struct {
@@ -656,6 +662,98 @@ func (tr *TaskRunner) triggerUpdateHooks() {
 	case tr.triggerUpdateCh <- struct{}{}:
 	default:
 		// already an update hook pending
+	}
+}
+
+// LatestResourceUsage returns the last resource utilization datapoint
+// collected. May return nil if the task is not running or no resource
+// utilization has been collected yet.
+func (tr *TaskRunner) LatestResourceUsage() *cstructs.TaskResourceUsage {
+	tr.resourceUsageLock.Lock()
+	ru := tr.resourceUsage
+	tr.resourceUsageLock.Unlock()
+	return ru
+}
+
+// UpdateStats updates and emits the latest stats from the driver.
+func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
+	tr.resourceUsageLock.Lock()
+	tr.resourceUsage = ru
+	tr.resourceUsageLock.Unlock()
+	if ru != nil {
+		tr.emitStats(ru)
+	}
+}
+
+//TODO Remove Backwardscompat or use tr.Alloc()?
+func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
+	if !tr.clientConfig.DisableTaggedMetrics {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
+			float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
+			float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
+			float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
+			float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
+			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+	}
+
+	if tr.clientConfig.BackwardsCompatibleMetrics {
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
+	}
+}
+
+//TODO Remove Backwardscompat or use tr.Alloc()?
+func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
+	if !tr.clientConfig.DisableTaggedMetrics {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
+			float32(ru.ResourceUsage.CpuStats.Percent), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
+			float32(ru.ResourceUsage.CpuStats.SystemMode), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
+			float32(ru.ResourceUsage.CpuStats.UserMode), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
+			float32(ru.ResourceUsage.CpuStats.ThrottledTime), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
+			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
+			float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
+	}
+
+	if tr.clientConfig.BackwardsCompatibleMetrics {
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
+	}
+}
+
+// emitStats emits resource usage stats of tasks to remote metrics collector
+// sinks
+func (tr *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
+	if !tr.clientConfig.PublishAllocationMetrics {
+		return
+	}
+
+	if ru.ResourceUsage.MemoryStats != nil {
+		tr.setGaugeForMemory(ru)
+	}
+
+	if ru.ResourceUsage.CpuStats != nil {
+		tr.setGaugeForCPU(ru)
 	}
 }
 

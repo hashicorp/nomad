@@ -23,6 +23,7 @@ func (tr *TaskRunner) initHooks() {
 		newTaskDirHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
+		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook
@@ -186,6 +187,7 @@ func (tr *TaskRunner) poststart() error {
 		req := interfaces.TaskPoststartRequest{
 			DriverExec:    handle,
 			DriverNetwork: net,
+			DriverStats:   handle,
 			TaskEnv:       tr.envBuilder.Build(),
 		}
 		var resp interfaces.TaskPoststartResponse
