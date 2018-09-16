@@ -41,7 +41,7 @@ func tempAllocDir(t testing.TB) *allocdir.AllocDir {
 		t.Fatalf("failed to chmod dir: %v", err)
 	}
 
-	return allocdir.NewAllocDir(testlog.Logger(t), dir)
+	return allocdir.NewAllocDir(testlog.HCLogger(t), dir)
 }
 
 type nopWriteCloser struct {

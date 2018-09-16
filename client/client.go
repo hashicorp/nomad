@@ -229,7 +229,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	// Create the logger
-	logger := cfg.Logger.Named("client")
+	logger := cfg.Logger.ResetNamed("client")
 
 	// Create the client
 	c := &Client{
@@ -1961,17 +1961,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
-	//XXX FIXME create a root logger
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:       "nomad",
-		Level:      hclog.LevelFromString(c.configCopy.LogLevel),
-		TimeFormat: time.RFC3339,
-	})
-
 	c.configLock.RLock()
 	arConf := &allocrunnerv2.Config{
 		Alloc:            alloc,
-		Logger:           logger,
+		Logger:           c.logger,
 		ClientConfig:     c.config,
 		StateDB:          c.stateDB,
 		Consul:           c.consulService,

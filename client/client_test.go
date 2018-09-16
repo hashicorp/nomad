@@ -650,7 +650,7 @@ func TestClient_Init(t *testing.T) {
 		config: &config.Config{
 			AllocDir: allocDir,
 		},
-		logger: testlog.Logger(t),
+		logger: testlog.HCLogger(t),
 	}
 	if err := client.init(); err != nil {
 		t.Fatalf("err: %s", err)
