@@ -15,7 +15,7 @@ import (
 )
 
 func TestConsulFingerprint(t *testing.T) {
-	fp := NewConsulFingerprint(testlog.Logger(t))
+	fp := NewConsulFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -171,7 +171,7 @@ const mockConsulResponse = `
 // See https://github.com/hashicorp/nomad/issues/3326
 func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	assert := assert.New(t)
-	fp := NewConsulFingerprint(testlog.Logger(t))
+	fp := NewConsulFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

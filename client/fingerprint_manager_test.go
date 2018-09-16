@@ -15,7 +15,7 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 	require := require.New(t)
 	testClient := TestClient(t, nil)
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -24,7 +24,7 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 		testClient.shutdownCh,
 		testClient.updateNodeFromFingerprint,
 		testClient.updateNodeFromDriver,
-		testlog.Logger(t),
+		testlog.HCLogger(t),
 	)
 
 	err := fm.Run()
@@ -42,7 +42,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 	require := require.New(t)
 	testClient := TestClient(t, nil)
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -69,7 +69,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	require := require.New(t)
 	testClient := TestClient(t, nil)
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -101,7 +101,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -163,7 +163,7 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -263,7 +263,7 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -359,7 +359,7 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -389,7 +389,7 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -421,7 +421,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -454,7 +454,7 @@ func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -484,7 +484,7 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -518,7 +518,7 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
@@ -551,7 +551,7 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 		}
 	})
 
-	testClient.logger = testlog.Logger(t)
+	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(

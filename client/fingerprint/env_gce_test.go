@@ -17,7 +17,7 @@ import (
 
 func TestGCEFingerprint_nonGCE(t *testing.T) {
 	os.Setenv("GCE_ENV_URL", "http://127.0.0.1/computeMetadata/v1/instance/")
-	f := NewEnvGCEFingerprint(testlog.Logger(t))
+	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -91,7 +91,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	}))
 	defer ts.Close()
 	os.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
-	f := NewEnvGCEFingerprint(testlog.Logger(t))
+	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response cstructs.FingerprintResponse

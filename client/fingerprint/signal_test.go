@@ -8,7 +8,7 @@ import (
 )
 
 func TestSignalFingerprint(t *testing.T) {
-	fp := NewSignalFingerprint(testlog.Logger(t))
+	fp := NewSignalFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
