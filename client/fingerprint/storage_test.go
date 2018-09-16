@@ -9,7 +9,7 @@ import (
 )
 
 func TestStorageFingerprint(t *testing.T) {
-	fp := NewStorageFingerprint(testlog.Logger(t))
+	fp := NewStorageFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

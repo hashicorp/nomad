@@ -2,10 +2,10 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -16,11 +16,11 @@ const bytesPerMegabyte = 1024 * 1024
 // applications that the Nomad agent will run on this machine.
 type StorageFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	logger log.Logger
 }
 
-func NewStorageFingerprint(logger *log.Logger) Fingerprint {
-	fp := &StorageFingerprint{logger: logger}
+func NewStorageFingerprint(logger log.Logger) Fingerprint {
+	fp := &StorageFingerprint{logger: logger.Named("storage")}
 	return fp
 }
 
