@@ -10,7 +10,7 @@ import (
 )
 
 func TestHostFingerprint(t *testing.T) {
-	f := NewHostFingerprint(testlog.Logger(t))
+	f := NewHostFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

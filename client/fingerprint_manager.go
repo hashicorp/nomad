@@ -2,12 +2,10 @@ package client
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"sync"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -30,7 +28,7 @@ type FingerprintManager struct {
 	// updateNodeFromDriver is a callback to the client to update the state of a
 	// specific driver for the node
 	updateNodeFromDriver func(string, *structs.DriverInfo, *structs.DriverInfo) *structs.Node
-	logger               hclog.Logger
+	logger               log.Logger
 }
 
 // NewFingerprintManager is a constructor that creates and returns an instance
@@ -40,16 +38,15 @@ func NewFingerprintManager(getConfig func() *config.Config,
 	shutdownCh chan struct{},
 	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node,
 	updateNodeFromDriver func(string, *structs.DriverInfo, *structs.DriverInfo) *structs.Node,
-	logger hclog.Logger) *FingerprintManager {
+	logger log.Logger) *FingerprintManager {
 
-	logger = logger.Named("fingerprint_mgr")
 	return &FingerprintManager{
 		getConfig:            getConfig,
 		updateNodeAttributes: updateNodeAttributes,
 		updateNodeFromDriver: updateNodeFromDriver,
 		node:                 node,
 		shutdownCh:           shutdownCh,
-		logger:               logger,
+		logger:               logger.Named("fingerprint_mgr"),
 	}
 }
 
@@ -144,13 +141,10 @@ func (fp *FingerprintManager) Run() error {
 // setupFingerprints is used to fingerprint the node to see if these attributes are
 // supported
 func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
-	//FIXME Update fingerprinters to hclog
-	tempLogger := log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
-
 	var appliedFingerprints []string
 
 	for _, name := range fingerprints {
-		f, err := fingerprint.NewFingerprint(name, tempLogger)
+		f, err := fingerprint.NewFingerprint(name, fm.logger)
 
 		if err != nil {
 			fm.logger.Error("error fingerprinting", "error", err, "fingerprinter", name)
@@ -180,11 +174,9 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 // setupDrivers is used to fingerprint the node to see if these drivers are
 // supported
 func (fm *FingerprintManager) setupDrivers(drivers []string) error {
-	//FIXME Update fingerprinters to hclog
-	tempLogger := log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
-
+	//TODO(alex,hclog) Update fingerprinters to hclog
 	var availDrivers []string
-	driverCtx := driver.NewDriverContext("", "", "", "", fm.getConfig(), fm.getNode(), tempLogger, nil)
+	driverCtx := driver.NewDriverContext("", "", "", "", fm.getConfig(), fm.getNode(), fm.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true}), nil)
 	for _, name := range drivers {
 
 		d, err := driver.NewDriver(name, driverCtx)
