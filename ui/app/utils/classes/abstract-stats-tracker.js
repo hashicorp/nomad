@@ -1,5 +1,6 @@
 import Mixin from '@ember/object/mixin';
 import { assert } from '@ember/debug';
+import { task, timeout } from 'ember-concurrency';
 
 export default Mixin.create({
   url: '',
@@ -16,12 +17,18 @@ export default Mixin.create({
     );
   },
 
-  poll() {
+  // Uses EC as a form of debounce to prevent multiple
+  // references to the same tracker from flooding the tracker,
+  // but also avoiding the issue where different places where the
+  // same tracker is used needs to coordinate.
+  poll: task(function*() {
     const url = this.get('url');
     assert('Url must be defined', url);
 
-    return this.get('fetch')(url)
+    yield this.get('fetch')(url)
       .then(res => res.json())
       .then(frame => this.append(frame));
-  },
+
+    yield timeout(2000);
+  }).drop(),
 });
