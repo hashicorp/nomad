@@ -41,13 +41,35 @@ func (f *winFIFO) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
+func (f *winFIFO) Write(p []byte) (n int, err error) {
+	f.connLock.Lock()
+	defer f.connLock.Unlock()
+	if f.conn == nil {
+		c, err := f.listener.Accept()
+		if err != nil {
+			return 0, err
+		}
+
+		f.conn = c
+	}
+
+	// If the connection is closed then we need to close the listener
+	// to emulate unix fifo behavior
+	n, err = f.conn.Write(p)
+	if err == io.EOF {
+		f.listener.Close()
+	}
+	return n, err
+
+}
+
 func (f *winFIFO) Close() error {
 	return f.listener.Close()
 }
 
-// New creates a fifo at the given path and returns a reader for it. The fifo
+// New creates a fifo at the given path and returns an io.ReadWriteCloser for it. The fifo
 // must not already exist
-func New(path string) (io.ReadCloser, error) {
+func New(path string) (io.ReadWriteCloser, error) {
 	l, err := winio.ListenPipe(path, &winio.PipeConfig{
 		InputBufferSize:  PipeBufferSize,
 		OutputBufferSize: PipeBufferSize,
@@ -61,8 +83,8 @@ func New(path string) (io.ReadCloser, error) {
 	}, nil
 }
 
-// OpenWriter opens a fifo that already exists and returns a writer for it
-func OpenWriter(path string) (io.WriteCloser, error) {
+// OpenWriter opens a fifo that already exists and returns an io.ReadWriteCloser for it
+func Open(path string) (io.ReadWriteCloser, error) {
 	return winio.DialPipe(path, nil)
 }
 

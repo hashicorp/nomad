@@ -11,14 +11,14 @@ import (
 	cfifo "github.com/containerd/fifo"
 )
 
-// New creates a fifo at the given path and returns a reader for it
+// New creates a fifo at the given path and returns an io.ReadWriteCloser for it
 // The fifo must not already exist
-func New(path string) (io.ReadCloser, error) {
+func New(path string) (io.ReadWriteCloser, error) {
 	return cfifo.OpenFifo(context.Background(), path, syscall.O_RDONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0600)
 }
 
-// OpenWriter opens a fifo that already exists and returns a writer for it
-func OpenWriter(path string) (io.WriteCloser, error) {
+// Open opens a fifo that already exists and returns an io.ReadWriteCloser for it
+func Open(path string) (io.ReadWriteCloser, error) {
 	return cfifo.OpenFifo(context.Background(), path, syscall.O_WRONLY|syscall.O_NONBLOCK, 0600)
 }
 

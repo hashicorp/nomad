@@ -48,7 +48,7 @@ func TestFIFO(t *testing.T) {
 		io.Copy(&readBuf, reader)
 	}()
 
-	writer, err := OpenWriter(path)
+	writer, err := Open(path)
 	require.NoError(err)
 	for _, b := range toWrite {
 		n, err := writer.Write(b)
@@ -92,7 +92,7 @@ func TestWriteClose(t *testing.T) {
 		io.Copy(&readBuf, reader)
 	}()
 
-	writer, err := OpenWriter(path)
+	writer, err := Open(path)
 	require.NoError(err)
 
 	var count int
