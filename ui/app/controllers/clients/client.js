@@ -1,11 +1,8 @@
-import Ember from 'ember';
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
-import { task, timeout } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
-import { stats } from 'nomad-ui/utils/classes/node-stats-tracker';
 
 export default Controller.extend(Sortable, Searchable, {
   queryParams: {
