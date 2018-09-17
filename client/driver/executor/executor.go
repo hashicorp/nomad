@@ -107,7 +107,7 @@ type ExecCommand struct {
 // Stdout returns a writer for the configured file descriptor
 func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 	if c.stdout == nil {
-		f, err := fifo.OpenWriter(c.StdoutPath)
+		f, err := fifo.Open(c.StdoutPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stdout: %v", err)
 		}
@@ -119,7 +119,7 @@ func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 // Stderr returns a writer for the configured file descriptor
 func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 	if c.stderr == nil {
-		f, err := fifo.OpenWriter(c.StderrPath)
+		f, err := fifo.Open(c.StderrPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stderr: %v", err)
 		}
