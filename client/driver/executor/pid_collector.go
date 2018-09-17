@@ -36,6 +36,8 @@ type nomadPid struct {
 	cpuStatsSys   *stats.CpuStats
 }
 
+type allPidGetter func() (map[int]*nomadPid, error)
+
 func newPidCollector(logger hclog.Logger) *pidCollector {
 	return &pidCollector{
 		pids:   make(map[int]*nomadPid),
@@ -45,7 +47,7 @@ func newPidCollector(logger hclog.Logger) *pidCollector {
 
 // collectPids collects the pids of the child processes that the executor is
 // running every 5 seconds
-func (c *pidCollector) collectPids(stopCh chan interface{}) {
+func (c *pidCollector) collectPids(stopCh chan interface{}, pidGetter allPidGetter) {
 	// Fire the timer right away when the executor starts from there on the pids
 	// are collected every scan interval
 	timer := time.NewTimer(0)
@@ -53,7 +55,7 @@ func (c *pidCollector) collectPids(stopCh chan interface{}) {
 	for {
 		select {
 		case <-timer.C:
-			pids, err := getAllPids()
+			pids, err := pidGetter()
 			if err != nil {
 				c.logger.Debug("error collecting pids", "error", err)
 			}

@@ -55,11 +55,10 @@ type JavaDriverConfig struct {
 
 // javaHandle is returned from Start/Open as a handle to the PID
 type javaHandle struct {
-	pluginClient    *plugin.Client
-	userPid         int
-	executor        executor.Executor
-	isolationConfig *dstructs.IsolationConfig
-	taskDir         string
+	pluginClient *plugin.Client
+	userPid      int
+	executor     executor.Executor
+	taskDir      string
 
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
@@ -284,17 +283,16 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &javaHandle{
-		pluginClient:    pluginClient,
-		executor:        execIntf,
-		userPid:         ps.Pid,
-		isolationConfig: ps.IsolationConfig,
-		taskDir:         ctx.TaskDir.Dir,
-		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
-		maxKillTimeout:  maxKill,
-		version:         d.config.Version.VersionNumber(),
-		logger:          d.logger,
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executor:       execIntf,
+		userPid:        ps.Pid,
+		taskDir:        ctx.TaskDir.Dir,
+		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout: maxKill,
+		version:        d.config.Version.VersionNumber(),
+		logger:         d.logger,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
 	return &StartResponse{Handle: h}, nil
@@ -303,13 +301,12 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 func (d *JavaDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 type javaId struct {
-	Version         string
-	KillTimeout     time.Duration
-	MaxKillTimeout  time.Duration
-	PluginConfig    *PluginReattachConfig
-	IsolationConfig *dstructs.IsolationConfig
-	TaskDir         string
-	UserPid         int
+	Version        string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	PluginConfig   *PluginReattachConfig
+	TaskDir        string
+	UserPid        int
 }
 
 func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -338,16 +335,15 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 	// Return a driver handle
 	h := &javaHandle{
-		pluginClient:    pluginClient,
-		executor:        exec,
-		userPid:         id.UserPid,
-		isolationConfig: id.IsolationConfig,
-		logger:          d.logger,
-		version:         id.Version,
-		killTimeout:     id.KillTimeout,
-		maxKillTimeout:  id.MaxKillTimeout,
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
+		pluginClient:   pluginClient,
+		executor:       exec,
+		userPid:        id.UserPid,
+		logger:         d.logger,
+		version:        id.Version,
+		killTimeout:    id.KillTimeout,
+		maxKillTimeout: id.MaxKillTimeout,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
 	return h, nil
@@ -355,13 +351,12 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *javaHandle) ID() string {
 	id := javaId{
-		Version:         h.version,
-		KillTimeout:     h.killTimeout,
-		MaxKillTimeout:  h.maxKillTimeout,
-		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:         h.userPid,
-		IsolationConfig: h.isolationConfig,
-		TaskDir:         h.taskDir,
+		Version:        h.version,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:        h.userPid,
+		TaskDir:        h.taskDir,
 	}
 
 	data, err := json.Marshal(id)

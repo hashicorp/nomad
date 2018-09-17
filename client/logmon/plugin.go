@@ -2,11 +2,49 @@ package logmon
 
 import (
 	"context"
+	"os/exec"
 
+	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/logmon/proto"
+	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/plugins/base"
 	"google.golang.org/grpc"
 )
+
+// LaunchLogMon an instance of logmon
+// TODO: Integrate with base plugin loader
+func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	client := plugin.NewClient(&plugin.ClientConfig{
+		HandshakeConfig: base.Handshake,
+		Plugins: map[string]plugin.Plugin{
+			"logmon": NewPlugin(NewLogMon(hclog.L().Named("logmon"))),
+		},
+		Cmd: exec.Command(bin, "logmon"),
+		AllowedProtocols: []plugin.Protocol{
+			plugin.ProtocolGRPC,
+		},
+	})
+
+	rpcClient, err := client.Client()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	raw, err := rpcClient.Dispense("logmon")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	l := raw.(LogMon)
+	return l, client, nil
+
+}
 
 type Plugin struct {
 	plugin.NetRPCUnsupportedPlugin

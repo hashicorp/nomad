@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"syscall"
-
-	hclog "github.com/hashicorp/go-hclog"
 )
 
 // configure new process group for child process
@@ -57,21 +55,4 @@ func sendCtrlBreak(pid int) error {
 		return fmt.Errorf("Error sending ctrl-break event: %v", err)
 	}
 	return nil
-}
-
-// Send the process a Ctrl-Break event, allowing it to shutdown by itself
-// before being Terminate.
-func (e *UniversalExecutor) shutdownProcess(proc *os.Process) error {
-	if err := sendCtrlBreak(proc.Pid); err != nil {
-		return fmt.Errorf("executor.shutdown error: %v", err)
-	}
-	e.logger.Info("sent Ctrl-Break to process", "pid", proc.Pid)
-
-	return nil
-}
-
-func NewExecutorWithIsolation(logger hclog.Logger) Executor {
-	logger = logger.Named("executor")
-	logger.Error("isolation executor is not supported on windows, using default")
-	return NewExecutor(logger)
 }

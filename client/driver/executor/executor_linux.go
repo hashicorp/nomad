@@ -72,7 +72,7 @@ type LibcontainerExecutor struct {
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
-	logger = logger.Named("executor")
+	logger = logger.Named("isolated_executor")
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
 	}
@@ -152,15 +152,31 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
-	go l.pidCollector.collectPids(l.userProcExited)
+	go l.pidCollector.collectPids(l.userProcExited, l.getAllPids)
 	go l.wait()
 
 	return &ProcessState{
-		Pid:             pid,
-		ExitCode:        -1,
-		IsolationConfig: l.getIsolationConfig(),
-		Time:            time.Now(),
+		Pid:      pid,
+		ExitCode: -1,
+		Time:     time.Now(),
 	}, nil
+}
+
+func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
+	pids, err := l.container.Processes()
+	if err != nil {
+		return nil, err
+	}
+	nPids := make(map[int]*nomadPid)
+	for _, pid := range pids {
+		nPids[pid] = &nomadPid{
+			pid:           pid,
+			cpuStatsTotal: stats.NewCpuStats(),
+			cpuStatsUser:  stats.NewCpuStats(),
+			cpuStatsSys:   stats.NewCpuStats(),
+		}
+	}
+	return nPids, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
@@ -172,7 +188,6 @@ func (l *LibcontainerExecutor) Wait() (*ProcessState, error) {
 func (l *LibcontainerExecutor) wait() {
 	defer close(l.userProcExited)
 
-	ic := l.getIsolationConfig()
 	ps, err := l.userProc.Wait()
 	if err != nil {
 		// If the process has exited before we called wait an error is returned
@@ -181,7 +196,7 @@ func (l *LibcontainerExecutor) wait() {
 			ps = exitErr.ProcessState
 		} else {
 			l.logger.Error("failed to call wait on user process", "error", err)
-			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
+			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
 			return
 		}
 	}
@@ -200,11 +215,10 @@ func (l *LibcontainerExecutor) wait() {
 	}
 
 	l.exitState = &ProcessState{
-		Pid:             ps.Pid(),
-		ExitCode:        exitCode,
-		Signal:          signal,
-		IsolationConfig: ic,
-		Time:            time.Now(),
+		Pid:      ps.Pid(),
+		ExitCode: exitCode,
+		Signal:   signal,
+		Time:     time.Now(),
 	}
 }
 
@@ -225,11 +239,6 @@ func (l *LibcontainerExecutor) Destroy() error {
 		return l.container.Signal(os.Kill, true)
 	}
 	return nil
-}
-
-// Kill
-func (l *LibcontainerExecutor) Kill() error {
-	return l.container.Signal(os.Interrupt, true)
 }
 
 // UpdateResources updates the resource isolation with new values to be enforced
@@ -346,20 +355,6 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 
 }
 
-func (l *LibcontainerExecutor) getIsolationConfig() *dstructs.IsolationConfig {
-	cfg := &dstructs.IsolationConfig{
-		Cgroup:      l.container.Config().Cgroups,
-		CgroupPaths: map[string]string{},
-	}
-	state, err := l.container.State()
-	if err != nil {
-		return cfg
-	}
-
-	cfg.CgroupPaths = state.CgroupPaths
-	return cfg
-}
-
 func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
 	// TODO: allow better control of these
 	cfg.Capabilities = &lconfigs.Capabilities{
@@ -390,12 +385,6 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 
 	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
 	cfg.Mounts = []*lconfigs.Mount{
-		/*{
-			Source:      "proc",
-			Destination: "/proc",
-			Device:      "proc",
-			Flags:       defaultMountFlags,
-		},*/
 		{
 			Source:      "tmpfs",
 			Destination: "/dev",

@@ -50,18 +50,17 @@ type RawExecDriver struct {
 
 // rawExecHandle is returned from Start/Open as a handle to the PID
 type rawExecHandle struct {
-	version         string
-	pluginClient    *plugin.Client
-	userPid         int
-	executor        executor.Executor
-	isolationConfig *dstructs.IsolationConfig
-	killTimeout     time.Duration
-	maxKillTimeout  time.Duration
-	logger          *log.Logger
-	waitCh          chan *dstructs.WaitResult
-	doneCh          chan struct{}
-	taskEnv         *env.TaskEnv
-	taskDir         *allocdir.TaskDir
+	version        string
+	pluginClient   *plugin.Client
+	userPid        int
+	executor       executor.Executor
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	logger         *log.Logger
+	waitCh         chan *dstructs.WaitResult
+	doneCh         chan struct{}
+	taskEnv        *env.TaskEnv
+	taskDir        *allocdir.TaskDir
 }
 
 // NewRawExecDriver is used to create a new raw exec driver
@@ -176,18 +175,17 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rawExecHandle{
-		pluginClient:    pluginClient,
-		executor:        exec,
-		isolationConfig: ps.IsolationConfig,
-		userPid:         ps.Pid,
-		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
-		maxKillTimeout:  maxKill,
-		version:         d.config.Version.VersionNumber(),
-		logger:          d.logger,
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
-		taskEnv:         ctx.TaskEnv,
-		taskDir:         ctx.TaskDir,
+		pluginClient:   pluginClient,
+		executor:       exec,
+		userPid:        ps.Pid,
+		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout: maxKill,
+		version:        d.config.Version.VersionNumber(),
+		logger:         d.logger,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
+		taskEnv:        ctx.TaskEnv,
+		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
 	return &StartResponse{Handle: h}, nil
@@ -196,12 +194,11 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 func (d *RawExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 type rawExecId struct {
-	Version         string
-	KillTimeout     time.Duration
-	MaxKillTimeout  time.Duration
-	UserPid         int
-	PluginConfig    *PluginReattachConfig
-	IsolationConfig *dstructs.IsolationConfig
+	Version        string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	UserPid        int
+	PluginConfig   *PluginReattachConfig
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -229,18 +226,17 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 
 	// Return a driver handle
 	h := &rawExecHandle{
-		pluginClient:    pluginClient,
-		executor:        exec,
-		userPid:         id.UserPid,
-		isolationConfig: id.IsolationConfig,
-		logger:          d.logger,
-		killTimeout:     id.KillTimeout,
-		maxKillTimeout:  id.MaxKillTimeout,
-		version:         id.Version,
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
-		taskEnv:         ctx.TaskEnv,
-		taskDir:         ctx.TaskDir,
+		pluginClient:   pluginClient,
+		executor:       exec,
+		userPid:        id.UserPid,
+		logger:         d.logger,
+		killTimeout:    id.KillTimeout,
+		maxKillTimeout: id.MaxKillTimeout,
+		version:        id.Version,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
+		taskEnv:        ctx.TaskEnv,
+		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
 	return h, nil
@@ -248,12 +244,11 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 
 func (h *rawExecHandle) ID() string {
 	id := rawExecId{
-		Version:         h.version,
-		KillTimeout:     h.killTimeout,
-		MaxKillTimeout:  h.maxKillTimeout,
-		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:         h.userPid,
-		IsolationConfig: h.isolationConfig,
+		Version:        h.version,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:        h.userPid,
 	}
 
 	data, err := json.Marshal(id)

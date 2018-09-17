@@ -3,15 +3,12 @@ package logmon
 import (
 	"fmt"
 	"io"
-	"os/exec"
 	"strings"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	"github.com/hashicorp/nomad/helper/discover"
 )
 
 const (
@@ -20,13 +17,6 @@ const (
 	// data is written after this tolerance, we will not capture it.
 	processOutputCloseTolerance = 2 * time.Second
 )
-
-var Handshake = plugin.HandshakeConfig{
-	// This isn't required when using VersionedPlugins
-	ProtocolVersion:  1,
-	MagicCookieKey:   "LOGMON_PLUGIN",
-	MagicCookieValue: "logmon",
-}
 
 type LogConfig struct {
 	// LogDir is the host path where logs are to be written to
@@ -60,38 +50,6 @@ type LogConfig struct {
 type LogMon interface {
 	Start(*LogConfig) error
 	Stop() error
-}
-
-func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	client := plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig: Handshake,
-		Plugins: map[string]plugin.Plugin{
-			"logmon": NewPlugin(NewLogMon(hclog.L().Named("logmon"))),
-		},
-		Cmd: exec.Command(bin, "logmon"),
-		AllowedProtocols: []plugin.Protocol{
-			plugin.ProtocolGRPC,
-		},
-	})
-
-	rpcClient, err := client.Client()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	raw, err := rpcClient.Dispense("logmon")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	l := raw.(LogMon)
-	return l, client, nil
-
 }
 
 func NewLogMon(logger hclog.Logger) LogMon {
@@ -130,8 +88,12 @@ type TaskLogger struct {
 }
 
 func (tl *TaskLogger) Close() {
-	tl.lro.Close()
-	tl.lre.Close()
+	if tl.lro != nil {
+		tl.lro.Close()
+	}
+	if tl.lre != nil {
+		tl.lre.Close()
+	}
 }
 
 func (tl *TaskLogger) StdoutFifo() string {

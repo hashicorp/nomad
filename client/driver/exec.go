@@ -37,17 +37,16 @@ type ExecDriverConfig struct {
 
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
-	pluginClient    *plugin.Client
-	executor        executor.Executor
-	isolationConfig *dstructs.IsolationConfig
-	userPid         int
-	taskDir         *allocdir.TaskDir
-	killTimeout     time.Duration
-	maxKillTimeout  time.Duration
-	logger          *log.Logger
-	waitCh          chan *dstructs.WaitResult
-	doneCh          chan struct{}
-	version         string
+	pluginClient   *plugin.Client
+	executor       executor.Executor
+	userPid        int
+	taskDir        *allocdir.TaskDir
+	killTimeout    time.Duration
+	maxKillTimeout time.Duration
+	logger         *log.Logger
+	waitCh         chan *dstructs.WaitResult
+	doneCh         chan struct{}
+	version        string
 }
 
 // NewExecDriver is used to create a new exec driver
@@ -153,17 +152,16 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &execHandle{
-		pluginClient:    pluginClient,
-		userPid:         ps.Pid,
-		executor:        exec,
-		isolationConfig: ps.IsolationConfig,
-		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
-		maxKillTimeout:  maxKill,
-		logger:          d.logger,
-		version:         d.config.Version.VersionNumber(),
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
-		taskDir:         ctx.TaskDir,
+		pluginClient:   pluginClient,
+		userPid:        ps.Pid,
+		executor:       exec,
+		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout: maxKill,
+		logger:         d.logger,
+		version:        d.config.Version.VersionNumber(),
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
+		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
 	return &StartResponse{Handle: h}, nil
@@ -172,12 +170,11 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 func (d *ExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 type execId struct {
-	Version         string
-	KillTimeout     time.Duration
-	MaxKillTimeout  time.Duration
-	UserPid         int
-	IsolationConfig *dstructs.IsolationConfig
-	PluginConfig    *PluginReattachConfig
+	Version        string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	UserPid        int
+	PluginConfig   *PluginReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -204,17 +201,16 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	d.logger.Printf("[DEBUG] driver.exec : version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &execHandle{
-		pluginClient:    client,
-		executor:        exec,
-		userPid:         id.UserPid,
-		isolationConfig: id.IsolationConfig,
-		logger:          d.logger,
-		version:         id.Version,
-		killTimeout:     id.KillTimeout,
-		maxKillTimeout:  id.MaxKillTimeout,
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
-		taskDir:         ctx.TaskDir,
+		pluginClient:   client,
+		executor:       exec,
+		userPid:        id.UserPid,
+		logger:         d.logger,
+		version:        id.Version,
+		killTimeout:    id.KillTimeout,
+		maxKillTimeout: id.MaxKillTimeout,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
+		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
 	return h, nil
@@ -222,12 +218,11 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *execHandle) ID() string {
 	id := execId{
-		Version:         h.version,
-		KillTimeout:     h.killTimeout,
-		MaxKillTimeout:  h.maxKillTimeout,
-		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:         h.userPid,
-		IsolationConfig: h.isolationConfig,
+		Version:        h.version,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:        h.userPid,
 	}
 
 	data, err := json.Marshal(id)

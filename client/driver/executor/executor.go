@@ -45,7 +45,6 @@ var (
 type Executor interface {
 	Launch(*ExecCommand) (*ProcessState, error)
 	Wait() (*ProcessState, error)
-	Kill() error
 	Destroy() error
 	UpdateResources(*Resources) error
 	Version() (*ExecutorVersion, error)
@@ -84,9 +83,6 @@ type ExecCommand struct {
 
 	// Env is the list of KEY=val pairs of environment variables to be set
 	Env []string
-
-	// TaskKillSignal is an optional field which signal to kill the process
-	TaskKillSignal os.Signal
 
 	// User is the user which the executor uses to run the command.
 	User string
@@ -141,11 +137,10 @@ func (c *ExecCommand) Close() {
 
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
-	Pid             int
-	ExitCode        int
-	Signal          int
-	IsolationConfig *dstructs.IsolationConfig
-	Time            time.Time
+	Pid      int
+	ExitCode int
+	Signal   int
+	Time     time.Time
 }
 
 // ExecutorVersion is the version of the executor
@@ -245,9 +240,9 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.cmd.Args, err)
 	}
 
-	go e.pidCollector.collectPids(e.processExited)
+	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
-	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: nil, Time: time.Now()}, nil
+	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
 
 // Exec a command inside a container for exec and java drivers.
@@ -308,7 +303,7 @@ func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	err := e.cmd.Wait()
 	if err == nil {
-		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: nil, Time: time.Now()}
+		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
 		return
 	}
 
@@ -336,7 +331,7 @@ func (e *UniversalExecutor) wait() {
 		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
 	}
 
-	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: nil, Time: time.Now()}
+	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, Time: time.Now()}
 }
 
 var (
@@ -371,18 +366,6 @@ func (e *UniversalExecutor) Destroy() error {
 	}
 
 	return merr.ErrorOrNil()
-}
-
-// Shutdown sends an interrupt signal to the user process
-func (e *UniversalExecutor) Kill() error {
-	if e.cmd.Process == nil {
-		return fmt.Errorf("executor.shutdown error: no process found")
-	}
-	proc, err := os.FindProcess(e.cmd.Process.Pid)
-	if err != nil {
-		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
-	}
-	return e.shutdownProcess(proc)
 }
 
 // lookupBin looks for path to the binary to run by looking for the binary in
