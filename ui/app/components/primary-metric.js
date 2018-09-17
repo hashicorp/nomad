@@ -79,8 +79,8 @@ export default Component.extend({
 
   poller: task(function*() {
     do {
-      yield this.get('tracker.poll').perform();
-      yield timeout(10);
+      this.get('tracker.poll').perform();
+      yield timeout(100);
     } while (!Ember.testing);
   }),
 
@@ -92,5 +92,6 @@ export default Component.extend({
 
   willDestroy() {
     this.get('poller').cancelAll();
+    this.get('tracker.signalPause').perform();
   },
 });

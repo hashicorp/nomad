@@ -10,6 +10,8 @@ const percent = (numerator, denominator) => {
   return numerator / denominator;
 };
 
+const empty = ts => ({ timestamp: ts, used: null, percent: null });
+
 const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Set via the stats computed property macro
   allocation: null,
@@ -59,6 +61,16 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
         percent: percent(taskMemoryUsed / 1024 / 1024, stats.reservedMemory),
       });
     }
+  },
+
+  pause() {
+    const ts = new Date();
+    this.get('memory').pushObject(empty(ts));
+    this.get('cpu').pushObject(empty(ts));
+    this.get('tasks').forEach(task => {
+      task.memory.pushObject(empty(ts));
+      task.cpu.pushObject(empty(ts));
+    });
   },
 
   // Static figures, denominators for stats
