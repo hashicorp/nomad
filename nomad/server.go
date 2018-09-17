@@ -286,12 +286,15 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 		return nil, err
 	}
 
+	// Create the logger
+	logger := config.Logger.ResetNamed("nomad")
+
 	// Create the server
 	s := &Server{
 		config:        config,
 		consulCatalog: consulCatalog,
-		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:        config.Logger.ResetNamed("nomad"),
+		connPool:      pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:        logger,
 		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
 		streamingRpcs: structs.NewStreamingRpcRegistry(),

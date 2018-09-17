@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	golog "log"
+
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
@@ -47,13 +49,16 @@ const (
 
 type rpcHandler struct {
 	*Server
-	logger log.Logger
+	logger   log.Logger
+	gologger *golog.Logger
 }
 
 func newRpcHandler(s *Server) *rpcHandler {
+	logger := s.logger.Named("rpc")
 	return &rpcHandler{
-		Server: s,
-		logger: s.logger.Named("rpc"),
+		Server:   s,
+		logger:   logger,
+		gologger: logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true}),
 	}
 }
 
@@ -207,7 +212,8 @@ func (r *rpcHandler) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx 
 	}()
 
 	conf := yamux.DefaultConfig()
-	conf.LogOutput = r.config.LogOutput
+	conf.LogOutput = nil
+	conf.Logger = r.gologger
 	server, err := yamux.Server(conn, conf)
 	if err != nil {
 		r.logger.Error("multiplex failed to create yamux server", "error", err)
@@ -315,7 +321,8 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 	}()
 
 	conf := yamux.DefaultConfig()
-	conf.LogOutput = r.config.LogOutput
+	conf.LogOutput = nil
+	conf.Logger = r.gologger
 	server, err := yamux.Server(conn, conf)
 	if err != nil {
 		r.logger.Error("multiplex_v2 failed to create yamux server", "error", err)
