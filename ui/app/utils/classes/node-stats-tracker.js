@@ -10,6 +10,8 @@ const percent = (numerator, denominator) => {
   return numerator / denominator;
 };
 
+const empty = ts => ({ timestamp: ts, used: null, percent: null });
+
 const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Set via the stats computed property macro
   node: null,
@@ -37,6 +39,12 @@ const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
 
     // this.notifyPropertyChange('cpu');
     // this.notifyPropertyChange('memory');
+  },
+
+  pause() {
+    const ts = new Date();
+    this.get('memory').pushObject(empty(ts));
+    this.get('cpu').pushObject(empty(ts));
   },
 
   // Static figures, denominators for stats
