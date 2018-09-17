@@ -164,9 +164,8 @@ type UniversalExecutor struct {
 	cmd     exec.Cmd
 	command *ExecCommand
 
-	exitState           *ProcessState
-	processExited       chan interface{}
-	fsIsolationEnforced bool
+	exitState     *ProcessState
+	processExited chan interface{}
 
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
@@ -235,15 +234,6 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	path := absPath
-
-	// Determine the path to run as it may have to be relative to the chroot.
-	if e.fsIsolationEnforced {
-		rel, err := filepath.Rel(e.command.TaskDir, path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", e.command.TaskDir, path, err)
-		}
-		path = rel
-	}
 
 	// Set the commands arguments
 	e.cmd.Path = path

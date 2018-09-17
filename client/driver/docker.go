@@ -834,48 +834,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 	if err != nil {
 		return nil, err
 	}
-	/*executorCtx := &executor.ExecutorContext{
-		Resources: &executor.Resources{
-			CPU:      task.Resources.CPU,
-			MemoryMB: task.Resources.MemoryMB,
-			IOPS:     task.Resources.IOPS,
-			DiskMB:   task.Resources.DiskMB,
-		},
-		Env:    ctx.TaskEnv.List(),
-		Driver: "docker",
-		LogConfig: &executor.LogConfig{
-			LogDir:        ctx.TaskDir.LogDir,
-			StdoutLogFile: fmt.Sprintf("%v.stdout", task.Name),
-			StderrLogFile: fmt.Sprintf("%v.stderr", task.Name),
-			MaxFiles:      task.LogConfig.MaxFiles,
-			MaxFileSizeMB: task.LogConfig.MaxFileSizeMB,
-		},
-		TaskDir:        ctx.TaskDir.Dir,
-		PortLowerBound: d.config.ClientMinPort,
-		PortUpperBound: d.config.ClientMaxPort,
-	}
-	if err := exec.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
-	}*/
 
-	// The user hasn't specified any logging options so launch our own syslog
-	// server if possible.
-	syslogAddr := ""
-	/*if len(d.driverConfig.Logging) == 0 {
-		if runtime.GOOS == "darwin" {
-			d.logger.Printf("[DEBUG] driver.docker: disabling syslog driver as Docker for Mac workaround")
-		} else {
-			ss, err := exec.LaunchSyslogServer()
-			if err != nil {
-				pluginClient.Kill()
-				return nil, fmt.Errorf("failed to start syslog collector: %v", err)
-			}
-			syslogAddr = ss.Addr
-		}
-	}*/
-
-	config, err := d.createContainerConfig(ctx, task, d.driverConfig, syslogAddr)
+	// TODO: implement alternative to launching a syslog server in the executor
+	config, err := d.createContainerConfig(ctx, task, d.driverConfig, "")
 	if err != nil {
 		d.logger.Printf("[ERR] driver.docker: failed to create container configuration for image %q (%q): %v", d.driverConfig.ImageName, d.imageID, err)
 		pluginClient.Kill()
@@ -949,7 +910,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		doneCh:                make(chan bool),
 		waitCh:                make(chan *dstructs.WaitResult, 1),
 		removeContainerOnExit: d.config.ReadBoolDefault(dockerCleanupContainerConfigOption, dockerCleanupContainerConfigDefault),
-		net: net,
+		net:                   net,
 	}
 	go h.collectStats()
 	go h.run()
@@ -1867,9 +1828,6 @@ func (h *DockerHandle) Network() *cstructs.DriverNetwork {
 func (h *DockerHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	//if err := h.executor.UpdateTask(task); err != nil {
-	//	h.logger.Printf("[DEBUG] driver.docker: failed to update log config: %v", err)
-	//}
 
 	// Update is not possible
 	return nil
