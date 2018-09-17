@@ -2,12 +2,11 @@ import Ember from 'ember';
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import NodeStatsTracker from 'nomad-ui/utils/classes/node-stats-tracker';
-import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import { task, timeout } from 'ember-concurrency';
 
 export default Component.extend({
   token: service(),
+  statsTrackersRegistry: service('stats-trackers-registry'),
 
   classNames: ['primary-metric'],
 
@@ -20,15 +19,7 @@ export default Component.extend({
   // An instance of a StatsTracker. An alternative interface to resource
   tracker: computed('trackedResource', 'type', function() {
     const resource = this.get('trackedResource');
-
-    if (!resource) return;
-
-    const Constructor = this.get('type') === 'node' ? NodeStatsTracker : AllocationStatsTracker;
-    const resourceProp = this.get('type') === 'node' ? 'node' : 'allocation';
-    return Constructor.create({
-      fetch: url => this.get('token').authorizedRequest(url),
-      [resourceProp]: resource,
-    });
+    return this.get('statsTrackersRegistry').getTracker(resource);
   }),
 
   type: computed('resource', function() {
