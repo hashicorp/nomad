@@ -30,3 +30,13 @@
       xFormat=secondsFormat}}
   </div>
 {{/freestyle-usage}}
+
+{{#freestyle-usage "line-chart-with-gaps" title="Data with gaps"}}
+  <div class="block" style="height:250px">
+    {{line-chart
+      data=lineChartGapData
+      xProp="year"
+      yProp="value"
+      chartClass="is-primary"}}
+  </div>
+{{/freestyle-usage}}
