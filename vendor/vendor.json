@@ -202,7 +202,7 @@
 		{"path":"github.com/hashicorp/vault/helper/jsonutil","checksumSHA1":"POgkM3GrjRFw6H3sw95YNEs552A=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
 		{"path":"github.com/hashicorp/vault/helper/parseutil","checksumSHA1":"HA2MV/2XI0HcoThSRxQCaBZR2ps=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
 		{"path":"github.com/hashicorp/vault/helper/strutil","checksumSHA1":"HdVuYhZ5TuxeIFqi0jy2GHW7a4o=","revision":"8575f8fedcf8f5a6eb2b4701cb527b99574b5286","revisionTime":"2018-09-06T17:45:45Z"},
-		{"path":"github.com/hashicorp/yamux","checksumSHA1":"NnWv17i1tpvBNJtpdRRWpE6j4LY=","revision":"2658be15c5f05e76244154714161f17e3e77de2e","revisionTime":"2018-03-14T20:07:45Z"},
+		{"path":"github.com/hashicorp/yamux","checksumSHA1":"m9OKUPd/iliwKxs+LCSmAGpDJOs=","revision":"7221087c3d281fda5f794e28c2ea4c6e4d5c4558","revisionTime":"2018-09-17T20:50:41Z"},
 		{"path":"github.com/hpcloud/tail/util","checksumSHA1":"0xM336Lb25URO/1W1/CtGoRygVU=","revision":"37f4271387456dd1bf82ab1ad9229f060cc45386","revisionTime":"2017-08-14T16:06:53Z"},
 		{"path":"github.com/hpcloud/tail/watch","checksumSHA1":"TP4OAv5JMtzj2TB6OQBKqauaKDc=","revision":"37f4271387456dd1bf82ab1ad9229f060cc45386","revisionTime":"2017-08-14T16:06:53Z"},
 		{"path":"github.com/jmespath/go-jmespath","comment":"0.2.2-2-gc01cf91","revision":"c01cf91b011868172fdcd9f41838e80c9d716264"},
