@@ -182,6 +182,7 @@ export default Component.extend(WindowResizable, {
 
     const line = d3Shape
       .line()
+      .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y(d => yScale(d[yProp]));
 
@@ -198,6 +199,7 @@ export default Component.extend(WindowResizable, {
 
     const area = d3Shape
       .area()
+      .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y0(yScale(0))
       .y1(d => yScale(d[yProp]));
