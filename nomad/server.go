@@ -286,12 +286,15 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 		return nil, err
 	}
 
+	// Create the logger
+	logger := config.Logger.ResetNamed("nomad")
+
 	// Create the server
 	s := &Server{
 		config:        config,
 		consulCatalog: consulCatalog,
-		connPool:      pool.NewPool(config.LogOutput, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:        config.Logger.ResetNamed("nomad"),
+		connPool:      pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:        logger,
 		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
 		streamingRpcs: structs.NewStreamingRpcRegistry(),
@@ -1089,8 +1092,10 @@ func (s *Server) setupRaft() error {
 		s.config.LogOutput)
 	s.raftTransport = trans
 
-	// Make sure we set the LogOutput.
-	s.config.RaftConfig.LogOutput = s.config.LogOutput
+	// Make sure we set the Logger.
+	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	s.config.RaftConfig.Logger = logger
+	s.config.RaftConfig.LogOutput = nil
 
 	// Our version of Raft protocol requires the LocalID to match the network
 	// address of the transport.
@@ -1253,8 +1258,11 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	if s.config.UpgradeVersion != "" {
 		conf.Tags[AutopilotVersionTag] = s.config.UpgradeVersion
 	}
-	conf.MemberlistConfig.LogOutput = s.config.LogOutput
-	conf.LogOutput = s.config.LogOutput
+	logger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	conf.MemberlistConfig.Logger = logger
+	conf.Logger = logger
+	conf.MemberlistConfig.LogOutput = nil
+	conf.LogOutput = nil
 	conf.EventCh = ch
 	if !s.config.DevMode {
 		conf.SnapshotPath = filepath.Join(s.config.DataDir, path)

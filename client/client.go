@@ -17,6 +17,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
+	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/config"
@@ -212,16 +212,19 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		}
 	}
 
+	// Create the logger
+	logger := cfg.Logger.ResetNamed("")
+
 	// Create the client
 	c := &Client{
 		config:               cfg,
 		consulCatalog:        consulCatalog,
 		consulService:        consulService,
 		start:                time.Now(),
-		connPool:             pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		connPool:             pool.NewPool(logger, clientRPCCache, clientMaxStreams, tlsWrap),
 		tlsWrap:              tlsWrap,
 		streamingRpcs:        structs.NewStreamingRpcRegistry(),
-		logger:               cfg.Logger.ResetNamed("").StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
+		logger:               logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
 		allocs:               make(map[string]*allocrunner.AllocRunner),
 		allocUpdates:         make(chan *structs.Allocation, 64),
 		shutdownCh:           make(chan struct{}),

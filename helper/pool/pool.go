@@ -4,12 +4,14 @@ import (
 	"container/list"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/rpc"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -121,8 +123,8 @@ func (c *Conn) returnClient(client *StreamClient) {
 type ConnPool struct {
 	sync.Mutex
 
-	// LogOutput is used to control logging
-	logOutput io.Writer
+	// logger is the logger to be used
+	logger *log.Logger
 
 	// The maximum time to keep a connection open
 	maxTime time.Duration
@@ -156,9 +158,9 @@ type ConnPool struct {
 // Set maxTime to 0 to disable reaping. maxStreams is used to control
 // the number of idle streams allowed.
 // If TLS settings are provided outgoing connections use TLS.
-func NewPool(logOutput io.Writer, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper) *ConnPool {
+func NewPool(logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper) *ConnPool {
 	pool := &ConnPool{
-		logOutput:  logOutput,
+		logger:     logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
 		maxTime:    maxTime,
 		maxStreams: maxStreams,
 		pool:       make(map[string]*Conn),
@@ -335,7 +337,8 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 
 	// Setup the logger
 	conf := yamux.DefaultConfig()
-	conf.LogOutput = p.logOutput
+	conf.LogOutput = nil
+	conf.Logger = p.logger
 
 	// Create a multiplexed session
 	session, err := yamux.Client(conn, conf)
