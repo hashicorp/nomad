@@ -15,7 +15,6 @@ import (
 
 	"github.com/armon/circbuf"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/driver/logging"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -64,14 +63,12 @@ type LibcontainerExecutor struct {
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
+	pidCollector   *pidCollector
 
 	container      libcontainer.Container
 	userProc       *libcontainer.Process
-	userProcExited chan struct{}
+	userProcExited chan interface{}
 	exitState      *ProcessState
-
-	syslogServer *logging.SyslogServer
-	syslogChan   chan *logging.SyslogMessage
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
@@ -85,6 +82,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
+		pidCollector:   newPidCollector(logger),
 	}
 }
 
@@ -153,7 +151,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
-	l.userProcExited = make(chan struct{})
+	l.userProcExited = make(chan interface{})
+	go l.pidCollector.collectPids(l.userProcExited)
 	go l.wait()
 
 	return &ProcessState{
@@ -250,6 +249,11 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		return nil, err
 	}
 
+	pidStats, err := l.pidCollector.pidStats()
+	if err != nil {
+		return nil, err
+	}
+
 	ts := time.Now()
 	stats := lstats.CgroupStats
 
@@ -289,8 +293,9 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 			CpuStats:    cs,
 		},
 		Timestamp: ts.UTC().UnixNano(),
-		// TODO Pids
+		Pids:      pidStats,
 	}
+
 	return &taskResUsage, nil
 }
 

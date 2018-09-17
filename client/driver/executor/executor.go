@@ -8,20 +8,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/armon/circbuf"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	ps "github.com/mitchellh/go-ps"
-	"github.com/shirou/gopsutil/process"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/logging"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
@@ -31,11 +26,6 @@ import (
 )
 
 const (
-	// pidScanInterval is the interval at which the executor scans the process
-	// tree for finding out the pids that the executor and it's child processes
-	// have forked
-	pidScanInterval = 5 * time.Second
-
 	// ExecutorVersionLatest is the current and latest version of the executor
 	ExecutorVersionLatest = "2.0.0"
 
@@ -158,14 +148,6 @@ type ProcessState struct {
 	Time            time.Time
 }
 
-// nomadPid holds a pid and it's cpu percentage calculator
-type nomadPid struct {
-	pid           int
-	cpuStatsTotal *stats.CpuStats
-	cpuStatsUser  *stats.CpuStats
-	cpuStatsSys   *stats.CpuStats
-}
-
 // ExecutorVersion is the version of the executor
 type ExecutorVersion struct {
 	Version string
@@ -182,19 +164,16 @@ type UniversalExecutor struct {
 	cmd     exec.Cmd
 	command *ExecCommand
 
-	pids                map[int]*nomadPid
-	pidLock             sync.RWMutex
 	exitState           *ProcessState
 	processExited       chan interface{}
 	fsIsolationEnforced bool
 
-	syslogServer *logging.SyslogServer
-	syslogChan   chan *logging.SyslogMessage
-
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
-	logger         hclog.Logger
+	pidCollector   *pidCollector
+
+	logger hclog.Logger
 }
 
 // NewExecutor returns an Executor
@@ -209,7 +188,7 @@ func NewExecutor(logger hclog.Logger) Executor {
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
-		pids:           make(map[int]*nomadPid),
+		pidCollector:   newPidCollector(logger),
 	}
 }
 
@@ -276,7 +255,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.cmd.Args, err)
 	}
 
-	go e.collectPids()
+	go e.pidCollector.collectPids(e.processExited)
 	go e.wait()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: nil, Time: time.Now()}, nil
 }
@@ -416,43 +395,6 @@ func (e *UniversalExecutor) Kill() error {
 	return e.shutdownProcess(proc)
 }
 
-// pidStats returns the resource usage stats per pid
-func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, error) {
-	stats := make(map[string]*cstructs.ResourceUsage)
-	e.pidLock.RLock()
-	pids := make(map[int]*nomadPid, len(e.pids))
-	for k, v := range e.pids {
-		pids[k] = v
-	}
-	e.pidLock.RUnlock()
-	for pid, np := range pids {
-		p, err := process.NewProcess(int32(pid))
-		if err != nil {
-			e.logger.Trace("unable to create new process", "pid", pid, "error", err)
-			continue
-		}
-		ms := &cstructs.MemoryStats{}
-		if memInfo, err := p.MemoryInfo(); err == nil {
-			ms.RSS = memInfo.RSS
-			ms.Swap = memInfo.Swap
-			ms.Measured = ExecutorBasicMeasuredMemStats
-		}
-
-		cs := &cstructs.CpuStats{}
-		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = np.cpuStatsSys.Percent(cpuStats.System * float64(time.Second))
-			cs.UserMode = np.cpuStatsUser.Percent(cpuStats.User * float64(time.Second))
-			cs.Measured = ExecutorBasicMeasuredCpuStats
-
-			// calculate cpu usage percent
-			cs.Percent = np.cpuStatsTotal.Percent(cpuStats.Total() * float64(time.Second))
-		}
-		stats[strconv.Itoa(pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
-	}
-
-	return stats, nil
-}
-
 // lookupBin looks for path to the binary to run by looking for the binary in
 // the following locations, in-order: task/local/, task/, based on host $PATH.
 // The return path is absolute.
@@ -502,132 +444,6 @@ func (e *UniversalExecutor) makeExecutable(binPath string) error {
 	return nil
 }
 
-// collectPids collects the pids of the child processes that the executor is
-// running every 5 seconds
-func (e *UniversalExecutor) collectPids() {
-	// Fire the timer right away when the executor starts from there on the pids
-	// are collected every scan interval
-	timer := time.NewTimer(0)
-	defer timer.Stop()
-	for {
-		select {
-		case <-timer.C:
-			pids, err := e.getAllPids()
-			if err != nil {
-				e.logger.Debug("error collecting pids", "error", err)
-			}
-			e.pidLock.Lock()
-
-			// Adding pids which are not being tracked
-			for pid, np := range pids {
-				if _, ok := e.pids[pid]; !ok {
-					e.pids[pid] = np
-				}
-			}
-			// Removing pids which are no longer present
-			for pid := range e.pids {
-				if _, ok := pids[pid]; !ok {
-					delete(e.pids, pid)
-				}
-			}
-			e.pidLock.Unlock()
-			timer.Reset(pidScanInterval)
-		case <-e.processExited:
-			return
-		}
-	}
-}
-
-// scanPids scans all the pids on the machine running the current executor and
-// returns the child processes of the executor.
-func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) (map[int]*nomadPid, error) {
-	processFamily := make(map[int]struct{})
-	processFamily[parentPid] = struct{}{}
-
-	// A mapping of pids to their parent pids. It is used to build the process
-	// tree of the executing task
-	pidsRemaining := make(map[int]int, len(allPids))
-	for _, pid := range allPids {
-		pidsRemaining[pid.Pid()] = pid.PPid()
-	}
-
-	for {
-		// flag to indicate if we have found a match
-		foundNewPid := false
-
-		for pid, ppid := range pidsRemaining {
-			_, childPid := processFamily[ppid]
-
-			// checking if the pid is a child of any of the parents
-			if childPid {
-				processFamily[pid] = struct{}{}
-				delete(pidsRemaining, pid)
-				foundNewPid = true
-			}
-		}
-
-		// not scanning anymore if we couldn't find a single match
-		if !foundNewPid {
-			break
-		}
-	}
-
-	res := make(map[int]*nomadPid)
-	for pid := range processFamily {
-		np := nomadPid{
-			pid:           pid,
-			cpuStatsTotal: stats.NewCpuStats(),
-			cpuStatsUser:  stats.NewCpuStats(),
-			cpuStatsSys:   stats.NewCpuStats(),
-		}
-		res[pid] = &np
-	}
-	return res, nil
-}
-
-// aggregatedResourceUsage aggregates the resource usage of all the pids and
-// returns a TaskResourceUsage data point
-func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstructs.ResourceUsage) *cstructs.TaskResourceUsage {
-	ts := time.Now().UTC().UnixNano()
-	var (
-		systemModeCPU, userModeCPU, percent float64
-		totalRSS, totalSwap                 uint64
-	)
-
-	for _, pidStat := range pidStats {
-		systemModeCPU += pidStat.CpuStats.SystemMode
-		userModeCPU += pidStat.CpuStats.UserMode
-		percent += pidStat.CpuStats.Percent
-
-		totalRSS += pidStat.MemoryStats.RSS
-		totalSwap += pidStat.MemoryStats.Swap
-	}
-
-	totalCPU := &cstructs.CpuStats{
-		SystemMode: systemModeCPU,
-		UserMode:   userModeCPU,
-		Percent:    percent,
-		Measured:   ExecutorBasicMeasuredCpuStats,
-		TotalTicks: e.systemCpuStats.TicksConsumed(percent),
-	}
-
-	totalMemory := &cstructs.MemoryStats{
-		RSS:      totalRSS,
-		Swap:     totalSwap,
-		Measured: ExecutorBasicMeasuredMemStats,
-	}
-
-	resourceUsage := cstructs.ResourceUsage{
-		MemoryStats: totalMemory,
-		CpuStats:    totalCPU,
-	}
-	return &cstructs.TaskResourceUsage{
-		ResourceUsage: &resourceUsage,
-		Timestamp:     ts,
-		Pids:          pidStats,
-	}
-}
-
 // Signal sends the passed signal to the task
 func (e *UniversalExecutor) Signal(s os.Signal) error {
 	if e.cmd.Process == nil {
@@ -645,17 +461,9 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 }
 
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
-	pidStats, err := e.pidStats()
+	pidStats, err := e.pidCollector.pidStats()
 	if err != nil {
 		return nil, err
 	}
-	return e.aggregatedResourceUsage(pidStats), nil
-}
-
-func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
-	allProcesses, err := ps.Processes()
-	if err != nil {
-		return nil, err
-	}
-	return e.scanPids(os.Getpid(), allProcesses)
+	return aggregatedResourceUsage(e.systemCpuStats, pidStats), nil
 }
