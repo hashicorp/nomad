@@ -13,9 +13,9 @@ type PluginInstance interface {
 	Kill()
 
 	// ReattachConfig returns the ReattachConfig and whether the plugin is internal
-	// or not. If the second return value is true, no ReattachConfig is possible to
-	// return.
-	ReattachConfig() (*plugin.ReattachConfig, bool)
+	// or not. If the second return value is false, no ReattachConfig is
+	// possible to return.
+	ReattachConfig() (config *plugin.ReattachConfig, canReattach bool)
 
 	// Plugin returns the wrapped plugin instance.
 	Plugin() interface{}

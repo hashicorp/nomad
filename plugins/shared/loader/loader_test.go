@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -100,10 +101,10 @@ func TestPluginLoader_External(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -157,10 +158,10 @@ func TestPluginLoader_External_Config(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -223,10 +224,10 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -257,10 +258,10 @@ func TestPluginLoader_External_VersionOverlap(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -309,10 +310,10 @@ func TestPluginLoader_Internal(t *testing.T) {
 	plugins := []string{"mock-device", "mock-device-2"}
 	pluginVersions := []string{"v0.0.1", "v0.0.2"}
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -369,10 +370,10 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 	plugins := []string{"mock-device", "mock-device-2"}
 	pluginVersions := []string{"v0.0.1", "v0.0.2"}
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -438,10 +439,10 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 	plugins := []string{"mock-device"}
 	pluginVersions := []string{"v0.0.1"}
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -473,10 +474,10 @@ func TestPluginLoader_InternalOverrideExternal(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -527,10 +528,10 @@ func TestPluginLoader_ExternalOverrideInternal(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -583,10 +584,10 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -629,10 +630,10 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -676,10 +677,10 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -723,14 +724,14 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	pid := PluginID{
 		Name:       plugin,
 		PluginType: base.PluginTypeDevice,
 	}
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			pid: {
@@ -772,10 +773,10 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -832,10 +833,10 @@ func TestPluginLoader_Bad_Executable(t *testing.T) {
 	h := newHarness(t, []string{plugin})
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -874,10 +875,10 @@ func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
 	// Create a non-executable file
 	require.NoError(ioutil.WriteFile(filepath.Join(h.pluginDir(), "some.yaml"), []byte("hcl > yaml"), 0666))
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
