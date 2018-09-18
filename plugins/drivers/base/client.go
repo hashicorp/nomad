@@ -84,6 +84,7 @@ func (d *driverPluginClient) handleFingerprint(ch chan *Fingerprint, stream prot
 		}
 		if err != nil {
 			d.logger.Error("error recieving stream from Fingerprint driver RPC", "error", err)
+			break
 		}
 		f := &Fingerprint{
 			Attributes:        pb.Attributes,
@@ -224,8 +225,8 @@ func (d *driverPluginClient) handleTaskEvents(ch chan *TaskEvent, stream proto.D
 		}
 		if err != nil {
 			d.logger.Error("error recieving stream from TaskEvents driver RPC", "error", err)
+			break
 		}
-
 		timestamp, _ := ptypes.Timestamp(ev.Timestamp)
 		event := &TaskEvent{
 			TaskID:      ev.TaskId,

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -14,6 +15,67 @@ import (
 type testDriverState struct {
 	Pid int
 	Log string
+}
+
+func TestBaseDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	fingerprints := []*Fingerprint{
+		{
+			Attributes:        map[string]string{"foo": "bar"},
+			Health:            HealthStateUnhealthy,
+			HealthDescription: "starting up",
+		},
+		{
+			Attributes:        map[string]string{"foo": "bar"},
+			Health:            HealthStateHealthy,
+			HealthDescription: "running",
+		},
+	}
+
+	var complete bool
+	impl := &MockDriver{
+		FingerprintF: func() (chan *Fingerprint, error) {
+			ch := make(chan *Fingerprint)
+			go func() {
+				defer close(ch)
+				ch <- fingerprints[0]
+				time.Sleep(500 * time.Millisecond)
+				ch <- fingerprints[1]
+				complete = true
+			}()
+			return ch, nil
+		},
+	}
+
+	harness := NewDriverHarness(t, impl)
+	defer harness.Kill()
+
+	ch, err := harness.Fingerprint()
+	require.NoError(err)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case f := <-ch:
+			require.Exactly(f, fingerprints[0])
+		case <-time.After(1 * time.Second):
+			require.Fail("did not recieve fingerprint[0]")
+		}
+		select {
+		case f := <-ch:
+			require.Exactly(f, fingerprints[1])
+		case <-time.After(1 * time.Second):
+			require.Fail("did not recieve fingerprint[1]")
+		}
+	}()
+	require.False(complete)
+	wg.Wait()
+	require.True(complete)
+
 }
 
 func TestBaseDriver_RecoverTask(t *testing.T) {
@@ -113,5 +175,67 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 	close(signalTask)
 	wg.Wait()
 	require.True(finished)
+}
+
+func TestBaseDriver_TaskEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	events := []*TaskEvent{
+		{
+			TaskID:      "abc",
+			Timestamp:   now,
+			Annotations: map[string]string{"foo": "bar"},
+			Message:     "starting",
+		},
+		{
+			TaskID:      "xyz",
+			Timestamp:   now.Add(2 * time.Second),
+			Annotations: map[string]string{"foo": "bar"},
+			Message:     "starting",
+		},
+		{
+			TaskID:      "xyz",
+			Timestamp:   now.Add(3 * time.Second),
+			Annotations: map[string]string{"foo": "bar"},
+			Message:     "running",
+		},
+		{
+			TaskID:      "abc",
+			Timestamp:   now.Add(4 * time.Second),
+			Annotations: map[string]string{"foo": "bar"},
+			Message:     "running",
+		},
+	}
+
+	impl := &MockDriver{
+		TaskEventsF: func() (chan *TaskEvent, error) {
+			ch := make(chan *TaskEvent)
+			go func() {
+				defer close(ch)
+				for _, event := range events {
+					ch <- event
+				}
+			}()
+			return ch, nil
+		},
+	}
+
+	harness := NewDriverHarness(t, impl)
+	defer harness.Kill()
+
+	ch, err := harness.TaskEvents()
+	require.NoError(err)
+
+	for _, event := range events {
+		select {
+		case actual := <-ch:
+			require.Exactly(actual, event)
+		case <-time.After(500 * time.Millisecond):
+			require.Fail("failed to recieve event")
+
+		}
+	}
 
 }

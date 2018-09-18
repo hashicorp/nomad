@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/golang/protobuf/ptypes"
+	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
 )
@@ -13,6 +14,7 @@ import (
 type driverPluginServer struct {
 	broker *plugin.GRPCBroker
 	impl   DriverPlugin
+	logger hclog.Logger
 }
 
 func (b *driverPluginServer) TaskConfigSchema(ctx context.Context, req *proto.TaskConfigSchemaRequest) (*proto.TaskConfigSchemaResponse, error) {
@@ -58,6 +60,9 @@ func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv prot
 
 	for {
 		f := <-ch
+		if f == nil {
+			break
+		}
 		resp := &proto.FingerprintResponse{
 			Attributes:        f.Attributes,
 			Health:            healthStateToProto(f.Health),
@@ -217,6 +222,9 @@ func (b *driverPluginServer) TaskEvents(req *proto.TaskEventsRequest, srv proto.
 
 	for {
 		event := <-ch
+		if event == nil {
+			break
+		}
 		pbTimestamp, err := ptypes.TimestampProto(event.Timestamp)
 		if err != nil {
 			return err
