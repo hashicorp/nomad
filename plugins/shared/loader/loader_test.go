@@ -809,7 +809,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 	reattach, ok := p.ReattachConfig()
 	require.True(ok)
 
-	p2, err := l.Reattach(base.PluginTypeDevice, reattach)
+	p2, err := l.Reattach(plugin, base.PluginTypeDevice, reattach)
 	require.NoError(err)
 
 	// Get the reattached plugin and ensure its the same
