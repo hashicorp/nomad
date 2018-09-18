@@ -97,16 +97,18 @@ func (d *driverPluginClient) handleFingerprint(ch chan *Fingerprint, stream prot
 }
 
 func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
-	_, err := d.client.RecoverTask(context.Background(),
-		&proto.RecoverTaskRequest{Handle: taskHandleToProto(h)})
+	req := &proto.RecoverTaskRequest{Handle: taskHandleToProto(h)}
+
+	_, err := d.client.RecoverTask(context.Background(), req)
 	return err
 }
 
 func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
-	resp, err := d.client.StartTask(context.Background(),
-		&proto.StartTaskRequest{
-			Task: taskConfigToProto(c),
-		})
+	req := &proto.StartTaskRequest{
+		Task: taskConfigToProto(c),
+	}
+
+	resp, err := d.client.StartTask(context.Background(), req)
 	if err != nil {
 		return nil, err
 	}
@@ -123,10 +125,11 @@ func (d *driverPluginClient) WaitTask(ctx context.Context, id string) chan *Exit
 func (d *driverPluginClient) handleWaitTask(ctx context.Context, id string, ch chan *ExitResult) {
 	defer close(ch)
 	var result ExitResult
-	resp, err := d.client.WaitTask(ctx,
-		&proto.WaitTaskRequest{
-			TaskId: id,
-		})
+	req := &proto.WaitTaskRequest{
+		TaskId: id,
+	}
+
+	resp, err := d.client.WaitTask(ctx, req)
 	if err != nil {
 		result.Err = err
 	} else {
