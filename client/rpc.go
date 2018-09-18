@@ -68,12 +68,16 @@ TRY:
 	rpcErr := c.connPool.RPC(c.Region(), server.Addr, c.RPCMajorVersion(), method, args, reply)
 	if rpcErr == nil {
 		c.fireRpcRetryWatcher()
+		c.servers.NotifySuccessServer(server)
 		return nil
 	}
 
 	// Move off to another server, and see if we can retry.
 	c.logger.Printf("[ERR] nomad: %q RPC failed to server %s: %v", method, server.Addr, rpcErr)
-	c.servers.NotifyFailedServer(server)
+	if !strings.Contains(rpcErr.Error(), "rpc error: rpc error:") {
+		c.servers.NotifyFailedServer(server)
+	}
+
 	if retry := canRetry(args, rpcErr); !retry {
 		return rpcErr
 	}

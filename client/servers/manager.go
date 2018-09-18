@@ -47,16 +47,15 @@ type Server struct {
 	// Addr is the resolved address of the server
 	Addr net.Addr
 	addr string
-	sync.Mutex
 
 	// DC is the datacenter of the server
 	DC string
+	failed bool
+
+	sync.RWMutex
 }
 
 func (s *Server) Copy() *Server {
-	s.Lock()
-	defer s.Unlock()
-
 	return &Server{
 		Addr: s.Addr,
 		addr: s.addr,
@@ -65,15 +64,13 @@ func (s *Server) Copy() *Server {
 }
 
 func (s *Server) String() string {
-	s.Lock()
-	defer s.Unlock()
-
 	if s.addr == "" {
 		s.addr = s.Addr.String()
 	}
 
 	return s.addr
 }
+
 
 func (s *Server) Equal(o *Server) bool {
 	if s == nil && o == nil {
@@ -85,12 +82,26 @@ func (s *Server) Equal(o *Server) bool {
 	return s.Addr.String() == o.Addr.String() && s.DC == o.DC
 }
 
+func (s *Server) Fail(failed bool) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.failed = failed
+}
+
+func (s *Server) Failed() bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.failed
+}
+
 type Servers []*Server
 
 func (s Servers) String() string {
 	addrs := make([]string, 0, len(s))
 	for _, srv := range s {
-		addrs = append(addrs, srv.String())
+		addrs = append(addrs, srv.String() + "(DC: " + srv.DC + ")")
 	}
 	return strings.Join(addrs, ",")
 }
@@ -111,10 +122,9 @@ func (s Servers) cycle() {
 
 // shuffle shuffles the server list in place
 func (s Servers) shuffle() {
-	for i := len(s) - 1; i > 0; i-- {
-		j := rand.Int31n(int32(i + 1))
+	rand.Shuffle(len(s), func(i, j int) {
 		s[i], s[j] = s[j], s[i]
-	}
+	})
 }
 
 func (s Servers) Sort() {
@@ -134,8 +144,8 @@ func (s Servers) Equal(o Servers) bool {
 		return false
 	}
 
-	for i, v := range s {
-		if !v.Equal(o[i]) {
+	for i := range s {
+		if !s[i].Equal(o[i]) {
 			return false
 		}
 	}
@@ -164,7 +174,7 @@ type Manager struct {
 	// pool. Pinger is an interface that wraps client.ConnPool.
 	connPoolPinger Pinger
 
-	sync.Mutex
+	sync.RWMutex
 }
 
 // New is the only way to safely create a new Manager struct.
@@ -202,14 +212,18 @@ func (m *Manager) SetServers(servers Servers) bool {
 
 	// Sort both the  existing and incoming servers
 	servers.Sort()
-	m.servers.Sort()
+	l_servers := m.getServers()
+	l_servers.Sort()
 
 	// Determine if they are equal
-	equal := servers.Equal(m.servers)
+	equal := servers.Equal(l_servers)
 
-	// Randomize the incoming servers
-	servers.shuffle()
-	m.servers = servers
+	if !equal {
+		m.logger.Printf("[INFO] manager: setting new servers list: %s", servers.String())
+		// Randomize the incoming servers
+		servers.shuffle()
+		m.servers = servers
+	}
 
 	return !equal
 }
@@ -217,8 +231,8 @@ func (m *Manager) SetServers(servers Servers) bool {
 // FindServer returns a server to send an RPC too. If there are no servers, nil
 // is returned.
 func (m *Manager) FindServer() *Server {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	if len(m.servers) == 0 {
 		m.logger.Printf("[WARN] manager: No servers available")
@@ -234,8 +248,8 @@ func (m *Manager) FindServer() *Server {
 
 // NumNodes returns the number of approximate nodes in the cluster.
 func (m *Manager) NumNodes() int32 {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 	return m.numNodes
 }
 
@@ -256,28 +270,58 @@ func (m *Manager) NotifyFailedServer(s *Server) {
 	// this is a noop.  If, however, the server is failed and first on
 	// the list, move the server to the end of the list.
 	if len(m.servers) > 1 && m.servers[0].Equal(s) {
+		m.servers[0].Fail(true)
 		m.servers.cycle()
 	}
 }
 
+func (m *Manager) NotifySuccessServer(s *Server) {
+	m.RLock()
+	defer m.RUnlock()
+
+	if len(m.servers) > 1 && m.servers[0].Equal(s) {
+		if m.servers[0].Failed() {
+			m.servers[0].Fail(false)
+		}
+	}
+}
+
+
 // NumServers returns the total number of known servers whether healthy or not.
 func (m *Manager) NumServers() int {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 	return len(m.servers)
 }
 
-// GetServers returns a copy of the current list of servers.
-func (m *Manager) GetServers() Servers {
-	m.Lock()
-	defer m.Unlock()
+func (m *Manager) IsAllServersFail() bool {
+	m.RLock()
+	defer m.RUnlock()
 
+	for l_i := range m.servers {
+		if !m.servers[l_i].Failed() {
+			return false
+		}
+	}
+
+	return true
+}
+
+// GetServers returns a copy of the current list of servers.
+func (m *Manager) getServers() Servers {
 	copy := make([]*Server, 0, len(m.servers))
 	for _, s := range m.servers {
 		copy = append(copy, s.Copy())
 	}
 
 	return copy
+}
+
+func (m *Manager) GetServers() Servers {
+	m.RLock()
+	defer m.RUnlock()
+
+	return m.getServers()
 }
 
 // RebalanceServers shuffles the order in which Servers will be contacted. The
@@ -293,23 +337,24 @@ func (m *Manager) RebalanceServers() {
 	// healthy server.  NOTE: Do not iterate on the list directly because
 	// this loop mutates the server list in-place.
 	var foundHealthyServer bool
-	for i := 0; i < len(m.servers); i++ {
+	for i := 0; i < len(servers); i++ {
 		// Always test the first server.  Failed servers are cycled
 		// while Serf detects the node has failed.
 		srv := servers[0]
 
 		err := m.connPoolPinger.Ping(srv.Addr)
 		if err == nil {
+			srv.Fail(false)
 			foundHealthyServer = true
 			break
 		}
-		m.logger.Printf(`[DEBUG] manager: pinging server "%s" failed: %s`, srv, err)
+		m.logger.Printf(`[WARN] manager: pinging server "%s" failed: %s`, srv, err)
 
 		servers.cycle()
 	}
 
 	if !foundHealthyServer {
-		m.logger.Printf("[DEBUG] manager: No healthy servers during rebalance")
+		m.logger.Printf("[ERR] manager: No healthy servers during rebalance")
 		return
 	}
 

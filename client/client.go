@@ -129,7 +129,7 @@ type Client struct {
 	lastHeartbeat   time.Time
 	heartbeatTTL    time.Duration
 	haveHeartbeated bool
-	heartbeatLock   sync.Mutex
+	heartbeatLock   sync.RWMutex
 
 	// triggerDiscoveryCh triggers Consul discovery; see triggerDiscovery
 	triggerDiscoveryCh chan struct{}
@@ -235,6 +235,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Initialize the server manager
 	c.servers = servers.New(c.logger, c.shutdownCh, c)
+	go c.servers.Start()
 
 	// Initialize the client
 	if err := c.init(); err != nil {
@@ -546,8 +547,8 @@ func (c *Client) Shutdown() error {
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (c *Client) Stats() map[string]map[string]string {
-	c.heartbeatLock.Lock()
-	defer c.heartbeatLock.Unlock()
+	c.heartbeatLock.RLock()
+	defer c.heartbeatLock.RUnlock()
 	stats := map[string]map[string]string{
 		"client": {
 			"node_id":         c.NodeID(),
@@ -1231,13 +1232,16 @@ func (c *Client) registerAndHeartbeat() {
 				c.logger.Printf("[ERR] client: heartbeating failed. Retrying in %v: %v", intv, err)
 				heartbeat = time.After(intv)
 
-				// If heartbeating fails, trigger Consul discovery
-				c.triggerDiscovery()
+				// If heartbeating fails, trigger Consul discovery, only if all servers have failed state
+				if c.servers.IsAllServersFail() {
+					c.logger.Printf("[WARN] all known servers are failed so triggered Discovery")
+					c.triggerDiscovery()
+				}
 			}
 		} else {
-			c.heartbeatLock.Lock()
+			c.heartbeatLock.RLock()
 			heartbeat = time.After(c.heartbeatTTL)
-			c.heartbeatLock.Unlock()
+			c.heartbeatLock.RUnlock()
 		}
 	}
 }
@@ -1463,7 +1467,6 @@ func (c *Client) updateNodeStatus() error {
 	}
 	var resp structs.NodeUpdateResponse
 	if err := c.RPC("Node.UpdateStatus", &req, &resp); err != nil {
-		c.triggerDiscovery()
 		return fmt.Errorf("failed to update status: %v", err)
 	}
 	end := time.Now()
@@ -2104,13 +2107,6 @@ func (c *Client) consulDiscovery() {
 }
 
 func (c *Client) consulDiscoveryImpl() error {
-	// Acquire heartbeat lock to prevent heartbeat from running
-	// concurrently with discovery. Concurrent execution is safe, however
-	// discovery is usually triggered when heartbeating has failed so
-	// there's no point in allowing it.
-	c.heartbeatLock.Lock()
-	defer c.heartbeatLock.Unlock()
-
 	dcs, err := c.consulCatalog.Datacenters()
 	if err != nil {
 		return fmt.Errorf("client.consul: unable to query Consul datacenters: %v", err)
