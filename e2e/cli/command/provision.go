@@ -90,6 +90,7 @@ func (c *Provision) Run(args []string) int {
 	args = cmdFlags.Args()
 	if len(args) != 2 {
 		c.logger.Error("expected 2 args (provider and environment)", "args", args)
+		return 0
 	}
 
 	env, err := newEnv(envPath, args[0], args[1], tfPath, c.logger)
