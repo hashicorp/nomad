@@ -923,17 +923,23 @@ func (c *Config) normalizeAddrs() error {
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
-	if err != nil {
-		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
+	// Skip HTTP if consul auto advertise is disabled and not in Dev mode
+	if *c.Consul.AutoAdvertise || c.DevMode {
+		addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode)
+		if err != nil {
+			return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
+		}
+		c.AdvertiseAddrs.HTTP = addr
 	}
-	c.AdvertiseAddrs.HTTP = addr
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC, c.DevMode)
-	if err != nil {
-		return fmt.Errorf("Failed to parse RPC advertise address: %v", err)
+	// Skip RPC if server is disabled and not in Dev mode
+	if (c.Server != nil && c.Server.Enabled) || c.DevMode {
+		addr, err = normalizeAdvertise(c.AdvertiseAddrs.RPC, c.Addresses.RPC, c.Ports.RPC, c.DevMode)
+		if err != nil {
+			return fmt.Errorf("Failed to parse RPC advertise address: %v", err)
+		}
+		c.AdvertiseAddrs.RPC = addr
 	}
-	c.AdvertiseAddrs.RPC = addr
 
 	// Skip serf if server is disabled
 	if c.Server != nil && c.Server.Enabled {
