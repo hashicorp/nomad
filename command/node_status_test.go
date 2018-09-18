@@ -107,6 +107,22 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	}
 	ui.OutputWriter.Reset()
 
+	// Query all nodes stats
+	if code := cmd.Run([]string{"-address=" + url, "-stats"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "CPU") {
+		t.Fatalf("expect to find CPU, got: %s", out)
+	}
+	if !strings.Contains(out, "Memory") {
+		t.Fatalf("expect to find Memory, got: %s", out)
+	}
+	if !strings.Contains(out, "Disk") {
+		t.Fatalf("expect to find Disk, got: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
 	// Query a single node
 	if code := cmd.Run([]string{"-address=" + url, nodeID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)

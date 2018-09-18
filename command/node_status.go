@@ -38,7 +38,7 @@ type NodeStatusCommand struct {
 
 func (c *NodeStatusCommand) Help() string {
 	helpText := `
-Usage: nomad node status [options] <node>
+Usage: nomad node status [options] [<node>]
 
   Display status information about a given node. The list of nodes
   returned includes only nodes which jobs may be scheduled to, and
@@ -181,13 +181,17 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		// Format the nodes list
 		out := make([]string, len(nodes)+1)
 
-		out[0] = "ID|DC|Name|Class|"
+		out[0] = "ID|DC|Name|Class"
 
 		if c.verbose {
-			out[0] += "Address|Version|"
+			out[0] += "|Address|Version"
 		}
 
-		out[0] += "Drain|Eligibility|Status"
+		out[0] += "|Drain|Eligibility|Status"
+
+		if c.stats {
+			out[0] += "|CPU|Memory|Disk"
+		}
 
 		if c.list_allocs {
 			out[0] += "|Running Allocs"
@@ -207,6 +211,28 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				node.Drain,
 				node.SchedulingEligibility,
 				node.Status)
+
+			if c.stats {
+				node, _, err := client.Nodes().Info(node.ID, nil)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+					return 1
+				}
+				// Get the host stats
+				hostStats, nodeStatsErr := client.Nodes().Stats(node.ID, nil)
+				if nodeStatsErr != nil {
+					out[i+1] += "|-|-|-"
+				} else {
+					hostResources, err := getHostResources(hostStats, node)
+					if err != nil {
+						out[i+1] += "|-|-|-"
+					}
+					if err == nil {
+						out[i+1] += "|" + hostResources[1]
+					}
+				}
+
+			}
 
 			if c.list_allocs {
 				numAllocs, err := getRunningAllocs(client, node.ID)
