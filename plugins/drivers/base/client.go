@@ -4,19 +4,26 @@ import (
 	"errors"
 	"time"
 
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"golang.org/x/net/context"
 )
 
-type DriverClient interface {
-	Fingerprint() chan *Fingerprint
-	RecoverTask(*TaskHandle) error
-	StartTask(*TaskConfig) (*TaskHandle, error)
-	WaitTask(ctx context.Context, taskID string) chan *TaskResult
-}
+var _ DriverPlugin = &driverPluginClient{}
 
 type driverPluginClient struct {
+	*base.BasePluginClient
+
 	client proto.DriverClient
+}
+
+func (d *driverPluginClient) TaskConfigSchema() *hclspec.Spec {
+	panic("not implemented")
+}
+
+func (d *driverPluginClient) Capabilities() *Capabilities {
+	panic("not implemented")
 }
 
 func (d *driverPluginClient) Fingerprint() chan *Fingerprint {
@@ -41,11 +48,11 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
 	return taskHandleFromProto(resp.Handle), nil
 }
 
-func (d *driverPluginClient) WaitTask(ctx context.Context, id string) chan *TaskResult {
-	ch := make(chan *TaskResult)
+func (d *driverPluginClient) WaitTask(ctx context.Context, id string) chan *ExitResult {
+	ch := make(chan *ExitResult)
 	go func() {
 		defer close(ch)
-		var result TaskResult
+		var result ExitResult
 		resp, err := d.client.WaitTask(ctx,
 			&proto.WaitTaskRequest{
 				TaskId: id,
@@ -68,13 +75,21 @@ func (d *driverPluginClient) WaitTask(ctx context.Context, id string) chan *Task
 func (d *driverPluginClient) StopTask(taskID string, timeout time.Duration, signal string) error {
 	return nil
 }
-func (d *driverPluginClient) DestroyTask(taskID string) {}
-func (d *driverPluginClient) ListTasks(q *ListTasksQuery) ([]*TaskSummary, error) {
-	return nil, nil
-}
+func (d *driverPluginClient) DestroyTask(taskID string, force bool) error { return nil }
 func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 	return nil, nil
 }
 func (d *driverPluginClient) TaskStats(taskID string) (*TaskStats, error) {
 	return nil, nil
+}
+func (d *driverPluginClient) TaskEvents() chan *TaskEvent {
+	panic("not implemented")
+}
+
+func (d *driverPluginClient) SignalTask(taskID string, signal string) error {
+	panic("not implemented")
+}
+
+func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.Duration) (stdout []byte, stderr []byte, result *ExitResult) {
+	panic("not implemented")
 }

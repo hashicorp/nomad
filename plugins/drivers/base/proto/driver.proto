@@ -539,7 +539,7 @@ message MemoryUsage {
     enum Fields {
         RSS = 0;
         CACHE = 1;
-        MAX_UASGE = 2;
+        MAX_USAGE = 2;
         KERNEL_USAGE = 3;
         KERNEL_MAX_USAGE = 4;
     }

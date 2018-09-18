@@ -2,12 +2,10 @@ package base
 
 import (
 	"bytes"
-	"strings"
 	"sync"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
 	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 	"golang.org/x/net/context"
@@ -27,11 +25,6 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 	var buf bytes.Buffer
 	enc := codec.NewEncoder(&buf, structs.MsgpackHandle)
 	enc.Encode(state)
-	req := &proto.RecoverTaskRequest{
-		Handle: &proto.TaskHandle{
-			DriverState: buf.Bytes(),
-		},
-	}
 
 	// mock the RecoverTask driver call
 	impl := &MockDriver{
@@ -43,8 +36,13 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 		},
 	}
 
-	driver := &driverPluginServer{impl: impl}
-	_, err := driver.RecoverTask(context.TODO(), req)
+	harness := NewDriverHarness(t, impl)
+	defer harness.Kill()
+
+	handle := &TaskHandle{
+		driverState: buf.Bytes(),
+	}
+	err := harness.RecoverTask(handle)
 	require.NoError(err)
 }
 
@@ -52,10 +50,8 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	req := &proto.StartTaskRequest{
-		Task: &proto.TaskConfig{
-			Id: "foo",
-		},
+	cfg := &TaskConfig{
+		ID: "foo",
 	}
 	state := &testDriverState{Pid: 1, Log: "log"}
 	var handle *TaskHandle
@@ -69,15 +65,15 @@ func TestBaseDriver_StartTask(t *testing.T) {
 		},
 	}
 
-	driver := &driverPluginServer{impl: impl}
-	resp, err := driver.StartTask(context.TODO(), req)
+	harness := NewDriverHarness(t, impl)
+	defer harness.Kill()
+	resp, err := harness.StartTask(cfg)
 	require.NoError(err)
-	require.Equal(req.Task.Id, resp.Handle.Config.Id)
-	require.Equal(string(handle.State), string(strings.ToLower(resp.Handle.State.String())))
+	require.Equal(cfg.ID, resp.Config.ID)
+	require.Equal(handle.State, resp.State)
 
-	dec := codec.NewDecoderBytes(resp.Handle.DriverState, structs.MsgpackHandle)
 	var actualState testDriverState
-	require.NoError(dec.Decode(&actualState))
+	require.NoError(resp.GetDriverState(&actualState))
 	require.Equal(*state, actualState)
 
 }
@@ -86,17 +82,13 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	req := &proto.WaitTaskRequest{
-		TaskId: "foo",
-	}
-
-	result := &TaskResult{ExitCode: 1, Signal: 9}
+	result := &ExitResult{ExitCode: 1, Signal: 9}
 
 	signalTask := make(chan struct{})
 
 	impl := &MockDriver{
-		WaitTaskF: func(id string) chan *TaskResult {
-			ch := make(chan *TaskResult)
+		WaitTaskF: func(_ context.Context, id string) chan *ExitResult {
+			ch := make(chan *ExitResult)
 			go func() {
 				<-signalTask
 				ch <- result
@@ -105,17 +97,17 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 		},
 	}
 
-	driver := &driverPluginServer{impl: impl}
+	harness := NewDriverHarness(t, impl)
+	defer harness.Kill()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	var finished bool
 	go func() {
 		defer wg.Done()
-		resp, err := driver.WaitTask(context.TODO(), req)
+		ch := harness.WaitTask(context.TODO(), "foo")
+		actualResult := <-ch
 		finished = true
-		require.NoError(err)
-		require.Equal(int(resp.Result.ExitCode), result.ExitCode)
-		require.Equal(int(resp.Result.Signal), result.Signal)
+		require.Exactly(result, actualResult)
 	}()
 	require.False(finished)
 	close(signalTask)

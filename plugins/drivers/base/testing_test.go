@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _ DriverPlugin = (*MockDriver)(nil)
+
 // Very simple test to ensure the test harness works as expected
 func TestDriverHarness(t *testing.T) {
 	handle := &TaskHandle{Config: &TaskConfig{Name: "mock"}}

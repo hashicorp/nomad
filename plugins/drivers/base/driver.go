@@ -1,11 +1,14 @@
 package base
 
 import (
+	"fmt"
 	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"golang.org/x/net/context"
 )
 
 const DriverGoPlugin = "driver"
@@ -13,16 +16,33 @@ const DriverGoPlugin = "driver"
 type DriverPlugin interface {
 	base.BasePlugin
 
-	Fingerprint() *Fingerprint
+	TaskConfigSchema() *hclspec.Spec
 	Capabilities() *Capabilities
+	Fingerprint() chan *Fingerprint
+
 	RecoverTask(*TaskHandle) error
 	StartTask(*TaskConfig) (*TaskHandle, error)
-	WaitTask(taskID string) chan *TaskResult
+	WaitTask(ctx context.Context, taskID string) chan *ExitResult
 	StopTask(taskID string, timeout time.Duration, signal string) error
-	DestroyTask(taskID string)
-	ListTasks(*ListTasksQuery) ([]*TaskSummary, error)
+	DestroyTask(taskID string, force bool) error
 	InspectTask(taskID string) (*TaskStatus, error)
 	TaskStats(taskID string) (*TaskStats, error)
+	TaskEvents() chan *TaskEvent
+
+	SignalTask(taskID string, signal string) error
+	ExecTask(taskID string, cmd []string, timeout time.Duration) (stdout []byte, stderr []byte, result *ExitResult)
+}
+
+type DriverSignalTaskNotSupported struct{}
+
+func (_ DriverSignalTaskNotSupported) SignalTask(taskID, signal string) error {
+	return fmt.Errorf("SignalTask is not supported by this driver")
+}
+
+type DriverExecTaskNotSupported struct{}
+
+func (_ DriverExecTaskNotSupported) ExecTask(taskID, signal string) error {
+	return fmt.Errorf("ExecTask is not supported by this driver")
 }
 
 type HealthState string
@@ -121,15 +141,17 @@ const (
 
 type TaskState string
 
-type TaskResult struct {
+type NetworkOverride struct {
+	PortMap       map[string]int32
+	Addr          string
+	AutoAdvertise bool
+}
+
+type ExitResult struct {
 	ExitCode  int
 	Signal    int
 	OOMKilled bool
 	Err       error
-}
-
-type ListTasksQuery struct {
-	State string
 }
 
 type TaskSummary struct {
@@ -140,13 +162,15 @@ type TaskSummary struct {
 }
 
 type TaskStatus struct {
-	ID         string
-	Name       string
-	State      string
-	CreatedAt  time.Time
-	StartedAt  time.Time
-	FinishedAt time.Time
-	ExitCode   int
+	ID               string
+	Name             string
+	State            string
+	SizeOnDiskMB     int64
+	StartedAt        time.Time
+	CompletedAt      time.Time
+	ExitResult       *ExitResult
+	DriverAttributes map[string]string
+	NetworkOverride  *NetworkOverride
 }
 
 type TaskStats struct {
@@ -182,4 +206,11 @@ type MemoryUsage struct {
 
 	// A list of fields whose values were actually sampled
 	Measured []string
+}
+
+type TaskEvent struct {
+	TaskID      string
+	Timestamp   time.Time
+	Message     string
+	Annotations map[string]string
 }
