@@ -83,10 +83,12 @@ func TestHealthHook_PrerunDestroy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster()
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t)
+	logger := testlog.HCLogger(t)
+
+	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), mock.Alloc(), hs, b.Listen(), consul)
+	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consul)
 
 	// Assert we implemented the right interfaces
 	prerunh, ok := h.(interfaces.RunnerPrerunHook)
@@ -120,10 +122,11 @@ func TestHealthHook_PrerunUpdateDestroy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster()
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t)
+	logger := testlog.HCLogger(t)
+	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
 
 	// Prerun
 	require.NoError(h.Prerun(context.Background()))
@@ -158,10 +161,11 @@ func TestHealthHook_UpdatePrerunDestroy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster()
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t)
+	logger := testlog.HCLogger(t)
+	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
 
 	// Set a DeploymentID to cause ClearHealth to be called
 	alloc.DeploymentID = uuid.Generate()
@@ -198,10 +202,11 @@ func TestHealthHook_Destroy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster()
 	defer b.Close()
 
-	consul := consul.NewMockConsulServiceClient(t)
+	logger := testlog.HCLogger(t)
+	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), mock.Alloc(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
 
 	// Destroy
 	require.NoError(h.Destroy())
@@ -248,9 +253,11 @@ func TestHealthHook_SetHealth(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster()
 	defer b.Close()
 
+	logger := testlog.HCLogger(t)
+
 	// Don't reply on the first call
 	called := false
-	consul := consul.NewMockConsulServiceClient(t)
+	consul := consul.NewMockConsulServiceClient(t, logger)
 	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
 		if !called {
 			called = true
@@ -266,7 +273,7 @@ func TestHealthHook_SetHealth(t *testing.T) {
 
 	hs := newMockHealthSetter()
 
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
 
 	// Prerun
 	require.NoError(h.Prerun(context.Background()))
