@@ -44,7 +44,7 @@ type MockConsulServiceClient struct {
 func NewMockConsulServiceClient(t testing.T, logger log.Logger) *MockConsulServiceClient {
 	logger = logger.Named("mock_consul")
 	m := MockConsulServiceClient{
-		Ops:    make([]MockConsulOp, 0, 20),
+		ops:    make([]MockConsulOp, 0, 20),
 		logger: logger,
 	}
 	return &m
@@ -54,7 +54,7 @@ func (m *MockConsulServiceClient) UpdateTask(old, new *consul.TaskServices) erro
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Trace("UpdateTask", "alloc_id", new.AllocID, "task", new.Name)
-	m.Ops = append(m.Ops, NewMockConsulOp("update", new.AllocID, new.Name))
+	m.ops = append(m.ops, NewMockConsulOp("update", new.AllocID, new.Name))
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (m *MockConsulServiceClient) RegisterTask(task *consul.TaskServices) error 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Trace("RegisterTask", "alloc_id", task.AllocID, "task", task.Name)
-	m.Ops = append(m.Ops, NewMockConsulOp("add", task.AllocID, task.Name))
+	m.ops = append(m.ops, NewMockConsulOp("add", task.AllocID, task.Name))
 	return nil
 }
 
@@ -70,14 +70,14 @@ func (m *MockConsulServiceClient) RemoveTask(task *consul.TaskServices) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Trace("RemoveTask", "alloc_id", task.AllocID, "task", task.Name)
-	m.Ops = append(m.Ops, NewMockConsulOp("remove", task.AllocID, task.Name))
+	m.ops = append(m.ops, NewMockConsulOp("remove", task.AllocID, task.Name))
 }
 
 func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.AllocRegistration, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Trace("AllocRegistrations", "alloc_id", allocID)
-	m.Ops = append(m.Ops, NewMockConsulOp("alloc_registrations", allocID, ""))
+	m.ops = append(m.ops, NewMockConsulOp("alloc_registrations", allocID, ""))
 
 	if m.AllocRegistrationsFn != nil {
 		return m.AllocRegistrationsFn(allocID)
