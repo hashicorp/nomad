@@ -16,7 +16,10 @@ type driverPluginServer struct {
 }
 
 func (b *driverPluginServer) TaskConfigSchema(ctx context.Context, req *proto.TaskConfigSchemaRequest) (*proto.TaskConfigSchemaResponse, error) {
-	spec := b.impl.TaskConfigSchema()
+	spec, err := b.impl.TaskConfigSchema()
+	if err != nil {
+		return nil, err
+	}
 
 	resp := &proto.TaskConfigSchemaResponse{
 		Spec: spec,
@@ -25,7 +28,10 @@ func (b *driverPluginServer) TaskConfigSchema(ctx context.Context, req *proto.Ta
 }
 
 func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.CapabilitiesRequest) (*proto.CapabilitiesResponse, error) {
-	caps := b.impl.Capabilities()
+	caps, err := b.impl.Capabilities()
+	if err != nil {
+		return nil, err
+	}
 	resp := &proto.CapabilitiesResponse{
 		Capabilities: &proto.DriverCapabilities{
 			SendSignals: caps.SendSignals,
@@ -45,7 +51,10 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 }
 
 func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv proto.Driver_FingerprintServer) error {
-	ch := b.impl.Fingerprint()
+	ch, err := b.impl.Fingerprint()
+	if err != nil {
+		return err
+	}
 
 	for {
 		f := <-ch
@@ -177,11 +186,14 @@ func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRe
 		return nil, err
 	}
 
-	stdout, stderr, result := b.impl.ExecTask(req.TaskId, req.Command, timeout)
+	result, err := b.impl.ExecTask(req.TaskId, req.Command, timeout)
+	if err != nil {
+		return nil, err
+	}
 	resp := &proto.ExecTaskResponse{
-		Stdout: stdout,
-		Stderr: stderr,
-		Result: exitResultToProto(result),
+		Stdout: result.Stdout,
+		Stderr: result.Stderr,
+		Result: exitResultToProto(result.ExitResult),
 	}
 
 	return resp, nil
@@ -198,7 +210,10 @@ func (b *driverPluginServer) SignalTask(ctx context.Context, req *proto.SignalTa
 }
 
 func (b *driverPluginServer) TaskEvents(req *proto.TaskEventsRequest, srv proto.Driver_TaskEventsServer) error {
-	ch := b.impl.TaskEvents()
+	ch, err := b.impl.TaskEvents()
+	if err != nil {
+		return err
+	}
 
 	for {
 		event := <-ch

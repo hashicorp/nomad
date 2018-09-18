@@ -28,6 +28,18 @@ func healthStateToProto(health HealthState) proto.FingerprintResponse_HealthStat
 	return proto.FingerprintResponse_UNDETECTED
 }
 
+func healthStateFromProto(pb proto.FingerprintResponse_HealthState) HealthState {
+	switch pb {
+	case proto.FingerprintResponse_UNDETECTED:
+		return HealthStateUndetected
+	case proto.FingerprintResponse_UNHEALTHY:
+		return HealthStateUnhealthy
+	case proto.FingerprintResponse_HEALTHY:
+		return HealthStateHealthy
+	}
+	return HealthStateUndetected
+}
+
 func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 	if pb == nil {
 		return &TaskConfig{}
@@ -154,13 +166,30 @@ func taskStatsToProto(stats *TaskStats) (*proto.TaskStats, error) {
 	return &proto.TaskStats{
 		Id:                 stats.ID,
 		Timestamp:          timestamp,
-		AggResourceUsage:   resourceUsageToProto(&stats.AggResourceUsage),
+		AggResourceUsage:   resourceUsageToProto(stats.AggResourceUsage),
 		ResourceUsageByPid: pids,
 	}, nil
 }
 
 func taskStatsFromProto(pb *proto.TaskStats) (*TaskStats, error) {
-	return nil, nil
+	timestamp, err := ptypes.Timestamp(pb.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	pids := map[string]*ResourceUsage{}
+	for pid, ru := range pb.ResourceUsageByPid {
+		pids[pid] = resourceUsageFromProto(ru)
+	}
+
+	stats := &TaskStats{
+		ID:                 pb.Id,
+		Timestamp:          timestamp.Unix(),
+		AggResourceUsage:   resourceUsageFromProto(pb.AggResourceUsage),
+		ResourceUsageByPid: pids,
+	}
+
+	return stats, nil
 }
 
 func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
@@ -216,5 +245,57 @@ func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
 }
 
 func resourceUsageFromProto(pb *proto.TaskResourceUsage) *ResourceUsage {
-	return nil
+	cpu := CPUUsage{}
+	if pb.Cpu != nil {
+		for _, field := range pb.Cpu.MeasuredFields {
+			switch field {
+			case proto.CPUUsage_SYSTEM_MODE:
+				cpu.SystemMode = pb.Cpu.SystemMode
+				cpu.Measured = append(cpu.Measured, "System Mode")
+			case proto.CPUUsage_USER_MODE:
+				cpu.UserMode = pb.Cpu.UserMode
+				cpu.Measured = append(cpu.Measured, "User Mode")
+			case proto.CPUUsage_TOTAL_TICKS:
+				cpu.TotalTicks = pb.Cpu.TotalTicks
+				cpu.Measured = append(cpu.Measured, "Total Ticks")
+			case proto.CPUUsage_THROTTLED_PERIODS:
+				cpu.ThrottledPeriods = pb.Cpu.ThrottledPeriods
+				cpu.Measured = append(cpu.Measured, "Throttled Periods")
+			case proto.CPUUsage_THROTTLED_TIME:
+				cpu.ThrottledTime = pb.Cpu.ThrottledTime
+				cpu.Measured = append(cpu.Measured, "Throttled Time")
+			case proto.CPUUsage_PERCENT:
+				cpu.Percent = pb.Cpu.Percent
+				cpu.Measured = append(cpu.Measured, "Percent")
+			}
+		}
+	}
+
+	memory := MemoryUsage{}
+	if pb.Memory != nil {
+		for _, field := range pb.Memory.MeasuredFields {
+			switch field {
+			case proto.MemoryUsage_RSS:
+				memory.RSS = pb.Memory.Rss
+				memory.Measured = append(memory.Measured, "RSS")
+			case proto.MemoryUsage_CACHE:
+				memory.Cache = pb.Memory.Cache
+				memory.Measured = append(memory.Measured, "Cache")
+			case proto.MemoryUsage_MAX_USAGE:
+				memory.MaxUsage = pb.Memory.MaxUsage
+				memory.Measured = append(memory.Measured, "Max Usage")
+			case proto.MemoryUsage_KERNEL_USAGE:
+				memory.KernelUsage = pb.Memory.KernelUsage
+				memory.Measured = append(memory.Measured, "Kernel Usage")
+			case proto.MemoryUsage_KERNEL_MAX_USAGE:
+				memory.KernelMaxUsage = pb.Memory.KernelMaxUsage
+				memory.Measured = append(memory.Measured, "Kernel Max Usage")
+			}
+		}
+	}
+
+	return &ResourceUsage{
+		CPU:    cpu,
+		Memory: memory,
+	}
 }

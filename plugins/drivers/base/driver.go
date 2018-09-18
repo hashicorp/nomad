@@ -16,9 +16,9 @@ const DriverGoPlugin = "driver"
 type DriverPlugin interface {
 	base.BasePlugin
 
-	TaskConfigSchema() *hclspec.Spec
-	Capabilities() *Capabilities
-	Fingerprint() chan *Fingerprint
+	TaskConfigSchema() (*hclspec.Spec, error)
+	Capabilities() (*Capabilities, error)
+	Fingerprint() (chan *Fingerprint, error)
 
 	RecoverTask(*TaskHandle) error
 	StartTask(*TaskConfig) (*TaskHandle, error)
@@ -27,10 +27,10 @@ type DriverPlugin interface {
 	DestroyTask(taskID string, force bool) error
 	InspectTask(taskID string) (*TaskStatus, error)
 	TaskStats(taskID string) (*TaskStats, error)
-	TaskEvents() chan *TaskEvent
+	TaskEvents() (chan *TaskEvent, error)
 
 	SignalTask(taskID string, signal string) error
-	ExecTask(taskID string, cmd []string, timeout time.Duration) (stdout []byte, stderr []byte, result *ExitResult)
+	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
 }
 
 type DriverSignalTaskNotSupported struct{}
@@ -176,7 +176,7 @@ type TaskStatus struct {
 type TaskStats struct {
 	ID                 string
 	Timestamp          int64
-	AggResourceUsage   ResourceUsage
+	AggResourceUsage   *ResourceUsage
 	ResourceUsageByPid map[string]*ResourceUsage
 }
 
@@ -213,4 +213,10 @@ type TaskEvent struct {
 	Timestamp   time.Time
 	Message     string
 	Annotations map[string]string
+}
+
+type ExecTaskResult struct {
+	Stdout     []byte
+	Stderr     []byte
+	ExitResult *ExitResult
 }
