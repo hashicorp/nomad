@@ -3,6 +3,7 @@ package nvidia
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +28,11 @@ const (
 	// notAvailable value is returned to nomad server in case some properties were
 	// undetected by nvml driver
 	notAvailable = "N/A"
+)
+
+const (
+	// Nvidia-container-runtime environment variable names
+	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
 var (
@@ -149,9 +155,50 @@ func (d *NvidiaDevice) Fingerprint(ctx context.Context) (<-chan *device.Fingerpr
 	return outCh, nil
 }
 
-// Reserve returns information on how to mount the given devices.
+type reservationError struct {
+	notExistingIDs []string
+}
+
+func (e *reservationError) Error() string {
+	return fmt.Sprintf("unknown device IDs: %s", strings.Join(e.notExistingIDs, ","))
+}
+
+// Reserve returns information on how to mount given devices.
+// Assumption is made that nomad server is responsible for correctness of
+// GPU allocations, handling tricky cases such as double-allocation of single GPU
 func (d *NvidiaDevice) Reserve(deviceIDs []string) (*device.ContainerReservation, error) {
-	return nil, nil
+	if len(deviceIDs) == 0 {
+		return &device.ContainerReservation{}, nil
+	}
+	// Due to the asynchronous nature of NvidiaPlugin, there is a possibility
+	// of race condition
+	//
+	// Timeline:
+	// 	1 - fingerprint reports that GPU with id "1" is present
+	//  2 - the following events happen at the same time:
+	// 		a) server decides to allocate GPU with id "1"
+	//      b) fingerprint check reports that GPU with id "1" is no more present
+	//
+	// The latest and always valid version of fingerprinted ids are stored in
+	// d.devices map. To avoid this race condition an error is returned if
+	// any of provided deviceIDs is not found in d.devices map
+	d.deviceLock.RLock()
+	var notExistingIDs []string
+	for _, id := range deviceIDs {
+		if _, deviceIDExists := d.devices[id]; !deviceIDExists {
+			notExistingIDs = append(notExistingIDs, id)
+		}
+	}
+	d.deviceLock.RUnlock()
+	if len(notExistingIDs) != 0 {
+		return nil, &reservationError{notExistingIDs}
+	}
+
+	return &device.ContainerReservation{
+		Envs: map[string]string{
+			nvidiaVisibleDevices: strings.Join(deviceIDs, ","),
+		},
+	}, nil
 }
 
 // Stats streams statistics for the detected devices.
