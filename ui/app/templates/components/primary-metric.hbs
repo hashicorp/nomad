@@ -4,7 +4,7 @@
 </div>
 <div class="columns secondary-graphic">
   <div class="column">
-    <div class="inline-chart">
+    <div class="inline-chart" data-test-percentage-bar>
       <progress
         class="progress {{chartClass}} is-small"
         value="{{data.lastObject.percent}}"
@@ -14,10 +14,10 @@
     </div>
   </div>
   <div class="column is-minimum">
-    <span class="nowrap">{{format-percentage data.lastObject.percent total=1}}</span>
+    <span class="nowrap" data-test-percentage>{{format-percentage data.lastObject.percent total=1}}</span>
   </div>
 </div>
-<div class="annotation">
+<div class="annotation" data-test-absolute-value>
   {{#if (eq metric "cpu")}}
     <strong>{{data.lastObject.used}} Mhz</strong> / {{reservedAmount}} Mhz reserved
   {{else if (eq metric "memory")}}
