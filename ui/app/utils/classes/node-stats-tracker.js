@@ -36,9 +36,6 @@ const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
       used: memoryUsed,
       percent: percent(memoryUsed / 1024 / 1024, this.get('reservedMemory')),
     });
-
-    // this.notifyPropertyChange('cpu');
-    // this.notifyPropertyChange('memory');
   },
 
   pause() {
