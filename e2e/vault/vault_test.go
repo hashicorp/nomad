@@ -51,7 +51,9 @@ func (h *harness) reconcile() map[string]string {
 	// Create the directory for the binaries
 	h.createBinDir()
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
 	g, _ := errgroup.WithContext(ctx)
 	for _, v := range missing {
 		version := v
@@ -167,7 +169,7 @@ func (h *harness) get(version string) error {
 	return nil
 }
 
-// TestVaultCompatibility tests compatability across Vault versions
+// TestVaultCompatibility tests compatibility across Vault versions
 func TestVaultCompatibility(t *testing.T) {
 	h := newHarness(t)
 	vaultBinaries := h.reconcile()
@@ -180,7 +182,7 @@ func TestVaultCompatibility(t *testing.T) {
 	}
 }
 
-// testVaultCompatibility tests compatability with the given vault binary
+// testVaultCompatibility tests compatibility with the given vault binary
 func testVaultCompatibility(t *testing.T, vault string) {
 	require := require.New(t)
 
