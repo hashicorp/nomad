@@ -16,6 +16,8 @@ export default Component.extend({
   // cpu or memory
   metric: null,
 
+  'data-test-primary-metric': true,
+
   // An instance of a StatsTracker. An alternative interface to resource
   tracker: computed('trackedResource', 'type', function() {
     const resource = this.get('trackedResource');
