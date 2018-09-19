@@ -88,7 +88,8 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
 
   tasks: computed('allocation', function() {
     const bufferSize = this.get('bufferSize');
-    return this.get('allocation.taskGroup.tasks').map(task => ({
+    const tasks = this.get('allocation.taskGroup.tasks') || [];
+    return tasks.map(task => ({
       task: get(task, 'name'),
 
       // Static figures, denominators for stats
