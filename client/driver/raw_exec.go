@@ -151,16 +151,17 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 		return nil, err
 	}
 
-	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
-	if err != nil {
-		return nil, err
-	}
+	//taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:                command,
-		Args:               driverConfig.Args,
-		User:               task.User,
-		TaskKillSignal:     taskKillSignal,
+		Cmd:  command,
+		Args: driverConfig.Args,
+		User: task.User,
+		//TaskKillSignal:     taskKillSignal,
 		BasicProcessCgroup: d.useCgroup,
 		Env:                ctx.TaskEnv.List(),
 		TaskDir:            ctx.TaskDir.Dir,

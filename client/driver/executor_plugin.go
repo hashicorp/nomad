@@ -119,10 +119,6 @@ func (e *ExecutorRPCServer) Wait(args interface{}, ps *executor.ProcessState) er
 	return err
 }
 
-func (e *ExecutorRPCServer) Kill(args interface{}, resp *interface{}) error {
-	return e.Impl.Kill()
-}
-
 func (e *ExecutorRPCServer) Destroy(args interface{}, resp *interface{}) error {
 	return e.Impl.Destroy()
 }

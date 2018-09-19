@@ -253,17 +253,17 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, err
 	}
 
-	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
-	if err != nil {
-		return nil, err
-	}
+	//taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
-		TaskKillSignal: taskKillSignal,
+		//TaskKillSignal: taskKillSignal,
 		Resources: &executor.Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
@@ -402,7 +402,7 @@ func (d *javaHandle) Network() *cstructs.DriverNetwork {
 }
 
 func (h *javaHandle) Kill() error {
-	if err := h.executor.Kill(); err != nil {
+	if err := h.executor.Destroy(); err != nil {
 		if h.pluginClient.Exited() {
 			return nil
 		}

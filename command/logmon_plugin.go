@@ -6,6 +6,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/logmon"
+	"github.com/hashicorp/nomad/plugins/base"
 )
 
 type LogMonPluginCommand struct {
@@ -25,7 +26,7 @@ func (e *LogMonPluginCommand) Synopsis() string {
 
 func (e *LogMonPluginCommand) Run(args []string) int {
 	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: logmon.Handshake,
+		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
 			"logmon": logmon.NewPlugin(logmon.NewLogMon(hclog.Default().Named("logmon.test"))),
 		},

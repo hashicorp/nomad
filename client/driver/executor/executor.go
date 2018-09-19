@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -100,14 +101,24 @@ type ExecCommand struct {
 	BasicProcessCgroup bool
 }
 
+type nopCloser struct {
+	io.Writer
+}
+
+func (nopCloser) Close() error { return nil }
+
 // Stdout returns a writer for the configured file descriptor
 func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 	if c.stdout == nil {
-		f, err := fifo.Open(c.StdoutPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create stdout: %v", err)
+		if c.StderrPath != "" {
+			f, err := fifo.Open(c.StdoutPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create stdout: %v", err)
+			}
+			c.stdout = f
+		} else {
+			c.stdout = nopCloser{ioutil.Discard}
 		}
-		c.stdout = f
 	}
 	return c.stdout, nil
 }
@@ -115,11 +126,15 @@ func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 // Stderr returns a writer for the configured file descriptor
 func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 	if c.stderr == nil {
-		f, err := fifo.Open(c.StderrPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create stderr: %v", err)
+		if c.StderrPath != "" {
+			f, err := fifo.Open(c.StderrPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create stderr: %v", err)
+			}
+			c.stderr = f
+		} else {
+			c.stderr = nopCloser{ioutil.Discard}
 		}
-		c.stderr = f
 	}
 	return c.stderr, nil
 }

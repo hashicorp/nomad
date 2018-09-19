@@ -824,7 +824,7 @@ func (h *rktHandle) Kill() error {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		return h.executor.Kill()
+		return h.executor.Destroy()
 	}
 }
 
