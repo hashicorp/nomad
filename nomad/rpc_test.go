@@ -297,6 +297,7 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 
 	// Make two streams
 	conf := yamux.DefaultConfig()
+	conf.LogOutput = nil
 	conf.Logger = testlog.Logger(t)
 	session, err := yamux.Client(p1, conf)
 	require.Nil(err)
