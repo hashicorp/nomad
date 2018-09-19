@@ -23,7 +23,7 @@ servers. From any server in one region, issue a join command to a server in a
 remote region:
 
 ```shell
-$ nomad server-join 1.2.3.4:4648
+$ nomad server join 1.2.3.4:4648
 ```
 
 Note that only one join command is required per region. Servers across regions
