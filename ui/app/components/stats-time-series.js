@@ -22,12 +22,15 @@ export default LineChart.extend({
   xScale: computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset', function() {
     const xProp = this.get('xProp');
     const scale = this.get('timeseries') ? d3Scale.scaleTime() : d3Scale.scaleLinear();
+    const data = this.get('data');
 
-    const [low, high] = d3Array.extent(this.get('data'), d => d[xProp]);
+    const [low, high] = d3Array.extent(data, d => d[xProp]);
     const minLow = moment(high)
       .subtract(5, 'minutes')
       .toDate();
-    scale.rangeRound([10, this.get('yAxisOffset')]).domain([Math.min(low, minLow), high]);
+
+    const extent = data.length ? [Math.min(low, minLow), high] : [minLow, new Date()];
+    scale.rangeRound([10, this.get('yAxisOffset')]).domain(extent);
 
     return scale;
   }),

@@ -87,17 +87,18 @@ export default Component.extend(WindowResizable, {
   xScale: computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset', function() {
     const xProp = this.get('xProp');
     const scale = this.get('timeseries') ? d3Scale.scaleTime() : d3Scale.scaleLinear();
+    const data = this.get('data');
 
-    scale
-      .rangeRound([10, this.get('yAxisOffset')])
-      .domain(d3Array.extent(this.get('data'), d => d[xProp]));
+    const domain = data.length ? d3Array.extent(this.get('data'), d => d[xProp]) : [0, 1];
+
+    scale.rangeRound([10, this.get('yAxisOffset')]).domain(domain);
 
     return scale;
   }),
 
   yScale: computed('data.[]', 'yProp', 'xAxisOffset', function() {
     const yProp = this.get('yProp');
-    let max = d3Array.max(this.get('data'), d => d[yProp]);
+    let max = d3Array.max(this.get('data'), d => d[yProp]) || 1;
     if (max > 1) {
       max = nice(max);
     }
