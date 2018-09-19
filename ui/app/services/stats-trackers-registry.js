@@ -1,3 +1,4 @@
+import { computed } from '@ember/object';
 import Service, { inject as service } from '@ember/service';
 import { LRUMap } from 'lru_map';
 import NodeStatsTracker from 'nomad-ui/utils/classes/node-stats-tracker';
@@ -18,6 +19,11 @@ export default Service.extend({
     // new entries beyond the limit by removing the least recently used entry.
     registry = new LRUMap(MAX_STAT_TRACKERS);
   },
+
+  // A read-only way of getting a reference to the registry.
+  // Since this could be overwritten by a bad actor, it isn't
+  // used in getTracker
+  registryRef: computed(() => registry),
 
   getTracker(resource) {
     if (!resource) return;
