@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
@@ -34,8 +35,7 @@ type TestVault struct {
 	Client    *vapi.Client
 }
 
-// NewTestVault returns a new TestVault instance that has yet to be started
-func NewTestVault(t testing.T) *TestVault {
+func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 	for i := 10; i >= 0; i-- {
 		port := freeport.GetT(t, 1)[0]
 		token := uuid.Generate()
@@ -43,9 +43,9 @@ func NewTestVault(t testing.T) *TestVault {
 		http := fmt.Sprintf("http://127.0.0.1:%d", port)
 		root := fmt.Sprintf("-dev-root-token-id=%s", token)
 
-		cmd := exec.Command("vault", "server", "-dev", bind, root)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd := exec.Command(binary, "server", "-dev", bind, root)
+		cmd.Stdout = testlog.NewWriter(t)
+		cmd.Stderr = testlog.NewWriter(t)
 
 		// Build the config
 		conf := vapi.DefaultConfig()
@@ -112,6 +112,13 @@ func NewTestVault(t testing.T) *TestVault {
 	}
 
 	return nil
+
+}
+
+// NewTestVault returns a new TestVault instance that has yet to be started
+func NewTestVault(t testing.T) *TestVault {
+	// Lookup vault from the path
+	return NewTestVaultFromPath(t, "vault")
 }
 
 // NewTestVaultDelayed returns a test Vault server that has not been started.
