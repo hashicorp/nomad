@@ -257,7 +257,7 @@ test-nomad: dev ## Run Nomad test suites
 	fi
 
 .PHONY: e2e-test
-e2e-test: ## Run the Nomad e2e test suite
+e2e-test: dev ## Run the Nomad e2e test suite
 	@echo "==> Running Nomad E2E test suites:"
 	go test \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
