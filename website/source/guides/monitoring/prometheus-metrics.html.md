@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "Using Prometheus to Monitor Nomad Metrics"
-sidebar_current: "guides-monitoring"
+sidebar_current: "guides-operations-monitoring-prometheus"
 description: |-
   It is possible to collect metrics on Nomad with Prometheus after enabling
   telemetry on Nomad servers and clients.
