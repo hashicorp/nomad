@@ -253,6 +253,15 @@ test-nomad: dev ## Run Nomad test suites
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
 
+.PHONY: e2e-test
+e2e-test: ## Run the Nomad e2e test suite
+	@echo "==> Running Nomad E2E test suites:"
+	go test \
+		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		-cover \
+		-timeout=900s \
+		github.com/hashicorp/nomad/e2e/vault/
+
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
 clean: ## Remove build artifacts

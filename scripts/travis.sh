@@ -17,5 +17,8 @@ fi
 NOMAD_SLOW_TEST=1 make test
 TEST_OUTPUT=$?
 
+NOMAD_SLOW_TEST=1 make e2e-test
+E2E_TEST_OUTPUT=$?
+
 kill $PING_LOOP_PID
-exit $TEST_OUTPUT
+exit $(( $((TEST_OUTPUT + E2E_TEST_OUTPUT)) != 0 ))
