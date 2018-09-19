@@ -240,6 +240,9 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 	@if [ $(RUN_UI_TESTS) ]; then \
 		make test-ui; \
 		fi
+	@if [ $(RUN_E2E_TESTS) ]; then \
+		make e2e-test; \
+		fi
 
 .PHONY: test-nomad
 test-nomad: dev ## Run Nomad test suites
