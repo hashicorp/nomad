@@ -42,7 +42,7 @@
   <td data-test-job-version class="is-1">{{allocation.jobVersion}}</td>
 {{/if}}
 <td data-test-cpu class="is-1 has-text-centered">
-  {{#if (and (not stats) fetchStats.isRunning)}}
+  {{#if (and (not cpu) fetchStats.isRunning)}}
     ...
   {{else if (not allocation)}}
     {{! nothing when there's no allocation}}
@@ -51,18 +51,18 @@
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
-    <div class="inline-chart is-small tooltip" aria-label="{{stats.cpuUsed}} / {{stats.reservedCPU}} MHz">
+    <div class="inline-chart is-small tooltip" aria-label="{{cpu.used}} / {{stats.reservedCPU}} MHz">
       <progress
         class="progress is-info is-small"
-        value="{{stats.percentCPU}}"
+        value="{{cpu.percent}}"
         max="1">
-        {{stats.percentCPU}}
+        {{cpu.percent}}
       </progress>
     </div>
   {{/if}}
 </td>
 <td data-test-mem class="is-1 has-text-centered">
-  {{#if (and (not stats) fetchStats.isRunning)}}
+  {{#if (and (not memory) fetchStats.isRunning)}}
     ...
   {{else if (not allocation)}}
     {{! nothing when there's no allocation}}
@@ -71,12 +71,12 @@
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
-    <div class="inline-chart tooltip" aria-label="{{format-bytes stats.memoryUsed}} / {{stats.reservedMemory}} MiB">
+    <div class="inline-chart tooltip" aria-label="{{format-bytes memory.used}} / {{stats.reservedMemory}} MiB">
       <progress
         class="progress is-danger is-small"
-        value="{{stats.percentMemory}}"
+        value="{{memory.percent}}"
         max="1">
-        {{stats.percentMemory}}
+        {{memory.percent}}
       </progress>
     </div>
   {{/if}}
