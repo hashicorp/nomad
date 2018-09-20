@@ -360,6 +360,9 @@ WAIT:
 }
 
 func (tm *TaskTemplateManager) CallSignals(events map[string]*manager.RenderEvent) {
+	signals := make(map[string]struct{})
+	restart := false
+
 	for id, event := range events {
 		if !event.DidRender {
 			continue
@@ -369,11 +372,8 @@ func (tm *TaskTemplateManager) CallSignals(events map[string]*manager.RenderEven
 		tmpls, ok := tm.lookup[id] 
 		if !ok {
 			tm.config.Hooks.Kill(consulTemplateSourceName, fmt.Sprintf("template runner returned unknown template id %q", id), true)
-			break
+			return
 		}
-
-		signals := make(map[string]struct{})
-		restart := false
 
 		for _, tmpl := range tmpls {
 			switch tmpl.ChangeMode {
@@ -385,27 +385,27 @@ func (tm *TaskTemplateManager) CallSignals(events map[string]*manager.RenderEven
 				continue
 			}
 		}
+	}
 
-		if restart {
-			const failure = false
-			tm.config.Hooks.Restart(consulTemplateSourceName, "template with change_mode restart re-rendered", failure)
-		} else if len(signals) != 0 {
-			var mErr multierror.Error
+	if restart {
+		const failure = false
+		tm.config.Hooks.Restart(consulTemplateSourceName, "template with change_mode restart re-rendered", failure)
+	} else if len(signals) != 0 {
+		var mErr multierror.Error
+		for signal := range signals {
+			err := tm.config.Hooks.Signal(consulTemplateSourceName, "template re-rendered", tm.signals[signal])
+			if err != nil {
+				multierror.Append(&mErr, err)
+			}
+		}
+
+		if err := mErr.ErrorOrNil(); err != nil {
+			flat := make([]os.Signal, 0, len(signals))
 			for signal := range signals {
-				err := tm.config.Hooks.Signal(consulTemplateSourceName, "template re-rendered", tm.signals[signal])
-				if err != nil {
-					multierror.Append(&mErr, err)
-				}
+				flat = append(flat, tm.signals[signal])
 			}
 
-			if err := mErr.ErrorOrNil(); err != nil {
-				flat := make([]os.Signal, 0, len(signals))
-				for signal := range signals {
-					flat = append(flat, tm.signals[signal])
-				}
-
-				tm.config.Hooks.Kill(consulTemplateSourceName, fmt.Sprintf("Sending signals %v failed: %v", flat, err), true)
-			}
+			tm.config.Hooks.Kill(consulTemplateSourceName, fmt.Sprintf("Sending signals %v failed: %v", flat, err), true)
 		}
 	}
 }
