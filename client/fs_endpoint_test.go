@@ -1175,23 +1175,12 @@ func TestFS_Logs(t *testing.T) {
 	defer c.Shutdown()
 
 	// Force an allocation onto the node
-	expected := "Hello from the other side"
-	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeBatch
-	a.NodeID = c.NodeID()
-	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
-		Name:   "web",
-		Driver: "mock_driver",
-		Config: map[string]interface{}{
-			"run_for":       "2s",
-			"stdout_string": expected,
-		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-		},
+	expected := "Hello from the other side\n"
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":       "2s",
+		"stdout_string": expected,
 	}
 
 	// Wait for the client to connect
@@ -1209,33 +1198,21 @@ func TestFS_Logs(t *testing.T) {
 		t.Fatal(err)
 	})
 
-	// Upsert the allocation
-	state := s.State()
-	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	// Wait for client to be running job
+	testutil.WaitForRunning(t, s.RPC, job)
 
-	// Wait for the client to run the allocation
-	testutil.WaitForResult(func() (bool, error) {
-		alloc, err := state.AllocByID(nil, a.ID)
-		if err != nil {
-			return false, err
-		}
-		if alloc == nil {
-			return false, fmt.Errorf("unknown alloc")
-		}
-		if alloc.ClientStatus != structs.AllocClientStatusComplete {
-			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("Alloc on node %q not finished: %v", c.NodeID(), err)
-	})
+	// Get the allocation ID
+	args := structs.AllocListRequest{}
+	args.Region = "global"
+	resp := structs.AllocListResponse{}
+	require.NoError(s.RPC("Alloc.List", &args, &resp))
+	require.Len(resp.Allocations, 1)
+	allocID := resp.Allocations[0].ID
 
 	// Make the request
 	req := &cstructs.FsLogsRequest{
-		AllocID:      a.ID,
-		Task:         a.Job.TaskGroups[0].Tasks[0].Name,
+		AllocID:      allocID,
+		Task:         job.TaskGroups[0].Tasks[0].Name,
 		LogType:      "stdout",
 		Origin:       "start",
 		PlainText:    true,
@@ -1315,71 +1292,33 @@ func TestFS_Logs_Follow(t *testing.T) {
 	defer c.Shutdown()
 
 	// Force an allocation onto the node
-	expectedBase := "Hello from the other side"
+	expectedBase := "Hello from the other side\n"
 	repeat := 10
 
-	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeBatch
-	a.NodeID = c.NodeID()
-	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
-		Name:   "web",
-		Driver: "mock_driver",
-		Config: map[string]interface{}{
-			"run_for":                "20s",
-			"stdout_string":          expectedBase,
-			"stdout_repeat":          repeat,
-			"stdout_repeat_duration": 200 * time.Millisecond,
-		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-		},
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for":                "20s",
+		"stdout_string":          expectedBase,
+		"stdout_repeat":          repeat,
+		"stdout_repeat_duration": 200 * time.Millisecond,
 	}
 
-	// Wait for the client to connect
-	testutil.WaitForResult(func() (bool, error) {
-		node, err := s.State().NodeByID(nil, c.NodeID())
-		if err != nil {
-			return false, err
-		}
-		if node == nil {
-			return false, fmt.Errorf("unknown node")
-		}
+	// Wait for client to be running job
+	testutil.WaitForRunning(t, s.RPC, job)
 
-		return node.Status == structs.NodeStatusReady, fmt.Errorf("bad node status")
-	}, func(err error) {
-		t.Fatal(err)
-	})
-
-	// Upsert the allocation
-	state := s.State()
-	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
-
-	// Wait for the client to run the allocation
-	testutil.WaitForResult(func() (bool, error) {
-		alloc, err := state.AllocByID(nil, a.ID)
-		if err != nil {
-			return false, err
-		}
-		if alloc == nil {
-			return false, fmt.Errorf("unknown alloc")
-		}
-		if alloc.ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("Alloc on node %q not running: %v", c.NodeID(), err)
-	})
+	// Get the allocation ID
+	args := structs.AllocListRequest{}
+	args.Region = "global"
+	resp := structs.AllocListResponse{}
+	require.NoError(s.RPC("Alloc.List", &args, &resp))
+	require.Len(resp.Allocations, 1)
+	allocID := resp.Allocations[0].ID
 
 	// Make the request
 	req := &cstructs.FsLogsRequest{
-		AllocID:      a.ID,
-		Task:         a.Job.TaskGroups[0].Tasks[0].Name,
+		AllocID:      allocID,
+		Task:         job.TaskGroups[0].Tasks[0].Name,
 		LogType:      "stdout",
 		Origin:       "start",
 		PlainText:    true,
@@ -1389,7 +1328,7 @@ func TestFS_Logs_Follow(t *testing.T) {
 
 	// Get the handler
 	handler, err := c.StreamingRpcHandler("FileSystem.Logs")
-	require.Nil(err)
+	require.NoError(err)
 
 	// Create a pipe
 	p1, p2 := net.Pipe()
