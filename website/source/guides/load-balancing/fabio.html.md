@@ -68,7 +68,7 @@ job "fabio" {
     task "fabio" {
       driver = "docker"
       config {
-        image = "magiconair/fabio"
+        image = "fabiolb/fabio"
         network_mode = "host"
       }
 
@@ -122,21 +122,6 @@ Create a job for Apache and name it `webserver.nomad`
 job "webserver" {
   datacenters = ["dc1"]
   type = "service"
-
-  update {
-    max_parallel = 1
-    min_healthy_time = "10s"
-    healthy_deadline = "3m"
-    auto_revert = false
-    canary = 0
-  }
-
-  migrate {
-    max_parallel = 1
-    health_check = "checks"
-    min_healthy_time = "10s"
-    healthy_deadline = "5m"
-  }
 
   group "webserver" {
     count = 3
