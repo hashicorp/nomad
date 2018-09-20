@@ -145,25 +145,22 @@ func TestHTTP_FS_ReadAt_MissingParams(t *testing.T) {
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
-		require.Nil(err)
-		respW := httptest.NewRecorder()
+		require.NoError(err)
 
-		_, err = s.Server.FileReadAtRequest(respW, req)
-		require.NotNil(err)
+		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
+		require.Error(err)
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/readat/foo", nil)
-		require.Nil(err)
-		respW = httptest.NewRecorder()
+		require.NoError(err)
 
-		_, err = s.Server.FileReadAtRequest(respW, req)
-		require.NotNil(err)
+		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
+		require.Error(err)
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/readat/foo?path=/path/to/file", nil)
-		require.Nil(err)
-		respW = httptest.NewRecorder()
+		require.NoError(err)
 
-		_, err = s.Server.FileReadAtRequest(respW, req)
-		require.NotNil(err)
+		_, err = s.Server.FileReadAtRequest(httptest.NewRecorder(), req)
+		require.Error(err)
 	})
 }
 
@@ -398,7 +395,7 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		p, _ := io.Pipe()
 		req, err := http.NewRequest("GET", path, p)
 		require.Nil(err)
-		respW := httptest.NewRecorder()
+		respW := testutil.NewResponseRecorder()
 		go func() {
 			_, err = s.Server.Logs(respW, req)
 			require.Nil(err)
@@ -406,7 +403,7 @@ func TestHTTP_FS_Logs(t *testing.T) {
 
 		out := ""
 		testutil.WaitForResult(func() (bool, error) {
-			output, err := ioutil.ReadAll(respW.Body)
+			output, err := ioutil.ReadAll(respW)
 			if err != nil {
 				return false, err
 			}
@@ -436,7 +433,7 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		p, _ := io.Pipe()
 		req, err := http.NewRequest("GET", path, p)
 		require.Nil(err)
-		respW := httptest.NewRecorder()
+		respW := testutil.NewResponseRecorder()
 		errCh := make(chan error)
 		go func() {
 			_, err := s.Server.Logs(respW, req)
@@ -445,7 +442,7 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 
 		out := ""
 		testutil.WaitForResult(func() (bool, error) {
-			output, err := ioutil.ReadAll(respW.Body)
+			output, err := ioutil.ReadAll(respW)
 			if err != nil {
 				return false, err
 			}
