@@ -118,6 +118,7 @@ func (s *Server) maybeBootstrap() {
 	// Scan for all the known servers
 	members := s.serf.Members()
 	var servers []serverParts
+	voters := 0
 	for _, member := range members {
 		valid, p := isNomadServer(member)
 		if !valid {
@@ -134,11 +135,14 @@ func (s *Server) maybeBootstrap() {
 			s.logger.Error("peer has bootstrap mode. Expect disabled", "member", member)
 			return
 		}
+		if !p.NonVoter {
+			voters++
+		}
 		servers = append(servers, *p)
 	}
 
 	// Skip if we haven't met the minimum expect count
-	if len(servers) < int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
+	if voters < int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
 		return
 	}
 
@@ -200,9 +204,14 @@ func (s *Server) maybeBootstrap() {
 		} else {
 			id = raft.ServerID(addr)
 		}
+		suffrage := raft.Voter
+		if server.NonVoter {
+			suffrage = raft.Nonvoter
+		}
 		peer := raft.Server{
-			ID:      id,
-			Address: raft.ServerAddress(addr),
+			ID:       id,
+			Address:  raft.ServerAddress(addr),
+			Suffrage: suffrage,
 		}
 		configuration.Servers = append(configuration.Servers, peer)
 	}
