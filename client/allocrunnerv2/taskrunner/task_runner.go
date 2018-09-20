@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -72,8 +73,8 @@ type TaskRunner struct {
 	// unnecessary writes
 	persistedHash []byte
 
-	// ctx is the task runner's context and is done whe the task runner
-	// should exit. Shutdown hooks are run.
+	// ctx is the task runner's context representing the tasks's lifecycle.
+	// Canceling the context will cause the task to be destroyed.
 	ctx context.Context
 
 	// ctxCancel is used to exit the task runner's Run loop without
@@ -95,8 +96,9 @@ type TaskRunner struct {
 	// driver is the driver for the task.
 	driver driver.Driver
 
-	handle     driver.DriverHandle // the handle to the running driver
-	handleLock sync.Mutex
+	handle       driver.DriverHandle // the handle to the running driver
+	handleResult *handleResult       // proxy for handle results
+	handleLock   sync.Mutex
 
 	// task is the task being run
 	task     *structs.Task
@@ -259,7 +261,7 @@ func (tr *TaskRunner) initLabels() {
 
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
-	var handle driver.DriverHandle
+	var waitRes *dstructs.WaitResult
 
 	// Updates are handled asynchronously with the other hooks but each
 	// triggered update - whether due to alloc updates or a new vault token
@@ -291,42 +293,48 @@ MAIN:
 			tr.logger.Error("poststart failed", "error", err)
 		}
 
-		// Grab the handle
-		handle = tr.getDriverHandle()
+		// Grab the result proxy and wait for task to exit
+		{
+			_, result := tr.getDriverHandle()
 
-		select {
-		case waitRes := <-handle.WaitCh():
-			// Clear the handle
-			tr.clearDriverHandle()
-
-			// Store the wait result on the restart tracker
-			tr.restartTracker.SetWaitResult(waitRes)
-		case <-tr.ctx.Done():
-			tr.logger.Debug("task killed")
+			// Do *not* use tr.ctx here as it would cause Wait() to
+			// unblock before the task exits when Kill() is called.
+			waitRes = result.Wait(context.Background())
 		}
+
+		// Clear the handle
+		tr.clearDriverHandle()
+
+		// Store the wait result on the restart tracker
+		tr.restartTracker.SetWaitResult(waitRes)
 
 		if err := tr.exited(); err != nil {
 			tr.logger.Error("exited hooks failed", "error", err)
 		}
 
 	RESTART:
-		// Actually restart by sleeping and also watching for destroy events
-		restart, restartWait := tr.shouldRestart()
+		restart, restartDelay := tr.shouldRestart()
 		if !restart {
 			break MAIN
 		}
 
-		deadline := time.Now().Add(restartWait)
-		timer := time.NewTimer(restartWait)
-		for time.Now().Before(deadline) {
-			select {
-			case <-timer.C:
-			case <-tr.ctx.Done():
-				tr.logger.Debug("task runner cancelled")
-				break MAIN
-			}
+		// Actually restart by sleeping and also watching for destroy events
+		select {
+		case <-time.After(restartDelay):
+		case <-tr.ctx.Done():
+			tr.logger.Trace("task killed between restarts", "delay", restartDelay)
+			break MAIN
 		}
-		timer.Stop()
+	}
+
+	// If task terminated, update server. All other exit conditions (eg
+	// killed or out of restarts) will perform their own server updates.
+	if waitRes != nil {
+		event := structs.NewTaskEvent(structs.TaskTerminated).
+			SetExitCode(waitRes.ExitCode).
+			SetSignal(waitRes.Signal).
+			SetExitMessage(waitRes.Err)
+		tr.UpdateState(structs.TaskStateDead, event)
 	}
 
 	// Run the stop hooks
@@ -361,13 +369,16 @@ func (tr *TaskRunner) handleUpdates() {
 	}
 }
 
+// shouldRestart determines whether the task should be restarted and updates
+// the task state unless the task is killed or terminated.
 func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	// Determine if we should restart
 	state, when := tr.restartTracker.GetState()
 	reason := tr.restartTracker.GetReason()
 	switch state {
 	case structs.TaskKilled:
-		// The task was killed. Nothing to do
+		// Never restart an explicitly killed task. Kill method handles
+		// updating the server.
 		return false, 0
 	case structs.TaskNotRestarting, structs.TaskTerminated:
 		tr.logger.Info("not restarting task", "reason", reason)
