@@ -69,8 +69,6 @@ func (tr *TaskRunner) initHooks() {
 
 // prestart is used to run the runners prestart hooks.
 func (tr *TaskRunner) prestart() error {
-	//XXX is this necessary? maybe we should have a generic cancelletion
-	//    method instead of peeking into the alloc
 	// Determine if the allocation is terminaland we should avoid running
 	// prestart hooks.
 	alloc := tr.Alloc()
@@ -391,48 +389,3 @@ func (tr *TaskRunner) kill() {
 		}
 	}
 }
-
-/*
-TR Hooks:
-
-> @schmichael
-Task Validate:
-Require:  Client config, task definiton
-Return: error
-Implement: Prestart
-
-> DONE
-Task Dir Build:
-Requires: Folder structure, driver isolation, client config
-Return env, error
-Implement: Prestart
-
-> @alex
-Vault: Task, RPC to talk to server to derive token, Node SecretID
-Return vault token (Call a setter), error, env
-Implement: Prestart
-
-> @alex
-Consul Template:
-Require: Task, alloc directory, way to signal/restart task, updates when vault token changes
-Return env, error
-Implement: Prestart and Update (for new Vault token) and Destroy
-
-> @schmichael
-Consul Service Reg:
-Require: Task, interpolation/ENV
-Return: error
-Implement: Poststart, Update, Kill, Exited
-
-> @alex
-Dispatch Payload:
-Require: Alloc
-Return error
-Implement: Prestart
-
-> @schmichael
-Artifacts:
-Require: Folder structure, task, interpolation/ENV
-Return: error
-Implement: Prestart
-*/
