@@ -639,12 +639,14 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 
 // GetClientAlloc returns the allocation from the client
 func (c *Client) GetClientAlloc(allocID string) (*structs.Allocation, error) {
-	all := c.allAllocs()
-	alloc, ok := all[allocID]
+	c.allocLock.RLock()
+	ar, ok := c.allocs[allocID]
+	c.allocLock.RUnlock()
 	if !ok {
 		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
-	return alloc, nil
+
+	return ar.Alloc(), nil
 }
 
 // GetServers returns the list of nomad servers this client is aware of.
@@ -2527,7 +2529,7 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 func (c *Client) allAllocs() map[string]*structs.Allocation {
 	ars := c.getAllocRunners()
 	allocs := make(map[string]*structs.Allocation, len(ars))
-	for _, ar := range c.getAllocRunners() {
+	for _, ar := range ars {
 		a := ar.Alloc()
 		allocs[a.ID] = a
 	}
