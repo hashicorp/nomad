@@ -206,7 +206,8 @@ func (ar *allocRunner) runImpl() <-chan struct{} {
 	return waitCh
 }
 
-// Alloc returns the current allocation being run by this runner.
+// Alloc returns the current allocation being run by this runner as sent by the
+// server. This view of the allocation does not have updated task states.
 func (ar *allocRunner) Alloc() *structs.Allocation {
 	ar.allocLock.RLock()
 	defer ar.allocLock.RUnlock()
@@ -277,6 +278,7 @@ func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskStat
 	}
 
 	// Gather the state of the other tasks
+	ar.tasksLock.RLock()
 	states := make(map[string]*structs.TaskState, len(ar.tasks))
 	for name, tr := range ar.tasks {
 		if name == taskName {
@@ -285,6 +287,7 @@ func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskStat
 			states[name] = tr.TaskState()
 		}
 	}
+	ar.tasksLock.RUnlock()
 
 	// Get the client allocation
 	calloc := ar.clientAlloc(states)
