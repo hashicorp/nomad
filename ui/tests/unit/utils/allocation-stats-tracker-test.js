@@ -9,7 +9,8 @@ import fetch from 'nomad-ui/utils/fetch';
 
 module('Unit | Util | AllocationStatsTracker');
 
-const refDate = Date.now();
+const refDate = Date.now() * 1000000;
+const makeDate = ts => new Date(ts / 1000000);
 
 const MockAllocation = overrides =>
   assign(
@@ -91,7 +92,7 @@ test('the AllocationStatsTracker constructor expects a fetch definition and an a
   const tracker = AllocationStatsTracker.create();
   assert.throws(
     () => {
-      tracker.poll();
+      tracker.fetch();
     },
     /StatsTrackers need a fetch method/,
     'Polling does not work without a fetch method provided'
@@ -159,7 +160,7 @@ test('poll results in requesting the url and calling append with the resulting J
     this.get('/v1/client/allocation/:id/stats', () => [200, {}, JSON.stringify(mockFrame)]);
   });
 
-  tracker.poll();
+  tracker.get('poll').perform();
 
   assert.equal(server.handledRequests.length, 1, 'Only one request was made');
   assert.equal(
@@ -199,12 +200,18 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
 
   assert.deepEqual(
     tracker.get('cpu'),
-    [{ timestamp: refDate + 1000, used: 101, percent: 101 / 200 }],
+    [{ timestamp: makeDate(refDate + 1000), used: 101, percent: 101 / 200 }],
     'One frame of cpu'
   );
   assert.deepEqual(
     tracker.get('memory'),
-    [{ timestamp: refDate + 1000, used: 401 * 1024 * 1024, percent: 401 / 512 }],
+    [
+      {
+        timestamp: makeDate(refDate + 1000),
+        used: 401 * 1024 * 1024,
+        percent: 401 / 512,
+      },
+    ],
     'One frame of memory'
   );
 
@@ -215,22 +222,40 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
         task: 'service',
         reservedCPU: 100,
         reservedMemory: 256,
-        cpu: [{ timestamp: refDate + 1, used: 51, percent: 51 / 100 }],
-        memory: [{ timestamp: refDate + 1, used: 101 * 1024 * 1024, percent: 101 / 256 }],
+        cpu: [{ timestamp: makeDate(refDate + 1), used: 51, percent: 51 / 100 }],
+        memory: [
+          {
+            timestamp: makeDate(refDate + 1),
+            used: 101 * 1024 * 1024,
+            percent: 101 / 256,
+          },
+        ],
       },
       {
         task: 'log-shipper',
         reservedCPU: 50,
         reservedMemory: 128,
-        cpu: [{ timestamp: refDate + 10, used: 26, percent: 26 / 50 }],
-        memory: [{ timestamp: refDate + 10, used: 51 * 1024 * 1024, percent: 51 / 128 }],
+        cpu: [{ timestamp: makeDate(refDate + 10), used: 26, percent: 26 / 50 }],
+        memory: [
+          {
+            timestamp: makeDate(refDate + 10),
+            used: 51 * 1024 * 1024,
+            percent: 51 / 128,
+          },
+        ],
       },
       {
         task: 'sidecar',
         reservedCPU: 50,
         reservedMemory: 128,
-        cpu: [{ timestamp: refDate + 100, used: 27, percent: 27 / 50 }],
-        memory: [{ timestamp: refDate + 100, used: 52 * 1024 * 1024, percent: 52 / 128 }],
+        cpu: [{ timestamp: makeDate(refDate + 100), used: 27, percent: 27 / 50 }],
+        memory: [
+          {
+            timestamp: makeDate(refDate + 100),
+            used: 52 * 1024 * 1024,
+            percent: 52 / 128,
+          },
+        ],
       },
     ],
     'tasks represents the tasks for the allocation, each with one frame of stats'
@@ -241,16 +266,16 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
   assert.deepEqual(
     tracker.get('cpu'),
     [
-      { timestamp: refDate + 1000, used: 101, percent: 101 / 200 },
-      { timestamp: refDate + 2000, used: 102, percent: 102 / 200 },
+      { timestamp: makeDate(refDate + 1000), used: 101, percent: 101 / 200 },
+      { timestamp: makeDate(refDate + 2000), used: 102, percent: 102 / 200 },
     ],
     'Two frames of cpu'
   );
   assert.deepEqual(
     tracker.get('memory'),
     [
-      { timestamp: refDate + 1000, used: 401 * 1024 * 1024, percent: 401 / 512 },
-      { timestamp: refDate + 2000, used: 402 * 1024 * 1024, percent: 402 / 512 },
+      { timestamp: makeDate(refDate + 1000), used: 401 * 1024 * 1024, percent: 401 / 512 },
+      { timestamp: makeDate(refDate + 2000), used: 402 * 1024 * 1024, percent: 402 / 512 },
     ],
     'Two frames of memory'
   );
@@ -263,12 +288,12 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
         reservedCPU: 100,
         reservedMemory: 256,
         cpu: [
-          { timestamp: refDate + 1, used: 51, percent: 51 / 100 },
-          { timestamp: refDate + 2, used: 52, percent: 52 / 100 },
+          { timestamp: makeDate(refDate + 1), used: 51, percent: 51 / 100 },
+          { timestamp: makeDate(refDate + 2), used: 52, percent: 52 / 100 },
         ],
         memory: [
-          { timestamp: refDate + 1, used: 101 * 1024 * 1024, percent: 101 / 256 },
-          { timestamp: refDate + 2, used: 102 * 1024 * 1024, percent: 102 / 256 },
+          { timestamp: makeDate(refDate + 1), used: 101 * 1024 * 1024, percent: 101 / 256 },
+          { timestamp: makeDate(refDate + 2), used: 102 * 1024 * 1024, percent: 102 / 256 },
         ],
       },
       {
@@ -276,12 +301,12 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
         reservedCPU: 50,
         reservedMemory: 128,
         cpu: [
-          { timestamp: refDate + 10, used: 26, percent: 26 / 50 },
-          { timestamp: refDate + 20, used: 27, percent: 27 / 50 },
+          { timestamp: makeDate(refDate + 10), used: 26, percent: 26 / 50 },
+          { timestamp: makeDate(refDate + 20), used: 27, percent: 27 / 50 },
         ],
         memory: [
-          { timestamp: refDate + 10, used: 51 * 1024 * 1024, percent: 51 / 128 },
-          { timestamp: refDate + 20, used: 52 * 1024 * 1024, percent: 52 / 128 },
+          { timestamp: makeDate(refDate + 10), used: 51 * 1024 * 1024, percent: 51 / 128 },
+          { timestamp: makeDate(refDate + 20), used: 52 * 1024 * 1024, percent: 52 / 128 },
         ],
       },
       {
@@ -289,12 +314,12 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
         reservedCPU: 50,
         reservedMemory: 128,
         cpu: [
-          { timestamp: refDate + 100, used: 27, percent: 27 / 50 },
-          { timestamp: refDate + 200, used: 28, percent: 28 / 50 },
+          { timestamp: makeDate(refDate + 100), used: 27, percent: 27 / 50 },
+          { timestamp: makeDate(refDate + 200), used: 28, percent: 28 / 50 },
         ],
         memory: [
-          { timestamp: refDate + 100, used: 52 * 1024 * 1024, percent: 52 / 128 },
-          { timestamp: refDate + 200, used: 53 * 1024 * 1024, percent: 53 / 128 },
+          { timestamp: makeDate(refDate + 100), used: 52 * 1024 * 1024, percent: 52 / 128 },
+          { timestamp: makeDate(refDate + 200), used: 53 * 1024 * 1024, percent: 53 / 128 },
         ],
       },
     ],
@@ -323,13 +348,13 @@ test('each stat list has maxLength equal to bufferSize', function(assert) {
   );
 
   assert.equal(
-    tracker.get('cpu')[0].timestamp,
-    refDate + 11000,
+    +tracker.get('cpu')[0].timestamp,
+    +makeDate(refDate + 11000),
     'Old frames are removed in favor of newer ones'
   );
   assert.equal(
-    tracker.get('memory')[0].timestamp,
-    refDate + 11000,
+    +tracker.get('memory')[0].timestamp,
+    +makeDate(refDate + 11000),
     'Old frames are removed in favor of newer ones'
   );
 
@@ -347,35 +372,35 @@ test('each stat list has maxLength equal to bufferSize', function(assert) {
   });
 
   assert.equal(
-    tracker.get('tasks').findBy('task', 'service').cpu[0].timestamp,
-    refDate + 11,
+    +tracker.get('tasks').findBy('task', 'service').cpu[0].timestamp,
+    +makeDate(refDate + 11),
     'Old frames are removed in favor of newer ones'
   );
   assert.equal(
-    tracker.get('tasks').findBy('task', 'service').memory[0].timestamp,
-    refDate + 11,
-    'Old frames are removed in favor of newer ones'
-  );
-
-  assert.equal(
-    tracker.get('tasks').findBy('task', 'log-shipper').cpu[0].timestamp,
-    refDate + 110,
-    'Old frames are removed in favor of newer ones'
-  );
-  assert.equal(
-    tracker.get('tasks').findBy('task', 'log-shipper').memory[0].timestamp,
-    refDate + 110,
+    +tracker.get('tasks').findBy('task', 'service').memory[0].timestamp,
+    +makeDate(refDate + 11),
     'Old frames are removed in favor of newer ones'
   );
 
   assert.equal(
-    tracker.get('tasks').findBy('task', 'sidecar').cpu[0].timestamp,
-    refDate + 1100,
+    +tracker.get('tasks').findBy('task', 'log-shipper').cpu[0].timestamp,
+    +makeDate(refDate + 110),
     'Old frames are removed in favor of newer ones'
   );
   assert.equal(
-    tracker.get('tasks').findBy('task', 'sidecar').memory[0].timestamp,
-    refDate + 1100,
+    +tracker.get('tasks').findBy('task', 'log-shipper').memory[0].timestamp,
+    +makeDate(refDate + 110),
+    'Old frames are removed in favor of newer ones'
+  );
+
+  assert.equal(
+    +tracker.get('tasks').findBy('task', 'sidecar').cpu[0].timestamp,
+    +makeDate(refDate + 1100),
+    'Old frames are removed in favor of newer ones'
+  );
+  assert.equal(
+    +tracker.get('tasks').findBy('task', 'sidecar').memory[0].timestamp,
+    +makeDate(refDate + 1100),
     'Old frames are removed in favor of newer ones'
   );
 });

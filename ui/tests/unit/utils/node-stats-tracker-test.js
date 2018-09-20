@@ -9,7 +9,8 @@ import fetch from 'nomad-ui/utils/fetch';
 
 module('Unit | Util | NodeStatsTracker');
 
-const refDate = Date.now();
+const refDate = Date.now() * 1000000;
+const makeDate = ts => new Date(ts / 1000000);
 
 const MockNode = overrides =>
   assign(
@@ -35,7 +36,7 @@ test('the NodeStatsTracker constructor expects a fetch definition and a node', f
   const tracker = NodeStatsTracker.create();
   assert.throws(
     () => {
-      tracker.poll();
+      tracker.fetch();
     },
     /StatsTrackers need a fetch method/,
     'Polling does not work without a fetch method provided'
@@ -79,7 +80,7 @@ test('poll results in requesting the url and calling append with the resulting J
     this.get('/v1/client/stats', () => [200, {}, JSON.stringify(mockFrame)]);
   });
 
-  tracker.poll();
+  tracker.get('poll').perform();
 
   assert.equal(server.handledRequests.length, 1, 'Only one request was made');
   assert.equal(
@@ -109,13 +110,13 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
 
   assert.deepEqual(
     tracker.get('cpu'),
-    [{ timestamp: refDate + 1, used: 1001, percent: 1001 / 2000 }],
+    [{ timestamp: makeDate(refDate + 1), used: 1001, percent: 1001 / 2000 }],
     'One frame of cpu'
   );
 
   assert.deepEqual(
     tracker.get('memory'),
-    [{ timestamp: refDate + 1, used: 2049 * 1024 * 1024, percent: 2049 / 4096 }],
+    [{ timestamp: makeDate(refDate + 1), used: 2049 * 1024 * 1024, percent: 2049 / 4096 }],
     'One frame of memory'
   );
 
@@ -124,8 +125,8 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
   assert.deepEqual(
     tracker.get('cpu'),
     [
-      { timestamp: refDate + 1, used: 1001, percent: 1001 / 2000 },
-      { timestamp: refDate + 2, used: 1002, percent: 1002 / 2000 },
+      { timestamp: makeDate(refDate + 1), used: 1001, percent: 1001 / 2000 },
+      { timestamp: makeDate(refDate + 2), used: 1002, percent: 1002 / 2000 },
     ],
     'Two frames of cpu'
   );
@@ -133,8 +134,8 @@ test('append appropriately maps a data frame to the tracked stats for cpu and me
   assert.deepEqual(
     tracker.get('memory'),
     [
-      { timestamp: refDate + 1, used: 2049 * 1024 * 1024, percent: 2049 / 4096 },
-      { timestamp: refDate + 2, used: 2050 * 1024 * 1024, percent: 2050 / 4096 },
+      { timestamp: makeDate(refDate + 1), used: 2049 * 1024 * 1024, percent: 2049 / 4096 },
+      { timestamp: makeDate(refDate + 2), used: 2050 * 1024 * 1024, percent: 2050 / 4096 },
     ],
     'Two frames of memory'
   );
@@ -161,13 +162,13 @@ test('each stat list has maxLength equal to bufferSize', function(assert) {
   );
 
   assert.equal(
-    tracker.get('cpu')[0].timestamp,
-    refDate + 11,
+    +tracker.get('cpu')[0].timestamp,
+    +makeDate(refDate + 11),
     'Old frames are removed in favor of newer ones'
   );
   assert.equal(
-    tracker.get('memory')[0].timestamp,
-    refDate + 11,
+    +tracker.get('memory')[0].timestamp,
+    +makeDate(refDate + 11),
     'Old frames are removed in favor of newer ones'
   );
 });

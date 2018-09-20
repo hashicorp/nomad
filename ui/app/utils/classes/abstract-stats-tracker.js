@@ -31,12 +31,16 @@ export default Mixin.create({
     // Interrupt any pause attempt
     this.get('signalPause').cancelAll();
 
-    const url = this.get('url');
-    assert('Url must be defined', url);
+    try {
+      const url = this.get('url');
+      assert('Url must be defined', url);
 
-    yield this.get('fetch')(url)
-      .then(res => res.json())
-      .then(frame => this.append(frame));
+      yield this.get('fetch')(url)
+        .then(res => res.json())
+        .then(frame => this.append(frame));
+    } catch (error) {
+      throw new Error(error);
+    }
 
     yield timeout(2000);
   }).drop(),
