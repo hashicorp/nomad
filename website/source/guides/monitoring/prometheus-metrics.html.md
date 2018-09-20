@@ -48,8 +48,10 @@ environment with Consul installed. You can use this
 to easily provision a sandbox environment. This guide will assume a cluster with
 one server node and three client nodes.
 
--> **Please Note:** This guide is for demo purposes and is only using a single server
-node. In a production cluster, 3 or 5 server nodes are recommended.
+-> **Please Note:** This guide is for demo purposes and is only using a single
+server node. In a production cluster, 3 or 5 server nodes are recommended. The
+alerting rules defined in this guide are for instructional purposes. Please
+refer to [Alerting Rules][alertingrules] for more information.
 
 ## Steps
 
@@ -84,7 +86,7 @@ job "fabio" {
     task "fabio" {
       driver = "docker"
       config {
-        image = "magiconair/fabio"
+        image = "fabiolb/fabio"
         network_mode = "host"
       }
 
@@ -139,21 +141,6 @@ Create a job for Prometheus and name it `prometheus.nomad`
 job "prometheus" {
   datacenters = ["dc1"]
   type = "service"
-
-  update {
-    max_parallel = 1
-    min_healthy_time = "10s"
-    healthy_deadline = "3m"
-    auto_revert = false
-    canary = 0
-  }
-
-  migrate {
-    max_parallel = 1
-    health_check = "checks"
-    min_healthy_time = "10s"
-    healthy_deadline = "5m"
-  }
 
   group "monitoring" {
     count = 1
@@ -295,21 +282,6 @@ job "alertmanager" {
   datacenters = ["dc1"]
   type = "service"
 
-  update {
-    max_parallel = 1
-    min_healthy_time = "10s"
-    healthy_deadline = "3m"
-    auto_revert = false
-    canary = 0
-  }
-
-  migrate {
-    max_parallel = 1
-    health_check = "checks"
-    min_healthy_time = "10s"
-    healthy_deadline = "5m"
-  }
-
   group "alerting" {
     count = 1
     restart {
@@ -367,21 +339,6 @@ rules.
 job "prometheus" {
   datacenters = ["dc1"]
   type = "service"
-
-  update {
-    max_parallel = 1
-    min_healthy_time = "10s"
-    healthy_deadline = "3m"
-    auto_revert = false
-    canary = 0
-  }
-
-  migrate {
-    max_parallel = 1
-    health_check = "checks"
-    min_healthy_time = "10s"
-    healthy_deadline = "5m"
-  }
 
   group "monitoring" {
     count = 1
