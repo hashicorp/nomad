@@ -7,9 +7,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Restart a task. Returns immediately if no task is running. Blocks until
+// existing task exits or passed-in context is canceled.
 func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	// Grab the handle
-	handle := tr.getDriverHandle()
+	handle, result := tr.getDriverHandle()
 
 	// Check it is running
 	if handle == nil {
@@ -29,19 +31,14 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", err)
 	}
 
-	// Drain the wait channel or wait for the request context to be cancelled
-	select {
-	case <-handle.WaitCh():
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
+	// Drain the wait channel or wait for the request context to be canceled
+	result.Wait(ctx)
 	return nil
 }
 
 func (tr *TaskRunner) Signal(event *structs.TaskEvent, s os.Signal) error {
 	// Grab the handle
-	handle := tr.getDriverHandle()
+	handle, _ := tr.getDriverHandle()
 
 	// Check it is running
 	if handle == nil {
@@ -58,8 +55,12 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s os.Signal) error {
 // Kill a task. Blocks until task exits or context is canceled. State is set to
 // dead.
 func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error {
+	// Cancel the task runner to break out of restart delay or the main run
+	// loop.
+	tr.ctxCancel()
+
 	// Grab the handle
-	handle := tr.getDriverHandle()
+	handle, result := tr.getDriverHandle()
 
 	// Check if the handle is running
 	if handle == nil {
@@ -82,11 +83,8 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", destroyErr)
 	}
 
-	// Drain the wait channel or wait for the request context to be cancelled
-	select {
-	case <-handle.WaitCh():
-	case <-ctx.Done():
-	}
+	// Block until task has exited.
+	result.Wait(ctx)
 
 	// Store that the task has been destroyed and any associated error.
 	tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
