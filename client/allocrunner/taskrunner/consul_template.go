@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"context"
 	"sync"
 	"time"
 
@@ -131,7 +132,7 @@ func (c *TaskTemplateManagerConfig) Validate() error {
 	return nil
 }
 
-func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
+func NewTaskTemplateManager(ctx context.Context, config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
 	// Check pre-conditions
 	if err := config.Validate(); err != nil {
 		return nil, err
@@ -168,7 +169,7 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 	tm.runner = runner
 	tm.lookup = lookup
 
-	go tm.run()
+	go tm.run(ctx)
 	return tm, nil
 }
 
@@ -191,7 +192,7 @@ func (tm *TaskTemplateManager) Stop() {
 }
 
 // run is the long lived loop that handles errors and templates being rendered
-func (tm *TaskTemplateManager) run() {
+func (tm *TaskTemplateManager) run(ctx context.Context) {
 	// Runner is nil if there is no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
@@ -203,7 +204,18 @@ func (tm *TaskTemplateManager) run() {
 	go tm.runner.Start()
 
 	// Block till all the templates have been rendered
-	tm.handleFirstRender()
+	events := tm.handleFirstRender()
+	if ctx != nil {
+		if events != nil {
+			if v := ctx.Value("logger"); v != nil {
+				if logger, ok := v.(*TemplateManagerLogger); ok {
+					logger.logger.Printf("[INFO] Calling signals for alloc %s task %s: after restore due templates rerender", logger.allocID, logger.taskName)
+				}
+			}
+
+			tm.CallSignals(events)
+		}
+	}
 
 	// Detect if there was a shutdown.
 	select {
@@ -233,9 +245,10 @@ func (tm *TaskTemplateManager) run() {
 }
 
 // handleFirstRender blocks till all templates have been rendered
-func (tm *TaskTemplateManager) handleFirstRender() {
+func (tm *TaskTemplateManager) handleFirstRender() map[string]*manager.RenderEvent {
 	// missingDependencies is the set of missing dependencies.
 	var missingDependencies map[string]struct{}
+	var l_retevents map[string]*manager.RenderEvent
 
 	// eventTimer is used to trigger the firing of an event showing the missing
 	// dependencies.
@@ -253,7 +266,7 @@ WAIT:
 	for {
 		select {
 		case <-tm.shutdownCh:
-			return
+			return nil
 		case err, ok := <-tm.runner.ErrCh:
 			if !ok {
 				continue
@@ -275,6 +288,8 @@ WAIT:
 					continue WAIT
 				}
 			}
+
+			l_retevents = events
 
 			break WAIT
 		case <-tm.runner.RenderEventCh():
@@ -338,6 +353,59 @@ WAIT:
 
 			missingStr := strings.Join(missingSlice, ", ")
 			tm.config.Hooks.EmitEvent(consulTemplateSourceName, fmt.Sprintf("Missing: %s", missingStr))
+		}
+	}
+
+	return l_retevents
+}
+
+func (tm *TaskTemplateManager) CallSignals(events map[string]*manager.RenderEvent) {
+	for id, event := range events {
+		if !event.DidRender {
+			continue
+		}
+
+		// Lookup the template and determine what to do
+		tmpls, ok := tm.lookup[id] 
+		if !ok {
+			tm.config.Hooks.Kill(consulTemplateSourceName, fmt.Sprintf("template runner returned unknown template id %q", id), true)
+			break
+		}
+
+		signals := make(map[string]struct{})
+		restart := false
+
+		for _, tmpl := range tmpls {
+			switch tmpl.ChangeMode {
+			case structs.TemplateChangeModeSignal:
+				signals[tmpl.ChangeSignal] = struct{}{}
+			case structs.TemplateChangeModeRestart:
+				restart = true
+			case structs.TemplateChangeModeNoop:
+				continue
+			}
+		}
+
+		if restart {
+			const failure = false
+			tm.config.Hooks.Restart(consulTemplateSourceName, "template with change_mode restart re-rendered", failure)
+		} else if len(signals) != 0 {
+			var mErr multierror.Error
+			for signal := range signals {
+				err := tm.config.Hooks.Signal(consulTemplateSourceName, "template re-rendered", tm.signals[signal])
+				if err != nil {
+					multierror.Append(&mErr, err)
+				}
+			}
+
+			if err := mErr.ErrorOrNil(); err != nil {
+				flat := make([]os.Signal, 0, len(signals))
+				for signal := range signals {
+					flat = append(flat, tm.signals[signal])
+				}
+
+				tm.config.Hooks.Kill(consulTemplateSourceName, fmt.Sprintf("Sending signals %v failed: %v", flat, err), true)
+			}
 		}
 	}
 }

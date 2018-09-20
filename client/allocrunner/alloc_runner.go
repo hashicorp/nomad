@@ -292,8 +292,10 @@ func (r *AllocRunner) RestoreState() error {
 			r.logger.Printf("[ERR] client: failed to restore state for alloc %s task %q: %v", r.allocID, name, err)
 			mErr.Errors = append(mErr.Errors, err)
 		} else if !r.alloc.TerminalStatus() {
+			ctx := context.WithValue(context.Background(), "logger", &taskrunner.TemplateManagerLogger{r.logger, r.allocID, name})
+
 			// Only start if the alloc isn't in a terminal status.
-			go tr.Run()
+			go tr.RunWithContext(ctx)
 
 			// Restart task runner if RestoreState gave a reason
 			if restartReason != "" {

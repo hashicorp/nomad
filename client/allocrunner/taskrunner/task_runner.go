@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"context"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/boltdb/bolt"
@@ -68,6 +69,12 @@ var (
 	// there is no need to split it
 	taskRunnerStateAllKey = []byte("simple-all")
 )
+
+type TemplateManagerLogger struct{
+	logger *log.Logger
+	allocID string
+	taskName string
+}
 
 // taskRestartEvent wraps a TaskEvent with additional metadata to control
 // restart behavior.
@@ -578,7 +585,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 }
 
 // Run is a long running routine used to manage the task
-func (r *TaskRunner) Run() {
+func (r *TaskRunner) RunWithContext(ctx context.Context) {
 	defer close(r.waitCh)
 	r.logger.Printf("[DEBUG] client: starting task context for '%s' (alloc '%s')",
 		r.task.Name, r.alloc.ID)
@@ -625,12 +632,16 @@ func (r *TaskRunner) Run() {
 	}
 
 	// Start the run loop
-	r.run()
+	r.run(ctx)
 
 	// Do any cleanup necessary
 	r.postrun()
 
 	return
+}
+
+func (r *TaskRunner) Run() {
+	r.RunWithContext(nil)
 }
 
 // validateTask validates the fields of the task and returns an error if the
@@ -914,7 +925,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 
 		// Create a new templateManager
 		var err error
-		r.templateManager, err = NewTaskTemplateManager(&TaskTemplateManagerConfig{
+		r.templateManager, err = NewTaskTemplateManager(nil, &TaskTemplateManagerConfig{
 			Hooks:                r,
 			Templates:            r.task.Templates,
 			ClientConfig:         r.config,
@@ -939,7 +950,7 @@ func (r *TaskRunner) updatedTokenHandler() {
 // prestart handles life-cycle tasks that occur before the task has started.
 // Since it's run asynchronously with the main Run() loop the alloc & task are
 // passed in to avoid racing with updates.
-func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, resultCh chan bool) {
+func (r *TaskRunner) prestart(ctx context.Context, alloc *structs.Allocation, task *structs.Task, resultCh chan bool) {
 	if task.Vault != nil {
 		// Wait for the token
 		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", task.Name, alloc.ID)
@@ -1030,7 +1041,7 @@ func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, res
 		// Build the template manager
 		if r.templateManager == nil {
 			var err error
-			r.templateManager, err = NewTaskTemplateManager(&TaskTemplateManagerConfig{
+			r.templateManager, err = NewTaskTemplateManager(ctx, &TaskTemplateManagerConfig{
 				Hooks:                r,
 				Templates:            r.task.Templates,
 				ClientConfig:         r.config,
@@ -1086,7 +1097,7 @@ func (r *TaskRunner) postrun() {
 
 // run is the main run loop that handles starting the application, destroying
 // it, restarts and signals.
-func (r *TaskRunner) run() {
+func (r *TaskRunner) run(ctx context.Context) {
 	// Predeclare things so we can jump to the RESTART
 	var stopCollection chan struct{}
 	var handleWaitCh chan *dstructs.WaitResult
@@ -1104,7 +1115,7 @@ func (r *TaskRunner) run() {
 	for {
 		// Do the prestart activities
 		prestartResultCh := make(chan bool, 1)
-		go r.prestart(r.alloc, r.task, prestartResultCh)
+		go r.prestart(ctx, r.alloc, r.task, prestartResultCh)
 
 	WAIT:
 		for {
