@@ -49,7 +49,6 @@ export default Component.extend({
       run.scheduleOnce('afterRender', this, qualifyAllocation);
     } else {
       this.get('fetchStats').cancelAll();
-      this.set('stats', null);
     }
   },
 
