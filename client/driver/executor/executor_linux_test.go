@@ -13,7 +13,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -88,7 +87,6 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
-	execCmd.User = dstructs.DefaultUnprivilegedUser
 
 	executor := libcontainerFactory(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
@@ -170,7 +168,6 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd.Cmd = "/bin/bash"
 	execCmd.Args = []string{"-c", "while true; do /bin/echo X; /bin/sleep 1; done"}
 	execCmd.ResourceLimits = true
-	execCmd.User = "nobody"
 
 	ps, err := executor.Launch(execCmd)
 	require.NoError(err)
