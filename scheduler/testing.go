@@ -96,6 +96,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	result := new(structs.PlanResult)
 	result.NodeUpdate = plan.NodeUpdate
 	result.NodeAllocation = plan.NodeAllocation
+	result.NodePreemptions = plan.NodePreemptions
 	result.AllocIndex = index
 
 	// Flatten evicts and allocs
@@ -116,6 +117,18 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		}
 	}
 
+	// Set create and modify time for preempted allocs and flatten them
+	var preemptedAllocs []*structs.Allocation
+	for _, preemptions := range result.NodePreemptions {
+		for _, alloc := range preemptions {
+			if alloc.CreateTime == 0 {
+				alloc.CreateTime = now
+			}
+			alloc.ModifyTime = now
+			preemptedAllocs = append(preemptedAllocs, alloc)
+		}
+	}
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -125,6 +138,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
+		NodePreemptions:   preemptedAllocs,
 	}
 
 	// Apply the full plan

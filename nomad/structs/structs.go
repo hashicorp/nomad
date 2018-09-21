@@ -7749,6 +7749,7 @@ const (
 	EvalTriggerMaxPlans          = "max-plan-attempts"
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
 	EvalTriggerQueuedAllocs      = "queued-allocs"
+	EvalTriggerPreemption        = "preemption"
 )
 
 const (
@@ -8121,6 +8122,29 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]
 	p.NodeUpdate[node] = append(existing, newAlloc)
+}
+
+// AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
+// To minimize the size of the plan, this only sets a minimal set of fields in the allocation
+func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preemptingAllocID string) {
+	newAlloc := &Allocation{}
+	newAlloc.ID = alloc.ID
+	newAlloc.JobID = alloc.JobID
+	newAlloc.Namespace = alloc.Namespace
+	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.PreemptedByAllocation = preemptingAllocID
+
+	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
+	newAlloc.DesiredDescription = desiredDesc
+
+	// TaskResources are needed by the plan applier to check if allocations fit
+	// after removing preempted allocations
+	newAlloc.TaskResources = alloc.TaskResources
+
+	node := alloc.NodeID
+	// Append this alloc to slice for this node
+	existing := p.NodePreemptions[node]
+	p.NodePreemptions[node] = append(existing, newAlloc)
 }
 
 func (p *Plan) PopUpdate(alloc *Allocation) {
