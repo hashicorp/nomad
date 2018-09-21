@@ -7,10 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -47,13 +45,37 @@ var (
 // Executor is the interface which allows a driver to launch and supervise
 // a process
 type Executor interface {
-	Launch(*ExecCommand) (*ProcessState, error)
+	// Launch a user process configured by the given ExecCommand
+	Launch(launchCmd *ExecCommand) (*ProcessState, error)
+
+	// Wait blocks until the process exits or an error occures
 	Wait() (*ProcessState, error)
-	Shutdown(string, time.Duration) error
+
+	// Shutdown will shutdown the executor by stopping the user process,
+	// cleaning up and resources created by the executor. The shutdown sequence
+	// will first send the given signal to the process. This defaults to "SIGINT"
+	// if not specified. The executor will then wait for the process to exit
+	// before cleaning up other resources. If the executor waits longer than the
+	// given grace period, the process is forcefully killed.
+	//
+	// To force kill the user process, gracePeriod can be set to 0.
+	Shutdown(signal string, gracePeriod time.Duration) error
+
+	// UpdateResources updates any resource isolation enforcement with new
+	// constraints if supported.
 	UpdateResources(*Resources) error
+
+	// Version returns the executor API version
 	Version() (*ExecutorVersion, error)
+
+	// Stats fetchs process usage stats for the executor and each pid if availble
 	Stats() (*cstructs.TaskResourceUsage, error)
+
+	// Signal sends the given signal to the user process
 	Signal(os.Signal) error
+
+	// Exec executes the given command and args inside the executor context
+	// and returns the output and exit code.
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 }
 
@@ -180,6 +202,8 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
+	// resConCtx is used to track and cleanup additional resources created by
+	// the executor. Currently this is only used for cgroups.
 	resConCtx resourceContainerContext
 
 	totalCpuStats  *stats.CpuStats
@@ -276,56 +300,6 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
-}
-
-// runAs takes a user id as a string and looks up the user, and sets the command
-// to execute as that user.
-func (e *UniversalExecutor) runAs(userid string) error {
-	u, err := user.Lookup(userid)
-	if err != nil {
-		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
-	}
-
-	// Get the groups the user is a part of
-	gidStrings, err := u.GroupIds()
-	if err != nil {
-		return fmt.Errorf("Unable to lookup user's group membership: %v", err)
-	}
-
-	gids := make([]uint32, len(gidStrings))
-	for _, gidString := range gidStrings {
-		u, err := strconv.Atoi(gidString)
-		if err != nil {
-			return fmt.Errorf("Unable to convert user's group to int %s: %v", gidString, err)
-		}
-
-		gids = append(gids, uint32(u))
-	}
-
-	// Convert the uid and gid
-	uid, err := strconv.ParseUint(u.Uid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to convert userid to uint32: %s", err)
-	}
-	gid, err := strconv.ParseUint(u.Gid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to convert groupid to uint32: %s", err)
-	}
-
-	// Set the command to run as that user and group.
-	if e.cmd.SysProcAttr == nil {
-		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	if e.cmd.SysProcAttr.Credential == nil {
-		e.cmd.SysProcAttr.Credential = &syscall.Credential{}
-	}
-	e.cmd.SysProcAttr.Credential.Uid = uint32(uid)
-	e.cmd.SysProcAttr.Credential.Gid = uint32(gid)
-	e.cmd.SysProcAttr.Credential.Groups = gids
-
-	e.logger.Debug("setting process user", "user", uid, "group", gid, "additional_groups", gids)
-
-	return nil
 }
 
 // Exec a command inside a container for exec and java drivers.
@@ -437,17 +411,9 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		return nil
 	}
 
+	// If there is no process we can't shutdown
 	if e.cmd.Process == nil {
 		return fmt.Errorf("executor failed to shutdown error: no process found")
-	}
-
-	if signal == "" {
-		signal = "SIGINT"
-	}
-
-	sig, ok := signals.SignalLookup[signal]
-	if !ok {
-		return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
 	}
 
 	proc, err := os.FindProcess(e.cmd.Process.Pid)
@@ -455,13 +421,28 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		return fmt.Errorf("executor failed to find process: %v", err)
 	}
 
-	if err := e.shutdownProcess(sig, proc); err != nil {
-		return err
-	}
+	// If grace is 0 then skip shutdown logic
+	if grace > 0 {
+		// Default signal to SIGINT if not set
+		if signal == "" {
+			signal = "SIGINT"
+		}
 
-	select {
-	case <-e.processExited:
-	case <-time.After(grace):
+		sig, ok := signals.SignalLookup[signal]
+		if !ok {
+			return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
+		}
+
+		if err := e.shutdownProcess(sig, proc); err != nil {
+			return err
+		}
+
+		select {
+		case <-e.processExited:
+		case <-time.After(grace):
+			proc.Kill()
+		}
+	} else {
 		proc.Kill()
 	}
 

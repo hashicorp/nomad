@@ -11,3 +11,5 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 }
 
 func (e *UniversalExecutor) configureResourceContainer(_ int) error { return nil }
+
+func (e *UniversalExecutor) runAs(_ string) error { return nil }

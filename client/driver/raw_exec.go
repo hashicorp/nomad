@@ -325,7 +325,7 @@ func (h *rawExecHandle) run() {
 	}
 
 	// Destroy the executor
-	if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
+	if err := h.executor.Shutdown(h.shutdownSignal, 0); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()

@@ -443,7 +443,7 @@ func (h *javaHandle) run() {
 	}
 
 	// Destroy the executor
-	h.executor.Shutdown(h.shutdownSignal, h.killTimeout)
+	h.executor.Shutdown(h.shutdownSignal, 0)
 	h.pluginClient.Kill()
 
 	// Send the results

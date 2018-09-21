@@ -831,13 +831,7 @@ func (d *rktHandle) Network() *cstructs.DriverNetwork {
 // Kill is used to terminate the task. We send an Interrupt
 // and then provide a 5 second grace period before doing a Kill.
 func (h *rktHandle) Kill() error {
-	h.executor.Signal(os.Interrupt)
-	select {
-	case <-h.doneCh:
-		return nil
-	case <-time.After(h.killTimeout):
-		return h.executor.Shutdown(h.shutdownSignal, h.killTimeout)
-	}
+	return h.executor.Shutdown(h.shutdownSignal, h.killTimeout)
 }
 
 func (h *rktHandle) Stats() (*cstructs.TaskResourceUsage, error) {
@@ -854,7 +848,7 @@ func (h *rktHandle) run() {
 	}
 
 	// Destroy the executor
-	if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
+	if err := h.executor.Shutdown(h.shutdownSignal, 0); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()

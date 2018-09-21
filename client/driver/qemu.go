@@ -513,7 +513,7 @@ func (h *qemuHandle) run() {
 	close(h.doneCh)
 
 	// Destroy the executor
-	h.executor.Shutdown(h.shutdownSignal, h.killTimeout)
+	h.executor.Shutdown(h.shutdownSignal, 0)
 	h.pluginClient.Kill()
 
 	// Send the results

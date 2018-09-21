@@ -298,7 +298,7 @@ func (h *execHandle) run() {
 	close(h.doneCh)
 
 	// Destroy the executor
-	if err := h.executor.Shutdown(h.taskShutdownSignal, h.killTimeout); err != nil {
+	if err := h.executor.Shutdown(h.taskShutdownSignal, 0); err != nil {
 		h.logger.Printf("[ERR] driver.exec: error destroying executor: %v", err)
 	}
 	h.pluginClient.Kill()
