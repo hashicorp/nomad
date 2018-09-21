@@ -60,7 +60,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
-	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate,
+	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate, structs.EvalTriggerFailedFollowUp,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain:
 	default:
