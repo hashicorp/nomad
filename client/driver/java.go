@@ -62,6 +62,7 @@ type javaHandle struct {
 
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
+	shutdownSignal string
 	version        string
 	logger         *log.Logger
 	waitCh         chan *dstructs.WaitResult
@@ -253,25 +254,26 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, err
 	}
 
-	//taskKillSignal, err := getTaskKillSignal(task.KillSignal)
-	//if err != nil {
-	//	return nil, err
-	//}
+	_, err = getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
+	}
 
 	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
-		//TaskKillSignal: taskKillSignal,
 		Resources: &executor.Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
 			IOPS:     task.Resources.IOPS,
 			DiskMB:   task.Resources.DiskMB,
 		},
-		Env:     ctx.TaskEnv.List(),
-		TaskDir: ctx.TaskDir.Dir,
+		Env:        ctx.TaskEnv.List(),
+		TaskDir:    ctx.TaskDir.Dir,
+		StdoutPath: ctx.StdoutFifo,
+		StderrPath: ctx.StderrFifo,
 	}
 	ps, err := execIntf.Launch(execCmd)
 	if err != nil {
@@ -286,6 +288,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		pluginClient:   pluginClient,
 		executor:       execIntf,
 		userPid:        ps.Pid,
+		shutdownSignal: task.KillSignal,
 		taskDir:        ctx.TaskDir.Dir,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
@@ -307,6 +310,7 @@ type javaId struct {
 	PluginConfig   *PluginReattachConfig
 	TaskDir        string
 	UserPid        int
+	ShutdownSignal string
 }
 
 func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -338,6 +342,7 @@ func (d *JavaDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		pluginClient:   pluginClient,
 		executor:       exec,
 		userPid:        id.UserPid,
+		shutdownSignal: id.ShutdownSignal,
 		logger:         d.logger,
 		version:        id.Version,
 		killTimeout:    id.KillTimeout,
@@ -357,6 +362,7 @@ func (h *javaHandle) ID() string {
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
 		TaskDir:        h.taskDir,
+		ShutdownSignal: h.shutdownSignal,
 	}
 
 	data, err := json.Marshal(id)
@@ -402,7 +408,7 @@ func (d *javaHandle) Network() *cstructs.DriverNetwork {
 }
 
 func (h *javaHandle) Kill() error {
-	if err := h.executor.Destroy(); err != nil {
+	if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
 		if h.pluginClient.Exited() {
 			return nil
 		}
@@ -415,7 +421,7 @@ func (h *javaHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			break
 		}
-		if err := h.executor.Destroy(); err != nil {
+		if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
 			return fmt.Errorf("executor Destroy failed: %v", err)
 		}
 
@@ -437,7 +443,7 @@ func (h *javaHandle) run() {
 	}
 
 	// Destroy the executor
-	h.executor.Destroy()
+	h.executor.Shutdown(h.shutdownSignal, h.killTimeout)
 	h.pluginClient.Kill()
 
 	// Send the results

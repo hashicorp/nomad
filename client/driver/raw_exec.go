@@ -56,6 +56,7 @@ type rawExecHandle struct {
 	executor       executor.Executor
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
+	shutdownSignal string
 	logger         *log.Logger
 	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
@@ -151,20 +152,20 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 		return nil, err
 	}
 
-	//taskKillSignal, err := getTaskKillSignal(task.KillSignal)
-
-	//if err != nil {
-	//	return nil, err
-	//}
+	_, err = getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
+	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:  command,
-		Args: driverConfig.Args,
-		User: task.User,
-		//TaskKillSignal:     taskKillSignal,
+		Cmd:                command,
+		Args:               ctx.TaskEnv.ParseAndReplace(driverConfig.Args),
+		User:               task.User,
 		BasicProcessCgroup: d.useCgroup,
 		Env:                ctx.TaskEnv.List(),
 		TaskDir:            ctx.TaskDir.Dir,
+		StdoutPath:         ctx.StdoutFifo,
+		StderrPath:         ctx.StderrFifo,
 	}
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
@@ -179,6 +180,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 		pluginClient:   pluginClient,
 		executor:       exec,
 		userPid:        ps.Pid,
+		shutdownSignal: task.KillSignal,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		version:        d.config.Version.VersionNumber(),
@@ -200,6 +202,7 @@ type rawExecId struct {
 	MaxKillTimeout time.Duration
 	UserPid        int
 	PluginConfig   *PluginReattachConfig
+	ShutdownSignal string
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -231,6 +234,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		executor:       exec,
 		userPid:        id.UserPid,
 		logger:         d.logger,
+		shutdownSignal: id.ShutdownSignal,
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
 		version:        id.Version,
@@ -250,6 +254,7 @@ func (h *rawExecHandle) ID() string {
 		MaxKillTimeout: h.maxKillTimeout,
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
+		ShutdownSignal: h.shutdownSignal,
 	}
 
 	data, err := json.Marshal(id)
@@ -298,7 +303,7 @@ func (h *rawExecHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		if err := h.executor.Destroy(); err != nil {
+		if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
 			return fmt.Errorf("executor Exit failed: %v", err)
 		}
 
@@ -320,7 +325,7 @@ func (h *rawExecHandle) run() {
 	}
 
 	// Destroy the executor
-	if err := h.executor.Destroy(); err != nil {
+	if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()

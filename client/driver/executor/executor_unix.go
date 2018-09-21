@@ -3,6 +3,7 @@
 package executor
 
 import (
+	"fmt"
 	"os"
 	"syscall"
 )
@@ -27,4 +28,18 @@ func (e *UniversalExecutor) cleanupChildProcesses(proc *os.Process) error {
 		return nil
 	}
 	return proc.Kill()
+}
+
+// Only send the process a shutdown signal (default INT), doesn't
+// necessarily kill it.
+func (e *UniversalExecutor) shutdownProcess(sig os.Signal, proc *os.Process) error {
+	if sig == nil {
+		sig = os.Interrupt
+	}
+
+	if err := proc.Signal(sig); err != nil && err.Error() != finishedErr {
+		return fmt.Errorf("executor shutdown error: %v", err)
+	}
+
+	return nil
 }

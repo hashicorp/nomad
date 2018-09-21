@@ -7,8 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 
+	"github.com/hashicorp/consul-template/signals"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
@@ -46,7 +49,7 @@ var (
 type Executor interface {
 	Launch(*ExecCommand) (*ProcessState, error)
 	Wait() (*ProcessState, error)
-	Destroy() error
+	Shutdown(string, time.Duration) error
 	UpdateResources(*Resources) error
 	Version() (*ExecutorVersion, error)
 	Stats() (*cstructs.TaskResourceUsage, error)
@@ -177,6 +180,8 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
+	resConCtx resourceContainerContext
+
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
@@ -213,11 +218,24 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 	e.command = command
 
+	// setting the user of the process
+	if command.User != "" {
+		e.logger.Debug("running command as user", "user", command.User)
+		if err := e.runAs(command.User); err != nil {
+			return nil, err
+		}
+	}
+
 	// set the task dir as the working directory for the command
 	e.cmd.Dir = e.command.TaskDir
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
+		return nil, err
+	}
+
+	// Setup cgroups on linux
+	if err := e.configureResourceContainer(os.Getpid()); err != nil {
 		return nil, err
 	}
 
@@ -258,6 +276,56 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
 	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
+}
+
+// runAs takes a user id as a string and looks up the user, and sets the command
+// to execute as that user.
+func (e *UniversalExecutor) runAs(userid string) error {
+	u, err := user.Lookup(userid)
+	if err != nil {
+		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
+	}
+
+	// Get the groups the user is a part of
+	gidStrings, err := u.GroupIds()
+	if err != nil {
+		return fmt.Errorf("Unable to lookup user's group membership: %v", err)
+	}
+
+	gids := make([]uint32, len(gidStrings))
+	for _, gidString := range gidStrings {
+		u, err := strconv.Atoi(gidString)
+		if err != nil {
+			return fmt.Errorf("Unable to convert user's group to int %s: %v", gidString, err)
+		}
+
+		gids = append(gids, uint32(u))
+	}
+
+	// Convert the uid and gid
+	uid, err := strconv.ParseUint(u.Uid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Unable to convert userid to uint32: %s", err)
+	}
+	gid, err := strconv.ParseUint(u.Gid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Unable to convert groupid to uint32: %s", err)
+	}
+
+	// Set the command to run as that user and group.
+	if e.cmd.SysProcAttr == nil {
+		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	if e.cmd.SysProcAttr.Credential == nil {
+		e.cmd.SysProcAttr.Credential = &syscall.Credential{}
+	}
+	e.cmd.SysProcAttr.Credential.Uid = uint32(uid)
+	e.cmd.SysProcAttr.Credential.Gid = uint32(gid)
+	e.cmd.SysProcAttr.Credential.Groups = gids
+
+	e.logger.Debug("setting process user", "user", uid, "group", gid, "additional_groups", gids)
+
+	return nil
 }
 
 // Exec a command inside a container for exec and java drivers.
@@ -361,7 +429,7 @@ var (
 
 // Exit cleans up the alloc directory, destroys resource container and kills the
 // user process
-func (e *UniversalExecutor) Destroy() error {
+func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.
@@ -369,14 +437,45 @@ func (e *UniversalExecutor) Destroy() error {
 		return nil
 	}
 
+	if e.cmd.Process == nil {
+		return fmt.Errorf("executor failed to shutdown error: no process found")
+	}
+
+	if signal == "" {
+		signal = "SIGINT"
+	}
+
+	sig, ok := signals.SignalLookup[signal]
+	if !ok {
+		return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
+	}
+
+	proc, err := os.FindProcess(e.cmd.Process.Pid)
+	if err != nil {
+		return fmt.Errorf("executor failed to find process: %v", err)
+	}
+
+	if err := e.shutdownProcess(sig, proc); err != nil {
+		return err
+	}
+
+	select {
+	case <-e.processExited:
+	case <-time.After(grace):
+		proc.Kill()
+	}
+
 	// Prefer killing the process via the resource container.
-	if e.cmd.Process != nil && !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
-		proc, err := os.FindProcess(e.cmd.Process.Pid)
-		if err != nil {
-			e.logger.Error("can't find process", "pid", e.cmd.Process.Pid, "error", err)
-		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
+	if !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
+		if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
 				fmt.Errorf("can't kill process with pid %d: %v", e.cmd.Process.Pid, err))
+		}
+	}
+
+	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
+		if err := e.resConCtx.executorCleanup(); err != nil {
+			merr.Errors = append(merr.Errors, err)
 		}
 	}
 

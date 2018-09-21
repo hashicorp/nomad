@@ -105,6 +105,7 @@ type rktHandle struct {
 	logger         *log.Logger
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
+	shutdownSignal string
 	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
 }
@@ -117,6 +118,7 @@ type rktPID struct {
 	ExecutorPid    int
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
+	ShutdownSignal string
 }
 
 // Retrieve pod status for the pod with the given UUID.
@@ -657,6 +659,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	filter := strings.Split(d.config.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
+	_, err = getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
+	}
+
 	// Enable ResourceLimits to place the executor in a parent cgroup of
 	// the rkt container. This allows stats collection via the executor to
 	// work just like it does for exec.
@@ -670,8 +677,10 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 			IOPS:     task.Resources.IOPS,
 			DiskMB:   task.Resources.DiskMB,
 		},
-		Env:     ctx.TaskEnv.List(),
-		TaskDir: ctx.TaskDir.Dir,
+		Env:        ctx.TaskEnv.List(),
+		TaskDir:    ctx.TaskDir.Dir,
+		StdoutPath: ctx.StdoutFifo,
+		StderrPath: ctx.StderrFifo,
 	}
 	ps, err := execIntf.Launch(execCmd)
 	if err != nil {
@@ -691,6 +700,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		logger:         d.logger,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
+		shutdownSignal: task.KillSignal,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
@@ -759,6 +769,7 @@ func (d *RktDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 		logger:         d.logger,
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
+		shutdownSignal: id.ShutdownSignal,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
@@ -774,6 +785,7 @@ func (h *rktHandle) ID() string {
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
 		ExecutorPid:    h.executorPid,
+		ShutdownSignal: h.shutdownSignal,
 	}
 	data, err := json.Marshal(pid)
 	if err != nil {
@@ -824,7 +836,7 @@ func (h *rktHandle) Kill() error {
 	case <-h.doneCh:
 		return nil
 	case <-time.After(h.killTimeout):
-		return h.executor.Destroy()
+		return h.executor.Shutdown(h.shutdownSignal, h.killTimeout)
 	}
 }
 
@@ -842,7 +854,7 @@ func (h *rktHandle) run() {
 	}
 
 	// Destroy the executor
-	if err := h.executor.Destroy(); err != nil {
+	if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
 		h.logger.Printf("[ERR] driver.rkt: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()

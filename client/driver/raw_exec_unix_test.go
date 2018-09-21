@@ -3,6 +3,7 @@
 package driver
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRawExecDriver_User(t *testing.T) {
@@ -38,7 +40,7 @@ func TestRawExecDriver_User(t *testing.T) {
 	testtask.SetTaskEnv(task)
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -73,7 +75,7 @@ func TestRawExecDriver_Signal(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	testFile := filepath.Join(ctx.ExecCtx.TaskDir.Dir, "test.sh")
@@ -119,14 +121,17 @@ done
 
 	// Check the log file to see it exited because of the signal
 	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "signal.stdout.0")
-	act, err := ioutil.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("Couldn't read expected output: %v", err)
-	}
-
 	exp := "Terminated."
-	if strings.TrimSpace(string(act)) != exp {
-		t.Logf("Read from %v", outputFile)
-		t.Fatalf("Command outputted %v; want %v", act, exp)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		act, err := ioutil.ReadFile(outputFile)
+		if err != nil {
+			return false, fmt.Errorf("Couldn't read expected output: %v", err)
+		}
+
+		if strings.TrimSpace(string(act)) != exp {
+			t.Logf("Read from %v", outputFile)
+			return false, fmt.Errorf("Command outputted %v; want %v", act, exp)
+		}
+		return true, nil
+	}, func(err error) { require.NoError(t, err) })
 }

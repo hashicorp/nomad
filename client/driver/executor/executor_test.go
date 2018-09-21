@@ -16,7 +16,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -25,13 +24,7 @@ import (
 
 var executorFactories = map[string]func(hclog.Logger) Executor{}
 var universalFactory = func(l hclog.Logger) Executor {
-	return &UniversalExecutor{
-		logger:         l,
-		processExited:  make(chan interface{}),
-		totalCpuStats:  stats.NewCpuStats(),
-		userCpuStats:   stats.NewCpuStats(),
-		systemCpuStats: stats.NewCpuStats(),
-	}
+	return NewExecutor(l)
 }
 
 func init() {
@@ -93,7 +86,7 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 			execCmd.Args = []string{"1"}
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
-			defer executor.Destroy()
+			defer executor.Shutdown("", 0)
 
 			_, err := executor.Launch(execCmd)
 			require.Error(err)
@@ -112,14 +105,14 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 			execCmd.Args = []string{"fail"}
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
-			defer executor.Destroy()
+			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 			ps, _ = executor.Wait()
 			require.NotZero(ps.ExitCode, "expected exit code to be non zero")
-			require.NoError(executor.Destroy())
+			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 		})
 	}
 }
@@ -135,7 +128,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			execCmd.Args = []string{"hello world"}
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
-			defer executor.Destroy()
+			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
 			require.NoError(err)
@@ -143,7 +136,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 
 			ps, err = executor.Wait()
 			require.NoError(err)
-			require.NoError(executor.Destroy())
+			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			expected := "hello world"
 			tu.WaitForResult(func() (bool, error) {
@@ -171,7 +164,7 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			execCmd.Args = []string{"10000"}
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
-			defer executor.Destroy()
+			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
 			require.NoError(err)
@@ -205,15 +198,13 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			execCmd.Args = []string{"10 && hello world"}
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
-			defer executor.Destroy()
+			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 
-			ps, err = executor.Wait()
-			require.NoError(err)
-			require.NoError(executor.Destroy())
+			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
 			output := execCmd.stdout.(*bufferCloser).String()

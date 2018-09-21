@@ -14,11 +14,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
-	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -29,13 +27,7 @@ func init() {
 }
 
 func libcontainerFactory(l hclog.Logger) Executor {
-	return &LibcontainerExecutor{
-		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
-		logger:         l,
-		totalCpuStats:  stats.NewCpuStats(),
-		userCpuStats:   stats.NewCpuStats(),
-		systemCpuStats: stats.NewCpuStats(),
-	}
+	return NewExecutorWithIsolation(l)
 }
 
 // testExecutorContextWithChroot returns an ExecutorContext and AllocDir with
@@ -99,7 +91,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	execCmd.User = dstructs.DefaultUnprivilegedUser
 
 	executor := libcontainerFactory(testlog.HCLogger(t))
-	defer executor.Destroy()
+	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
 	require.NoError(err)
@@ -110,20 +102,30 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	require.Zero(state.ExitCode)
 
 	// Check if the resource constraints were applied
-	memLimits := filepath.Join(ps.IsolationConfig.CgroupPaths["memory"], "memory.limit_in_bytes")
-	data, err := ioutil.ReadFile(memLimits)
-	require.NoError(err)
+	if lexec, ok := executor.(*LibcontainerExecutor); ok {
+		state, err := lexec.container.State()
+		require.NoError(err)
 
-	expectedMemLim := strconv.Itoa(execCmd.Resources.MemoryMB * 1024 * 1024)
-	actualMemLim := strings.TrimSpace(string(data))
-	require.Equal(actualMemLim, expectedMemLim)
+		memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
+		data, err := ioutil.ReadFile(memLimits)
+		require.NoError(err)
 
-	require.NoError(executor.Destroy())
+		expectedMemLim := strconv.Itoa(execCmd.Resources.MemoryMB * 1024 * 1024)
+		actualMemLim := strings.TrimSpace(string(data))
+		require.Equal(actualMemLim, expectedMemLim)
+		require.NoError(executor.Shutdown("", 0))
+		executor.Wait()
 
-	// Check if Nomad has actually removed the cgroups
-	_, err = os.Stat(memLimits)
-	require.Error(err)
+		// Check if Nomad has actually removed the cgroups
+		tu.WaitForResult(func() (bool, error) {
+			_, err = os.Stat(memLimits)
+			if err == nil {
+				return false, fmt.Errorf("expected an error from os.Stat %s", memLimits)
+			}
+			return true, nil
+		}, func(err error) { t.Error(err) })
 
+	}
 	expected := `/:
 alloc/
 bin/
@@ -161,7 +163,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	defer allocDir.Destroy()
 
 	executor := libcontainerFactory(testlog.HCLogger(t))
-	defer executor.Destroy()
+	defer executor.Shutdown("", 0)
 
 	// Need to run a command which will produce continuous output but not
 	// too quickly to ensure executor.Exit() stops the process.
@@ -174,7 +176,8 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	require.NoError(err)
 	require.NotZero(ps.Pid)
 	time.Sleep(500 * time.Millisecond)
-	require.NoError(executor.Destroy())
+	require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
+	executor.Wait()
 
 	output := execCmd.stdout.(*bufferCloser).String()
 	require.NotZero(len(output))

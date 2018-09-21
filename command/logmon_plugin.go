@@ -28,7 +28,7 @@ func (e *LogMonPluginCommand) Run(args []string) int {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
-			"logmon": logmon.NewPlugin(logmon.NewLogMon(hclog.Default().Named("logmon.test"))),
+			"logmon": logmon.NewPlugin(logmon.NewLogMon(hclog.Default().Named("logmon"))),
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
 	})

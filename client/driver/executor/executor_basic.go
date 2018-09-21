@@ -1,4 +1,4 @@
-// +build darwin dragonfly freebsd netbsd openbsd solaris windows
+// +build !linux
 
 package executor
 
@@ -9,3 +9,5 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 	logger.Error("isolation executor is not supported on this platform, using default")
 	return NewExecutor(logger)
 }
+
+func (e *UniversalExecutor) configureResourceContainer(_ int) error { return nil }

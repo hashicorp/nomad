@@ -75,6 +75,7 @@ type qemuHandle struct {
 	userPid        int
 	executor       executor.Executor
 	monitorPath    string
+	shutdownSignal string
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
 	logger         *log.Logger
@@ -320,12 +321,19 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, err
 	}
 
+	_, err = getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
+	}
+
 	execCmd := &executor.ExecCommand{
-		Cmd:     args[0],
-		Args:    args[1:],
-		User:    task.User,
-		TaskDir: ctx.TaskDir.Dir,
-		Env:     ctx.TaskEnv.List(),
+		Cmd:        args[0],
+		Args:       args[1:],
+		User:       task.User,
+		TaskDir:    ctx.TaskDir.Dir,
+		Env:        ctx.TaskEnv.List(),
+		StdoutPath: ctx.StdoutFifo,
+		StderrPath: ctx.StderrFifo,
 	}
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
@@ -340,6 +348,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		pluginClient:   pluginClient,
 		executor:       exec,
 		userPid:        ps.Pid,
+		shutdownSignal: task.KillSignal,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		monitorPath:    monitorPath,
@@ -364,6 +373,7 @@ type qemuId struct {
 	MaxKillTimeout time.Duration
 	UserPid        int
 	PluginConfig   *PluginReattachConfig
+	ShutdownSignal string
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -395,6 +405,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		logger:         d.logger,
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
+		shutdownSignal: id.ShutdownSignal,
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
@@ -412,6 +423,7 @@ func (h *qemuHandle) ID() string {
 		MaxKillTimeout: h.maxKillTimeout,
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
+		ShutdownSignal: h.shutdownSignal,
 	}
 
 	data, err := json.Marshal(id)
@@ -480,7 +492,7 @@ func (h *qemuHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		if err := h.executor.Destroy(); err != nil {
+		if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
 			return fmt.Errorf("executor Destroy failed: %v", err)
 		}
 		return nil
@@ -501,7 +513,7 @@ func (h *qemuHandle) run() {
 	close(h.doneCh)
 
 	// Destroy the executor
-	h.executor.Destroy()
+	h.executor.Shutdown(h.shutdownSignal, h.killTimeout)
 	h.pluginClient.Kill()
 
 	// Send the results

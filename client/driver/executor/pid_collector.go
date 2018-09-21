@@ -36,12 +36,14 @@ type nomadPid struct {
 	cpuStatsSys   *stats.CpuStats
 }
 
+// allPidGetter is a func which is used by the pid collector to gather
+// stats on
 type allPidGetter func() (map[int]*nomadPid, error)
 
 func newPidCollector(logger hclog.Logger) *pidCollector {
 	return &pidCollector{
 		pids:   make(map[int]*nomadPid),
-		logger: logger.Named("pid-collector"),
+		logger: logger.Named("pid_collector"),
 	}
 }
 

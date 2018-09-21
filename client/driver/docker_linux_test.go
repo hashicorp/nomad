@@ -58,7 +58,7 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	task.Config["args"] = []string{"-c", "sleep 2 & sleep 2"}
 
 	ctx := testDockerDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewDockerDriver(ctx.DriverCtx)
 
 	// Copy the image into the task's directory

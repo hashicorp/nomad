@@ -96,10 +96,6 @@ func (tl *TaskLogger) Close() {
 	}
 }
 
-func (tl *TaskLogger) StdoutFifo() string {
-	return tl.lro.fifoPath
-}
-
 func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 	tl := &TaskLogger{config: cfg}
 

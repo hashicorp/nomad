@@ -43,7 +43,7 @@ func TestDockerDriver_Signal(t *testing.T) {
 	}
 
 	ctx := testDockerDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewDockerDriver(ctx.DriverCtx)
 
 	// Copy the image into the task's directory

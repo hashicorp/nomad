@@ -33,6 +33,12 @@ type LaunchArgs struct {
 	Cmd *executor.ExecCommand
 }
 
+// ShutdownArgs wraps shutdown signal and grace period
+type ShutdownArgs struct {
+	Signal      string
+	GracePeriod time.Duration
+}
+
 type ExecArgs struct {
 	Deadline time.Time
 	Name     string
@@ -60,8 +66,8 @@ func (e *ExecutorRPC) Kill() error {
 	return e.client.Call("Plugin.Kill", new(interface{}), new(interface{}))
 }
 
-func (e *ExecutorRPC) Destroy() error {
-	return e.client.Call("Plugin.Destroy", new(interface{}), new(interface{}))
+func (e *ExecutorRPC) Shutdown(signal string, grace time.Duration) error {
+	return e.client.Call("Plugin.Shutdown", &ShutdownArgs{signal, grace}, new(interface{}))
 }
 
 func (e *ExecutorRPC) UpdateResources(resources *executor.Resources) error {
@@ -119,8 +125,8 @@ func (e *ExecutorRPCServer) Wait(args interface{}, ps *executor.ProcessState) er
 	return err
 }
 
-func (e *ExecutorRPCServer) Destroy(args interface{}, resp *interface{}) error {
-	return e.Impl.Destroy()
+func (e *ExecutorRPCServer) Shutdown(args ShutdownArgs, resp *interface{}) error {
+	return e.Impl.Shutdown(args.Signal, args.GracePeriod)
 }
 
 func (e *ExecutorRPCServer) UpdateResources(args *executor.Resources, resp *interface{}) error {
