@@ -813,7 +813,7 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 		n.logger.Error("ApplyPlan failed", "error", err)
 		return err
 	}
-
+	n.handleUpsertedEvals(req.PreemptionEvals)
 	return nil
 }
 

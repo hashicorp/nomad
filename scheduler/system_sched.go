@@ -60,7 +60,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate, structs.EvalTriggerFailedFollowUp,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
+		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate, structs.EvalTriggerPreemption,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
@@ -345,6 +345,24 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// set the record the older allocation id so that they are chained
 			if missing.Alloc != nil {
 				alloc.PreviousAllocation = missing.Alloc.ID
+			}
+
+			// If this placement involves preemption, set DesiredState to stop for those allocations
+			if option.PreemptedAllocs != nil {
+				var preemptedAllocIDs []string
+				for _, stop := range option.PreemptedAllocs {
+					s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
+
+					preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
+					if s.eval.AnnotatePlan && s.plan.Annotations != nil {
+						s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
+						if s.plan.Annotations.DesiredTGUpdates != nil {
+							desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
+							desired.Evict += 1
+						}
+					}
+				}
+				alloc.PreemptedAllocations = preemptedAllocIDs
 			}
 
 			s.plan.AppendAlloc(alloc)

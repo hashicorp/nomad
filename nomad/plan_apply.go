@@ -10,6 +10,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -163,12 +164,17 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
 		EvalID:            plan.EvalID,
+		NodePreemptions:   make([]*structs.Allocation, 0, len(result.NodePreemptions)),
 	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
 	}
 	for _, allocList := range result.NodeAllocation {
 		req.Alloc = append(req.Alloc, allocList...)
+	}
+
+	for _, preemptions := range result.NodePreemptions {
+		req.NodePreemptions = append(req.NodePreemptions, preemptions...)
 	}
 
 	// Set the time the alloc was applied for the first time. This can be used
@@ -180,6 +186,41 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		}
 		alloc.ModifyTime = now
 	}
+
+	// Set create and modify time for preempted allocs if any
+	// Also gather jobids to create follow up evals
+	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
+	for _, alloc := range req.NodePreemptions {
+		if alloc.CreateTime == 0 {
+			alloc.CreateTime = now
+		}
+		alloc.ModifyTime = now
+		id := structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID}
+		_, ok := preemptedJobIDs[id]
+		if !ok {
+			preemptedJobIDs[id] = struct{}{}
+		}
+	}
+
+	var evals []*structs.Evaluation
+	for preemptedJobID, _ := range preemptedJobIDs {
+		job, _ := p.State().JobByID(nil, preemptedJobID.Namespace, preemptedJobID.ID) // TODO Fix me
+		if job != nil {
+			//TODO(preetha): This eval is missing class eligibility related fields
+			// need to figure out how to set them per job
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   job.Namespace,
+				TriggeredBy: structs.EvalTriggerPreemption,
+				JobID:       job.ID,
+				Type:        job.Type,
+				Priority:    job.Priority,
+				Status:      structs.EvalStatusPending,
+			}
+			evals = append(evals, eval)
+		}
+	}
+	req.PreemptionEvals = evals
 
 	// Dispatch the Raft transaction
 	future, err := p.raftApplyFuture(structs.ApplyPlanResultsRequestType, &req)
@@ -259,6 +300,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 		NodeAllocation:    make(map[string][]*structs.Allocation),
 		Deployment:        plan.Deployment.Copy(),
 		DeploymentUpdates: plan.DeploymentUpdates,
+		NodePreemptions:   make(map[string][]*structs.Allocation),
 	}
 
 	// Collect all the nodeIDs
@@ -304,6 +346,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				result.NodeAllocation = nil
 				result.DeploymentUpdates = nil
 				result.Deployment = nil
+				result.NodePreemptions = nil
 				return true
 			}
 
@@ -318,6 +361,25 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 		if nodeAlloc := plan.NodeAllocation[nodeID]; len(nodeAlloc) > 0 {
 			result.NodeAllocation[nodeID] = nodeAlloc
 		}
+
+		if nodePreemptions := plan.NodePreemptions[nodeID]; nodePreemptions != nil {
+			var filteredNodePreemptions []*structs.Allocation
+			// Do a pass over preempted allocs in the plan to check
+			// whether the alloc is already in a terminal state
+			for _, preemptedAlloc := range nodePreemptions {
+				alloc, err := snap.AllocByID(nil, preemptedAlloc.ID)
+				if err != nil {
+					mErr.Errors = append(mErr.Errors, err)
+				}
+				if alloc != nil {
+					if !alloc.TerminalStatus() {
+						filteredNodePreemptions = append(filteredNodePreemptions, preemptedAlloc)
+					}
+				}
+			}
+			result.NodePreemptions[nodeID] = filteredNodePreemptions
+		}
+
 		return
 	}
 
@@ -461,6 +523,14 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	if update := plan.NodeUpdate[nodeID]; len(update) > 0 {
 		remove = append(remove, update...)
 	}
+
+	// Remove any preempted allocs
+	if preempted := plan.NodePreemptions[nodeID]; len(preempted) > 0 {
+		for _, allocs := range preempted {
+			remove = append(remove, allocs)
+		}
+	}
+
 	if updated := plan.NodeAllocation[nodeID]; len(updated) > 0 {
 		for _, alloc := range updated {
 			remove = append(remove, alloc)

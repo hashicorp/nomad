@@ -218,6 +218,43 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		}
 	}
 
+	// TODO(preetha) do a pass to group by jobid
+	// Prepare preempted allocs in the plan results for update
+	for _, preemptedAlloc := range results.NodePreemptions {
+		// Look for existing alloc
+		existing, err := txn.First("allocs", "id", preemptedAlloc.ID)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+
+		// Nothing to do if this does not exist
+		if existing == nil {
+			return nil
+		}
+		exist := existing.(*structs.Allocation)
+
+		// Copy everything from the existing allocation
+		copyAlloc := exist.Copy()
+
+		// Only update the fields set by the scheduler
+		copyAlloc.DesiredStatus = preemptedAlloc.DesiredStatus
+		copyAlloc.PreemptedByAllocation = preemptedAlloc.PreemptedByAllocation
+		copyAlloc.DesiredDescription = preemptedAlloc.DesiredDescription
+
+		// Upsert the preempted allocations
+		if err := s.upsertAllocsImpl(index, []*structs.Allocation{copyAlloc}, txn); err != nil {
+			return err
+		}
+	}
+
+	// Upsert followup evals for allocs that were preempted
+
+	for _, eval := range results.PreemptionEvals {
+		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
+			return err
+		}
+	}
+
 	txn.Commit()
 	return nil
 }

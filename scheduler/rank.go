@@ -25,6 +25,10 @@ type RankedNode struct {
 	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
 	Proposed []*structs.Allocation
+
+	// PreemptedAllocs is used by the BinpackIterator to identify allocs
+	// that should be preempted in order to make the placement
+	PreemptedAllocs []*structs.Allocation
 }
 
 func (r *RankedNode) GoString() string {
@@ -195,6 +199,16 @@ OUTER:
 				DiskMB: int64(iter.taskGroup.EphemeralDisk.SizeMB),
 			},
 		}
+
+		var allocsToPreempt []*structs.Allocation
+
+		// Count the number of existing preemptions
+		allPreemptions := iter.ctx.Plan().NodePreemptions
+		var currentPreemptions []*structs.Allocation
+		for _, allocs := range allPreemptions {
+			currentPreemptions = append(currentPreemptions, allocs...)
+		}
+
 		for _, task := range iter.taskGroup.Tasks {
 			// Allocate the resources
 			taskResources := &structs.AllocatedTaskResources{
@@ -211,10 +225,40 @@ OUTER:
 				ask := task.Resources.Networks[0].Copy()
 				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
-					iter.ctx.Metrics().ExhaustedNode(option.Node,
-						fmt.Sprintf("network: %s", err))
+					// If eviction is not enabled, mark this node as exhausted and continue
+					if !iter.evict {
+						iter.ctx.Metrics().ExhaustedNode(option.Node,
+							fmt.Sprintf("network: %s", err))
+						netIdx.Release()
+						continue OUTER
+					}
+
+					// Look for preemptible allocations to satisfy the network resource for this task
+					preemptedAllocsForTaskNetwork := preemptForNetworkResourceAsk(iter.priority, proposed, taskResources, netIdx, currentPreemptions)
+					if preemptedAllocsForTaskNetwork == nil {
+						iter.ctx.Metrics().ExhaustedNode(option.Node,
+							fmt.Sprintf("unable to meet network resource %v after preemption", ask))
+						netIdx.Release()
+						continue OUTER
+					}
+					allocsToPreempt = append(allocsToPreempt, preemptedAllocsForTaskNetwork...)
+
+					// First subtract out preempted allocations
+					proposed = structs.RemoveAllocs(proposed, preemptedAllocsForTaskNetwork)
+
+					// Reset the network index and try the offer again
 					netIdx.Release()
-					continue OUTER
+					netIdx = structs.NewNetworkIndex()
+					netIdx.SetNode(option.Node)
+					netIdx.AddAllocs(proposed)
+
+					offer, err = netIdx.AssignNetwork(ask)
+					if offer == nil {
+						iter.ctx.Metrics().ExhaustedNode(option.Node,
+							fmt.Sprintf("unexecpted error, unable to create offer after preempting:%v", err))
+						netIdx.Release()
+						continue OUTER
+					}
 				}
 
 				// Reserve this to prevent another task from colliding
@@ -234,19 +278,32 @@ OUTER:
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
 
-		// Check if these allocations fit, if they do not, simply skip this node
+		// Check if these allocations fit
 		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx)
 		netIdx.Release()
 		if !fit {
-			iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
-			continue
+			// Skip the node if evictions are not enabled
+			if !iter.evict {
+				iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
+				continue
+			}
+			// If eviction is enabled and the node doesn't fit the alloc, check if
+			// any allocs can be preempted
+
+			// Remove the last element containing the current placement from proposed allocs
+			current := proposed[:len(proposed)-1]
+			preemptForTaskGroup := findPreemptibleAllocationsForTaskGroup(iter.priority, current, total, option.Node, currentPreemptions)
+			allocsToPreempt = append(allocsToPreempt, preemptForTaskGroup...)
+			// If we were unable to find preempted allocs to meet these requirements
+			// mark as exhausted and continue
+			if len(preemptForTaskGroup) == 0 {
+				iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
+				continue
+			}
 		}
-
-		// XXX: For now we completely ignore evictions. We should use that flag
-		// to determine if its possible to evict other lower priority allocations
-		// to make room. This explodes the search space, so it must be done
-		// carefully.
-
+		if len(allocsToPreempt) > 0 {
+			option.PreemptedAllocs = allocsToPreempt
+		}
 		// Score the fit normally otherwise
 		fitness := structs.ScoreFit(option.Node, util)
 		normalizedFit := fitness / binPackingMaxFitScore
