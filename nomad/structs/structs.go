@@ -7138,6 +7138,10 @@ func (p *Plan) PopUpdate(alloc *Allocation) {
 func (p *Plan) AppendAlloc(alloc *Allocation) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
+
+	// Normalize the job
+	alloc.Job = nil
+
 	p.NodeAllocation[node] = append(existing, alloc)
 }
 
