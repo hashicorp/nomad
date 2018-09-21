@@ -522,27 +522,20 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			continue
 		}
 
-		// We have a blocked evaluation for this job so we know that any change
-		// to cluster capacity will cause the scheduler to be invoked, thus
-		// observing any healthy allocation. We can not continue, because we
-		// still must handle the case of non-progress base deployments and
-		// allocations who have gone unhealthy.
-		if !blocked {
-			// Nothing to do for this allocation since we have already handled
-			// this allocation update in the latest eval
-			if alloc.DeploymentStatus == nil || alloc.DeploymentStatus.ModifyIndex <= latestEval {
-				continue
-			}
-		}
-
 		// Determine if the update stanza for this group is progress based
 		progressBased := dstate.ProgressDeadline != 0
 
-		// We need to create an eval so the job can progress.
-		if !blocked && alloc.DeploymentStatus.IsHealthy() {
-			res.createEval = true
-		} else if progressBased && alloc.DeploymentStatus.IsUnhealthy() && deployment.Active() && !alloc.DesiredTransition.ShouldReschedule() {
+		// Check if the allocation has failed and we need to mark it for allow
+		// replacements
+		if progressBased && alloc.DeploymentStatus.IsUnhealthy() &&
+			deployment.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 			res.allowReplacements = append(res.allowReplacements, alloc.ID)
+			continue
+		}
+
+		// We need to create an eval so the job can progress.
+		if !blocked && alloc.DeploymentStatus.IsHealthy() && alloc.DeploymentStatus.ModifyIndex > latestEval {
+			res.createEval = true
 		}
 
 		// If the group is using a progress deadline, we don't have to do anything.
