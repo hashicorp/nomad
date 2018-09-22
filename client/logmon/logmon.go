@@ -142,7 +142,7 @@ type logRotatorWrapper struct {
 }
 
 // newLogRotatorWrapper takes a rotator and returns a wrapper that has the
-// processOutWriter to attach to the processes stdout or stderr.
+// processOutWriter to attach to the stdout or stderr of a process.
 func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
 	logger.Info("opening fifo", "path", path)
 	f, err := fifo.New(path)
@@ -161,7 +161,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.Fil
 	return wrap, nil
 }
 
-// start starts a go-routine that copies from the pipe into the rotator. This is
+// start starts a goroutine that copies from the pipe into the rotator. This is
 // called by the constructor and not the user of the wrapper.
 func (l *logRotatorWrapper) start() {
 	go func() {

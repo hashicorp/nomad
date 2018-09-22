@@ -376,7 +376,7 @@ func (l *LibcontainerExecutor) Signal(s os.Signal) error {
 	return l.userProc.Signal(s)
 }
 
-// Exec starts an additional process inside the executor
+// Exec starts an additional process inside the container
 func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
 	combined := append([]string{cmd}, args...)
 	// Capture output
@@ -446,15 +446,21 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
 func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
+	// set the new root directory for the container
 	cfg.Rootfs = command.TaskDir
+
+	// launch with mount namespace
 	cfg.Namespaces = lconfigs.Namespaces{
 		{Type: lconfigs.NEWNS},
 	}
+
+	// paths to mask using a bind mount to /dev/null to prevent reading
 	cfg.MaskPaths = []string{
 		"/proc/kcore",
 		"/sys/firmware",
 	}
 
+	// paths that should be remounted as readonly inside the container
 	cfg.ReadonlyPaths = []string{
 		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 	}

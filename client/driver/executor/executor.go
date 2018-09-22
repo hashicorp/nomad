@@ -196,8 +196,8 @@ func (v *ExecutorVersion) GoString() string {
 // supervises processes. In addition to process supervision it provides resource
 // and file system isolation
 type UniversalExecutor struct {
-	cmd     exec.Cmd
-	command *ExecCommand
+	childCmd   exec.Cmd
+	commandCfg *ExecCommand
 
 	exitState     *ProcessState
 	processExited chan interface{}
@@ -240,7 +240,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	e.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
-	e.command = command
+	e.commandCfg = command
 
 	// setting the user of the process
 	if command.User != "" {
@@ -251,7 +251,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// set the task dir as the working directory for the command
-	e.cmd.Dir = e.command.TaskDir
+	e.childCmd.Dir = e.commandCfg.TaskDir
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
@@ -263,17 +263,17 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, err
 	}
 
-	stdout, err := e.command.Stdout()
+	stdout, err := e.commandCfg.Stdout()
 	if err != nil {
 		return nil, err
 	}
-	stderr, err := e.command.Stderr()
+	stderr, err := e.commandCfg.Stderr()
 	if err != nil {
 		return nil, err
 	}
 
-	e.cmd.Stdout = stdout
-	e.cmd.Stderr = stderr
+	e.childCmd.Stdout = stdout
+	e.childCmd.Stderr = stderr
 
 	// Look up the binary path and make it executable
 	absPath, err := e.lookupBin(command.Cmd)
@@ -288,25 +288,25 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	path := absPath
 
 	// Set the commands arguments
-	e.cmd.Path = path
-	e.cmd.Args = append([]string{e.cmd.Path}, command.Args...)
-	e.cmd.Env = e.command.Env
+	e.childCmd.Path = path
+	e.childCmd.Args = append([]string{e.childCmd.Path}, command.Args...)
+	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
-	if err := e.cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.cmd.Args, err)
+	if err := e.childCmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
 	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
-	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
+	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
 
 // Exec a command inside a container for exec and java drivers.
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	return ExecScript(ctx, e.cmd.Dir, e.command.Env, e.cmd.SysProcAttr, name, args)
+	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, name, args)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
@@ -358,13 +358,13 @@ func (e *UniversalExecutor) UpdateResources(resources *Resources) error {
 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
-	err := e.cmd.Wait()
+	err := e.childCmd.Wait()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
 		return
 	}
 
-	e.command.Close()
+	e.commandCfg.Close()
 
 	exitCode := 1
 	var signal int
@@ -407,16 +407,16 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.
-	if e.command == nil {
+	if e.commandCfg == nil {
 		return nil
 	}
 
 	// If there is no process we can't shutdown
-	if e.cmd.Process == nil {
+	if e.childCmd.Process == nil {
 		return fmt.Errorf("executor failed to shutdown error: no process found")
 	}
 
-	proc, err := os.FindProcess(e.cmd.Process.Pid)
+	proc, err := os.FindProcess(e.childCmd.Process.Pid)
 	if err != nil {
 		return fmt.Errorf("executor failed to find process: %v", err)
 	}
@@ -447,14 +447,14 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	}
 
 	// Prefer killing the process via the resource container.
-	if !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
+	if !(e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup) {
 		if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
-				fmt.Errorf("can't kill process with pid %d: %v", e.cmd.Process.Pid, err))
+				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, err))
 		}
 	}
 
-	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
+	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
 		if err := e.resConCtx.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
@@ -468,13 +468,13 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 // The return path is absolute.
 func (e *UniversalExecutor) lookupBin(bin string) (string, error) {
 	// Check in the local directory
-	local := filepath.Join(e.command.TaskDir, allocdir.TaskLocal, bin)
+	local := filepath.Join(e.commandCfg.TaskDir, allocdir.TaskLocal, bin)
 	if _, err := os.Stat(local); err == nil {
 		return local, nil
 	}
 
 	// Check at the root of the task's directory
-	root := filepath.Join(e.command.TaskDir, bin)
+	root := filepath.Join(e.commandCfg.TaskDir, bin)
 	if _, err := os.Stat(root); err == nil {
 		return root, nil
 	}
@@ -514,12 +514,12 @@ func (e *UniversalExecutor) makeExecutable(binPath string) error {
 
 // Signal sends the passed signal to the task
 func (e *UniversalExecutor) Signal(s os.Signal) error {
-	if e.cmd.Process == nil {
+	if e.childCmd.Process == nil {
 		return fmt.Errorf("Task not yet run")
 	}
 
-	e.logger.Debug("sending signal to PID", "signal", s, "pid", e.cmd.Process.Pid)
-	err := e.cmd.Process.Signal(s)
+	e.logger.Debug("sending signal to PID", "signal", s, "pid", e.childCmd.Process.Pid)
+	err := e.childCmd.Process.Signal(s)
 	if err != nil {
 		e.logger.Error("sending signal failed", "signal", s, "error", err)
 		return err

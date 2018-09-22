@@ -49,15 +49,15 @@ func (e *UniversalExecutor) runAs(userid string) error {
 	}
 
 	// Set the command to run as that user and group.
-	if e.cmd.SysProcAttr == nil {
-		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	if e.childCmd.SysProcAttr == nil {
+		e.childCmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	if e.cmd.SysProcAttr.Credential == nil {
-		e.cmd.SysProcAttr.Credential = &syscall.Credential{}
+	if e.childCmd.SysProcAttr.Credential == nil {
+		e.childCmd.SysProcAttr.Credential = &syscall.Credential{}
 	}
-	e.cmd.SysProcAttr.Credential.Uid = uint32(uid)
-	e.cmd.SysProcAttr.Credential.Gid = uint32(gid)
-	e.cmd.SysProcAttr.Credential.Groups = gids
+	e.childCmd.SysProcAttr.Credential.Uid = uint32(uid)
+	e.childCmd.SysProcAttr.Credential.Gid = uint32(gid)
+	e.childCmd.SysProcAttr.Credential.Groups = gids
 
 	e.logger.Debug("setting process user", "user", uid, "group", gid, "additional_groups", gids)
 

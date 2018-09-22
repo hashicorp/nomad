@@ -69,11 +69,11 @@ func (h *logmonHook) Prestart(ctx context.Context,
 
 	if runtime.GOOS == "windows" {
 		id := uuid.Generate()[:8]
-		h.stdoutFifo = fmt.Sprintf("//./pipe/%s.stdout.%s", id, req.Task.Name)
-		h.stderrFifo = fmt.Sprintf("//./pipe/%s.stderr.%s", id, req.Task.Name)
+		h.stdoutFifo = fmt.Sprintf("//./pipe/%s-%s.stdout", req.Task.Name, id)
+		h.stderrFifo = fmt.Sprintf("//./pipe/%s-%s.stderr", req.Task.Name, id)
 	} else {
-		h.stdoutFifo = filepath.Join(h.taskDir.LogDir, fmt.Sprintf("%s.stdout", req.Task.Name))
-		h.stderrFifo = filepath.Join(h.taskDir.LogDir, fmt.Sprintf("%s.stderr", req.Task.Name))
+		h.stdoutFifo = filepath.Join(h.taskDir.LogDir, fmt.Sprintf(".%s.stdout.fifo", req.Task.Name))
+		h.stderrFifo = filepath.Join(h.taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", req.Task.Name))
 	}
 
 	err = h.logmon.Start(&logmon.LogConfig{
