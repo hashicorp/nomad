@@ -3,14 +3,11 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
@@ -19,10 +16,8 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/client/logmon"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -109,10 +104,6 @@ type TaskRunner struct {
 	// taskDir is the directory structure for this task.
 	taskDir *allocdir.TaskDir
 
-	// logmon is the handle to the log monitor process for the task.
-	logmon             logmon.LogMon
-	logmonPluginClient *plugin.Client
-
 	// envBuilder is used to build the task's environment
 	envBuilder *env.Builder
 
@@ -138,6 +129,10 @@ type TaskRunner struct {
 	// baseLabels are used when emitting tagged metrics. All task runner metrics
 	// will have these tags, and optionally more.
 	baseLabels []metrics.Label
+
+	// taskLoggingFifoGetter is used to return the paths to the stdout and stderr
+	// fifos to be passed to the driver for task logging
+	taskLoggingFifoGetter func() (stdoutFifo, stderrFifo string)
 }
 
 type Config struct {
@@ -384,17 +379,6 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	}
 }
 
-func (tr *TaskRunner) launchLogmon() error {
-	l, c, err := logmon.LaunchLogMon(tr.logger)
-	if err != nil {
-		return err
-	}
-
-	tr.logmon = l
-	tr.logmonPluginClient = c
-	return nil
-}
-
 // runDriver runs the driver and waits for it to exit
 func (tr *TaskRunner) runDriver() error {
 	// Run prestart
@@ -408,36 +392,7 @@ func (tr *TaskRunner) runDriver() error {
 	// Create a new context for Start since the environment may have been updated.
 	ctx = driver.NewExecContext(tr.taskDir, tr.envBuilder.Build())
 
-	// Launch logmon instance for the task.
-	err = tr.launchLogmon()
-	if err != nil {
-		tr.logger.Error("failed to launch logmon process", "error", err)
-		return err
-	}
-
-	var stdoutFifo, stderrFifo string
-	if runtime.GOOS == "windows" {
-		id := uuid.Generate()[:8]
-		stdoutFifo = fmt.Sprintf("//./pipe/%s.stdout.%s", id, tr.task.Name)
-		stderrFifo = fmt.Sprintf("//./pipe/%s.stderr.%s", id, tr.task.Name)
-	} else {
-		stdoutFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stdout", tr.task.Name))
-		stderrFifo = filepath.Join(tr.taskDir.LogDir, fmt.Sprintf("%s.stderr", tr.task.Name))
-	}
-
-	err = tr.logmon.Start(&logmon.LogConfig{
-		LogDir:        tr.taskDir.LogDir,
-		StdoutLogFile: fmt.Sprintf("%s.stdout", tr.task.Name),
-		StderrLogFile: fmt.Sprintf("%s.stderr", tr.task.Name),
-		StdoutFifo:    stdoutFifo,
-		StderrFifo:    stderrFifo,
-		MaxFiles:      tr.task.LogConfig.MaxFiles,
-		MaxFileSizeMB: tr.task.LogConfig.MaxFileSizeMB,
-	})
-	if err != nil {
-		tr.logger.Error("failed to start logmon", "error", err)
-		return err
-	}
+	stdoutFifo, stderrFifo := tr.taskLoggingFifoGetter()
 	ctx.StdoutFifo = stdoutFifo
 	ctx.StderrFifo = stderrFifo
 

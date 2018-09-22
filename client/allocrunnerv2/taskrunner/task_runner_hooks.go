@@ -21,6 +21,7 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
+		newLogMonHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
 	}
@@ -242,9 +243,6 @@ func (tr *TaskRunner) exited() error {
 			tr.logger.Trace("finished exited hooks", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
-
-	tr.logmon.Stop()
-	tr.logmonPluginClient.Kill()
 
 	return merr.ErrorOrNil()
 
