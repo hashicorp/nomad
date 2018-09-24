@@ -6882,8 +6882,11 @@ type Evaluation struct {
 	LeaderACL string
 
 	// SnapshotIndex is the Raft index of the snapshot used to process the
-	// evaluation. As such it will only be set once it has gone through the
-	// scheduler.
+	// evaluation. The index will either be set when it has gone through the
+	// scheduler or if a blocked evaluation is being created. The index is set
+	// in this case so we can determine if an early unblocking is required since
+	// capacity has changed since the evaluation was created. This can result in
+	// the SnapshotIndex being less than the CreateIndex.
 	SnapshotIndex uint64
 
 	// Raft Indexes
