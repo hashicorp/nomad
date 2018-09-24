@@ -73,13 +73,12 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
 	// Launch logmon instance for the task.
-	err := h.launchLogMon()
-	if err != nil {
+	if err := h.launchLogMon(); err != nil {
 		h.logger.Error("failed to launch logmon process", "error", err)
 		return err
 	}
 
-	err = h.logmon.Start(&logmon.LogConfig{
+	err := h.logmon.Start(&logmon.LogConfig{
 		LogDir:        h.config.logDir,
 		StdoutLogFile: fmt.Sprintf("%s.stdout", req.Task.Name),
 		StderrLogFile: fmt.Sprintf("%s.stderr", req.Task.Name),
@@ -95,10 +94,14 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	return nil
 }
 
-func (h *logmonHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
+func (h *logmonHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
 
-	h.logmon.Stop()
-	h.logmonPluginClient.Kill()
+	if h.logmon != nil {
+		h.logmon.Stop()
+	}
+	if h.logmonPluginClient != nil {
+		h.logmonPluginClient.Kill()
+	}
 
 	return nil
 }
