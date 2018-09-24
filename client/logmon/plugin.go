@@ -2,7 +2,6 @@ package logmon
 
 import (
 	"context"
-	"os/exec"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -15,17 +14,20 @@ import (
 // LaunchLogMon an instance of logmon
 // TODO: Integrate with base plugin loader
 func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
+	logger = logger.Named("logmon-launcher")
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	cmd := newPluginCmd(bin, logger)
 
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
 			"logmon": NewPlugin(NewLogMon(hclog.L().Named("logmon"))),
 		},
-		Cmd: exec.Command(bin, "logmon"),
+		Cmd: cmd,
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
