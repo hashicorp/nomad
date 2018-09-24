@@ -8,7 +8,6 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -20,26 +19,39 @@ type logmonHook struct {
 	logmon             logmon.LogMon
 	logmonPluginClient *plugin.Client
 
-	stdoutFifo string
-	stderrFifo string
-
-	taskDir *allocdir.TaskDir
+	config *logmonHookConfig
 
 	logger hclog.Logger
 }
 
-func newLogMonHook(tr *TaskRunner, logger hclog.Logger) *logmonHook {
+type logmonHookConfig struct {
+	logDir     string
+	stdoutFifo string
+	stderrFifo string
+}
+
+func newLogMonHook(cfg *logmonHookConfig, logger hclog.Logger) *logmonHook {
 	hook := &logmonHook{
-		taskDir: tr.taskDir,
-		logger:  logger,
+		config: cfg,
+		logger: logger,
 	}
 
-	tr.taskLoggingFifoGetter = hook.getFifos
 	return hook
 }
 
-func (h *logmonHook) getFifos() (stdout, stderr string) {
-	return h.stdoutFifo, h.stderrFifo
+func newLogMonHookConfig(taskName, logDir string) *logmonHookConfig {
+	cfg := &logmonHookConfig{
+		logDir: logDir,
+	}
+	if runtime.GOOS == "windows" {
+		id := uuid.Generate()[:8]
+		cfg.stdoutFifo = fmt.Sprintf("//./pipe/%s-%s.stdout", taskName, id)
+		cfg.stderrFifo = fmt.Sprintf("//./pipe/%s-%s.stderr", taskName, id)
+	} else {
+		cfg.stdoutFifo = filepath.Join(logDir, fmt.Sprintf(".%s.stdout.fifo", taskName))
+		cfg.stderrFifo = filepath.Join(logDir, fmt.Sprintf(".%s.stderr.fifo", taskName))
+	}
+	return cfg
 }
 
 func (*logmonHook) Name() string {
@@ -67,21 +79,12 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		return err
 	}
 
-	if runtime.GOOS == "windows" {
-		id := uuid.Generate()[:8]
-		h.stdoutFifo = fmt.Sprintf("//./pipe/%s-%s.stdout", req.Task.Name, id)
-		h.stderrFifo = fmt.Sprintf("//./pipe/%s-%s.stderr", req.Task.Name, id)
-	} else {
-		h.stdoutFifo = filepath.Join(h.taskDir.LogDir, fmt.Sprintf(".%s.stdout.fifo", req.Task.Name))
-		h.stderrFifo = filepath.Join(h.taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", req.Task.Name))
-	}
-
 	err = h.logmon.Start(&logmon.LogConfig{
-		LogDir:        h.taskDir.LogDir,
+		LogDir:        h.config.logDir,
 		StdoutLogFile: fmt.Sprintf("%s.stdout", req.Task.Name),
 		StderrLogFile: fmt.Sprintf("%s.stderr", req.Task.Name),
-		StdoutFifo:    h.stdoutFifo,
-		StderrFifo:    h.stderrFifo,
+		StdoutFifo:    h.config.stdoutFifo,
+		StderrFifo:    h.config.stderrFifo,
 		MaxFiles:      req.Task.LogConfig.MaxFiles,
 		MaxFileSizeMB: req.Task.LogConfig.MaxFileSizeMB,
 	})
