@@ -767,7 +767,7 @@ func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateS
 		}
 	}
 
-	// Use the last index that affected the jobs table
+	// Use the last index that affected the allocs table
 	if len(stubs) == 0 {
 		index, err := state.Index("allocs")
 		if err != nil {
@@ -806,7 +806,7 @@ func (w *deploymentWatcher) jobEvalStatus() (latestIndex uint64, blocked bool, e
 
 	var max uint64
 	for _, eval := range evals {
-		// If we ahve a blocked eval, then we do not care what the index is
+		// If we have a blocked eval, then we do not care what the index is
 		// since we will not need to make a new eval.
 		if eval.ShouldBlock() {
 			return 0, true, nil
