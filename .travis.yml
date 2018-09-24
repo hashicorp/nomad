@@ -27,6 +27,10 @@ matrix:
       env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
     - os: osx
       osx_image: xcode9.1
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: RUN_E2E_TESTS=1 SKIP_NOMAD_TESTS=1
   allow_failures:
     - os: osx
   fast_finish: true
