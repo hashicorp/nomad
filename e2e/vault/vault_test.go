@@ -175,8 +175,8 @@ func TestVaultCompatibility(t *testing.T) {
 	vaultBinaries := h.reconcile()
 
 	for version, vaultBin := range vaultBinaries {
+		vbin := vaultBin
 		t.Run(version, func(t *testing.T) {
-			vbin := vaultBin
 			testVaultCompatibility(t, vbin)
 		})
 	}
