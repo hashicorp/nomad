@@ -17,8 +17,6 @@ func (c *logmonClient) Start(cfg *LogConfig) error {
 		StderrFileName: cfg.StderrLogFile,
 		MaxFiles:       uint32(cfg.MaxFiles),
 		MaxFileSizeMb:  uint32(cfg.MaxFileSizeMB),
-		Uid:            uint32(cfg.UID),
-		Gid:            uint32(cfg.GID),
 		StdoutFifo:     cfg.StdoutFifo,
 		StderrFifo:     cfg.StderrFifo,
 	}

@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,9 +48,6 @@ type FileRotator struct {
 	bufw        *bufio.Writer
 	bufLock     sync.Mutex
 
-	uid int // user id of the file owner
-	gid int // group id of the file owner
-
 	flushTicker *time.Ticker
 	logger      hclog.Logger
 	purgeCh     chan struct{}
@@ -63,7 +59,7 @@ type FileRotator struct {
 
 // NewFileRotator returns a new file rotator
 func NewFileRotator(path string, baseFile string, maxFiles int,
-	fileSize int64, uid, gid int, logger hclog.Logger) (*FileRotator, error) {
+	fileSize int64, logger hclog.Logger) (*FileRotator, error) {
 	logger = logger.Named("rotator")
 	rotator := &FileRotator{
 		MaxFiles: maxFiles,
@@ -76,8 +72,6 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		logger:      logger,
 		purgeCh:     make(chan struct{}, 1),
 		doneCh:      make(chan struct{}, 1),
-		uid:         uid,
-		gid:         gid,
 	}
 
 	if err := rotator.lastFile(); err != nil {
@@ -222,12 +216,6 @@ func (f *FileRotator) createFile() error {
 	cFile, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
-	}
-
-	if runtime.GOOS != "windows" {
-		if err = cFile.Chown(f.uid, f.gid); err != nil {
-			return err
-		}
 	}
 
 	f.currentFile = cFile

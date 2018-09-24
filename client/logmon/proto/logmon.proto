@@ -13,10 +13,8 @@ message StartRequest {
     string stderr_file_name = 3;
     uint32 max_files = 4;
     uint32 max_file_size_mb = 5;
-    uint32 uid = 6;
-    uint32 gid = 7;
-    string stdout_fifo = 8;
-    string stderr_fifo = 9;
+    string stdout_fifo = 6;
+    string stderr_fifo = 7;
 }
 
 message StartResponse {
