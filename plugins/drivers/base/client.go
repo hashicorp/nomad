@@ -61,7 +61,7 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 	return caps, nil
 }
 
-func (d *driverPluginClient) Fingerprint() (chan *Fingerprint, error) {
+func (d *driverPluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
 	req := &proto.FingerprintRequest{}
 
 	stream, err := d.client.Fingerprint(context.Background(), req)
@@ -116,10 +116,10 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
 	return taskHandleFromProto(resp.Handle), nil
 }
 
-func (d *driverPluginClient) WaitTask(ctx context.Context, id string) chan *ExitResult {
+func (d *driverPluginClient) WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error) {
 	ch := make(chan *ExitResult)
 	go d.handleWaitTask(ctx, id, ch)
-	return ch
+	return ch, nil
 }
 
 func (d *driverPluginClient) handleWaitTask(ctx context.Context, id string, ch chan *ExitResult) {
@@ -207,9 +207,9 @@ func (d *driverPluginClient) TaskStats(taskID string) (*TaskStats, error) {
 	return stats, nil
 }
 
-func (d *driverPluginClient) TaskEvents() (chan *TaskEvent, error) {
+func (d *driverPluginClient) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
 	req := &proto.TaskEventsRequest{}
-	stream, err := d.client.TaskEvents(context.Background(), req)
+	stream, err := d.client.TaskEvents(ctx, req)
 	if err != nil {
 		return nil, err
 	}

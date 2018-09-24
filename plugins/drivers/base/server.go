@@ -53,29 +53,32 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 }
 
 func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv proto.Driver_FingerprintServer) error {
-	ch, err := b.impl.Fingerprint()
+	ctx := srv.Context()
+	ch, err := b.impl.Fingerprint(ctx)
 	if err != nil {
 		return err
 	}
 
 	for {
-		f := <-ch
-		if f == nil {
-			break
-		}
-		resp := &proto.FingerprintResponse{
-			Attributes:        f.Attributes,
-			Health:            healthStateToProto(f.Health),
-			HealthDescription: f.HealthDescription,
-		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case f, ok := <-ch:
 
-		if err := srv.Send(resp); err == io.EOF {
-			break
-		} else if err != nil {
-			return err
+			if !ok {
+				return nil
+			}
+			resp := &proto.FingerprintResponse{
+				Attributes:        f.Attributes,
+				Health:            healthStateToProto(f.Health),
+				HealthDescription: f.HealthDescription,
+			}
+
+			if err := srv.Send(resp); err != nil {
+				return err
+			}
 		}
 	}
-	return nil
 }
 
 func (b *driverPluginServer) RecoverTask(ctx context.Context, req *proto.RecoverTaskRequest) (*proto.RecoverTaskResponse, error) {
@@ -101,7 +104,11 @@ func (b *driverPluginServer) StartTask(ctx context.Context, req *proto.StartTask
 }
 
 func (b *driverPluginServer) WaitTask(ctx context.Context, req *proto.WaitTaskRequest) (*proto.WaitTaskResponse, error) {
-	ch := b.impl.WaitTask(ctx, req.TaskId)
+	ch, err := b.impl.WaitTask(ctx, req.TaskId)
+	if err != nil {
+		return nil, err
+	}
+
 	result := <-ch
 	var errStr string
 	if result.Err != nil {
@@ -215,7 +222,7 @@ func (b *driverPluginServer) SignalTask(ctx context.Context, req *proto.SignalTa
 }
 
 func (b *driverPluginServer) TaskEvents(req *proto.TaskEventsRequest, srv proto.Driver_TaskEventsServer) error {
-	ch, err := b.impl.TaskEvents()
+	ch, err := b.impl.TaskEvents(srv.Context())
 	if err != nil {
 		return err
 	}

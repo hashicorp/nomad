@@ -36,7 +36,7 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 
 	var complete bool
 	impl := &MockDriver{
-		FingerprintF: func() (chan *Fingerprint, error) {
+		FingerprintF: func(ctx context.Context) (<-chan *Fingerprint, error) {
 			ch := make(chan *Fingerprint)
 			go func() {
 				defer close(ch)
@@ -52,7 +52,7 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 	harness := NewDriverHarness(t, impl)
 	defer harness.Kill()
 
-	ch, err := harness.Fingerprint()
+	ch, err := harness.Fingerprint(context.Background())
 	require.NoError(err)
 
 	var wg sync.WaitGroup
@@ -149,13 +149,13 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 	signalTask := make(chan struct{})
 
 	impl := &MockDriver{
-		WaitTaskF: func(_ context.Context, id string) chan *ExitResult {
+		WaitTaskF: func(_ context.Context, id string) (<-chan *ExitResult, error) {
 			ch := make(chan *ExitResult)
 			go func() {
 				<-signalTask
 				ch <- result
 			}()
-			return ch
+			return ch, nil
 		},
 	}
 
@@ -166,7 +166,8 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 	var finished bool
 	go func() {
 		defer wg.Done()
-		ch := harness.WaitTask(context.TODO(), "foo")
+		ch, err := harness.WaitTask(context.TODO(), "foo")
+		require.NoError(err)
 		actualResult := <-ch
 		finished = true
 		require.Exactly(result, actualResult)
@@ -210,7 +211,7 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 	}
 
 	impl := &MockDriver{
-		TaskEventsF: func() (chan *TaskEvent, error) {
+		TaskEventsF: func(ctx context.Context) (<-chan *TaskEvent, error) {
 			ch := make(chan *TaskEvent)
 			go func() {
 				defer close(ch)
@@ -225,7 +226,7 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 	harness := NewDriverHarness(t, impl)
 	defer harness.Kill()
 
-	ch, err := harness.TaskEvents()
+	ch, err := harness.TaskEvents(context.Background())
 	require.NoError(err)
 
 	for _, event := range events {

@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
-	"github.com/ugorji/go/codec"
 )
 
 var protoTaskStateMap = map[TaskState]proto.TaskState{
@@ -44,18 +43,16 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 	if pb == nil {
 		return &TaskConfig{}
 	}
-	var driverConfig map[string]interface{}
-	codec.NewDecoderBytes(pb.MsgpackDriverConfig, nstructs.MsgpackHandle).Decode(&driverConfig)
 	return &TaskConfig{
-		ID:           pb.Id,
-		Name:         pb.Name,
-		Env:          pb.Env,
-		DriverConfig: driverConfig,
-		Resources:    Resources{},      //TODO
-		Devices:      []DeviceConfig{}, //TODO
-		Mounts:       []MountConfig{},  //TODO
-		User:         pb.User,
-		AllocDir:     pb.AllocDir,
+		ID:              pb.Id,
+		Name:            pb.Name,
+		Env:             pb.Env,
+		rawDriverConfig: pb.MsgpackDriverConfig,
+		Resources:       Resources{},      //TODO
+		Devices:         []DeviceConfig{}, //TODO
+		Mounts:          []MountConfig{},  //TODO
+		User:            pb.User,
+		AllocDir:        pb.AllocDir,
 	}
 }
 
@@ -64,16 +61,16 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		return &proto.TaskConfig{}
 	}
 	pb := &proto.TaskConfig{
-		Id:        cfg.ID,
-		Name:      cfg.Name,
-		Env:       cfg.Env,
-		Resources: &proto.Resources{},
-		Mounts:    []*proto.Mount{},
-		Devices:   []*proto.Device{},
-		User:      cfg.User,
-		AllocDir:  cfg.AllocDir,
+		Id:                  cfg.ID,
+		Name:                cfg.Name,
+		Env:                 cfg.Env,
+		Resources:           &proto.Resources{},
+		Mounts:              []*proto.Mount{},
+		Devices:             []*proto.Device{},
+		User:                cfg.User,
+		AllocDir:            cfg.AllocDir,
+		MsgpackDriverConfig: cfg.rawDriverConfig,
 	}
-	codec.NewEncoderBytes(&pb.MsgpackDriverConfig, nstructs.MsgpackHandle).Encode(cfg.DriverConfig)
 	return pb
 }
 
@@ -177,7 +174,7 @@ func taskStatsFromProto(pb *proto.TaskStats) (*TaskStats, error) {
 		return nil, err
 	}
 
-	pids := map[string]*ResourceUsage{}
+	pids := map[string]*cstructs.ResourceUsage{}
 	for pid, ru := range pb.ResourceUsageByPid {
 		pids[pid] = resourceUsageFromProto(ru)
 	}
@@ -192,48 +189,48 @@ func taskStatsFromProto(pb *proto.TaskStats) (*TaskStats, error) {
 	return stats, nil
 }
 
-func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
+func resourceUsageToProto(ru *cstructs.ResourceUsage) *proto.TaskResourceUsage {
 	cpu := &proto.CPUUsage{}
-	for _, field := range ru.CPU.Measured {
+	for _, field := range ru.CpuStats.Measured {
 		switch field {
 		case "System Mode":
-			cpu.SystemMode = ru.CPU.SystemMode
+			cpu.SystemMode = ru.CpuStats.SystemMode
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_SYSTEM_MODE)
 		case "User Mode":
-			cpu.UserMode = ru.CPU.UserMode
+			cpu.UserMode = ru.CpuStats.UserMode
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_USER_MODE)
 		case "Total Ticks":
-			cpu.TotalTicks = ru.CPU.TotalTicks
+			cpu.TotalTicks = ru.CpuStats.TotalTicks
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_TOTAL_TICKS)
 		case "Throttled Periods":
-			cpu.ThrottledPeriods = ru.CPU.ThrottledPeriods
+			cpu.ThrottledPeriods = ru.CpuStats.ThrottledPeriods
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_THROTTLED_PERIODS)
 		case "Throttled Time":
-			cpu.ThrottledTime = ru.CPU.ThrottledTime
+			cpu.ThrottledTime = ru.CpuStats.ThrottledTime
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_THROTTLED_TIME)
 		case "Percent":
-			cpu.Percent = ru.CPU.Percent
+			cpu.Percent = ru.CpuStats.Percent
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_PERCENT)
 		}
 	}
 
 	memory := &proto.MemoryUsage{}
-	for _, field := range ru.Memory.Measured {
+	for _, field := range ru.MemoryStats.Measured {
 		switch field {
 		case "RSS":
-			memory.Rss = ru.Memory.RSS
+			memory.Rss = ru.MemoryStats.RSS
 			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_RSS)
 		case "Cache":
-			memory.Cache = ru.Memory.Cache
+			memory.Cache = ru.MemoryStats.Cache
 			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_CACHE)
 		case "Max Usage":
-			memory.MaxUsage = ru.Memory.MaxUsage
+			memory.MaxUsage = ru.MemoryStats.MaxUsage
 			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_MAX_USAGE)
 		case "Kernel Usage":
-			memory.KernelUsage = ru.Memory.KernelUsage
+			memory.KernelUsage = ru.MemoryStats.KernelUsage
 			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_KERNEL_USAGE)
 		case "Kernel Max Usage":
-			memory.KernelMaxUsage = ru.Memory.KernelMaxUsage
+			memory.KernelMaxUsage = ru.MemoryStats.KernelMaxUsage
 			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_KERNEL_MAX_USAGE)
 		}
 	}
@@ -244,8 +241,8 @@ func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
 	}
 }
 
-func resourceUsageFromProto(pb *proto.TaskResourceUsage) *ResourceUsage {
-	cpu := CPUUsage{}
+func resourceUsageFromProto(pb *proto.TaskResourceUsage) *cstructs.ResourceUsage {
+	cpu := cstructs.CpuStats{}
 	if pb.Cpu != nil {
 		for _, field := range pb.Cpu.MeasuredFields {
 			switch field {
@@ -271,7 +268,7 @@ func resourceUsageFromProto(pb *proto.TaskResourceUsage) *ResourceUsage {
 		}
 	}
 
-	memory := MemoryUsage{}
+	memory := cstructs.MemoryStats{}
 	if pb.Memory != nil {
 		for _, field := range pb.Memory.MeasuredFields {
 			switch field {
@@ -294,8 +291,8 @@ func resourceUsageFromProto(pb *proto.TaskResourceUsage) *ResourceUsage {
 		}
 	}
 
-	return &ResourceUsage{
-		CPU:    cpu,
-		Memory: memory,
+	return &cstructs.ResourceUsage{
+		CpuStats:    &cpu,
+		MemoryStats: &memory,
 	}
 }

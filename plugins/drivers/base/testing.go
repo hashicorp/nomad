@@ -69,26 +69,28 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig) func() {
 type MockDriver struct {
 	base.MockPlugin
 	TaskConfigSchemaF func() (*hclspec.Spec, error)
-	FingerprintF      func() (chan *Fingerprint, error)
+	FingerprintF      func(context.Context) (<-chan *Fingerprint, error)
 	CapabilitiesF     func() (*Capabilities, error)
 	RecoverTaskF      func(*TaskHandle) error
 	StartTaskF        func(*TaskConfig) (*TaskHandle, error)
-	WaitTaskF         func(context.Context, string) chan *ExitResult
+	WaitTaskF         func(context.Context, string) (<-chan *ExitResult, error)
 	StopTaskF         func(string, time.Duration, string) error
 	DestroyTaskF      func(string, bool) error
 	InspectTaskF      func(string) (*TaskStatus, error)
 	TaskStatsF        func(string) (*TaskStats, error)
-	TaskEventsF       func() (chan *TaskEvent, error)
+	TaskEventsF       func(context.Context) (<-chan *TaskEvent, error)
 	SignalTaskF       func(string, string) error
 	ExecTaskF         func(string, []string, time.Duration) (*ExecTaskResult, error)
 }
 
-func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error)     { return d.TaskConfigSchemaF() }
-func (d *MockDriver) Fingerprint() (chan *Fingerprint, error)      { return d.FingerprintF() }
+func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskConfigSchemaF() }
+func (d *MockDriver) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
+	return d.FingerprintF(ctx)
+}
 func (d *MockDriver) Capabilities() (*Capabilities, error)         { return d.CapabilitiesF() }
 func (d *MockDriver) RecoverTask(h *TaskHandle) error              { return d.RecoverTaskF(h) }
 func (d *MockDriver) StartTask(c *TaskConfig) (*TaskHandle, error) { return d.StartTaskF(c) }
-func (d *MockDriver) WaitTask(ctx context.Context, id string) chan *ExitResult {
+func (d *MockDriver) WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error) {
 	return d.WaitTaskF(ctx, id)
 }
 func (d *MockDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
@@ -99,7 +101,9 @@ func (d *MockDriver) DestroyTask(taskID string, force bool) error {
 }
 func (d *MockDriver) InspectTask(taskID string) (*TaskStatus, error) { return d.InspectTaskF(taskID) }
 func (d *MockDriver) TaskStats(taskID string) (*TaskStats, error)    { return d.TaskStats(taskID) }
-func (d *MockDriver) TaskEvents() (chan *TaskEvent, error)           { return d.TaskEventsF() }
+func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
+	return d.TaskEventsF(ctx)
+}
 func (d *MockDriver) SignalTask(taskID string, signal string) error {
 	return d.SignalTask(taskID, signal)
 }

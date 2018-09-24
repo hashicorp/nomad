@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"golang.org/x/net/context"
@@ -18,16 +19,16 @@ type DriverPlugin interface {
 
 	TaskConfigSchema() (*hclspec.Spec, error)
 	Capabilities() (*Capabilities, error)
-	Fingerprint() (chan *Fingerprint, error)
+	Fingerprint(context.Context) (<-chan *Fingerprint, error)
 
 	RecoverTask(*TaskHandle) error
 	StartTask(*TaskConfig) (*TaskHandle, error)
-	WaitTask(ctx context.Context, taskID string) chan *ExitResult
+	WaitTask(ctx context.Context, taskID string) (<-chan *ExitResult, error)
 	StopTask(taskID string, timeout time.Duration, signal string) error
 	DestroyTask(taskID string, force bool) error
 	InspectTask(taskID string) (*TaskStatus, error)
 	TaskStats(taskID string) (*TaskStats, error)
-	TaskEvents() (chan *TaskEvent, error)
+	TaskEvents(context.Context) (<-chan *TaskEvent, error)
 
 	SignalTask(taskID string, signal string) error
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
@@ -80,15 +81,15 @@ type Capabilities struct {
 }
 
 type TaskConfig struct {
-	ID           string
-	Name         string
-	DriverConfig map[string]interface{}
-	Env          map[string]string
-	Resources    Resources
-	Devices      []DeviceConfig
-	Mounts       []MountConfig
-	User         string
-	AllocDir     string
+	ID              string
+	Name            string
+	Env             map[string]string
+	Resources       Resources
+	Devices         []DeviceConfig
+	Mounts          []MountConfig
+	User            string
+	AllocDir        string
+	rawDriverConfig []byte
 }
 
 func (tc *TaskConfig) EnvList() []string {
@@ -109,6 +110,14 @@ func (tc *TaskConfig) TaskDir() *allocdir.TaskDir {
 		LocalDir:       filepath.Join(taskDir, allocdir.TaskLocal),
 		SecretsDir:     filepath.Join(taskDir, allocdir.TaskSecrets),
 	}
+}
+
+func (tc *TaskConfig) DecodeDriverConfig(t interface{}) error {
+	return base.MsgPackDecode(tc.rawDriverConfig, t)
+}
+
+func (tc *TaskConfig) EncodeDriverConfig(t interface{}) error {
+	return base.MsgPackEncode(&tc.rawDriverConfig, t)
 }
 
 type Resources struct {
@@ -154,17 +163,10 @@ type ExitResult struct {
 	Err       error
 }
 
-type TaskSummary struct {
-	ID        string
-	Name      string
-	State     string
-	CreatedAt time.Time
-}
-
 type TaskStatus struct {
 	ID               string
 	Name             string
-	State            string
+	State            TaskState
 	SizeOnDiskMB     int64
 	StartedAt        time.Time
 	CompletedAt      time.Time
@@ -176,36 +178,8 @@ type TaskStatus struct {
 type TaskStats struct {
 	ID                 string
 	Timestamp          int64
-	AggResourceUsage   *ResourceUsage
-	ResourceUsageByPid map[string]*ResourceUsage
-}
-
-type ResourceUsage struct {
-	CPU    CPUUsage
-	Memory MemoryUsage
-}
-type CPUUsage struct {
-	SystemMode       float64
-	UserMode         float64
-	TotalTicks       float64
-	ThrottledPeriods uint64
-	ThrottledTime    uint64
-	Percent          float64
-
-	// A list of fields whose values were actually sampled
-	Measured []string
-}
-
-type MemoryUsage struct {
-	RSS            uint64
-	Cache          uint64
-	Swap           uint64
-	MaxUsage       uint64
-	KernelUsage    uint64
-	KernelMaxUsage uint64
-
-	// A list of fields whose values were actually sampled
-	Measured []string
+	AggResourceUsage   *cstructs.ResourceUsage
+	ResourceUsageByPid map[string]*cstructs.ResourceUsage
 }
 
 type TaskEvent struct {
