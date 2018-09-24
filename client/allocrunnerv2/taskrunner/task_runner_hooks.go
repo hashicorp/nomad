@@ -16,11 +16,14 @@ func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
 
+	tr.logmonHookConfig = newLogMonHookConfig(task.Name, tr.taskDir.LogDir)
+
 	// Create the task directory hook. This is run first to ensure the
 	// directoy path exists for other hooks.
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
+		newLogMonHook(tr.logmonHookConfig, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),

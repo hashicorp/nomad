@@ -339,6 +339,12 @@ type ExecContext struct {
 
 	// TaskEnv contains the task's environment variables.
 	TaskEnv *env.TaskEnv
+
+	// StdoutFifo is the path to the named pipe to write stdout to
+	StdoutFifo string
+
+	// StderrFifo is the path to the named pipe to write stderr to
+	StderrFifo string
 }
 
 // NewExecContext is used to create a new execution context

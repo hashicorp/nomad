@@ -131,6 +131,10 @@ type TaskRunner struct {
 	// will have these tags, and optionally more.
 	baseLabels []metrics.Label
 
+	// logmonHookConfig is used to get the paths to the stdout and stderr fifos
+	// to be passed to the driver for task logging
+	logmonHookConfig *logmonHookConfig
+
 	// resourceUsage is written via UpdateStats and read via
 	// LatestResourceUsage. May be nil at all times.
 	resourceUsage     *cstructs.TaskResourceUsage
@@ -393,6 +397,9 @@ func (tr *TaskRunner) runDriver() error {
 
 	// Create a new context for Start since the environment may have been updated.
 	ctx = driver.NewExecContext(tr.taskDir, tr.envBuilder.Build())
+
+	ctx.StdoutFifo = tr.logmonHookConfig.stdoutFifo
+	ctx.StderrFifo = tr.logmonHookConfig.stderrFifo
 
 	// Start the job
 	sresp, err := tr.driver.Start(ctx, tr.task)

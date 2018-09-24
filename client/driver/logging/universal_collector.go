@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"runtime"
 
 	syslog "github.com/RackSec/srslog"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	cstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -41,8 +40,7 @@ type LogCollectorContext struct {
 // SyslogCollectorState holds the address and isolation information of a launched
 // syslog server
 type SyslogCollectorState struct {
-	IsolationConfig *cstructs.IsolationConfig
-	Addr            string
+	Addr string
 }
 
 // LogCollector is an interface which allows a driver to launch a log server
@@ -64,12 +62,13 @@ type SyslogCollector struct {
 	syslogChan chan *SyslogMessage
 	taskDir    string
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // NewSyslogCollector returns an implementation of the SyslogCollector
-func NewSyslogCollector(logger *log.Logger) *SyslogCollector {
-	return &SyslogCollector{logger: logger, syslogChan: make(chan *SyslogMessage, 2048)}
+func NewSyslogCollector(logger hclog.Logger) *SyslogCollector {
+	return &SyslogCollector{logger: logger.Named("syslog-server"),
+		syslogChan: make(chan *SyslogMessage, 2048)}
 }
 
 // LaunchCollector launches a new syslog server and starts writing log lines to
@@ -79,7 +78,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	if err != nil {
 		return nil, err
 	}
-	s.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
+	s.logger.Debug("launching syslog server on addr", "addr", l.Addr().String())
 	s.ctx = ctx
 	// configuring the task dir
 	if err := s.configureTaskDir(); err != nil {

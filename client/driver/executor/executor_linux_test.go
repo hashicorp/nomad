@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,20 +10,30 @@ import (
 	"testing"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	executorFactories["LibcontainerExecutor"] = libcontainerFactory
+}
+
+func libcontainerFactory(l hclog.Logger) Executor {
+	return NewExecutorWithIsolation(l)
+}
 
 // testExecutorContextWithChroot returns an ExecutorContext and AllocDir with
 // chroot. Use testExecutorContext if you don't need a chroot.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.AllocDir) {
+func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	chrootEnv := map[string]string{
 		"/etc/ld.so.cache":  "/etc/ld.so.cache",
 		"/etc/ld.so.conf":   "/etc/ld.so.conf",
@@ -41,7 +52,7 @@ func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.Al
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
@@ -50,69 +61,69 @@ func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.Al
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
-	ctx := &ExecutorContext{
-		TaskEnv: taskEnv,
-		Task:    task,
+	cmd := &ExecCommand{
+		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		LogDir:  td.LogDir,
+		Resources: &Resources{
+			CPU:      task.Resources.CPU,
+			MemoryMB: task.Resources.MemoryMB,
+			IOPS:     task.Resources.IOPS,
+			DiskMB:   task.Resources.DiskMB,
+		},
 	}
-	return ctx, allocDir
+	configureTLogging(cmd)
+
+	return cmd, allocDir
 }
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	testutil.ExecCompatible(t)
 
-	execCmd := ExecCommand{Cmd: "/bin/ls", Args: []string{"-F", "/", "/etc/"}}
-	ctx, allocDir := testExecutorContextWithChroot(t)
+	execCmd, allocDir := testExecutorCommandWithChroot(t)
+	execCmd.Cmd = "/bin/ls"
+	execCmd.Args = []string{"-F", "/", "/etc/"}
 	defer allocDir.Destroy()
 
-	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
-	execCmd.User = dstructs.DefaultUnprivilegedUser
 
-	executor := NewExecutor(testlog.Logger(t))
+	executor := libcontainerFactory(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
 
-	if err := executor.SetContext(ctx); err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	ps, err := executor.Launch(execCmd)
+	require.NoError(err)
+	require.NotZero(ps.Pid)
 
-	ps, err := executor.LaunchCmd(&execCmd)
-	if err != nil {
-		t.Fatalf("error in launching command: %v", err)
-	}
-	if ps.Pid == 0 {
-		t.Fatalf("expected process to start and have non zero pid")
-	}
 	state, err := executor.Wait()
-	if err != nil {
-		t.Fatalf("error in waiting for command: %v", err)
-	}
-	if state.ExitCode != 0 {
-		t.Errorf("exited with non-zero code: %v", state.ExitCode)
-	}
+	require.NoError(err)
+	require.Zero(state.ExitCode)
 
 	// Check if the resource constraints were applied
-	memLimits := filepath.Join(ps.IsolationConfig.CgroupPaths["memory"], "memory.limit_in_bytes")
-	data, err := ioutil.ReadFile(memLimits)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	expectedMemLim := strconv.Itoa(ctx.Task.Resources.MemoryMB * 1024 * 1024)
-	actualMemLim := strings.TrimSpace(string(data))
-	if actualMemLim != expectedMemLim {
-		t.Fatalf("actual mem limit: %v, expected: %v", string(data), expectedMemLim)
-	}
+	if lexec, ok := executor.(*LibcontainerExecutor); ok {
+		state, err := lexec.container.State()
+		require.NoError(err)
 
-	if err := executor.Exit(); err != nil {
-		t.Fatalf("error: %v", err)
-	}
+		memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
+		data, err := ioutil.ReadFile(memLimits)
+		require.NoError(err)
 
-	// Check if Nomad has actually removed the cgroups
-	if _, err := os.Stat(memLimits); err == nil {
-		t.Fatalf("file %v hasn't been removed", memLimits)
-	}
+		expectedMemLim := strconv.Itoa(execCmd.Resources.MemoryMB * 1024 * 1024)
+		actualMemLim := strings.TrimSpace(string(data))
+		require.Equal(actualMemLim, expectedMemLim)
+		require.NoError(executor.Shutdown("", 0))
+		executor.Wait()
 
+		// Check if Nomad has actually removed the cgroups
+		tu.WaitForResult(func() (bool, error) {
+			_, err = os.Stat(memLimits)
+			if err == nil {
+				return false, fmt.Errorf("expected an error from os.Stat %s", memLimits)
+			}
+			return true, nil
+		}, func(err error) { t.Error(err) })
+
+	}
 	expected := `/:
 alloc/
 bin/
@@ -123,6 +134,7 @@ lib64/
 local/
 proc/
 secrets/
+sys/
 tmp/
 usr/
 
@@ -130,66 +142,43 @@ usr/
 ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
-	file := filepath.Join(ctx.LogDir, "web.stdout.0")
-	output, err := ioutil.ReadFile(file)
-	if err != nil {
-		t.Fatalf("Couldn't read file %v", file)
-	}
-
-	act := strings.TrimSpace(string(output))
-	if act != expected {
-		t.Errorf("Command output incorrectly: want %v; got %v", expected, act)
-	}
+	tu.WaitForResult(func() (bool, error) {
+		output := execCmd.stdout.(*bufferCloser).String()
+		act := strings.TrimSpace(string(output))
+		if act != expected {
+			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
+		}
+		return true, nil
+	}, func(err error) { t.Error(err) })
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
 	t.Parallel()
 	testutil.ExecCompatible(t)
+	require := require.New(t)
 
-	ctx, allocDir := testExecutorContextWithChroot(t)
-	ctx.Task.LogConfig.MaxFiles = 1
-	ctx.Task.LogConfig.MaxFileSizeMB = 300
+	execCmd, allocDir := testExecutorCommandWithChroot(t)
 	defer allocDir.Destroy()
 
-	executor := NewExecutor(testlog.Logger(t))
-
-	if err := executor.SetContext(ctx); err != nil {
-		t.Fatalf("Unexpected error")
-	}
+	executor := libcontainerFactory(testlog.HCLogger(t))
+	defer executor.Shutdown("", 0)
 
 	// Need to run a command which will produce continuous output but not
 	// too quickly to ensure executor.Exit() stops the process.
-	execCmd := ExecCommand{Cmd: "/bin/bash", Args: []string{"-c", "while true; do /bin/echo X; /bin/sleep 1; done"}}
-	execCmd.FSIsolation = true
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "while true; do /bin/echo X; /bin/sleep 1; done"}
 	execCmd.ResourceLimits = true
-	execCmd.User = "nobody"
 
-	ps, err := executor.LaunchCmd(&execCmd)
-	if err != nil {
-		t.Fatalf("error in launching command: %v", err)
-	}
-	if ps.Pid == 0 {
-		t.Fatalf("expected process to start and have non zero pid")
-	}
+	ps, err := executor.Launch(execCmd)
+	require.NoError(err)
+	require.NotZero(ps.Pid)
 	time.Sleep(500 * time.Millisecond)
-	if err := executor.Exit(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
+	executor.Wait()
 
-	file := filepath.Join(ctx.LogDir, "web.stdout.0")
-	finfo, err := os.Stat(file)
-	if err != nil {
-		t.Fatalf("error stating stdout file: %v", err)
-	}
-	if finfo.Size() == 0 {
-		t.Fatal("Nothing in stdout; expected at least one byte.")
-	}
+	output := execCmd.stdout.(*bufferCloser).String()
+	require.NotZero(len(output))
 	time.Sleep(2 * time.Second)
-	finfo1, err := os.Stat(file)
-	if err != nil {
-		t.Fatalf("error stating stdout file: %v", err)
-	}
-	if finfo.Size() != finfo1.Size() {
-		t.Fatalf("Expected size: %v, actual: %v", finfo.Size(), finfo1.Size())
-	}
+	output1 := execCmd.stdout.(*bufferCloser).String()
+	require.Equal(len(output), len(output1))
 }

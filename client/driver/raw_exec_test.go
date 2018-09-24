@@ -30,7 +30,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 		Resources: structs.DefaultResources(),
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -83,7 +83,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 	}
 	testtask.SetTaskEnv(task)
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -130,7 +130,7 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 	}
 	testtask.SetTaskEnv(task)
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -182,7 +182,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	testtask.SetTaskEnv(task)
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -233,7 +233,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	testtask.SetTaskEnv(task)
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -290,7 +290,7 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 
 	ctx := testDriverContexts(t, task)
 	ctx.DriverCtx.node.Attributes["unique.cgroup.mountpoint"] = "foo" // Enable cgroups
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -377,7 +377,7 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 	}
 	testtask.SetTaskEnv(task)
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {

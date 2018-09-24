@@ -43,7 +43,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		Resources: structs.DefaultResources(),
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{
@@ -100,7 +100,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -156,7 +156,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -222,7 +222,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -288,7 +288,7 @@ func TestJavaDriver_Signal(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -357,7 +357,7 @@ func TestJavaDriver_User(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -399,7 +399,7 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -469,7 +469,7 @@ func TestJavaDriver_Start_Kill(t *testing.T) {
 		}
 
 		ctx := testDriverContexts(t, task)
-		defer ctx.AllocDir.Destroy()
+		defer ctx.Destroy()
 		d := NewJavaDriver(ctx.DriverCtx)
 
 		// Copy the test jar into the task's directory
@@ -506,7 +506,7 @@ func TestJavaDriver_Start_Kill(t *testing.T) {
 		}
 
 		ctx := testDriverContexts(t, task)
-		defer ctx.AllocDir.Destroy()
+		defer ctx.Destroy()
 		d := NewJavaDriver(ctx.DriverCtx)
 
 		// Copy the test jar into the task's directory

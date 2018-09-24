@@ -325,6 +325,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"logmon": func() (cli.Command, error) {
+			return &LogMonPluginCommand{
+				Meta: meta,
+			}, nil
+		},
 		"logs": func() (cli.Command, error) {
 			return &AllocLogsCommand{
 				Meta: meta,
