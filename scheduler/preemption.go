@@ -363,7 +363,6 @@ func preemptForNetworkResourceAsk(jobPriority int, currentAllocs []*structs.Allo
 
 		// If bandwidth requirements have been met, stop
 		if preemptedBandwidth+freeBandwidth >= MbitsNeeded {
-			met = true
 			break
 		}
 
@@ -407,10 +406,12 @@ func preemptForNetworkResourceAsk(jobPriority int, currentAllocs []*structs.Allo
 					break
 				}
 			}
+			// If we met bandwidth needs we can break out of loop that's iterating by priority within a device
 			if met {
 				break
 			}
 		}
+		// If we met bandwidth needs we can break out of loop that's iterating by allocs sharing the same network device
 		if met {
 			break
 		}
