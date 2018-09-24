@@ -15,6 +15,7 @@ IMPROVEMENTS:
 
 
 BUG FIXES:
+ * core: Fixed a bug in nomad enterprise where non voting servers would get bootstrapped as voting servers [[GH-4702](https://github.com/hashicorp/nomad/issues/4702)]
 
 # 0.8.5 (September 13, 2018)
 
