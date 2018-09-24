@@ -241,6 +241,10 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 		t.Fatalf("bad: %#v", h.CreateEvals)
 	}
 
+	if h.CreateEvals[0].TriggeredBy != structs.EvalTriggerQueuedAllocs {
+		t.Fatalf("bad: %#v", h.CreateEvals[0])
+	}
+
 	// Ensure the plan allocated only one allocation
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {

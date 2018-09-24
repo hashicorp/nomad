@@ -6751,6 +6751,7 @@ const (
 	EvalTriggerFailedFollowUp    = "failed-follow-up"
 	EvalTriggerMaxPlans          = "max-plan-attempts"
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
+	EvalTriggerQueuedAllocs      = "queued-allocs"
 )
 
 const (
@@ -7016,7 +7017,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
-		TriggeredBy:          e.TriggeredBy,
+		TriggeredBy:          EvalTriggerQueuedAllocs,
 		JobID:                e.JobID,
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
