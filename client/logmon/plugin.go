@@ -2,6 +2,7 @@ package logmon
 
 import (
 	"context"
+	"os/exec"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -20,14 +21,12 @@ func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
 		return nil, nil, err
 	}
 
-	cmd := newPluginCmd(bin, logger)
-
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
 			"logmon": NewPlugin(NewLogMon(hclog.L().Named("logmon"))),
 		},
-		Cmd: cmd,
+		Cmd: exec.Command(bin, "logmon"),
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
