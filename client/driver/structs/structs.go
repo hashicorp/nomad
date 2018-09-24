@@ -64,4 +64,8 @@ type ExecutorConfig struct {
 
 	// LogLevel is the level of the logs to putout
 	LogLevel string
+
+	// FSIsolation if set will use an executor implementation that support
+	// filesystem isolation
+	FSIsolation bool
 }

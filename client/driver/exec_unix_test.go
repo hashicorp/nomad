@@ -38,7 +38,7 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -111,7 +111,7 @@ func TestExecDriver_Signal(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	testFile := filepath.Join(ctx.ExecCtx.TaskDir.Dir, "test.sh")
