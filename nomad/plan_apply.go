@@ -204,10 +204,8 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 	var evals []*structs.Evaluation
 	for preemptedJobID, _ := range preemptedJobIDs {
-		job, _ := p.State().JobByID(nil, preemptedJobID.Namespace, preemptedJobID.ID) // TODO Fix me
+		job, _ := p.State().JobByID(nil, preemptedJobID.Namespace, preemptedJobID.ID)
 		if job != nil {
-			//TODO(preetha): This eval is missing class eligibility related fields
-			// need to figure out how to set them per job
 			eval := &structs.Evaluation{
 				ID:          uuid.Generate(),
 				Namespace:   job.Namespace,
