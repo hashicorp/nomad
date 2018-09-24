@@ -218,7 +218,6 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		}
 	}
 
-	// TODO(preetha) do a pass to group by jobid
 	// Prepare preempted allocs in the plan results for update
 	for _, preemptedAlloc := range results.NodePreemptions {
 		// Look for existing alloc
@@ -229,7 +228,7 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 
 		// Nothing to do if this does not exist
 		if existing == nil {
-			return nil
+			continue
 		}
 		exist := existing.(*structs.Allocation)
 
@@ -248,7 +247,6 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	}
 
 	// Upsert followup evals for allocs that were preempted
-
 	for _, eval := range results.PreemptionEvals {
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
