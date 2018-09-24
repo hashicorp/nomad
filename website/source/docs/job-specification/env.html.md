@@ -70,7 +70,7 @@ environment variables.
 
 ```hcl
 env {
-  NODE_CLASS = "${nomad.class}"
+  NODE_CLASS = "${node.class}"
 }
 ```
 
