@@ -12,8 +12,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-const DriverGoPlugin = "driver"
-
 type DriverPlugin interface {
 	base.BasePlugin
 
