@@ -326,7 +326,7 @@ SUBMIT:
 		}
 		return nil, nil, err
 	} else {
-		w.logger.Debug("submitted plan for evaluation", "plan_resp_index", resp.Index, "eval_id", plan.EvalID)
+		w.logger.Debug("submitted plan for evaluation", "eval_id", plan.EvalID)
 		w.backoffReset()
 	}
 
