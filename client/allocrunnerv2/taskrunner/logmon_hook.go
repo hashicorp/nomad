@@ -91,10 +91,12 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		h.logger.Error("failed to start logmon", "error", err)
 		return err
 	}
+
+	resp.Done = true
 	return nil
 }
 
-func (h *logmonHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
+func (h *logmonHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
 
 	if h.logmon != nil {
 		h.logmon.Stop()
