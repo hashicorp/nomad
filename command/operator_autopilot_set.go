@@ -75,7 +75,7 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	cleanupDeadServers.Merge(&conf.CleanupDeadServers)
 	enableRedundancyZones.Merge(&conf.EnableRedundancyZones)
 	disableUpgradeMigration.Merge(&conf.DisableUpgradeMigration)
-	enableRedundancyZones.Merge(&conf.EnableCustomUpgrades)
+	enableCustomUpgrades.Merge(&conf.EnableCustomUpgrades)
 
 	trailing := uint(conf.MaxTrailingLogs)
 	maxTrailingLogs.Merge(&trailing)
