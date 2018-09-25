@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,6 +24,8 @@ import (
 
 	vapi "github.com/hashicorp/vault/api"
 )
+
+var integration = flag.Bool("integration", false, "run integration tests")
 
 // harness is used to retrieve the required Vault test binaries
 type harness struct {
@@ -171,6 +174,10 @@ func (h *harness) get(version string) error {
 
 // TestVaultCompatibility tests compatibility across Vault versions
 func TestVaultCompatibility(t *testing.T) {
+	if !*integration {
+		t.Skip("skipping test in non-integration mode.")
+	}
+
 	h := newHarness(t)
 	vaultBinaries := h.reconcile()
 

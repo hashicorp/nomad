@@ -264,6 +264,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		-cover \
 		-timeout=900s \
 		github.com/hashicorp/nomad/e2e/vault/
+		-integration
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
