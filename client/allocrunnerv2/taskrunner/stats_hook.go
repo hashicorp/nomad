@@ -12,10 +12,13 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
+// StatsUpdater is the interface required by the StatsHook to update stats.
+// Satisfied by TaskRunner.
 type StatsUpdater interface {
 	UpdateStats(*cstructs.TaskResourceUsage)
 }
 
+// statsHook manages the task stats collection goroutine.
 type statsHook struct {
 	updater  StatsUpdater
 	interval time.Duration
@@ -52,7 +55,7 @@ func (h *statsHook) Poststart(ctx context.Context, req *interfaces.TaskPoststart
 	}
 
 	h.stopCh = make(chan struct{})
-	go h.collectResourceUsageStats(h.logger, req.DriverStats, h.stopCh)
+	go h.collectResourceUsageStats(req.DriverStats, h.stopCh)
 
 	return nil
 }
@@ -77,7 +80,7 @@ func (h *statsHook) Exited(context.Context, *interfaces.TaskExitedRequest, *inte
 
 // collectResourceUsageStats starts collecting resource usage stats of a Task.
 // Collection ends when the passed channel is closed
-func (h *statsHook) collectResourceUsageStats(logger hclog.Logger, handle interfaces.DriverStats, stopCh <-chan struct{}) {
+func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, stopCh <-chan struct{}) {
 	// start collecting the stats right away and then start collecting every
 	// collection interval
 	next := time.NewTimer(0)
