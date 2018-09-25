@@ -13,6 +13,8 @@ BUG FIXES:
   rescehduled and the node containing it was at capacity [[GH-4713](https://github.com/hashicorp/nomad/issues/4713)]
 * core: Fix an issue in which schedulers would reject evaluations created when
   prior scheduling for a job failed [[GH-4712](https://github.com/hashicorp/nomad/issues/4712)]
+* cli: Fix a bug where enabling custom upgrade versions for autopilot was not
+  being honored [[GH-4723](https://github.com/hashicorp/nomad/issues/4723)]
 * deployments: Fix an issue where the deployment watcher could create a high
   volume of evaluations [[GH-4709](https://github.com/hashicorp/nomad/issues/4709)]
 * vault: Fix a regression in which Nomad was only compatible with Vault versions
