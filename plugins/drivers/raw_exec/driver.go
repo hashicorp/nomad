@@ -68,7 +68,7 @@ type RawExecDriver struct {
 	tasks  *taskStore
 
 	// fingerprintCh is a channel which other funcs can send fingerprints to
-	// that will immediatly be sent
+	// that will immediately be sent
 	fingerprintCh chan *base.Fingerprint
 
 	stopCh chan struct{}
@@ -231,12 +231,6 @@ func (r *RawExecDriver) StartTask(cfg *base.TaskConfig) (*base.TaskHandle, error
 
 	handle := base.NewTaskHandle(pluginName)
 	handle.Config = cfg
-
-	// Get the command to be ran
-	command := driverConfig.Command
-	if err := utils.ValidateCommand(command, "args"); err != nil {
-		return nil, err
-	}
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
