@@ -63,13 +63,13 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 		case f := <-ch:
 			require.Exactly(f, fingerprints[0])
 		case <-time.After(1 * time.Second):
-			require.Fail("did not recieve fingerprint[0]")
+			require.Fail("did not receive fingerprint[0]")
 		}
 		select {
 		case f := <-ch:
 			require.Exactly(f, fingerprints[1])
 		case <-time.After(1 * time.Second):
-			require.Fail("did not recieve fingerprint[1]")
+			require.Fail("did not receive fingerprint[1]")
 		}
 	}()
 	require.False(complete)
@@ -234,7 +234,7 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 		case actual := <-ch:
 			require.Exactly(actual, event)
 		case <-time.After(500 * time.Millisecond):
-			require.Fail("failed to recieve event")
+			require.Fail("failed to receive event")
 
 		}
 	}

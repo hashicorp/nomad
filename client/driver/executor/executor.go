@@ -68,7 +68,7 @@ type Executor interface {
 	// Version returns the executor API version
 	Version() (*ExecutorVersion, error)
 
-	// Stats fetchs process usage stats for the executor and each pid if availble
+	// Stats fetchs process usage stats for the executor and each pid if available
 	Stats() (*cstructs.TaskResourceUsage, error)
 
 	// Signal sends the given signal to the user process
