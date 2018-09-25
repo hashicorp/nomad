@@ -404,6 +404,7 @@ var (
 // Exit cleans up the alloc directory, destroys resource container and kills the
 // user process
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
+	e.logger.Info("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.
@@ -413,12 +414,15 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 
 	// If there is no process we can't shutdown
 	if e.childCmd.Process == nil {
+		e.logger.Warn("failed to shutdown", "error", "no process found")
 		return fmt.Errorf("executor failed to shutdown error: no process found")
 	}
 
 	proc, err := os.FindProcess(e.childCmd.Process.Pid)
 	if err != nil {
-		return fmt.Errorf("executor failed to find process: %v", err)
+		err = fmt.Errorf("executor failed to find process: %v", err)
+		e.logger.Warn("failed to shutdown", "error", err)
+		return err
 	}
 
 	// If grace is 0 then skip shutdown logic
@@ -430,10 +434,13 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 
 		sig, ok := signals.SignalLookup[signal]
 		if !ok {
-			return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
+			err = fmt.Errorf("error unknown signal given for shutdown: %s", signal)
+			e.logger.Warn("failed to shutdown", "error", err)
+			return err
 		}
 
 		if err := e.shutdownProcess(sig, proc); err != nil {
+			e.logger.Warn("failed to shutdown", "error", err)
 			return err
 		}
 
@@ -460,7 +467,12 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		}
 	}
 
-	return merr.ErrorOrNil()
+	if err := merr.ErrorOrNil(); err != nil {
+		e.logger.Warn("failed to shutdown", "error", err)
+		return err
+	}
+
+	return nil
 }
 
 // lookupBin looks for path to the binary to run by looking for the binary in
