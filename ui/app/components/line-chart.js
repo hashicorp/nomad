@@ -37,6 +37,9 @@ export default Component.extend(WindowResizable, {
   timeseries: false,
   chartClass: 'is-primary',
 
+  title: 'Line Chart',
+  description: null,
+
   // Private Properties
 
   width: 0,
@@ -94,6 +97,22 @@ export default Component.extend(WindowResizable, {
     scale.rangeRound([10, this.get('yAxisOffset')]).domain(domain);
 
     return scale;
+  }),
+
+  xRange: computed('data.[]', 'xFormat', 'xProp', 'timeseries', function() {
+    const { xProp, timeseries, data } = this.getProperties('xProp', 'timeseries', 'data');
+    const range = d3Array.extent(data, d => d[xProp]);
+    const formatter = this.xFormat(timeseries);
+
+    return range.map(formatter);
+  }),
+
+  yRange: computed('data.[]', 'yFormat', 'yProp', function() {
+    const yProp = this.get('yProp');
+    const range = d3Array.extent(this.get('data'), d => d[yProp]);
+    const formatter = this.yFormat();
+
+    return range.map(formatter);
   }),
 
   yScale: computed('data.[]', 'yProp', 'xAxisOffset', function() {
