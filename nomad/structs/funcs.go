@@ -111,6 +111,11 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
+		// Do not consider the resource impact of terminal allocations
+		if alloc.TerminalStatus() {
+			continue
+		}
+
 		if alloc.Resources != nil {
 			if err := used.Add(alloc.Resources); err != nil {
 				return false, "", nil, err

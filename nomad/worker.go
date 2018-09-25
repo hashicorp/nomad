@@ -113,18 +113,21 @@ func (w *Worker) run() {
 
 		// Check for a shutdown
 		if w.srv.IsShutdown() {
+			w.logger.Printf("[ERR] worker: nacking eval %q because the server is shutting down", eval.ID)
 			w.sendAck(eval.ID, token, false)
 			return
 		}
 
 		// Wait for the raft log to catchup to the evaluation
 		if err := w.waitForIndex(waitIndex, raftSyncLimit); err != nil {
+			w.logger.Printf("[ERR] worker: error waiting for Raft index for eval %q: %v", eval.ID, err)
 			w.sendAck(eval.ID, token, false)
 			continue
 		}
 
 		// Invoke the scheduler to determine placements
 		if err := w.invokeScheduler(eval, token); err != nil {
+			w.logger.Printf("[ERR] worker: error invoking the scheduler for eval %q: %v", eval.ID, err)
 			w.sendAck(eval.ID, token, false)
 			continue
 		}

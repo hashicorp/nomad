@@ -236,6 +236,7 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 		return nil, 0, err
 	}
 
+	var maxIndex uint64 = 0
 	resp := make(map[string]*structs.Node, 64)
 	for {
 		raw := iter.Next()
@@ -245,6 +246,15 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 
 		node := raw.(*structs.Node)
 		resp[node.ID] = node
+		if maxIndex < node.ModifyIndex {
+			maxIndex = node.ModifyIndex
+		}
+	}
+
+	// Prefer using the actual max index of affected nodes since it means less
+	// unblocking
+	if maxIndex != 0 {
+		index = maxIndex
 	}
 
 	return resp, index, nil
