@@ -2,7 +2,6 @@ package taskrunner
 
 import (
 	"context"
-	"sync"
 
 	"github.com/hashicorp/nomad/client/driver/structs"
 )
@@ -11,9 +10,7 @@ import (
 // because DriverHandle.WaitCh is closed after it returns a single WaitResult.
 type handleResult struct {
 	doneCh <-chan struct{}
-
 	result *structs.WaitResult
-	mu     sync.RWMutex
 }
 
 func newHandleResult(waitCh <-chan *structs.WaitResult) *handleResult {
@@ -28,9 +25,7 @@ func newHandleResult(waitCh <-chan *structs.WaitResult) *handleResult {
 		res := <-waitCh
 
 		// Set result
-		h.mu.Lock()
 		h.result = res
-		h.mu.Unlock()
 
 		// Notify waiters
 		close(doneCh)
@@ -47,11 +42,8 @@ func (h *handleResult) Wait(ctx context.Context) *structs.WaitResult {
 	select {
 	case <-h.doneCh:
 	case <-ctx.Done():
+		return nil
 	}
 
-	h.mu.RLock()
-	res := h.result
-	h.mu.RUnlock()
-
-	return res
+	return h.result
 }
