@@ -3,6 +3,7 @@ package base
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -12,6 +13,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// DriverPlugin is the interface with drivers will implement. It is also
+// implemented by a plugin client which proxies the calls to go-plugin. See
+// the proto/driver.proto file for detailed information about each RPC and
+// message structure.
 type DriverPlugin interface {
 	base.BasePlugin
 
@@ -32,12 +37,18 @@ type DriverPlugin interface {
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
 }
 
+// DriverSignalTaskNotSupported can be embedded by drivers which don't support
+// the SignalTask RPC. This satisfies the SignalTask func requirement for the
+// DriverPlugin interface.
 type DriverSignalTaskNotSupported struct{}
 
 func (_ DriverSignalTaskNotSupported) SignalTask(taskID, signal string) error {
 	return fmt.Errorf("SignalTask is not supported by this driver")
 }
 
+// DriverExecTaskNotSupported can be embedded by drivers which don't support
+// the ExecTask RPC. This satisfies the ExecTask func requirement of the
+// DriverPlugin interface.
 type DriverExecTaskNotSupported struct{}
 
 func (_ DriverExecTaskNotSupported) ExecTask(taskID, signal string) error {
@@ -76,6 +87,10 @@ type Capabilities struct {
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
 	FSIsolation FSIsolation
+
+	// DetectSizeOnDisk indicates that the driver supports reporting of the current
+	// size on disk the task in consuming in the InspectTask RPC Response
+	DetectSizeOnDisk bool
 }
 
 type TaskConfig struct {
@@ -91,10 +106,12 @@ type TaskConfig struct {
 }
 
 func (tc *TaskConfig) EnvList() []string {
-	l := make([]string, len(tc.Env))
+	l := make([]string, 0, len(tc.Env))
 	for k, v := range tc.Env {
 		l = append(l, k+"="+v)
 	}
+
+	sort.Strings(l)
 	return l
 }
 

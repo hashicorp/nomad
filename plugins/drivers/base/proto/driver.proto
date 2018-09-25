@@ -293,6 +293,10 @@ message DriverCapabilities {
     }
     // FsIsolation indicates what kind of filesystem isolation a driver supports.
     FSIsolation fs_isolation = 3;
+
+    // DetectSizeOnDisk indicates that the driver supports reporting of the current
+    // size on disk the task in consuming in the InspectTask RPC Response
+    bool detect_size_on_disk = 4;
 }
 
 message TaskConfig {

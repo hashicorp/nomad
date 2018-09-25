@@ -25,13 +25,13 @@ type DriverHarness struct {
 
 func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
 	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		DriverGoPlugin: &PluginDriver{
+		base.PluginTypeDriver: &PluginDriver{
 			impl:   d,
 			logger: testlog.HCLogger(t),
 		},
 	})
 
-	raw, err := client.Dispense(DriverGoPlugin)
+	raw, err := client.Dispense(base.PluginTypeDriver)
 	if err != nil {
 		t.Fatalf("err dispensing plugin: %v", err)
 	}

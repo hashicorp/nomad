@@ -61,6 +61,7 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 	return caps, nil
 }
 
+// Fingerprint the driver, return a chan that will be pushed to periodically and on changes to health
 func (d *driverPluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
 	req := &proto.FingerprintRequest{}
 
@@ -96,6 +97,8 @@ func (d *driverPluginClient) handleFingerprint(ch chan *Fingerprint, stream prot
 
 }
 
+// RecoverTask does internal state recovery to be able to control the task of
+// the given TaskHandle
 func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
 	req := &proto.RecoverTaskRequest{Handle: taskHandleToProto(h)}
 
@@ -103,6 +106,9 @@ func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
 	return err
 }
 
+// StartTask starts execution of a task with the given TaskConfig. A TaskHandle
+// is returned to the caller that can be used to recover state of the task,
+// should the driver crash or exit prematurely.
 func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
 	req := &proto.StartTaskRequest{
 		Task: taskConfigToProto(c),
@@ -116,6 +122,10 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
 	return taskHandleFromProto(resp.Handle), nil
 }
 
+// WaitTask returns a channel that will have an ExitResult pushed to it once when the task
+// exits on its own or is killed. If WaitTask is called after the task has exited, the channel
+// will immedialy return the ExitResult. WaitTask can be called multiple times for
+// the same task without issue.
 func (d *driverPluginClient) WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error) {
 	ch := make(chan *ExitResult)
 	go d.handleWaitTask(ctx, id, ch)
@@ -143,6 +153,10 @@ func (d *driverPluginClient) handleWaitTask(ctx context.Context, id string, ch c
 	ch <- &result
 }
 
+// StopTask stops the task with the given taskID. A timeout and signal can be
+// given to control a graceful termination of the task. The driver will send the
+// given signal to the task and wait for the given timeout for it to exit. If the
+// task does not exit within the timeout it will be forcefully killed.
 func (d *driverPluginClient) StopTask(taskID string, timeout time.Duration, signal string) error {
 	req := &proto.StopTaskRequest{
 		TaskId:  taskID,
@@ -154,6 +168,9 @@ func (d *driverPluginClient) StopTask(taskID string, timeout time.Duration, sign
 	return err
 }
 
+// DestroyTask removes the task from the driver's in memory state. The task
+// cannot be running unless force is set to true. If force is set to true the
+// driver will forcefully terminate the task before removing it.
 func (d *driverPluginClient) DestroyTask(taskID string, force bool) error {
 	req := &proto.DestroyTaskRequest{
 		TaskId: taskID,
@@ -164,6 +181,7 @@ func (d *driverPluginClient) DestroyTask(taskID string, force bool) error {
 	return err
 }
 
+// InspectTask returns status information for a task
 func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 	req := &proto.InspectTaskRequest{TaskId: taskID}
 
@@ -191,6 +209,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 	return status, nil
 }
 
+// TaskStats returns resource usage statistics for the task
 func (d *driverPluginClient) TaskStats(taskID string) (*TaskStats, error) {
 	req := &proto.TaskStatsRequest{TaskId: taskID}
 
@@ -207,6 +226,8 @@ func (d *driverPluginClient) TaskStats(taskID string) (*TaskStats, error) {
 	return stats, nil
 }
 
+// TaskEvents returns a channel that will recieve events from the driver about all
+// tasks such as lifecycle events, terminal errors, etc.
 func (d *driverPluginClient) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
 	req := &proto.TaskEventsRequest{}
 	stream, err := d.client.TaskEvents(ctx, req)
@@ -241,6 +262,7 @@ func (d *driverPluginClient) handleTaskEvents(ch chan *TaskEvent, stream proto.D
 	}
 }
 
+// SignalTask will send the given signal to the specified task
 func (d *driverPluginClient) SignalTask(taskID string, signal string) error {
 	req := &proto.SignalTaskRequest{
 		TaskId: taskID,
@@ -250,6 +272,10 @@ func (d *driverPluginClient) SignalTask(taskID string, signal string) error {
 	return err
 }
 
+// ExecTask will run the given command within the execution context of the task.
+// The driver will wait for the given timeout for the command to complete before
+// terminating it. The stdout and stderr of the command will be return to the caller,
+// along with other exit information such as exit code.
 func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error) {
 	req := &proto.ExecTaskRequest{
 		TaskId:  taskID,

@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 
+	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -25,7 +25,7 @@ func CgroupsMounted(node *structs.Node) bool {
 
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func CreateExecutor(w io.Writer, level string, CMinPort, CMaxPort uint,
+func CreateExecutor(w io.Writer, level hclog.Level, CMinPort, CMaxPort uint,
 	executorConfig *dstructs.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
@@ -41,7 +41,7 @@ func CreateExecutor(w io.Writer, level string, CMinPort, CMaxPort uint,
 		Cmd: exec.Command(bin, "executor", string(c)),
 	}
 	config.HandshakeConfig = driver.HandshakeConfig
-	config.Plugins = driver.GetPluginMap(w, level)
+	config.Plugins = driver.GetPluginMap(w, level, executorConfig.FSIsolation)
 	config.MaxPort = CMaxPort
 	config.MinPort = CMinPort
 
@@ -70,7 +70,7 @@ func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
-	config.Plugins = driver.GetPluginMap(w, "DEBUG")
+	config.Plugins = driver.GetPluginMap(w, hclog.Debug, false)
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
@@ -86,28 +86,7 @@ func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}
-	// 0.6 Upgrade path: Deregister services from the executor as the Nomad
-	// client agent now handles all Consul interactions. Ignore errors as
-	// this shouldn't cause the alloc to fail and there's nothing useful to
-	// do with them.
-	executorPlugin.DeregisterServices()
 	return executorPlugin, executorClient, nil
-}
-
-// ValidateCommand validates that the command only has a single value and
-// returns a user friendly error message telling them to use the passed
-// argField.
-func ValidateCommand(command, argField string) error {
-	trimmed := strings.TrimSpace(command)
-	if len(trimmed) == 0 {
-		return fmt.Errorf("command empty: %q", command)
-	}
-
-	if len(trimmed) != len(command) {
-		return fmt.Errorf("command contains extra white space: %q", command)
-	}
-
-	return nil
 }
 
 // KillProcess kills a process with the given pid
