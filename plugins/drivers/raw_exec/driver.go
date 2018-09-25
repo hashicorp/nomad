@@ -183,15 +183,23 @@ func (r *RawExecDriver) RecoverTask(handle *base.TaskHandle) error {
 
 	err := handle.GetDriverState(&taskState)
 	if err != nil {
+		r.logger.Error("failed to recover task", "error", err, "task_id", handle.Config.ID)
+		return err
+	}
+
+	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	if err != nil {
+		r.logger.Error("failed to recover task", "error", err, "task_id", handle.Config.ID)
 		return err
 	}
 
 	pluginConfig := &plugin.ClientConfig{
-		Reattach: taskState.ReattachConfig,
+		Reattach: plugRC,
 	}
 
 	exec, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
 	if err != nil {
+		r.logger.Error("failed to recover task", "error", err, "task_id", handle.Config.ID)
 		return err
 	}
 
@@ -202,6 +210,7 @@ func (r *RawExecDriver) RecoverTask(handle *base.TaskHandle) error {
 		task:         taskState.TaskConfig,
 		procState:    base.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
+		exitResult:   &base.ExitResult{},
 	}
 
 	r.tasks.Set(taskState.TaskConfig.ID, h)
@@ -247,6 +256,7 @@ func (r *RawExecDriver) StartTask(cfg *base.TaskConfig) (*base.TaskHandle, error
 		User: cfg.User,
 		//TaskKillSignal:     os.Interrupt,
 		BasicProcessCgroup: !r.config.noCgroups,
+		TaskDir:            cfg.TaskDir().Dir,
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -261,17 +271,25 @@ func (r *RawExecDriver) StartTask(cfg *base.TaskConfig) (*base.TaskHandle, error
 		pluginClient: pluginClient,
 		task:         cfg,
 		procState:    base.TaskStateRunning,
-		startedAt:    time.Now(),
+		startedAt:    time.Now().Round(time.Millisecond),
+		logger:       r.logger,
 	}
 
 	r.tasks.Set(cfg.ID, h)
 
-	handle.SetDriverState(RawExecTaskState{
-		ReattachConfig: pluginClient.ReattachConfig(),
+	driverState := RawExecTaskState{
+		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,
-	})
+	}
+
+	if err := handle.SetDriverState(&driverState); err != nil {
+		r.logger.Error("failed to start task, error setting driver state", "error", err)
+		exec.Shutdown("", 0)
+		pluginClient.Kill()
+		return nil, err
+	}
 
 	go h.run()
 	return handle, nil
@@ -311,33 +329,19 @@ func (r *RawExecDriver) handleWait(ctx context.Context, handle *rawExecTaskHandl
 }
 
 func (r *RawExecDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
-	/*
-		handle, ok := r.tasks.Get(taskID)
-		if !ok {
-			return base.ErrTaskNotFound
+	handle, ok := r.tasks.Get(taskID)
+	if !ok {
+		return base.ErrTaskNotFound
+	}
+
+	if err := handle.exec.Shutdown(signal, timeout); err != nil {
+		if handle.pluginClient.Exited() {
+			return nil
 		}
+		return fmt.Errorf("executor Shutdown failed: %v", err)
+	}
 
-		//TODO executor only supports shutting down with the initial signal provided
-			if err := handle.exec.Shutdown(); err != nil {
-				if handle.pluginClient.Exited() {
-					return nil
-				}
-				return fmt.Errorf("executor Shutdown failed: %v", err)
-			}
-
-			select {
-			case <-d.WaitTask(taskID):
-				return nil
-			case <-time.After(timeout):
-				if handle.pluginClient.Exited() {
-					return nil
-				}
-				if err := handle.exec.Exit(); err != nil {
-					return fmt.Errorf("executor Exit failed: %v", err)
-				}
-				return nil
-			}*/
-	panic("not implemented")
+	return nil
 }
 
 func (r *RawExecDriver) DestroyTask(taskID string, force bool) error {
@@ -346,13 +350,20 @@ func (r *RawExecDriver) DestroyTask(taskID string, force bool) error {
 		return base.ErrTaskNotFound
 	}
 
-	if !handle.pluginClient.Exited() {
-		if err := handle.exec.Destroy(); err != nil {
-			handle.logger.Error("destroying executor failed", "err", err)
-		}
+	if handle.IsRunning() && !force {
+		return fmt.Errorf("cannot destroy running task")
 	}
 
-	handle.pluginClient.Kill()
+	if !handle.pluginClient.Exited() {
+		if handle.IsRunning() {
+			if err := handle.exec.Shutdown("", 0); err != nil {
+				handle.logger.Error("destroying executor failed", "err", err)
+			}
+		}
+
+		handle.pluginClient.Kill()
+	}
+
 	r.tasks.Delete(taskID)
 	return nil
 }
@@ -478,7 +489,7 @@ func (ts *taskStore) Range(f func(id string, handle *rawExecTaskHandle) bool) {
 }
 
 type RawExecTaskState struct {
-	ReattachConfig *plugin.ReattachConfig
+	ReattachConfig *utils.ReattachConfig
 	TaskConfig     *base.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -494,6 +505,10 @@ type rawExecTaskHandle struct {
 	completedAt  time.Time
 	exitResult   *base.ExitResult
 	logger       hclog.Logger
+}
+
+func (h *rawExecTaskHandle) IsRunning() bool {
+	return h.procState == base.TaskStateRunning
 }
 
 func (h *rawExecTaskHandle) run() {
@@ -512,4 +527,6 @@ func (h *rawExecTaskHandle) run() {
 	h.exitResult.ExitCode = ps.ExitCode
 	h.exitResult.Signal = ps.Signal
 	h.completedAt = ps.Time
+
+	//h.pluginClient.Kill()
 }

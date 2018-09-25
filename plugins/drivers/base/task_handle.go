@@ -1,7 +1,7 @@
 package base
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/ugorji/go/codec"
 )
 
@@ -21,10 +21,10 @@ func NewTaskHandle(driver string) *TaskHandle {
 
 func (h *TaskHandle) SetDriverState(v interface{}) error {
 	h.driverState = []byte{}
-	return codec.NewEncoderBytes(&h.driverState, structs.MsgpackHandle).Encode(v)
+	return codec.NewEncoderBytes(&h.driverState, base.MsgpackHandle).Encode(v)
 }
 
 func (h *TaskHandle) GetDriverState(v interface{}) error {
-	return codec.NewDecoderBytes(h.driverState, structs.MsgpackHandle).Decode(v)
+	return codec.NewDecoderBytes(h.driverState, base.MsgpackHandle).Decode(v)
 
 }
