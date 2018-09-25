@@ -447,6 +447,7 @@ func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.St
 	}
 
 	// Capture the allocs for each draining job.
+	var maxIndex uint64 = 0
 	resp := make(map[structs.NamespacedID][]*structs.Allocation, l)
 	for jns := range draining {
 		allocs, err := state.AllocsByJob(ws, jns.Namespace, jns.ID, false)
@@ -455,6 +456,17 @@ func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.St
 		}
 
 		resp[jns] = allocs
+		for _, alloc := range allocs {
+			if maxIndex < alloc.ModifyIndex {
+				maxIndex = alloc.ModifyIndex
+			}
+		}
+	}
+
+	// Prefer using the actual max index of affected allocs since it means less
+	// unblocking
+	if maxIndex != 0 {
+		index = maxIndex
 	}
 
 	return resp, index, nil

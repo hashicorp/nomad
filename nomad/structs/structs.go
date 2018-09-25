@@ -6751,6 +6751,7 @@ const (
 	EvalTriggerFailedFollowUp    = "failed-follow-up"
 	EvalTriggerMaxPlans          = "max-plan-attempts"
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
+	EvalTriggerQueuedAllocs      = "queued-allocs"
 )
 
 const (
@@ -6882,8 +6883,11 @@ type Evaluation struct {
 	LeaderACL string
 
 	// SnapshotIndex is the Raft index of the snapshot used to process the
-	// evaluation. As such it will only be set once it has gone through the
-	// scheduler.
+	// evaluation. The index will either be set when it has gone through the
+	// scheduler or if a blocked evaluation is being created. The index is set
+	// in this case so we can determine if an early unblocking is required since
+	// capacity has changed since the evaluation was created. This can result in
+	// the SnapshotIndex being less than the CreateIndex.
 	SnapshotIndex uint64
 
 	// Raft Indexes
@@ -7013,7 +7017,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
-		TriggeredBy:          e.TriggeredBy,
+		TriggeredBy:          EvalTriggerQueuedAllocs,
 		JobID:                e.JobID,
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
@@ -7138,6 +7142,10 @@ func (p *Plan) PopUpdate(alloc *Allocation) {
 func (p *Plan) AppendAlloc(alloc *Allocation) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
+
+	// Normalize the job
+	alloc.Job = nil
+
 	p.NodeAllocation[node] = append(existing, alloc)
 }
 

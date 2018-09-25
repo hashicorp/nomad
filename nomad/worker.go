@@ -114,18 +114,21 @@ func (w *Worker) run() {
 
 		// Check for a shutdown
 		if w.srv.IsShutdown() {
+			w.logger.Error("nacking eval because the server is shutting down", "eval", log.Fmt("%#v", eval))
 			w.sendAck(eval.ID, token, false)
 			return
 		}
 
 		// Wait for the raft log to catchup to the evaluation
 		if err := w.waitForIndex(waitIndex, raftSyncLimit); err != nil {
+			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
 			w.sendAck(eval.ID, token, false)
 			continue
 		}
 
 		// Invoke the scheduler to determine placements
 		if err := w.invokeScheduler(eval, token); err != nil {
+			w.logger.Error("error invoking scheduler", "error", err)
 			w.sendAck(eval.ID, token, false)
 			continue
 		}
@@ -326,7 +329,7 @@ SUBMIT:
 		}
 		return nil, nil, err
 	} else {
-		w.logger.Debug("submitted plan for evaluation", "plan_resp_index", resp.Index, "eval_id", plan.EvalID)
+		w.logger.Debug("submitted plan for evaluation", "eval_id", plan.EvalID)
 		w.backoffReset()
 	}
 
