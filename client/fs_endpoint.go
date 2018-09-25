@@ -276,6 +276,15 @@ OUTER:
 			break OUTER
 		case frame, ok := <-frames:
 			if !ok {
+				// frame may have been closed when an error
+				// occurred. Check once more for an error.
+				select {
+				case streamErr = <-errCh:
+					// There was a pending error!
+				default:
+					// No error, continue on
+				}
+
 				break OUTER
 			}
 
