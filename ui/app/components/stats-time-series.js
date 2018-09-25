@@ -5,6 +5,7 @@ import d3Format from 'd3-format';
 import d3Scale from 'd3-scale';
 import d3Array from 'd3-array';
 import LineChart from 'nomad-ui/components/line-chart';
+import formatDuration from 'nomad-ui/utils/format-duration';
 
 export default LineChart.extend({
   xProp: 'timestamp',
@@ -18,6 +19,20 @@ export default LineChart.extend({
   yFormat() {
     return d3Format.format('.1~%');
   },
+
+  // Specific a11y descriptors
+  title: 'Stats Time Series Chart',
+
+  description: computed('data.[]', 'xProp', 'yProp', function() {
+    const { xProp, yProp, data } = this.getProperties('data', 'xProp', 'yProp');
+    const yRange = d3Array.extent(data, d => d[yProp]);
+    const xRange = d3Array.extent(data, d => d[xProp]);
+    const yFormatter = this.yFormat();
+
+    const duration = formatDuration(xRange[1] - xRange[0], 'ms', true);
+
+    return `Time-series data for the last ${duration}, with values ranging from ${yFormatter(yRange[0])} to ${yFormatter(yRange[1])}`;
+  }),
 
   xScale: computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset', function() {
     const xProp = this.get('xProp');
