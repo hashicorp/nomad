@@ -836,6 +836,9 @@ func logIndexes(entries []*cstructs.AllocFileInfo, task, logType string) (indexT
 	return indexTupleArray(indexes), nil
 }
 
+// notFoundErr is returned when a log is requested but cannot be found.
+// Implements agent.HTTPCodedError but does not reference it to avoid circular
+// imports.
 type notFoundErr struct {
 	taskName string
 	logType  string
