@@ -1,7 +1,23 @@
 ## 0.8.6 (September 24, 2018)
 
+IMPROVEMENTS:
+* core: Increased scheduling performance when annotating existing allocations
+  [[GH-4713](https://github.com/hashicorp/nomad/issues/4713)]
+* core: Unique TriggerBy for evaluations that are created to place queued
+  allocations [[GH-4716](https://github.com/hashicorp/nomad/issues/4716)]
+
 BUG FIXES:
-* core: Fixed a bug in nomad enterprise where non voting servers would get bootstrapped as voting servers [[GH-4702](https://github.com/hashicorp/nomad/issues/4702)]
+* core: Fix a bug in Nomad Enterprise where non-voting servers could get
+  bootstrapped as voting servers [[GH-4702](https://github.com/hashicorp/nomad/issues/4702)]
+* core: Fix an issue where an evaluation could fail if an allocation was being
+  rescehduled and the node containing it was at capacity [[GH-4713](https://github.com/hashicorp/nomad/issues/4713)]
+* core: Fix an issue in which schedulers would reject evaluations created when
+  prior scheduling for a job failed [[GH-4712](https://github.com/hashicorp/nomad/issues/4712)]
+* deployments: Fix an issue where the deployment watcher could create a high
+  volume of evaluations [[GH-4709](https://github.com/hashicorp/nomad/issues/4709)]
+* vault: Fix a regression in which Nomad was only compatible with Vault versions
+  greater than 0.10.0 [[GH-4698](https://github.com/hashicorp/nomad/issues/4698)]
+
 
 ## 0.8.5  (September 13, 2018)
 
