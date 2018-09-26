@@ -251,7 +251,7 @@ func (d *driverPluginClient) handleTaskEvents(ch chan *TaskEvent, stream proto.D
 		}
 		if err != nil {
 			d.logger.Error("error receiving stream from TaskEvents driver RPC", "error", err)
-			ch <- &TaskEvent{Err: fmt.Errorf("error from RPC stream: %v", err)}
+			ch <- &TaskEvent{Err: err}
 			break
 		}
 		timestamp, _ := ptypes.Timestamp(ev.Timestamp)

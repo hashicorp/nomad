@@ -68,7 +68,7 @@ type Fingerprint struct {
 	Health            HealthState
 	HealthDescription string
 
-	// Err is only used if an error occured while consuming the RPC stream
+	// Err is set by the plugin if an error occured during fingerprinting
 	Err error
 }
 
@@ -90,10 +90,6 @@ type Capabilities struct {
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
 	FSIsolation FSIsolation
-
-	// DetectSizeOnDisk indicates that the driver supports reporting of the current
-	// size on disk the task in consuming in the InspectTask RPC Response
-	DetectSizeOnDisk bool
 }
 
 type TaskConfig struct {
@@ -185,7 +181,6 @@ type TaskStatus struct {
 	ID               string
 	Name             string
 	State            TaskState
-	SizeOnDiskMB     int64
 	StartedAt        time.Time
 	CompletedAt      time.Time
 	ExitResult       *ExitResult

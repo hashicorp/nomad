@@ -119,12 +119,11 @@ func taskStatusToProto(status *TaskStatus) (*proto.TaskStatus, error) {
 		return nil, err
 	}
 	return &proto.TaskStatus{
-		Id:           status.ID,
-		Name:         status.Name,
-		SizeOnDiskMb: status.SizeOnDiskMB,
-		StartedAt:    started,
-		CompletedAt:  completed,
-		Result:       exitResultToProto(status.ExitResult),
+		Id:          status.ID,
+		Name:        status.Name,
+		StartedAt:   started,
+		CompletedAt: completed,
+		Result:      exitResultToProto(status.ExitResult),
 	}, nil
 }
 
@@ -140,12 +139,11 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 	}
 
 	return &TaskStatus{
-		ID:           pb.Id,
-		Name:         pb.Name,
-		SizeOnDiskMB: pb.SizeOnDiskMb,
-		StartedAt:    started,
-		CompletedAt:  completed,
-		ExitResult:   exitResultFromProto(pb.Result),
+		ID:          pb.Id,
+		Name:        pb.Name,
+		StartedAt:   started,
+		CompletedAt: completed,
+		ExitResult:  exitResultFromProto(pb.Result),
 	}, nil
 }
 

@@ -293,10 +293,6 @@ message DriverCapabilities {
     }
     // FsIsolation indicates what kind of filesystem isolation a driver supports.
     FSIsolation fs_isolation = 3;
-
-    // DetectSizeOnDisk indicates that the driver supports reporting of the current
-    // size on disk the task in consuming in the InspectTask RPC Response
-    bool detect_size_on_disk = 4;
 }
 
 message TaskConfig {
@@ -466,19 +462,15 @@ message TaskStatus {
     // State is the state of the task's execution
     TaskState state = 3;
 
-    // SizeOnDiskMb is the disk space the driver reports the task is consuming
-    // in megabytes.
-    int64 size_on_disk_mb = 4;
-
     // StartedAt is the timestamp when the task was started
-    google.protobuf.Timestamp started_at = 5;
+    google.protobuf.Timestamp started_at = 4;
 
     // CompletedAt is the timestamp when the task exited.
     // If the task is still running, CompletedAt will not be set
-    google.protobuf.Timestamp completed_at = 6;
+    google.protobuf.Timestamp completed_at = 5;
 
     // Result is set when CompletedAt is set.
-    ExitResult result = 7;
+    ExitResult result = 6;
 }
 
 message TaskDriverStatus {
