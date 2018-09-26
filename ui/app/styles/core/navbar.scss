@@ -55,6 +55,12 @@
         background: transparent;
       }
     }
+
+    .navbar-brand > a.navbar-item {
+      &:hover {
+        background: transparent;
+      }
+    }
   }
 
   &.is-secondary {
