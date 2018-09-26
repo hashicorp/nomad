@@ -1,17 +1,22 @@
 package base
 
 import (
+	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
+	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
@@ -21,15 +26,22 @@ type DriverHarness struct {
 	client *plugin.GRPCClient
 	server *plugin.GRPCServer
 	t      testing.T
+	lm     logmon.LogMon
+	logger hclog.Logger
 }
 
 func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
-	client, server := plugin.TestPluginGRPCConn(t, map[string]plugin.Plugin{
-		base.PluginTypeDriver: &PluginDriver{
-			impl:   d,
-			logger: testlog.HCLogger(t),
+	logger := testlog.HCLogger(t).Named("driver_harness")
+	client, server := plugin.TestPluginGRPCConn(t,
+		map[string]plugin.Plugin{
+			base.PluginTypeDriver: &PluginDriver{
+				impl:   d,
+				logger: logger.Named("driver_plugin"),
+			},
+			base.PluginTypeBase: &base.PluginBase{Impl: d},
+			"logmon":            logmon.NewPlugin(logmon.NewLogMon(logger.Named("logmon"))),
 		},
-	})
+	)
 
 	raw, err := client.Dispense(base.PluginTypeDriver)
 	if err != nil {
@@ -41,8 +53,15 @@ func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
 		client:       client,
 		server:       server,
 		DriverPlugin: dClient,
+		logger:       logger,
 	}
 
+	raw, err = client.Dispense("logmon")
+	if err != nil {
+		t.Fatalf("err dispensing plugin: %v", err)
+	}
+
+	h.lm = raw.(logmon.LogMon)
 	return h
 }
 
@@ -52,15 +71,72 @@ func (h *DriverHarness) Kill() {
 }
 
 // MkAllocDir creates a tempory directory and allocdir structure.
+// If enableLogs is set to true a logmon instance will be started to write logs
+// to the LogDir of the task
 // A cleanup func is returned and should be defered so as to not leak dirs
 // between tests.
-func (h *DriverHarness) MkAllocDir(t *TaskConfig) func() {
-	allocDir, err := ioutil.TempDir("", "nomad_driver_harness-")
+func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
+	dir, err := ioutil.TempDir("", "nomad_driver_harness-")
 	require.NoError(h.t, err)
-	require.NoError(h.t, os.Mkdir(filepath.Join(allocDir, t.Name), os.ModePerm))
-	require.NoError(h.t, os.MkdirAll(filepath.Join(allocDir, "alloc/logs"), os.ModePerm))
-	t.AllocDir = allocDir
-	return func() { os.RemoveAll(allocDir) }
+	t.AllocDir = dir
+
+	allocDir := allocdir.NewAllocDir(h.logger, dir)
+	require.NoError(h.t, allocDir.Build())
+	taskDir := allocDir.NewTaskDir(t.Name)
+	require.NoError(h.t, taskDir.Build(false, nil, 0))
+
+	//logmon
+	if enableLogs {
+		var stdoutFifo, stderrFifo string
+		if runtime.GOOS == "windows" {
+			id := uuid.Generate()[:8]
+			stdoutFifo = fmt.Sprintf("//./pipe/%s-%s.stdout", t.Name, id)
+			stderrFifo = fmt.Sprintf("//./pipe/%s-%s.stderr", t.Name, id)
+		} else {
+			stdoutFifo = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stdout.fifo", t.Name))
+			stderrFifo = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", t.Name))
+		}
+		err = h.lm.Start(&logmon.LogConfig{
+			LogDir:        taskDir.LogDir,
+			StdoutLogFile: fmt.Sprintf("%s.stdout", t.Name),
+			StderrLogFile: fmt.Sprintf("%s.stderr", t.Name),
+			StdoutFifo:    stdoutFifo,
+			StderrFifo:    stderrFifo,
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		})
+		require.NoError(h.t, err)
+
+		return func() {
+			h.lm.Stop()
+			allocDir.Destroy()
+		}
+	}
+
+	return func() {
+		allocDir.Destroy()
+	}
+}
+
+// WaitUntilStarted will block until the task for the given ID is in the running
+// state or the timeout is reached
+func (h *DriverHarness) WaitUntilStarted(taskID string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var lastState TaskState
+	for {
+		status, err := h.InspectTask(taskID)
+		if err != nil {
+			return err
+		}
+		if status.State == TaskStateRunning {
+			return nil
+		}
+		lastState = status.State
+		if time.Now().After(deadline) {
+			return fmt.Errorf("task never transitioned to running, currently '%s'", lastState)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // MockDriver is used for testing.

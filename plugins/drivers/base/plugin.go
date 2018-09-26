@@ -5,6 +5,8 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/plugins/base"
+	baseproto "github.com/hashicorp/nomad/plugins/base/proto"
 	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
 	"google.golang.org/grpc"
 )
@@ -35,6 +37,9 @@ func (p *PluginDriver) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 
 func (p *PluginDriver) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &driverPluginClient{
+		BasePluginClient: &base.BasePluginClient{
+			Client: baseproto.NewBasePluginClient(c),
+		},
 		client: proto.NewDriverClient(c),
 		logger: p.logger,
 	}, nil
