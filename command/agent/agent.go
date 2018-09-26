@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/raft"
 )
 
@@ -62,9 +63,20 @@ type Agent struct {
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
+	// client is the launched Nomad Client. Can be nil if the agent isn't
+	// configured to run a client.
 	client *client.Client
 
+	// server is the launched Nomad Server. Can be nil if the agent isn't
+	// configured to run a server.
 	server *nomad.Server
+
+	// pluginLoader is used to load plugins
+	pluginLoader loader.PluginCatalog
+
+	// pluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	pluginSingletonLoader loader.PluginCatalog
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -99,6 +111,9 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 	}
 
 	// TODO setup plugin loader
+	if err := a.setupPlugins(); err != nil {
+		return nil, err
+	}
 
 	if err := a.setupServer(); err != nil {
 		return nil, err
