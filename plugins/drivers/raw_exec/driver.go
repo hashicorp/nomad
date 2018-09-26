@@ -77,12 +77,12 @@ type RawExecDriver struct {
 }
 
 type Config struct {
-	// noCgroups tracks whether we should use a cgroup to manage the process
+	// NoCgroups tracks whether we should use a cgroup to manage the process
 	// tree
-	noCgroups bool `codec:"no_cgroups"`
+	NoCgroups bool `codec:"no_cgroups"`
 
-	// enabled is set to true to enable the raw_exec driver
-	enabled bool `codec:"enabled"`
+	// Enabled is set to true to enable the raw_exec driver
+	Enabled bool `codec:"enabled"`
 }
 
 type TaskConfig struct {
@@ -137,7 +137,7 @@ func (r *RawExecDriver) Capabilities() (*base.Capabilities, error) {
 func (r *RawExecDriver) Fingerprint(ctx context.Context) (<-chan *base.Fingerprint, error) {
 	ch := make(chan *base.Fingerprint)
 	go r.fingerprint(ctx, ch)
-	return r.fingerprintCh, nil
+	return ch, nil
 }
 
 func (r *RawExecDriver) fingerprint(ctx context.Context, ch chan *base.Fingerprint) {
@@ -164,12 +164,14 @@ func (r *RawExecDriver) fingerprintNow() {
 	}
 	var health base.HealthState
 	var desc string
-	if r.config.enabled {
+	attrs := map[string]string{}
+	if r.config.Enabled {
 		health = base.HealthStateHealthy
 		desc = "raw_exec enabled"
+		attrs["driver.raw_exec"] = "1"
 	} else {
-		health = base.HealthStateUnhealthy
-		desc = "raw_exec not enabled"
+		health = base.HealthStateUndetected
+		desc = "raw_exec disabled"
 	}
 	r.fingerprintCh <- &base.Fingerprint{
 		Attributes:        map[string]string{},
@@ -249,7 +251,7 @@ func (r *RawExecDriver) StartTask(cfg *base.TaskConfig) (*base.TaskHandle, error
 		Env:  cfg.EnvList(),
 		User: cfg.User,
 		//TaskKillSignal:     os.Interrupt,
-		BasicProcessCgroup: !r.config.noCgroups,
+		BasicProcessCgroup: !r.config.NoCgroups,
 		TaskDir:            cfg.TaskDir().Dir,
 	}
 
