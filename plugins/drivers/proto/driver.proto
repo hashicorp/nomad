@@ -1,5 +1,5 @@
 syntax = "proto3";
-package hashicorp.nomad.plugins.drivers.base.proto;
+package hashicorp.nomad.plugins.drivers.proto;
 option go_package = "proto";
 
 import "google/protobuf/duration.proto";
@@ -48,12 +48,8 @@ service Driver {
 
     // DestroyTask removes the task from the driver's internal state and cleans
     // up any additional resources created by the driver. It cannot be called
-    // on a running task.
+    // on a running task, unless force is set to true.
     rpc DestroyTask(DestroyTaskRequest)  returns (DestroyTaskResponse) {}
-
-    // ListTasks returns a list of summary information of all the tasks the
-    // driver is tracking.
-    rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {}
 
     // InspectTask returns detailed information for the given task
     rpc InspectTask(InspectTaskRequest) returns (InspectTaskResponse) {}
@@ -205,17 +201,12 @@ message DestroyTaskRequest {
 
     // TaskId is the ID of the target task
     string task_id = 1;
+
+    // Force destroys the task even if it is still in a running state
+    bool force = 2;
 }
 
 message DestroyTaskResponse {}
-
-message ListTasksRequest {}
-
-message ListTasksResponse {
-
-    // Tasks includes a list of summary information for each task
-    repeated TaskStatus tasks = 1;
-}
 
 message InspectTaskRequest {
 
@@ -471,19 +462,15 @@ message TaskStatus {
     // State is the state of the task's execution
     TaskState state = 3;
 
-    // SizeOnDiskMb is the disk space the driver reports the task is consuming
-    // in megabytes.
-    int64 size_on_disk_mb = 4;
-
     // StartedAt is the timestamp when the task was started
-    google.protobuf.Timestamp started_at = 5;
+    google.protobuf.Timestamp started_at = 4;
 
     // CompletedAt is the timestamp when the task exited.
     // If the task is still running, CompletedAt will not be set
-    google.protobuf.Timestamp completed_at = 6;
+    google.protobuf.Timestamp completed_at = 5;
 
     // Result is set when CompletedAt is set.
-    ExitResult result = 7;
+    ExitResult result = 6;
 }
 
 message TaskDriverStatus {
@@ -548,7 +535,7 @@ message MemoryUsage {
     enum Fields {
         RSS = 0;
         CACHE = 1;
-        MAX_UASGE = 2;
+        MAX_USAGE = 2;
         KERNEL_USAGE = 3;
         KERNEL_MAX_USAGE = 4;
     }

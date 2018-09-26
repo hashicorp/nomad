@@ -61,3 +61,8 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 func MsgPackDecode(buf []byte, out interface{}) error {
 	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
 }
+
+// MsgPackEncode is used to encode an object to MsgPack
+func MsgPackEncode(b *[]byte, in interface{}) error {
+	return codec.NewEncoderBytes(b, MsgpackHandle).Encode(in)
+}
