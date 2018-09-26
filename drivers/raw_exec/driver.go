@@ -246,13 +246,14 @@ func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle,
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:  driverConfig.Command,
-		Args: driverConfig.Args,
-		Env:  cfg.EnvList(),
-		User: cfg.User,
-		//TaskKillSignal:     os.Interrupt,
+		Cmd:                driverConfig.Command,
+		Args:               driverConfig.Args,
+		Env:                cfg.EnvList(),
+		User:               cfg.User,
 		BasicProcessCgroup: !r.config.NoCgroups,
 		TaskDir:            cfg.TaskDir().Dir,
+		StdoutPath:         cfg.StdoutPath,
+		StderrPath:         cfg.StderrPath,
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -371,12 +372,12 @@ func (r *RawExecDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) 
 	}
 
 	status := &drivers.TaskStatus{
-		ID:           handle.task.ID,
-		Name:         handle.task.Name,
-		State:        handle.procState,
-		StartedAt:    handle.startedAt,
-		CompletedAt:  handle.completedAt,
-		ExitResult:   handle.exitResult,
+		ID:          handle.task.ID,
+		Name:        handle.task.Name,
+		State:       handle.procState,
+		StartedAt:   handle.startedAt,
+		CompletedAt: handle.completedAt,
+		ExitResult:  handle.exitResult,
 		DriverAttributes: map[string]string{
 			"pid": strconv.Itoa(handle.pid),
 		},
