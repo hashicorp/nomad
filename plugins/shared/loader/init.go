@@ -61,8 +61,11 @@ func validateConfig(config *PluginLoaderConfig) error {
 // init initializes the plugin loader by compiling both internal and external
 // plugins and selecting the highest versioned version of any given plugin.
 func (l *PluginLoader) init(config *PluginLoaderConfig) error {
+	// Create a mapping of name to config
+	configMap := configMap(config.Configs)
+
 	// Initialize the internal plugins
-	internal, err := l.initInternal(config.InternalPlugins)
+	internal, err := l.initInternal(config.InternalPlugins, configMap)
 	if err != nil {
 		return fmt.Errorf("failed to fingerprint internal plugins: %v", err)
 	}
@@ -74,7 +77,6 @@ func (l *PluginLoader) init(config *PluginLoaderConfig) error {
 	}
 
 	// Fingerprint the passed plugins
-	configMap := configMap(config.Configs)
 	external, err := l.fingerprintPlugins(plugins, configMap)
 	if err != nil {
 		return fmt.Errorf("failed to fingerprint plugins: %v", err)
@@ -92,7 +94,7 @@ func (l *PluginLoader) init(config *PluginLoaderConfig) error {
 }
 
 // initInternal initializes internal plugins.
-func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig) (map[PluginID]*pluginInfo, error) {
+func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, configs map[string]*config.PluginConfig) (map[PluginID]*pluginInfo, error) {
 	var mErr multierror.Error
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for k, config := range plugins {
@@ -107,6 +109,11 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig) 
 		info := &pluginInfo{
 			factory: config.Factory,
 			config:  config.Config,
+		}
+
+		// Try to retrieve a user specified config
+		if userConfig, ok := configs[k.Name]; ok && userConfig.Config != nil {
+			info.config = userConfig.Config
 		}
 
 		// Fingerprint base info
