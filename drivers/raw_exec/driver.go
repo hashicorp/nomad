@@ -371,6 +371,9 @@ func (r *RawExecDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) 
 		return nil, drivers.ErrTaskNotFound
 	}
 
+	handle.stateLock.RLock()
+	defer handle.stateLock.RUnlock()
+
 	status := &drivers.TaskStatus{
 		ID:          handle.task.ID,
 		Name:        handle.task.Name,
@@ -474,16 +477,6 @@ func (ts *taskStore) Delete(id string) {
 	delete(ts.store, id)
 }
 
-func (ts *taskStore) Range(f func(id string, handle *rawExecTaskHandle) bool) {
-	ts.lock.RLock()
-	defer ts.lock.RUnlock()
-	for k, v := range ts.store {
-		if f(k, v) {
-			break
-		}
-	}
-}
-
 type RawExecTaskState struct {
 	ReattachConfig *utils.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
@@ -495,12 +488,16 @@ type rawExecTaskHandle struct {
 	exec         executor.Executor
 	pid          int
 	pluginClient *plugin.Client
-	task         *drivers.TaskConfig
-	procState    drivers.TaskState
-	startedAt    time.Time
-	completedAt  time.Time
-	exitResult   *drivers.ExitResult
 	logger       hclog.Logger
+
+	// stateLock syncs access to all fields below
+	stateLock sync.RWMutex
+
+	task        *drivers.TaskConfig
+	procState   drivers.TaskState
+	startedAt   time.Time
+	completedAt time.Time
+	exitResult  *drivers.ExitResult
 }
 
 func (h *rawExecTaskHandle) IsRunning() bool {
@@ -508,11 +505,18 @@ func (h *rawExecTaskHandle) IsRunning() bool {
 }
 
 func (h *rawExecTaskHandle) run() {
+
+	// since run is called immediatly after the handle is created this
+	// ensures the exitResult is initialized so we avoid a nil pointer
+	// thus it does not need to be included in the lock
 	if h.exitResult == nil {
 		h.exitResult = &drivers.ExitResult{}
 	}
 
 	ps, err := h.exec.Wait()
+	h.stateLock.Lock()
+	defer h.stateLock.Unlock()
+
 	if err != nil {
 		h.exitResult.Err = err
 		h.procState = drivers.TaskStateUnknown
@@ -523,6 +527,4 @@ func (h *rawExecTaskHandle) run() {
 	h.exitResult.ExitCode = ps.ExitCode
 	h.exitResult.Signal = ps.Signal
 	h.completedAt = ps.Time
-
-	//h.pluginClient.Kill()
 }
