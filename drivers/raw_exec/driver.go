@@ -374,7 +374,6 @@ func (r *RawExecDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) 
 		ID:           handle.task.ID,
 		Name:         handle.task.Name,
 		State:        handle.procState,
-		SizeOnDiskMB: 0,
 		StartedAt:    handle.startedAt,
 		CompletedAt:  handle.completedAt,
 		ExitResult:   handle.exitResult,
