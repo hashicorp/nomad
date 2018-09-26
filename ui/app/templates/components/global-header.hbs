@@ -3,9 +3,9 @@
     <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
       {{partial "partials/hamburger-menu"}}
     </span>
-    <span class="navbar-item is-logo">
+    {{#link-to "jobs" class="navbar-item is-logo"}}
       {{partial "partials/nomad-logo"}}
-    </span>
+    {{/link-to}}
   </div>
   <div class="navbar-end">
     {{#if (eq config.environment "development")}}
