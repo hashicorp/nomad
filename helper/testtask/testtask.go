@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers/base"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // Path returns the path to the currently running executable.
@@ -41,7 +41,7 @@ func SetTaskEnv(t *structs.Task) {
 
 // SetTaskConfigEnv configures the environment of t so that Run executes a testtask
 // script when called from within t.
-func SetTaskConfigEnv(t *base.TaskConfig) {
+func SetTaskConfigEnv(t *drivers.TaskConfig) {
 	if t.Env == nil {
 		t.Env = map[string]string{}
 	}

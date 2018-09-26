@@ -7,7 +7,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base"
 	baseproto "github.com/hashicorp/nomad/plugins/base/proto"
-	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"google.golang.org/grpc"
 )
 
