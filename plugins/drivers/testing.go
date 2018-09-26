@@ -87,21 +87,20 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 
 	//logmon
 	if enableLogs {
-		var stdoutFifo, stderrFifo string
 		if runtime.GOOS == "windows" {
 			id := uuid.Generate()[:8]
-			stdoutFifo = fmt.Sprintf("//./pipe/%s-%s.stdout", t.Name, id)
-			stderrFifo = fmt.Sprintf("//./pipe/%s-%s.stderr", t.Name, id)
+			t.StdoutPath = fmt.Sprintf("//./pipe/%s-%s.stdout", t.Name, id)
+			t.StderrPath = fmt.Sprintf("//./pipe/%s-%s.stderr", t.Name, id)
 		} else {
-			stdoutFifo = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stdout.fifo", t.Name))
-			stderrFifo = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", t.Name))
+			t.StdoutPath = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stdout.fifo", t.Name))
+			t.StderrPath = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", t.Name))
 		}
 		err = h.lm.Start(&logmon.LogConfig{
 			LogDir:        taskDir.LogDir,
 			StdoutLogFile: fmt.Sprintf("%s.stdout", t.Name),
 			StderrLogFile: fmt.Sprintf("%s.stderr", t.Name),
-			StdoutFifo:    stdoutFifo,
-			StderrFifo:    stderrFifo,
+			StdoutFifo:    t.StdoutPath,
+			StderrFifo:    t.StderrPath,
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
 		})
@@ -114,6 +113,9 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 	}
 
 	return func() {
+		if h.lm != nil {
+			h.lm.Stop()
+		}
 		allocDir.Destroy()
 	}
 }

@@ -67,7 +67,9 @@ func (l *logmonImpl) Start(cfg *LogConfig) error {
 }
 
 func (l *logmonImpl) Stop() error {
-	l.tl.Close()
+	if l.tl != nil {
+		l.tl.Close()
+	}
 	return nil
 }
 

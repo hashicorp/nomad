@@ -325,6 +325,12 @@ message TaskConfig {
     // AllocDir is the directory on the host where the allocation directory
     // exists.
     string alloc_dir = 9;
+
+    // StdoutPath is the path to the file to open and write task stdout to
+    string stdout_path = 10;
+
+    // StderrPath is the path to the file to open and write task stderr to
+    string stderr_path = 11;
 }
 
 message Resources {

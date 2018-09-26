@@ -58,6 +58,8 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		Mounts:          []MountConfig{},  //TODO
 		User:            pb.User,
 		AllocDir:        pb.AllocDir,
+		StdoutPath:      pb.StdoutPath,
+		StderrPath:      pb.StderrPath,
 	}
 }
 
@@ -75,6 +77,8 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		User:                cfg.User,
 		AllocDir:            cfg.AllocDir,
 		MsgpackDriverConfig: cfg.rawDriverConfig,
+		StdoutPath:          cfg.StdoutPath,
+		StderrPath:          cfg.StderrPath,
 	}
 	return pb
 }
