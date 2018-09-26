@@ -17,7 +17,7 @@ standard upgrade flow.
 
 ## Nomad 0.8.6
 
-We added a new [TriggedBy](/docs/api/evaluations.html#sample-response) value,
+We added a new [TriggeredBy](/api/evaluations.html#sample-response) value,
 which can cause clusters with mixed versions to log scheduling errors. The errors only occur
 if you run a Nomad cluster with some servers running 0.8.6 and others running
 older versions of Nomad.
