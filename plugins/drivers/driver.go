@@ -102,6 +102,8 @@ type TaskConfig struct {
 	User            string
 	AllocDir        string
 	rawDriverConfig []byte
+	StdoutPath      string
+	StderrPath      string
 }
 
 func (tc *TaskConfig) EnvList() []string {
