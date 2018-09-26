@@ -1,5 +1,5 @@
 syntax = "proto3";
-package hashicorp.nomad.plugins.drivers.base.proto;
+package hashicorp.nomad.plugins.drivers.proto;
 option go_package = "proto";
 
 import "google/protobuf/duration.proto";

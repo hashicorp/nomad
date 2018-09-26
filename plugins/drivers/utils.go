@@ -1,4 +1,4 @@
-package base
+package drivers
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
 var protoTaskStateMap = map[TaskState]proto.TaskState{

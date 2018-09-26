@@ -1,4 +1,4 @@
-package base
+package drivers
 
 import (
 	"io"
@@ -8,7 +8,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
 type driverPluginServer struct {

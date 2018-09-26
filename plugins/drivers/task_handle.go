@@ -1,4 +1,4 @@
-package base
+package drivers
 
 import (
 	"github.com/hashicorp/nomad/nomad/structs"

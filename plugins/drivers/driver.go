@@ -1,4 +1,4 @@
-package base
+package drivers
 
 import (
 	"fmt"
@@ -67,6 +67,9 @@ type Fingerprint struct {
 	Attributes        map[string]string
 	Health            HealthState
 	HealthDescription string
+
+	// Err is only used if an error occured while consuming the RPC stream
+	Err error
 }
 
 type FSIsolation string
@@ -202,6 +205,9 @@ type TaskEvent struct {
 	Timestamp   time.Time
 	Message     string
 	Annotations map[string]string
+
+	// Err is only used if an error occured while consuming the RPC stream
+	Err error
 }
 
 type ExecTaskResult struct {

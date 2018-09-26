@@ -1,14 +1,15 @@
-package base
+package drivers
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/drivers/base/proto"
+	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"golang.org/x/net/context"
 )
@@ -85,6 +86,7 @@ func (d *driverPluginClient) handleFingerprint(ch chan *Fingerprint, stream prot
 		}
 		if err != nil {
 			d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
+			ch <- &Fingerprint{Err: fmt.Errorf("error from RPC stream: %v", err)}
 			break
 		}
 		f := &Fingerprint{
@@ -249,6 +251,7 @@ func (d *driverPluginClient) handleTaskEvents(ch chan *TaskEvent, stream proto.D
 		}
 		if err != nil {
 			d.logger.Error("error receiving stream from TaskEvents driver RPC", "error", err)
+			ch <- &TaskEvent{Err: fmt.Errorf("error from RPC stream: %v", err)}
 			break
 		}
 		timestamp, _ := ptypes.Timestamp(ev.Timestamp)
