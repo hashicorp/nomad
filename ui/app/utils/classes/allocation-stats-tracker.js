@@ -10,27 +10,29 @@ const percent = (numerator, denominator) => {
   return numerator / denominator;
 };
 
+const empty = ts => ({ timestamp: ts, used: null, percent: null });
+
 const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Set via the stats computed property macro
   allocation: null,
-
-  bufferSize: 100,
 
   url: computed('allocation', function() {
     return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
   }),
 
   append(frame) {
+    const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
+
     const cpuUsed = Math.floor(frame.ResourceUsage.CpuStats.TotalTicks) || 0;
-    this.get('cpu').push({
-      timestamp: frame.Timestamp,
+    this.get('cpu').pushObject({
+      timestamp,
       used: cpuUsed,
       percent: percent(cpuUsed, this.get('reservedCPU')),
     });
 
     const memoryUsed = frame.ResourceUsage.MemoryStats.RSS;
-    this.get('memory').push({
-      timestamp: frame.Timestamp,
+    this.get('memory').pushObject({
+      timestamp,
       used: memoryUsed,
       percent: percent(memoryUsed / 1024 / 1024, this.get('reservedMemory')),
     });
@@ -43,20 +45,32 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
       // allocation, don't attempt to append data for the task.
       if (!stats) continue;
 
+      const frameTimestamp = new Date(Math.floor(taskFrame.Timestamp / 1000000));
+
       const taskCpuUsed = Math.floor(taskFrame.ResourceUsage.CpuStats.TotalTicks) || 0;
-      stats.cpu.push({
-        timestamp: taskFrame.Timestamp,
+      stats.cpu.pushObject({
+        timestamp: frameTimestamp,
         used: taskCpuUsed,
         percent: percent(taskCpuUsed, stats.reservedCPU),
       });
 
       const taskMemoryUsed = taskFrame.ResourceUsage.MemoryStats.RSS;
-      stats.memory.push({
-        timestamp: taskFrame.Timestamp,
+      stats.memory.pushObject({
+        timestamp: frameTimestamp,
         used: taskMemoryUsed,
         percent: percent(taskMemoryUsed / 1024 / 1024, stats.reservedMemory),
       });
     }
+  },
+
+  pause() {
+    const ts = new Date();
+    this.get('memory').pushObject(empty(ts));
+    this.get('cpu').pushObject(empty(ts));
+    this.get('tasks').forEach(task => {
+      task.memory.pushObject(empty(ts));
+      task.cpu.pushObject(empty(ts));
+    });
   },
 
   // Static figures, denominators for stats
@@ -74,7 +88,8 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
 
   tasks: computed('allocation', function() {
     const bufferSize = this.get('bufferSize');
-    return this.get('allocation.taskGroup.tasks').map(task => ({
+    const tasks = this.get('allocation.taskGroup.tasks') || [];
+    return tasks.map(task => ({
       task: get(task, 'name'),
 
       // Static figures, denominators for stats

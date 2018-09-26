@@ -64,6 +64,12 @@ test('/allocation/:id should name the allocation and link to the corresponding j
   });
 });
 
+test('/allocation/:id should include resource utilization graphs', function(assert) {
+  assert.equal(Allocation.resourceCharts.length, 2, 'Two resource utilization graphs');
+  assert.equal(Allocation.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
+  assert.equal(Allocation.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+});
+
 test('/allocation/:id should list all tasks for the allocation', function(assert) {
   assert.equal(
     Allocation.tasks.length,

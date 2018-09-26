@@ -3,37 +3,43 @@
 // When max length is surpassed, items are removed from
 // the front of the array.
 
+// Native array methods
+let { push, splice } = Array.prototype;
+
+// Ember array prototype extension
+let { insertAt } = Array.prototype;
+
 // Using Classes to extend Array is unsupported in Babel so this less
 // ideal approach is taken: https://babeljs.io/docs/en/caveats#classes
 export default function RollingArray(maxLength, ...items) {
   const array = new Array(...items);
   array.maxLength = maxLength;
 
-  // Capture the originals of each array method, but
-  // associate them with the array to prevent closures.
-  array._push = array.push;
-  array._splice = array.splice;
-  array._unshift = array.unshift;
-
-  array.push = function(...items) {
-    const returnValue = this._push(...items);
-
+  // Bring the length back down to maxLength by removing from the front
+  array._limit = function() {
     const surplus = this.length - this.maxLength;
     if (surplus > 0) {
       this.splice(0, surplus);
     }
+  };
 
-    return Math.min(returnValue, this.maxLength);
+  array.push = function(...items) {
+    push.apply(this, items);
+    this._limit();
+    return this.length;
   };
 
   array.splice = function(...args) {
-    const returnValue = this._splice(...args);
+    const returnValue = splice.apply(this, args);
+    this._limit();
+    return returnValue;
+  };
 
-    const surplus = this.length - this.maxLength;
-    if (surplus > 0) {
-      this._splice(0, surplus);
-    }
-
+  // All mutable array methods build on top of insertAt
+  array.insertAt = function(...args) {
+    const returnValue = insertAt.apply(this, args);
+    this._limit();
+    this.arrayContentDidChange();
     return returnValue;
   };
 

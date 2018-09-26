@@ -10,30 +10,38 @@ const percent = (numerator, denominator) => {
   return numerator / denominator;
 };
 
+const empty = ts => ({ timestamp: ts, used: null, percent: null });
+
 const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
   // Set via the stats computed property macro
   node: null,
-
-  bufferSize: 100,
 
   url: computed('node', function() {
     return `/v1/client/stats?node_id=${this.get('node.id')}`;
   }),
 
   append(frame) {
+    const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
+
     const cpuUsed = Math.floor(frame.CPUTicksConsumed) || 0;
-    this.get('cpu').push({
-      timestamp: frame.Timestamp,
+    this.get('cpu').pushObject({
+      timestamp,
       used: cpuUsed,
       percent: percent(cpuUsed, this.get('reservedCPU')),
     });
 
     const memoryUsed = frame.Memory.Used;
-    this.get('memory').push({
-      timestamp: frame.Timestamp,
+    this.get('memory').pushObject({
+      timestamp,
       used: memoryUsed,
       percent: percent(memoryUsed / 1024 / 1024, this.get('reservedMemory')),
     });
+  },
+
+  pause() {
+    const ts = new Date();
+    this.get('memory').pushObject(empty(ts));
+    this.get('cpu').pushObject(empty(ts));
   },
 
   // Static figures, denominators for stats

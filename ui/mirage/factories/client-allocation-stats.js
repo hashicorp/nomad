@@ -6,13 +6,15 @@ export default Factory.extend({
 
   _taskNames: () => [], // Set by allocation
 
+  timestamp: () => Date.now() * 1000000,
+
   tasks() {
     var hash = {};
     this._taskNames.forEach(task => {
       hash[task] = {
         Pids: null,
         ResourceUsage: generateResources(),
-        Timestamp: Date.now(),
+        Timestamp: Date.now() * 1000000,
       };
     });
     return hash;

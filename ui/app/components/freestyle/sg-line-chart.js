@@ -52,6 +52,20 @@ export default Component.extend({
     ];
   }),
 
+  lineChartGapData: computed(() => {
+    return [
+      { year: 2010, value: 10 },
+      { year: 2011, value: 10 },
+      { year: 2012, value: null },
+      { year: 2013, value: 30 },
+      { year: 2014, value: 50 },
+      { year: 2015, value: 80 },
+      { year: 2016, value: null },
+      { year: 2017, value: 210 },
+      { year: 2018, value: 340 },
+    ];
+  }),
+
   lineChartLive: computed(() => {
     return [];
   }),

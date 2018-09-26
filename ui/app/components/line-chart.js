@@ -87,17 +87,18 @@ export default Component.extend(WindowResizable, {
   xScale: computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset', function() {
     const xProp = this.get('xProp');
     const scale = this.get('timeseries') ? d3Scale.scaleTime() : d3Scale.scaleLinear();
+    const data = this.get('data');
 
-    scale
-      .rangeRound([10, this.get('yAxisOffset')])
-      .domain(d3Array.extent(this.get('data'), d => d[xProp]));
+    const domain = data.length ? d3Array.extent(this.get('data'), d => d[xProp]) : [0, 1];
+
+    scale.rangeRound([10, this.get('yAxisOffset')]).domain(domain);
 
     return scale;
   }),
 
   yScale: computed('data.[]', 'yProp', 'xAxisOffset', function() {
     const yProp = this.get('yProp');
-    let max = d3Array.max(this.get('data'), d => d[yProp]);
+    let max = d3Array.max(this.get('data'), d => d[yProp]) || 1;
     if (max > 1) {
       max = nice(max);
     }
@@ -182,6 +183,7 @@ export default Component.extend(WindowResizable, {
 
     const line = d3Shape
       .line()
+      .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y(d => yScale(d[yProp]));
 
@@ -198,6 +200,7 @@ export default Component.extend(WindowResizable, {
 
     const area = d3Shape
       .area()
+      .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y0(yScale(0))
       .y1(d => yScale(d[yProp]));
@@ -244,6 +247,8 @@ export default Component.extend(WindowResizable, {
       'data'
     );
 
+    if (!data || !data.length) return;
+
     // Map the mouse coordinate to the index in the data array
     const bisector = d3Array.bisector(d => d[xProp]).left;
     const x = xScale.invert(mouseX);
@@ -253,8 +258,15 @@ export default Component.extend(WindowResizable, {
     const dLeft = data[index - 1];
     const dRight = data[index];
 
-    // Pick the closer point
-    const datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
+    let datum;
+
+    // If there is only one point, it's the activeDatum
+    if (dLeft && !dRight) {
+      datum = dLeft;
+    } else {
+      // Pick the closer point
+      datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
+    }
 
     this.set('activeDatum', datum);
     this.set('tooltipPosition', {
