@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/plugins/drivers/base"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"golang.org/x/net/context"
 )
 
@@ -20,7 +20,7 @@ type Eventer struct {
 	sync.RWMutex
 
 	// events is a channel were events to be broadcasted are sent
-	events chan *base.TaskEvent
+	events chan *drivers.TaskEvent
 
 	// streamers is a slice of consumers to broadcast events to
 	// access is gaurded by RWMutex
@@ -34,7 +34,7 @@ type Eventer struct {
 // by closing the given stop channel
 func NewEventer(stop chan struct{}) *Eventer {
 	e := &Eventer{
-		events: make(chan *base.TaskEvent),
+		events: make(chan *drivers.TaskEvent),
 		stop:   stop,
 	}
 	go e.eventLoop()
@@ -64,10 +64,10 @@ func (e *Eventer) eventLoop() {
 type eventStreamer struct {
 	timeout time.Duration
 	ctx     context.Context
-	ch      chan *base.TaskEvent
+	ch      chan *drivers.TaskEvent
 }
 
-func (s *eventStreamer) send(event *base.TaskEvent) {
+func (s *eventStreamer) send(event *drivers.TaskEvent) {
 	select {
 	case <-time.After(s.timeout):
 	case <-s.ctx.Done():
@@ -75,12 +75,12 @@ func (s *eventStreamer) send(event *base.TaskEvent) {
 	}
 }
 
-func (e *Eventer) newStream(ctx context.Context) <-chan *base.TaskEvent {
+func (e *Eventer) newStream(ctx context.Context) <-chan *drivers.TaskEvent {
 	e.Lock()
 	defer e.Unlock()
 
 	stream := &eventStreamer{
-		ch:      make(chan *base.TaskEvent),
+		ch:      make(chan *drivers.TaskEvent),
 		ctx:     ctx,
 		timeout: DefaultSendEventTimeout,
 	}
@@ -90,12 +90,12 @@ func (e *Eventer) newStream(ctx context.Context) <-chan *base.TaskEvent {
 }
 
 // TaskEvents is an implementation of the DriverPlugin.TaskEvents function
-func (e *Eventer) TaskEvents(ctx context.Context) (<-chan *base.TaskEvent, error) {
+func (e *Eventer) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	stream := e.newStream(ctx)
 	return stream, nil
 }
 
 // EmitEvent can be used to broadcast a new event
-func (e *Eventer) EmitEvent(event *base.TaskEvent) {
+func (e *Eventer) EmitEvent(event *drivers.TaskEvent) {
 	e.events <- event
 }

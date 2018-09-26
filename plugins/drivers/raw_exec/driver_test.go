@@ -12,13 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/drivers/base"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +33,7 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
+	harness := drivers.NewDriverHarness(t, d)
 
 	// Disable raw exec.
 	config := &Config{}
@@ -63,7 +62,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
+	harness := drivers.NewDriverHarness(t, d)
 
 	// Disable raw exec.
 	config := &Config{}
@@ -76,7 +75,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	require.NoError(err)
 	select {
 	case finger := <-fingerCh:
-		require.Equal(base.HealthStateUndetected, finger.Health)
+		require.Equal(drivers.HealthStateUndetected, finger.Health)
 		require.Empty(finger.Attributes["driver.raw_exec"])
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
@@ -92,7 +91,7 @@ FINGER_LOOP:
 	for {
 		select {
 		case finger := <-fingerCh:
-			if finger.Health == base.HealthStateHealthy {
+			if finger.Health == drivers.HealthStateHealthy {
 				break FINGER_LOOP
 			}
 		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
@@ -107,8 +106,8 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
-	task := &base.TaskConfig{
+	harness := drivers.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
 	}
@@ -134,8 +133,8 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
-	task := &base.TaskConfig{
+	harness := drivers.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
 	}
@@ -152,26 +151,21 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
-	var waitDone bool
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		result := <-ch
-		spew.Dump(result)
 		require.Equal(2, result.Signal)
-		waitDone = true
 	}()
 
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	var stopDone bool
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		err := harness.StopTask(task.ID, 2*time.Second, "SIGINT")
 		require.NoError(err)
-		stopDone = true
 	}()
 
 	waitCh := make(chan struct{})
@@ -184,7 +178,7 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	case <-waitCh:
 		status, err := harness.InspectTask(task.ID)
 		require.NoError(err)
-		require.Equal(base.TaskStateExited, status.State)
+		require.Equal(drivers.TaskStateExited, status.State)
 	case <-time.After(1 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
@@ -197,8 +191,8 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
-	task := &base.TaskConfig{
+	harness := drivers.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
 	}
@@ -234,7 +228,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	wg.Wait()
 	require.True(waitDone)
 	_, err = d.InspectTask(task.ID)
-	require.Equal(base.ErrTaskNotFound, err)
+	require.Equal(drivers.ErrTaskNotFound, err)
 
 	err = d.RecoverTask(handle)
 	require.NoError(err)
@@ -270,9 +264,9 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
+	harness := drivers.NewDriverHarness(t, d)
 
-	task := &base.TaskConfig{
+	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
 	}
@@ -324,9 +318,9 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	pidFile := "pid"
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
+	harness := drivers.NewDriverHarness(t, d)
 
-	task := &base.TaskConfig{
+	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
 		User: "root",
@@ -413,9 +407,9 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := base.NewDriverHarness(t, d)
+	harness := drivers.NewDriverHarness(t, d)
 
-	task := &base.TaskConfig{
+	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
 	}

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/plugins/drivers/base"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +17,7 @@ func TestEventer(t *testing.T) {
 	stop := make(chan struct{})
 	e := NewEventer(stop)
 
-	events := []*base.TaskEvent{
+	events := []*drivers.TaskEvent{
 		{
 			TaskID:    "a",
 			Timestamp: time.Now(),
@@ -37,7 +37,7 @@ func TestEventer(t *testing.T) {
 	consumer2, err := e.TaskEvents(context.Background())
 	require.NoError(err)
 
-	var buffer1, buffer2 []*base.TaskEvent
+	var buffer1, buffer2 []*drivers.TaskEvent
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
