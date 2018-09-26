@@ -15,6 +15,13 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.8.6
+
+We added a new [TriggedBy](/docs/api/evaluations.html#sample-response) value,
+which can cause clusters with mixed versions to spew scheduling errors. The errors only occur
+if you run a Nomad cluster with some servers running 0.8.6 and others running
+older versions of Nomad.
+
 ## Nomad 0.8.0
 
 ### Raft Protocol Version Compatibility
