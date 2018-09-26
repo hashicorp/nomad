@@ -358,9 +358,10 @@ func (e *UniversalExecutor) UpdateResources(resources *Resources) error {
 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
+	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
 	if err == nil {
-		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
 		return
 	}
 
@@ -388,7 +389,7 @@ func (e *UniversalExecutor) wait() {
 		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
 	}
 
-	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, Time: time.Now()}
+	e.exitState = &ProcessState{Pid: pid, ExitCode: exitCode, Signal: signal, Time: time.Now()}
 }
 
 var (

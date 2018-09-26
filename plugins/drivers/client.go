@@ -17,7 +17,7 @@ import (
 var _ DriverPlugin = &driverPluginClient{}
 
 type driverPluginClient struct {
-	base.BasePluginClient
+	*base.BasePluginClient
 
 	client proto.DriverClient
 	logger hclog.Logger

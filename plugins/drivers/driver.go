@@ -177,6 +177,10 @@ type ExitResult struct {
 	Err       error
 }
 
+func (r *ExitResult) Successful() bool {
+	return r.ExitCode == 0 && r.Signal == 0 && r.Err == nil
+}
+
 type TaskStatus struct {
 	ID               string
 	Name             string
