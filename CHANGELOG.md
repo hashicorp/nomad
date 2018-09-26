@@ -1,4 +1,4 @@
-## 0.8.6 (September 24, 2018)
+## 0.8.6 (September 26, 2018)
 
 IMPROVEMENTS:
 * core: Increased scheduling performance when annotating existing allocations
