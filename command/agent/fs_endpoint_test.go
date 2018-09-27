@@ -211,37 +211,46 @@ func TestHTTP_FS_Stream_MissingParams(t *testing.T) {
 	})
 }
 
+// TestHTTP_FS_Logs_MissingParams asserts proper error codes and messages are
+// returned for incorrect parameters (eg missing tasks).
 func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
+		// AllocID Not Present
 		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 
-		_, err = s.Server.Logs(respW, req)
-		require.EqualError(err, allocIDNotPresentErr.Error())
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(respW.Body.String(), allocIDNotPresentErr.Error())
+		require.Equal(500, respW.Code) // 500 for backward compat
 
+		// Task Not Present
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo", nil)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
-		_, err = s.Server.Logs(respW, req)
-		require.EqualError(err, taskNotPresentErr.Error())
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(respW.Body.String(), taskNotPresentErr.Error())
+		require.Equal(500, respW.Code) // 500 for backward compat
 
+		// Log Type Not Present
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo", nil)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
-		_, err = s.Server.Logs(respW, req)
-		require.EqualError(err, logTypeNotPresentErr.Error())
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(respW.Body.String(), logTypeNotPresentErr.Error())
+		require.Equal(500, respW.Code) // 500 for backward compat
 
+		// Ok
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo&type=stdout", nil)
 		require.Nil(err)
 		respW = httptest.NewRecorder()
 
-		_, err = s.Server.Logs(respW, req)
-		require.Nil(err)
+		s.Server.mux.ServeHTTP(respW, req)
+		require.Equal(200, respW.Code)
 	})
 }
 
