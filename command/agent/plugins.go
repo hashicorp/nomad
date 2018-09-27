@@ -56,7 +56,7 @@ func (a *Agent) internalPluginConfigs() (map[loader.PluginID]*loader.InternalPlu
 
 	for id, reg := range catalog {
 		if reg.Config == nil {
-			a.logger.Warn("skipping loading internal plugin because it is missing its configuration", "plugin", id)
+			a.logger.Error("skipping loading internal plugin because it is missing its configuration", "plugin", id)
 			continue
 		}
 
