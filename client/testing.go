@@ -5,9 +5,6 @@ import (
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/shared/catalog"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/mitchellh/go-testing-interface"
@@ -15,22 +12,10 @@ import (
 
 // TestClient creates an in-memory client for testing purposes.
 func TestClient(t testing.T, cb func(c *config.Config)) *Client {
-	conf := config.DefaultConfig()
-	logger := testlog.HCLogger(t)
-	conf.Logger = logger
-	conf.VaultConfig.Enabled = helper.BoolToPtr(false)
-	conf.DevMode = true
-	conf.Node = &structs.Node{
-		Reserved: &structs.Resources{
-			DiskMB: 0,
-		},
-	}
+	conf := config.TestClientConfig()
 
-	// Loosen GC threshold
-	conf.GCDiskUsageThreshold = 98.0
-	conf.GCInodeUsageThreshold = 98.0
-
-	// Tighten the fingerprinter timeouts
+	// Tighten the fingerprinter timeouts (must be done in client package
+	// to avoid circular dependencies)
 	if conf.Options == nil {
 		conf.Options = make(map[string]string)
 	}
