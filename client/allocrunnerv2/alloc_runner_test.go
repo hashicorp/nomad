@@ -1,5 +1,43 @@
 package allocrunnerv2
 
+import (
+	"testing"
+
+	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/stretchr/testify/require"
+)
+
+// TestAllocRunner_AllocState_Initialized asserts that getting TaskStates via
+// AllocState() are initialized even before the AllocRunner has run.
+func TestAllocRunner_AllocState_Initialized(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	logger := testlog.HCLogger(t)
+
+	conf := &Config{
+		Alloc:            alloc,
+		Logger:           logger,
+		ClientConfig:     config.TestClientConfig(),
+		StateDB:          state.NoopDB{},
+		Consul:           nil,
+		Vault:            nil,
+		StateUpdater:     nil,
+		PrevAllocWatcher: nil,
+	}
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+
+	allocState := ar.AllocState()
+
+	require.NotNil(t, allocState)
+	require.NotNil(t, allocState.TaskStates[alloc.Job.TaskGroups[0].Tasks[0].Name])
+}
+
 /*
 
 import (
