@@ -32,8 +32,6 @@ func validateConfig(config *PluginLoaderConfig) error {
 		return fmt.Errorf("nil config passed")
 	} else if config.Logger == nil {
 		multierror.Append(&mErr, fmt.Errorf("nil logger passed"))
-	} else if config.PluginDir == "" {
-		multierror.Append(&mErr, fmt.Errorf("invalid plugin dir %q passed", config.PluginDir))
 	}
 
 	// Validate that all plugins have a binary name
@@ -149,9 +147,18 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 
 // scan scans the plugin directory and retrieves potentially eligible binaries
 func (l *PluginLoader) scan() ([]os.FileInfo, error) {
+	if l.pluginDir == "" {
+		return nil, nil
+	}
+
 	// Capture the list of binaries in the plugins folder
 	f, err := os.Open(l.pluginDir)
 	if err != nil {
+		// There are no plugins to scan
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("failed to open plugin directory %q: %v", l.pluginDir, err)
 	}
 	files, err := f.Readdirnames(-1)

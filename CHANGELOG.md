@@ -15,6 +15,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
+ * client: Fix an issue reloading the client config [[GH-4730](https://github.com/hashicorp/nomad/issues/4730)]
 
 ## 0.8.6 (September 26, 2018)
 

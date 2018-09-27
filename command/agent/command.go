@@ -751,25 +751,36 @@ func (c *Command) handleReload() {
 
 	if s := c.agent.Server(); s != nil {
 		c.agent.logger.Debug("starting reload of server config")
-		sconf, err := convertServerConfig(newConf, c.agent.logger, c.logOutput)
+		sconf, err := convertServerConfig(newConf)
 		if err != nil {
 			c.agent.logger.Error("failed to convert server config", "error", err)
 			return
-		} else {
-			if err := s.Reload(sconf); err != nil {
-				c.agent.logger.Error("reloading server config failed", "error", err)
-				return
-			}
+		}
+
+		// Finalize the config to get the agent objects injected in
+		c.agent.finalizeServerConfig(sconf)
+
+		// Reload the config
+		if err := s.Reload(sconf); err != nil {
+			c.agent.logger.Error("reloading server config failed", "error", err)
+			return
 		}
 	}
 
 	if s := c.agent.Client(); s != nil {
-		clientConfig, err := c.agent.clientConfig()
 		c.agent.logger.Debug("starting reload of client config")
+		clientConfig, err := convertClientConfig(newConf)
 		if err != nil {
-			c.agent.logger.Error("reloading client config failed", "error", err)
+			c.agent.logger.Error("failed to convert client config", "error", err)
 			return
 		}
+
+		// Finalize the config to get the agent objects injected in
+		if err := c.agent.finalizeClientConfig(clientConfig); err != nil {
+			c.agent.logger.Error("failed to finalize client config", "error", err)
+			return
+		}
+
 		if err := c.agent.Client().Reload(clientConfig); err != nil {
 			c.agent.logger.Error("reloading client config failed", "error", err)
 			return
