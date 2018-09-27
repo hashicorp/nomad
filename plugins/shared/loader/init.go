@@ -156,6 +156,7 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 	if err != nil {
 		// There are no plugins to scan
 		if os.IsNotExist(err) {
+			l.logger.Debug("skipping external plugins since plugin_dir doesn't exist")
 			return nil, nil
 		}
 
