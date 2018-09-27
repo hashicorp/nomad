@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// XXX Why its own package?
 // State captures the state of the allocation runner.
 type State struct {
 	// ClientStatus captures the overall state of the allocation
@@ -18,6 +17,9 @@ type State struct {
 
 	// DeploymentStatus captures the status of the deployment
 	DeploymentStatus *structs.AllocDeploymentStatus
+
+	// TaskStates is a snapshot of task states.
+	TaskStates map[string]*structs.TaskState
 }
 
 // SetDeploymentStatus is a helper for updating the client-controlled
@@ -42,4 +44,18 @@ func (s *State) ClearDeploymentStatus() {
 
 	s.DeploymentStatus.Healthy = nil
 	s.DeploymentStatus.Timestamp = time.Time{}
+}
+
+// Copy returns a deep copy of State.
+func (s *State) Copy() *State {
+	taskStates := make(map[string]*structs.TaskState, len(s.TaskStates))
+	for k, v := range s.TaskStates {
+		taskStates[k] = v.Copy()
+	}
+	return &State{
+		ClientStatus:      s.ClientStatus,
+		ClientDescription: s.ClientDescription,
+		DeploymentStatus:  s.DeploymentStatus.Copy(),
+		TaskStates:        taskStates,
+	}
 }
