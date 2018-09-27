@@ -45,7 +45,8 @@ type MockDriverConfig struct {
 	// StartErrRecoverable marks the error returned is recoverable
 	StartErrRecoverable bool `mapstructure:"start_error_recoverable"`
 
-	// StartBlockFor specifies a duration in which to block before returning
+	// StartBlockFor specifies a duration in which to block Start before
+	// returning. Useful for testing the behavior of tasks in pending.
 	StartBlockFor time.Duration `mapstructure:"start_block_for"`
 
 	// KillAfter is the duration after which the mock driver indicates the task

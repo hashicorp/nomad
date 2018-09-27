@@ -453,7 +453,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 
 		// Wait for the client to run it
 		testutil.WaitForResult(func() (bool, error) {
-			if _, err := s.client.GetClientAlloc(alloc.ID); err != nil {
+			if _, err := s.client.GetAllocState(alloc.ID); err != nil {
 				return false, err
 			}
 
