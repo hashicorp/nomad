@@ -46,7 +46,7 @@ func GetStateDBFactory(devMode bool) NewStateDBFunc {
 	// Return a noop state db implementation when in debug mode
 	if devMode {
 		return func(string) (StateDB, error) {
-			return noopDB{}, nil
+			return NoopDB{}, nil
 		}
 	}
 

@@ -5,36 +5,37 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type noopDB struct{}
+// NoopDB implements a StateDB that does not persist any data.
+type NoopDB struct{}
 
-func (n noopDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, error) {
+func (n NoopDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, error) {
 	return nil, nil, nil
 }
 
-func (n noopDB) PutAllocation(*structs.Allocation) error {
+func (n NoopDB) PutAllocation(*structs.Allocation) error {
 	return nil
 }
 
-func (n noopDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
+func (n NoopDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, nil
 }
 
-func (n noopDB) PutTaskRunnerLocalState(allocID string, taskName string, val interface{}) error {
+func (n NoopDB) PutTaskRunnerLocalState(allocID string, taskName string, val interface{}) error {
 	return nil
 }
 
-func (n noopDB) PutTaskState(allocID string, taskName string, state *structs.TaskState) error {
+func (n NoopDB) PutTaskState(allocID string, taskName string, state *structs.TaskState) error {
 	return nil
 }
 
-func (n noopDB) DeleteTaskBucket(allocID, taskName string) error {
+func (n NoopDB) DeleteTaskBucket(allocID, taskName string) error {
 	return nil
 }
 
-func (n noopDB) DeleteAllocationBucket(allocID string) error {
+func (n NoopDB) DeleteAllocationBucket(allocID string) error {
 	return nil
 }
 
-func (n noopDB) Close() error {
+func (n NoopDB) Close() error {
 	return nil
 }
