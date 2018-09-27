@@ -56,9 +56,7 @@ type allocRunner struct {
 	alloc     *structs.Allocation
 	allocLock sync.RWMutex
 
-	//XXX implement for local state
-	// state captures the state of the alloc runner
-	state     *state.State
+	state     *state.State // alloc runner state
 	stateLock sync.RWMutex
 
 	stateDB cstate.StateDB
@@ -305,20 +303,22 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 	ar.stateLock.RLock()
 	defer ar.stateLock.RUnlock()
 
+	// store task states for AllocState to expose
+	ar.state.TaskStates = taskStates
+
 	a := &structs.Allocation{
 		ID:         ar.id,
 		TaskStates: taskStates,
 	}
 
-	s := ar.state
-	if d := s.DeploymentStatus; d != nil {
+	if d := ar.state.DeploymentStatus; d != nil {
 		a.DeploymentStatus = d.Copy()
 	}
 
 	// Compute the ClientStatus
-	if s.ClientStatus != "" {
+	if ar.state.ClientStatus != "" {
 		// The client status is being forced
-		a.ClientStatus, a.ClientDescription = s.ClientStatus, s.ClientDescription
+		a.ClientStatus, a.ClientDescription = ar.state.ClientStatus, ar.state.ClientDescription
 	} else {
 		a.ClientStatus, a.ClientDescription = getClientStatus(taskStates)
 	}
@@ -386,6 +386,27 @@ func getClientStatus(taskStates map[string]*structs.TaskState) (status, descript
 	}
 
 	return "", ""
+}
+
+// AllocState returns a copy of allocation state including a snapshot of task
+// states.
+func (ar *allocRunner) AllocState() *state.State {
+	// Must acquire write-lock in case TaskStates needs to be set.
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+
+	// If TaskStateUpdated has not been called yet, ar.state.TaskStates
+	// won't be set as it is not the canonical source of TaskStates.
+	if len(ar.state.TaskStates) == 0 {
+		ar.tasksLock.RLock()
+		ar.state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
+		for k, tr := range ar.tasks {
+			ar.state.TaskStates[k] = tr.TaskState()
+		}
+		ar.tasksLock.RUnlock()
+	}
+
+	return ar.state.Copy()
 }
 
 // Update the running allocation with a new version received from the server.

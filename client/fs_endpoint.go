@@ -380,7 +380,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	alloc, err := f.c.GetClientAlloc(req.AllocID)
+	allocState, err := f.c.GetAllocState(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		if structs.IsErrUnknownAllocation(err) {
@@ -392,15 +392,19 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 
 	// Check that the task is there
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		f.handleStreamResultError(fmt.Errorf("Failed to lookup task group for allocation"),
-			helper.Int64ToPtr(500), encoder)
-		return
-	} else if taskStruct := tg.LookupTask(req.Task); taskStruct == nil {
+	taskState := allocState.TaskStates[req.Task]
+	if taskState == nil {
 		f.handleStreamResultError(
-			fmt.Errorf("task group %q does not have task with name %q", alloc.TaskGroup, req.Task),
+			fmt.Errorf("unknown task name %q", req.Task),
 			helper.Int64ToPtr(400),
+			encoder)
+		return
+	}
+
+	if taskState.StartedAt.IsZero() {
+		f.handleStreamResultError(
+			fmt.Errorf("task %q not started yet. No logs available", req.Task),
+			helper.Int64ToPtr(404),
 			encoder)
 		return
 	}

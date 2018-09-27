@@ -18,6 +18,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	arstate "github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	hstats "github.com/hashicorp/nomad/helper/stats"
@@ -103,6 +104,7 @@ type ClientStatsReporter interface {
 //TODO Create via factory to allow testing Client with mock AllocRunners.
 type AllocRunner interface {
 	Alloc() *structs.Allocation
+	AllocState() *arstate.State
 	Destroy()
 	GetAllocDir() *allocdir.AllocDir
 	IsDestroyed() bool
@@ -637,8 +639,9 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 	return ar.GetAllocDir(), nil
 }
 
-// GetClientAlloc returns the allocation from the client
-func (c *Client) GetClientAlloc(allocID string) (*structs.Allocation, error) {
+// GetAllocState returns a copy of an allocation's state on this client. It
+// returns either an AllocState or an unknown allocation error.
+func (c *Client) GetAllocState(allocID string) (*arstate.State, error) {
 	c.allocLock.RLock()
 	ar, ok := c.allocs[allocID]
 	c.allocLock.RUnlock()
@@ -646,7 +649,7 @@ func (c *Client) GetClientAlloc(allocID string) (*structs.Allocation, error) {
 		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 
-	return ar.Alloc(), nil
+	return ar.AllocState(), nil
 }
 
 // GetServers returns the list of nomad servers this client is aware of.

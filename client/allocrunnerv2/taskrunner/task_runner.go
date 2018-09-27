@@ -177,17 +177,16 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	)
 
 	tr := &TaskRunner{
-		alloc:        config.Alloc,
-		allocID:      config.Alloc.ID,
-		clientConfig: config.ClientConfig,
-		task:         config.Task,
-		taskDir:      config.TaskDir,
-		taskName:     config.Task.Name,
-		envBuilder:   envBuilder,
-		consulClient: config.Consul,
-		vaultClient:  config.VaultClient,
-		//XXX Make a Copy to avoid races?
-		state:           config.Alloc.TaskStates[config.Task.Name],
+		alloc:           config.Alloc,
+		allocID:         config.Alloc.ID,
+		clientConfig:    config.ClientConfig,
+		task:            config.Task,
+		taskDir:         config.TaskDir,
+		taskName:        config.Task.Name,
+		envBuilder:      envBuilder,
+		consulClient:    config.Consul,
+		vaultClient:     config.VaultClient,
+		state:           config.Alloc.TaskStates[config.Task.Name].Copy(),
 		localState:      config.LocalState,
 		stateDB:         config.StateDB,
 		stateUpdater:    config.StateUpdater,
