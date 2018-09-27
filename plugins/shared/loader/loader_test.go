@@ -427,6 +427,75 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 	require.EqualValues(expected, detected)
 }
 
+// Tests that an external config can override the config of an internal plugin
+func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Create the harness
+	h := newHarness(t, nil)
+	defer h.cleanup()
+
+	plugin := "mock-device"
+	pluginVersion := "v0.0.1"
+
+	id := PluginID{
+		Name:       plugin,
+		PluginType: base.PluginTypeDevice,
+	}
+	expectedConfig := map[string]interface{}{
+		"foo": "2",
+		"bar": "3",
+	}
+
+	logger := testlog.HCLogger(t)
+	logger.SetLevel(log.Trace)
+	lconfig := &PluginLoaderConfig{
+		Logger:    logger,
+		PluginDir: h.pluginDir(),
+		InternalPlugins: map[PluginID]*InternalPluginConfig{
+			id: {
+				Factory: mockFactory(plugin, base.PluginTypeDevice, pluginVersion, true),
+				Config: map[string]interface{}{
+					"foo": "1",
+					"bar": "2",
+				},
+			},
+		},
+		Configs: []*config.PluginConfig{
+			{
+				Name:   plugin,
+				Config: expectedConfig,
+			},
+		},
+	}
+
+	l, err := NewPluginLoader(lconfig)
+	require.NoError(err)
+
+	// Get the catalog and assert we have the two plugins
+	c := l.Catalog()
+	require.Len(c, 1)
+	require.Contains(c, base.PluginTypeDevice)
+	detected := c[base.PluginTypeDevice]
+	require.Len(detected, 1)
+
+	expected := []*base.PluginInfoResponse{
+		{
+			Name:             plugin,
+			Type:             base.PluginTypeDevice,
+			PluginVersion:    pluginVersion,
+			PluginApiVersion: "v0.1.0",
+		},
+	}
+	require.EqualValues(expected, detected)
+
+	// Check the config
+	loaded, ok := l.plugins[id]
+	require.True(ok)
+	require.EqualValues(expectedConfig, loaded.config)
+}
+
 // Pass a config but make sure it is fatal
 func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 	t.Parallel()

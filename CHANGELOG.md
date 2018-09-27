@@ -13,8 +13,8 @@ IMPROVEMENTS:
    parameterized and periodic jobs [[GH-4392](https://github.com/hashicorp/nomad/issues/4392)]
  * vendor: Removed library obsoleted by go 1.8 [[GH-4469](https://github.com/hashicorp/nomad/issues/4469)]
 
-
 BUG FIXES:
+* client: Fix an issue reloading the client config [[GH-4730](https://github.com/hashicorp/nomad/issues/4730)]
 
 # 0.8.5 (September 13, 2018)
 
