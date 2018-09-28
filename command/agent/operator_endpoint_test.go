@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_OperatorRaftConfiguration(t *testing.T) {
@@ -255,5 +256,96 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 				r.Fatalf("bad: %#v", out.Servers)
 			}
 		})
+	})
+}
+
+func TestOperator_SchedulerGetConfiguration(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		require := require.New(t)
+		body := bytes.NewBuffer(nil)
+		req, _ := http.NewRequest("GET", "/v1/operator/scheduler/config", body)
+		resp := httptest.NewRecorder()
+		obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		require.Nil(err)
+		require.Equal(200, resp.Code)
+		out, ok := obj.(api.SchedulerConfiguration)
+		require.True(ok)
+		require.False(out.EnablePreemption)
+	})
+}
+
+func TestOperator_SchedulerSetConfiguration(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		require := require.New(t)
+		body := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/config", body)
+		resp := httptest.NewRecorder()
+		_, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		require.Nil(err)
+		require.Equal(200, resp.Code)
+
+		args := structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: s.Config.Region,
+			},
+		}
+
+		var reply structs.SchedulerConfiguration
+		err = s.RPC("Operator.SchedulerGetConfiguration", &args, &reply)
+		require.Nil(err)
+		require.True(reply.EnablePreemption)
+	})
+}
+
+func TestOperator_SchedulerCASConfiguration(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		require := require.New(t)
+		body := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/config", body)
+		resp := httptest.NewRecorder()
+		_, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		require.Nil(err)
+		require.Equal(200, resp.Code)
+
+		args := structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: s.Config.Region,
+			},
+		}
+
+		var reply structs.SchedulerConfiguration
+		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		require.True(reply.EnablePreemption)
+
+		// Create a CAS request, bad index
+		{
+			buf := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/config?cas=%d", reply.ModifyIndex-1), buf)
+			resp := httptest.NewRecorder()
+			obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+			require.Nil(err)
+			require.False(obj.(bool))
+		}
+
+		// Create a CAS request, good index
+		{
+			buf := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/config?cas=%d", reply.ModifyIndex), buf)
+			resp := httptest.NewRecorder()
+			obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+			require.Nil(err)
+			require.True(obj.(bool))
+		}
+
+		// Verify the update
+		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		require.True(reply.EnablePreemption)
 	})
 }

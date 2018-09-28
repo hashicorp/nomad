@@ -3991,3 +3991,81 @@ func (r *StateRestore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 		}
 	}
 }
+
+// SchedulerConfig is used to get the current Scheduler configuration.
+func (s *StateStore) SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error) {
+	tx := s.db.Txn(false)
+	defer tx.Abort()
+
+	// Get the scheduler config
+	c, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	config, ok := c.(*structs.SchedulerConfiguration)
+	if !ok {
+		return 0, nil, nil
+	}
+
+	return config.ModifyIndex, config, nil
+}
+
+// SchedulerSetConfig is used to set the current Scheduler configuration.
+func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerConfiguration) error {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	s.schedulerSetConfigTxn(idx, tx, config)
+
+	tx.Commit()
+	return nil
+}
+
+// SchedulerCASConfig is used to try updating the scheduler configuration with a
+// given Raft index. If the CAS index specified is not equal to the last observed index
+// for the config, then the call is a noop,
+func (s *StateStore) SchedulerCASConfig(idx, cidx uint64, config *structs.SchedulerConfiguration) (bool, error) {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	// Check for an existing config
+	existing, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return false, fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	// If the existing index does not match the provided CAS
+	// index arg, then we shouldn't update anything and can safely
+	// return early here.
+	e, ok := existing.(*structs.SchedulerConfiguration)
+	if !ok || e.ModifyIndex != cidx {
+		return false, nil
+	}
+
+	s.schedulerSetConfigTxn(idx, tx, config)
+
+	tx.Commit()
+	return true, nil
+}
+
+func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *memdb.Txn, config *structs.SchedulerConfiguration) error {
+	// Check for an existing config
+	existing, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	// Set the indexes.
+	if existing != nil {
+		config.CreateIndex = existing.(*structs.SchedulerConfiguration).CreateIndex
+	} else {
+		config.CreateIndex = idx
+	}
+	config.ModifyIndex = idx
+
+	if err := tx.Insert("scheduler_config", config); err != nil {
+		return fmt.Errorf("failed updating scheduler config: %s", err)
+	}
+	return nil
+}

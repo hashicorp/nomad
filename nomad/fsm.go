@@ -247,6 +247,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
 	case structs.BatchNodeUpdateDrainRequestType:
 		return n.applyBatchDrainUpdate(buf[1:], log.Index)
+	case structs.SchedulerConfigRequestType:
+		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1831,6 +1833,23 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		}
 	}
 	return nil
+}
+
+func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interface{} {
+	var req structs.SchedulerSetConfigRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "scheduler-config"}, time.Now())
+
+	if req.CAS {
+		act, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
+		if err != nil {
+			return err
+		}
+		return act
+	}
+	return n.state.SchedulerSetConfig(index, &req.Config)
 }
 
 // Release is a no-op, as we just need to GC the pointer

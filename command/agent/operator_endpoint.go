@@ -208,3 +208,67 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 
 	return out, nil
 }
+
+// OperatorSchedulerConfiguration is used to inspect the current Scheduler configuration.
+// This supports the stale query mode in case the cluster doesn't have a leader.
+func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Switch on the method
+	switch req.Method {
+	case "GET":
+		var args structs.GenericRequest
+		if done := s.parse(resp, req, &args.Region, &args.QueryOptions); done {
+			return nil, nil
+		}
+
+		var reply structs.SchedulerConfiguration
+		if err := s.agent.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
+			return nil, err
+		}
+
+		out := api.SchedulerConfiguration{
+			EnablePreemption: reply.EnablePreemption,
+			CreateIndex:      reply.CreateIndex,
+			ModifyIndex:      reply.ModifyIndex,
+		}
+
+		return out, nil
+
+	case "PUT":
+		var args structs.SchedulerSetConfigRequest
+		s.parseWriteRequest(req, &args.WriteRequest)
+
+		var conf api.SchedulerConfiguration
+		if err := decodeBody(req, &conf); err != nil {
+			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing autopilot config: %v", err))
+		}
+
+		args.Config = structs.SchedulerConfiguration{
+			EnablePreemption: conf.EnablePreemption,
+		}
+
+		// Check for cas value
+		params := req.URL.Query()
+		if _, ok := params["cas"]; ok {
+			casVal, err := strconv.ParseUint(params.Get("cas"), 10, 64)
+			if err != nil {
+				return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing cas value: %v", err))
+			}
+			args.Config.ModifyIndex = casVal
+			args.CAS = true
+		}
+
+		var reply bool
+		if err := s.agent.RPC("Operator.SchedulerSetConfiguration", &args, &reply); err != nil {
+			return nil, err
+		}
+
+		// Only use the out value if this was a CAS
+		if !args.CAS {
+			return true, nil
+		}
+		return reply, nil
+
+	default:
+		return nil, CodedError(404, ErrInvalidMethod)
+	}
+}
