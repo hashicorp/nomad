@@ -56,7 +56,8 @@ type allocRunner struct {
 	alloc     *structs.Allocation
 	allocLock sync.RWMutex
 
-	state     *state.State // alloc runner state
+	// state is the alloc runner's state
+	state     *state.State
 	stateLock sync.RWMutex
 
 	stateDB cstate.StateDB
@@ -391,22 +392,22 @@ func getClientStatus(taskStates map[string]*structs.TaskState) (status, descript
 // AllocState returns a copy of allocation state including a snapshot of task
 // states.
 func (ar *allocRunner) AllocState() *state.State {
-	// Must acquire write-lock in case TaskStates needs to be set.
-	ar.stateLock.Lock()
-	defer ar.stateLock.Unlock()
+	ar.stateLock.RLock()
+	state := ar.state.Copy()
+	ar.stateLock.RUnlock()
 
 	// If TaskStateUpdated has not been called yet, ar.state.TaskStates
 	// won't be set as it is not the canonical source of TaskStates.
-	if len(ar.state.TaskStates) == 0 {
+	if len(state.TaskStates) == 0 {
 		ar.tasksLock.RLock()
 		ar.state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
 		for k, tr := range ar.tasks {
-			ar.state.TaskStates[k] = tr.TaskState()
+			state.TaskStates[k] = tr.TaskState()
 		}
 		ar.tasksLock.RUnlock()
 	}
 
-	return ar.state.Copy()
+	return state
 }
 
 // Update the running allocation with a new version received from the server.
