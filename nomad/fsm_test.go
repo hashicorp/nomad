@@ -2825,3 +2825,47 @@ func TestFSM_Autopilot(t *testing.T) {
 		t.Fatalf("bad: %v", config.CleanupDeadServers)
 	}
 }
+
+func TestFSM_SchedulerConfig(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	require := require.New(t)
+
+	// Set the autopilot config using a request.
+	req := structs.SchedulerSetConfigRequest{
+		Config: structs.SchedulerConfiguration{
+			EnablePreemption: true,
+		},
+	}
+	buf, err := structs.Encode(structs.SchedulerConfigRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	// Verify key is set directly in the state store.
+	_, config, err := fsm.state.SchedulerConfig()
+	require.Nil(err)
+
+	require.Equal(config.EnablePreemption, req.Config.EnablePreemption)
+
+	// Now use CAS and provide an old index
+	req.CAS = true
+	req.Config.EnablePreemption = false
+	req.Config.ModifyIndex = config.ModifyIndex - 1
+	buf, err = structs.Encode(structs.SchedulerConfigRequestType, req)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	_, config, err = fsm.state.SchedulerConfig()
+	require.Nil(err)
+	// Verify that preemption is still enabled
+	require.True(config.EnablePreemption)
+}
