@@ -83,6 +83,7 @@ const (
 	AllocUpdateDesiredTransitionRequestType
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
+	SchedulerConfigRequestType
 )
 
 const (

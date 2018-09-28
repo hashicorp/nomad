@@ -1,5 +1,7 @@
 package api
 
+import "strconv"
+
 // Operator can be used to perform low-level operator tasks for Nomad.
 type Operator struct {
 	c *Client
@@ -105,4 +107,47 @@ func (op *Operator) RaftRemovePeerByID(id string, q *WriteOptions) error {
 
 	resp.Body.Close()
 	return nil
+}
+
+type SchedulerConfiguration struct {
+	// EnablePreemption specifies whether to enable eviction of lower
+	// priority jobs to place higher priority jobs.
+	EnablePreemption bool
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SchedulerGetConfiguration is used to query the current Scheduler configuration.
+func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfiguration, *QueryMeta, error) {
+	var resp SchedulerConfiguration
+	qm, err := op.c.query("/v1/operator/scheduler/config", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// SchedulerSetConfiguration is used to set the current Scheduler configuration.
+func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*WriteMeta, error) {
+	var out bool
+	wm, err := op.c.write("/v1/operator/scheduler/config", conf, &out, q)
+	if err != nil {
+		return nil, err
+	}
+	return wm, nil
+}
+
+// SchedulerCASConfiguration is used to perform a Check-And-Set update on the
+// Scheduler configuration. The ModifyIndex value will be respected. Returns
+// true on success or false on failures.
+func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (bool, *WriteMeta, error) {
+	var out bool
+	wm, err := op.c.write("/v1/operator/scheduler/config?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
+	if err != nil {
+		return false, nil, err
+	}
+
+	return out, wm, nil
 }
