@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
+	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
@@ -188,5 +189,30 @@ func TestStateDB_TaskState(t *testing.T) {
 		require.NoError(err)
 		require.Equal(origLocalState, ls)
 		require.Nil(ts)
+	})
+}
+
+// TestStateDB_DeviceManager asserts the behavior of device manager state related StateDB
+// methods.
+func TestStateDB_DeviceManager(t *testing.T) {
+	t.Parallel()
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		require := require.New(t)
+
+		// Getting nonexistent state should return nils
+		ps, err := db.GetDevicePluginState()
+		require.NoError(err)
+		require.Nil(ps)
+
+		// Putting PluginState should work
+		state := &devicemanager.PluginState{}
+		require.NoError(db.PutDevicePluginState(state))
+
+		// Getting should return the available state
+		ps, err = db.GetDevicePluginState()
+		require.NoError(err)
+		require.NotNil(ps)
+		require.Equal(state, ps)
 	})
 }

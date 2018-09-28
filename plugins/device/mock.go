@@ -2,6 +2,7 @@ package device
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/nomad/plugins/base"
 )
@@ -13,7 +14,7 @@ type MockDevicePlugin struct {
 	*base.MockPlugin
 	FingerprintF func(context.Context) (<-chan *FingerprintResponse, error)
 	ReserveF     func([]string) (*ContainerReservation, error)
-	StatsF       func(context.Context) (<-chan *StatsResponse, error)
+	StatsF       func(context.Context, time.Duration) (<-chan *StatsResponse, error)
 }
 
 func (p *MockDevicePlugin) Fingerprint(ctx context.Context) (<-chan *FingerprintResponse, error) {
@@ -24,6 +25,6 @@ func (p *MockDevicePlugin) Reserve(devices []string) (*ContainerReservation, err
 	return p.ReserveF(devices)
 }
 
-func (p *MockDevicePlugin) Stats(ctx context.Context) (<-chan *StatsResponse, error) {
-	return p.StatsF(ctx)
+func (p *MockDevicePlugin) Stats(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
+	return p.StatsF(ctx, interval)
 }

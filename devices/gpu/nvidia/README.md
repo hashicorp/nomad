@@ -12,7 +12,6 @@ The configuration should be passed via an HCL file that begins with a top level 
 config {
   ignored_gpu_ids = ["uuid1", "uuid2"]
   fingerprint_period = "5s"
-  stats_period = "5s"
 }
 ```
 
@@ -20,4 +19,3 @@ The valid configuration options are:
 
 * `ignored_gpu_ids` (`list(string)`: `[]`): list of GPU UUIDs strings that should not be exposed to nomad
 * `fingerprint_period` (`string`: `"5s"`): The interval to repeat fingerprint process to identify possible changes.
-* `stats_period` (`string`: `"5s"`): The interval at which to emit statistics about the devices.

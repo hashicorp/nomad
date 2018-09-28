@@ -8,7 +8,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -52,11 +51,7 @@ var (
 		),
 		"fingerprint_period": hclspec.NewDefault(
 			hclspec.NewAttr("fingerprint_period", "string", false),
-			hclspec.NewLiteral("\"5s\""),
-		),
-		"stats_period": hclspec.NewDefault(
-			hclspec.NewAttr("stats_period", "string", false),
-			hclspec.NewLiteral("\"5s\""),
+			hclspec.NewLiteral("\"1m\""),
 		),
 	})
 )
@@ -65,7 +60,6 @@ var (
 type Config struct {
 	IgnoredGPUIDs     []string `codec:"ignored_gpu_ids"`
 	FingerprintPeriod string   `codec:"fingerprint_period"`
-	StatsPeriod       string   `codec:"stats_period"`
 }
 
 // NvidiaDevice contains all plugin specific data
@@ -137,13 +131,6 @@ func (d *NvidiaDevice) SetConfig(data []byte, cfg *base.ClientAgentConfig) error
 	}
 	d.fingerprintPeriod = period
 
-	// Convert the stats period
-	speriod, err := time.ParseDuration(config.StatsPeriod)
-	if err != nil {
-		return fmt.Errorf("failed to parse stats period %q: %v", config.StatsPeriod, err)
-	}
-	d.statsPeriod = speriod
-
 	return nil
 }
 
@@ -202,8 +189,8 @@ func (d *NvidiaDevice) Reserve(deviceIDs []string) (*device.ContainerReservation
 }
 
 // Stats streams statistics for the detected devices.
-func (d *NvidiaDevice) Stats(ctx context.Context) (<-chan *device.StatsResponse, error) {
+func (d *NvidiaDevice) Stats(ctx context.Context, interval time.Duration) (<-chan *device.StatsResponse, error) {
 	outCh := make(chan *device.StatsResponse)
-	go d.stats(ctx, outCh)
+	go d.stats(ctx, outCh, interval)
 	return outCh, nil
 }

@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
+	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -16,6 +17,9 @@ type MemDB struct {
 	// alloc_id -> task_name -> value
 	localTaskState map[string]map[string]*state.LocalState
 	taskState      map[string]map[string]*structs.TaskState
+
+	// devicemanager -> plugin-state
+	devManagerPs *devicemanager.PluginState
 
 	mu sync.RWMutex
 }
@@ -129,6 +133,21 @@ func (m *MemDB) DeleteAllocationBucket(allocID string) error {
 	delete(m.localTaskState, allocID)
 
 	return nil
+}
+
+func (m *MemDB) PutDevicePluginState(ps *devicemanager.PluginState) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.devManagerPs = ps
+	return nil
+}
+
+// GetDevicePluginState stores the device manager's plugin state or returns an
+// error.
+func (m *MemDB) GetDevicePluginState() (*devicemanager.PluginState, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.devManagerPs, nil
 }
 
 func (m *MemDB) Close() error {

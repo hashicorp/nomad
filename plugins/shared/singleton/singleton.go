@@ -10,6 +10,13 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
+var (
+	// SingletonPluginExited is returned when the dispense is called and the
+	// existing plugin has exited. The caller should retry, and this will issue
+	// a new plugin instance.
+	SingletonPluginExited = fmt.Errorf("singleton plugin exited")
+)
+
 // SingletonLoader is used to only load a single external plugin at a time.
 type SingletonLoader struct {
 	// Loader is the underlying plugin loader that we wrap to give a singleton
@@ -87,7 +94,7 @@ func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logg
 
 	if i.Exited() {
 		s.clearFuture(id, f)
-		return nil, fmt.Errorf("plugin %q exited", id)
+		return nil, SingletonPluginExited
 	}
 
 	return i, nil

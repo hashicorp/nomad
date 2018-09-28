@@ -191,9 +191,17 @@ checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
 	@shellcheck ./scripts/*
 
+.PHONY: generate
 generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-generate: ## Update generated code
+generate: proto ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
+
+.PHONY: proto
+proto:
+	@for file in $$(git ls-files "*.proto" | grep -v "vendor\/.*.proto"); do \
+		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
+	done
+
 
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"

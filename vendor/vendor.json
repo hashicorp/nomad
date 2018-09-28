@@ -7,6 +7,7 @@
 		{"path":"github.com/Azure/go-ansiterm","checksumSHA1":"9NFR6RG8H2fNyKHscGmuGLQhRm4=","revision":"d6e3b3328b783f23731bc4d058875b0371ff8109","revisionTime":"2017-09-29T23:40:23Z","version":"master","versionExact":"master"},
 		{"path":"github.com/Azure/go-ansiterm/winterm","checksumSHA1":"3/UphB+6Hbx5otA4PjFjvObT+L4=","revision":"d6e3b3328b783f23731bc4d058875b0371ff8109","revisionTime":"2017-09-29T23:40:23Z","version":"master","versionExact":"master"},
 		{"path":"github.com/DataDog/datadog-go/statsd","checksumSHA1":"WvApwvvSe3i/3KO8300dyeFmkbI=","revision":"b10af4b12965a1ad08d164f57d14195b4140d8de","revisionTime":"2017-08-09T10:47:06Z"},
+		{"path":"github.com/LK4D4/joincontext","checksumSHA1":"Jmf4AnrptgBdQ5TPBJ2M89nooIQ=","revision":"1724345da6d5bcc8b66fefb843b607ab918e175c","revisionTime":"2017-10-26T17:01:39Z"},
 		{"path":"github.com/Microsoft/go-winio","checksumSHA1":"PbR6ZKoLeSZl8aXxDQqXih0wSgE=","revision":"97e4973ce50b2ff5f09635a57e2b88a037aae829","revisionTime":"2018-08-23T22:24:21Z"},
 		{"path":"github.com/NVIDIA/gpu-monitoring-tools","checksumSHA1":"kF1vk+8Xvb3nGBiw9+qbUc0SZ4M=","revision":"86f2a9fac6c5b597dc494420005144b8ef7ec9fb","revisionTime":"2018-08-29T22:20:09Z"},
 		{"path":"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml","checksumSHA1":"P8FATSSgpe5A17FyPrGpsX95Xw8=","revision":"86f2a9fac6c5b597dc494420005144b8ef7ec9fb","revisionTime":"2018-08-29T22:20:09Z"},

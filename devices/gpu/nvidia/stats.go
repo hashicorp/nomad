@@ -50,7 +50,7 @@ const (
 )
 
 // stats is the long running goroutine that streams device statistics
-func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResponse) {
+func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResponse, interval time.Duration) {
 	defer close(stats)
 
 	if d.initErr != nil {
@@ -70,7 +70,7 @@ func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResp
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			ticker.Reset(d.statsPeriod)
+			ticker.Reset(interval)
 		}
 
 		d.writeStatsToChannel(stats, time.Now())

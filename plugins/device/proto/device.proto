@@ -3,6 +3,7 @@ package hashicorp.nomad.plugins.device;
 option go_package = "proto";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "github.com/hashicorp/nomad/plugins/shared/structs/proto/attribute.proto";
 
 // DevicePlugin is the API exposed by device plugins
@@ -137,7 +138,10 @@ message DeviceSpec {
 
 
 // StatsRequest is used to parameterize the retrieval of statistics.
-message StatsRequest {}
+message StatsRequest {
+    // collection_interval is the duration in which to collect statistics.
+    google.protobuf.Duration collection_interval = 1;
+}
 
 // StatsResponse returns the statistics for each device group.
 message StatsResponse {

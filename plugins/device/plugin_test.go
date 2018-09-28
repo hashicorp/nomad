@@ -9,11 +9,10 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/helper"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
@@ -521,7 +520,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 	}
 
 	mock := &MockDevicePlugin{
-		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+		StatsF: func(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
 			outCh := make(chan *StatsResponse, 1)
 			go func() {
 				// Send two messages
@@ -561,7 +560,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 	defer cancel()
 
 	// Get the stream
-	stream, err := impl.Stats(ctx)
+	stream, err := impl.Stats(ctx, time.Millisecond)
 	require.NoError(err)
 
 	// Get the first message
@@ -600,7 +599,7 @@ func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
 
 	ferr := fmt.Errorf("mock stats failed")
 	mock := &MockDevicePlugin{
-		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+		StatsF: func(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
 			outCh := make(chan *StatsResponse, 1)
 			go func() {
 				// Send the error
@@ -639,7 +638,7 @@ func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
 	defer cancel()
 
 	// Get the stream
-	stream, err := impl.Stats(ctx)
+	stream, err := impl.Stats(ctx, time.Millisecond)
 	require.NoError(err)
 
 	// Get the first message
@@ -659,7 +658,7 @@ func TestDevicePlugin_Stats_CancelCtx(t *testing.T) {
 	require := require.New(t)
 
 	mock := &MockDevicePlugin{
-		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+		StatsF: func(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
 			outCh := make(chan *StatsResponse, 1)
 			go func() {
 				<-ctx.Done()
@@ -691,7 +690,7 @@ func TestDevicePlugin_Stats_CancelCtx(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Get the stream
-	stream, err := impl.Stats(ctx)
+	stream, err := impl.Stats(ctx, time.Millisecond)
 	require.NoError(err)
 
 	// Get the first message

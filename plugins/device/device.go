@@ -2,8 +2,10 @@ package device
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -25,8 +27,9 @@ type DevicePlugin interface {
 	// instructions.
 	Reserve(deviceIDs []string) (*ContainerReservation, error)
 
-	// Stats returns a stream of statistics per device.
-	Stats(ctx context.Context) (<-chan *StatsResponse, error)
+	// Stats returns a stream of statistics per device collected at the passed
+	// interval.
+	Stats(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error)
 }
 
 // FingerprintResponse includes a set of detected devices or an error in the
@@ -73,6 +76,41 @@ type DeviceGroup struct {
 	Attributes map[string]*structs.Attribute
 }
 
+// Validate validates that the device group is valid
+func (d *DeviceGroup) Validate() error {
+	var mErr multierror.Error
+
+	if d.Vendor == "" {
+		multierror.Append(&mErr, fmt.Errorf("device vendor must be specified"))
+	}
+	if d.Type == "" {
+		multierror.Append(&mErr, fmt.Errorf("device type must be specified"))
+	}
+	if d.Name == "" {
+		multierror.Append(&mErr, fmt.Errorf("device name must be specified"))
+	}
+
+	for i, dev := range d.Devices {
+		if dev == nil {
+			multierror.Append(&mErr, fmt.Errorf("device %d is nil", i))
+			continue
+		}
+
+		if err := dev.Validate(); err != nil {
+			multierror.Append(&mErr, multierror.Prefix(err, fmt.Sprintf("device %d: ", i)))
+		}
+	}
+
+	for k, v := range d.Attributes {
+		if err := v.Validate(); err != nil {
+			multierror.Append(&mErr, fmt.Errorf("device attribute %q invalid: %v", k, err))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+
+}
+
 // Device is an instance of a particular device.
 type Device struct {
 	// ID is the identifier for the device.
@@ -87,6 +125,15 @@ type Device struct {
 
 	// HwLocality captures hardware locality information for the device.
 	HwLocality *DeviceLocality
+}
+
+// Validate validates that the device is valid
+func (d *Device) Validate() error {
+	if d.ID == "" {
+		return fmt.Errorf("device ID must be specified")
+	}
+
+	return nil
 }
 
 // DeviceLocality captures hardware locality information for a device.

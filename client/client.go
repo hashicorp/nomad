@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,31 +17,32 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
-	consulApi "github.com/hashicorp/nomad/client/consul"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	hstats "github.com/hashicorp/nomad/helper/stats"
-	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
-	vaultapi "github.com/hashicorp/vault/api"
-
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
+	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	vaultapi "github.com/hashicorp/vault/api"
+	"github.com/kr/pretty"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -190,6 +192,10 @@ type Client struct {
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
 
+	// ctx is cancelled at the same time as the shutdownCh
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+
 	// vaultClient is used to interact with Vault for token and secret renewals
 	vaultClient vaultclient.VaultClient
 
@@ -204,6 +210,9 @@ type Client struct {
 	rpcServer     *rpc.Server
 	endpoints     rpcEndpoints
 	streamingRpcs *structs.StreamingRpcRegistry
+
+	// devicemanger is responsible for managing device plugins.
+	devicemanager devicemanager.Manager
 
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
@@ -235,6 +244,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the logger
 	logger := cfg.Logger.ResetNamed("client")
 
+	// Create a context
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Create the client
 	c := &Client{
 		config:               cfg,
@@ -249,6 +261,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		allocs:               make(map[string]AllocRunner),
 		allocUpdates:         make(chan *structs.Allocation, 64),
 		shutdownCh:           make(chan struct{}),
+		ctx:                  ctx,
+		ctxCancel:            cancel,
 		triggerDiscoveryCh:   make(chan struct{}),
 		triggerNodeUpdate:    make(chan struct{}, 8),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
@@ -305,6 +319,20 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	if err := fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
+
+	// Setup the device manager
+	devConfig := &devicemanager.Config{
+		Logger:       c.logger,
+		Loader:       c.configCopy.PluginSingletonLoader,
+		PluginConfig: c.configCopy.NomadPluginConfig(),
+		Updater: func(devs []*structs.NodeDeviceResource) {
+			c.logger.Debug("Device Updater called", "count", len(devs), "devices", hclog.Fmt("% #v", pretty.Formatter(devs)))
+		},
+		StatsInterval: c.configCopy.StatsCollectionInterval,
+		State:         c.stateDB,
+	}
+	c.devicemanager = devicemanager.New(devConfig)
+	go c.devicemanager.Run()
 
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()
@@ -533,6 +561,9 @@ func (c *Client) Shutdown() error {
 		}
 	}()
 
+	// Shutdown the device manager
+	c.devicemanager.Shutdown()
+
 	// Stop renewing tokens and secrets
 	if c.vaultClient != nil {
 		c.vaultClient.Stop()
@@ -553,6 +584,7 @@ func (c *Client) Shutdown() error {
 
 	c.shutdown = true
 	close(c.shutdownCh)
+	c.ctxCancel()
 	c.connPool.Shutdown()
 	return nil
 }

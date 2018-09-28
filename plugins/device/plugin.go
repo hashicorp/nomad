@@ -28,7 +28,8 @@ func (p *PluginDevice) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 
 func (p *PluginDevice) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &devicePluginClient{
-		client: proto.NewDevicePluginClient(c),
+		doneCtx: ctx,
+		client:  proto.NewDevicePluginClient(c),
 		BasePluginClient: &base.BasePluginClient{
 			Client: bproto.NewBasePluginClient(c),
 		},
