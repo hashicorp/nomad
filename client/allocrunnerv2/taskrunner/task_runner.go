@@ -96,9 +96,14 @@ type TaskRunner struct {
 	// driver is the driver for the task.
 	driver driver.Driver
 
-	handle       driver.DriverHandle // the handle to the running driver
-	handleResult *handleResult       // proxy for handle results
-	handleLock   sync.Mutex
+	// handleLock guards access to handle and handleResult
+	handleLock sync.Mutex
+
+	// handle to the running driver
+	handle driver.DriverHandle
+
+	// handleResult proxies wait results from drivers
+	handleResult *handleResult
 
 	// task is the task being run
 	task     *structs.Task
