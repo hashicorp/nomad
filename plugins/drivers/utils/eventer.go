@@ -31,9 +31,6 @@ type Eventer struct {
 	// ctx to allow control of event loop shutdown
 	ctx context.Context
 
-	// done tracks if the event loop has stopped due to the ctx being done
-	done bool
-
 	logger hclog.Logger
 }
 
@@ -55,7 +52,6 @@ func (e *Eventer) eventLoop() {
 	for {
 		select {
 		case <-e.ctx.Done():
-			e.done = true
 			close(e.events)
 			return
 		case event := <-e.events:
@@ -127,10 +123,14 @@ func (e *Eventer) handleConsumer(consumer *eventConsumer) {
 
 // EmitEvent can be used to broadcast a new event
 func (e *Eventer) EmitEvent(event *drivers.TaskEvent) error {
-	if e.done {
-		return fmt.Errorf("error sending event, context canceled")
-	}
 
-	e.events <- event
+	select {
+	case <-e.ctx.Done():
+		return fmt.Errorf("error sending event, context canceled")
+	case e.events <- event:
+		if e.logger.IsTrace() {
+			e.logger.Trace("emitting event", "event", *event)
+		}
+	}
 	return nil
 }
