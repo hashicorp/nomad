@@ -354,9 +354,10 @@ type FingerprintRequest struct {
 // FingerprintResponse is the response which a fingerprinter annotates with the
 // results of the fingerprint method
 type FingerprintResponse struct {
-	Attributes map[string]string
-	Links      map[string]string
-	Resources  *structs.Resources
+	Attributes    map[string]string
+	Links         map[string]string
+	Resources     *structs.Resources
+	NodeResources *structs.NodeResources
 
 	// Detected is a boolean indicating whether the fingerprinter detected
 	// if the resource was available

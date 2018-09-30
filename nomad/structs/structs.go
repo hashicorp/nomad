@@ -1425,6 +1425,9 @@ type Node struct {
 	// "docker.runtime=1.8.3"
 	Attributes map[string]string
 
+	// NodeResources captures the available resources on the client.
+	NodeResources *NodeResources
+
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
 	Resources *Resources
@@ -1607,26 +1610,6 @@ type NodeListStub struct {
 	Drivers               map[string]*DriverInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
-}
-
-// Networks defined for a task on the Resources struct.
-type Networks []*NetworkResource
-
-// Port assignment and IP for the given label or empty values.
-func (ns Networks) Port(label string) (string, int) {
-	for _, n := range ns {
-		for _, p := range n.ReservedPorts {
-			if p.Label == label {
-				return n.IP, p.Value
-			}
-		}
-		for _, p := range n.DynamicPorts {
-			if p.Label == label {
-				return n.IP, p.Value
-			}
-		}
-	}
-	return "", 0
 }
 
 // Resources is used to define the resources available
@@ -1925,6 +1908,167 @@ func (n *NetworkResource) PortLabels() map[string]int {
 		labelValues[port.Label] = port.Value
 	}
 	return labelValues
+}
+
+// Networks defined for a task on the Resources struct.
+type Networks []*NetworkResource
+
+// Port assignment and IP for the given label or empty values.
+func (ns Networks) Port(label string) (string, int) {
+	for _, n := range ns {
+		for _, p := range n.ReservedPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+		for _, p := range n.DynamicPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+	}
+	return "", 0
+}
+
+type NodeResources struct {
+	Cpu      NodeCpuResources
+	Memory   NodeMemoryResources
+	Disk     NodeDiskResources
+	Networks Networks
+}
+
+func (n *NodeResources) Merge(o *NodeResources) {
+	if o == nil {
+		return
+	}
+
+	n.Cpu.Merge(&o.Cpu)
+	n.Memory.Merge(&o.Memory)
+	n.Disk.Merge(&o.Disk)
+
+	if len(o.Networks) != 0 {
+		n.Networks = o.Networks
+	}
+}
+
+func (n *NodeResources) Equals(o *NodeResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if !n.Cpu.Equals(&o.Cpu) {
+		return false
+	}
+	if !n.Memory.Equals(&o.Memory) {
+		return false
+	}
+	if !n.Disk.Equals(&o.Disk) {
+		return false
+	}
+
+	if len(n.Networks) != len(o.Networks) {
+		return false
+	}
+	for i, n := range n.Networks {
+		if !n.Equals(o.Networks[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+type NodeCpuResources struct {
+	TotalShares uint64
+}
+
+func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
+	if o == nil {
+		return
+	}
+
+	if o.TotalShares != 0 {
+		n.TotalShares = o.TotalShares
+	}
+}
+
+func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.TotalShares != o.TotalShares {
+		return false
+	}
+
+	return true
+}
+
+type NodeMemoryResources struct {
+	MemoryMB uint64
+}
+
+func (n *NodeMemoryResources) Merge(o *NodeMemoryResources) {
+	if o == nil {
+		return
+	}
+
+	if o.MemoryMB != 0 {
+		n.MemoryMB = o.MemoryMB
+	}
+}
+
+func (n *NodeMemoryResources) Equals(o *NodeMemoryResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.MemoryMB != o.MemoryMB {
+		return false
+	}
+
+	return true
+}
+
+type NodeDiskResources struct {
+	DiskMB uint64
+}
+
+func (n *NodeDiskResources) Merge(o *NodeDiskResources) {
+	if o == nil {
+		return
+	}
+	if o.DiskMB != 0 {
+		n.DiskMB = o.DiskMB
+	}
+}
+
+func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.DiskMB != o.DiskMB {
+		return false
+	}
+
+	return true
 }
 
 const (

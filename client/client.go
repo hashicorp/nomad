@@ -938,6 +938,9 @@ func (c *Client) setupNode() error {
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
 	}
+	if node.NodeResources == nil {
+		node.NodeResources = &structs.NodeResources{}
+	}
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}
 	}
@@ -1042,9 +1045,15 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 		}
 	}
 
+	// COMPAT(0.10): Remove in 0.10
 	if response.Resources != nil && !resourcesAreEqual(c.config.Node.Resources, response.Resources) {
 		nodeHasChanged = true
 		c.config.Node.Resources.Merge(response.Resources)
+	}
+
+	if response.NodeResources != nil && !c.config.Node.NodeResources.Equals(response.NodeResources) {
+		nodeHasChanged = true
+		c.config.Node.NodeResources.Merge(response.NodeResources)
 	}
 
 	if nodeHasChanged {

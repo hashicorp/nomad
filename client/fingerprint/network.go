@@ -95,9 +95,15 @@ func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 		return err
 	}
 
+	// COMPAT(0.10): Remove in 0.10
 	resp.Resources = &structs.Resources{
 		Networks: nwResources,
 	}
+
+	resp.NodeResources = &structs.NodeResources{
+		Networks: nwResources,
+	}
+
 	for _, nwResource := range nwResources {
 		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v", intf.Name, nwResource.IP)
 	}
