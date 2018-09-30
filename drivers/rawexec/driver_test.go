@@ -1,4 +1,4 @@
-package raw_exec
+package rawexec
 
 import (
 	"context"
