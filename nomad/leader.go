@@ -633,7 +633,7 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 					s.logger.Error("failed to get job summary", "error", err)
 					continue
 				}
-				metrics.SetGaugeWithLabels([]string{"nomad", "job_summary"}, float32(1.0), append(labels, metrics.Label{
+				metrics.SetGaugeWithLabels([]string{"nomad", "job_status"}, float32(1.0), append(labels, metrics.Label{
 					Name:  "status",
 					Value: job.Status,
 				}))
