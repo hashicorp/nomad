@@ -613,7 +613,7 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 				if raw == nil {
 					break
 				}
-				job := raw.(*structs.JobListStub)
+				job := raw.(*structs.Job)
 				labels := []metrics.Label{
 					{
 						Name:  "job",
@@ -628,7 +628,11 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 						Value: job.Name,
 					},
 				}
-				summary := job.JobSummary
+				summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+				if err != nil {
+					s.logger.Error("failed to get job summary", "error", err)
+					continue
+				}
 				metrics.SetGaugeWithLabels([]string{"nomad", "job_summary"}, float32(1.0), append(labels, metrics.Label{
 					Name:  "status",
 					Value: job.Status,
