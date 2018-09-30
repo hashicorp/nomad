@@ -2101,6 +2101,29 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
+type AllocatedResources struct {
+	Tasks  map[string]*AllocatedTaskResources
+	Shared *AllocatedSharedResources
+}
+
+type AllocatedTaskResources struct {
+	CPU      AllocatedCpuResources
+	Memory   AllocatedMemoryResources
+	Networks Networks
+}
+
+type AllocatedSharedResources struct {
+	DiskMB int64
+}
+
+type AllocatedCpuResources struct {
+	CpuShares int64
+}
+
+type AllocatedMemoryResources struct {
+	MemoryMB int64
+}
+
 const (
 	// JobTypeNomad is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
@@ -6206,17 +6229,23 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
+	// COMPAT(0.11): Remove in 0.11
 	// Resources is the total set of resources allocated as part
 	// of this allocation of the task group.
 	Resources *Resources
 
+	// COMPAT(0.11): Remove in 0.11
 	// SharedResources are the resources that are shared by all the tasks in an
 	// allocation
 	SharedResources *Resources
 
+	// COMPAT(0.11): Remove in 0.11
 	// TaskResources is the set of resources allocated to each
 	// task. These should sum to the total Resources.
 	TaskResources map[string]*Resources
+
+	// AllocatedResources is the total resources allocated for the task group.
+	AllocatedResources *AllocatedResources
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
