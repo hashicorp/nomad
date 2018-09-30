@@ -17,7 +17,7 @@ type ReattachConfig struct {
 }
 
 // ReattachConfigToGoPlugin converts a ReattachConfig wrapper struct into a go
-// plugin ReattacConfig struct
+// plugin ReattachConfig struct
 func ReattachConfigToGoPlugin(rc *ReattachConfig) (*plugin.ReattachConfig, error) {
 	plug := &plugin.ReattachConfig{
 		Protocol: plugin.Protocol(rc.Protocol),
