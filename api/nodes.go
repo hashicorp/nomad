@@ -447,6 +447,7 @@ type Node struct {
 	Resources             *Resources
 	Reserved              *Resources
 	NodeResources         *NodeResources
+	ReservedResources     *NodeReservedResources
 	Links                 map[string]string
 	Meta                  map[string]string
 	NodeClass             string
@@ -479,6 +480,29 @@ type NodeMemoryResources struct {
 
 type NodeDiskResources struct {
 	DiskMB uint64
+}
+
+type NodeReservedResources struct {
+	Cpu      NodeReservedCpuResources
+	Memory   NodeReservedMemoryResources
+	Disk     NodeReservedDiskResources
+	Networks NodeReservedNetworkResources
+}
+
+type NodeReservedCpuResources struct {
+	TotalShares uint64
+}
+
+type NodeReservedMemoryResources struct {
+	MemoryMB uint64
+}
+
+type NodeReservedDiskResources struct {
+	DiskMB uint64
+}
+
+type NodeReservedNetworkResources struct {
+	ReservedHostPorts string
 }
 
 // DrainStrategy describes a Node's drain behavior.

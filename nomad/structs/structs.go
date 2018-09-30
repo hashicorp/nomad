@@ -1428,6 +1428,10 @@ type Node struct {
 	// NodeResources captures the available resources on the client.
 	NodeResources *NodeResources
 
+	// ReservedResources captures the set resources on the client that are
+	// reserved from scheduling.
+	ReservedResources *NodeReservedResources
+
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
 	Resources *Resources
@@ -2069,6 +2073,32 @@ func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
 	}
 
 	return true
+}
+
+type NodeReservedResources struct {
+	Cpu      NodeReservedCpuResources
+	Memory   NodeReservedMemoryResources
+	Disk     NodeReservedDiskResources
+	Networks NodeReservedNetworkResources
+}
+
+type NodeReservedCpuResources struct {
+	TotalShares uint64
+}
+
+type NodeReservedMemoryResources struct {
+	MemoryMB uint64
+}
+
+type NodeReservedDiskResources struct {
+	DiskMB uint64
+}
+
+type NodeReservedNetworkResources struct {
+	// ReservedHostPorts is the set of ports reserved on all host network
+	// interfaces. Its format is a comma separate list of integers or integer
+	// ranges. (80,443,1000-2000,2005)
+	ReservedHostPorts string
 }
 
 const (

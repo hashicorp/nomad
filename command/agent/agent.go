@@ -418,6 +418,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	conf.Node.HTTPAddr = a.config.AdvertiseAddrs.HTTP
 
 	// Reserve resources on the node.
+	// COMPAT(0.10): Remove in 0.10
 	r := conf.Node.Reserved
 	if r == nil {
 		r = new(structs.Resources)
@@ -428,6 +429,16 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	r.DiskMB = a.config.Client.Reserved.DiskMB
 	r.IOPS = a.config.Client.Reserved.IOPS
 	conf.GloballyReservedPorts = a.config.Client.Reserved.ParsedReservedPorts
+
+	res := conf.Node.ReservedResources
+	if res == nil {
+		res = new(structs.NodeReservedResources)
+		conf.Node.ReservedResources = res
+	}
+	res.Cpu.TotalShares = uint64(a.config.Client.Reserved.CPU)
+	res.Memory.MemoryMB = uint64(a.config.Client.Reserved.MemoryMB)
+	res.Disk.DiskMB = uint64(a.config.Client.Reserved.DiskMB)
+	res.Networks.ReservedHostPorts = a.config.Client.Reserved.ReservedPorts
 
 	conf.Version = a.config.Version
 
