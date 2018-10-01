@@ -113,50 +113,58 @@ func (s *BadgerStateDB) getAllAllocations(tx *badger.Txn) ([]*structs.Allocation
 
 // PutAllocation stores an allocation or returns an error.
 func (s *BadgerStateDB) PutAllocation(alloc *structs.Allocation) error {
-	key := fmt.Sprintf("%s/%s/%s", string(allocationsBucket), alloc.ID, allocKey)
-
+	key := allocKeyFnc(alloc.ID)
 	return s.putKey(key, allocEntry{
 		Alloc: alloc,
 	})
 }
 
+func allocKeyFnc(id string) string {
+	return fmt.Sprintf("%s/%s/%s", string(allocationsBucket), id, allocKey)
+}
+
 // GetTaskRunnerState restores TaskRunner specific state.
-func (s *BadgerStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.LocalState, *structs.TaskState, error) {
-	var ls trstate.LocalState
-	var ts structs.TaskState
+func (s *BadgerStateDB) GetTaskRunnerState(allocID, taskName string) (retLs *trstate.LocalState, retTs *structs.TaskState, err error) {
+	taskPrefix := taskKeyPrefix(allocID, taskName)
+	keySeparator := "/"
+	taskLocalStateKeySuffix := keySeparator + string(taskLocalStateKey)
+	taskStateKeySuffix := keySeparator + string(taskStateKey)
 
-	err := s.db.View(func(tx *badger.Txn) error {
+	var foundAlloc bool
+	err = s.db.View(func(tx *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchSize = 10
+		it := tx.NewIterator(opts)
+		defer it.Close()
 
-		//allocations -> $allocid -> $taskname -> taskLocalStateKey
-		k1 := fmt.Sprintf("%s/%s/%s/%s", string(allocationsBucket), allocID, taskName, taskLocalStateKey)
-
-		// Restore Local State
-		if item, err := tx.Get([]byte(k1)); err != nil { //TODO ErrKeyNotFound
-			return fmt.Errorf("failed to read local task runner state: %v", err)
-		} else {
-			b, err := item.Value()
-			if err != nil {
-				return fmt.Errorf("failed to read local task runner state: %v", err)
-			}
-			if err := json.Unmarshal(b, &ls); err != nil {
-				return err
-			}
+		allocPrefix := allocKeyFnc(allocID)
+		for it.Seek([]byte(allocPrefix)); it.ValidForPrefix([]byte(allocPrefix)); it.Next() {
+			foundAlloc = true
 		}
 
-		//allocations -> $allocid -> $taskname -> taskStateKey
-		k2 := fmt.Sprintf("%s/%s/%s/%s", string(allocationsBucket), allocID, taskName, taskStateKey)
-
-		// Restore Task State
-		if item, err := tx.Get([]byte(k2)); err != nil {
-			return fmt.Errorf("failed to read task state: %v", err)
-		} else {
-
-			b, err := item.Value()
-			if err != nil {
-				return fmt.Errorf("failed to read task state: %v", err)
-			}
-			if err := json.Unmarshal(b, &ts); err != nil {
-				return fmt.Errorf("failed to read task state: %v", err)
+		for it.Seek([]byte(taskPrefix)); it.ValidForPrefix([]byte(taskPrefix)); it.Next() {
+			item := it.Item()
+			s := string(item.Key())
+			if strings.HasSuffix(s, taskLocalStateKeySuffix) {
+				b, err := item.Value()
+				if err != nil {
+					return fmt.Errorf("failed to read local task runner state: %v", err)
+				}
+				var ls trstate.LocalState
+				if err := json.Unmarshal(b, &ls); err != nil {
+					return err
+				}
+				retLs = &ls
+			} else if strings.HasSuffix(s, taskStateKeySuffix) {
+				b, err := item.Value()
+				if err != nil {
+					return fmt.Errorf("failed to read task state: %v", err)
+				}
+				var ts structs.TaskState
+				if err := json.Unmarshal(b, &ts); err != nil {
+					return fmt.Errorf("failed to read task state: %v", err)
+				}
+				retTs = &ts
 			}
 		}
 
@@ -167,28 +175,45 @@ func (s *BadgerStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.L
 		return nil, nil, err
 	}
 
-	return &ls, &ts, nil
+	if !foundAlloc {
+		return retLs, retTs, fmt.Errorf("failed to get task \"%s\" bucket: Allocations bucket doesn't exist and transaction is not writable", taskName)
+	}
+	if retTs == nil {
+		return retLs, retTs, fmt.Errorf("failed to read task state: no data at key %s", taskStateKey)
+	}
+	if retLs == nil {
+		return retLs, retTs, fmt.Errorf("failed to read local task runner state: no data at key %s", taskLocalStateKey)
+	}
 
+	return retLs, retTs, nil
 }
 
 // PutTaskRunnerLocalState stores TaskRunner's LocalState or returns an error.
 func (s *BadgerStateDB) PutTaskRunnerLocalState(allocID, taskName string, val interface{}) error {
-	key := fmt.Sprintf("%s/%s/%s/%s", string(allocationsBucket), allocID, taskName, taskLocalStateKey)
+	key := taskKeyChild(allocID, taskName, taskLocalStateKey)
 	//allocations -> $allocid -> $taskname -> taskLocalStateKey
 	return s.putKey(key, val)
+}
+
+func taskKeyChild(allocID, taskName string, childKey []byte) string {
+	return fmt.Sprintf("%s/%s/%s/%s", string(allocationsBucket), allocID, taskName, string(childKey))
+}
+
+func taskKeyPrefix(allocID, taskName string) string {
+	return fmt.Sprintf("%s/%s/%s/", string(allocationsBucket), allocID, taskName)
 }
 
 // PutTaskState stores a task's state or returns an error.
 func (s *BadgerStateDB) PutTaskState(allocID, taskName string, state *structs.TaskState) error {
 	//allocations -> $allocid -> $taskname -> taskStateKey
-	key := fmt.Sprintf("%s/%s/%s/%s", string(allocationsBucket), allocID, taskName, taskStateKey)
+	key := taskKeyChild(allocID, taskName, taskStateKey)
 	return s.putKey(key, state)
 }
 
 // DeleteTaskBucket is used to delete a task bucket if it exists.
 func (s *BadgerStateDB) DeleteTaskBucket(allocID, taskName string) error {
 	//allocations -> $allocid -> $taskname
-	prefix := fmt.Sprintf("%s/%s/%s/", string(allocationsBucket), allocID, taskName)
+	prefix := taskKeyPrefix(allocID, taskName)
 	return s.deletePrefix(prefix)
 }
 
