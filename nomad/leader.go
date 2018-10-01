@@ -1246,7 +1246,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 		return config
 	}
 
-	config = &structs.SchedulerConfiguration{EnablePreemption: false}
+	config = &structs.SchedulerConfiguration{PreemptionConfig: structs.PreemptionConfig{SystemSchedulerEnabled: true}}
 	req := structs.SchedulerSetConfigRequest{Config: *config}
 	if _, _, err = s.raftApply(structs.SchedulerConfigRequestType, req); err != nil {
 		s.logger.Named("core").Error("failed to initialize config", "error", err)
