@@ -110,13 +110,18 @@ func (op *Operator) RaftRemovePeerByID(id string, q *WriteOptions) error {
 }
 
 type SchedulerConfiguration struct {
-	// EnablePreemption specifies whether to enable eviction of lower
+	// PreemptionConfig specifies whether to enable eviction of lower
 	// priority jobs to place higher priority jobs.
-	EnablePreemption bool
+	PreemptionConfig PreemptionConfig
 
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// PreemptionConfig specifies whether preemption is enabled based on scheduler type
+type PreemptionConfig struct {
+	SystemSchedulerEnabled bool
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.

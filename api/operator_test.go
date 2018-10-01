@@ -68,16 +68,16 @@ func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
 		config, _, err = operator.SchedulerGetConfiguration(nil)
 		r.Check(err)
 	})
-	require.False(config.EnablePreemption)
+	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
 
 	// Change a config setting
-	newConf := &SchedulerConfiguration{EnablePreemption: true}
+	newConf := &SchedulerConfiguration{PreemptionConfig: PreemptionConfig{SystemSchedulerEnabled: false}}
 	_, err := operator.SchedulerSetConfiguration(newConf, nil)
 	require.Nil(err)
 
 	config, _, err = operator.SchedulerGetConfiguration(nil)
 	require.Nil(err)
-	require.True(config.EnablePreemption)
+	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
 }
 
 func TestAPI_OperatorSchedulerCASConfiguration(t *testing.T) {
@@ -93,12 +93,12 @@ func TestAPI_OperatorSchedulerCASConfiguration(t *testing.T) {
 		config, _, err = operator.SchedulerGetConfiguration(nil)
 		r.Check(err)
 	})
-	require.False(config.EnablePreemption)
+	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
 
 	// Pass an invalid ModifyIndex
 	{
 		newConf := &SchedulerConfiguration{
-			EnablePreemption: true,
+			PreemptionConfig: PreemptionConfig{SystemSchedulerEnabled: false},
 			ModifyIndex:      config.ModifyIndex - 1,
 		}
 		resp, _, err := operator.SchedulerCASConfiguration(newConf, nil)
@@ -109,7 +109,7 @@ func TestAPI_OperatorSchedulerCASConfiguration(t *testing.T) {
 	// Pass a valid ModifyIndex
 	{
 		newConf := &SchedulerConfiguration{
-			EnablePreemption: true,
+			PreemptionConfig: PreemptionConfig{SystemSchedulerEnabled: false},
 			ModifyIndex:      config.ModifyIndex,
 		}
 		resp, _, err := operator.SchedulerCASConfiguration(newConf, nil)
