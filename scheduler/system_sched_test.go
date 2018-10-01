@@ -243,7 +243,11 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Enable Preemption
-	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{EnablePreemption: true})
+	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: true,
+		},
+	})
 
 	// Create a service job which consumes most of the system resources
 	svcJob := mock.Job()
@@ -1577,7 +1581,11 @@ func TestSystemSched_Preemption(t *testing.T) {
 	}
 
 	// Enable Preemption
-	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{EnablePreemption: true})
+	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: true,
+		},
+	})
 
 	// Create some low priority batch jobs and allocations for them
 	// One job uses a reserved port

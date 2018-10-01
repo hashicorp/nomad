@@ -2835,7 +2835,9 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	// Set the autopilot config using a request.
 	req := structs.SchedulerSetConfigRequest{
 		Config: structs.SchedulerConfiguration{
-			EnablePreemption: true,
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled: true,
+			},
 		},
 	}
 	buf, err := structs.Encode(structs.SchedulerConfigRequestType, req)
@@ -2850,11 +2852,11 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	_, config, err := fsm.state.SchedulerConfig()
 	require.Nil(err)
 
-	require.Equal(config.EnablePreemption, req.Config.EnablePreemption)
+	require.Equal(config.PreemptionConfig.SystemSchedulerEnabled, req.Config.PreemptionConfig.SystemSchedulerEnabled)
 
 	// Now use CAS and provide an old index
 	req.CAS = true
-	req.Config.EnablePreemption = false
+	req.Config.PreemptionConfig = structs.PreemptionConfig{SystemSchedulerEnabled: false}
 	req.Config.ModifyIndex = config.ModifyIndex - 1
 	buf, err = structs.Encode(structs.SchedulerConfigRequestType, req)
 	require.Nil(err)
@@ -2867,5 +2869,5 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	_, config, err = fsm.state.SchedulerConfig()
 	require.Nil(err)
 	// Verify that preemption is still enabled
-	require.True(config.EnablePreemption)
+	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
 }

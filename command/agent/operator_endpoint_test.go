@@ -271,7 +271,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 		require.Equal(200, resp.Code)
 		out, ok := obj.(api.SchedulerConfiguration)
 		require.True(ok)
-		require.False(out.EnablePreemption)
+		require.True(out.PreemptionConfig.SystemSchedulerEnabled)
 	})
 }
 
@@ -279,7 +279,9 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
-		body := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": true
+        }}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/config", body)
 		resp := httptest.NewRecorder()
 		_, err := s.Server.OperatorSchedulerConfiguration(resp, req)
@@ -295,7 +297,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		var reply structs.SchedulerConfiguration
 		err = s.RPC("Operator.SchedulerGetConfiguration", &args, &reply)
 		require.Nil(err)
-		require.True(reply.EnablePreemption)
+		require.True(reply.PreemptionConfig.SystemSchedulerEnabled)
 	})
 }
 
@@ -303,7 +305,9 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
-		body := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": true
+        }}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/config", body)
 		resp := httptest.NewRecorder()
 		_, err := s.Server.OperatorSchedulerConfiguration(resp, req)
@@ -320,11 +324,13 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		require.True(reply.EnablePreemption)
+		require.True(reply.PreemptionConfig.SystemSchedulerEnabled)
 
 		// Create a CAS request, bad index
 		{
-			buf := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+			buf := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": false
+        }}`))
 			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/config?cas=%d", reply.ModifyIndex-1), buf)
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
@@ -334,7 +340,9 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 
 		// Create a CAS request, good index
 		{
-			buf := bytes.NewBuffer([]byte(`{"EnablePreemption": true}`))
+			buf := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": false
+        }}`))
 			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/config?cas=%d", reply.ModifyIndex), buf)
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
@@ -346,6 +354,6 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		require.True(reply.EnablePreemption)
+		require.False(reply.PreemptionConfig.SystemSchedulerEnabled)
 	})
 }

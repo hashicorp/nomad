@@ -226,7 +226,7 @@ func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, re
 		}
 
 		out := api.SchedulerConfiguration{
-			EnablePreemption: reply.EnablePreemption,
+			PreemptionConfig: api.PreemptionConfig{SystemSchedulerEnabled: reply.PreemptionConfig.SystemSchedulerEnabled},
 			CreateIndex:      reply.CreateIndex,
 			ModifyIndex:      reply.ModifyIndex,
 		}
@@ -239,11 +239,11 @@ func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, re
 
 		var conf api.SchedulerConfiguration
 		if err := decodeBody(req, &conf); err != nil {
-			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing autopilot config: %v", err))
+			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing scheduler config: %v", err))
 		}
 
 		args.Config = structs.SchedulerConfiguration{
-			EnablePreemption: conf.EnablePreemption,
+			PreemptionConfig: structs.PreemptionConfig{SystemSchedulerEnabled: conf.PreemptionConfig.SystemSchedulerEnabled},
 		}
 
 		// Check for cas value
