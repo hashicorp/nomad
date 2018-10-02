@@ -28,7 +28,7 @@ type Stack interface {
 	SetJob(job *structs.Job)
 
 	// Select is used to select a node for the task group
-	Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources)
+	Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode
 }
 
 type SelectOptions struct {
@@ -167,7 +167,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	}
 }
 
-func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources) {
+func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
 
 	// This block handles trying to select from preferred nodes if options specify them
 	// It also sets back the set of nodes to the original nodes
@@ -176,9 +176,9 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 		s.source.SetNodes(options.PreferredNodes)
 		optionsNew := *options
 		optionsNew.PreferredNodes = nil
-		if option, resources := s.Select(tg, &optionsNew); option != nil {
+		if option := s.Select(tg, &optionsNew); option != nil {
 			s.source.SetNodes(originalNodes)
-			return option, resources
+			return option
 		}
 		s.source.SetNodes(originalNodes)
 		return s.Select(tg, &optionsNew)
@@ -217,16 +217,9 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 	// Find the node with the max score
 	option := s.maxScore.Next()
 
-	// Ensure that the task resources were specified
-	if option != nil && len(option.TaskResources) != len(tg.Tasks) {
-		for _, task := range tg.Tasks {
-			option.SetTaskResources(task, task.Resources)
-		}
-	}
-
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
-	return option, tgConstr.size
+	return option
 }
 
 // SystemStack is the Stack used for the System scheduler. It is designed to
@@ -306,7 +299,7 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 	}
 }
 
-func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources) {
+func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
 	// Reset the binpack selector and context
 	s.scoreNorm.Reset()
 	s.ctx.Reset()
@@ -329,14 +322,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*Ra
 	// Get the next option that satisfies the constraints.
 	option := s.scoreNorm.Next()
 
-	// Ensure that the task resources were specified
-	if option != nil && len(option.TaskResources) != len(tg.Tasks) {
-		for _, task := range tg.Tasks {
-			option.SetTaskResources(task, task.Resources)
-		}
-	}
-
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
-	return option, tgConstr.size
+	return option
 }

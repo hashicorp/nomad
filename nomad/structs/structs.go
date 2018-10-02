@@ -1529,6 +1529,8 @@ func (n *Node) Copy() *Node {
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
+	nn.NodeResources = nn.NodeResources.Copy()
+	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
@@ -1573,6 +1575,64 @@ func (n *Node) TerminalStatus() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// COMPAT(0.11): Remove in 0.11
+// ComparableReservedResources returns the reserved resouces on the node
+// handling upgrade paths. Reserved networks must be handled separately. After
+// 0.11 calls to this should be replaced with:
+// node.ReservedResources.Comparable()
+func (n *Node) ComparableReservedResources() *ComparableAllocatedResources {
+	// See if we can no-op
+	if n.Reserved == nil && n.ReservedResources == nil {
+		return nil
+	}
+
+	// Node already has 0.9+ behavior
+	if n.ReservedResources != nil {
+		return n.ReservedResources.Comparable()
+	}
+
+	// Upgrade path
+	return &ComparableAllocatedResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: uint64(n.Reserved.CPU),
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: uint64(n.Reserved.MemoryMB),
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: uint64(n.Reserved.DiskMB),
+		},
+	}
+}
+
+// COMPAT(0.11): Remove in 0.11
+// ComparableResources returns the resouces on the node
+// handling upgrade paths. Networking must be handled separately. After 0.11
+// calls to this should be replaced with: node.NodeResources.Comparable()
+func (n *Node) ComparableResources() *ComparableAllocatedResources {
+	// Node already has 0.9+ behavior
+	if n.NodeResources != nil {
+		return n.NodeResources.Comparable()
+	}
+
+	// Upgrade path
+	return &ComparableAllocatedResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: uint64(n.Resources.CPU),
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: uint64(n.Resources.MemoryMB),
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: uint64(n.Resources.DiskMB),
+		},
 	}
 }
 
@@ -1934,11 +1994,52 @@ func (ns Networks) Port(label string) (string, int) {
 	return "", 0
 }
 
+// NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
 	Cpu      NodeCpuResources
 	Memory   NodeMemoryResources
 	Disk     NodeDiskResources
 	Networks Networks
+}
+
+func (n *NodeResources) Copy() *NodeResources {
+	if n == nil {
+		return nil
+	}
+	newN := new(NodeResources)
+	*newN = *n
+	if n.Networks != nil {
+		networks := len(n.Networks)
+		newN.Networks = make([]*NetworkResource, networks)
+		for i := 0; i < networks; i++ {
+			newN.Networks[i] = n.Networks[i].Copy()
+		}
+	}
+	return newN
+}
+
+// Comparable returns a comparable version of the nodes resources. This
+// conversion can be lossy so care must be taken when using it.
+func (n *NodeResources) Comparable() *ComparableAllocatedResources {
+	if n == nil {
+		return nil
+	}
+
+	c := &ComparableAllocatedResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: n.Cpu.TotalShares,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+			Networks: n.Networks,
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+	return c
 }
 
 func (n *NodeResources) Merge(o *NodeResources) {
@@ -1986,7 +2087,10 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	return true
 }
 
+// NodeCpuResources captures the CPU resources of the node.
 type NodeCpuResources struct {
+	// TotalShares is the CPU shares available. This is calculated by number of
+	// cores multiplied by the core frequency.
 	TotalShares uint64
 }
 
@@ -2016,7 +2120,9 @@ func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
 	return true
 }
 
+// NodeMemoryResources captures the memory resources of the node
 type NodeMemoryResources struct {
+	// MemoryMB is the total available memory on the node
 	MemoryMB uint64
 }
 
@@ -2046,7 +2152,9 @@ func (n *NodeMemoryResources) Equals(o *NodeMemoryResources) bool {
 	return true
 }
 
+// NodeDiskResources captures the disk resources of the node
 type NodeDiskResources struct {
+	// DiskMB is the total available disk space on the node
 	DiskMB uint64
 }
 
@@ -2075,6 +2183,8 @@ func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
 	return true
 }
 
+// NodeReservedResources is used to capture the resources on a client node that
+// should be reserved and not made available to jobs.
 type NodeReservedResources struct {
 	Cpu      NodeReservedCpuResources
 	Memory   NodeReservedMemoryResources
@@ -2082,18 +2192,55 @@ type NodeReservedResources struct {
 	Networks NodeReservedNetworkResources
 }
 
+func (n *NodeReservedResources) Copy() *NodeReservedResources {
+	if n == nil {
+		return nil
+	}
+	newN := new(NodeReservedResources)
+	*newN = *n
+	return newN
+}
+
+// Comparable returns a comparable version of the node's reserved resources. The
+// returned resources doesn't contain any network information. This conversion
+// can be lossy so care must be taken when using it.
+func (n *NodeReservedResources) Comparable() *ComparableAllocatedResources {
+	if n == nil {
+		return nil
+	}
+
+	c := &ComparableAllocatedResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: n.Cpu.TotalShares,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+	return c
+}
+
+// NodeReservedCpuResources captures the reserved CPU resources of the node.
 type NodeReservedCpuResources struct {
 	TotalShares uint64
 }
 
+// NodeReservedMemoryResources captures the reserved memory resources of the node.
 type NodeReservedMemoryResources struct {
 	MemoryMB uint64
 }
 
+// NodeReservedDiskResources captures the reserved disk resources of the node.
 type NodeReservedDiskResources struct {
 	DiskMB uint64
 }
 
+// NodeReservedNetworkResources captures the reserved network resources of the node.
 type NodeReservedNetworkResources struct {
 	// ReservedHostPorts is the set of ports reserved on all host network
 	// interfaces. Its format is a comma separate list of integers or integer
@@ -2101,27 +2248,188 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
-type AllocatedResources struct {
-	Tasks  map[string]*AllocatedTaskResources
-	Shared *AllocatedSharedResources
+// ParsePortHostPorts returns the reserved host ports.
+func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error) {
+	return ParsePortRanges(n.ReservedHostPorts)
 }
 
+// AllocatedResources is the set of resources to be used by an allocation.
+type AllocatedResources struct {
+	// Tasks is a mapping of task name to the resources for the task.
+	Tasks map[string]*AllocatedTaskResources
+
+	// Shared is the set of resource that are shared by all tasks in the group.
+	Shared AllocatedSharedResources
+}
+
+func (a *AllocatedResources) Copy() *AllocatedResources {
+	if a == nil {
+		return nil
+	}
+	newA := new(AllocatedResources)
+	*newA = *a
+
+	if a.Tasks != nil {
+		tr := make(map[string]*AllocatedTaskResources, len(newA.Tasks))
+		for task, resource := range newA.Tasks {
+			tr[task] = resource.Copy()
+		}
+		newA.Tasks = tr
+	}
+
+	return newA
+}
+
+// Comparable returns a comparable version of the allocations allocated
+// resources. This conversion can be lossy so care must be taken when using it.
+func (a *AllocatedResources) Comparable() *ComparableAllocatedResources {
+	if a == nil {
+		return nil
+	}
+
+	c := &ComparableAllocatedResources{
+		Shared: a.Shared,
+	}
+	for _, r := range a.Tasks {
+		c.Flattened.Add(r)
+	}
+	return c
+}
+
+// OldTaskResources returns the pre-0.9.0 map of task resources
+func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
+	m := make(map[string]*Resources, len(a.Tasks))
+	for name, res := range a.Tasks {
+		m[name] = &Resources{
+			CPU:      int(res.Cpu.CpuShares),
+			MemoryMB: int(res.Memory.MemoryMB),
+			Networks: res.Networks,
+		}
+	}
+
+	return m
+}
+
+// AllocatedTaskResources are the set of resources allocated to a task.
 type AllocatedTaskResources struct {
-	CPU      AllocatedCpuResources
+	Cpu      AllocatedCpuResources
 	Memory   AllocatedMemoryResources
 	Networks Networks
 }
 
+func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
+	if a == nil {
+		return nil
+	}
+	newA := new(AllocatedTaskResources)
+	*newA = *a
+	if a.Networks != nil {
+		n := len(a.Networks)
+		newA.Networks = make([]*NetworkResource, n)
+		for i := 0; i < n; i++ {
+			newA.Networks[i] = a.Networks[i].Copy()
+		}
+	}
+	return newA
+}
+
+// NetIndex finds the matching net index using device name
+func (a *AllocatedTaskResources) NetIndex(n *NetworkResource) int {
+	for idx, net := range a.Networks {
+		if net.Device == n.Device {
+			return idx
+		}
+	}
+	return -1
+}
+
+func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
+	if delta == nil {
+		return
+	}
+
+	a.Cpu.Add(&delta.Cpu)
+	a.Memory.Add(&delta.Memory)
+
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := a.NetIndex(n)
+		if idx == -1 {
+			a.Networks = append(a.Networks, n.Copy())
+		} else {
+			a.Networks[idx].Add(n)
+		}
+	}
+}
+
+// AllocatedSharedResources are the set of resources allocated to a task group.
 type AllocatedSharedResources struct {
-	DiskMB int64
+	DiskMB uint64
 }
 
+func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
+	if delta == nil {
+		return
+	}
+
+	a.DiskMB += delta.DiskMB
+}
+
+// AllocatedCpuResources captures the allocated CPU resources.
 type AllocatedCpuResources struct {
-	CpuShares int64
+	CpuShares uint64
 }
 
+func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
+	if delta == nil {
+		return
+	}
+
+	a.CpuShares += delta.CpuShares
+}
+
+// AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
-	MemoryMB int64
+	MemoryMB uint64
+}
+
+func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
+	if delta == nil {
+		return
+	}
+
+	a.MemoryMB += delta.MemoryMB
+}
+
+// ComparableAllocatedResources is the set of resources allocated to a task group but
+// not keyed by Task, making it easier to compare.
+type ComparableAllocatedResources struct {
+	Flattened AllocatedTaskResources
+	Shared    AllocatedSharedResources
+}
+
+func (c *ComparableAllocatedResources) Add(delta *ComparableAllocatedResources) {
+	if delta == nil {
+		return
+	}
+
+	c.Flattened.Add(&delta.Flattened)
+	c.Shared.Add(&delta.Shared)
+}
+
+// Superset checks if one set of resources is a superset of another. This
+// ignores network resources, and the NetworkIndex should be used for that.
+func (c *ComparableAllocatedResources) Superset(other *ComparableAllocatedResources) (bool, string) {
+	if c.Flattened.Cpu.CpuShares < other.Flattened.Cpu.CpuShares {
+		return false, "cpu"
+	}
+	if c.Flattened.Memory.MemoryMB < other.Flattened.Memory.MemoryMB {
+		return false, "memory"
+	}
+	if c.Shared.DiskMB < other.Shared.DiskMB {
+		return false, "disk"
+	}
+	return true, ""
 }
 
 const (
@@ -3817,17 +4125,6 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 
 func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
-}
-
-// CombinedResources returns the combined resources for the task group
-func (tg *TaskGroup) CombinedResources() *Resources {
-	r := &Resources{
-		DiskMB: tg.EphemeralDisk.SizeMB,
-	}
-	for _, task := range tg.Tasks {
-		r.Add(task.Resources)
-	}
-	return r
 }
 
 // CheckRestart describes if and when a task should be restarted based on
@@ -6340,6 +6637,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 		na.Job = na.Job.Copy()
 	}
 
+	na.AllocatedResources = na.AllocatedResources.Copy()
 	na.Resources = na.Resources.Copy()
 	na.SharedResources = na.SharedResources.Copy()
 
@@ -6602,6 +6900,43 @@ func (a *Allocation) ShouldMigrate() bool {
 // This method will be removed in a future release.
 func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
+}
+
+// COMPAT(0.11): Remove in 0.11
+// ComparableResources returns the resouces on the allocation
+// handling upgrade paths. After 0.11 calls to this should be replaced with:
+// alloc.AllocatedResources.Comparable()
+func (a *Allocation) ComparableResources() *ComparableAllocatedResources {
+	// ALloc already has 0.9+ behavior
+	if a.AllocatedResources != nil {
+		return a.AllocatedResources.Comparable()
+	}
+
+	var resources *Resources
+	if a.Resources != nil {
+		resources = a.Resources
+	} else if a.TaskResources != nil {
+		resources = new(Resources)
+		resources.Add(a.SharedResources)
+		for _, taskResource := range a.TaskResources {
+			resources.Add(taskResource)
+		}
+	}
+
+	// Upgrade path
+	return &ComparableAllocatedResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: uint64(resources.CPU),
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: uint64(resources.MemoryMB),
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: uint64(resources.DiskMB),
+		},
+	}
 }
 
 // Stub returns a list stub for the allocation

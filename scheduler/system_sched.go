@@ -282,7 +282,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
-		option, _ := s.stack.Select(missing.TaskGroup, nil)
+		option := s.stack.Select(missing.TaskGroup, nil)
 
 		if option == nil {
 			// If nodes were filtered because of constraint mismatches and we
@@ -315,19 +315,27 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Set fields based on if we found an allocation option
 		if option != nil {
+			resources := &structs.AllocatedResources{
+				Tasks: option.TaskResources,
+				Shared: structs.AllocatedSharedResources{
+					DiskMB: uint64(missing.TaskGroup.EphemeralDisk.SizeMB),
+				},
+			}
+
 			// Create an allocation for this
 			alloc := &structs.Allocation{
-				ID:            uuid.Generate(),
-				Namespace:     s.job.Namespace,
-				EvalID:        s.eval.ID,
-				Name:          missing.Name,
-				JobID:         s.job.ID,
-				TaskGroup:     missing.TaskGroup.Name,
-				Metrics:       s.ctx.Metrics(),
-				NodeID:        option.Node.ID,
-				TaskResources: option.TaskResources,
-				DesiredStatus: structs.AllocDesiredStatusRun,
-				ClientStatus:  structs.AllocClientStatusPending,
+				ID:                 uuid.Generate(),
+				Namespace:          s.job.Namespace,
+				EvalID:             s.eval.ID,
+				Name:               missing.Name,
+				JobID:              s.job.ID,
+				TaskGroup:          missing.TaskGroup.Name,
+				Metrics:            s.ctx.Metrics(),
+				NodeID:             option.Node.ID,
+				TaskResources:      resources.OldTaskResources(),
+				AllocatedResources: resources,
+				DesiredStatus:      structs.AllocDesiredStatusRun,
+				ClientStatus:       structs.AllocClientStatusPending,
 
 				SharedResources: &structs.Resources{
 					DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,

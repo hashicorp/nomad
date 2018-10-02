@@ -428,7 +428,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	r.MemoryMB = a.config.Client.Reserved.MemoryMB
 	r.DiskMB = a.config.Client.Reserved.DiskMB
 	r.IOPS = a.config.Client.Reserved.IOPS
-	conf.GloballyReservedPorts = a.config.Client.Reserved.ParsedReservedPorts
 
 	res := conf.Node.ReservedResources
 	if res == nil {

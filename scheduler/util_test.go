@@ -975,10 +975,6 @@ func TestTaskGroupConstraints(t *testing.T) {
 	// Build the expected values.
 	expConstr := []*structs.Constraint{constr, constr2, constr3}
 	expDrivers := map[string]struct{}{"exec": {}, "docker": {}}
-	expSize := &structs.Resources{
-		CPU:      1000,
-		MemoryMB: 512,
-	}
 
 	actConstrains := taskGroupConstraints(tg)
 	if !reflect.DeepEqual(actConstrains.constraints, expConstr) {
@@ -987,10 +983,6 @@ func TestTaskGroupConstraints(t *testing.T) {
 	if !reflect.DeepEqual(actConstrains.drivers, expDrivers) {
 		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers)
 	}
-	if !reflect.DeepEqual(actConstrains.size, expSize) {
-		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.size, expSize)
-	}
-
 }
 
 func TestProgressMade(t *testing.T) {

@@ -514,7 +514,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			allocInPlace, "")
 
 		// Attempt to match the task group
-		option, _ := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
+		option := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(update.Alloc)
@@ -541,7 +541,12 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.EvalID = eval.ID
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
-		newAlloc.TaskResources = option.TaskResources
+		newAlloc.AllocatedResources = &structs.AllocatedResources{
+			Tasks: option.TaskResources,
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: uint64(update.TaskGroup.EphemeralDisk.SizeMB),
+			},
+		}
 		newAlloc.Metrics = ctx.Metrics()
 		ctx.Plan().AppendAlloc(newAlloc)
 
@@ -580,9 +585,6 @@ type tgConstrainTuple struct {
 
 	// The set of required drivers within the task group.
 	drivers map[string]struct{}
-
-	// The combined resources of all tasks within the task group.
-	size *structs.Resources
 }
 
 // taskGroupConstraints collects the constraints, drivers and resources required by each
@@ -591,14 +593,12 @@ func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
 	c := tgConstrainTuple{
 		constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
 		drivers:     make(map[string]struct{}),
-		size:        &structs.Resources{DiskMB: tg.EphemeralDisk.SizeMB},
 	}
 
 	c.constraints = append(c.constraints, tg.Constraints...)
 	for _, task := range tg.Tasks {
 		c.drivers[task.Driver] = struct{}{}
 		c.constraints = append(c.constraints, task.Constraints...)
-		c.size.Add(task.Resources)
 	}
 
 	return c
@@ -781,7 +781,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		ctx.Plan().AppendUpdate(existing, structs.AllocDesiredStatusStop, allocInPlace, "")
 
 		// Attempt to match the task group
-		option, _ := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions
+		option := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(existing)
@@ -808,7 +808,12 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.EvalID = evalID
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
-		newAlloc.TaskResources = option.TaskResources
+		newAlloc.AllocatedResources = &structs.AllocatedResources{
+			Tasks: option.TaskResources,
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: uint64(newTG.EphemeralDisk.SizeMB),
+			},
+		}
 		newAlloc.Metrics = ctx.Metrics()
 		return false, false, newAlloc
 	}

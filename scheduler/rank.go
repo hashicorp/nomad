@@ -21,7 +21,7 @@ type RankedNode struct {
 	Node          *structs.Node
 	FinalScore    float64
 	Scores        []float64
-	TaskResources map[string]*structs.Resources
+	TaskResources map[string]*structs.AllocatedTaskResources
 
 	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
@@ -46,9 +46,9 @@ func (r *RankedNode) ProposedAllocs(ctx Context) ([]*structs.Allocation, error) 
 }
 
 func (r *RankedNode) SetTaskResources(task *structs.Task,
-	resource *structs.Resources) {
+	resource *structs.AllocatedTaskResources) {
 	if r.TaskResources == nil {
-		r.TaskResources = make(map[string]*structs.Resources)
+		r.TaskResources = make(map[string]*structs.AllocatedTaskResources)
 	}
 	r.TaskResources[task.Name] = resource
 }
@@ -189,15 +189,27 @@ OUTER:
 		netIdx.AddAllocs(proposed)
 
 		// Assign the resources for each task
-		total := &structs.Resources{
-			DiskMB: iter.taskGroup.EphemeralDisk.SizeMB,
+		total := &structs.AllocatedResources{
+			Tasks: make(map[string]*structs.AllocatedTaskResources,
+				len(iter.taskGroup.Tasks)),
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: uint64(iter.taskGroup.EphemeralDisk.SizeMB),
+			},
 		}
 		for _, task := range iter.taskGroup.Tasks {
-			taskResources := task.Resources.Copy()
+			// Allocate the resources
+			taskResources := &structs.AllocatedTaskResources{
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: uint64(task.Resources.CPU),
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: uint64(task.Resources.MemoryMB),
+				},
+			}
 
 			// Check if we need a network resource
-			if len(taskResources.Networks) > 0 {
-				ask := taskResources.Networks[0]
+			if len(task.Resources.Networks) > 0 {
+				ask := task.Resources.Networks[0].Copy()
 				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
@@ -217,11 +229,11 @@ OUTER:
 			option.SetTaskResources(task, taskResources)
 
 			// Accumulate the total resource requirement
-			total.Add(taskResources)
+			total.Tasks[task.Name] = taskResources
 		}
 
 		// Add the resources we are trying to fit
-		proposed = append(proposed, &structs.Allocation{Resources: total})
+		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
 
 		// Check if these allocations fit, if they do not, simply skip this node
 		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx)
