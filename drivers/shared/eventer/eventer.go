@@ -1,4 +1,4 @@
-package utils
+package eventer
 
 import (
 	"sync"
