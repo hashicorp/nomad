@@ -472,9 +472,6 @@ type JobBatchDeregisterRequest struct {
 	// Jobs is the set of jobs to deregister
 	Jobs map[NamespacedID]*JobDeregisterOptions
 
-	// Evals is the set of evaluations to create.
-	Evals []*Evaluation
-
 	WriteRequest
 }
 

@@ -522,7 +522,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 		}
 	}
 
-	return n.upsertEvals(index, req.Evals)
+	return nil
 }
 
 // handleJobDeregister is used to deregister a job.

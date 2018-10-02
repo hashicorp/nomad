@@ -694,9 +694,6 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 	if len(args.Jobs) == 0 {
 		return fmt.Errorf("given no jobs to deregister")
 	}
-	if len(args.Evals) != 0 {
-		return fmt.Errorf("evaluations should not be populated")
-	}
 
 	// Loop through checking for permissions
 	for jobNS := range args.Jobs {
@@ -712,7 +709,18 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		return err
 	}
 
+	// Commit job deregistering request via Raft
+	_, index, err := j.srv.raftApply(structs.JobBatchDeregisterRequestType, args)
+	if err != nil {
+		j.logger.Error("batch deregister failed", "error", err)
+		return err
+	}
+
+	// Populate the reply with job information
+	reply.Index = index
+
 	// Loop through to create evals
+	evals := make([]*structs.Evaluation, 0, len(args.Jobs))
 	for jobNS, options := range args.Jobs {
 		if options == nil {
 			return fmt.Errorf("no deregister options provided for %v", jobNS)
@@ -737,25 +745,32 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 
 		// Create a new evaluation
 		eval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			Namespace:   jobNS.Namespace,
-			Priority:    priority,
-			Type:        jtype,
-			TriggeredBy: structs.EvalTriggerJobDeregister,
-			JobID:       jobNS.ID,
-			Status:      structs.EvalStatusPending,
+			ID:             uuid.Generate(),
+			Namespace:      jobNS.Namespace,
+			Priority:       priority,
+			Type:           jtype,
+			TriggeredBy:    structs.EvalTriggerJobDeregister,
+			JobID:          jobNS.ID,
+			JobModifyIndex: index,
+			Status:         structs.EvalStatusPending,
 		}
-		args.Evals = append(args.Evals, eval)
+		evals = append(evals, eval)
 	}
 
-	// Commit this update via Raft
-	_, index, err := j.srv.raftApply(structs.JobBatchDeregisterRequestType, args)
+	update := &structs.EvalUpdateRequest{
+		Evals:        evals,
+		WriteRequest: structs.WriteRequest{Region: args.Region},
+	}
+
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
-		j.logger.Error("batch deregister failed", "error", err)
+		j.logger.Error("eval create failed", "error", err, "method", "batchderegister")
 		return err
 	}
 
-	reply.Index = index
+	// Populate the reply with eval information
+	reply.Index = evalIndex
 	return nil
 }
 
