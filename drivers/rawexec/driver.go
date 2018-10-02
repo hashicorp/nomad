@@ -448,7 +448,7 @@ func (r *RawExecDriver) SignalTask(taskID string, signal string) error {
 
 	sig := os.Interrupt
 	if s, ok := signals.SignalLookup[signal]; ok {
-		r.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal)
+		r.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.task.ID)
 		sig = s
 	}
 	return handle.exec.Signal(sig)

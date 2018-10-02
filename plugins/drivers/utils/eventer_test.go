@@ -15,7 +15,7 @@ func TestEventer(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, _ := context.WithCancel(context.Background())
 	e := NewEventer(ctx, testlog.HCLogger(t))
 
 	events := []*drivers.TaskEvent{
@@ -33,7 +33,7 @@ func TestEventer(t *testing.T) {
 		},
 	}
 
-	ctx1, cancel1 := context.WithCancel(context.Background())
+	ctx1, _ := context.WithCancel(context.Background())
 	consumer1, err := e.TaskEvents(ctx1)
 	require.NoError(err)
 	ctx2 := (context.Background())
@@ -49,8 +49,8 @@ func TestEventer(t *testing.T) {
 		for event := range consumer1 {
 			i++
 			buffer1 = append(buffer1, event)
-			if i == 3 {
-				break
+			if i == len(events) {
+				return
 			}
 		}
 	}()
@@ -60,8 +60,8 @@ func TestEventer(t *testing.T) {
 		for event := range consumer2 {
 			i++
 			buffer2 = append(buffer2, event)
-			if i == 3 {
-				break
+			if i == len(events) {
+				return
 			}
 		}
 	}()
@@ -73,20 +73,45 @@ func TestEventer(t *testing.T) {
 	wg.Wait()
 	require.Exactly(events, buffer1)
 	require.Exactly(events, buffer2)
-	cancel1()
-	time.Sleep(100 * time.Millisecond)
+}
+
+func TestEventer_iterateConsumers(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	e := &Eventer{
+		events: make(chan *drivers.TaskEvent),
+		ctx:    context.Background(),
+		logger: testlog.HCLogger(t),
+	}
+
+	ev := &drivers.TaskEvent{
+		TaskID:    "a",
+		Timestamp: time.Now(),
+	}
+
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	consumer, err := e.TaskEvents(ctx1)
+	require.NoError(err)
 	require.Equal(1, len(e.consumers))
 
-	require.NoError(e.EmitEvent(&drivers.TaskEvent{}))
-	ev, ok := <-consumer1
-	require.Nil(ev)
-	require.False(ok)
-	ev, ok = <-consumer2
-	require.NotNil(ev)
-	require.True(ok)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ev1, ok := <-consumer
+		require.Exactly(ev, ev1)
+		require.True(ok)
+	}()
+	e.iterateConsumers(ev)
+	wg.Wait()
 
-	cancel()
-	time.Sleep(100 * time.Millisecond)
-	require.Zero(len(e.consumers))
-	require.Error(e.EmitEvent(&drivers.TaskEvent{}))
+	go func() {
+		cancel1()
+		e.iterateConsumers(ev)
+	}()
+	ev1, ok := <-consumer
+	require.False(ok)
+	require.Nil(ev1)
+	require.Equal(0, len(e.consumers))
 }

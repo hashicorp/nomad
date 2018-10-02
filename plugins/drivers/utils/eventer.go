@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -13,25 +12,39 @@ import (
 var (
 	// DefaultSendEventTimeout is the timeout used when publishing events to consumers
 	DefaultSendEventTimeout = 2 * time.Second
+
+	// ConsumerGCInterval is the interval at which garbage collection of consumers
+	// occures
+	ConsumerGCInterval = time.Minute
 )
 
 // Eventer is a utility to control broadcast of TaskEvents to multiple consumers.
 // It also implements the TaskEvents func in the DriverPlugin interface so that
 // it can be embedded in a implementing driver struct.
 type Eventer struct {
-	consumersLock sync.RWMutex
 
 	// events is a channel were events to be broadcasted are sent
+	// This channel is never closed, because it's lifetime is tied to the
+	// life of the driver and closing creates some subtile race conditions
+	// between closing it and emitting events.
 	events chan *drivers.TaskEvent
 
 	// consumers is a slice of eventConsumers to broadcast events to.
 	// access is gaurded by consumersLock RWMutex
-	consumers []*eventConsumer
+	consumers     []*eventConsumer
+	consumersLock sync.RWMutex
 
 	// ctx to allow control of event loop shutdown
 	ctx context.Context
 
 	logger hclog.Logger
+}
+
+type eventConsumer struct {
+	timeout time.Duration
+	ctx     context.Context
+	ch      chan *drivers.TaskEvent
+	logger  hclog.Logger
 }
 
 // NewEventer returns an Eventer with a running event loop that can be stopped
@@ -52,32 +65,48 @@ func (e *Eventer) eventLoop() {
 	for {
 		select {
 		case <-e.ctx.Done():
-			close(e.events)
+			e.logger.Debug("task event loop shutdown")
 			return
 		case event := <-e.events:
-			e.consumersLock.RLock()
-			for _, consumer := range e.consumers {
-				consumer.send(event)
-			}
-			e.consumersLock.RUnlock()
+			e.iterateConsumers(event)
+		case <-time.After(ConsumerGCInterval):
+			e.gcConsumers()
 		}
 	}
 }
 
-type eventConsumer struct {
-	timeout time.Duration
-	ctx     context.Context
-	ch      chan *drivers.TaskEvent
-	logger  hclog.Logger
+func (e *Eventer) iterateConsumers(event *drivers.TaskEvent) {
+	e.consumersLock.Lock()
+	filtered := e.consumers[:0]
+	for _, consumer := range e.consumers {
+		select {
+		case <-time.After(consumer.timeout):
+			filtered = append(filtered, consumer)
+			e.logger.Warn("timeout sending event", "task_id", event.TaskID, "message", event.Message)
+		case <-consumer.ctx.Done():
+			// consumer context finished, filtering it out of loop
+			close(consumer.ch)
+		case consumer.ch <- event:
+			filtered = append(filtered, consumer)
+		}
+	}
+	e.consumers = filtered
+	e.consumersLock.Unlock()
 }
 
-func (c *eventConsumer) send(event *drivers.TaskEvent) {
-	select {
-	case <-time.After(c.timeout):
-		c.logger.Warn("timeout sending event", "task_id", event.TaskID, "message", event.Message)
-	case <-c.ctx.Done():
-	case c.ch <- event:
+func (e *Eventer) gcConsumers() {
+	e.consumersLock.Lock()
+	filtered := e.consumers[:0]
+	for _, consumer := range e.consumers {
+		select {
+		case <-consumer.ctx.Done():
+			// consumer context finished, filtering it out of loop
+		default:
+			filtered = append(filtered, consumer)
+		}
 	}
+	e.consumers = filtered
+	e.consumersLock.Unlock()
 }
 
 func (e *Eventer) newConsumer(ctx context.Context) *eventConsumer {
@@ -98,27 +127,7 @@ func (e *Eventer) newConsumer(ctx context.Context) *eventConsumer {
 // TaskEvents is an implementation of the DriverPlugin.TaskEvents function
 func (e *Eventer) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	consumer := e.newConsumer(ctx)
-	go e.handleConsumer(consumer)
 	return consumer.ch, nil
-}
-
-func (e *Eventer) handleConsumer(consumer *eventConsumer) {
-	// wait for consumer or eventer ctx to finish
-	select {
-	case <-consumer.ctx.Done():
-	case <-e.ctx.Done():
-	}
-	e.consumersLock.Lock()
-	defer e.consumersLock.Unlock()
-	defer close(consumer.ch)
-
-	filtered := e.consumers[:0]
-	for _, c := range e.consumers {
-		if c != consumer {
-			filtered = append(filtered, c)
-		}
-	}
-	e.consumers = filtered
 }
 
 // EmitEvent can be used to broadcast a new event
@@ -126,10 +135,10 @@ func (e *Eventer) EmitEvent(event *drivers.TaskEvent) error {
 
 	select {
 	case <-e.ctx.Done():
-		return fmt.Errorf("error sending event, context canceled")
+		return e.ctx.Err()
 	case e.events <- event:
 		if e.logger.IsTrace() {
-			e.logger.Trace("emitting event", "event", *event)
+			e.logger.Trace("emitting event", "event", event)
 		}
 	}
 	return nil
