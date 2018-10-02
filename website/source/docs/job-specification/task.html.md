@@ -196,6 +196,7 @@ task "server" {
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [logs]: /docs/job-specification/logs.html "Nomad logs Job Specification"
 [service]: /guides/operations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
+[vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
 [exec]: /docs/drivers/exec.html "Nomad exec Driver"
 [java]: /docs/drivers/java.html "Nomad Java Driver"
 [Docker]: /docs/drivers/docker.html "Nomad Docker Driver"
