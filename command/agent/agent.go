@@ -739,37 +739,17 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 // reservePortsForClient reserves a range of ports for the client to use when
 // it creates various plugins for log collection, executors, drivers, etc
 func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
-	// finding the device name for loopback
-	deviceName, addr, mask, err := a.findLoopbackDevice()
-	if err != nil {
-		return fmt.Errorf("error finding the device name for loopback: %v", err)
+	if conf.Node.ReservedResources == nil {
+		conf.Node.ReservedResources = &structs.NodeReservedResources{}
 	}
 
-	// seeing if the user has already reserved some resources on this device
-	var nr *structs.NetworkResource
-	if conf.Node.Reserved == nil {
-		conf.Node.Reserved = &structs.Resources{}
+	res := conf.Node.ReservedResources.Networks.ReservedHostPorts
+	if res == "" {
+		res = fmt.Sprintf("%d-%d", conf.ClientMinPort, conf.ClientMaxPort)
+	} else {
+		res += fmt.Sprintf(",%d-%d", conf.ClientMinPort, conf.ClientMaxPort)
 	}
-	for _, n := range conf.Node.Reserved.Networks {
-		if n.Device == deviceName {
-			nr = n
-		}
-	}
-	// If the user hasn't already created the device, we create it
-	if nr == nil {
-		nr = &structs.NetworkResource{
-			Device:        deviceName,
-			IP:            addr,
-			CIDR:          mask,
-			ReservedPorts: make([]structs.Port, 0),
-		}
-	}
-	// appending the port ranges we want to use for the client to the list of
-	// reserved ports for this device
-	for i := conf.ClientMinPort; i <= conf.ClientMaxPort; i++ {
-		nr.ReservedPorts = append(nr.ReservedPorts, structs.Port{Label: fmt.Sprintf("plugin-%d", i), Value: int(i)})
-	}
-	conf.Node.Reserved.Networks = append(conf.Node.Reserved.Networks, nr)
+	conf.Node.ReservedResources.Networks.ReservedHostPorts = res
 	return nil
 }
 

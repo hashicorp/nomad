@@ -48,13 +48,25 @@ func allocUpdateFnDestructive(*structs.Allocation, *structs.Job, *structs.TaskGr
 func allocUpdateFnInplace(existing *structs.Allocation, _ *structs.Job, newTG *structs.TaskGroup) (bool, bool, *structs.Allocation) {
 	// Create a shallow copy
 	newAlloc := existing.CopySkipJob()
-	newAlloc.TaskResources = make(map[string]*structs.Resources)
+	newAlloc.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: uint64(newTG.EphemeralDisk.SizeMB),
+		},
+	}
 
 	// Use the new task resources but keep the network from the old
 	for _, task := range newTG.Tasks {
-		r := task.Resources.Copy()
-		r.Networks = existing.TaskResources[task.Name].Networks
-		newAlloc.TaskResources[task.Name] = r
+		networks := existing.AllocatedResources.Tasks[task.Name].Copy().Networks
+		newAlloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: uint64(task.Resources.CPU),
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: uint64(task.Resources.MemoryMB),
+			},
+			Networks: networks,
+		}
 	}
 
 	return false, false, newAlloc

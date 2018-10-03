@@ -3915,6 +3915,38 @@ func TestNode_Copy(t *testing.T) {
 				},
 			},
 		},
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				TotalShares: 4000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		ReservedResources: &NodeReservedResources{
+			Cpu: NodeReservedCpuResources{
+				TotalShares: 100,
+			},
+			Memory: NodeReservedMemoryResources{
+				MemoryMB: 256,
+			},
+			Disk: NodeReservedDiskResources{
+				DiskMB: 4 * 1024,
+			},
+			Networks: NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
+			},
+		},
 		Links: map[string]string{
 			"consul": "foobar.dc1",
 		},

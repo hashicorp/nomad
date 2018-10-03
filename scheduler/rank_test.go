@@ -31,39 +31,63 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 		{
 			Node: &structs.Node{
 				// Perfect fit
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
-				Reserved: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						TotalShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
 				},
 			},
 		},
 		{
 			Node: &structs.Node{
 				// Overloaded
-				Resources: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 1024,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 1024,
+					},
 				},
-				Reserved: &structs.Resources{
-					CPU:      512,
-					MemoryMB: 512,
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						TotalShares: 512,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 512,
+					},
 				},
 			},
 		},
 		{
 			Node: &structs.Node{
 				// 50% fit
-				Resources: &structs.Resources{
-					CPU:      4096,
-					MemoryMB: 4096,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
 				},
-				Reserved: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						TotalShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
 				},
 			},
 		},
@@ -110,9 +134,13 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -120,9 +148,13 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -133,9 +165,17 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
 		{
-			Resources: &structs.Resources{
-				CPU:      2048,
-				MemoryMB: 2048,
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 2048,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 2048,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -143,9 +183,17 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	// Add a planned alloc to node2 that half fills it
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
 		{
-			Resources: &structs.Resources{
-				CPU:      1024,
-				MemoryMB: 1024,
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 1024,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 1024,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -188,9 +236,13 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -198,9 +250,13 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -216,9 +272,17 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -231,9 +295,17 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
-		Resources: &structs.Resources{
-			CPU:      1024,
-			MemoryMB: 1024,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -279,9 +351,13 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -289,9 +365,13 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -307,9 +387,17 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -322,9 +410,17 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
-		Resources: &structs.Resources{
-			CPU:      1024,
-			MemoryMB: 1024,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,

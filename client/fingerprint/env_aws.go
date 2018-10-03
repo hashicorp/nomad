@@ -165,7 +165,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 	}
 
 	newNetwork.MBits = throughput
-	response.Resources = &structs.Resources{
+	response.NodeResources = &structs.NodeResources{
 		Networks: []*structs.NetworkResource{newNetwork},
 	}
 

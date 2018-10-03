@@ -736,9 +736,17 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 		NodeID:    node.ID,
 		JobID:     job.ID,
 		Job:       job,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		TaskGroup:     "web",
@@ -785,9 +793,17 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 		NodeID:    node.ID,
 		JobID:     job.ID,
 		Job:       job,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		TaskGroup:     "web",
@@ -834,9 +850,17 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		JobID:     job.ID,
 		Job:       job,
 		TaskGroup: job.TaskGroups[0].Name,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}

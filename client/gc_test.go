@@ -194,7 +194,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 	statsCollector.inodePercents = []float64{0}
 
 	alloc := mock.Alloc()
-	alloc.Resources.DiskMB = 150
+	alloc.AllocatedResources.Shared.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 	statsCollector.inodePercents = []float64{0, 0, 0}
 
 	alloc := mock.Alloc()
-	alloc.Resources.DiskMB = 150
+	alloc.AllocatedResources.Shared.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 	statsCollector.inodePercents = []float64{0, 0, 0}
 
 	alloc := mock.Alloc()
-	alloc.Resources.DiskMB = 150
+	alloc.AllocatedResources.Shared.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -304,7 +304,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 	exitAllocRunner(ar1, ar2)
 
 	alloc := mock.Alloc()
-	alloc.Resources.DiskMB = 150
+	alloc.AllocatedResources.Shared.DiskMB = 150
 	if err := gc.MakeRoomFor([]*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}

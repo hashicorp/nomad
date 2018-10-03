@@ -1012,7 +1012,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 		"start_error": "fail task please",
 	}
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
-	ar.alloc.TaskResources[task2.Name] = task2.Resources
+	ar.alloc.AllocatedResources.Tasks[task2.Name] = ar.alloc.AllocatedResources.Tasks[task.Name].Copy()
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -1081,7 +1081,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 		"run_for": "1s",
 	}
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
-	ar.alloc.TaskResources[task2.Name] = task2.Resources
+	ar.alloc.AllocatedResources.Tasks[task2.Name] = ar.alloc.AllocatedResources.Tasks[task.Name].Copy()
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -1165,7 +1165,9 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 		"run_for": "10s",
 	}
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2, task3)
-	ar.alloc.TaskResources[task2.Name] = task2.Resources
+	ar.alloc.AllocatedResources.Tasks[task.Name] = ar.alloc.AllocatedResources.Tasks["web"].Copy()
+	ar.alloc.AllocatedResources.Tasks[task2.Name] = ar.alloc.AllocatedResources.Tasks[task.Name].Copy()
+	ar.alloc.AllocatedResources.Tasks[task3.Name] = ar.alloc.AllocatedResources.Tasks[task.Name].Copy()
 	defer ar.Destroy()
 
 	go ar.Run()
@@ -1253,7 +1255,8 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	}
 
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task2)
-	ar.alloc.TaskResources[task2.Name] = task2.Resources
+	ar.alloc.AllocatedResources.Tasks[task.Name] = ar.alloc.AllocatedResources.Tasks["web"].Copy()
+	ar.alloc.AllocatedResources.Tasks[task2.Name] = ar.alloc.AllocatedResources.Tasks[task.Name].Copy()
 
 	// Mimic Nomad exiting before the leader stopping is able to stop other tasks.
 	ar.tasks = map[string]*taskrunner.TaskRunner{

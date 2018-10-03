@@ -546,7 +546,7 @@ type Resources struct {
 	ReservedPorts string `mapstructure:"reserved_ports"`
 }
 
-// CanParseReserved retuns if the reserved ports specification is parsable.
+// CanParseReserved returns if the reserved ports specification is parsable.
 // The supported syntax is comma separated integers or ranges separated by
 // hyphens. For example, "80,120-150,160"
 func (r *Resources) CanParseReserved() error {

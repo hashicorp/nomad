@@ -529,8 +529,17 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
-			existing := update.Alloc.TaskResources[task]
-			resources.Networks = existing.Networks
+			var networks structs.Networks
+			if update.Alloc.AllocatedResources != nil {
+				if tr, ok := update.Alloc.AllocatedResources.Tasks[task]; ok {
+					networks = tr.Networks
+				}
+			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
+				networks = tr.Networks
+			}
+
+			// Add thhe networks back
+			resources.Networks = networks
 		}
 
 		// Create a shallow copy
@@ -796,8 +805,17 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
-			existingResources := existing.TaskResources[task]
-			resources.Networks = existingResources.Networks
+			var networks structs.Networks
+			if existing.AllocatedResources != nil {
+				if tr, ok := existing.AllocatedResources.Tasks[task]; ok {
+					networks = tr.Networks
+				}
+			} else if tr, ok := existing.TaskResources[task]; ok {
+				networks = tr.Networks
+			}
+
+			// Add thhe networks back
+			resources.Networks = networks
 		}
 
 		// Create a shallow copy

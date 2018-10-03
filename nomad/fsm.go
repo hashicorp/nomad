@@ -639,19 +639,12 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// prior to being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
+	// COMPAT(0.11): Remove in 0.11
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
 	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
 		if alloc.Resources != nil {
-			// COMPAT 0.4.1 -> 0.5
-			// Set the shared resources for allocations which don't have them
-			if alloc.SharedResources == nil {
-				alloc.SharedResources = &structs.Resources{
-					DiskMB: alloc.Resources.DiskMB,
-				}
-			}
-
 			continue
 		}
 

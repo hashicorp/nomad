@@ -31,9 +31,13 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -41,9 +45,13 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						TotalShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -58,9 +66,17 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -73,9 +89,17 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
-		Resources: &structs.Resources{
-			CPU:      1024,
-			MemoryMB: 1024,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -92,9 +116,17 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 	// Add a planned placement to node1
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
 		{
-			Resources: &structs.Resources{
-				CPU:      1024,
-				MemoryMB: 1024,
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 1024,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 1024,
+						},
+					},
+				},
 			},
 		},
 	}

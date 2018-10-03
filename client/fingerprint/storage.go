@@ -53,7 +53,7 @@ func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 	}
 	resp.NodeResources = &structs.NodeResources{
 		Disk: structs.NodeDiskResources{
-			DiskMB: uint64(free / bytesPerMegabyte),
+			DiskMB: free / bytesPerMegabyte,
 		},
 	}
 	resp.Detected = true

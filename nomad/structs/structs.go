@@ -1794,12 +1794,7 @@ func (r *Resources) Copy() *Resources {
 
 // NetIndex finds the matching net index using device name
 func (r *Resources) NetIndex(n *NetworkResource) int {
-	for idx, net := range r.Networks {
-		if net.Device == n.Device {
-			return idx
-		}
-	}
-	return -1
+	return r.Networks.NetIndex(n)
 }
 
 // Superset checks if one set of resources is a superset
@@ -1992,6 +1987,15 @@ func (ns Networks) Port(label string) (string, int) {
 		}
 	}
 	return "", 0
+}
+
+func (ns Networks) NetIndex(n *NetworkResource) int {
+	for idx, net := range ns {
+		if net.Device == n.Device {
+			return idx
+		}
+	}
+	return -1
 }
 
 // NodeResources is used to define the resources available on a client node.
@@ -2335,12 +2339,7 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 
 // NetIndex finds the matching net index using device name
 func (a *AllocatedTaskResources) NetIndex(n *NetworkResource) int {
-	for idx, net := range a.Networks {
-		if net.Device == n.Device {
-			return idx
-		}
-	}
-	return -1
+	return a.Networks.NetIndex(n)
 }
 
 func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
@@ -2430,6 +2429,11 @@ func (c *ComparableAllocatedResources) Superset(other *ComparableAllocatedResour
 		return false, "disk"
 	}
 	return true, ""
+}
+
+// allocated finds the matching net index using device name
+func (c *ComparableAllocatedResources) NetIndex(n *NetworkResource) int {
+	return c.Flattened.Networks.NetIndex(n)
 }
 
 const (
@@ -3931,19 +3935,6 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
-	}
-
-	// Add up the disk resources to EphemeralDisk. This is done so that users
-	// are not required to move their disk attribute from resources to
-	// EphemeralDisk section of the job spec in Nomad 0.5
-	// COMPAT 0.4.1 -> 0.5
-	// Remove in 0.6
-	var diskMB int
-	for _, task := range tg.Tasks {
-		diskMB += task.Resources.DiskMB
-	}
-	if diskMB > 0 {
-		tg.EphemeralDisk.SizeMB = diskMB
 	}
 }
 

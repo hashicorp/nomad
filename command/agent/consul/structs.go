@@ -42,7 +42,12 @@ func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter Ta
 		DriverNetwork: net,
 	}
 
-	if task.Resources != nil {
+	if alloc.AllocatedResources != nil {
+		if tr, ok := alloc.AllocatedResources.Tasks[task.Name]; ok {
+			ts.Networks = tr.Networks
+		}
+	} else if task.Resources != nil {
+		// COMPAT(0.11): Remove in 0.11
 		ts.Networks = task.Resources.Networks
 	}
 
