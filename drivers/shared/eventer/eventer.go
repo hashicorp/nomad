@@ -65,7 +65,7 @@ func (e *Eventer) eventLoop() {
 	for {
 		select {
 		case <-e.ctx.Done():
-			e.logger.Debug("task event loop shutdown")
+			e.logger.Trace("task event loop shutdown")
 			return
 		case event := <-e.events:
 			e.iterateConsumers(event)
@@ -75,6 +75,8 @@ func (e *Eventer) eventLoop() {
 	}
 }
 
+// iterateConsumers will iterate through all consumers and broadcast the event,
+// cleaning up any consumers that have closed their context
 func (e *Eventer) iterateConsumers(event *drivers.TaskEvent) {
 	e.consumersLock.Lock()
 	filtered := e.consumers[:0]
