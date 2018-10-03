@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -9,10 +8,16 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
-var protoTaskStateMap = map[TaskState]proto.TaskState{
+var taskStateToProtoMap = map[TaskState]proto.TaskState{
 	TaskStateUnknown: proto.TaskState_UNKNOWN,
 	TaskStateRunning: proto.TaskState_RUNNING,
 	TaskStateExited:  proto.TaskState_EXITED,
+}
+
+var taskStateFromProtoMap = map[proto.TaskState]TaskState{
+	proto.TaskState_UNKNOWN: TaskStateUnknown,
+	proto.TaskState_RUNNING: TaskStateRunning,
+	proto.TaskState_EXITED:  TaskStateExited,
 }
 
 func healthStateToProto(health HealthState) proto.FingerprintResponse_HealthState {
@@ -53,6 +58,8 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		Mounts:          []MountConfig{},  //TODO
 		User:            pb.User,
 		AllocDir:        pb.AllocDir,
+		StdoutPath:      pb.StdoutPath,
+		StderrPath:      pb.StderrPath,
 	}
 }
 
@@ -70,6 +77,8 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		User:                cfg.User,
 		AllocDir:            cfg.AllocDir,
 		MsgpackDriverConfig: cfg.rawDriverConfig,
+		StdoutPath:          cfg.StdoutPath,
+		StderrPath:          cfg.StderrPath,
 	}
 	return pb
 }
@@ -80,7 +89,7 @@ func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
 	}
 	return &TaskHandle{
 		Config:      taskConfigFromProto(pb.Config),
-		State:       TaskState(strings.ToLower(pb.State.String())),
+		State:       taskStateFromProtoMap[pb.State],
 		driverState: pb.DriverState,
 	}
 }
@@ -88,7 +97,7 @@ func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
 func taskHandleToProto(handle *TaskHandle) *proto.TaskHandle {
 	return &proto.TaskHandle{
 		Config:      taskConfigToProto(handle.Config),
-		State:       protoTaskStateMap[handle.State],
+		State:       taskStateToProtoMap[handle.State],
 		DriverState: handle.driverState,
 	}
 }
@@ -121,6 +130,7 @@ func taskStatusToProto(status *TaskStatus) (*proto.TaskStatus, error) {
 	return &proto.TaskStatus{
 		Id:          status.ID,
 		Name:        status.Name,
+		State:       taskStateToProtoMap[status.State],
 		StartedAt:   started,
 		CompletedAt: completed,
 		Result:      exitResultToProto(status.ExitResult),
@@ -141,6 +151,7 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 	return &TaskStatus{
 		ID:          pb.Id,
 		Name:        pb.Name,
+		State:       taskStateFromProtoMap[pb.State],
 		StartedAt:   started,
 		CompletedAt: completed,
 		ExitResult:  exitResultFromProto(pb.Result),

@@ -1,8 +1,7 @@
 package drivers
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/nomad/plugins/base"
 )
 
 // TaskHandle is the state shared between a driver and the client.
@@ -21,10 +20,10 @@ func NewTaskHandle(driver string) *TaskHandle {
 
 func (h *TaskHandle) SetDriverState(v interface{}) error {
 	h.driverState = []byte{}
-	return codec.NewEncoderBytes(&h.driverState, structs.MsgpackHandle).Encode(v)
+	return base.MsgPackEncode(&h.driverState, v)
 }
 
 func (h *TaskHandle) GetDriverState(v interface{}) error {
-	return codec.NewDecoderBytes(h.driverState, structs.MsgpackHandle).Decode(v)
+	return base.MsgPackDecode(h.driverState, v)
 
 }

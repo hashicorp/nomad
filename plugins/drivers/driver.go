@@ -102,6 +102,8 @@ type TaskConfig struct {
 	User            string
 	AllocDir        string
 	rawDriverConfig []byte
+	StdoutPath      string
+	StderrPath      string
 }
 
 func (tc *TaskConfig) EnvList() []string {
@@ -175,6 +177,10 @@ type ExitResult struct {
 	Signal    int
 	OOMKilled bool
 	Err       error
+}
+
+func (r *ExitResult) Successful() bool {
+	return r.ExitCode == 0 && r.Signal == 0 && r.Err == nil
 }
 
 type TaskStatus struct {
