@@ -938,6 +938,9 @@ func (c *Client) setupNode() error {
 	if node.NodeResources == nil {
 		node.NodeResources = &structs.NodeResources{}
 	}
+	if node.ReservedResources == nil {
+		node.ReservedResources = &structs.NodeReservedResources{}
+	}
 	if node.Resources == nil {
 		node.Resources = &structs.Resources{}
 	}
@@ -2283,7 +2286,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	c.configLock.RUnlock()
 	total := node.NodeResources
 	res := node.ReservedResources
-	allocated := c.getAllocatedResources2(node)
+	allocated := c.getAllocatedResources(node)
 
 	// Emit allocated
 	if !c.config.DisableTaggedMetrics {
@@ -2315,7 +2318,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	// Emit unallocated
 	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
 	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
-	unallocatedCpu := total.Cpu.TotalShares - res.Cpu.TotalShares - allocated.Flattened.Cpu.CpuShares
+	unallocatedCpu := total.Cpu.CpuShares - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
 
 	if !c.config.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), c.baseLabels)
@@ -2417,53 +2420,7 @@ func (c *Client) emitClientMetrics() {
 	}
 }
 
-// TODO
-func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Resources {
-	return &structs.Resources{}
-	// Unfortunately the allocs only have IP so we need to match them to the
-	// device
-	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.Resources.Networks))
-	for _, n := range selfNode.Resources.Networks {
-		_, ipnet, err := net.ParseCIDR(n.CIDR)
-		if err != nil {
-			continue
-		}
-		cidrToDevice[ipnet] = n.Device
-	}
-
-	// Sum the allocated resources
-	allocs := c.allAllocs()
-	var allocated structs.Resources
-	allocatedDeviceMbits := make(map[string]int)
-	for _, alloc := range allocs {
-		if !alloc.TerminalStatus() {
-			allocated.Add(alloc.Resources)
-			for _, allocatedNetwork := range alloc.Resources.Networks {
-				for cidr, dev := range cidrToDevice {
-					ip := net.ParseIP(allocatedNetwork.IP)
-					if cidr.Contains(ip) {
-						allocatedDeviceMbits[dev] += allocatedNetwork.MBits
-						break
-					}
-				}
-			}
-		}
-	}
-
-	// Clear the networks
-	allocated.Networks = nil
-	for dev, speed := range allocatedDeviceMbits {
-		net := &structs.NetworkResource{
-			Device: dev,
-			MBits:  speed,
-		}
-		allocated.Networks = append(allocated.Networks, net)
-	}
-
-	return &allocated
-}
-
-func (c *Client) getAllocatedResources2(selfNode *structs.Node) *structs.ComparableAllocatedResources {
+func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.ComparableResources {
 	// Unfortunately the allocs only have IP so we need to match them to the
 	// device
 	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.Resources.Networks))
@@ -2477,7 +2434,7 @@ func (c *Client) getAllocatedResources2(selfNode *structs.Node) *structs.Compara
 
 	// Sum the allocated resources
 	allocs := c.allAllocs()
-	var allocated structs.ComparableAllocatedResources
+	var allocated structs.ComparableResources
 	allocatedDeviceMbits := make(map[string]int)
 	for _, alloc := range allocs {
 		if alloc.TerminalStatus() {

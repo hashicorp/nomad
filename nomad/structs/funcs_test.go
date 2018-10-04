@@ -282,7 +282,7 @@ func TestAllocsFit(t *testing.T) {
 	n := &Node{
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				TotalShares: 2000,
+				CpuShares: 2000,
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 2048,
@@ -300,7 +300,7 @@ func TestAllocsFit(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
-				TotalShares: 1000,
+				CpuShares: 1000,
 			},
 			Memory: NodeReservedMemoryResources{
 				MemoryMB: 1024,
@@ -365,7 +365,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	n := &Node{
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				TotalShares: 2000,
+				CpuShares: 2000,
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 2048,
@@ -384,7 +384,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
-				TotalShares: 1000,
+				CpuShares: 1000,
 			},
 			Memory: NodeReservedMemoryResources{
 				MemoryMB: 1024,
@@ -458,7 +458,7 @@ func TestScoreFit_Old(t *testing.T) {
 	}
 
 	// Test a perfect fit
-	util := &ComparableAllocatedResources{
+	util := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: 2048,
@@ -474,7 +474,7 @@ func TestScoreFit_Old(t *testing.T) {
 	}
 
 	// Test the worst fit
-	util = &ComparableAllocatedResources{
+	util = &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: 0,
@@ -490,7 +490,7 @@ func TestScoreFit_Old(t *testing.T) {
 	}
 
 	// Test a mid-case scenario
-	util = &ComparableAllocatedResources{
+	util = &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: 1024,
@@ -510,7 +510,7 @@ func TestScoreFit(t *testing.T) {
 	node := &Node{}
 	node.NodeResources = &NodeResources{
 		Cpu: NodeCpuResources{
-			TotalShares: 4096,
+			CpuShares: 4096,
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: 8192,
@@ -518,7 +518,7 @@ func TestScoreFit(t *testing.T) {
 	}
 	node.ReservedResources = &NodeReservedResources{
 		Cpu: NodeReservedCpuResources{
-			TotalShares: 2048,
+			CpuShares: 2048,
 		},
 		Memory: NodeReservedMemoryResources{
 			MemoryMB: 4096,
@@ -526,7 +526,7 @@ func TestScoreFit(t *testing.T) {
 	}
 
 	// Test a perfect fit
-	util := &ComparableAllocatedResources{
+	util := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: 2048,
@@ -542,7 +542,7 @@ func TestScoreFit(t *testing.T) {
 	}
 
 	// Test the worst fit
-	util = &ComparableAllocatedResources{
+	util = &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: 0,
@@ -558,7 +558,7 @@ func TestScoreFit(t *testing.T) {
 	}
 
 	// Test a mid-case scenario
-	util = &ComparableAllocatedResources{
+	util = &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: 1024,

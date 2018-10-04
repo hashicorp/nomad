@@ -50,7 +50,7 @@ func TestCPUFingerprint(t *testing.T) {
 		t.Fatalf("Expected to find CPU Resources")
 	}
 
-	if response.NodeResources == nil || response.NodeResources.Cpu.TotalShares == 0 {
+	if response.NodeResources == nil || response.NodeResources.Cpu.CpuShares == 0 {
 		t.Fatalf("Expected to find CPU Resources")
 	}
 }
@@ -100,8 +100,8 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		if response.Resources.CPU != cfg.CpuCompute {
 			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.Resources.CPU)
 		}
-		if response.NodeResources.Cpu.TotalShares != uint64(cfg.CpuCompute) {
-			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.TotalShares)
+		if response.NodeResources.Cpu.CpuShares != uint64(cfg.CpuCompute) {
+			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.CpuShares)
 		}
 	}
 }

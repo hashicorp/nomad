@@ -45,7 +45,7 @@ func Node() *structs.Node {
 
 		NodeResources: &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{
-				TotalShares: 4000,
+				CpuShares: 4000,
 			},
 			Memory: structs.NodeMemoryResources{
 				MemoryMB: 8192,
@@ -63,7 +63,7 @@ func Node() *structs.Node {
 		},
 		ReservedResources: &structs.NodeReservedResources{
 			Cpu: structs.NodeReservedCpuResources{
-				TotalShares: 100,
+				CpuShares: 100,
 			},
 			Memory: structs.NodeReservedMemoryResources{
 				MemoryMB: 256,

@@ -99,9 +99,9 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 // The netIdx can optionally be provided if its already been computed.
 // If the netIdx is provided, it is assumed that the client has already
 // ensured there are no collisions.
-func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, string, *ComparableAllocatedResources, error) {
+func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, string, *ComparableResources, error) {
 	// Compute the utilization from zero
-	used := new(ComparableAllocatedResources)
+	used := new(ComparableResources)
 
 	// Add the reserved resources of the node
 	used.Add(node.ComparableReservedResources())
@@ -143,7 +143,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 // ScoreFit is used to score the fit based on the Google work published here:
 // http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
 // This is equivalent to their BestFit v3
-func ScoreFit(node *Node, util *ComparableAllocatedResources) float64 {
+func ScoreFit(node *Node, util *ComparableResources) float64 {
 	// COMPAT(0.11): Remove in 0.11
 	reserved := node.ComparableReservedResources()
 	res := node.ComparableResources()

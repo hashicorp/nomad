@@ -33,7 +33,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				// Perfect fit
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
@@ -41,7 +41,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				},
 				ReservedResources: &structs.NodeReservedResources{
 					Cpu: structs.NodeReservedCpuResources{
-						TotalShares: 1024,
+						CpuShares: 1024,
 					},
 					Memory: structs.NodeReservedMemoryResources{
 						MemoryMB: 1024,
@@ -54,7 +54,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				// Overloaded
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 1024,
+						CpuShares: 1024,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 1024,
@@ -62,7 +62,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				},
 				ReservedResources: &structs.NodeReservedResources{
 					Cpu: structs.NodeReservedCpuResources{
-						TotalShares: 512,
+						CpuShares: 512,
 					},
 					Memory: structs.NodeReservedMemoryResources{
 						MemoryMB: 512,
@@ -75,7 +75,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				// 50% fit
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 4096,
+						CpuShares: 4096,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 4096,
@@ -83,7 +83,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 				},
 				ReservedResources: &structs.NodeReservedResources{
 					Cpu: structs.NodeReservedCpuResources{
-						TotalShares: 1024,
+						CpuShares: 1024,
 					},
 					Memory: structs.NodeReservedMemoryResources{
 						MemoryMB: 1024,
@@ -136,7 +136,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
@@ -150,7 +150,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
@@ -238,7 +238,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
@@ -252,7 +252,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
@@ -353,7 +353,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
@@ -367,7 +367,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,

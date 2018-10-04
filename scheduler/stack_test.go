@@ -281,7 +281,7 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	one := nodes[1]
 	one.ReservedResources = &structs.NodeReservedResources{
 		Cpu: structs.NodeReservedCpuResources{
-			TotalShares: one.NodeResources.Cpu.TotalShares,
+			CpuShares: one.NodeResources.Cpu.CpuShares,
 		},
 	}
 
@@ -499,7 +499,7 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	zero := nodes[0]
 	zero.ReservedResources = &structs.NodeReservedResources{
 		Cpu: structs.NodeReservedCpuResources{
-			TotalShares: zero.NodeResources.Cpu.TotalShares,
+			CpuShares: zero.NodeResources.Cpu.CpuShares,
 		},
 	}
 	one := nodes[1]

@@ -31,7 +31,7 @@ func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cst
 
 		resp.NodeResources = &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{
-				TotalShares: uint64(totalCompute),
+				CpuShares: uint64(totalCompute),
 			},
 		}
 	}

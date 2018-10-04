@@ -434,7 +434,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		res = new(structs.NodeReservedResources)
 		conf.Node.ReservedResources = res
 	}
-	res.Cpu.TotalShares = uint64(a.config.Client.Reserved.CPU)
+	res.Cpu.CpuShares = uint64(a.config.Client.Reserved.CPU)
 	res.Memory.MemoryMB = uint64(a.config.Client.Reserved.MemoryMB)
 	res.Disk.DiskMB = uint64(a.config.Client.Reserved.DiskMB)
 	res.Networks.ReservedHostPorts = a.config.Client.Reserved.ReservedPorts

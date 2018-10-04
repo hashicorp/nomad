@@ -12,7 +12,7 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 		Tasks: map[string]*AllocatedTaskResources{
 			"web": {
 				Cpu: AllocatedCpuResources{
-					CpuShares: n.Cpu.TotalShares,
+					CpuShares: n.Cpu.CpuShares,
 				},
 				Memory: AllocatedMemoryResources{
 					MemoryMB: n.Memory.MemoryMB,

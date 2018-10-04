@@ -33,7 +33,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,
@@ -47,7 +47,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 				ID: uuid.Generate(),
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
-						TotalShares: 2048,
+						CpuShares: 2048,
 					},
 					Memory: structs.NodeMemoryResources{
 						MemoryMB: 2048,

@@ -1583,7 +1583,7 @@ func (n *Node) TerminalStatus() bool {
 // handling upgrade paths. Reserved networks must be handled separately. After
 // 0.11 calls to this should be replaced with:
 // node.ReservedResources.Comparable()
-func (n *Node) ComparableReservedResources() *ComparableAllocatedResources {
+func (n *Node) ComparableReservedResources() *ComparableResources {
 	// See if we can no-op
 	if n.Reserved == nil && n.ReservedResources == nil {
 		return nil
@@ -1595,7 +1595,7 @@ func (n *Node) ComparableReservedResources() *ComparableAllocatedResources {
 	}
 
 	// Upgrade path
-	return &ComparableAllocatedResources{
+	return &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: uint64(n.Reserved.CPU),
@@ -1614,14 +1614,14 @@ func (n *Node) ComparableReservedResources() *ComparableAllocatedResources {
 // ComparableResources returns the resouces on the node
 // handling upgrade paths. Networking must be handled separately. After 0.11
 // calls to this should be replaced with: node.NodeResources.Comparable()
-func (n *Node) ComparableResources() *ComparableAllocatedResources {
+func (n *Node) ComparableResources() *ComparableResources {
 	// Node already has 0.9+ behavior
 	if n.NodeResources != nil {
 		return n.NodeResources.Comparable()
 	}
 
 	// Upgrade path
-	return &ComparableAllocatedResources{
+	return &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: uint64(n.Resources.CPU),
@@ -2024,15 +2024,15 @@ func (n *NodeResources) Copy() *NodeResources {
 
 // Comparable returns a comparable version of the nodes resources. This
 // conversion can be lossy so care must be taken when using it.
-func (n *NodeResources) Comparable() *ComparableAllocatedResources {
+func (n *NodeResources) Comparable() *ComparableResources {
 	if n == nil {
 		return nil
 	}
 
-	c := &ComparableAllocatedResources{
+	c := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: n.Cpu.TotalShares,
+				CpuShares: n.Cpu.CpuShares,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
@@ -2093,9 +2093,9 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 
 // NodeCpuResources captures the CPU resources of the node.
 type NodeCpuResources struct {
-	// TotalShares is the CPU shares available. This is calculated by number of
+	// CpuShares is the CPU shares available. This is calculated by number of
 	// cores multiplied by the core frequency.
-	TotalShares uint64
+	CpuShares uint64
 }
 
 func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
@@ -2103,8 +2103,8 @@ func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
 		return
 	}
 
-	if o.TotalShares != 0 {
-		n.TotalShares = o.TotalShares
+	if o.CpuShares != 0 {
+		n.CpuShares = o.CpuShares
 	}
 }
 
@@ -2117,7 +2117,7 @@ func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
 		return false
 	}
 
-	if n.TotalShares != o.TotalShares {
+	if n.CpuShares != o.CpuShares {
 		return false
 	}
 
@@ -2208,15 +2208,15 @@ func (n *NodeReservedResources) Copy() *NodeReservedResources {
 // Comparable returns a comparable version of the node's reserved resources. The
 // returned resources doesn't contain any network information. This conversion
 // can be lossy so care must be taken when using it.
-func (n *NodeReservedResources) Comparable() *ComparableAllocatedResources {
+func (n *NodeReservedResources) Comparable() *ComparableResources {
 	if n == nil {
 		return nil
 	}
 
-	c := &ComparableAllocatedResources{
+	c := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: n.Cpu.TotalShares,
+				CpuShares: n.Cpu.CpuShares,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
@@ -2231,7 +2231,7 @@ func (n *NodeReservedResources) Comparable() *ComparableAllocatedResources {
 
 // NodeReservedCpuResources captures the reserved CPU resources of the node.
 type NodeReservedCpuResources struct {
-	TotalShares uint64
+	CpuShares uint64
 }
 
 // NodeReservedMemoryResources captures the reserved memory resources of the node.
@@ -2286,12 +2286,12 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 
 // Comparable returns a comparable version of the allocations allocated
 // resources. This conversion can be lossy so care must be taken when using it.
-func (a *AllocatedResources) Comparable() *ComparableAllocatedResources {
+func (a *AllocatedResources) Comparable() *ComparableResources {
 	if a == nil {
 		return nil
 	}
 
-	c := &ComparableAllocatedResources{
+	c := &ComparableResources{
 		Shared: a.Shared,
 	}
 	for _, r := range a.Tasks {
@@ -2400,14 +2400,14 @@ func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
 	a.MemoryMB += delta.MemoryMB
 }
 
-// ComparableAllocatedResources is the set of resources allocated to a task group but
+// ComparableResources is the set of resources allocated to a task group but
 // not keyed by Task, making it easier to compare.
-type ComparableAllocatedResources struct {
+type ComparableResources struct {
 	Flattened AllocatedTaskResources
 	Shared    AllocatedSharedResources
 }
 
-func (c *ComparableAllocatedResources) Add(delta *ComparableAllocatedResources) {
+func (c *ComparableResources) Add(delta *ComparableResources) {
 	if delta == nil {
 		return
 	}
@@ -2418,7 +2418,7 @@ func (c *ComparableAllocatedResources) Add(delta *ComparableAllocatedResources) 
 
 // Superset checks if one set of resources is a superset of another. This
 // ignores network resources, and the NetworkIndex should be used for that.
-func (c *ComparableAllocatedResources) Superset(other *ComparableAllocatedResources) (bool, string) {
+func (c *ComparableResources) Superset(other *ComparableResources) (bool, string) {
 	if c.Flattened.Cpu.CpuShares < other.Flattened.Cpu.CpuShares {
 		return false, "cpu"
 	}
@@ -2432,7 +2432,7 @@ func (c *ComparableAllocatedResources) Superset(other *ComparableAllocatedResour
 }
 
 // allocated finds the matching net index using device name
-func (c *ComparableAllocatedResources) NetIndex(n *NetworkResource) int {
+func (c *ComparableResources) NetIndex(n *NetworkResource) int {
 	return c.Flattened.Networks.NetIndex(n)
 }
 
@@ -6897,7 +6897,7 @@ func (a *Allocation) SetEventDisplayMessages() {
 // ComparableResources returns the resouces on the allocation
 // handling upgrade paths. After 0.11 calls to this should be replaced with:
 // alloc.AllocatedResources.Comparable()
-func (a *Allocation) ComparableResources() *ComparableAllocatedResources {
+func (a *Allocation) ComparableResources() *ComparableResources {
 	// ALloc already has 0.9+ behavior
 	if a.AllocatedResources != nil {
 		return a.AllocatedResources.Comparable()
@@ -6915,7 +6915,7 @@ func (a *Allocation) ComparableResources() *ComparableAllocatedResources {
 	}
 
 	// Upgrade path
-	return &ComparableAllocatedResources{
+	return &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
 				CpuShares: uint64(resources.CPU),

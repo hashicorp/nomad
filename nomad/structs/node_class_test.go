@@ -20,7 +20,7 @@ func testNode() *Node {
 		},
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				TotalShares: 4000,
+				CpuShares: 4000,
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,

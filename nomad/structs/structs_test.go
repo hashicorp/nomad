@@ -3917,7 +3917,7 @@ func TestNode_Copy(t *testing.T) {
 		},
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				TotalShares: 4000,
+				CpuShares: 4000,
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,
@@ -3935,7 +3935,7 @@ func TestNode_Copy(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
-				TotalShares: 100,
+				CpuShares: 100,
 			},
 			Memory: NodeReservedMemoryResources{
 				MemoryMB: 256,

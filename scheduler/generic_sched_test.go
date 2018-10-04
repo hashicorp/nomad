@@ -983,7 +983,7 @@ func TestServiceSched_JobRegister_CreateBlockedEval(t *testing.T) {
 	node := mock.Node()
 	node.ReservedResources = &structs.NodeReservedResources{
 		Cpu: structs.NodeReservedCpuResources{
-			TotalShares: node.NodeResources.Cpu.TotalShares,
+			CpuShares: node.NodeResources.Cpu.CpuShares,
 		},
 	}
 	node.ComputeClass()
@@ -1512,7 +1512,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 
 	// Create one node
 	node := mock.Node()
-	node.NodeResources.Cpu.TotalShares = 1000
+	node.NodeResources.Cpu.CpuShares = 1000
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Generate a fake job with one allocation
@@ -1815,7 +1815,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 
 	// Create a resource ask that is the same as the resources available on the
 	// node
-	cpu := node.NodeResources.Cpu.TotalShares
+	cpu := node.NodeResources.Cpu.CpuShares
 	mem := node.NodeResources.Memory.MemoryMB
 
 	request := &structs.Resources{
