@@ -4,7 +4,7 @@ page_title: "Monitoring and Alerting"
 sidebar_current: "guides-operations-monitoring"
 description: |-
   It is possible to enable telemetry on Nomad servers and clients. Nomad 
-  can integrats with various metrics dashboards such as Prometheus, Grafana,
+  can integrate with various metrics dashboards such as Prometheus, Grafana,
   Graphite, DataDog, and Circonus.
 ---
 
