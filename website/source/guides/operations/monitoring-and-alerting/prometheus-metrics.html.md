@@ -560,14 +560,14 @@ to send out notifications to a [receiver][receivers] of your choice.
 [consul_sd_config]: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cconsul_sd_config%3E
 [env]: /docs/runtime/environment.html
 [fabio]: https://fabiolb.net/
-[fabio-lb]: http://example.com
+[fabio-lb]: /guides/load-balancing/fabio.html
 [new-targets]: /assets/images/new-targets.png
 [prometheus-targets]: /assets/images/prometheus-targets.png
 [running-jobs]: /assets/images/running-jobs.png
-[telemetry]: /docs/agent/telemetry.html
-[telemetry stanza]: /docs/agent/configuration/telemetry.html
+[telemetry]: /docs/configuration/telemetry.html
+[telemetry stanza]: /docs/configuration/telemetry.html
 [template]: /docs/job-specification/template.html
 [volumes]: /docs/drivers/docker.html#volumes
 [prometheus]: https://prometheus.io/docs/introduction/overview/
 [receivers]: https://prometheus.io/docs/alerting/configuration/#%3Creceiver%3E
-[system]: /docs/runtime/schedulers.html#system
+[system]: /docs/schedulers.html#system
