@@ -215,7 +215,7 @@ nodes), creating listeners, and configuring health checks.
 Once you are done
 with this, you should be able to hit the DNS name of your load balancer at port
 80 (or whichever port you configured in your listener) and see the home page of
-Apache web server. If you configured your listener to also foward traffic to
+Apache web server. If you configured your listener to also forward traffic to
 the web interface at port `9998`, you should be able to access that as well.
 
 [![Home Page][lb-homepage]][lb-homepage]
