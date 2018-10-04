@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	trstate "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
+	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
 )

@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
-	ti "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/template"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/template"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/nomad/structs"

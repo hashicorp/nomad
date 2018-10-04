@@ -23,8 +23,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/getter"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/restarts"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
@@ -354,7 +354,7 @@ func (r *TaskRunner) pre060StateFilePath() string {
 // executor.
 func (r *TaskRunner) RestoreState() (string, error) {
 	var snap taskRunnerState
-	//XXX Deprecated: see allocrunnerv2
+	//XXX Deprecated: see allocrunner
 	//err := r.stateDB.View(func(tx *bolt.Tx) error {
 	//	bkt, err := state.GetTaskBucket(tx, r.alloc.ID, r.task.Name)
 	//	if err != nil {
@@ -513,7 +513,7 @@ func (r *TaskRunner) SaveState() error {
 	}
 
 	// Start the transaction.
-	//XXX Deprecated: see allocrunnerv2
+	//XXX Deprecated: see allocrunner
 	return nil
 	//return r.stateDB.Batch(func(tx *bolt.Tx) error {
 	//	// Grab the task bucket
@@ -546,7 +546,7 @@ func (r *TaskRunner) DestroyState() error {
 	//	}
 	//	return nil
 	//})
-	//XXX Deprecated: see allocrunnerv2
+	//XXX Deprecated: see allocrunner
 	panic("deprecated")
 }
 
@@ -1508,7 +1508,7 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 	//}
 	//interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
 	//taskServices := consul.NewTaskServices(r.alloc, interpolatedTask, r, exec, n)
-	panic("XXX broken during transition to allocrunnerv2")
+	panic("XXX broken during transition to allocrunner")
 	return r.consul.RegisterTask(nil)
 }
 
@@ -1723,7 +1723,7 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor,
 	//r.driverNetLock.Unlock()
 	//oldTaskServices := consul.NewTaskServices(oldAlloc, oldTask, r, exec, net)
 	//newTaskServices := consul.NewTaskServices(newAlloc, newTask, r, exec, net)
-	panic("XXX broken during transition to allocrunnerv2")
+	panic("XXX broken during transition to allocrunner")
 	//return r.consul.UpdateTask(oldTaskServices, newTaskServices)
 	return r.consul.UpdateTask(nil, nil)
 }
@@ -1732,7 +1732,7 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor,
 // Canary=true and Canary=false versions in case Canary=false is set at the
 // same time as the alloc is stopped.
 func (r *TaskRunner) removeServices() {
-	panic("XXX broken during transition to allocrunnerv2")
+	panic("XXX broken during transition to allocrunner")
 	//interpTask := interpolateServices(r.envBuilder.Build(), r.task)
 	//taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
 	//r.consul.RemoveTask(taskServices)

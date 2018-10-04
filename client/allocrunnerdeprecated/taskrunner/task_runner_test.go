@@ -18,7 +18,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/restarts"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/env"
@@ -666,7 +666,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	}
 }
 
-//XXX Ported to allocrunnerv2/task_runner/validate_hook_test.go
+//XXX Ported to allocrunner/task_runner/validate_hook_test.go
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	t.Parallel()
 	ctx := testTaskRunner(t, false)

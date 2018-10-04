@@ -201,7 +201,7 @@ func (r *AllocRunner) pre060StateFilePath() string {
 
 // RestoreState is used to restore the state of the alloc runner
 func (r *AllocRunner) RestoreState() error {
-	//XXX Deprecated: see allocrunnerv2
+	//XXX Deprecated: see allocrunner
 	//err := r.stateDB.View(func(tx *bolt.Tx) error {
 	//	bkt, err := state.GetAllocationBucket(tx, r.allocID)
 	//	if err != nil {
@@ -346,7 +346,7 @@ func (r *AllocRunner) saveAllocRunnerState() error {
 		return nil
 	}
 
-	//XXX Deprecated: see allocrunnerv2
+	//XXX Deprecated: see allocrunner
 	return nil
 
 	//// Grab all the relevant data
@@ -443,7 +443,7 @@ func (r *AllocRunner) DestroyState() error {
 	//	}
 	//	return nil
 	//})
-	panic("deprecated: use allocrunnerv2")
+	panic("deprecated: use allocrunner")
 }
 
 // DestroyContext is used to destroy the context

@@ -1,7 +1,7 @@
 package interfaces
 
 import (
-	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
+	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"

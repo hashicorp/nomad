@@ -1,4 +1,4 @@
-package allocrunnerv2
+package allocrunner
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
