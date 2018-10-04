@@ -1,3 +1,5 @@
+// +build deprecated
+
 package taskrunner
 
 // Name returns the name of the task

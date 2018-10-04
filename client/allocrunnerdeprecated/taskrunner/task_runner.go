@@ -1,3 +1,5 @@
+// +build deprecated
+
 package taskrunner
 
 import (
