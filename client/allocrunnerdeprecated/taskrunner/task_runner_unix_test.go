@@ -1,4 +1,4 @@
-// +build !windows
+// +build deprecated,!windows
 
 package taskrunner
 
