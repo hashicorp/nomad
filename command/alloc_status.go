@@ -12,7 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
+	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/restarts"
 	"github.com/posener/complete"
 )
 
