@@ -9,6 +9,7 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 // Config holds the configuration for creating an allocation runner.
@@ -37,4 +38,11 @@ type Config struct {
 	// PrevAllocWatcher handles waiting on previous allocations and
 	// migrating their ephemeral disk when necessary.
 	PrevAllocWatcher allocwatcher.PrevAllocWatcher
+
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
 }

@@ -1,7 +1,7 @@
 package taskrunner
 
 import (
-	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -51,23 +51,24 @@ func (tr *TaskRunner) setVaultToken(token string) {
 
 // getDriverHandle returns a driver handle and its result proxy. Use the
 // result proxy instead of the handle's WaitCh.
-func (tr *TaskRunner) getDriverHandle() (driver.DriverHandle, *handleResult) {
+func (tr *TaskRunner) getDriverHandle() interfaces.DriverHandle {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
-	return tr.handle, tr.handleResult
+	return tr.handle
 }
 
 // setDriverHanlde sets the driver handle and creates a new result proxy.
-func (tr *TaskRunner) setDriverHandle(handle driver.DriverHandle) {
+func (tr *TaskRunner) setDriverHandle(handle interfaces.DriverHandle) {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	tr.handle = handle
-	tr.handleResult = newHandleResult(handle.WaitCh())
 }
 
 func (tr *TaskRunner) clearDriverHandle() {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
+	if tr.handle != nil {
+		tr.driver.DestroyTask(tr.handle.ID(), true)
+	}
 	tr.handle = nil
-	tr.handleResult = nil
 }

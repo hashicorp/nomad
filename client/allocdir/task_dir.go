@@ -13,6 +13,9 @@ import (
 // TaskDir contains all of the paths relevant to a task. All paths are on the
 // host system so drivers should mount/link into task containers as necessary.
 type TaskDir struct {
+	// AllocDir is the path to the alloc directory on the host
+	AllocDir string
+
 	// Dir is the path to Task directory on the host
 	Dir string
 
@@ -50,6 +53,7 @@ func newTaskDir(logger hclog.Logger, allocDir, taskName string) *TaskDir {
 	logger = logger.Named("task_dir").With("task_name", taskName)
 
 	return &TaskDir{
+		AllocDir:       allocDir,
 		Dir:            taskDir,
 		SharedAllocDir: filepath.Join(allocDir, SharedAllocName),
 		LogDir:         filepath.Join(allocDir, SharedAllocName, LogDirName),

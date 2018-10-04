@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
@@ -42,12 +43,14 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 	}
 
 	switch caps.FSIsolation {
-	case FSIsolationNone:
+	case cstructs.FSIsolationNone:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
-	case FSIsolationChroot:
+	case cstructs.FSIsolationChroot:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_CHROOT
-	case FSIsolationImage:
+	case cstructs.FSIsolationImage:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_IMAGE
+	default:
+		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
 	}
 	return resp, nil
 }
@@ -91,13 +94,26 @@ func (b *driverPluginServer) RecoverTask(ctx context.Context, req *proto.Recover
 }
 
 func (b *driverPluginServer) StartTask(ctx context.Context, req *proto.StartTaskRequest) (*proto.StartTaskResponse, error) {
-	handle, err := b.impl.StartTask(taskConfigFromProto(req.Task))
+	handle, net, err := b.impl.StartTask(taskConfigFromProto(req.Task))
 	if err != nil {
 		return nil, err
 	}
 
+	var pbNet *proto.NetworkOverride
+	if net != nil {
+		pbNet = &proto.NetworkOverride{
+			PortMap:       map[string]int32{},
+			Addr:          net.IP,
+			AutoAdvertise: net.AutoAdvertise,
+		}
+		for k, v := range net.PortMap {
+			pbNet.PortMap[k] = int32(v)
+		}
+	}
+
 	resp := &proto.StartTaskResponse{
-		Handle: taskHandleToProto(handle),
+		Handle:          taskHandleToProto(handle),
+		NetworkOverride: pbNet,
 	}
 
 	return resp, nil
@@ -159,16 +175,24 @@ func (b *driverPluginServer) InspectTask(ctx context.Context, req *proto.Inspect
 		return nil, err
 	}
 
+	var pbNet *proto.NetworkOverride
+	if status.NetworkOverride != nil {
+		pbNet = &proto.NetworkOverride{
+			PortMap:       map[string]int32{},
+			Addr:          status.NetworkOverride.IP,
+			AutoAdvertise: status.NetworkOverride.AutoAdvertise,
+		}
+		for k, v := range status.NetworkOverride.PortMap {
+			pbNet.PortMap[k] = int32(v)
+		}
+	}
+
 	resp := &proto.InspectTaskResponse{
 		Task: protoStatus,
 		Driver: &proto.TaskDriverStatus{
 			Attributes: status.DriverAttributes,
 		},
-		NetworkOverride: &proto.NetworkOverride{
-			PortMap:       status.NetworkOverride.PortMap,
-			Addr:          status.NetworkOverride.Addr,
-			AutoAdvertise: status.NetworkOverride.AutoAdvertise,
-		},
+		NetworkOverride: pbNet,
 	}
 
 	return resp, nil

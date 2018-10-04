@@ -4,7 +4,10 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
@@ -44,6 +47,19 @@ func healthStateFromProto(pb proto.FingerprintResponse_HealthState) HealthState 
 	return HealthStateUndetected
 }
 
+// NewTaskConfig builds a TaskConfig from a Task struct
+func NewTaskConfig(task *structs.Task, taskDir *allocdir.TaskDir, env *env.TaskEnv) *TaskConfig {
+	return &TaskConfig{
+		Name: task.Name,
+		Resources: &Resources{
+			NomadResources: task.Resources,
+		},
+		Env:      env.Map(),
+		User:     task.User,
+		AllocDir: taskDir.AllocDir,
+	}
+}
+
 func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 	if pb == nil {
 		return &TaskConfig{}
@@ -53,7 +69,7 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		Name:            pb.Name,
 		Env:             pb.Env,
 		rawDriverConfig: pb.MsgpackDriverConfig,
-		Resources:       Resources{},      //TODO
+		Resources:       resourcesFromProto(pb.Resources),
 		Devices:         []DeviceConfig{}, //TODO
 		Mounts:          []MountConfig{},  //TODO
 		User:            pb.User,
@@ -71,7 +87,7 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		Id:                  cfg.ID,
 		Name:                cfg.Name,
 		Env:                 cfg.Env,
-		Resources:           &proto.Resources{},
+		Resources:           resourcesToProto(cfg.Resources),
 		Mounts:              []*proto.Mount{},
 		Devices:             []*proto.Device{},
 		User:                cfg.User,
@@ -81,6 +97,106 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		StderrPath:          cfg.StderrPath,
 	}
 	return pb
+}
+
+func resourcesFromProto(pb *proto.Resources) *Resources {
+	var r Resources
+	if pb == nil {
+		return &r
+	}
+
+	if pb.RawResources != nil {
+		r.NomadResources = &structs.Resources{
+			CPU:      int(pb.RawResources.Cpu),
+			MemoryMB: int(pb.RawResources.Memory),
+			IOPS:     int(pb.RawResources.Iops),
+			DiskMB:   int(pb.RawResources.Disk),
+		}
+
+		for _, network := range pb.RawResources.Networks {
+			var n structs.NetworkResource
+			n.Device = network.Device
+			n.IP = network.Ip
+			n.CIDR = network.Cidr
+			n.MBits = int(network.Mbits)
+			for _, port := range network.ReservedPorts {
+				n.ReservedPorts = append(n.ReservedPorts, structs.Port{
+					Label: port.Label,
+					Value: int(port.Value),
+				})
+			}
+			for _, port := range network.DynamicPorts {
+				n.DynamicPorts = append(n.DynamicPorts, structs.Port{
+					Label: port.Label,
+					Value: int(port.Value),
+				})
+			}
+			r.NomadResources.Networks = append(r.NomadResources.Networks, &n)
+		}
+	}
+
+	if pb.LinuxResources != nil {
+		r.LinuxResources = &LinuxResources{
+			CPUPeriod:        pb.LinuxResources.CpuPeriod,
+			CPUQuota:         pb.LinuxResources.CpuQuota,
+			CPUShares:        pb.LinuxResources.CpuShares,
+			MemoryLimitBytes: pb.LinuxResources.MemoryLimitBytes,
+			OOMScoreAdj:      pb.LinuxResources.OomScoreAdj,
+			CpusetCPUs:       pb.LinuxResources.CpusetCpus,
+			CpusetMems:       pb.LinuxResources.CpusetMems,
+		}
+	}
+
+	return &r
+}
+
+func resourcesToProto(r *Resources) *proto.Resources {
+	var pb proto.Resources
+
+	if r.NomadResources != nil {
+		pb.RawResources = &proto.RawResources{
+			Cpu:      int64(r.NomadResources.CPU),
+			Memory:   int64(r.NomadResources.MemoryMB),
+			Iops:     int64(r.NomadResources.IOPS),
+			Disk:     int64(r.NomadResources.DiskMB),
+			Networks: []*proto.NetworkResource{},
+		}
+
+		for _, network := range r.NomadResources.Networks {
+			var n proto.NetworkResource
+			n.Device = network.Device
+			n.Ip = network.IP
+			n.Cidr = network.CIDR
+			n.Mbits = int32(network.MBits)
+			n.ReservedPorts = []*proto.NetworkPort{}
+			for _, port := range network.ReservedPorts {
+				n.ReservedPorts = append(n.ReservedPorts, &proto.NetworkPort{
+					Label: port.Label,
+					Value: int32(port.Value),
+				})
+			}
+			for _, port := range network.DynamicPorts {
+				n.DynamicPorts = append(n.DynamicPorts, &proto.NetworkPort{
+					Label: port.Label,
+					Value: int32(port.Value),
+				})
+			}
+		}
+	}
+
+	if r.LinuxResources != nil {
+		pb.LinuxResources = &proto.LinuxResources{
+			CpuPeriod:        r.LinuxResources.CPUPeriod,
+			CpuQuota:         r.LinuxResources.CPUQuota,
+			CpuShares:        r.LinuxResources.CPUShares,
+			MemoryLimitBytes: r.LinuxResources.MemoryLimitBytes,
+			OomScoreAdj:      r.LinuxResources.OOMScoreAdj,
+			CpusetCpus:       r.LinuxResources.CpusetCPUs,
+			CpusetMems:       r.LinuxResources.CpusetMems,
+		}
+	}
+
+	return &pb
 }
 
 func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
@@ -158,26 +274,25 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 	}, nil
 }
 
-func taskStatsToProto(stats *TaskStats) (*proto.TaskStats, error) {
+func taskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
 	timestamp, err := ptypes.TimestampProto(time.Unix(stats.Timestamp, 0))
 	if err != nil {
 		return nil, err
 	}
 
 	pids := map[string]*proto.TaskResourceUsage{}
-	for pid, ru := range stats.ResourceUsageByPid {
+	for pid, ru := range stats.Pids {
 		pids[pid] = resourceUsageToProto(ru)
 	}
 
 	return &proto.TaskStats{
-		Id:                 stats.ID,
 		Timestamp:          timestamp,
-		AggResourceUsage:   resourceUsageToProto(stats.AggResourceUsage),
+		AggResourceUsage:   resourceUsageToProto(stats.ResourceUsage),
 		ResourceUsageByPid: pids,
 	}, nil
 }
 
-func taskStatsFromProto(pb *proto.TaskStats) (*TaskStats, error) {
+func taskStatsFromProto(pb *proto.TaskStats) (*cstructs.TaskResourceUsage, error) {
 	timestamp, err := ptypes.Timestamp(pb.Timestamp)
 	if err != nil {
 		return nil, err
@@ -188,11 +303,10 @@ func taskStatsFromProto(pb *proto.TaskStats) (*TaskStats, error) {
 		pids[pid] = resourceUsageFromProto(ru)
 	}
 
-	stats := &TaskStats{
-		ID:                 pb.Id,
-		Timestamp:          timestamp.Unix(),
-		AggResourceUsage:   resourceUsageFromProto(pb.AggResourceUsage),
-		ResourceUsageByPid: pids,
+	stats := &cstructs.TaskResourceUsage{
+		Timestamp:     timestamp.Unix(),
+		ResourceUsage: resourceUsageFromProto(pb.AggResourceUsage),
+		Pids:          pids,
 	}
 
 	return stats, nil

@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/catalog"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
+
+	_ "github.com/hashicorp/nomad/drivers/rawexec"
 )
 
 // setupPlugins is used to setup the plugin loaders.
