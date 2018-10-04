@@ -5,7 +5,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 )
 
 // shutdownDelayHook delays shutting down a task between deregistering it from

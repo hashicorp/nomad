@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/state"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

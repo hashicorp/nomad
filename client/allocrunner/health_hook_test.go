@@ -1,4 +1,4 @@
-package allocrunnerv2
+package allocrunner
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"

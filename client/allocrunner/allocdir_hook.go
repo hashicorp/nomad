@@ -1,4 +1,4 @@
-package allocrunnerv2
+package allocrunner
 
 import (
 	"context"

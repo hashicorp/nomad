@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/getter"
-	ti "github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
+	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

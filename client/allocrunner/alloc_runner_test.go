@@ -1,4 +1,4 @@
-package allocrunnerv2
+package allocrunner
 
 import (
 	"testing"
@@ -43,7 +43,7 @@ func TestAllocRunner_AllocState_Initialized(t *testing.T) {
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"

@@ -1,4 +1,4 @@
-package allocrunnerv2
+package allocrunner
 
 import (
 	log "github.com/hashicorp/go-hclog"

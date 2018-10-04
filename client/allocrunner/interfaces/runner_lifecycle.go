@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
+	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
