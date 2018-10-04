@@ -7,6 +7,8 @@ import (
 	"path"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/helper/testlog"
 )
 
 func TestSyslogServer_Start_Shutdown(t *testing.T) {
@@ -24,7 +26,7 @@ func TestSyslogServer_Start_Shutdown(t *testing.T) {
 		t.Fatalf("Failed to listen unix socket: %v", err)
 	}
 
-	s := NewSyslogServer(l, make(chan *SyslogMessage, 2048), nil)
+	s := NewSyslogServer(l, make(chan *SyslogMessage, 2048), testlog.HCLogger(t))
 
 	go s.Start()
 	if s.done {

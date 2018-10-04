@@ -23,6 +23,7 @@ func TestClient(t testing.T, cb func(c *config.Config)) *Client {
 	conf.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 
 	logger := testlog.HCLogger(t)
+	conf.Logger = logger
 
 	// Set the plugin loaders
 	conf.PluginLoader = catalog.TestPluginLoader(t)
