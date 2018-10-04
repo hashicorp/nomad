@@ -7,8 +7,8 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
@@ -34,7 +34,7 @@ type serviceHook struct {
 	logger    log.Logger
 
 	// The following fields may be updated
-	driverExec driver.ScriptExecutor
+	driverExec tinterfaces.ScriptExecutor
 	driverNet  *cstructs.DriverNetwork
 	canary     bool
 	services   []*structs.Service

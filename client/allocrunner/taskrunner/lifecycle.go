@@ -2,17 +2,16 @@ package taskrunner
 
 import (
 	"context"
-	"os"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // Restart a task. Returns immediately if no task is running. Blocks until
 // existing task exits or passed-in context is canceled.
 func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	// Grab the handle
-	handle, result := tr.getDriverHandle()
-
+	handle := tr.getDriverHandle()
 	// Check it is running
 	if handle == nil {
 		return ErrTaskNotRunning
@@ -32,13 +31,17 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	}
 
 	// Drain the wait channel or wait for the request context to be canceled
-	result.Wait(ctx)
+	waitCh, err := handle.WaitCh(ctx)
+	if err != nil {
+		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", err)
+	}
+	<-waitCh
 	return nil
 }
 
-func (tr *TaskRunner) Signal(event *structs.TaskEvent, s os.Signal) error {
+func (tr *TaskRunner) Signal(event *structs.TaskEvent, s string) error {
 	// Grab the handle
-	handle, _ := tr.getDriverHandle()
+	handle := tr.getDriverHandle()
 
 	// Check it is running
 	if handle == nil {
@@ -49,6 +52,7 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s os.Signal) error {
 	tr.EmitEvent(event)
 
 	// Send the signal
+
 	return handle.Signal(s)
 }
 
@@ -60,9 +64,9 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	tr.ctxCancel()
 
 	// Grab the handle
-	handle, result := tr.getDriverHandle()
+	handle := tr.getDriverHandle()
 
-	// Check if the handle is running
+	// Check it is running
 	if handle == nil {
 		return ErrTaskNotRunning
 	}
@@ -84,7 +88,17 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	}
 
 	// Block until task has exited.
-	result.Wait(ctx)
+	waitCh, err := handle.WaitCh(ctx)
+
+	// The task may have already been cleaned up
+	if err != nil && err != drivers.ErrTaskNotFound {
+		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
+		return err
+	}
+
+	if waitCh != nil {
+		<-waitCh
+	}
 
 	// Store that the task has been destroyed and any associated error.
 	tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))

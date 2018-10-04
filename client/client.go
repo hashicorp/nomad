@@ -297,7 +297,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
-	fingerprintManager := NewFingerprintManager(c.GetConfig, c.configCopy.Node,
+	fingerprintManager := NewFingerprintManager(c.configCopy.PluginSingletonLoader, c.GetConfig, c.configCopy.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromDriver,
 		c.logger)
 
@@ -761,14 +761,16 @@ func (c *Client) restoreState() error {
 	for _, alloc := range allocs {
 
 		c.configLock.RLock()
-		arConf := &allocrunner.Config{
-			Alloc:        alloc,
-			Logger:       c.logger,
-			ClientConfig: c.config,
-			StateDB:      c.stateDB,
-			StateUpdater: c,
-			Consul:       c.consulService,
-			Vault:        c.vaultClient,
+		arConf := &allocrunnerv2.Config{
+			Alloc:                 alloc,
+			Logger:                c.logger,
+			ClientConfig:          c.config,
+			StateDB:               c.stateDB,
+			StateUpdater:          c,
+			Consul:                c.consulService,
+			Vault:                 c.vaultClient,
+			PluginLoader:          c.config.PluginLoader,
+			PluginSingletonLoader: c.config.PluginSingletonLoader,
 		}
 		c.configLock.RUnlock()
 
@@ -1032,31 +1034,45 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 	return c.configCopy.Node
 }
 
-// updateNodeFromDriver receives either a fingerprint of the driver or its
-// health and merges this into a single DriverInfo object
-func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.DriverInfo) *structs.Node {
+// updateNodeFromDriver receives a DriverInfo struct for the driver and updates
+// the node accordingly
+func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *structs.Node {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
 	var hasChanged bool
 
 	hadDriver := c.config.Node.Drivers[name] != nil
-	if fingerprint != nil {
+	if info != nil {
 		if !hadDriver {
 			// If the driver info has not yet been set, do that here
 			hasChanged = true
-			c.config.Node.Drivers[name] = fingerprint
-			for attrName, newVal := range fingerprint.Attributes {
+			c.config.Node.Drivers[name] = info
+			for attrName, newVal := range info.Attributes {
 				c.config.Node.Attributes[attrName] = newVal
 			}
 		} else {
+			oldVal := c.config.Node.Drivers[name]
 			// The driver info has already been set, fix it up
-			if c.config.Node.Drivers[name].Detected != fingerprint.Detected {
+			if oldVal.Detected != info.Detected {
 				hasChanged = true
-				c.config.Node.Drivers[name].Detected = fingerprint.Detected
+				c.config.Node.Drivers[name].Detected = info.Detected
 			}
 
-			for attrName, newVal := range fingerprint.Attributes {
+			if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
+				hasChanged = true
+				if info.HealthDescription != "" {
+					event := &structs.NodeEvent{
+						Subsystem: "Driver",
+						Message:   info.HealthDescription,
+						Timestamp: time.Now(),
+						Details:   map[string]string{"driver": name},
+					}
+					c.triggerNodeEvent(event)
+				}
+			}
+
+			for attrName, newVal := range info.Attributes {
 				oldVal := c.config.Node.Drivers[name].Attributes[attrName]
 				if oldVal == newVal {
 					continue
@@ -1075,48 +1091,12 @@ func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.
 		// We maintain the driver enabled attribute until all drivers expose
 		// their attributes as DriverInfo
 		driverName := fmt.Sprintf("driver.%s", name)
-		if fingerprint.Detected {
+		if info.Detected {
 			c.config.Node.Attributes[driverName] = "1"
 		} else {
 			delete(c.config.Node.Attributes, driverName)
 		}
-	}
 
-	if health != nil {
-		if !hadDriver {
-			hasChanged = true
-			if info, ok := c.config.Node.Drivers[name]; !ok {
-				c.config.Node.Drivers[name] = health
-			} else {
-				info.MergeHealthCheck(health)
-			}
-		} else {
-			oldVal := c.config.Node.Drivers[name]
-			if health.HealthCheckEquals(oldVal) {
-				// Make sure we accurately reflect the last time a health check has been
-				// performed for the driver.
-				oldVal.UpdateTime = health.UpdateTime
-			} else {
-				hasChanged = true
-
-				// Only emit an event if the health status has changed after node
-				// initial startup (the health description will not get populated until
-				// a health check has run; the initial status is equal to whether the
-				// node is detected or not).
-				if health.Healthy != oldVal.Healthy && health.HealthDescription != "" {
-					event := &structs.NodeEvent{
-						Subsystem: "Driver",
-						Message:   health.HealthDescription,
-						Timestamp: time.Now(),
-						Details:   map[string]string{"driver": name},
-					}
-					c.triggerNodeEvent(event)
-				}
-
-				// Update the node with the latest information
-				c.config.Node.Drivers[name].MergeHealthCheck(health)
-			}
-		}
 	}
 
 	if hasChanged {
@@ -1931,15 +1911,17 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
 	c.configLock.RLock()
-	arConf := &allocrunner.Config{
-		Alloc:            alloc,
-		Logger:           c.logger,
-		ClientConfig:     c.config,
-		StateDB:          c.stateDB,
-		Consul:           c.consulService,
-		Vault:            c.vaultClient,
-		StateUpdater:     c,
-		PrevAllocWatcher: prevAllocWatcher,
+	arConf := &allocrunnerv2.Config{
+		Alloc:                 alloc,
+		Logger:                c.logger,
+		ClientConfig:          c.config,
+		StateDB:               c.stateDB,
+		Consul:                c.consulService,
+		Vault:                 c.vaultClient,
+		StateUpdater:          c,
+		PrevAllocWatcher:      prevAllocWatcher,
+		PluginLoader:          c.config.PluginLoader,
+		PluginSingletonLoader: c.config.PluginSingletonLoader,
 	}
 	c.configLock.RUnlock()
 

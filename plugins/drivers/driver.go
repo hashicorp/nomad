@@ -8,8 +8,12 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
+	"github.com/zclconf/go-cty/cty/msgpack"
 	"golang.org/x/net/context"
 )
 
@@ -25,12 +29,12 @@ type DriverPlugin interface {
 	Fingerprint(context.Context) (<-chan *Fingerprint, error)
 
 	RecoverTask(*TaskHandle) error
-	StartTask(*TaskConfig) (*TaskHandle, error)
+	StartTask(*TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error)
 	WaitTask(ctx context.Context, taskID string) (<-chan *ExitResult, error)
 	StopTask(taskID string, timeout time.Duration, signal string) error
 	DestroyTask(taskID string, force bool) error
 	InspectTask(taskID string) (*TaskStatus, error)
-	TaskStats(taskID string) (*TaskStats, error)
+	TaskStats(taskID string) (*cstructs.TaskResourceUsage, error)
 	TaskEvents(context.Context) (<-chan *TaskEvent, error)
 
 	SignalTask(taskID string, signal string) error
@@ -89,14 +93,14 @@ type Capabilities struct {
 	Exec bool
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
-	FSIsolation FSIsolation
+	FSIsolation cstructs.FSIsolation
 }
 
 type TaskConfig struct {
 	ID              string
 	Name            string
 	Env             map[string]string
-	Resources       Resources
+	Resources       *Resources
 	Devices         []DeviceConfig
 	Mounts          []MountConfig
 	User            string
@@ -129,14 +133,35 @@ func (tc *TaskConfig) TaskDir() *allocdir.TaskDir {
 }
 
 func (tc *TaskConfig) DecodeDriverConfig(t interface{}) error {
-	return base.MsgPackDecode(tc.rawDriverConfig, t)
+	ty, err := gocty.ImpliedType(t)
+	if err != nil {
+		return err
+	}
+
+	val, err := msgpack.Unmarshal(tc.rawDriverConfig, ty)
+	if err != nil {
+		return err
+	}
+
+	return gocty.FromCtyValue(val, t)
 }
 
-func (tc *TaskConfig) EncodeDriverConfig(t interface{}) error {
-	return base.MsgPackEncode(&tc.rawDriverConfig, t)
+func (tc *TaskConfig) EncodeDriverConfig(val cty.Value) error {
+	data, err := msgpack.Marshal(val, val.Type())
+	if err != nil {
+		return err
+	}
+
+	tc.rawDriverConfig = data
+	return nil
 }
 
 type Resources struct {
+	NomadResources *structs.Resources
+	LinuxResources *LinuxResources
+}
+
+type LinuxResources struct {
 	CPUPeriod        int64
 	CPUQuota         int64
 	CPUShares        int64
@@ -166,12 +191,6 @@ const (
 
 type TaskState string
 
-type NetworkOverride struct {
-	PortMap       map[string]int32
-	Addr          string
-	AutoAdvertise bool
-}
-
 type ExitResult struct {
 	ExitCode  int
 	Signal    int
@@ -191,14 +210,7 @@ type TaskStatus struct {
 	CompletedAt      time.Time
 	ExitResult       *ExitResult
 	DriverAttributes map[string]string
-	NetworkOverride  *NetworkOverride
-}
-
-type TaskStats struct {
-	ID                 string
-	Timestamp          int64
-	AggResourceUsage   *cstructs.ResourceUsage
-	ResourceUsageByPid map[string]*cstructs.ResourceUsage
+	NetworkOverride  *cstructs.DriverNetwork
 }
 
 type TaskEvent struct {

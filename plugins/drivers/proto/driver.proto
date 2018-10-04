@@ -373,7 +373,7 @@ message LinuxResources {
     // CPU shares (relative weight vs. other containers). Default: 0 (not specified)
     int64 cpu_shares = 3;
     // Memory limit in bytes. Default: 0 (not specified)
-    int64 memory_limit_in_bytes = 4;
+    int64 memory_limit_bytes = 4;
     // OOMScoreAdj adjusts the oom-killer score. Default: 0 (not specified)
     int64 oom_score_adj = 5;
     // CpusetCpus constrains the allowed set of logical CPUs. Default: "" (not specified)
