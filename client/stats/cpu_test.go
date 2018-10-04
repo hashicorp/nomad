@@ -26,7 +26,7 @@ func TestHostStats_CPU(t *testing.T) {
 	assert := assert.New(t)
 	assert.Nil(shelpers.Init())
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	cwd, err := os.Getwd()
 	assert.Nil(err)
 	hs := NewHostStatsCollector(logger, cwd)
