@@ -19,7 +19,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
+	"github.com/hashicorp/nomad/client/allocrunnerdeprecated/taskrunner"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/stretchr/testify/require"

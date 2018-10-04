@@ -9,7 +9,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner"
@@ -501,7 +500,7 @@ func (ar *allocRunner) IsMigrating() bool {
 	return ar.prevAllocWatcher.IsMigrating()
 }
 
-func (ar *allocRunner) StatsReporter() allocrunner.AllocStatsReporter {
+func (ar *allocRunner) StatsReporter() interfaces.AllocStatsReporter {
 	return ar
 }
 

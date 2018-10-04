@@ -18,6 +18,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocrunnerv2/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunnerv2/state"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunnerv2"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
@@ -94,7 +94,7 @@ const (
 type ClientStatsReporter interface {
 	// GetAllocStats returns the AllocStatsReporter for the passed allocation.
 	// If it does not exist an error is reported.
-	GetAllocStats(allocID string) (allocrunner.AllocStatsReporter, error)
+	GetAllocStats(allocID string) (interfaces.AllocStatsReporter, error)
 
 	// LatestHostStats returns the latest resource usage stats for the host
 	LatestHostStats() *stats.HostStats
@@ -113,7 +113,7 @@ type AllocRunner interface {
 	Listener() *cstructs.AllocListener
 	Restore() error
 	Run()
-	StatsReporter() allocrunner.AllocStatsReporter
+	StatsReporter() interfaces.AllocStatsReporter
 	Update(*structs.Allocation)
 	WaitCh() <-chan struct{}
 }
@@ -603,7 +603,7 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 	return c
 }
 
-func (c *Client) GetAllocStats(allocID string) (allocrunner.AllocStatsReporter, error) {
+func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, error) {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
