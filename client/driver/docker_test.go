@@ -1891,7 +1891,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	}
 }
 
-func TestDockerDriver_Mounts(t *testing.T) {
+func TestDockerDriver_VolumeMounts(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
@@ -1900,6 +1900,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 	}
 
 	goodMount := map[string]interface{}{
+		"type": "volume",
 		"target": "/nomad",
 		"volume_options": []interface{}{
 			map[string]interface{}{
@@ -1937,11 +1938,27 @@ func TestDockerDriver_Mounts(t *testing.T) {
 			Error:  "",
 			Mounts: []interface{}{goodMount, goodMount, goodMount},
 		},
-		{
-			Name:  "multiple volume options",
-			Error: "Only one volume_options stanza allowed",
+				{
+			Name:   "bind_options in bind mount error",
+			Error:  "bind_options invalid on \"volume\" mount type",
 			Mounts: []interface{}{
 				map[string]interface{}{
+					"type": "volume",
+					"target": "/nomad",
+					"bind_options": []interface{}{
+						map[string]interface{}{
+							"propagation": "shared",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:  "multiple volume options",
+			Error: "only one volume_options stanza allowed",
+			Mounts: []interface{}{
+				map[string]interface{}{
+					"type": "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -1967,6 +1984,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 			Error: "volume driver config may only be specified once",
 			Mounts: []interface{}{
 				map[string]interface{}{
+					"type": "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -1988,6 +2006,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 			Error: "labels may only be",
 			Mounts: []interface{}{
 				map[string]interface{}{
+					"type": "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -2005,6 +2024,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 			Error: "driver options may only",
 			Mounts: []interface{}{
 				map[string]interface{}{
+					"type": "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -2070,6 +2090,310 @@ func TestDockerDriver_Mounts(t *testing.T) {
 		})
 	}
 }
+
+func setupDockerBindMount(t *testing.T, cfg *config.Config, hostpath string) (*structs.Task, Driver, *ExecContext, string, func()) {
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	randfn := fmt.Sprintf("test-%d", rand.Int())
+	hostfile := filepath.Join(hostpath, randfn)
+	containerPath := "/mnt/vol"
+	containerFile := filepath.Join(containerPath, randfn)
+
+	task := &structs.Task{
+		Name:   "ls",
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    "busybox.tar",
+			"command": "touch",
+			"args":    []string{containerFile},
+			"mounts":  []interface{} {
+				map[string]interface{}{
+					"readonly": "false",
+					"source": hostpath,
+					"target": containerPath,
+					"type": "bind",
+					"bind_options": []interface{}{
+						map[string]interface{}{
+							"propagation": "shared",
+						},
+					},
+				},
+			},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+
+	// Build alloc and task directory structure
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(cfg.AllocDir, uuid.Generate()))
+	if err := allocDir.Build(); err != nil {
+		t.Fatalf("failed to build alloc dir: %v", err)
+	}
+	taskDir := allocDir.NewTaskDir(task.Name)
+	if err := taskDir.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+		allocDir.Destroy()
+		t.Fatalf("failed to build task dir: %v", err)
+	}
+	copyImage(t, taskDir, "busybox.tar")
+
+	// Setup driver
+	alloc := mock.Alloc()
+	logger := testlog.Logger(t)
+	emitter := func(m string, args ...interface{}) {
+		logger.Printf("[EVENT] "+m, args...)
+	}
+	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, testlog.Logger(t), emitter)
+	driver := NewDockerDriver(driverCtx)
+
+	// Setup execCtx
+	envBuilder := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
+	SetEnvvars(envBuilder, driver.FSIsolation(), taskDir, cfg)
+	execCtx := NewExecContext(taskDir, envBuilder.Build())
+
+	// Setup cleanup function
+	cleanup := func() {
+		allocDir.Destroy()
+		if filepath.IsAbs(hostpath) {
+			os.RemoveAll(hostpath)
+		}
+	}
+	return task, driver, execCtx, hostfile, cleanup
+}
+
+
+func TestDockerDriver_BindMount_VolumesDisabled(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	cfg := testConfig(t)
+	cfg.Options = map[string]string{
+		dockerVolumesConfigOption: "false",
+		"docker.cleanup.image":    "false",
+	}
+
+	{
+		tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesdisabled")
+		if err != nil {
+			t.Fatalf("error creating temporary dir: %v", err)
+		}
+
+		task, driver, execCtx, _, cleanup := setupDockerBindMount(t, cfg, tmpvol)
+		defer cleanup()
+
+		_, err = driver.Prestart(execCtx, task)
+		if err != nil {
+			t.Fatalf("error in prestart: %v", err)
+		}
+		if _, err := driver.Start(execCtx, task); err == nil {
+			t.Fatalf("Started driver successfully when volumes should have been disabled.")
+		}
+	}
+
+	// Relative paths should still be allowed
+	{
+		task, driver, execCtx, fn, cleanup := setupDockerBindMount(t, cfg, ".")
+		defer cleanup()
+
+		_, err := driver.Prestart(execCtx, task)
+		if err != nil {
+			t.Fatalf("error in prestart: %v", err)
+		}
+		resp, err := driver.Start(execCtx, task)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		defer resp.Handle.Kill()
+
+		select {
+		case res := <-resp.Handle.WaitCh():
+			if !res.Successful() {
+				t.Fatalf("unexpected err: %v", res)
+			}
+		case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
+			t.Fatalf("timeout")
+		}
+
+		if _, err := ioutil.ReadFile(filepath.Join(execCtx.TaskDir.Dir, fn)); err != nil {
+			t.Fatalf("unexpected error reading %s: %v", fn, err)
+		}
+	}
+}
+
+func TestDockerDriver_BindMount_VolumesEnabled(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	cfg := testConfig(t)
+
+	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
+	if err != nil {
+		t.Fatalf("error creating temporary dir: %v", err)
+	}
+
+	// Evaluate symlinks so it works on MacOS
+	tmpvol, err = filepath.EvalSymlinks(tmpvol)
+	if err != nil {
+		t.Fatalf("error evaluating symlinks: %v", err)
+	}
+
+	task, driver, execCtx, hostpath, cleanup := setupDockerBindMount(t, cfg, tmpvol)
+	defer cleanup()
+
+	_, err = driver.Prestart(execCtx, task)
+	if err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+	resp, err := driver.Start(execCtx, task)
+	if err != nil {
+		t.Fatalf("Failed to start docker driver: %v", err)
+	}
+	defer resp.Handle.Kill()
+
+	select {
+	case res := <-resp.Handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("unexpected err: %v", res)
+		}
+	case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	if _, err := ioutil.ReadFile(hostpath); err != nil {
+		t.Fatalf("unexpected error reading %s: %v", hostpath, err)
+	}
+}
+
+func TestDockerDriver_BindMount(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	goodMount := map[string]interface{}{
+		"type": "bind",
+		"target": "/nomad",
+		"bind_options": []interface{}{
+			map[string]interface{}{
+				"propagation": "shared",
+			},
+		},
+		"readonly": true,
+		"source":   "test",
+	}
+
+	cases := []struct {
+		Name   string
+		Mounts []interface{}
+		Error  string
+	}{
+		{
+			Name:   "good-one",
+			Error:  "",
+			Mounts: []interface{}{goodMount},
+		},
+		{
+			Name:   "good-many",
+			Error:  "",
+			Mounts: []interface{}{goodMount, goodMount, goodMount},
+		},
+		{
+			Name:   "volume_options in bind mount error",
+			Error:  "volume_options invalid on \"bind\" mount type",
+			Mounts: []interface{}{
+				map[string]interface{}{
+					"type": "bind",
+					"target": "/nomad",
+					"volume_options": []interface{}{
+						map[string]interface{}{
+							"driver_config": []interface{}{
+								map[string]interface{}{
+									"name": "local",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:  "multiple bind options",
+			Error: "only one bind_options stanza allowed",
+			Mounts: []interface{}{
+				map[string]interface{}{
+					"type": "bind",
+					"target": "/nomad",
+					"bind_options": []interface{}{
+						map[string]interface{}{
+							"propagation": "shared",
+						},
+						map[string]interface{}{
+							"propagation": "shared",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	task := &structs.Task{
+		Name:   "redis-demo",
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   "busybox",
+			"load":    "busybox.tar",
+			"command": "/bin/sleep",
+			"args":    []string{"10000"},
+		},
+		Resources: &structs.Resources{
+			MemoryMB: 256,
+			CPU:      512,
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			// Build the task
+			task.Config["mounts"] = c.Mounts
+
+			ctx := testDockerDriverContexts(t, task)
+			driver := NewDockerDriver(ctx.DriverCtx)
+			copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+			defer ctx.AllocDir.Destroy()
+
+			_, err := driver.Prestart(ctx.ExecCtx, task)
+			if err == nil && c.Error != "" {
+				t.Fatalf("expected error: %v", c.Error)
+			} else if err != nil {
+				if c.Error == "" {
+					t.Fatalf("unexpected error in prestart: %v", err)
+				} else if !strings.Contains(err.Error(), c.Error) {
+					t.Fatalf("expected error %q; got %v", c.Error, err)
+				}
+			}
+		})
+	}
+}
+
 
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 func TestDockerDriver_Cleanup(t *testing.T) {
