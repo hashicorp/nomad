@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/device/cmd/nvidia/nvml"
 )
 
 const (
@@ -26,11 +26,16 @@ const (
 func (d *NvidiaDevice) fingerprint(ctx context.Context, devices chan<- *device.FingerprintResponse) {
 	defer close(devices)
 
-	if d.nvmlClientInitializationError != nil {
-		d.logger.Error("exiting fingerprinting due to problems with NVML loading", "error", d.nvmlClientInitializationError)
-		// write empty fingerprint response to let server know that there are
-		// no working Nvidia GPU units
-		devices <- device.NewFingerprint()
+	if d.initErr != nil {
+		if d.initErr.Error() != nvml.UnavailableLib.Error() {
+			d.logger.Error("exiting fingerprinting due to problems with NVML loading", "error", d.initErr)
+			devices <- device.NewFingerprintError(d.initErr)
+		} else {
+			// write empty fingerprint response to let server know that there are
+			// no working Nvidia GPU units
+			devices <- device.NewFingerprint()
+		}
+
 		return
 	}
 
@@ -51,7 +56,6 @@ func (d *NvidiaDevice) fingerprint(ctx context.Context, devices chan<- *device.F
 // writeFingerprintToChannel makes nvml call and writes response to channel
 func (d *NvidiaDevice) writeFingerprintToChannel(devices chan<- *device.FingerprintResponse) {
 	fingerprintData, err := d.nvmlClient.GetFingerprintData()
-
 	if err != nil {
 		d.logger.Error("failed to get fingerprint nvidia devices", "error", err)
 		devices <- device.NewFingerprintError(err)

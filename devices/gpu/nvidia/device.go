@@ -9,9 +9,9 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/device/cmd/nvidia/nvml"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -73,9 +73,9 @@ type NvidiaDevice struct {
 	// nvmlClient is used to get data from nvidia
 	nvmlClient nvml.NvmlClient
 
-	// nvmlClientInitializationError holds an error retrieved during
+	// initErr holds an error retrieved during
 	// nvmlClient initialization
-	nvmlClientInitializationError error
+	initErr error
 
 	// ignoredGPUIDs is a set of UUIDs that would not be exposed to nomad
 	ignoredGPUIDs map[string]struct{}
@@ -96,17 +96,17 @@ type NvidiaDevice struct {
 
 // NewNvidiaDevice returns a new nvidia device plugin.
 func NewNvidiaDevice(log log.Logger) *NvidiaDevice {
-	nvmlClient, nvmlClientInitializationError := nvml.NewNvmlClient()
+	nvmlClient, err := nvml.NewNvmlClient()
 	logger := log.Named(pluginName)
-	if nvmlClientInitializationError != nil {
-		logger.Error("unable to initialize Nvidia driver", "error", nvmlClientInitializationError)
+	if err != nil && err.Error() != nvml.UnavailableLib.Error() {
+		logger.Error("unable to initialize Nvidia driver", "reason", err)
 	}
 	return &NvidiaDevice{
-		logger:                        logger,
-		devices:                       make(map[string]struct{}),
-		ignoredGPUIDs:                 make(map[string]struct{}),
-		nvmlClient:                    nvmlClient,
-		nvmlClientInitializationError: nvmlClientInitializationError,
+		logger:        logger,
+		devices:       make(map[string]struct{}),
+		ignoredGPUIDs: make(map[string]struct{}),
+		nvmlClient:    nvmlClient,
+		initErr:       err,
 	}
 }
 

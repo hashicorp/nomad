@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/device/cmd/nvidia/nvml"
 )
 
 const (
@@ -53,8 +53,12 @@ const (
 func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResponse) {
 	defer close(stats)
 
-	if d.nvmlClientInitializationError != nil {
-		d.logger.Error("exiting stats due to problems with NVML loading", "error", d.nvmlClientInitializationError)
+	if d.initErr != nil {
+		if d.initErr.Error() != nvml.UnavailableLib.Error() {
+			d.logger.Error("exiting stats due to problems with NVML loading", "error", d.initErr)
+			stats <- device.NewStatsError(d.initErr)
+		}
+
 		return
 	}
 

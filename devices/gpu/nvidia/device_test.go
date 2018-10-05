@@ -3,9 +3,8 @@ package nvidia
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/plugins/device/cmd/nvidia/nvml"
-
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/stretchr/testify/require"
 )

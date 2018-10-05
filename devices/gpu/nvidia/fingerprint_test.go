@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/device/cmd/nvidia/nvml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -197,8 +197,10 @@ func TestIgnoreFingerprintedDevices(t *testing.T) {
 			ExpectedResult: nil,
 		},
 	} {
-		actualResult := ignoreFingerprintedDevices(testCase.DeviceData, testCase.IgnoredGPUIds)
-		require.New(t).Equal(testCase.ExpectedResult, actualResult)
+		t.Run(testCase.Name, func(t *testing.T) {
+			actualResult := ignoreFingerprintedDevices(testCase.DeviceData, testCase.IgnoredGPUIds)
+			require.New(t).Equal(testCase.ExpectedResult, actualResult)
+		})
 	}
 }
 
@@ -342,12 +344,14 @@ func TestCheckFingerprintUpdates(t *testing.T) {
 			DeviceMapAfterMethodCall: map[string]struct{}{},
 		},
 	} {
-		actualResult := testCase.Device.fingerprintChanged(testCase.AllDevices)
-		req := require.New(t)
-		// check that function returns valid "updated / not updated" state
-		req.Equal(testCase.ExpectedResult, actualResult)
-		// check that function propely updates devices map
-		req.Equal(testCase.Device.devices, testCase.DeviceMapAfterMethodCall)
+		t.Run(testCase.Name, func(t *testing.T) {
+			actualResult := testCase.Device.fingerprintChanged(testCase.AllDevices)
+			req := require.New(t)
+			// check that function returns valid "updated / not updated" state
+			req.Equal(testCase.ExpectedResult, actualResult)
+			// check that function propely updates devices map
+			req.Equal(testCase.Device.devices, testCase.DeviceMapAfterMethodCall)
+		})
 	}
 }
 
@@ -554,8 +558,10 @@ func TestAttributesFromFingerprintDeviceData(t *testing.T) {
 			},
 		},
 	} {
-		actualResult := attributesFromFingerprintDeviceData(testCase.FingerprintDeviceData)
-		require.New(t).Equal(testCase.ExpectedResult, actualResult)
+		t.Run(testCase.Name, func(t *testing.T) {
+			actualResult := attributesFromFingerprintDeviceData(testCase.FingerprintDeviceData)
+			require.New(t).Equal(testCase.ExpectedResult, actualResult)
+		})
 	}
 }
 
@@ -715,8 +721,10 @@ func TestDeviceGroupFromFingerprintData(t *testing.T) {
 			ExpectedResult: nil,
 		},
 	} {
-		actualResult := deviceGroupFromFingerprintData(testCase.GroupName, testCase.Devices, testCase.CommonAttributes)
-		require.New(t).Equal(testCase.ExpectedResult, actualResult)
+		t.Run(testCase.Name, func(t *testing.T) {
+			actualResult := deviceGroupFromFingerprintData(testCase.GroupName, testCase.Devices, testCase.CommonAttributes)
+			require.New(t).Equal(testCase.ExpectedResult, actualResult)
+		})
 	}
 }
 
@@ -1070,20 +1078,22 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 			},
 		},
 	} {
-		channel := make(chan *device.FingerprintResponse, 1)
-		testCase.Device.writeFingerprintToChannel(channel)
-		actualResult := <-channel
-		// writeFingerprintToChannel iterates over map keys
-		// and insterts results to an array, so order of elements in output array
-		// may be different
-		// actualResult, expectedResult arrays has to be sorted firsted
-		sort.Slice(actualResult.Devices, func(i, j int) bool {
-			return actualResult.Devices[i].Name < actualResult.Devices[j].Name
+		t.Run(testCase.Name, func(t *testing.T) {
+			channel := make(chan *device.FingerprintResponse, 1)
+			testCase.Device.writeFingerprintToChannel(channel)
+			actualResult := <-channel
+			// writeFingerprintToChannel iterates over map keys
+			// and insterts results to an array, so order of elements in output array
+			// may be different
+			// actualResult, expectedResult arrays has to be sorted firsted
+			sort.Slice(actualResult.Devices, func(i, j int) bool {
+				return actualResult.Devices[i].Name < actualResult.Devices[j].Name
+			})
+			sort.Slice(testCase.ExpectedWriteToChannel.Devices, func(i, j int) bool {
+				return testCase.ExpectedWriteToChannel.Devices[i].Name < testCase.ExpectedWriteToChannel.Devices[j].Name
+			})
+			require.New(t).Equal(testCase.ExpectedWriteToChannel, actualResult)
 		})
-		sort.Slice(testCase.ExpectedWriteToChannel.Devices, func(i, j int) bool {
-			return testCase.ExpectedWriteToChannel.Devices[i].Name < testCase.ExpectedWriteToChannel.Devices[j].Name
-		})
-		require.New(t).Equal(testCase.ExpectedWriteToChannel, actualResult)
 	}
 }
 
@@ -1097,7 +1107,7 @@ func TestFingerprint(t *testing.T) {
 		{
 			Name: "Check that working driver returns valid fingeprint data",
 			Device: &NvidiaDevice{
-				nvmlClientInitializationError: nil,
+				initErr: nil,
 				nvmlClient: &MockNvmlClient{
 					FingerprintResponseReturned: &nvml.FingerprintData{
 						DriverVersion: "1",
@@ -1197,9 +1207,9 @@ func TestFingerprint(t *testing.T) {
 			},
 		},
 		{
-			Name: "Check that not working driver returns empty fingeprint data",
+			Name: "Check that not working driver returns error fingeprint data",
 			Device: &NvidiaDevice{
-				nvmlClientInitializationError: errors.New(""),
+				initErr: errors.New("foo"),
 				nvmlClient: &MockNvmlClient{
 					FingerprintResponseReturned: &nvml.FingerprintData{
 						DriverVersion: "1",
@@ -1230,14 +1240,18 @@ func TestFingerprint(t *testing.T) {
 				},
 				logger: hclog.NewNullLogger(),
 			},
-			ExpectedWriteToChannel: &device.FingerprintResponse{},
+			ExpectedWriteToChannel: &device.FingerprintResponse{
+				Error: errors.New("foo"),
+			},
 		},
 	} {
-		outCh := make(chan *device.FingerprintResponse)
-		ctx, cancel := context.WithCancel(context.Background())
-		go testCase.Device.fingerprint(ctx, outCh)
-		result := <-outCh
-		cancel()
-		require.New(t).Equal(result, testCase.ExpectedWriteToChannel)
+		t.Run(testCase.Name, func(t *testing.T) {
+			outCh := make(chan *device.FingerprintResponse)
+			ctx, cancel := context.WithCancel(context.Background())
+			go testCase.Device.fingerprint(ctx, outCh)
+			result := <-outCh
+			cancel()
+			require.New(t).Equal(result, testCase.ExpectedWriteToChannel)
+		})
 	}
 }

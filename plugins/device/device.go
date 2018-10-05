@@ -141,6 +141,13 @@ type StatsResponse struct {
 	Error error
 }
 
+// NewStatsError takes an error and returns a stats response
+func NewStatsError(err error) *StatsResponse {
+	return &StatsResponse{
+		Error: err,
+	}
+}
+
 // DeviceGroupStats contains statistics for each device of a particular
 // device group, identified by the vendor, type and name of the device.
 type DeviceGroupStats struct {

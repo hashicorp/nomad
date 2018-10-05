@@ -3,8 +3,8 @@ package main
 import (
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/devices/gpu/nvidia"
 	"github.com/hashicorp/nomad/plugins"
-	"github.com/hashicorp/nomad/plugins/device/cmd/nvidia"
 )
 
 func main() {
