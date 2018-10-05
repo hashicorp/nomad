@@ -20,7 +20,7 @@ func TestHandleResult_Wait_Result(t *testing.T) {
 	outCh1 := make(chan *structs.WaitResult)
 	outCh2 := make(chan *structs.WaitResult)
 
-	// Create two recievers
+	// Create two receivers
 	go func() {
 		outCh1 <- h.Wait(context.Background())
 	}()

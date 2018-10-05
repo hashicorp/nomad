@@ -76,7 +76,7 @@ func (ar *allocRunner) initRunnerHooks() {
 	hs := &allocHealthSetter{ar}
 
 	// Create the alloc directory hook. This is run first to ensure the
-	// directoy path exists for other hooks.
+	// directory path exists for other hooks.
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newDiskMigrationHook(hookLogger, ar.prevAllocWatcher, ar.allocDir),

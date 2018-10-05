@@ -292,6 +292,8 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	// Task should terminate quickly
 	waitCh, err := harness.WaitTask(context.Background(), task.ID)
+	require.NoError(err)
+
 	select {
 	case res := <-waitCh:
 		require.NoError(res.Err)
