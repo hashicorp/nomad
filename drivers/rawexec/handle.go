@@ -32,7 +32,7 @@ func (h *rawExecTaskHandle) IsRunning() bool {
 
 func (h *rawExecTaskHandle) run() {
 
-	// since run is called immediatly after the handle is created this
+	// since run is called immediately after the handle is created this
 	// ensures the exitResult is initialized so we avoid a nil pointer
 	// thus it does not need to be included in the lock
 	if h.exitResult == nil {

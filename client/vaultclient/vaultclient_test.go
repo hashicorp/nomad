@@ -16,7 +16,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "4s"
 	c, err := NewVaultClient(v.Config, logger, nil)
@@ -100,7 +100,7 @@ func TestVaultClient_Heap(t *testing.T) {
 	conf.VaultConfig.Token = "testvaulttoken"
 	conf.VaultConfig.TaskTokenTTL = "10s"
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -203,7 +203,7 @@ func TestVaultClient_RenewNonRenewableLease(t *testing.T) {
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "4s"
 	c, err := NewVaultClient(v.Config, logger, nil)
@@ -252,7 +252,7 @@ func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.TaskTokenTTL = "4s"
 	c, err := NewVaultClient(v.Config, logger, nil)

@@ -9,10 +9,10 @@ import (
 // configure new process group for child process
 func (e *UniversalExecutor) setNewProcessGroup() error {
 	// We need to check that as build flags includes windows for this file
-	if e.cmd.SysProcAttr == nil {
-		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	if e.childCmd.SysProcAttr == nil {
+		e.childCmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	e.cmd.SysProcAttr.CreationFlags = syscall.CREATE_NEW_PROCESS_GROUP
+	e.childCmd.SysProcAttr.CreationFlags = syscall.CREATE_NEW_PROCESS_GROUP
 	return nil
 }
 

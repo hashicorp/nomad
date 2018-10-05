@@ -18,7 +18,8 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	arstate "github.com/hashicorp/nomad/client/allocrunnerv2/state"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	hstats "github.com/hashicorp/nomad/helper/stats"
@@ -28,7 +29,6 @@ import (
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
-	"github.com/hashicorp/nomad/client/allocrunnerv2"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/servers"
@@ -94,7 +94,7 @@ const (
 type ClientStatsReporter interface {
 	// GetAllocStats returns the AllocStatsReporter for the passed allocation.
 	// If it does not exist an error is reported.
-	GetAllocStats(allocID string) (allocrunner.AllocStatsReporter, error)
+	GetAllocStats(allocID string) (interfaces.AllocStatsReporter, error)
 
 	// LatestHostStats returns the latest resource usage stats for the host
 	LatestHostStats() *stats.HostStats
@@ -113,7 +113,7 @@ type AllocRunner interface {
 	Listener() *cstructs.AllocListener
 	Restore() error
 	Run()
-	StatsReporter() allocrunner.AllocStatsReporter
+	StatsReporter() interfaces.AllocStatsReporter
 	Update(*structs.Allocation)
 	WaitCh() <-chan struct{}
 }
@@ -603,7 +603,7 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 	return c
 }
 
-func (c *Client) GetAllocStats(allocID string) (allocrunner.AllocStatsReporter, error) {
+func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, error) {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
@@ -764,7 +764,7 @@ func (c *Client) restoreState() error {
 	for _, alloc := range allocs {
 
 		c.configLock.RLock()
-		arConf := &allocrunnerv2.Config{
+		arConf := &allocrunner.Config{
 			Alloc:        alloc,
 			Logger:       c.logger,
 			ClientConfig: c.config,
@@ -775,7 +775,7 @@ func (c *Client) restoreState() error {
 		}
 		c.configLock.RUnlock()
 
-		ar, err := allocrunnerv2.NewAllocRunner(arConf)
+		ar, err := allocrunner.NewAllocRunner(arConf)
 		if err != nil {
 			c.logger.Error("error running alloc", "error", err, "alloc_id", alloc.ID)
 			mErr.Errors = append(mErr.Errors, err)
@@ -1969,7 +1969,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
 	c.configLock.RLock()
-	arConf := &allocrunnerv2.Config{
+	arConf := &allocrunner.Config{
 		Alloc:            alloc,
 		Logger:           c.logger,
 		ClientConfig:     c.config,
@@ -1981,7 +1981,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	}
 	c.configLock.RUnlock()
 
-	ar, err := allocrunnerv2.NewAllocRunner(arConf)
+	ar, err := allocrunner.NewAllocRunner(arConf)
 	if err != nil {
 		return err
 	}

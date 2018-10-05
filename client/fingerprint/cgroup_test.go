@@ -43,7 +43,7 @@ func (m *MountPointDetectorEmptyMountPoint) MountPoint() (string, error) {
 func TestCGroupFingerprint(t *testing.T) {
 	{
 		f := &CGroupFingerprint{
-			logger:             testlog.Logger(t),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
 			mountPointDetector: &MountPointDetectorMountPointFail{},
 		}
@@ -66,7 +66,7 @@ func TestCGroupFingerprint(t *testing.T) {
 
 	{
 		f := &CGroupFingerprint{
-			logger:             testlog.Logger(t),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
 			mountPointDetector: &MountPointDetectorValidMountPoint{},
 		}
@@ -88,7 +88,7 @@ func TestCGroupFingerprint(t *testing.T) {
 
 	{
 		f := &CGroupFingerprint{
-			logger:             testlog.Logger(t),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
 			mountPointDetector: &MountPointDetectorEmptyMountPoint{},
 		}
@@ -109,7 +109,7 @@ func TestCGroupFingerprint(t *testing.T) {
 	}
 	{
 		f := &CGroupFingerprint{
-			logger:             testlog.Logger(t),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupAvailable,
 			mountPointDetector: &MountPointDetectorValidMountPoint{},
 		}
