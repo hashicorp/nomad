@@ -85,8 +85,9 @@ type restartRecorder struct {
 	restarts int64
 }
 
-func (r *restartRecorder) Restart(source, reason string, failure bool) {
+func (r *restartRecorder) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	atomic.AddInt64(&r.restarts, 1)
+	return nil
 }
 
 // testFakeCtx contains a fake Consul AgentAPI

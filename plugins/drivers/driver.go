@@ -68,7 +68,7 @@ type Fingerprint struct {
 	Health            HealthState
 	HealthDescription string
 
-	// Err is set by the plugin if an error occured during fingerprinting
+	// Err is set by the plugin if an error occurred during fingerprinting
 	Err error
 }
 
@@ -207,7 +207,7 @@ type TaskEvent struct {
 	Message     string
 	Annotations map[string]string
 
-	// Err is only used if an error occured while consuming the RPC stream
+	// Err is only used if an error occurred while consuming the RPC stream
 	Err error
 }
 

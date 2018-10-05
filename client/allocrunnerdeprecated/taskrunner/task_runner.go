@@ -64,9 +64,9 @@ const (
 )
 
 var (
-	// taskRunnerStateAllKey holds all the task runners state. At the moment
-	// there is no need to split it
-	taskRunnerStateAllKey = []byte("simple-all")
+// taskRunnerStateAllKey holds all the task runners state. At the moment
+// there is no need to split it
+//taskRunnerStateAllKey = []byte("simple-all")
 )
 
 // taskRestartEvent wraps a TaskEvent with additional metadata to control

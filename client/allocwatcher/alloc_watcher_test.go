@@ -39,7 +39,7 @@ func newFakeAllocRunner(t *testing.T, logger hclog.Logger) *fakeAllocRunner {
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
 	alloc.Job.TaskGroups[0].EphemeralDisk.Migrate = true
 
-	path, err := ioutil.TempDir("", "nomad_test_wathcer")
+	path, err := ioutil.TempDir("", "nomad_test_watcher")
 	require.NoError(t, err)
 
 	return &fakeAllocRunner{

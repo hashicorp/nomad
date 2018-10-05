@@ -26,11 +26,11 @@ import (
 )
 
 var (
-	// The following are the key paths written to the state database
-	allocRunnerStateAllocKey     = []byte("alloc")
-	allocRunnerStateImmutableKey = []byte("immutable")
-	allocRunnerStateMutableKey   = []byte("mutable")
-	allocRunnerStateAllocDirKey  = []byte("alloc-dir")
+// The following are the key paths written to the state database
+//allocRunnerStateAllocKey     = []byte("alloc")
+//allocRunnerStateImmutableKey = []byte("immutable")
+//allocRunnerStateMutableKey   = []byte("mutable")
+//allocRunnerStateAllocDirKey  = []byte("alloc-dir")
 )
 
 // AllocStateUpdater is used to update the status of an allocation
@@ -115,23 +115,23 @@ type AllocRunner struct {
 
 // allocRunnerAllocState is state that only has to be written when the alloc
 // changes.
-type allocRunnerAllocState struct {
-	Alloc *structs.Allocation
-}
+//type allocRunnerAllocState struct {
+//Alloc *structs.Allocation
+//}
 
-// allocRunnerImmutableState is state that only has to be written once.
-type allocRunnerImmutableState struct {
-	Version string
-}
+//// allocRunnerImmutableState is state that only has to be written once.
+//type allocRunnerImmutableState struct {
+//Version string
+//}
 
 // allocRunnerMutableState is state that has to be written on each save as it
 // changes over the life-cycle of the alloc_runner.
-type allocRunnerMutableState struct {
-	AllocClientStatus      string
-	AllocClientDescription string
-	TaskStates             map[string]*structs.TaskState
-	DeploymentStatus       *structs.AllocDeploymentStatus
-}
+//type allocRunnerMutableState struct {
+//AllocClientStatus      string
+//AllocClientDescription string
+//TaskStates             map[string]*structs.TaskState
+//DeploymentStatus       *structs.AllocDeploymentStatus
+//}
 
 // NewAllocRunner is used to create a new allocation context
 func NewAllocRunner(logger *log.Logger, config *config.Config, stateDB *bolt.DB, updater AllocStateUpdater,

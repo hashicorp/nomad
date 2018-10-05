@@ -69,10 +69,6 @@ type TaskRunner struct {
 	// stateDB is for persisting localState and taskState
 	stateDB cstate.StateDB
 
-	// persistedHash is the hash of the last persisted state for skipping
-	// unnecessary writes
-	persistedHash []byte
-
 	// ctx is the task runner's context representing the tasks's lifecycle.
 	// Canceling the context will cause the task to be destroyed.
 	ctx context.Context
@@ -632,7 +628,7 @@ func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
 	// Ensure the event is populated with human readable strings
 	event.PopulateEventDisplayMessage()
 
-	// Propogate failure from event to task state
+	// Propagate failure from event to task state
 	if event.FailsTask {
 		tr.state.Failed = true
 	}
