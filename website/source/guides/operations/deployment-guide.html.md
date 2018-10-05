@@ -166,20 +166,59 @@ data_dir = "/opt/nomad"
 
 ### Server configuration
 
+Create a configuration file at `/etc/nomad.d/server.hcl`:
+
+```text
+sudo mkdir --parents /etc/nomad.d
+sudo touch /etc/nomad.d/server.hcl
+sudo chown --recursive nomad:nomad /etc/nomad.d
+sudo chmod 640 /etc/nomad.d/server.hcl
+```
+
+Add this configuration to the `server.hcl` configuration file:
+
+~> **NOTE** Replace the `bootstrap_expect` value with the number of Nomad servers you will use; three or five [is recommended](/docs/internals/consensus.html#deployment-table).
+
+```hcl
+server {
+  enabled = true
+  bootstrap_expect = 3
+}
+```
+
+- [`server`](/docs/configuration/server.html#enabled) - Specifies if this agent should run in server mode. All other server options depend on this value being set.
+- [`bootstrap-expect`](/docs/configuration/server.html#bootstrap_expect) - This flag provides the number of expected servers in the datacenter. Either this value should not be provided or the value must agree with other servers in the cluster.
+
 ### Client configuration
 
+Create a configuration file at `/etc/nomad.d/client.hcl`:
 
+```text
+sudo mkdir --parents /etc/nomad.d
+sudo touch /etc/nomad.d/client.hcl
+sudo chown --recursive nomad:nomad /etc/nomad.d
+sudo chmod 640 /etc/nomad.d/client.hcl
+```
 
+Add this configuration to the `client.hcl` configuration file:
 
+```hcl
+client {
+  enabled = true
+}
+```
 
+- [`client`](/docs/configuration/client.html#enabled) - Specifies if this agent should run in client mode. All other client options depend on this value being set.
+
+~> **NOTE** The [`options`](/docs/configuration/client.html#options-parameters) parameter can be used to enable or disable specific configurations on Nomad clients, unique to your use case requirements.
 
 ### ACL configuration
 
-The [ACL](/docs/guides/acl.html) guide provides instructions on configuring and enabling ACLs.
+The [Access Control](/guides/security/acl.html) guide provides instructions on configuring and enabling ACLs.
 
 ### TLS configuration
 
-The [Creating Certificates](/docs/guides/creating-certificates.html) guide provides instructions on configuring and enabling TLS.
+The [Securing Nomad with TLS](/guides/security/securing-nomad.html) guide provides instructions on configuring and enabling TLS.
 
 ## Start Nomad
 
@@ -193,4 +232,8 @@ sudo systemctl status nomad
 
 ## Next Steps
 
-- tbc...
+- Read [Outage Recovery](/guides/operations/outage.html) to learn
+  the steps required to recover from a Nomad cluster outage.
+- Read [Autopilot](/guides/operations/atopilot.html) to learn about
+  features in Nomad 0.8 to allow for automatic operator-friendly
+  management of Nomad servers.
