@@ -1,7 +1,7 @@
 package taskrunner
 
 import (
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
