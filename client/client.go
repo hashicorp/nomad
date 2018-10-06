@@ -761,7 +761,7 @@ func (c *Client) restoreState() error {
 	for _, alloc := range allocs {
 
 		c.configLock.RLock()
-		arConf := &allocrunnerv2.Config{
+		arConf := &allocrunner.Config{
 			Alloc:                 alloc,
 			Logger:                c.logger,
 			ClientConfig:          c.config,
@@ -1911,7 +1911,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
 	c.configLock.RLock()
-	arConf := &allocrunnerv2.Config{
+	arConf := &allocrunner.Config{
 		Alloc:                 alloc,
 		Logger:                c.logger,
 		ClientConfig:          c.config,

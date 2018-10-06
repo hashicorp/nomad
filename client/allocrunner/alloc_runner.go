@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 // allocRunner is used to run all the tasks in a given allocation
@@ -78,6 +79,13 @@ type allocRunner struct {
 	// prevAllocWatcher allows waiting for a previous allocation to exit
 	// and if necessary migrate its alloc dir.
 	prevAllocWatcher allocwatcher.PrevAllocWatcher
+
+	// pluginLoader is used to load plugins.
+	pluginLoader loader.PluginCatalog
+
+	// pluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	pluginSingletonLoader loader.PluginCatalog
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -89,18 +97,20 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	}
 
 	ar := &allocRunner{
-		id:               alloc.ID,
-		alloc:            alloc,
-		clientConfig:     config.ClientConfig,
-		consulClient:     config.Consul,
-		vaultClient:      config.Vault,
-		tasks:            make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
-		waitCh:           make(chan struct{}),
-		state:            &state.State{},
-		stateDB:          config.StateDB,
-		stateUpdater:     config.StateUpdater,
-		allocBroadcaster: cstructs.NewAllocBroadcaster(),
-		prevAllocWatcher: config.PrevAllocWatcher,
+		id:                    alloc.ID,
+		alloc:                 alloc,
+		clientConfig:          config.ClientConfig,
+		consulClient:          config.Consul,
+		vaultClient:           config.Vault,
+		tasks:                 make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
+		waitCh:                make(chan struct{}),
+		state:                 &state.State{},
+		stateDB:               config.StateDB,
+		stateUpdater:          config.StateUpdater,
+		allocBroadcaster:      cstructs.NewAllocBroadcaster(),
+		prevAllocWatcher:      config.PrevAllocWatcher,
+		pluginLoader:          config.PluginLoader,
+		pluginSingletonLoader: config.PluginSingletonLoader,
 	}
 
 	// Create the logger based on the allocation ID
@@ -124,15 +134,17 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		config := &taskrunner.Config{
-			Alloc:        ar.alloc,
-			ClientConfig: ar.clientConfig,
-			Task:         task,
-			TaskDir:      ar.allocDir.NewTaskDir(task.Name),
-			Logger:       ar.logger,
-			StateDB:      ar.stateDB,
-			StateUpdater: ar,
-			Consul:       ar.consulClient,
-			VaultClient:  ar.vaultClient,
+			Alloc:                 ar.alloc,
+			ClientConfig:          ar.clientConfig,
+			Task:                  task,
+			TaskDir:               ar.allocDir.NewTaskDir(task.Name),
+			Logger:                ar.logger,
+			StateDB:               ar.stateDB,
+			StateUpdater:          ar,
+			Consul:                ar.consulClient,
+			VaultClient:           ar.vaultClient,
+			PluginLoader:          ar.pluginLoader,
+			PluginSingletonLoader: ar.pluginSingletonLoader,
 		}
 
 		// Create, but do not Run, the task runner

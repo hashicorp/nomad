@@ -8,7 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocrunnerv2/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
