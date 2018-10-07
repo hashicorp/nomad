@@ -32,6 +32,7 @@ func TestRawExecDriver_User(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -67,6 +68,7 @@ func TestRawExecDriver_Signal(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources:   basicResources,
 		KillTimeout: 10 * time.Second,

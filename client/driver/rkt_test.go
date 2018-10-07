@@ -99,6 +99,7 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
@@ -150,6 +151,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
@@ -222,6 +224,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
@@ -289,6 +292,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
@@ -351,6 +355,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
@@ -407,6 +412,7 @@ func TestRktTrustPrefix(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
@@ -478,6 +484,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -542,6 +549,7 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -605,6 +613,7 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,
@@ -677,6 +686,7 @@ func TestRktDriver_Stats(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 128,

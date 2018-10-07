@@ -236,6 +236,7 @@ func TestParse(t *testing.T) {
 								LogConfig: &api.LogConfig{
 									MaxFiles:      helper.IntToPtr(14),
 									MaxFileSizeMB: helper.IntToPtr(101),
+									Suffix:        helper.StringToPtr(""),
 								},
 								Artifacts: []*api.TaskArtifact{
 									{

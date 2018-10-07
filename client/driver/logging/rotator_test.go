@@ -19,7 +19,7 @@ var (
 
 func TestFileRotator_IncorrectPath(t *testing.T) {
 	t.Parallel()
-	if _, err := NewFileRotator("/foo", baseFileName, 10, 10, testlog.Logger(t)); err == nil {
+	if _, err := NewFileRotator("/foo", baseFileName, "", 10, 10, testlog.Logger(t)); err == nil {
 		t.Fatalf("expected error")
 	}
 }
@@ -33,7 +33,7 @@ func TestFileRotator_CreateNewFile(t *testing.T) {
 	}
 	defer os.RemoveAll(path)
 
-	_, err = NewFileRotator(path, baseFileName, 10, 10, testlog.Logger(t))
+	_, err = NewFileRotator(path, baseFileName, "", 10, 10, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -42,6 +42,27 @@ func TestFileRotator_CreateNewFile(t *testing.T) {
 		t.Fatalf("expected file")
 	}
 }
+
+
+func TestFileRotator_CreateNewFileWithSuffix(t *testing.T) {
+	t.Parallel()
+	var path string
+	var err error
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	defer os.RemoveAll(path)
+
+	_, err = NewFileRotator(path, baseFileName, ".suffix", 10, 10, testlog.Logger(t))
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(path, "redis.stdout.0.suffix")); err != nil {
+		t.Fatalf("expected file")
+	}
+}
+
 
 func TestFileRotator_OpenLastFile(t *testing.T) {
 	t.Parallel()
@@ -61,7 +82,7 @@ func TestFileRotator_OpenLastFile(t *testing.T) {
 		t.Fatalf("test setup failure: %v", err)
 	}
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 10, testlog.Logger(t))
+	fr, err := NewFileRotator(path, baseFileName, ".suffix", 10, 10, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -70,6 +91,35 @@ func TestFileRotator_OpenLastFile(t *testing.T) {
 		t.Fatalf("expected current file: %v, got: %v", fname2, fr.currentFile.Name())
 	}
 }
+
+func TestFileRotator_OpenLastFileWithSuffix(t *testing.T) {
+	t.Parallel()
+	var path string
+	var err error
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	defer os.RemoveAll(path)
+
+	fname1 := filepath.Join(path, "redis.stdout.0.suffix")
+	fname2 := filepath.Join(path, "redis.stdout.2.suffix")
+	if _, err := os.Create(fname1); err != nil {
+		t.Fatalf("test setup failure: %v", err)
+	}
+	if _, err := os.Create(fname2); err != nil {
+		t.Fatalf("test setup failure: %v", err)
+	}
+
+	fr, err := NewFileRotator(path, baseFileName, ".suffix", 10, 10, testlog.Logger(t))
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	if fr.currentFile.Name() != fname2 {
+		t.Fatalf("expected current file: %v, got: %v", fname2, fr.currentFile.Name())
+	}
+}
+
 
 func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 	t.Parallel()
@@ -85,7 +135,7 @@ func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 		t.Fatalf("test setup failure: %v", err)
 	}
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.Logger(t))
+	fr, err := NewFileRotator(path, baseFileName, "", 10, 5, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -118,7 +168,7 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 	}
 	defer os.RemoveAll(path)
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.Logger(t))
+	fr, err := NewFileRotator(path, baseFileName, "", 10, 5, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -168,6 +218,65 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 	})
 }
 
+func TestFileRotator_RotateFilesWithSuffix(t *testing.T) {
+	t.Parallel()
+	var path string
+	var err error
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	defer os.RemoveAll(path)
+
+	fr, err := NewFileRotator(path, baseFileName, ".suffix", 10, 5, testlog.Logger(t))
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	str := "abcdefgh"
+	nw, err := fr.Write([]byte(str))
+	if err != nil {
+		t.Fatalf("got error while writing: %v", err)
+	}
+
+	if nw != len(str) {
+		t.Fatalf("expected %v, got %v", len(str), nw)
+	}
+
+	var lastErr error
+	testutil.WaitForResult(func() (bool, error) {
+		fname1 := filepath.Join(path, "redis.stdout.0.suffix")
+		fi, err := os.Stat(fname1)
+		if err != nil {
+			lastErr = err
+			return false, nil
+		}
+		if fi.Size() != 5 {
+			lastErr = fmt.Errorf("expected size: %v, actual: %v", 5, fi.Size())
+			return false, nil
+		}
+
+		fname2 := filepath.Join(path, "redis.stdout.1.suffix")
+		if _, err := os.Stat(fname2); err != nil {
+			lastErr = fmt.Errorf("expected file %v to exist", fname2)
+			return false, nil
+		}
+
+		if fi2, err := os.Stat(fname2); err == nil {
+			if fi2.Size() != 3 {
+				lastErr = fmt.Errorf("expected size: %v, actual: %v", 3, fi2.Size())
+				return false, nil
+			}
+		} else {
+			lastErr = fmt.Errorf("error getting the file info: %v", err)
+			return false, nil
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("%v", lastErr)
+	})
+}
+
 func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 	t.Parallel()
 	var path string
@@ -177,7 +286,7 @@ func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 	}
 	defer os.RemoveAll(path)
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.Logger(t))
+	fr, err := NewFileRotator(path, baseFileName, "", 10, 5, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -243,7 +352,7 @@ func TestFileRotator_WriteRemaining(t *testing.T) {
 		t.Fatalf("test setup failure: %v", err)
 	}
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.Logger(t))
+	fr, err := NewFileRotator(path, baseFileName, "", 10, 5, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -316,7 +425,7 @@ func TestFileRotator_PurgeOldFiles(t *testing.T) {
 	}
 	defer os.RemoveAll(path)
 
-	fr, err := NewFileRotator(path, baseFileName, 2, 2, testlog.Logger(t))
+	fr, err := NewFileRotator(path, baseFileName, "", 2, 2, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("test setup err: %v", err)
 	}
@@ -349,6 +458,49 @@ func TestFileRotator_PurgeOldFiles(t *testing.T) {
 	})
 }
 
+func TestFileRotator_PurgeOldFilesWithSuffix(t *testing.T) {
+	t.Parallel()
+	var path string
+	var err error
+	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+	defer os.RemoveAll(path)
+
+	fr, err := NewFileRotator(path, baseFileName, ".suffix", 2, 2, testlog.Logger(t))
+	if err != nil {
+		t.Fatalf("test setup err: %v", err)
+	}
+
+	str := "abcdeghijklmn"
+	nw, err := fr.Write([]byte(str))
+	if err != nil {
+		t.Fatalf("got error while writing: %v", err)
+	}
+	if nw != len(str) {
+		t.Fatalf("expected %v, got %v", len(str), nw)
+	}
+
+	var lastErr error
+	testutil.WaitForResult(func() (bool, error) {
+		f, err := ioutil.ReadDir(path)
+		if err != nil {
+			lastErr = fmt.Errorf("test error: %v", err)
+			return false, nil
+		}
+
+		if len(f) != 2 {
+			lastErr = fmt.Errorf("expected number of files: %v, got: %v", 2, len(f))
+			return false, nil
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("%v", lastErr)
+	})
+}
+
+
 func BenchmarkRotator(b *testing.B) {
 	kb := 1024
 	for _, inputSize := range []int{kb, 2 * kb, 4 * kb, 8 * kb, 16 * kb, 32 * kb, 64 * kb, 128 * kb, 256 * kb} {
@@ -366,7 +518,7 @@ func benchmarkRotatorWithInputSize(size int, b *testing.B) {
 	}
 	defer os.RemoveAll(path)
 
-	fr, err := NewFileRotator(path, baseFileName, 5, 1024*1024, testlog.Logger(b))
+	fr, err := NewFileRotator(path, baseFileName, "", 5, 1024*1024, testlog.Logger(b))
 	if err != nil {
 		b.Fatalf("test setup err: %v", err)
 	}

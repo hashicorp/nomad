@@ -442,7 +442,7 @@ func (h *mockDriverHandle) handleLogging() {
 	// Setup a log rotator
 	logFileSize := int64(h.task.LogConfig.MaxFileSizeMB * 1024 * 1024)
 	lro, err := logging.NewFileRotator(h.ctx.TaskDir.LogDir, fmt.Sprintf("%v.stdout", h.taskName),
-		h.task.LogConfig.MaxFiles, logFileSize, h.logger)
+		h.task.LogConfig.Suffix, h.task.LogConfig.MaxFiles, logFileSize, h.logger)
 	if err != nil {
 		h.exitErr = err
 		close(h.doneCh)

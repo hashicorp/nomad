@@ -65,6 +65,7 @@ func dockerTask(t *testing.T) (*structs.Task, int, int) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -313,6 +314,7 @@ func TestDockerDriver_StartOpen_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -370,6 +372,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 
@@ -419,6 +422,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      1,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 
@@ -486,6 +490,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -554,6 +559,7 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -607,6 +613,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			MemoryMB: 256,
@@ -670,6 +677,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -715,6 +723,7 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources:   basicResources,
 		KillTimeout: timeout,
@@ -913,6 +922,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 
@@ -971,6 +981,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 
@@ -1565,6 +1576,7 @@ func TestDockerDriver_User(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 
@@ -1616,6 +1628,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 
@@ -1667,6 +1680,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -1726,6 +1740,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -2044,6 +2059,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 
@@ -2215,6 +2231,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			CPU:      250,
@@ -2377,6 +2394,7 @@ func TestDockerDriver_Kill(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -2485,6 +2503,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 

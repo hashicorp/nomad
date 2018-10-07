@@ -39,6 +39,7 @@ type FileRotator struct {
 
 	path             string // path is the path on the file system where the rotated set of files are opened
 	baseFileName     string // baseFileName is the base file name of the rotated files
+	fileSuffix		 string // fileSuffix is the file name suffix of the rorated Files
 	logFileIdx       int    // logFileIdx is the current index of the rotated files
 	oldestLogFileIdx int    // oldestLogFileIdx is the index of the oldest log file in a path
 
@@ -57,7 +58,7 @@ type FileRotator struct {
 }
 
 // NewFileRotator returns a new file rotator
-func NewFileRotator(path string, baseFile string, maxFiles int,
+func NewFileRotator(path string, baseFile string, suffix string, maxFiles int,
 	fileSize int64, logger *log.Logger) (*FileRotator, error) {
 	rotator := &FileRotator{
 		MaxFiles: maxFiles,
@@ -65,6 +66,7 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 
 		path:         path,
 		baseFileName: baseFile,
+		fileSuffix:   suffix,
 
 		flushTicker: time.NewTicker(bufferFlushDuration),
 		logger:      logger,

@@ -95,6 +95,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -139,6 +140,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -193,6 +195,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -246,6 +249,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources:   basicResources,
 		KillTimeout: 10 * time.Second,
@@ -298,6 +302,7 @@ func TestExecDriverUser(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources:   basicResources,
 		KillTimeout: 10 * time.Second,
@@ -338,6 +343,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}

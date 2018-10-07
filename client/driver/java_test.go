@@ -95,6 +95,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -151,6 +152,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -217,6 +219,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -283,6 +286,7 @@ func TestJavaDriver_Signal(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -352,6 +356,7 @@ func TestJavaDriver_User(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -394,6 +399,7 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -464,6 +470,7 @@ func TestJavaDriver_Start_Kill(t *testing.T) {
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      10,
 				MaxFileSizeMB: 10,
+				Suffix:        "",
 			},
 			Resources: basicResources,
 		}
@@ -501,6 +508,7 @@ func TestJavaDriver_Start_Kill(t *testing.T) {
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      10,
 				MaxFileSizeMB: 10,
+				Suffix:        "",
 			},
 			Resources: basicResources,
 		}

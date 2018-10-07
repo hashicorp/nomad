@@ -78,6 +78,7 @@ func TestRawExecDriver_StartOpen_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -125,6 +126,7 @@ func TestRawExecDriver_Start_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -176,6 +178,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -227,6 +230,7 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -282,6 +286,7 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 		User:      "root",
@@ -372,6 +377,7 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}

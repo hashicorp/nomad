@@ -1425,6 +1425,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LogConfig: &api.LogConfig{
 							MaxFiles:      helper.IntToPtr(10),
 							MaxFileSizeMB: helper.IntToPtr(100),
+							Suffix:        helper.StringToPtr(""),
 						},
 						Artifacts: []*api.TaskArtifact{
 							{
@@ -1699,6 +1700,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LogConfig: &structs.LogConfig{
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
+							Suffix:        "",
 						},
 						Artifacts: []*structs.TaskArtifact{
 							{
@@ -1840,6 +1842,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LogConfig: &api.LogConfig{
 							MaxFiles:      helper.IntToPtr(10),
 							MaxFileSizeMB: helper.IntToPtr(100),
+							Suffix:        helper.StringToPtr(""),
 						},
 						Artifacts: []*api.TaskArtifact{
 							{
@@ -1958,6 +1961,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LogConfig: &structs.LogConfig{
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
+							Suffix:        "",
 						},
 						Artifacts: []*structs.TaskArtifact{
 							{

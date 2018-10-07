@@ -34,6 +34,7 @@ func testJob(jobID string) *api.Job {
 		SetLogConfig(&api.LogConfig{
 			MaxFiles:      helper.IntToPtr(1),
 			MaxFileSizeMB: helper.IntToPtr(2),
+			Suffix:        helper.StringToPtr(""),
 		})
 
 	group := api.NewTaskGroup("group1", 1).

@@ -873,6 +873,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.LogConfig = &structs.LogConfig{
 		MaxFiles:      *apiTask.LogConfig.MaxFiles,
 		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
+		Suffix:        *apiTask.LogConfig.Suffix,
 	}
 
 	if l := len(apiTask.Artifacts); l != 0 {

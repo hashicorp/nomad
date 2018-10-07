@@ -39,6 +39,7 @@ func TestDockerDriver_Signal(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 	}
 

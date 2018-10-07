@@ -149,6 +149,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	ctx, allocDir := testExecutorContextWithChroot(t)
 	ctx.Task.LogConfig.MaxFiles = 1
 	ctx.Task.LogConfig.MaxFileSizeMB = 300
+	ctx.Task.LogConfig.Suffix = ""
 	defer allocDir.Destroy()
 
 	executor := NewExecutor(testlog.Logger(t))

@@ -93,7 +93,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	//FIXME There's an easier way to get this
 	logdir := ctx.AllocDir.TaskDirs[ctx.TaskName].LogDir
 	lro, err := NewFileRotator(logdir, fmt.Sprintf("%v.stdout", ctx.TaskName),
-		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
+		ctx.LogConfig.Suffix, ctx.LogConfig.MaxFiles, logFileSize, s.logger)
 
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (s *SyslogCollector) LaunchCollector(ctx *LogCollectorContext) (*SyslogColl
 	s.lro = lro
 
 	lre, err := NewFileRotator(logdir, fmt.Sprintf("%v.stderr", ctx.TaskName),
-		ctx.LogConfig.MaxFiles, logFileSize, s.logger)
+		ctx.LogConfig.Suffix, ctx.LogConfig.MaxFiles, logFileSize, s.logger)
 	if err != nil {
 		return nil, err
 	}

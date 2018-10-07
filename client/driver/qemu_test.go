@@ -87,6 +87,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			CPU:      500,
@@ -166,6 +167,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			CPU:      1000,
@@ -297,6 +299,7 @@ func TestQemuDriverUser(t *testing.T) {
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      10,
 				MaxFileSizeMB: 10,
+				Suffix:        "",
 			},
 			Resources: &structs.Resources{
 				CPU:      500,
@@ -325,6 +328,7 @@ func TestQemuDriverUser(t *testing.T) {
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      10,
 				MaxFileSizeMB: 10,
+				Suffix:        "",
 			},
 			Resources: &structs.Resources{
 				CPU:      500,
@@ -378,6 +382,7 @@ func TestQemuDriverGetMonitorPathOldQemu(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			CPU:      500,
@@ -437,6 +442,7 @@ func TestQemuDriverGetMonitorPathNewQemu(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: &structs.Resources{
 			CPU:      500,

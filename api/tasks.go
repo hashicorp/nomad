@@ -610,8 +610,9 @@ func (g *TaskGroup) AddSpread(s *Spread) *TaskGroup {
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
-	MaxFiles      *int `mapstructure:"max_files"`
-	MaxFileSizeMB *int `mapstructure:"max_file_size"`
+	MaxFiles      *int    `mapstructure:"max_files"`
+	MaxFileSizeMB *int    `mapstructure:"max_file_size"`
+	Suffix        *string `mapstructure:"suffix"`
 }
 
 func DefaultLogConfig() *LogConfig {

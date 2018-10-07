@@ -725,6 +725,8 @@ The `LogConfig` object configures the log rotation policy for a task's `stdout` 
 - `MaxFileSizeMB` - The size of each rotated file. The size is specified in
   `MB`.
 
+- `Suffix` - an additional suffix for stdout/stderr e.g. `task.stdout.0<<Suffix>>`
+
 If the amount of disk resource requested for the task is less than the total
 amount of disk space needed to retain the rotated set of files, Nomad will return
 a validation error when a job is submitted.
@@ -733,14 +735,16 @@ a validation error when a job is submitted.
 {
   "LogConfig": {
     "MaxFiles": 3,
-    "MaxFileSizeMB": 10
+    "MaxFileSizeMB": 10,
+    "Suffix": ".json"
   }
 }
 ```
 
 In the above example we have asked Nomad to retain 3 rotated files for both
 `stderr` and `stdout` and size of each file is 10 MB. The minimum disk space that
-would be required for the task would be 60 MB.
+would be required for the task would be 60 MB. And each file will be appended with
+`.json` extension
 
 ### Artifact
 

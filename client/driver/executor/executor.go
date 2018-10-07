@@ -359,7 +359,7 @@ func (e *UniversalExecutor) configureLoggers() error {
 	logFileSize := int64(e.ctx.Task.LogConfig.MaxFileSizeMB * 1024 * 1024)
 	if e.lro == nil {
 		lro, err := logging.NewFileRotator(e.ctx.LogDir, fmt.Sprintf("%v.stdout", e.ctx.Task.Name),
-			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
+			e.ctx.Task.LogConfig.Suffix, e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
 		if err != nil {
 			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.Task.Name, err)
 		}
@@ -373,7 +373,7 @@ func (e *UniversalExecutor) configureLoggers() error {
 
 	if e.lre == nil {
 		lre, err := logging.NewFileRotator(e.ctx.LogDir, fmt.Sprintf("%v.stderr", e.ctx.Task.Name),
-			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
+			e.ctx.Task.LogConfig.Suffix, e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
 		if err != nil {
 			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.Task.Name, err)
 		}

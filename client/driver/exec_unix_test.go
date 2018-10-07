@@ -33,6 +33,7 @@ func TestExecDriver_KillUserPid_OnPluginReconnectFailure(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources: basicResources,
 	}
@@ -105,6 +106,7 @@ func TestExecDriver_Signal(t *testing.T) {
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
+			Suffix:        "",
 		},
 		Resources:   basicResources,
 		KillTimeout: 10 * time.Second,

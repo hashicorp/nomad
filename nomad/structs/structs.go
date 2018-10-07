@@ -4030,6 +4030,7 @@ const (
 type LogConfig struct {
 	MaxFiles      int
 	MaxFileSizeMB int
+	Suffix        string
 }
 
 // DefaultLogConfig returns the default LogConfig values.
@@ -4037,6 +4038,7 @@ func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      10,
 		MaxFileSizeMB: 10,
+		Suffix:        "",
 	}
 }
 

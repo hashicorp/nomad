@@ -2929,6 +2929,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					Suffix:        ".suffix",
 				},
 			},
 			Expected: &TaskDiff{
@@ -2950,7 +2951,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "",
 								New:  "1",
 							},
-						},
+							{
+								Type: DiffTypeAdded,
+								Name: "Suffix",
+								Old:  "",
+								New:  ".suffix",
+							},						},
 					},
 				},
 			},
@@ -2961,6 +2967,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					Suffix:        ".suffix",
 				},
 			},
 			New: &Task{},
@@ -2983,6 +2990,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "1",
 								New:  "",
 							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Suffix",
+								Old:  ".suffix",
+								New:  "",
+							},
 						},
 					},
 				},
@@ -2994,12 +3007,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					Suffix:        ".first",
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      2,
 					MaxFileSizeMB: 20,
+					Suffix:        ".second",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3021,6 +3036,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "1",
 								New:  "2",
 							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Suffix",
+								Old:  ".first",
+								New:  ".second",
+							},
 						},
 					},
 				},
@@ -3033,12 +3054,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
+					Suffix:        ".first",
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 20,
+					Suffix:        ".second",
 				},
 			},
 			Expected: &TaskDiff{
@@ -3059,6 +3082,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MaxFiles",
 								Old:  "1",
 								New:  "1",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Suffix",
+								Old:  ".first",
+								New:  ".second",
 							},
 						},
 					},
