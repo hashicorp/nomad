@@ -431,7 +431,11 @@
 		{"path":"gopkg.in/lxc/go-lxc.v2","checksumSHA1":"i97goLq3AIfUNB8l1hxGGMSW0+s=","revision":"f8a6938e600c634232eeef79dc04a1226f73a88b","revisionTime":"2016-08-03T16:52:18Z"},
 		{"path":"gopkg.in/tomb.v1","checksumSHA1":"TO8baX+t1Qs7EmOYth80MkbKzFo=","revision":"dd632973f1e7218eb1089048e0798ec9ae7dceb8","revisionTime":"2014-10-24T13:56:13Z"},
 		{"path":"gopkg.in/tomb.v2","checksumSHA1":"WiyCOMvfzRdymImAJ3ME6aoYUdM=","revision":"14b3d72120e8d10ea6e6b7f87f7175734b1faab8","revisionTime":"2014-06-26T14:46:23Z"},
-		{"path":"gopkg.in/yaml.v2","checksumSHA1":"12GqsW8PiRPnezDDy0v4brZrndM=","revision":"a5b47d31c556af34a302ce5d659e6fea44d90de0","revisionTime":"2016-09-28T15:37:09Z"}
+		{"path":"gopkg.in/yaml.v2","checksumSHA1":"12GqsW8PiRPnezDDy0v4brZrndM=","revision":"a5b47d31c556af34a302ce5d659e6fea44d90de0","revisionTime":"2016-09-28T15:37:09Z"},
+		{"path": "github.com/AndreasBriese/bbloom","checksumSHA1": "+Bo3QheGAtKFk7QPb+pdIEZNiYI=","revision": "28f7e881ca57bc00e028f9ede9f0d9104cfeef5e","revisionTime": "2017-07-02T08:40:17Z"},
+		{"path": "github.com/dgraph-io/badger","checksumSHA1": "sfSALvncyx7ObOeivKM/+V7IMKM=","revision": "dade338bf301bc3d6e63167c2ac40395e7c8d4cc","revisionTime": "2018-07-12T22:02:33Z","version": "HEAD","versionExact": "HEAD"},
+		{"path": "github.com/spf13/cobra","checksumSHA1": "Egby8wsHgh+rW7DphTy/b1dN2cs=","revision": "b3426bbac13d7110c4d8fce456ea0012f79f3b8b","revisionTime": "2017-10-29T21:09:45Z"},
+		{"path": "github.com/dgryski/go-farm","checksumSHA1": "a29TtOU87eZA0S6wL+rAkpqUEzc=","revision": "d1e51a4af19092715f4ce7d8257fe5bc8f8be727","revisionTime": "2015-09-09T17:09:13Z"}
 	],
 	"rootPath": "github.com/hashicorp/nomad"
 }

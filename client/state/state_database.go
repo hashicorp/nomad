@@ -50,7 +50,8 @@ func GetStateDBFactory(devMode bool) NewStateDBFunc {
 		}
 	}
 
-	return NewBoltStateDB
+	return NewBadgerStateDB
+	//return NewBoltStateDB
 }
 
 // BoltStateDB persists and restores Nomad client state in a boltdb. All
