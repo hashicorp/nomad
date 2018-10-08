@@ -230,4 +230,4 @@ the web interface at port `9998`, you should be able to access that as well.
 [lb-homepage]: /assets/images/lb-homepage.png
 [lb-routing-table]: /assets/images/lb-routing-table.png
 [routing-table]: /assets/images/routing-table.png
-[system]: /docs/runtime/schedulers.html#system
+[system]: /docs/schedulers.html#system
