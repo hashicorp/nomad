@@ -207,8 +207,8 @@ type Builder struct {
 	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
-	cpuLimit         int
-	memLimit         int
+	cpuLimit         uint64
+	memLimit         uint64
 	taskName         string
 	allocIndex       int
 	datacenter       string
@@ -272,10 +272,10 @@ func (b *Builder) Build() *TaskEnv {
 
 	// Add the resource limits
 	if b.memLimit != 0 {
-		envMap[MemLimit] = strconv.Itoa(b.memLimit)
+		envMap[MemLimit] = strconv.FormatUint(b.memLimit, 10)
 	}
 	if b.cpuLimit != 0 {
-		envMap[CpuLimit] = strconv.Itoa(b.cpuLimit)
+		envMap[CpuLimit] = strconv.FormatUint(b.cpuLimit, 10)
 	}
 
 	// Add the task metadata
@@ -370,13 +370,15 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 	for k, v := range task.Env {
 		b.envvars[k] = v
 	}
+
+	// COMPAT(0.11): Remove in 0.11
 	if task.Resources == nil {
 		b.memLimit = 0
 		b.cpuLimit = 0
 		b.networks = []*structs.NetworkResource{}
 	} else {
-		b.memLimit = task.Resources.MemoryMB
-		b.cpuLimit = task.Resources.CPU
+		b.memLimit = uint64(task.Resources.MemoryMB)
+		b.cpuLimit = uint64(task.Resources.CPU)
 		// Copy networks to prevent sharing
 		b.networks = make([]*structs.NetworkResource, len(task.Resources.Networks))
 		for i, n := range task.Resources.Networks {
@@ -419,18 +421,50 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
 	}
 
-	// Add ports from other tasks
-	b.otherPorts = make(map[string]string, len(alloc.TaskResources)*2)
-	for taskName, resources := range alloc.TaskResources {
-		if taskName == b.taskName {
-			continue
-		}
-		for _, nw := range resources.Networks {
-			for _, p := range nw.ReservedPorts {
-				addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
+	// COMPAT(0.11): Remove in 0.11
+	b.otherPorts = make(map[string]string, len(alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks)*2)
+	if alloc.AllocatedResources != nil {
+		// Populate task resources
+		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
+			b.cpuLimit = tr.Cpu.CpuShares
+			b.memLimit = tr.Memory.MemoryMB
+
+			// Copy networks to prevent sharing
+			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
+			for i, n := range tr.Networks {
+				b.networks[i] = n.Copy()
 			}
-			for _, p := range nw.DynamicPorts {
-				addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
+		}
+
+		// Add ports from other tasks
+		for taskName, resources := range alloc.AllocatedResources.Tasks {
+			// Add ports from other tasks
+			if taskName == b.taskName {
+				continue
+			}
+
+			for _, nw := range resources.Networks {
+				for _, p := range nw.ReservedPorts {
+					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
+				}
+				for _, p := range nw.DynamicPorts {
+					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
+				}
+			}
+		}
+	} else if alloc.TaskResources != nil {
+		for taskName, resources := range alloc.TaskResources {
+			// Add ports from other tasks
+			if taskName == b.taskName {
+				continue
+			}
+			for _, nw := range resources.Networks {
+				for _, p := range nw.ReservedPorts {
+					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
+				}
+				for _, p := range nw.DynamicPorts {
+					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
+				}
 			}
 		}
 	}

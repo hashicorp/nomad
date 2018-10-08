@@ -3915,6 +3915,38 @@ func TestNode_Copy(t *testing.T) {
 				},
 			},
 		},
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				CpuShares: 4000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		ReservedResources: &NodeReservedResources{
+			Cpu: NodeReservedCpuResources{
+				CpuShares: 100,
+			},
+			Memory: NodeReservedMemoryResources{
+				MemoryMB: 256,
+			},
+			Disk: NodeReservedDiskResources{
+				DiskMB: 4 * 1024,
+			},
+			Networks: NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
+			},
+		},
 		Links: map[string]string{
 			"consul": "foobar.dc1",
 		},
@@ -4063,5 +4095,51 @@ func TestSpread_Validate(t *testing.T) {
 				require.Nil(t, err)
 			}
 		})
+	}
+}
+
+func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
+	require := require.New(t)
+	cases := []struct {
+		Input  string
+		Parsed []uint64
+		Err    bool
+	}{
+		{
+			"1,2,3",
+			[]uint64{1, 2, 3},
+			false,
+		},
+		{
+			"3,1,2,1,2,3,1-3",
+			[]uint64{1, 2, 3},
+			false,
+		},
+		{
+			"3-1",
+			nil,
+			true,
+		},
+		{
+			"1-3,2-4",
+			[]uint64{1, 2, 3, 4},
+			false,
+		},
+		{
+			"1-3,4,5-5,6,7,8-10",
+			[]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			false,
+		},
+	}
+
+	for i, tc := range cases {
+		r := &NodeReservedNetworkResources{ReservedHostPorts: tc.Input}
+		out, err := r.ParseReservedHostPorts()
+		if (err != nil) != tc.Err {
+			t.Fatalf("test case %d: %v", i, err)
+			continue
+		}
+
+		require.Equal(out, tc.Parsed)
 	}
 }

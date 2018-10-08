@@ -122,10 +122,6 @@ type Config struct {
 	// communicating with plugin subsystems over loopback
 	ClientMinPort uint
 
-	// GloballyReservedPorts are ports that are reserved across all network
-	// devices and IPs.
-	GloballyReservedPorts []int
-
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	ChrootEnv map[string]string
@@ -218,7 +214,6 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
-	nc.GloballyReservedPorts = helper.CopySliceInt(c.GloballyReservedPorts)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	return nc

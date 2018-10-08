@@ -1173,6 +1173,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{alloc},
@@ -1231,6 +1232,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	job := alloc.Job
 	alloc.Job = nil
@@ -1260,9 +1262,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 
 	// Job should be re-attached
 	alloc.Job = job
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
+	require.Equal(t, alloc, out)
 
 	// Ensure that the original job is used
 	evictAlloc := new(structs.Allocation)
@@ -1299,11 +1299,44 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	}
 }
 
+// COMPAT(0.11): Remove in 0.11
 func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{
+		CPU:      500,
+		MemoryMB: 256,
+		DiskMB:   150,
+		Networks: []*structs.NetworkResource{
+			{
+				Device:        "eth0",
+				IP:            "192.168.0.100",
+				ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+				MBits:         50,
+				DynamicPorts:  []structs.Port{{Label: "http"}},
+			},
+		},
+	}
+	alloc.TaskResources = map[string]*structs.Resources{
+		"web": {
+			CPU:      500,
+			MemoryMB: 256,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+				},
+			},
+		},
+	}
+	alloc.SharedResources = &structs.Resources{
+		DiskMB: 150,
+	}
 
 	// Need to remove mock dynamic port from alloc as it won't be computed
 	// in this test
@@ -1634,6 +1667,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	// Create the request and create a deployment
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	job := alloc.Job
 	alloc.Job = nil
 
@@ -2367,37 +2401,6 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out1, _ := state2.AllocByID(ws, alloc1.ID)
 	out2, _ := state2.AllocByID(ws, alloc2.ID)
-	if !reflect.DeepEqual(alloc1, out1) {
-		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
-	}
-	if !reflect.DeepEqual(alloc2, out2) {
-		t.Fatalf("bad: \n%#v\n%#v", out2, alloc2)
-	}
-}
-
-func TestFSM_SnapshotRestore_Allocs_NoSharedResources(t *testing.T) {
-	t.Parallel()
-	// Add some state
-	fsm := testFSM(t)
-	state := fsm.State()
-	alloc1 := mock.Alloc()
-	alloc2 := mock.Alloc()
-	alloc1.SharedResources = nil
-	alloc2.SharedResources = nil
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
-	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
-
-	// Verify the contents
-	fsm2 := testSnapshotRestore(t, fsm)
-	state2 := fsm2.State()
-	ws := memdb.NewWatchSet()
-	out1, _ := state2.AllocByID(ws, alloc1.ID)
-	out2, _ := state2.AllocByID(ws, alloc2.ID)
-	alloc1.SharedResources = &structs.Resources{DiskMB: 150}
-	alloc2.SharedResources = &structs.Resources{DiskMB: 150}
-
 	if !reflect.DeepEqual(alloc1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
 	}

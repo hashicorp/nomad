@@ -509,7 +509,7 @@ func parseReserved(result **Resources, list *ast.ObjectList) error {
 	if err := mapstructure.WeakDecode(m, &reserved); err != nil {
 		return err
 	}
-	if err := reserved.ParseReserved(); err != nil {
+	if err := reserved.CanParseReserved(); err != nil {
 		return err
 	}
 

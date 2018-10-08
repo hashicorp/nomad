@@ -84,9 +84,8 @@ func TestConsul_Integration(t *testing.T) {
 		MBits:         50,
 		ReservedPorts: []structs.Port{{Label: "http", Value: 3}},
 	}
-	alloc.Resources.Networks[0] = netResource
-	alloc.TaskResources["web"].Networks[0] = netResource
-	task.Resources.Networks[0] = netResource
+	alloc.AllocatedResources.Tasks["web"].Networks[0] = netResource
+
 	task.Services = []*structs.Service{
 		{
 			Name:      "httpd",

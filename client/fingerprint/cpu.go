@@ -24,8 +24,15 @@ func NewCPUFingerprint(logger *log.Logger) Fingerprint {
 func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	cfg := req.Config
 	setResourcesCPU := func(totalCompute int) {
+		// COMPAT(0.10): Remove in 0.10
 		resp.Resources = &structs.Resources{
 			CPU: totalCompute,
+		}
+
+		resp.NodeResources = &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{
+				CpuShares: uint64(totalCompute),
+			},
 		}
 	}
 

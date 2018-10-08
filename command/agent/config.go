@@ -19,6 +19,7 @@ import (
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 )
@@ -538,71 +539,19 @@ type AdvertiseAddrs struct {
 }
 
 type Resources struct {
-	CPU                 int    `mapstructure:"cpu"`
-	MemoryMB            int    `mapstructure:"memory"`
-	DiskMB              int    `mapstructure:"disk"`
-	IOPS                int    `mapstructure:"iops"`
-	ReservedPorts       string `mapstructure:"reserved_ports"`
-	ParsedReservedPorts []int  `mapstructure:"-"`
+	CPU           int    `mapstructure:"cpu"`
+	MemoryMB      int    `mapstructure:"memory"`
+	DiskMB        int    `mapstructure:"disk"`
+	IOPS          int    `mapstructure:"iops"`
+	ReservedPorts string `mapstructure:"reserved_ports"`
 }
 
-// ParseReserved expands the ReservedPorts string into a slice of port numbers.
+// CanParseReserved returns if the reserved ports specification is parsable.
 // The supported syntax is comma separated integers or ranges separated by
 // hyphens. For example, "80,120-150,160"
-func (r *Resources) ParseReserved() error {
-	parts := strings.Split(r.ReservedPorts, ",")
-
-	// Hot path the empty case
-	if len(parts) == 1 && parts[0] == "" {
-		return nil
-	}
-
-	ports := make(map[int]struct{})
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		rangeParts := strings.Split(part, "-")
-		l := len(rangeParts)
-		switch l {
-		case 1:
-			if val := rangeParts[0]; val == "" {
-				return fmt.Errorf("can't specify empty port")
-			} else {
-				port, err := strconv.Atoi(val)
-				if err != nil {
-					return err
-				}
-				ports[port] = struct{}{}
-			}
-		case 2:
-			// We are parsing a range
-			start, err := strconv.Atoi(rangeParts[0])
-			if err != nil {
-				return err
-			}
-
-			end, err := strconv.Atoi(rangeParts[1])
-			if err != nil {
-				return err
-			}
-
-			if end < start {
-				return fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
-			}
-
-			for i := start; i <= end; i++ {
-				ports[i] = struct{}{}
-			}
-		default:
-			return fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
-		}
-	}
-
-	for port := range ports {
-		r.ParsedReservedPorts = append(r.ParsedReservedPorts, port)
-	}
-
-	sort.Ints(r.ParsedReservedPorts)
-	return nil
+func (r *Resources) CanParseReserved() error {
+	_, err := structs.ParsePortRanges(r.ReservedPorts)
+	return err
 }
 
 // DevConfig is a Config that is used for dev mode of Nomad.
@@ -1409,9 +1358,6 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if b.ReservedPorts != "" {
 		result.ReservedPorts = b.ReservedPorts
-	}
-	if len(b.ParsedReservedPorts) != 0 {
-		result.ParsedReservedPorts = b.ParsedReservedPorts
 	}
 	return &result
 }

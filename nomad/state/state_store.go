@@ -185,6 +185,7 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	// being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(results.Job, results.Alloc)
 
+	// COMPAT(0.11): Remove in 0.11
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
 	// denormalized prior to being inserted into MemDB.
@@ -949,10 +950,6 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 	if err := s.upsertJobVersion(index, job, txn); err != nil {
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
-
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	s.addEphemeralDiskToTaskGroups(job)
 
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
@@ -2060,12 +2057,6 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 
 		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
 			return err
-		}
-
-		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-		// COMPAT 0.4.1 -> 0.5
-		if alloc.Job != nil {
-			s.addEphemeralDiskToTaskGroups(alloc.Job)
 		}
 
 		if err := txn.Insert("allocs", alloc); err != nil {
@@ -3861,10 +3852,6 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	r.addEphemeralDiskToTaskGroups(job)
-
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -3881,19 +3868,6 @@ func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 
 // AllocRestore is used to restore an allocation
 func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
-	// Set the shared resources if it's not present
-	// COMPAT 0.4.1 -> 0.5
-	if alloc.SharedResources == nil {
-		alloc.SharedResources = &structs.Resources{
-			DiskMB: alloc.Resources.DiskMB,
-		}
-	}
-
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	if alloc.Job != nil {
-		r.addEphemeralDiskToTaskGroups(alloc.Job)
-	}
-
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}

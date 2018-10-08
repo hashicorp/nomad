@@ -260,10 +260,13 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		a.destroyAllocRunner(gcAlloc.allocRunner, fmt.Sprintf("new allocations and over max (%d)", a.config.MaxAllocs))
 	}
 
-	totalResource := &structs.Resources{}
+	totalResource := &structs.AllocatedSharedResources{}
 	for _, alloc := range allocations {
-		if err := totalResource.Add(alloc.Resources); err != nil {
-			return err
+		// COMPAT(0.11): Remove in 0.11
+		if alloc.AllocatedResources != nil {
+			totalResource.Add(&alloc.AllocatedResources.Shared)
+		} else {
+			totalResource.DiskMB += uint64(alloc.Resources.DiskMB)
 		}
 	}
 
@@ -276,12 +279,12 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		} else {
 			availableForAllocations = hostStats.AllocDirStats.Available - uint64(a.config.ReservedDiskMB*MB)
 		}
-		if uint64(totalResource.DiskMB*MB) < availableForAllocations {
+		if totalResource.DiskMB*MB < availableForAllocations {
 			return nil
 		}
 	}
 
-	var diskCleared int
+	var diskCleared uint64
 	for {
 		select {
 		case <-a.shutdownCh:
@@ -299,7 +302,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		}
 
 		if allocDirStats != nil {
-			if allocDirStats.Available >= uint64(totalResource.DiskMB*MB) {
+			if allocDirStats.Available >= totalResource.DiskMB*MB {
 				break
 			}
 		} else {
@@ -318,11 +321,18 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		ar := gcAlloc.allocRunner
 		alloc := ar.Alloc()
 
-		// Destroy the alloc runner and wait until it exits
-		a.destroyAllocRunner(ar, fmt.Sprintf("freeing %d MB for new allocations", alloc.Resources.DiskMB))
+		// COMPAT(0.11): Remove in 0.11
+		var allocDiskMB uint64
+		if alloc.AllocatedResources != nil {
+			allocDiskMB = alloc.AllocatedResources.Shared.DiskMB
+		} else {
+			allocDiskMB = uint64(alloc.Resources.DiskMB)
+		}
 
-		// Call stats collect again
-		diskCleared += alloc.Resources.DiskMB
+		// Destroy the alloc runner and wait until it exits
+		a.destroyAllocRunner(ar, fmt.Sprintf("freeing %d MB for new allocations", allocDiskMB))
+
+		diskCleared += allocDiskMB
 	}
 	return nil
 }
