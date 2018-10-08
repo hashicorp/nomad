@@ -1684,6 +1684,7 @@ type Resources struct {
 	DiskMB   int
 	IOPS     int
 	Networks Networks
+	Devices  []*RequestedDevice
 }
 
 const (
@@ -1737,6 +1738,9 @@ func (r *Resources) Merge(other *Resources) {
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
 	}
+	if len(other.Devices) != 0 {
+		r.Devices = other.Devices
+	}
 }
 
 func (r *Resources) Canonicalize() {
@@ -1744,6 +1748,9 @@ func (r *Resources) Canonicalize() {
 	// problems since we use reflect DeepEquals.
 	if len(r.Networks) == 0 {
 		r.Networks = nil
+	}
+	if len(r.Devices) == 0 {
+		r.Devices = nil
 	}
 
 	for _, n := range r.Networks {
@@ -1782,6 +1789,8 @@ func (r *Resources) Copy() *Resources {
 	}
 	newR := new(Resources)
 	*newR = *r
+
+	// Copy the network objects
 	if r.Networks != nil {
 		n := len(r.Networks)
 		newR.Networks = make([]*NetworkResource, n)
@@ -1789,6 +1798,16 @@ func (r *Resources) Copy() *Resources {
 			newR.Networks[i] = r.Networks[i].Copy()
 		}
 	}
+
+	// Copy the devices
+	if r.Devices != nil {
+		n := len(r.Devices)
+		newR.Devices = make([]*RequestedDevice, n)
+		for i := 0; i < n; i++ {
+			newR.Devices[i] = r.Devices[i].Copy()
+		}
+	}
+
 	return newR
 }
 
@@ -1996,6 +2015,32 @@ func (ns Networks) NetIndex(n *NetworkResource) int {
 		}
 	}
 	return -1
+}
+
+// RequestedDevice is used to request a device for a task.
+type RequestedDevice struct {
+	// Name is the request name. The possible values are as follows:
+	// * <type>: A single value only specifies the type of request.
+	// * <vendor>/<type>: A single slash delimiter assumes the vendor and type of device is specified.
+	// * <vendor>/<type>/<name>: Two slash delimiters assume vendor, type and specific model are specified.
+	//
+	// Examples are as follows:
+	// * "gpu"
+	// * "nvidia/gpu"
+	// * "nvidia/gpu/GTX2080Ti"
+	Name string
+
+	// Count is the number of requested devices
+	Count uint64
+}
+
+func (r *RequestedDevice) Copy() *RequestedDevice {
+	if r == nil {
+		return nil
+	}
+
+	nr := *r
+	return &nr
 }
 
 // NodeResources is used to define the resources available on a client node.

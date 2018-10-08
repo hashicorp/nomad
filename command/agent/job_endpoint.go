@@ -833,42 +833,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		}
 	}
 
-	structsTask.Resources = &structs.Resources{
-		CPU:      *apiTask.Resources.CPU,
-		MemoryMB: *apiTask.Resources.MemoryMB,
-		IOPS:     *apiTask.Resources.IOPS,
-	}
-
-	if l := len(apiTask.Resources.Networks); l != 0 {
-		structsTask.Resources.Networks = make([]*structs.NetworkResource, l)
-		for i, nw := range apiTask.Resources.Networks {
-			structsTask.Resources.Networks[i] = &structs.NetworkResource{
-				CIDR:  nw.CIDR,
-				IP:    nw.IP,
-				MBits: *nw.MBits,
-			}
-
-			if l := len(nw.DynamicPorts); l != 0 {
-				structsTask.Resources.Networks[i].DynamicPorts = make([]structs.Port, l)
-				for j, dp := range nw.DynamicPorts {
-					structsTask.Resources.Networks[i].DynamicPorts[j] = structs.Port{
-						Label: dp.Label,
-						Value: dp.Value,
-					}
-				}
-			}
-
-			if l := len(nw.ReservedPorts); l != 0 {
-				structsTask.Resources.Networks[i].ReservedPorts = make([]structs.Port, l)
-				for j, rp := range nw.ReservedPorts {
-					structsTask.Resources.Networks[i].ReservedPorts[j] = structs.Port{
-						Label: rp.Label,
-						Value: rp.Value,
-					}
-				}
-			}
-		}
-	}
+	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
 	structsTask.LogConfig = &structs.LogConfig{
 		MaxFiles:      *apiTask.LogConfig.MaxFiles,
@@ -920,6 +885,61 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			File: apiTask.DispatchPayload.File,
 		}
 	}
+}
+
+func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
+	if in == nil {
+		return nil
+	}
+
+	out := &structs.Resources{
+		CPU:      *in.CPU,
+		MemoryMB: *in.MemoryMB,
+		IOPS:     *in.IOPS,
+	}
+
+	if l := len(in.Networks); l != 0 {
+		out.Networks = make([]*structs.NetworkResource, l)
+		for i, nw := range in.Networks {
+			out.Networks[i] = &structs.NetworkResource{
+				CIDR:  nw.CIDR,
+				IP:    nw.IP,
+				MBits: *nw.MBits,
+			}
+
+			if l := len(nw.DynamicPorts); l != 0 {
+				out.Networks[i].DynamicPorts = make([]structs.Port, l)
+				for j, dp := range nw.DynamicPorts {
+					out.Networks[i].DynamicPorts[j] = structs.Port{
+						Label: dp.Label,
+						Value: dp.Value,
+					}
+				}
+			}
+
+			if l := len(nw.ReservedPorts); l != 0 {
+				out.Networks[i].ReservedPorts = make([]structs.Port, l)
+				for j, rp := range nw.ReservedPorts {
+					out.Networks[i].ReservedPorts[j] = structs.Port{
+						Label: rp.Label,
+						Value: rp.Value,
+					}
+				}
+			}
+		}
+	}
+
+	if l := len(in.Devices); l != 0 {
+		out.Devices = make([]*structs.RequestedDevice, l)
+		for i, d := range in.Devices {
+			out.Devices[i] = &structs.RequestedDevice{
+				Name:  d.Name,
+				Count: d.Count,
+			}
+		}
+	}
+
+	return out
 }
 
 func ApiConstraintToStructs(c1 *api.Constraint, c2 *structs.Constraint) {
