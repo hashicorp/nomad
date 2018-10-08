@@ -3429,6 +3429,243 @@ func TestTaskDiff(t *testing.T) {
 			},
 		},
 		{
+			Name: "Device Resources edited",
+			Old: &Task{
+				Resources: &Resources{
+					Devices: []*RequestedDevice{
+						{
+							Name:  "foo",
+							Count: 2,
+						},
+						{
+							Name:  "bar",
+							Count: 2,
+						},
+						{
+							Name:  "baz",
+							Count: 2,
+						},
+					},
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					Devices: []*RequestedDevice{
+						{
+							Name:  "foo",
+							Count: 2,
+						},
+						{
+							Name:  "bar",
+							Count: 3,
+						},
+						{
+							Name:  "bam",
+							Count: 2,
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Resources",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Device",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Count",
+										Old:  "2",
+										New:  "3",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Device",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Count",
+										Old:  "",
+										New:  "2",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Name",
+										Old:  "",
+										New:  "bam",
+									},
+								},
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Device",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Count",
+										Old:  "2",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Name",
+										Old:  "baz",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Device Resources edited with context",
+			Contextual: true,
+			Old: &Task{
+				Resources: &Resources{
+					CPU:      100,
+					MemoryMB: 100,
+					DiskMB:   100,
+					IOPS:     100,
+					Devices: []*RequestedDevice{
+						{
+							Name:  "foo",
+							Count: 2,
+						},
+						{
+							Name:  "bar",
+							Count: 2,
+						},
+						{
+							Name:  "baz",
+							Count: 2,
+						},
+					},
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					CPU:      100,
+					MemoryMB: 100,
+					DiskMB:   100,
+					IOPS:     100,
+					Devices: []*RequestedDevice{
+						{
+							Name:  "foo",
+							Count: 2,
+						},
+						{
+							Name:  "bar",
+							Count: 3,
+						},
+						{
+							Name:  "bam",
+							Count: 2,
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Resources",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "CPU",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "DiskMB",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "IOPS",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMB",
+								Old:  "100",
+								New:  "100",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Device",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Count",
+										Old:  "2",
+										New:  "3",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Name",
+										Old:  "bar",
+										New:  "bar",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Device",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Count",
+										Old:  "",
+										New:  "2",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Name",
+										Old:  "",
+										New:  "bam",
+									},
+								},
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Device",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Count",
+										Old:  "2",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Name",
+										Old:  "baz",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name: "Config same",
 			Old: &Task{
 				Config: map[string]interface{}{
