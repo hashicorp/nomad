@@ -250,7 +250,7 @@ func (w *deploymentWatcher) PromoteDeployment(
 	// Create the request
 	areq := &structs.ApplyDeploymentPromoteRequest{
 		DeploymentPromoteRequest: *req,
-		Eval:                     w.getEval(),
+		Eval: w.getEval(),
 	}
 
 	index, err := w.upsertDeploymentPromotion(areq)
