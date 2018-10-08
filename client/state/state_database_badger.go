@@ -22,7 +22,7 @@ allocations/ (bucket)
         |--> task_runner persisted objects (k/v)
 */
 
-// BadgerStateDB persists and restores Nomad client state in a boltdb. All
+// BadgerStateDB persists and restores Nomad client state in a Badger KV store. All
 // methods are safe for concurrent access.
 type BadgerStateDB struct {
 	db *badger.DB
@@ -175,7 +175,7 @@ func (s *BadgerStateDB) GetTaskRunnerState(allocID, taskName string) (retLs *trs
 		return nil, nil, err
 	}
 
-	if !foundAlloc {
+	/*if !foundAlloc {
 		return retLs, retTs, fmt.Errorf("failed to get task \"%s\" bucket: Allocations bucket doesn't exist and transaction is not writable", taskName)
 	}
 	if retTs == nil {
@@ -183,7 +183,7 @@ func (s *BadgerStateDB) GetTaskRunnerState(allocID, taskName string) (retLs *trs
 	}
 	if retLs == nil {
 		return retLs, retTs, fmt.Errorf("failed to read local task runner state: no data at key %s", taskLocalStateKey)
-	}
+	}*/
 
 	return retLs, retTs, nil
 }
