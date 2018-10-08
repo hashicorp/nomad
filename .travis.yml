@@ -24,7 +24,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: false
-      env: RUN_UI_TESTS=1 RUN_WEBSITE_CHECKS=1 SKIP_NOMAD_TESTS=1
+      env: RUN_UI_TESTS=1 RUN_WEBSITE_TESTS=1 SKIP_NOMAD_TESTS=1
     - os: linux
       dist: trusty
       sudo: false
