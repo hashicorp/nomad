@@ -760,13 +760,14 @@ func (c *Client) restoreState() error {
 
 		c.configLock.RLock()
 		arConf := &allocrunnerv2.Config{
-			Alloc:        alloc,
-			Logger:       c.logger,
-			ClientConfig: c.config,
-			StateDB:      c.stateDB,
-			StateUpdater: c,
-			Consul:       c.consulService,
-			Vault:        c.vaultClient,
+			Alloc:            alloc,
+			Logger:           c.logger,
+			ClientConfig:     c.config,
+			StateDB:          c.stateDB,
+			StateUpdater:     c,
+			Consul:           c.consulService,
+			Vault:            c.vaultClient,
+			PrevAllocWatcher: &allocwatcher.NoopPrevAlloc{},
 		}
 		c.configLock.RUnlock()
 

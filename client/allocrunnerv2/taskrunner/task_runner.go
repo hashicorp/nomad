@@ -493,6 +493,9 @@ func (tr *TaskRunner) Restore() error {
 
 	tr.localState = ls
 	tr.state = ts
+
+	tr.initState()
+
 	return nil
 }
 
