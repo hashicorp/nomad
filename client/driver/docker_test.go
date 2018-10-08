@@ -1900,7 +1900,7 @@ func TestDockerDriver_VolumeMounts(t *testing.T) {
 	}
 
 	goodMount := map[string]interface{}{
-		"type": "volume",
+		"type":   "volume",
 		"target": "/nomad",
 		"volume_options": []interface{}{
 			map[string]interface{}{
@@ -1938,12 +1938,12 @@ func TestDockerDriver_VolumeMounts(t *testing.T) {
 			Error:  "",
 			Mounts: []interface{}{goodMount, goodMount, goodMount},
 		},
-				{
-			Name:   "bind_options in bind mount error",
-			Error:  "bind_options invalid on \"volume\" mount type",
+		{
+			Name:  "bind_options in bind mount error",
+			Error: "bind_options invalid on \"volume\" mount type",
 			Mounts: []interface{}{
 				map[string]interface{}{
-					"type": "volume",
+					"type":   "volume",
 					"target": "/nomad",
 					"bind_options": []interface{}{
 						map[string]interface{}{
@@ -1958,7 +1958,7 @@ func TestDockerDriver_VolumeMounts(t *testing.T) {
 			Error: "only one volume_options stanza allowed",
 			Mounts: []interface{}{
 				map[string]interface{}{
-					"type": "volume",
+					"type":   "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -1984,7 +1984,7 @@ func TestDockerDriver_VolumeMounts(t *testing.T) {
 			Error: "volume driver config may only be specified once",
 			Mounts: []interface{}{
 				map[string]interface{}{
-					"type": "volume",
+					"type":   "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -2006,7 +2006,7 @@ func TestDockerDriver_VolumeMounts(t *testing.T) {
 			Error: "labels may only be",
 			Mounts: []interface{}{
 				map[string]interface{}{
-					"type": "volume",
+					"type":   "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -2024,7 +2024,7 @@ func TestDockerDriver_VolumeMounts(t *testing.T) {
 			Error: "driver options may only",
 			Mounts: []interface{}{
 				map[string]interface{}{
-					"type": "volume",
+					"type":   "volume",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -2109,12 +2109,12 @@ func setupDockerBindMount(t *testing.T, cfg *config.Config, hostpath string) (*s
 			"load":    "busybox.tar",
 			"command": "touch",
 			"args":    []string{containerFile},
-			"mounts":  []interface{} {
+			"mounts": []interface{}{
 				map[string]interface{}{
 					"readonly": "false",
-					"source": hostpath,
-					"target": containerPath,
-					"type": "bind",
+					"source":   hostpath,
+					"target":   containerPath,
+					"type":     "bind",
 					"bind_options": []interface{}{
 						map[string]interface{}{
 							"propagation": "shared",
@@ -2165,7 +2165,6 @@ func setupDockerBindMount(t *testing.T, cfg *config.Config, hostpath string) (*s
 	}
 	return task, driver, execCtx, hostfile, cleanup
 }
-
 
 func TestDockerDriver_BindMount_VolumesDisabled(t *testing.T) {
 	if !tu.IsTravis() {
@@ -2286,7 +2285,7 @@ func TestDockerDriver_BindMount(t *testing.T) {
 	}
 
 	goodMount := map[string]interface{}{
-		"type": "bind",
+		"type":   "bind",
 		"target": "/nomad",
 		"bind_options": []interface{}{
 			map[string]interface{}{
@@ -2313,11 +2312,11 @@ func TestDockerDriver_BindMount(t *testing.T) {
 			Mounts: []interface{}{goodMount, goodMount, goodMount},
 		},
 		{
-			Name:   "volume_options in bind mount error",
-			Error:  "volume_options invalid on \"bind\" mount type",
+			Name:  "volume_options in bind mount error",
+			Error: "volume_options invalid on \"bind\" mount type",
 			Mounts: []interface{}{
 				map[string]interface{}{
-					"type": "bind",
+					"type":   "bind",
 					"target": "/nomad",
 					"volume_options": []interface{}{
 						map[string]interface{}{
@@ -2336,7 +2335,7 @@ func TestDockerDriver_BindMount(t *testing.T) {
 			Error: "only one bind_options stanza allowed",
 			Mounts: []interface{}{
 				map[string]interface{}{
-					"type": "bind",
+					"type":   "bind",
 					"target": "/nomad",
 					"bind_options": []interface{}{
 						map[string]interface{}{
@@ -2393,7 +2392,6 @@ func TestDockerDriver_BindMount(t *testing.T) {
 		})
 	}
 }
-
 
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 func TestDockerDriver_Cleanup(t *testing.T) {
