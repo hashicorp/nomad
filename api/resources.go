@@ -29,6 +29,9 @@ func (r *Resources) Canonicalize() {
 	for _, n := range r.Networks {
 		n.Canonicalize()
 	}
+	for _, d := range r.Devices {
+		d.Canonicalize()
+	}
 }
 
 // DefaultResources is a small resources object that contains the
@@ -117,5 +120,11 @@ type RequestedDevice struct {
 	Name string
 
 	// Count is the number of requested devices
-	Count uint64
+	Count *uint64
+}
+
+func (d *RequestedDevice) Canonicalize() {
+	if d.Count == nil {
+		d.Count = helper.Uint64ToPtr(1)
+	}
 }

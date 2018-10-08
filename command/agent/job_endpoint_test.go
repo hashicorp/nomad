@@ -1419,11 +1419,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Devices: []*api.RequestedDevice{
 								{
 									Name:  "nvidia/gpu",
-									Count: 4,
+									Count: helper.Uint64ToPtr(4),
 								},
 								{
 									Name:  "gpu",
-									Count: 1,
+									Count: nil,
 								},
 							},
 						},

@@ -934,7 +934,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		for i, d := range in.Devices {
 			out.Devices[i] = &structs.RequestedDevice{
 				Name:  d.Name,
-				Count: d.Count,
+				Count: *d.Count,
 			}
 		}
 	}
