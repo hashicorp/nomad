@@ -196,6 +196,12 @@ job "binstore-storagelocker" {
           port "admin" {
           }
         }
+
+        device "nvidia/gpu" {
+            count = 10
+        }
+        
+        device "intel/gpu" {}
       }
 
       kill_timeout = "22s"
