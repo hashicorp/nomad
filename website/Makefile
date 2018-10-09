@@ -24,6 +24,6 @@ website:
 
 test:
 	@echo "==> Running website tests..."
-	./scripts/test.sh
+	./scripts/test.sh ${VERSION}
 
 .PHONY: build website
