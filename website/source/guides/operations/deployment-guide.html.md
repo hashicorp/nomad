@@ -64,7 +64,7 @@ nomad -autocomplete-install
 complete -C /usr/local/bin/nomad nomad
 ```
 
-Create a unique, non-privileged system user to run Nomad and create it’s data directory.
+Create a unique, non-privileged system user to run Nomad and create its data directory.
 
 ```text
 sudo useradd --system --home /etc/nomad.d --shell /bin/false nomad
@@ -143,7 +143,7 @@ Some configuration settings are common to both server and client Nomad agents, w
 
 ### Common configuration
 
-Create a configuration file at /etc/nomad.d/nomad.hcl:
+Create a configuration file at `/etc/nomad.d/nomad.hcl`:
 
 ```text
 sudo mkdir --parents /etc/nomad.d
