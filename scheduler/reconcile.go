@@ -272,6 +272,7 @@ func (a *allocReconciler) cancelDeployments() {
 // handleStop marks all allocations to be stopped, handling the lost case
 func (a *allocReconciler) handleStop(m allocMatrix) {
 	for group, as := range m {
+		as = filterByTerminal(as)
 		untainted, migrate, lost := as.filterByTainted(a.taintedNodes)
 		a.markStop(untainted, "", allocNotNeeded)
 		a.markStop(migrate, "", allocNotNeeded)
