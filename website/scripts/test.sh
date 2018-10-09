@@ -12,9 +12,13 @@ WEBSITE_CID=$(docker run \
     --publish "35729:35729" \
     --volume "$PWD:/website" \
     hashicorp/middleman-hashicorp:${MMVERSION})
-echo "Website running in container ${WEBSITE_CID}."
-
-trap 'echo Killing docker website container... && docker kill ${WEBSITE_CID}' EXIT HUP INT QUIT TERM
+echo "Website is launching in container ${WEBSITE_CID}."
 
 echo "Checking website for dead links using recursive wget..."
-wget -nv --recursive --level=10 --delete-after http://localhost:4567
+wget -nv --recursive --level=10 --delete-after http://localhost:4567 && exit_code=$? || exit_code=$?
+echo "wget exit code: ${exit_code}"
+
+echo "Killing docker website container ${WEBSITE_CID}..." 
+docker kill ${WEBSITE_CID} || true
+
+exit ${exit_code}
