@@ -1095,6 +1095,68 @@ func TestReconciler_JobStopped(t *testing.T) {
 	}
 }
 
+// Tests the reconciler doesn't update allocs in terminal state
+// when job is stopped or nil
+func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
+	job := mock.Job()
+	job.Stop = true
+
+	cases := []struct {
+		name             string
+		job              *structs.Job
+		jobID, taskGroup string
+	}{
+		{
+			name:      "stopped job",
+			job:       job,
+			jobID:     job.ID,
+			taskGroup: job.TaskGroups[0].Name,
+		},
+		{
+			name:      "nil job",
+			job:       nil,
+			jobID:     "foo",
+			taskGroup: "bar",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Create 10 terminal allocations
+			var allocs []*structs.Allocation
+			for i := 0; i < 10; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = c.job
+				alloc.JobID = c.jobID
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
+				alloc.TaskGroup = c.taskGroup
+				if i%2 == 0 {
+					alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				} else {
+					alloc.ClientStatus = structs.AllocClientStatusFailed
+				}
+				allocs = append(allocs, alloc)
+			}
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
+			r := reconciler.Compute()
+			require.Len(t, r.stop, 0)
+			// Assert the correct results
+			assertResults(t, r, &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             0,
+				inplace:           0,
+				stop:              0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					c.taskGroup: {},
+				},
+			})
+		})
+	}
+}
+
 // Tests the reconciler properly handles jobs with multiple task groups
 func TestReconciler_MultiTG(t *testing.T) {
 	job := mock.Job()
