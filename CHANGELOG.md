@@ -14,6 +14,7 @@ IMPROVEMENTS:
  * vendor: Removed library obsoleted by go 1.8 [[GH-4469](https://github.com/hashicorp/nomad/issues/4469)]
 
 BUG FIXES:
+ * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
 
 ## 0.8.6 (September 26, 2018)
 
