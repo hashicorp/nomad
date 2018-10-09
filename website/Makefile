@@ -22,4 +22,8 @@ website:
 		--volume "$(shell pwd):/website" \
 		hashicorp/middleman-hashicorp:${VERSION}
 
+test:
+	@echo "==> Running website tests..."
+	./scripts/test.sh ${VERSION}
+
 .PHONY: build website

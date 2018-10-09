@@ -237,6 +237,9 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
 		make test-nomad; \
 		fi
+	@if [ $(RUN_WEBSITE_TESTS) ]; then \
+		make test-website; \
+		fi
 	@if [ $(RUN_UI_TESTS) ]; then \
 		make test-ui; \
 		fi
@@ -296,6 +299,10 @@ static-assets: ## Compile the static routes to serve alongside the API
 	@echo "--> Generating static assets"
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
+
+.PHONY: test-webiste
+test-website: ## Run Website Link Checks
+	@cd website && make test
 
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite

@@ -17,4 +17,4 @@ one of the options below:
 
 - [Environment](/docs/runtime/environment.html)
 - [Interpolation](/docs/runtime/interpolation.html)
-- [Schedulers](/docs/runtime/schedulers.html)
+- [Schedulers](/docs/schedulers.html)
