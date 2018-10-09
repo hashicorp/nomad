@@ -17,7 +17,7 @@ import (
 
 const (
 	// logBufferSize is the size of the buffer.
-	logBufferSize = 32 * 1024
+	logBufferSize = 64 * 1024
 
 	// bufferFlushDuration is the duration at which we flush the buffer.
 	bufferFlushDuration = 100 * time.Millisecond
@@ -26,7 +26,7 @@ const (
 	// lines when approaching the end of the file to avoid a log line being
 	// split between two files. Any single line that is greater than this limit
 	// may be split.
-	lineScanLimit = 16 * 1024
+	lineScanLimit = 32 * 1024
 
 	// newLineDelimiter is the delimiter used for new lines.
 	newLineDelimiter = '\n'
