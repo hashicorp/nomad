@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -77,10 +76,6 @@ type TaskRunner struct {
 	// stateDB is for persisting localState and taskState
 	stateDB cstate.StateDB
 
-	// persistedHash is the hash of the last persisted state for skipping
-	// unnecessary writes
-	persistedHash []byte
-
 	// ctx is the task runner's context representing the tasks's lifecycle.
 	// Canceling the context will cause the task to be destroyed.
 	ctx context.Context
@@ -114,7 +109,7 @@ type TaskRunner struct {
 	handleLock sync.Mutex
 
 	// handle to the running driver
-	handle tinterfaces.DriverHandle
+	handle *DriverHandle
 
 	// network is the configuration for the driver network if one was created
 	network *cstructs.DriverNetwork
@@ -161,9 +156,6 @@ type TaskRunner struct {
 	resourceUsage     *cstructs.TaskResourceUsage
 	resourceUsageLock sync.Mutex
 
-	// PluginLoader is used to load plugins.
-	pluginLoader loader.PluginCatalog
-
 	// PluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
 	pluginSingletonLoader loader.PluginCatalog
@@ -188,9 +180,6 @@ type Config struct {
 
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.TaskStateHandler
-
-	// PluginLoader is used to load plugins.
-	PluginLoader loader.PluginCatalog
 
 	// PluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
@@ -227,7 +216,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		ctxCancel:             trCancel,
 		triggerUpdateCh:       make(chan struct{}, triggerUpdateChCap),
 		waitCh:                make(chan struct{}),
-		pluginLoader:          config.PluginLoader,
 		pluginSingletonLoader: config.PluginSingletonLoader,
 	}
 
@@ -437,16 +425,15 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 // runDriver runs the driver and waits for it to exit
 func (tr *TaskRunner) runDriver() error {
 
+	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
 	taskConfig := drivers.NewTaskConfig(tr.task, tr.taskDir, tr.envBuilder.Build())
 	taskConfig.ID = tr.buildID()
 	taskConfig.StdoutPath = tr.logmonHookConfig.stdoutFifo
 	taskConfig.StderrPath = tr.logmonHookConfig.stderrFifo
 
+	// TODO: load variables
 	evalCtx := &hcl.EvalContext{
 		Functions: shared.GetStdlibFuncs(),
-		Variables: map[string]cty.Value{
-			"NOMAD_ENV_bin": cty.StringVal("/bin/consul"),
-		},
 	}
 
 	val, diag := shared.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
@@ -487,12 +474,7 @@ func (tr *TaskRunner) runDriver() error {
 func (tr *TaskRunner) updateDriverHandle(taskID string) {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
-	tr.handle = &driverHandleImpl{
-		driver: tr.driver,
-		net:    tr.network,
-		taskID: taskID,
-		task:   tr.Task(),
-	}
+	tr.handle = NewDriverHandle(tr.driver, taskID, tr.Task(), tr.network)
 }
 
 // initDriver creates the driver for the task

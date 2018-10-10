@@ -118,13 +118,9 @@ func (fp *FingerprintManager) Run() error {
 
 	var availDrivers []string
 	var skippedDrivers []string
-	var registeredDrivers []string
 
 	for _, pl := range fp.singletonLoader.Catalog()[base.PluginTypeDriver] {
-		registeredDrivers = append(registeredDrivers, pl.Name)
-	}
-
-	for _, name := range registeredDrivers {
+		name := pl.Name
 		// Skip fingerprinting drivers that are not in the whitelist if it is
 		// enabled.
 		if _, ok := whitelistDrivers[name]; whitelistDriversEnabled && !ok {
@@ -197,7 +193,7 @@ func (fm *FingerprintManager) setupDrivers(driverNames []string) error {
 
 		driver, ok := plug.Plugin().(drivers.DriverPlugin)
 		if !ok {
-			return fmt.Errorf("registered driver plugin %q does not implement DriverPlugin interface")
+			return fmt.Errorf("registered driver plugin %q does not implement DriverPlugin interface", name)
 		}
 
 		// Pass true for whether the health check is periodic here, so that the
@@ -209,6 +205,7 @@ func (fm *FingerprintManager) setupDrivers(driverNames []string) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		fingerCh, err := driver.Fingerprint(ctx)
 		if err != nil {
+			cancel()
 			return err
 		}
 
@@ -218,10 +215,14 @@ func (fm *FingerprintManager) setupDrivers(driverNames []string) error {
 		// attributes.
 		go fm.watchDriverFingerprint(fingerCh, name, cancel)
 
+		if fm.logger.IsTrace() {
+			fm.logger.Trace("initial driver fingerprint", "driver", name, "fingerprint", finger)
+		}
 		// Log the fingerprinters which have been applied
 		if finger.Health != drivers.HealthStateUndetected {
 			availDrivers = append(availDrivers, name)
 		}
+		fm.processDriverFingerprint(finger, name)
 	}
 
 	fm.logger.Debug("detected drivers", "drivers", availDrivers)
@@ -282,20 +283,69 @@ func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fing
 		case <-fm.shutdownCh:
 			cancel()
 			return
-		case fp := <-fpChan:
-			di := &structs.DriverInfo{
-				Attributes:        fp.Attributes,
-				Detected:          fp.Health != drivers.HealthStateUndetected,
-				Healthy:           fp.Health == drivers.HealthStateHealthy,
-				HealthDescription: fp.HealthDescription,
-				UpdateTime:        time.Now(),
+		case fp, ok := <-fpChan:
+			// if the channel is closed attempt to open a new one
+			if !ok {
+				newFpChan, newCancel, err := fm.retryDriverFingerprint(name)
+				if err != nil {
+					fm.logger.Warn("failed to fingerprint driver, retrying in 30s", "error", err)
+					fm.nodeLock.Lock()
+					n := fm.updateNodeFromDriver(name, &structs.DriverInfo{
+						Healthy:           false,
+						HealthDescription: "failed to fingerprint driver",
+						UpdateTime:        time.Now(),
+					})
+					if n != nil {
+						fm.node = n
+					}
+					fm.nodeLock.Unlock()
+					time.Sleep(30 * time.Second)
+				} else {
+					cancel()
+					fpChan = newFpChan
+					cancel = newCancel
+				}
+				continue
+			} else {
+				fm.processDriverFingerprint(fp, name)
 			}
-			fm.nodeLock.Lock()
-			n := fm.updateNodeFromDriver(name, di)
-			if n != nil {
-				fm.node = n
-			}
-			fm.nodeLock.Unlock()
 		}
 	}
+}
+
+func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, driverName string) {
+	di := &structs.DriverInfo{
+		Attributes:        fp.Attributes,
+		Detected:          fp.Health != drivers.HealthStateUndetected,
+		Healthy:           fp.Health == drivers.HealthStateHealthy,
+		HealthDescription: fp.HealthDescription,
+		UpdateTime:        time.Now(),
+	}
+	fm.nodeLock.Lock()
+	n := fm.updateNodeFromDriver(driverName, di)
+	if n != nil {
+		fm.node = n
+	}
+	fm.nodeLock.Unlock()
+}
+
+func (fm *FingerprintManager) retryDriverFingerprint(driverName string) (<-chan *drivers.Fingerprint, context.CancelFunc, error) {
+	plug, err := fm.singletonLoader.Dispense(driverName, base.PluginTypeDriver, fm.logger)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	driver, ok := plug.Plugin().(drivers.DriverPlugin)
+	if !ok {
+		return nil, nil, fmt.Errorf("registered driver plugin %q does not implement DriverPlugin interface", driverName)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	fingerCh, err := driver.Fingerprint(ctx)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+
+	return fingerCh, cancel, nil
 }

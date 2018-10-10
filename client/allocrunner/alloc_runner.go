@@ -80,9 +80,6 @@ type allocRunner struct {
 	// and if necessary migrate its alloc dir.
 	prevAllocWatcher allocwatcher.PrevAllocWatcher
 
-	// pluginLoader is used to load plugins.
-	pluginLoader loader.PluginCatalog
-
 	// pluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
 	pluginSingletonLoader loader.PluginCatalog
@@ -109,7 +106,6 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		stateUpdater:          config.StateUpdater,
 		allocBroadcaster:      cstructs.NewAllocBroadcaster(),
 		prevAllocWatcher:      config.PrevAllocWatcher,
-		pluginLoader:          config.PluginLoader,
 		pluginSingletonLoader: config.PluginSingletonLoader,
 	}
 
@@ -143,7 +139,6 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			StateUpdater:          ar,
 			Consul:                ar.consulClient,
 			VaultClient:           ar.vaultClient,
-			PluginLoader:          ar.pluginLoader,
 			PluginSingletonLoader: ar.pluginSingletonLoader,
 		}
 

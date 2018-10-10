@@ -52,7 +52,6 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s string) error {
 	tr.EmitEvent(event)
 
 	// Send the signal
-
 	return handle.Signal(s)
 }
 
@@ -90,23 +89,24 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	// Block until task has exited.
 	waitCh, err := handle.WaitCh(ctx)
 
-	// The task may have already been cleaned up
+	// The error should be nil or TaskNotFound, if it's something else then a
+	// failure in the driver or transport layer occured
 	if err != nil && err != drivers.ErrTaskNotFound {
 		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
 		return err
 	}
 
-	if waitCh != nil {
+	if err == nil {
 		<-waitCh
-	}
 
-	// Store that the task has been destroyed and any associated error.
-	tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
+		// Store that the task has been destroyed and any associated error.
+		tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
 
-	if destroyErr != nil {
-		return destroyErr
-	} else if err := ctx.Err(); err != nil {
-		return err
+		if destroyErr != nil {
+			return destroyErr
+		} else if err := ctx.Err(); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.Task, net *cstructs.DriverNetwork) interfaces.DriverHandle {
-	return &driverHandleImpl{
+// NewDriverHandle returns a handle for task operations on a specific task
+func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.Task, net *cstructs.DriverNetwork) *DriverHandle {
+	return &DriverHandle{
 		driver: driver,
 		net:    net,
 		taskID: taskID,
@@ -19,38 +19,40 @@ func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.T
 	}
 }
 
-type driverHandleImpl struct {
+// DriverHandle encapsulates a driver plugin client and task identifier and exposes
+// an api to perform driver operations on the task
+type DriverHandle struct {
 	driver drivers.DriverPlugin
 	net    *cstructs.DriverNetwork
 	task   *structs.Task
 	taskID string
 }
 
-func (h *driverHandleImpl) ID() string {
+func (h *DriverHandle) ID() string {
 	return h.taskID
 }
 
-func (h *driverHandleImpl) WaitCh(ctx context.Context) (<-chan *drivers.ExitResult, error) {
+func (h *DriverHandle) WaitCh(ctx context.Context) (<-chan *drivers.ExitResult, error) {
 	return h.driver.WaitTask(ctx, h.taskID)
 }
 
-func (h *driverHandleImpl) Update(task *structs.Task) error {
+func (h *DriverHandle) Update(task *structs.Task) error {
 	return nil
 }
 
-func (h *driverHandleImpl) Kill() error {
+func (h *DriverHandle) Kill() error {
 	return h.driver.StopTask(h.taskID, h.task.KillTimeout, h.task.KillSignal)
 }
 
-func (h *driverHandleImpl) Stats() (*cstructs.TaskResourceUsage, error) {
+func (h *DriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	return h.driver.TaskStats(h.taskID)
 }
 
-func (h *driverHandleImpl) Signal(s string) error {
+func (h *DriverHandle) Signal(s string) error {
 	return h.driver.SignalTask(h.taskID, s)
 }
 
-func (h *driverHandleImpl) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
 	command := append([]string{cmd}, args...)
 	res, err := h.driver.ExecTask(h.taskID, command, timeout)
 	if err != nil {
@@ -59,6 +61,6 @@ func (h *driverHandleImpl) Exec(timeout time.Duration, cmd string, args []string
 	return res.Stdout, res.ExitResult.ExitCode, res.ExitResult.Err
 }
 
-func (h *driverHandleImpl) Network() *cstructs.DriverNetwork {
+func (h *DriverHandle) Network() *cstructs.DriverNetwork {
 	return h.net
 }
