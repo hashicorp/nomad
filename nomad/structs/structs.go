@@ -1721,6 +1721,26 @@ func (r *Resources) DiskInBytes() int64 {
 	return int64(r.DiskMB * BytesInMegabyte)
 }
 
+func (r *Resources) Validate() error {
+	var mErr multierror.Error
+	if err := r.MeetsMinResources(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	// Ensure the task isn't asking for disk resources
+	if r.DiskMB > 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
+	}
+
+	for i, d := range r.Devices {
+		if err := d.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("device %d failed validation: %v", i+1, err))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // Merge merges this resource with another resource.
 func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
@@ -2055,6 +2075,43 @@ func (r *RequestedDevice) Copy() *RequestedDevice {
 	return &nr
 }
 
+func (r *RequestedDevice) ID() *DeviceIdTuple {
+	if r == nil || r.Name == "" {
+		return nil
+	}
+
+	parts := strings.SplitN(r.Name, "/", 3)
+	switch len(parts) {
+	case 1:
+		return &DeviceIdTuple{
+			Type: parts[0],
+		}
+	case 2:
+		return &DeviceIdTuple{
+			Vendor: parts[0],
+			Type:   parts[1],
+		}
+	default:
+		return &DeviceIdTuple{
+			Vendor: parts[0],
+			Type:   parts[1],
+			Name:   parts[2],
+		}
+	}
+}
+
+func (r *RequestedDevice) Validate() error {
+	if r == nil {
+		return nil
+	}
+
+	if r.Name == "" {
+		return errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name")
+	}
+
+	return nil
+}
+
 // NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
 	Cpu      NodeCpuResources
@@ -2281,6 +2338,27 @@ type DeviceIdTuple struct {
 	Vendor string
 	Type   string
 	Name   string
+}
+
+// Matches returns if this Device ID is a superset of the passed ID.
+func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
+	if other == nil {
+		return false
+	}
+
+	if other.Name != "" && other.Name != id.Name {
+		return false
+	}
+
+	if other.Vendor != "" && other.Vendor != id.Vendor {
+		return false
+	}
+
+	if other.Type != "" && other.Type != id.Type {
+		return false
+	}
+
+	return true
 }
 
 // NodeDeviceResource captures a set of devices sharing a common
@@ -4996,15 +5074,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 	// Validate the resources.
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
-	} else {
-		if err := t.Resources.MeetsMinResources(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
-
-		// Ensure the task isn't asking for disk resources
-		if t.Resources.DiskMB > 0 {
-			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
-		}
+	} else if err := t.Resources.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	// Validate the log config
