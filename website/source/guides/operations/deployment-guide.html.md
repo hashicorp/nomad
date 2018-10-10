@@ -133,7 +133,7 @@ The following parameters are set for the `[Install]` stanza:
 
 ## Configure Nomad
 
-Nomad uses [documented sane defaults](/docs/agent/configuration/index.html) so only non-default values must be set in the configuration file. Configuration can be read from multiple files and is loaded in lexical order. See the [full description](/docs/agent/configuration/index.html) for more information about configuration loading and merge semantics.
+Nomad uses [documented sane defaults](/docs/configuration/index.html) so only non-default values must be set in the configuration file. Configuration can be read from multiple files and is loaded in lexical order. See the [full description](/docs/configuration/index.html) for more information about configuration loading and merge semantics.
 
 Some configuration settings are common to both server and client Nomad agents, while some configuration settings must only exist on one or the other. Follow the [common configuration](#common-configuration) guidance on all hosts and then the specific guidance depending on whether you are configuring a Nomad [server](#server-configuration) or [client](#client-configuration).
 
@@ -161,8 +161,8 @@ datacenter = "dc1"
 data_dir = "/opt/nomad"
 ```
 
-- [`datacenter`](/docs/agent/options.html#_datacenter) - The datacenter in which the agent is running.
-- [`data_dir`](/docs/agent/options.html#_data_dir) - The data directory for the agent to store state.
+- [`datacenter`](/docs/configuration/index.html#datacenter) - The datacenter in which the agent is running.
+- [`data_dir`](/docs/configuration/index.html#data_dir) - The data directory for the agent to store state.
 
 ### Server configuration
 
@@ -234,6 +234,6 @@ sudo systemctl status nomad
 
 - Read [Outage Recovery](/guides/operations/outage.html) to learn
   the steps required to recover from a Nomad cluster outage.
-- Read [Autopilot](/guides/operations/atopilot.html) to learn about
+- Read [Autopilot](/guides/operations/autopilot.html) to learn about
   features in Nomad 0.8 to allow for automatic operator-friendly
   management of Nomad servers.

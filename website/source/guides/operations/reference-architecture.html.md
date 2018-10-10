@@ -19,7 +19,8 @@ The following topics are addressed:
 - [Deployment Topology within Multiple Datacenters](#multi-dc)
 - [Network Connectivity Details](#net)
 - [Deployment System Requirements](#system-reqs)
-- [Initialization and Configuration](#config)
+- [High Availability](#high-availability)
+- [Failure Scenarios](#failure-scenarios)
 
 This document describes deploying a Nomad cluster in combination with, or with access to, a [Consul cluster](/guides/operations/consul-integration/index.html). We recommend the use of Consul with Nomad to provide automatic clustering, service discovery, health checking and dynamic configuration.
 
@@ -37,7 +38,7 @@ The design shared in this document is the recommended architecture for productio
 
 Nomad to Consul connectivity is over HTTP and should be secured with TLS as well as a Consul token to provide encryption of all traffic. This is done using Nomad's [Automatic Clustering with Consul](/guides/operations/cluster/automatic.html).
 
-### <a name="one-dc"></a>Deployment Topology within One Region
+### <a name="one-dc"></a>Deployment Topology within One Datacenter
 
 A single Nomad cluster is recommended for applications deployed in the same region.
 
@@ -49,7 +50,7 @@ The time taken for gossip to converge increases as more client nodes are added. 
 
 ![Reference diagram](/assets/images/nomad_reference_diagram.png)
 
-### <a name="multi-dc"></a>Deployment Topology within Multiple Regions (Federation)
+### <a name="multi-dc"></a>Deployment Topology within Multiple Datacenters (Federation)
 
 By deploying Nomad server clusters in multiple regions, the user is able to interact with the Nomad servers by targeting any region from any Nomad server even if that server resides in a separate region. Data, however, is not replicated between regions as they are fully independent clusters.
 
@@ -57,7 +58,7 @@ Nomad server clusters in different datacenters can be federated using WAN links.
 
 Additional documentation is available to learn more about [Nomad server federation](/guides/cluster/federation.html).
 
-## Network Connectivity Details
+## <a name="net"></a>Network Connectivity Details
 
 ![Nomad network diagram](/assets/images/nomad_network_arch.png)
 
@@ -67,7 +68,7 @@ Nomad client clusters require the ability to receive traffic as noted above in t
 
 Additional documentation is available to learn more about [Nomad networking](/guides/operations/requirements.html#network-topology).
 
-## <a name="system-reqs"></a> System Requirements
+## <a name="system-reqs"></a> Deployment System Requirements
 
 Nomad server agents are responsible for maintaining the cluster state, responding to RPC queries (read operations), and for processing all write operations. Given that Nomad server agents do most of the heavy lifting, server sizing is critical for the overall performance efficiency and health of the Nomad cluster.
 
