@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -276,6 +277,25 @@ func (tr *TaskRunner) initLabels() {
 			Name:  "task",
 			Value: tr.taskName,
 		},
+	}
+
+	if tr.alloc.Job.ParentID != "" {
+		tr.baseLabels = append(tr.baseLabels, metrics.Label{
+			Name:  "parent_id",
+			Value: tr.alloc.Job.ParentID,
+		})
+		if strings.Contains(tr.alloc.Job.Name, "/dispatch-") {
+			tr.baseLabels = append(tr.baseLabels, metrics.Label{
+				Name:  "dispatch_id",
+				Value: strings.Split(tr.alloc.Job.Name, "/dispatch-")[1],
+			})
+		}
+		if strings.Contains(tr.alloc.Job.Name, "/periodic-") {
+			tr.baseLabels = append(tr.baseLabels, metrics.Label{
+				Name:  "periodic_id",
+				Value: strings.Split(tr.alloc.Job.Name, "/periodic-")[1],
+			})
+		}
 	}
 }
 
