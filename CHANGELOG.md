@@ -28,7 +28,7 @@ BUG FIXES:
 * core: Fix a bug in Nomad Enterprise where non-voting servers could get
   bootstrapped as voting servers [[GH-4702](https://github.com/hashicorp/nomad/issues/4702)]
 * core: Fix an issue where an evaluation could fail if an allocation was being
-  rescehduled and the node containing it was at capacity [[GH-4713](https://github.com/hashicorp/nomad/issues/4713)]
+  rescheduled and the node containing it was at capacity [[GH-4713](https://github.com/hashicorp/nomad/issues/4713)]
 * core: Fix an issue in which schedulers would reject evaluations created when
   prior scheduling for a job failed [[GH-4712](https://github.com/hashicorp/nomad/issues/4712)]
 * cli: Fix a bug where enabling custom upgrade versions for autopilot was not
