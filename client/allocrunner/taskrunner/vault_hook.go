@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -130,7 +129,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	// Try to recover a token if it was previously written in the secrets
 	// directory
 	recoveredToken := ""
-	h.tokenPath = filepath.Join(req.TaskDir, allocdir.TaskSecrets, vaultTokenFile)
+	h.tokenPath = filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile)
 	data, err := ioutil.ReadFile(h.tokenPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
