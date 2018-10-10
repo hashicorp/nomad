@@ -25,14 +25,15 @@ func TestClient(t testing.T, cb func(c *config.Config)) *Client {
 	logger := testlog.HCLogger(t)
 	conf.Logger = logger
 
-	// Set the plugin loaders
-	conf.PluginLoader = catalog.TestPluginLoader(t)
-	conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, conf.PluginLoader)
-
 	if cb != nil {
 		cb(conf)
 	}
 
+	// Set the plugin loaders
+	if conf.PluginLoader == nil {
+		conf.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", conf.Options, nil)
+		conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, conf.PluginLoader)
+	}
 	catalog := consul.NewMockCatalog(logger)
 	mockService := consulApi.NewMockConsulServiceClient(t, logger)
 	client, err := NewClient(conf, catalog, mockService)

@@ -23,6 +23,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+// When the package is loaded the driver is registered as an internal plugin
+// with the plugin catalog
 func init() {
 	catalog.RegisterDeferredConfig(loader.PluginID{
 		Name:       pluginName,
@@ -32,15 +34,13 @@ func init() {
 		Factory: func(l hclog.Logger) interface{} { return NewRawExecDriver(l) },
 	},
 		func(opts map[string]string) (map[string]interface{}, error) {
-			fmt.Println(opts)
 			conf := map[string]interface{}{}
-			if v, ok := opts["driver.raw_exec.enable"]; ok && v == "true" {
-				conf["enabled"] = true
+			if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
+				conf["enabled"] = v
 			}
-			if v, ok := opts["driver.raw_exec.no_cgroups"]; ok && v == "true" {
-				conf["no_cgroups"] = true
+			if v, err := strconv.ParseBool(opts["driver.raw_exec.no_cgroups"]); err == nil {
+				conf["no_cgroups"] = v
 			}
-
 			return conf, nil
 		},
 	)

@@ -1039,64 +1039,64 @@ func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintRespons
 func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *structs.Node {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
+	if info == nil {
+		return c.configCopy.Node
+	}
 
 	var hasChanged bool
 
 	hadDriver := c.config.Node.Drivers[name] != nil
-	if info != nil {
-		if !hadDriver {
-			// If the driver info has not yet been set, do that here
+	if !hadDriver {
+		// If the driver info has not yet been set, do that here
+		hasChanged = true
+		c.config.Node.Drivers[name] = info
+		for attrName, newVal := range info.Attributes {
+			c.config.Node.Attributes[attrName] = newVal
+		}
+	} else {
+		oldVal := c.config.Node.Drivers[name]
+		// The driver info has already been set, fix it up
+		if oldVal.Detected != info.Detected {
 			hasChanged = true
-			c.config.Node.Drivers[name] = info
-			for attrName, newVal := range info.Attributes {
+			c.config.Node.Drivers[name].Detected = info.Detected
+		}
+
+		if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
+			hasChanged = true
+			if info.HealthDescription != "" {
+				event := &structs.NodeEvent{
+					Subsystem: "Driver",
+					Message:   info.HealthDescription,
+					Timestamp: time.Now(),
+					Details:   map[string]string{"driver": name},
+				}
+				c.triggerNodeEvent(event)
+			}
+		}
+
+		for attrName, newVal := range info.Attributes {
+			oldVal := c.config.Node.Drivers[name].Attributes[attrName]
+			if oldVal == newVal {
+				continue
+			}
+
+			hasChanged = true
+			if newVal == "" {
+				delete(c.config.Node.Attributes, attrName)
+			} else {
 				c.config.Node.Attributes[attrName] = newVal
 			}
-		} else {
-			oldVal := c.config.Node.Drivers[name]
-			// The driver info has already been set, fix it up
-			if oldVal.Detected != info.Detected {
-				hasChanged = true
-				c.config.Node.Drivers[name].Detected = info.Detected
-			}
-
-			if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
-				hasChanged = true
-				if info.HealthDescription != "" {
-					event := &structs.NodeEvent{
-						Subsystem: "Driver",
-						Message:   info.HealthDescription,
-						Timestamp: time.Now(),
-						Details:   map[string]string{"driver": name},
-					}
-					c.triggerNodeEvent(event)
-				}
-			}
-
-			for attrName, newVal := range info.Attributes {
-				oldVal := c.config.Node.Drivers[name].Attributes[attrName]
-				if oldVal == newVal {
-					continue
-				}
-
-				hasChanged = true
-				if newVal == "" {
-					delete(c.config.Node.Attributes, attrName)
-				} else {
-					c.config.Node.Attributes[attrName] = newVal
-				}
-			}
 		}
+	}
 
-		// COMPAT Remove in Nomad 0.10
-		// We maintain the driver enabled attribute until all drivers expose
-		// their attributes as DriverInfo
-		driverName := fmt.Sprintf("driver.%s", name)
-		if info.Detected {
-			c.config.Node.Attributes[driverName] = "1"
-		} else {
-			delete(c.config.Node.Attributes, driverName)
-		}
-
+	// COMPAT Remove in Nomad 0.10
+	// We maintain the driver enabled attribute until all drivers expose
+	// their attributes as DriverInfo
+	driverName := fmt.Sprintf("driver.%s", name)
+	if info.Detected {
+		c.config.Node.Attributes[driverName] = "1"
+	} else {
+		delete(c.config.Node.Attributes, driverName)
 	}
 
 	if hasChanged {

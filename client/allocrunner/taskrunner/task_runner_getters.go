@@ -58,7 +58,7 @@ func (tr *TaskRunner) getDriverHandle() interfaces.DriverHandle {
 }
 
 // setDriverHanlde sets the driver handle and creates a new result proxy.
-func (tr *TaskRunner) setDriverHandle(handle interfaces.DriverHandle) {
+func (tr *TaskRunner) setDriverHandle(handle *DriverHandle) {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	tr.handle = handle
