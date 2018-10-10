@@ -1619,3 +1619,198 @@ func TestSetContainsAny(t *testing.T) {
 	require.True(t, checkSetContainsAny("a", "a"))
 	require.False(t, checkSetContainsAny("b", "a"))
 }
+
+// TODO
+// Test count overload (too many requested)
+// Test count being split between groups
+
+func TestDeviceChecker(t *testing.T) {
+	_, ctx := testContext(t)
+
+	getTg := func(devices ...*structs.RequestedDevice) *structs.TaskGroup {
+		return &structs.TaskGroup{
+			Name: "example",
+			Tasks: []*structs.Task{
+				{
+					Resources: &structs.Resources{
+						Devices: devices,
+					},
+				},
+			},
+		}
+	}
+
+	// Just type
+	gpuTypeReq := &structs.RequestedDevice{
+		Name:  "gpu",
+		Count: 1,
+	}
+	fpgaTypeReq := &structs.RequestedDevice{
+		Name:  "fpga",
+		Count: 1,
+	}
+
+	// vendor/type
+	gpuVendorTypeReq := &structs.RequestedDevice{
+		Name:  "nvidia/gpu",
+		Count: 1,
+	}
+	fpgaVendorTypeReq := &structs.RequestedDevice{
+		Name:  "nvidia/fpga",
+		Count: 1,
+	}
+
+	// vendor/type/model
+	gpuFullReq := &structs.RequestedDevice{
+		Name:  "nvidia/gpu/1080ti",
+		Count: 1,
+	}
+	fpgaFullReq := &structs.RequestedDevice{
+		Name:  "nvidia/fpga/F100",
+		Count: 1,
+	}
+
+	// Just type but high count
+	gpuTypeHighCountReq := &structs.RequestedDevice{
+		Name:  "gpu",
+		Count: 3,
+	}
+
+	getNode := func(devices ...*structs.NodeDeviceResource) *structs.Node {
+		n := mock.Node()
+		n.NodeResources.Devices = devices
+		return n
+	}
+
+	nvidia := &structs.NodeDeviceResource{
+		Vendor: "nvidia",
+		Type:   "gpu",
+		Name:   "1080ti",
+		Instances: []*structs.NodeDevice{
+			&structs.NodeDevice{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+			&structs.NodeDevice{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+		},
+	}
+
+	nvidiaUnhealthy := &structs.NodeDeviceResource{
+		Vendor: "nvidia",
+		Type:   "gpu",
+		Name:   "1080ti",
+		Instances: []*structs.NodeDevice{
+			&structs.NodeDevice{
+				ID:      uuid.Generate(),
+				Healthy: false,
+			},
+			&structs.NodeDevice{
+				ID:      uuid.Generate(),
+				Healthy: false,
+			},
+		},
+	}
+
+	intel := &structs.NodeDeviceResource{
+		Vendor: "intel",
+		Type:   "gpu",
+		Name:   "GT640",
+		Instances: []*structs.NodeDevice{
+			&structs.NodeDevice{
+				ID:      uuid.Generate(),
+				Healthy: true,
+			},
+			&structs.NodeDevice{
+				ID:      uuid.Generate(),
+				Healthy: false,
+			},
+		},
+	}
+
+	cases := []struct {
+		Name             string
+		Result           bool
+		NodeDevices      []*structs.NodeDeviceResource
+		RequestedDevices []*structs.RequestedDevice
+	}{
+		{
+			Name:             "no devices on node",
+			Result:           false,
+			NodeDevices:      nil,
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq},
+		},
+		{
+			Name:             "no requested devices on empty node",
+			Result:           true,
+			NodeDevices:      nil,
+			RequestedDevices: nil,
+		},
+		{
+			Name:             "gpu devices by type",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq},
+		},
+		{
+			Name:             "wrong devices by type",
+			Result:           false,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{fpgaTypeReq},
+		},
+		{
+			Name:             "devices by type unhealthy node",
+			Result:           false,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidiaUnhealthy},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq},
+		},
+		{
+			Name:             "gpu devices by vendor/type",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{gpuVendorTypeReq},
+		},
+		{
+			Name:             "wrong devices by vendor/type",
+			Result:           false,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{fpgaVendorTypeReq},
+		},
+		{
+			Name:             "gpu devices by vendor/type/model",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{gpuFullReq},
+		},
+		{
+			Name:             "wrong devices by vendor/type/model",
+			Result:           false,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{fpgaFullReq},
+		},
+		{
+			Name:             "too many requested",
+			Result:           false,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
+		},
+		{
+			Name:             "request split over groups",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia, intel},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			checker := NewDeviceChecker(ctx)
+			checker.SetTaskGroup(getTg(c.RequestedDevices...))
+			if act := checker.Feasible(getNode(c.NodeDevices...)); act != c.Result {
+				t.Fatalf("got %v; want %v", act, c.Result)
+			}
+		})
+	}
+}
