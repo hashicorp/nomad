@@ -73,7 +73,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	}
 
 	// Store the current Vault token and the task directory
-	h.taskDir = req.TaskDir
+	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
 	unblockCh, err := h.newManager()
 	if err != nil {

@@ -3,6 +3,7 @@ package interfaces
 import (
 	"context"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -49,8 +50,8 @@ type TaskPrestartRequest struct {
 	// Vault token may optionally be set if a Vault token is available
 	VaultToken string
 
-	// TaskDir is the task's directory on the host
-	TaskDir string
+	// TaskDir contains the task's directory tree on the host
+	TaskDir *allocdir.TaskDir
 
 	// TaskEnv is the task's environment
 	TaskEnv *env.TaskEnv
