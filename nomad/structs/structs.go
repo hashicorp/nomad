@@ -1721,6 +1721,26 @@ func (r *Resources) DiskInBytes() int64 {
 	return int64(r.DiskMB * BytesInMegabyte)
 }
 
+func (r *Resources) Validate() error {
+	var mErr multierror.Error
+	if err := r.MeetsMinResources(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	// Ensure the task isn't asking for disk resources
+	if r.DiskMB > 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
+	}
+
+	for i, d := range r.Devices {
+		if err := d.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("device %d failed validation: %v", i+1, err))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // Merge merges this resource with another resource.
 func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
@@ -2043,20 +2063,61 @@ func (r *RequestedDevice) Copy() *RequestedDevice {
 	return &nr
 }
 
+func (r *RequestedDevice) ID() *DeviceIdTuple {
+	if r == nil || r.Name == "" {
+		return nil
+	}
+
+	parts := strings.SplitN(r.Name, "/", 3)
+	switch len(parts) {
+	case 1:
+		return &DeviceIdTuple{
+			Type: parts[0],
+		}
+	case 2:
+		return &DeviceIdTuple{
+			Vendor: parts[0],
+			Type:   parts[1],
+		}
+	default:
+		return &DeviceIdTuple{
+			Vendor: parts[0],
+			Type:   parts[1],
+			Name:   parts[2],
+		}
+	}
+}
+
+func (r *RequestedDevice) Validate() error {
+	if r == nil {
+		return nil
+	}
+
+	if r.Name == "" {
+		return errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name")
+	}
+
+	return nil
+}
+
 // NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
 	Cpu      NodeCpuResources
 	Memory   NodeMemoryResources
 	Disk     NodeDiskResources
 	Networks Networks
+	Devices  []*NodeDeviceResource
 }
 
 func (n *NodeResources) Copy() *NodeResources {
 	if n == nil {
 		return nil
 	}
+
 	newN := new(NodeResources)
 	*newN = *n
+
+	// Copy the networks
 	if n.Networks != nil {
 		networks := len(n.Networks)
 		newN.Networks = make([]*NetworkResource, networks)
@@ -2064,6 +2125,16 @@ func (n *NodeResources) Copy() *NodeResources {
 			newN.Networks[i] = n.Networks[i].Copy()
 		}
 	}
+
+	// Copy the devices
+	if n.Devices != nil {
+		devices := len(n.Devices)
+		newN.Devices = make([]*NodeDeviceResource, devices)
+		for i := 0; i < devices; i++ {
+			newN.Devices[i] = n.Devices[i].Copy()
+		}
+	}
+
 	return newN
 }
 
@@ -2103,6 +2174,10 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	if len(o.Networks) != 0 {
 		n.Networks = o.Networks
 	}
+
+	if len(o.Devices) != 0 {
+		n.Devices = o.Devices
+	}
 }
 
 func (n *NodeResources) Equals(o *NodeResources) bool {
@@ -2129,6 +2204,20 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	}
 	for i, n := range n.Networks {
 		if !n.Equals(o.Networks[i]) {
+			return false
+		}
+	}
+
+	// Check the devices
+	if len(n.Devices) != len(o.Devices) {
+		return false
+	}
+	idMap := make(map[DeviceIdTuple]*NodeDeviceResource, len(n.Devices))
+	for _, d := range n.Devices {
+		idMap[*d.ID()] = d
+	}
+	for _, otherD := range o.Devices {
+		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equals(otherD) {
 			return false
 		}
 	}
@@ -2230,6 +2319,208 @@ func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
 	}
 
 	return true
+}
+
+// DeviceIdTuple is the tuple that identifies a device
+type DeviceIdTuple struct {
+	Vendor string
+	Type   string
+	Name   string
+}
+
+// Matches returns if this Device ID is a superset of the passed ID.
+func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
+	if other == nil {
+		return false
+	}
+
+	if other.Name != "" && other.Name != id.Name {
+		return false
+	}
+
+	if other.Vendor != "" && other.Vendor != id.Vendor {
+		return false
+	}
+
+	if other.Type != "" && other.Type != id.Type {
+		return false
+	}
+
+	return true
+}
+
+// NodeDeviceResource captures a set of devices sharing a common
+// vendor/type/device_name tuple.
+type NodeDeviceResource struct {
+	Vendor     string
+	Type       string
+	Name       string
+	Instances  []*NodeDevice
+	Attributes map[string]string
+}
+
+func (n *NodeDeviceResource) ID() *DeviceIdTuple {
+	if n == nil {
+		return nil
+	}
+
+	return &DeviceIdTuple{
+		Vendor: n.Vendor,
+		Type:   n.Type,
+		Name:   n.Name,
+	}
+}
+
+func (n *NodeDeviceResource) Copy() *NodeDeviceResource {
+	if n == nil {
+		return nil
+	}
+
+	// Copy the primitives
+	nn := *n
+
+	// Copy the device instances
+	if l := len(nn.Instances); l != 0 {
+		nn.Instances = make([]*NodeDevice, 0, l)
+		for _, d := range n.Instances {
+			nn.Instances = append(nn.Instances, d.Copy())
+		}
+	}
+
+	// Copy the Attributes
+	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
+
+	return &nn
+}
+
+func (n *NodeDeviceResource) Equals(o *NodeDeviceResource) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.Vendor != o.Vendor {
+		return false
+	} else if n.Type != o.Type {
+		return false
+	} else if n.Name != o.Name {
+		return false
+	}
+
+	// Check the attributes
+	if len(n.Attributes) != len(o.Attributes) {
+		return false
+	}
+	for k, v := range n.Attributes {
+		if otherV, ok := o.Attributes[k]; !ok || v != otherV {
+			return false
+		}
+	}
+
+	// Check the instances
+	if len(n.Instances) != len(o.Instances) {
+		return false
+	}
+	idMap := make(map[string]*NodeDevice, len(n.Instances))
+	for _, d := range n.Instances {
+		idMap[d.ID] = d
+	}
+	for _, otherD := range o.Instances {
+		if d, ok := idMap[otherD.ID]; !ok || !d.Equals(otherD) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// NodeDevice is an instance of a particular device.
+type NodeDevice struct {
+	// ID is the ID of the device.
+	ID string
+
+	// Healthy captures whether the device is healthy.
+	Healthy bool
+
+	// HealthDescription is used to provide a human readable description of why
+	// the device may be unhealthy.
+	HealthDescription string
+
+	// Locality stores HW locality information for the node to optionally be
+	// used when making placement decisions.
+	Locality *NodeDeviceLocality
+}
+
+func (n *NodeDevice) Equals(o *NodeDevice) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.ID != o.ID {
+		return false
+	} else if n.Healthy != o.Healthy {
+		return false
+	} else if n.HealthDescription != o.HealthDescription {
+		return false
+	} else if !n.Locality.Equals(o.Locality) {
+		return false
+	}
+
+	return false
+}
+
+func (n *NodeDevice) Copy() *NodeDevice {
+	if n == nil {
+		return nil
+	}
+
+	// Copy the primitives
+	nn := *n
+
+	// Copy the locality
+	nn.Locality = nn.Locality.Copy()
+
+	return &nn
+}
+
+// NodeDeviceLocality stores information about the devices hardware locality on
+// the node.
+type NodeDeviceLocality struct {
+	// PciBusID is the PCI Bus ID for the device.
+	PciBusID string
+}
+
+func (n *NodeDeviceLocality) Equals(o *NodeDeviceLocality) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.PciBusID != o.PciBusID {
+		return false
+	}
+
+	return true
+}
+
+func (n *NodeDeviceLocality) Copy() *NodeDeviceLocality {
+	if n == nil {
+		return nil
+	}
+
+	// Copy the primitives
+	nn := *n
+	return &nn
 }
 
 // NodeReservedResources is used to capture the resources on a client node that
@@ -4771,15 +5062,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 	// Validate the resources.
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
-	} else {
-		if err := t.Resources.MeetsMinResources(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
-
-		// Ensure the task isn't asking for disk resources
-		if t.Resources.DiskMB > 0 {
-			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
-		}
+	} else if err := t.Resources.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	// Validate the log config

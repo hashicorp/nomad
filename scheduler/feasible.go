@@ -768,3 +768,99 @@ OUTER:
 		return option
 	}
 }
+
+// DeviceChecker is a FeasibilityChecker which returns whether a node has the
+// devices necessary to scheduler a task group.
+type DeviceChecker struct {
+	ctx Context
+
+	// required is a mapping of devices that must exist on the node to the count
+	// requested
+	required map[*structs.DeviceIdTuple]uint64
+
+	// requiresDevices indicates if the task group requires devices
+	requiresDevices bool
+}
+
+// NewDeviceChecker creates a DeviceChecker
+func NewDeviceChecker(ctx Context) *DeviceChecker {
+	return &DeviceChecker{
+		ctx: ctx,
+	}
+}
+
+func (c *DeviceChecker) SetTaskGroup(tg *structs.TaskGroup) {
+	c.required = make(map[*structs.DeviceIdTuple]uint64)
+	for _, task := range tg.Tasks {
+		for _, d := range task.Resources.Devices {
+			c.required[d.ID()] = d.Count
+		}
+	}
+	c.requiresDevices = len(c.required) != 0
+}
+
+func (c *DeviceChecker) Feasible(option *structs.Node) bool {
+	if c.hasDevices(option) {
+		return true
+	}
+
+	c.ctx.Metrics().FilterNode(option, "missing devices")
+	return false
+}
+
+func (c *DeviceChecker) hasDevices(option *structs.Node) bool {
+	if !c.requiresDevices {
+		return true
+	}
+
+	// COMPAT(0.11): Remove in 0.11
+	// The node does not have the new resources object so it can not have any
+	// devices
+	if option.NodeResources == nil {
+		return false
+	}
+
+	// Check if the node has any devices
+	nodeDevs := option.NodeResources.Devices
+	if len(nodeDevs) == 0 {
+		return false
+	}
+
+	// Create a list of the device IDs to their count
+	nodeDevIDs := make(map[*structs.DeviceIdTuple]uint64, len(nodeDevs))
+	for _, d := range nodeDevs {
+		var healthy uint64 = 0
+		for _, instance := range d.Instances {
+			if instance.Healthy {
+				healthy++
+			}
+		}
+		nodeDevIDs[d.ID()] = healthy
+	}
+
+OUTER:
+	for reqDev, reqCount := range c.required {
+
+		// It may take multiple device groups to satisfy the request
+		var found uint64 = 0
+
+		for nodeDev, healthyCount := range nodeDevIDs {
+			// The node device doesn't matches this request so skip
+			if !nodeDev.Matches(reqDev) {
+				continue
+			}
+
+			// Add the instances we have found that match. If this matches or
+			// exceeds the request, we have enough to satisfy the request.
+			found += healthyCount
+			if found >= reqCount {
+				continue OUTER
+			}
+		}
+
+		// No device matched the request so skip
+		return false
+	}
+
+	return true
+}
