@@ -1620,10 +1620,6 @@ func TestSetContainsAny(t *testing.T) {
 	require.False(t, checkSetContainsAny("b", "a"))
 }
 
-// TODO
-// Test count overload (too many requested)
-// Test count being split between groups
-
 func TestDeviceChecker(t *testing.T) {
 	_, ctx := testContext(t)
 
