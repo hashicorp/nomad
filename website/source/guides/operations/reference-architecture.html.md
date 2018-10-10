@@ -106,7 +106,7 @@ When setting up high availability across regions, multiple Nomad server clusters
 
 Typical distribution in a cloud environment is to spread Nomad server nodes into separate Availability Zones (AZs) within a high bandwidth, low latency network, such as an AWS Region. The diagram below shows Nomad servers deployed in multipls AZs promoting a single voting member per AZ and providing both AZ-level and node-level failure protection.
 
-![Nomad fault tolerance](/assets/images/nomad_fault_tolerance_1.png)
+![Nomad fault tolerance](/assets/images/nomad_fault_tolerance.png)
 
 Additional documentation is available to learn more about [cluster sizing and failure tolerances](/docs/internals/consensus.html#deployment-table) as well as [outage recovery](/guides/operations/outage.html).
 
