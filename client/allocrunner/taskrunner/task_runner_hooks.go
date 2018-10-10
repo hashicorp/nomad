@@ -24,6 +24,7 @@ func (tr *TaskRunner) initHooks() {
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
 		newLogMonHook(tr.logmonHookConfig, hookLogger),
+		newDispatchHook(tr.Alloc(), hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
@@ -97,7 +98,7 @@ func (tr *TaskRunner) prestart() error {
 		// Build the request
 		req := interfaces.TaskPrestartRequest{
 			Task:    tr.Task(),
-			TaskDir: tr.taskDir.Dir,
+			TaskDir: tr.taskDir,
 			TaskEnv: tr.envBuilder.Build(),
 		}
 
@@ -150,7 +151,7 @@ func (tr *TaskRunner) prestart() error {
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
-			tr.logger.Trace("finished prestart hooks", "name", name, "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished prestart hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 
