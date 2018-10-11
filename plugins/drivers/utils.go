@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
@@ -45,19 +43,6 @@ func healthStateFromProto(pb proto.FingerprintResponse_HealthState) HealthState 
 		return HealthStateHealthy
 	}
 	return HealthStateUndetected
-}
-
-// NewTaskConfig builds a TaskConfig from a Task struct
-func NewTaskConfig(task *structs.Task, taskDir *allocdir.TaskDir, env *env.TaskEnv) *TaskConfig {
-	return &TaskConfig{
-		Name: task.Name,
-		Resources: &Resources{
-			NomadResources: task.Resources,
-		},
-		Env:      env.Map(),
-		User:     task.User,
-		AllocDir: taskDir.AllocDir,
-	}
 }
 
 func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
