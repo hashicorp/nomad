@@ -276,13 +276,12 @@ func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fing
 		if backoff > 0 {
 			time.Sleep(backoff)
 		}
-
 		select {
 		case <-fm.shutdownCh:
 			cancel()
 			return
 		case fp, ok := <-fpChan:
-			if ok {
+			if ok && fp.Err == nil {
 				fm.processDriverFingerprint(fp, name)
 				continue
 			}

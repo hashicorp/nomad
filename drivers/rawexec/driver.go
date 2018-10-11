@@ -196,6 +196,7 @@ func (r *RawExecDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Finger
 }
 
 func (r *RawExecDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
+	defer close(ch)
 	ticker := time.NewTimer(0)
 	for {
 		select {
