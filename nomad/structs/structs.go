@@ -2053,7 +2053,6 @@ type RequestedDevice struct {
 	// Count is the number of requested devices
 	Count uint64
 
-	// TODO validate
 	// Constraints are a set of constraints to apply when selecting the device
 	// to use.
 	Constraints []*Constraint
@@ -2105,11 +2104,32 @@ func (r *RequestedDevice) Validate() error {
 		return nil
 	}
 
+	var mErr multierror.Error
 	if r.Name == "" {
-		return errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name")
+		multierror.Append(&mErr, errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name"))
 	}
 
-	return nil
+	for idx, constr := range r.Constraints {
+		// Ensure that the constraint doesn't use an operand we do not allow
+		switch constr.Operand {
+		case ConstraintDistinctHosts, ConstraintDistinctProperty:
+			outer := fmt.Errorf("Constraint %d validation failed: using unsupported operand %q", idx+1, constr.Operand)
+			multierror.Append(&mErr, outer)
+		default:
+			if err := constr.Validate(); err != nil {
+				outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+				multierror.Append(&mErr, outer)
+			}
+		}
+	}
+	for idx, affinity := range r.Affinities {
+		if err := affinity.Validate(); err != nil {
+			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
+			multierror.Append(&mErr, outer)
+		}
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // NodeResources is used to define the resources available on a client node.
