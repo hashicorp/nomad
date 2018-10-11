@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 
@@ -563,6 +566,60 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 
 	require.NotNil(node.Drivers["raw_exec"])
 	require.NotContains(node.Drivers, "exec")
+}
+
+func TestFingerprintManager_Run_DriverFailure(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	testClient := TestClient(t, func(c *config.Config) {
+		c.Options = map[string]string{
+			"driver.raw_exec.enable": "1",
+		}
+	})
+
+	testClient.logger = testlog.HCLogger(t)
+	defer testClient.Shutdown()
+
+	singLoader := testClient.config.PluginSingletonLoader
+
+	dispenseCalls := 0
+	loader := &loader.MockCatalog{
+		DispenseF: func(name, pluginType string, logger log.Logger) (loader.PluginInstance, error) {
+			if pluginType == base.PluginTypeDriver && name == "raw_exec" {
+				dispenseCalls++
+			}
+			return singLoader.Dispense(name, pluginType, logger)
+		},
+		ReattachF: singLoader.Reattach,
+		CatalogF:  singLoader.Catalog,
+	}
+
+	fm := NewFingerprintManager(
+		loader,
+		testClient.GetConfig,
+		testClient.config.Node,
+		testClient.shutdownCh,
+		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromDriver,
+		testClient.logger,
+	)
+
+	fpChan, cancel, err := fm.dispenseDriverFingerprint("raw_exec")
+	require.NoError(err)
+	require.Equal(1, dispenseCalls)
+
+	cancel()
+	go fm.watchDriverFingerprint(fpChan, "raw_exec", cancel)
+
+	testutil.WaitForResult(func() (bool, error) {
+		if 2 != dispenseCalls {
+			return false, fmt.Errorf("expected dispenseCalls to be 2 but was %d", dispenseCalls)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 }
 
 func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {

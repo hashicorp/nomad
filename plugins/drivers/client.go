@@ -67,37 +67,44 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 func (d *driverPluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
 	req := &proto.FingerprintRequest{}
 
-	stream, err := d.client.Fingerprint(context.Background(), req)
+	stream, err := d.client.Fingerprint(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	ch := make(chan *Fingerprint)
-	go d.handleFingerprint(ch, stream)
+	go d.handleFingerprint(ctx, ch, stream)
 
 	return ch, nil
 }
 
-func (d *driverPluginClient) handleFingerprint(ch chan *Fingerprint, stream proto.Driver_FingerprintClient) {
+func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fingerprint, stream proto.Driver_FingerprintClient) {
 	defer close(ch)
 	for {
 		pb, err := stream.Recv()
 		if err == io.EOF {
-			break
+			return
 		}
 		if err != nil {
 			d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
-			ch <- &Fingerprint{Err: fmt.Errorf("error from RPC stream: %v", err)}
-			break
+			select {
+			case <-ctx.Done():
+			case ch <- &Fingerprint{Err: fmt.Errorf("error from RPC stream: %v", err)}:
+			}
+			return
 		}
 		f := &Fingerprint{
 			Attributes:        pb.Attributes,
 			Health:            healthStateFromProto(pb.Health),
 			HealthDescription: pb.HealthDescription,
 		}
-		ch <- f
-	}
 
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- f:
+		}
+	}
 }
 
 // RecoverTask does internal state recovery to be able to control the task of
