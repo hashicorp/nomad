@@ -136,8 +136,10 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 }
 
 func resourcesToProto(r *Resources) *proto.Resources {
+	if r == nil {
+		return nil
+	}
 	var pb proto.Resources
-
 	if r.NomadResources != nil {
 		pb.RawResources = &proto.RawResources{
 			Cpu:      int64(r.NomadResources.CPU),
@@ -403,4 +405,8 @@ func resourceUsageFromProto(pb *proto.TaskResourceUsage) *cstructs.ResourceUsage
 		CpuStats:    &cpu,
 		MemoryStats: &memory,
 	}
+}
+
+func BytesToMB(bytes int64) int64 {
+	return bytes / (1024 * 1024)
 }
