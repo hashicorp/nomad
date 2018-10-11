@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -110,6 +111,17 @@ type TaskConfig struct {
 	StderrPath      string
 }
 
+func (tc *TaskConfig) Copy() *TaskConfig {
+	if tc == nil {
+		return nil
+	}
+	c := new(TaskConfig)
+	*c = *tc
+	c.Env = helper.CopyMapStringString(c.Env)
+	c.Resources = tc.Resources.Copy()
+	return c
+}
+
 func (tc *TaskConfig) EnvList() []string {
 	l := make([]string, 0, len(tc.Env))
 	for k, v := range tc.Env {
@@ -161,6 +173,20 @@ type Resources struct {
 	LinuxResources *LinuxResources
 }
 
+func (r *Resources) Copy() *Resources {
+	if r == nil {
+		return nil
+	}
+	res := new(Resources)
+	if r.NomadResources != nil {
+		res.NomadResources = r.NomadResources.Copy()
+	}
+	if r.LinuxResources != nil {
+		res.LinuxResources = r.LinuxResources.Copy()
+	}
+	return res
+}
+
 type LinuxResources struct {
 	CPUPeriod        int64
 	CPUQuota         int64
@@ -169,6 +195,12 @@ type LinuxResources struct {
 	OOMScoreAdj      int64
 	CpusetCPUs       string
 	CpusetMems       string
+}
+
+func (r *LinuxResources) Copy() *LinuxResources {
+	res := new(LinuxResources)
+	*res = *r
+	return res
 }
 
 type DeviceConfig struct {
