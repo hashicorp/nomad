@@ -4,12 +4,13 @@ package rawexec
 
 import (
 	"context"
+	"runtime"
+	"testing"
+
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -39,13 +40,14 @@ func TestRawExecDriver_User(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	task.EncodeDriverConfig(&TaskConfig{
-		Command: testtask.Path(),
-		Args:    []string{"sleep", "45s"},
-	})
+	taskConfig := map[string]interface{}{}
+	taskConfig["command"] = testtask.Path()
+	taskConfig["args"] = []string{"sleep", "45s"}
 
+	encodeDriverHelper(require, task, taskConfig)
 	testtask.SetTaskConfigEnv(task)
-	_, err := harness.StartTask(task)
+
+	_, _, err := harness.StartTask(task)
 	require.Error(err)
 	msg := "unknown user alice"
 	require.Contains(err.Error(), msg)
@@ -69,10 +71,12 @@ func TestRawExecDriver_Signal(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	task.EncodeDriverConfig(&TaskConfig{
-		Command: "/bin/bash",
-		Args:    []string{"test.sh"},
-	})
+	taskConfig := map[string]interface{}{}
+	taskConfig["command"] = "/bin/bash"
+	taskConfig["args"] = []string{"test.sh"}
+
+	encodeDriverHelper(require, task, taskConfig)
+	testtask.SetTaskConfigEnv(task)
 
 	testFile := filepath.Join(task.TaskDir().Dir, "test.sh")
 	testData := []byte(`
@@ -88,7 +92,7 @@ done
 	require.NoError(ioutil.WriteFile(testFile, testData, 0777))
 
 	testtask.SetTaskConfigEnv(task)
-	_, err := harness.StartTask(task)
+	_, _, err := harness.StartTask(task)
 	require.NoError(err)
 
 	go func() {
