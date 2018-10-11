@@ -91,22 +91,23 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 
 	// The error should be nil or TaskNotFound, if it's something else then a
 	// failure in the driver or transport layer occured
-	if err != nil && err != drivers.ErrTaskNotFound {
+	if err != nil {
+		if err == drivers.ErrTaskNotFound {
+			return nil
+		}
 		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
 		return err
 	}
 
-	if err == nil {
-		<-waitCh
+	<-waitCh
 
-		// Store that the task has been destroyed and any associated error.
-		tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
+	// Store that the task has been destroyed and any associated error.
+	tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(destroyErr))
 
-		if destroyErr != nil {
-			return destroyErr
-		} else if err := ctx.Err(); err != nil {
-			return err
-		}
+	if destroyErr != nil {
+		return destroyErr
+	} else if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	return nil

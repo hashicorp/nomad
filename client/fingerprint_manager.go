@@ -16,6 +16,16 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
+const (
+	// driverFPBackoffBaseline is the baseline time for exponential backoff while
+	// fingerprinting a driver.
+	driverFPBackoffBaseline = 5 * time.Second
+
+	// driverFPBackoffLimit is the limit of the exponential backoff for fingerprinting
+	// a driver.
+	driverFPBackoffLimit = 2 * time.Minute
+)
+
 // FingerprintManager runs a client fingerprinters on a continuous basis, and
 // updates the client when the node has changed
 type FingerprintManager struct {
@@ -186,26 +196,8 @@ func (fm *FingerprintManager) setupDrivers(driverNames []string) error {
 	var availDrivers []string
 	for _, name := range driverNames {
 		// TODO: driver reattach
-		plug, err := fm.singletonLoader.Dispense(name, base.PluginTypeDriver, fm.logger)
+		fingerCh, cancel, err := fm.dispenseDriverFingerprint(name)
 		if err != nil {
-			return err
-		}
-
-		driver, ok := plug.Plugin().(drivers.DriverPlugin)
-		if !ok {
-			return fmt.Errorf("registered driver plugin %q does not implement DriverPlugin interface", name)
-		}
-
-		// Pass true for whether the health check is periodic here, so that the
-		// fingerprinter will not set the initial health check status (this is set
-		// below, with an empty health status so that a node event is not
-		// triggered)
-		// Later, the periodic health checker will update this value for drivers
-		// where health checks are enabled.
-		ctx, cancel := context.WithCancel(context.Background())
-		fingerCh, err := driver.Fingerprint(ctx)
-		if err != nil {
-			cancel()
 			return err
 		}
 
@@ -278,41 +270,56 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 // watchDrivers facilitates the different periods between fingerprint and
 // health checking a driver
 func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fingerprint, name string, cancel context.CancelFunc) {
+	var backoff time.Duration
+	var i int
 	for {
+		if backoff > 0 {
+			time.Sleep(backoff)
+		}
+
 		select {
 		case <-fm.shutdownCh:
 			cancel()
 			return
 		case fp, ok := <-fpChan:
-			// if the channel is closed attempt to open a new one
-			if !ok {
-				newFpChan, newCancel, err := fm.retryDriverFingerprint(name)
-				if err != nil {
-					fm.logger.Warn("failed to fingerprint driver, retrying in 30s", "error", err)
-					fm.nodeLock.Lock()
-					n := fm.updateNodeFromDriver(name, &structs.DriverInfo{
-						Healthy:           false,
-						HealthDescription: "failed to fingerprint driver",
-						UpdateTime:        time.Now(),
-					})
-					if n != nil {
-						fm.node = n
-					}
-					fm.nodeLock.Unlock()
-					time.Sleep(30 * time.Second)
-				} else {
-					cancel()
-					fpChan = newFpChan
-					cancel = newCancel
-				}
-				continue
-			} else {
+			if ok {
 				fm.processDriverFingerprint(fp, name)
+				continue
 			}
+			// if the channel is closed attempt to open a new one
+			newFpChan, newCancel, err := fm.dispenseDriverFingerprint(name)
+			if err != nil {
+				fm.logger.Warn("failed to fingerprint driver, retrying in 30s", "error", err)
+				di := &structs.DriverInfo{
+					Healthy:           false,
+					HealthDescription: "failed to fingerprint driver",
+					UpdateTime:        time.Now(),
+				}
+				if n := fm.updateNodeFromDriver(name, di); n != nil {
+					fm.setNode(n)
+				}
+
+				// Calculate the new backoff
+				backoff = (1 << (2 * uint64(i))) * driverFPBackoffBaseline
+				if backoff > driverFPBackoffLimit {
+					backoff = driverFPBackoffLimit
+				}
+				i++
+				continue
+			}
+			cancel()
+			fpChan = newFpChan
+			cancel = newCancel
+
+			// Reset backoff
+			backoff = 0
+			i = 0
 		}
 	}
 }
 
+// processDriverFringerprint converts a Fingerprint from a driver into a DriverInfo
+// struct and updates the Node with it
 func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, driverName string) {
 	di := &structs.DriverInfo{
 		Attributes:        fp.Attributes,
@@ -321,15 +328,15 @@ func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, 
 		HealthDescription: fp.HealthDescription,
 		UpdateTime:        time.Now(),
 	}
-	fm.nodeLock.Lock()
-	n := fm.updateNodeFromDriver(driverName, di)
-	if n != nil {
-		fm.node = n
+	if n := fm.updateNodeFromDriver(driverName, di); n != nil {
+		fm.setNode(n)
 	}
-	fm.nodeLock.Unlock()
 }
 
-func (fm *FingerprintManager) retryDriverFingerprint(driverName string) (<-chan *drivers.Fingerprint, context.CancelFunc, error) {
+// dispenseDriverFingerprint dispenses a driver plugin for the given driver name
+// and requests a fingerprint channel. The channel and a context cancel function
+// is returned to the caller
+func (fm *FingerprintManager) dispenseDriverFingerprint(driverName string) (<-chan *drivers.Fingerprint, context.CancelFunc, error) {
 	plug, err := fm.singletonLoader.Dispense(driverName, base.PluginTypeDriver, fm.logger)
 	if err != nil {
 		return nil, nil, err

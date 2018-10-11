@@ -526,6 +526,7 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 	node := testClient.config.Node
 
 	require.NotContains(node.Attributes, "driver.raw_exec")
+	// TODO(nickethier): uncomment after missing driver implementations added
 	//require.NotContains(node.Attributes, "driver.exec")
 	//require.NotContains(node.Attributes, "driver.docker")
 }
