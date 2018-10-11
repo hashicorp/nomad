@@ -234,6 +234,21 @@ func TestParse(t *testing.T) {
 										{
 											Name:  "nvidia/gpu",
 											Count: helper.Uint64ToPtr(10),
+											Constraints: []*api.Constraint{
+												{
+													LTarget: "${driver.attr.memory}",
+													RTarget: "2GB",
+													Operand: ">",
+												},
+											},
+											Affinities: []*api.Affinity{
+												{
+													LTarget: "${driver.model}",
+													RTarget: "1080ti",
+													Operand: "=",
+													Weight:  50,
+												},
+											},
 										},
 										{
 											Name:  "intel/gpu",

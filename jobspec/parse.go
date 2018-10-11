@@ -1480,10 +1480,20 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 			}
 			name := do.Keys[0].Token.Value().(string)
 
+			// Value should be an object
+			var listVal *ast.ObjectList
+			if ot, ok := do.Val.(*ast.ObjectType); ok {
+				listVal = ot.List
+			} else {
+				return fmt.Errorf("device should be an object")
+			}
+
 			// Check for invalid keys
 			valid := []string{
 				"name",
 				"count",
+				"affinity",
+				"constraint",
 			}
 			if err := helper.CheckHCLKeys(do.Val, valid); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("resources, device[%d]->", idx))
@@ -1497,8 +1507,26 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 			if err := hcl.DecodeObject(&m, do.Val); err != nil {
 				return err
 			}
+
+			delete(m, "constraint")
+			delete(m, "affinity")
+
 			if err := mapstructure.WeakDecode(m, &r); err != nil {
 				return err
+			}
+
+			// Parse constraints
+			if o := listVal.Filter("constraint"); len(o.Items) > 0 {
+				if err := parseConstraints(&r.Constraints, o); err != nil {
+					return multierror.Prefix(err, "constraint ->")
+				}
+			}
+
+			// Parse affinities
+			if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+				if err := parseAffinities(&r.Affinities, o); err != nil {
+					return multierror.Prefix(err, "affinity ->")
+				}
 			}
 
 			result.Devices[idx] = &r
