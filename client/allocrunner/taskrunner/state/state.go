@@ -30,8 +30,8 @@ func (s *LocalState) Copy() *LocalState {
 	// Create a copy
 	c := &LocalState{
 		Hooks:         make(map[string]*HookState, len(s.Hooks)),
-		DriverNetwork: s.DriverNetwork,
-		TaskHandle:    s.TaskHandle,
+		DriverNetwork: s.DriverNetwork.Copy(),
+		TaskHandle:    s.TaskHandle.Copy(),
 	}
 
 	// Copy the hooks

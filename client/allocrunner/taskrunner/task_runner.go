@@ -9,6 +9,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcldec"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -110,9 +111,6 @@ type TaskRunner struct {
 
 	// handle to the running driver
 	handle *DriverHandle
-
-	// network is the configuration for the driver network if one was created
-	network *cstructs.DriverNetwork
 
 	// task is the task being run
 	task     *structs.Task
@@ -426,10 +424,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 func (tr *TaskRunner) runDriver() error {
 
 	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
-	taskConfig := drivers.NewTaskConfig(tr.task, tr.taskDir, tr.envBuilder.Build())
-	taskConfig.ID = tr.buildID()
-	taskConfig.StdoutPath = tr.logmonHookConfig.stdoutFifo
-	taskConfig.StderrPath = tr.logmonHookConfig.stderrFifo
+	taskConfig := tr.buildTaskConfig()
 
 	// TODO: load variables
 	evalCtx := &hcl.EvalContext{
@@ -438,16 +433,11 @@ func (tr *TaskRunner) runDriver() error {
 
 	val, diag := shared.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
 	if diag.HasErrors() {
-		errStr := "failed to parse config"
-		for _, err := range diag.Errs() {
-			errStr = fmt.Sprintf("%s\n* %s", errStr, err.Error())
-		}
-		return errors.New(errStr)
+		return multierror.Append(errors.New("failed to parse config"), diag.Errs()...)
 	}
 
 	if err := taskConfig.EncodeDriverConfig(val); err != nil {
-		tr.logger.Warn("failed to encode driver config", "error", err)
-		return err
+		return fmt.Errorf("failed to encode driver config: %v", err)
 	}
 
 	//TODO mounts and devices
@@ -456,25 +446,17 @@ func (tr *TaskRunner) runDriver() error {
 	// Start the job
 	handle, net, err := tr.driver.StartTask(taskConfig)
 	if err != nil {
-		tr.logger.Warn("driver start failed", "error", err)
-		return err
+		return fmt.Errorf("driver start failed: %v", err)
 	}
-	tr.network = net
 
 	tr.localStateLock.Lock()
 	tr.localState.TaskHandle = handle
 	tr.localStateLock.Unlock()
 
-	tr.updateDriverHandle(taskConfig.ID)
+	tr.setDriverHandle(NewDriverHandle(tr.driver, taskConfig.ID, tr.Task(), net))
 	// Emit an event that we started
 	tr.UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 	return nil
-}
-
-func (tr *TaskRunner) updateDriverHandle(taskID string) {
-	tr.handleLock.Lock()
-	defer tr.handleLock.Unlock()
-	tr.handle = NewDriverHandle(tr.driver, taskID, tr.Task(), tr.network)
 }
 
 // initDriver creates the driver for the task
@@ -527,7 +509,10 @@ func (tr *TaskRunner) initDriver() error {
 	if err != nil {
 		return err
 	}
-	spec, _ := hclspec.Convert(schema)
+	spec, diag := hclspec.Convert(schema)
+	if diag.HasErrors() {
+		return multierror.Append(errors.New("failed to convert task schema"), diag.Errs()...)
+	}
 	tr.taskSchema = spec
 
 	caps, err := tr.driver.Capabilities()
@@ -575,9 +560,22 @@ func (tr *TaskRunner) persistLocalState() error {
 	return tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState)
 }
 
-// buildID builds a consistent unique ID for the task from the alloc ID, task name and restart attempt
-func (tr *TaskRunner) buildID() string {
-	return fmt.Sprintf("%s/%s/%d", tr.allocID, tr.taskName, tr.restartTracker.GetCount())
+// buildTaskConfig builds a drivers.TaskConfig with an unique ID for the task.
+// The ID is consistently built from the alloc ID, task name and restart attempt.
+func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
+	return &drivers.TaskConfig{
+		ID:   fmt.Sprintf("%s/%s/%d", tr.allocID, tr.taskName, tr.restartTracker.GetCount()),
+		Name: tr.task.Name,
+		Resources: &drivers.Resources{
+			NomadResources: tr.task.Resources,
+			//TODO Calculate the LinuxResources
+		},
+		Env:        tr.envBuilder.Build().Map(),
+		User:       tr.task.User,
+		AllocDir:   tr.taskDir.AllocDir,
+		StdoutPath: tr.logmonHookConfig.stdoutFifo,
+		StderrPath: tr.logmonHookConfig.stderrFifo,
+	}
 }
 
 // XXX If the objects don't exists since the client shutdown before the task
