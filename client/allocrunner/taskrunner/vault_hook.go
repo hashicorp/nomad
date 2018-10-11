@@ -240,7 +240,7 @@ OUTER:
 				}
 
 				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
-				if err := h.lifecycle.Signal(event, s); err != nil {
+				if err := h.lifecycle.Signal(event, h.vaultStanza.ChangeSignal); err != nil {
 					h.logger.Error("failed to send signal", "error", err)
 					h.lifecycle.Kill(h.ctx,
 						structs.NewTaskEvent(structs.TaskKilling).

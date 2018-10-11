@@ -168,7 +168,7 @@ func (tr *TaskRunner) poststart() error {
 		}()
 	}
 
-	handle, _ := tr.getDriverHandle()
+	handle := tr.getDriverHandle()
 	net := handle.Network()
 
 	var merr multierror.Error

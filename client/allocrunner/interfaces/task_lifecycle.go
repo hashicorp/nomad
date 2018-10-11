@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -82,7 +82,7 @@ type DriverStats interface {
 
 type TaskPoststartRequest struct {
 	// Exec hook (may be nil)
-	DriverExec driver.ScriptExecutor
+	DriverExec interfaces.ScriptExecutor
 
 	// Network info (may be nil)
 	DriverNetwork *cstructs.DriverNetwork

@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // LocalState is Task state which is persisted for use when restarting Nomad
@@ -13,6 +14,9 @@ type LocalState struct {
 	// DriverNetwork is the network information returned by the task
 	// driver's Start method
 	DriverNetwork *structs.DriverNetwork
+
+	// TaskHandle is the handle used to reattach to the task during recovery
+	TaskHandle *drivers.TaskHandle
 }
 
 func NewLocalState() *LocalState {
@@ -26,7 +30,8 @@ func (s *LocalState) Copy() *LocalState {
 	// Create a copy
 	c := &LocalState{
 		Hooks:         make(map[string]*HookState, len(s.Hooks)),
-		DriverNetwork: s.DriverNetwork,
+		DriverNetwork: s.DriverNetwork.Copy(),
+		TaskHandle:    s.TaskHandle.Copy(),
 	}
 
 	// Copy the hooks

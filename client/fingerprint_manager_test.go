@@ -4,13 +4,20 @@ import (
 	"fmt"
 	"testing"
 
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+
+	// registering raw_exec driver plugin used in testing
+	_ "github.com/hashicorp/nomad/drivers/rawexec"
 )
 
 func TestFingerprintManager_Run_MockDriver(t *testing.T) {
+	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 	testClient := TestClient(t, nil)
@@ -19,6 +26,7 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -46,6 +54,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -67,12 +76,17 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, nil)
+	testClient := TestClient(t, func(c *config.Config) {
+		c.Options = map[string]string{
+			"driver.raw_exec.enable": "true",
+		}
+	})
 
 	testClient.logger = testlog.HCLogger(t)
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -92,6 +106,7 @@ func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 }
 
 func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
+	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 	testClient := TestClient(t, func(c *config.Config) {
@@ -105,6 +120,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -153,6 +169,7 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 // This is a temporary measure to check that a driver has both attributes on a
 // node set as well as DriverInfo.
 func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
+	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 	testClient := TestClient(t, func(c *config.Config) {
@@ -167,6 +184,7 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -254,6 +272,7 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 }
 
 func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
+	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 	testClient := TestClient(t, func(c *config.Config) {
@@ -267,6 +286,7 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -349,6 +369,7 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
+	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
@@ -363,6 +384,7 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -393,6 +415,7 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -425,6 +448,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -458,6 +482,7 @@ func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -480,6 +505,7 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 
 	testClient := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
+			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   foo,bar,baz	",
 		}
 	})
@@ -488,6 +514,7 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -502,8 +529,9 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 	node := testClient.config.Node
 
 	require.NotContains(node.Attributes, "driver.raw_exec")
-	require.NotContains(node.Attributes, "driver.exec")
-	require.NotContains(node.Attributes, "driver.docker")
+	// TODO(nickethier): uncomment after missing driver implementations added
+	//require.NotContains(node.Attributes, "driver.exec")
+	//require.NotContains(node.Attributes, "driver.docker")
 }
 
 func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.T) {
@@ -522,6 +550,7 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,
@@ -537,6 +566,60 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 
 	require.NotNil(node.Drivers["raw_exec"])
 	require.NotContains(node.Drivers, "exec")
+}
+
+func TestFingerprintManager_Run_DriverFailure(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	testClient := TestClient(t, func(c *config.Config) {
+		c.Options = map[string]string{
+			"driver.raw_exec.enable": "1",
+		}
+	})
+
+	testClient.logger = testlog.HCLogger(t)
+	defer testClient.Shutdown()
+
+	singLoader := testClient.config.PluginSingletonLoader
+
+	dispenseCalls := 0
+	loader := &loader.MockCatalog{
+		DispenseF: func(name, pluginType string, logger log.Logger) (loader.PluginInstance, error) {
+			if pluginType == base.PluginTypeDriver && name == "raw_exec" {
+				dispenseCalls++
+			}
+			return singLoader.Dispense(name, pluginType, logger)
+		},
+		ReattachF: singLoader.Reattach,
+		CatalogF:  singLoader.Catalog,
+	}
+
+	fm := NewFingerprintManager(
+		loader,
+		testClient.GetConfig,
+		testClient.config.Node,
+		testClient.shutdownCh,
+		testClient.updateNodeFromFingerprint,
+		testClient.updateNodeFromDriver,
+		testClient.logger,
+	)
+
+	fpChan, cancel, err := fm.dispenseDriverFingerprint("raw_exec")
+	require.NoError(err)
+	require.Equal(1, dispenseCalls)
+
+	cancel()
+	go fm.watchDriverFingerprint(fpChan, "raw_exec", cancel)
+
+	testutil.WaitForResult(func() (bool, error) {
+		if 2 != dispenseCalls {
+			return false, fmt.Errorf("expected dispenseCalls to be 2 but was %d", dispenseCalls)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 }
 
 func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
@@ -555,6 +638,7 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 	defer testClient.Shutdown()
 
 	fm := NewFingerprintManager(
+		testClient.config.PluginSingletonLoader,
 		testClient.GetConfig,
 		testClient.config.Node,
 		testClient.shutdownCh,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -49,13 +50,13 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 
 		switch resp.Capabilities.FsIsolation {
 		case proto.DriverCapabilities_NONE:
-			caps.FSIsolation = FSIsolationNone
+			caps.FSIsolation = cstructs.FSIsolationNone
 		case proto.DriverCapabilities_CHROOT:
-			caps.FSIsolation = FSIsolationChroot
+			caps.FSIsolation = cstructs.FSIsolationChroot
 		case proto.DriverCapabilities_IMAGE:
-			caps.FSIsolation = FSIsolationImage
+			caps.FSIsolation = cstructs.FSIsolationImage
 		default:
-			caps.FSIsolation = FSIsolationNone
+			caps.FSIsolation = cstructs.FSIsolationNone
 		}
 	}
 
@@ -66,37 +67,44 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 func (d *driverPluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
 	req := &proto.FingerprintRequest{}
 
-	stream, err := d.client.Fingerprint(context.Background(), req)
+	stream, err := d.client.Fingerprint(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	ch := make(chan *Fingerprint)
-	go d.handleFingerprint(ch, stream)
+	go d.handleFingerprint(ctx, ch, stream)
 
 	return ch, nil
 }
 
-func (d *driverPluginClient) handleFingerprint(ch chan *Fingerprint, stream proto.Driver_FingerprintClient) {
+func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fingerprint, stream proto.Driver_FingerprintClient) {
 	defer close(ch)
 	for {
 		pb, err := stream.Recv()
 		if err == io.EOF {
-			break
+			return
 		}
 		if err != nil {
 			d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
-			ch <- &Fingerprint{Err: fmt.Errorf("error from RPC stream: %v", err)}
-			break
+			select {
+			case <-ctx.Done():
+			case ch <- &Fingerprint{Err: fmt.Errorf("error from RPC stream: %v", err)}:
+			}
+			return
 		}
 		f := &Fingerprint{
 			Attributes:        pb.Attributes,
 			Health:            healthStateFromProto(pb.Health),
 			HealthDescription: pb.HealthDescription,
 		}
-		ch <- f
-	}
 
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- f:
+		}
+	}
 }
 
 // RecoverTask does internal state recovery to be able to control the task of
@@ -111,17 +119,29 @@ func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
 // StartTask starts execution of a task with the given TaskConfig. A TaskHandle
 // is returned to the caller that can be used to recover state of the task,
 // should the driver crash or exit prematurely.
-func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, error) {
+func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error) {
 	req := &proto.StartTaskRequest{
 		Task: taskConfigToProto(c),
 	}
 
 	resp, err := d.client.StartTask(context.Background(), req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return taskHandleFromProto(resp.Handle), nil
+	var net *cstructs.DriverNetwork
+	if resp.NetworkOverride != nil {
+		net = &cstructs.DriverNetwork{
+			PortMap:       map[string]int{},
+			IP:            resp.NetworkOverride.Addr,
+			AutoAdvertise: resp.NetworkOverride.AutoAdvertise,
+		}
+		for k, v := range resp.NetworkOverride.PortMap {
+			net.PortMap[k] = int(v)
+		}
+	}
+
+	return taskHandleFromProto(resp.Handle), net, nil
 }
 
 // WaitTask returns a channel that will have an ExitResult pushed to it once when the task
@@ -201,10 +221,13 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 		status.DriverAttributes = resp.Driver.Attributes
 	}
 	if resp.NetworkOverride != nil {
-		status.NetworkOverride = &NetworkOverride{
-			PortMap:       resp.NetworkOverride.PortMap,
-			Addr:          resp.NetworkOverride.Addr,
+		status.NetworkOverride = &cstructs.DriverNetwork{
+			PortMap:       map[string]int{},
+			IP:            resp.NetworkOverride.Addr,
 			AutoAdvertise: resp.NetworkOverride.AutoAdvertise,
+		}
+		for k, v := range resp.NetworkOverride.PortMap {
+			status.NetworkOverride.PortMap[k] = int(v)
 		}
 	}
 
@@ -212,7 +235,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 }
 
 // TaskStats returns resource usage statistics for the task
-func (d *driverPluginClient) TaskStats(taskID string) (*TaskStats, error) {
+func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	req := &proto.TaskStatsRequest{TaskId: taskID}
 
 	resp, err := d.client.TaskStats(context.Background(), req)

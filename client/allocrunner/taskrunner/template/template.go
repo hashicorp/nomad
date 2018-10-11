@@ -448,7 +448,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 					for signal := range signals {
 						s := tm.signals[signal]
 						event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
-						if err := tm.config.Lifecycle.Signal(event, s); err != nil {
+						if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
 							multierror.Append(&mErr, err)
 						}
 					}

@@ -12,13 +12,39 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	"github.com/hashicorp/nomad/plugins/shared/catalog"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"golang.org/x/net/context"
 )
+
+// When the package is loaded the driver is registered as an internal plugin
+// with the plugin catalog
+func init() {
+	catalog.RegisterDeferredConfig(loader.PluginID{
+		Name:       pluginName,
+		PluginType: base.PluginTypeDriver,
+	}, &loader.InternalPluginConfig{
+		Config:  map[string]interface{}{},
+		Factory: func(l hclog.Logger) interface{} { return NewRawExecDriver(l) },
+	},
+		func(opts map[string]string) (map[string]interface{}, error) {
+			conf := map[string]interface{}{}
+			if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
+				conf["enabled"] = v
+			}
+			if v, err := strconv.ParseBool(opts["driver.raw_exec.no_cgroups"]); err == nil {
+				conf["no_cgroups"] = v
+			}
+			return conf, nil
+		},
+	)
+}
 
 const (
 	// pluginName is the name of the plugin
@@ -53,7 +79,7 @@ var (
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"command": hclspec.NewAttr("command", "string", true),
-		"args":    hclspec.NewAttr("command", "list(string)", false),
+		"args":    hclspec.NewAttr("args", "list(string)", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -61,7 +87,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: drivers.FSIsolationNone,
+		FSIsolation: cstructs.FSIsolationNone,
 	}
 )
 
@@ -96,16 +122,16 @@ type RawExecDriver struct {
 type Config struct {
 	// NoCgroups tracks whether we should use a cgroup to manage the process
 	// tree
-	NoCgroups bool `codec:"no_cgroups"`
+	NoCgroups bool `codec:"no_cgroups" cty:"no_cgroups"`
 
 	// Enabled is set to true to enable the raw_exec driver
-	Enabled bool `codec:"enabled"`
+	Enabled bool `codec:"enabled" cty:"enabled"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
-	Command string   `codec:"command"`
-	Args    []string `codec:"args"`
+	Command string   `codec:"command" cty:"command"`
+	Args    []string `codec:"args" cty:"args"`
 }
 
 // RawExecTaskState is the state which is encoded in the handle returned in
@@ -170,6 +196,7 @@ func (r *RawExecDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Finger
 }
 
 func (r *RawExecDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
+	defer close(ch)
 	ticker := time.NewTimer(0)
 	for {
 		select {
@@ -247,16 +274,17 @@ func (r *RawExecDriver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, error) {
+func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
 	if _, ok := r.tasks.Get(cfg.ID); ok {
-		return nil, fmt.Errorf("task with ID %q already started", cfg.ID)
+		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
 
 	var driverConfig TaskConfig
 	if err := cfg.DecodeDriverConfig(&driverConfig); err != nil {
-		return nil, fmt.Errorf("failed to decode driver config: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	r.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
 	handle := drivers.NewTaskHandle(pluginName)
 	handle.Config = cfg
 
@@ -269,7 +297,7 @@ func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle,
 	// TODO: best way to pass port ranges in from client config
 	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, 14000, 14512, executorConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create executor: %v", err)
+		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
 	execCmd := &executor.ExecCommand{
@@ -286,7 +314,7 @@ func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle,
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to launch command with executor: %v", err)
+		return nil, nil, fmt.Errorf("failed to launch command with executor: %v", err)
 	}
 
 	h := &rawExecTaskHandle{
@@ -310,12 +338,12 @@ func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle,
 		r.logger.Error("failed to start task, error setting driver state", "error", err)
 		exec.Shutdown("", 0)
 		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set driver state: %v", err)
+		return nil, nil, fmt.Errorf("failed to set driver state: %v", err)
 	}
 
 	r.tasks.Set(cfg.ID, h)
 	go h.run()
-	return handle, nil
+	return handle, nil, nil
 }
 
 func (r *RawExecDriver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
@@ -418,23 +446,13 @@ func (r *RawExecDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) 
 	return status, nil
 }
 
-func (r *RawExecDriver) TaskStats(taskID string) (*drivers.TaskStats, error) {
+func (r *RawExecDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	handle, ok := r.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	stats, err := handle.exec.Stats()
-	if err != nil {
-		return nil, err
-	}
-
-	return &drivers.TaskStats{
-		ID:                 handle.task.ID,
-		Timestamp:          stats.Timestamp,
-		AggResourceUsage:   stats.ResourceUsage,
-		ResourceUsageByPid: stats.Pids,
-	}, nil
+	return handle.exec.Stats()
 }
 
 func (r *RawExecDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {

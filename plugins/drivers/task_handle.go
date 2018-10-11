@@ -27,3 +27,10 @@ func (h *TaskHandle) GetDriverState(v interface{}) error {
 	return base.MsgPackDecode(h.driverState, v)
 
 }
+
+func (h *TaskHandle) Copy() *TaskHandle {
+	handle := new(TaskHandle)
+	*handle = *h
+	handle.Config = h.Config.Copy()
+	return handle
+}

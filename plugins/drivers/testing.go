@@ -15,6 +15,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/logmon"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -150,12 +151,12 @@ type MockDriver struct {
 	FingerprintF      func(context.Context) (<-chan *Fingerprint, error)
 	CapabilitiesF     func() (*Capabilities, error)
 	RecoverTaskF      func(*TaskHandle) error
-	StartTaskF        func(*TaskConfig) (*TaskHandle, error)
+	StartTaskF        func(*TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error)
 	WaitTaskF         func(context.Context, string) (<-chan *ExitResult, error)
 	StopTaskF         func(string, time.Duration, string) error
 	DestroyTaskF      func(string, bool) error
 	InspectTaskF      func(string) (*TaskStatus, error)
-	TaskStatsF        func(string) (*TaskStats, error)
+	TaskStatsF        func(string) (*cstructs.TaskResourceUsage, error)
 	TaskEventsF       func(context.Context) (<-chan *TaskEvent, error)
 	SignalTaskF       func(string, string) error
 	ExecTaskF         func(string, []string, time.Duration) (*ExecTaskResult, error)
@@ -165,9 +166,11 @@ func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskCo
 func (d *MockDriver) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
 	return d.FingerprintF(ctx)
 }
-func (d *MockDriver) Capabilities() (*Capabilities, error)         { return d.CapabilitiesF() }
-func (d *MockDriver) RecoverTask(h *TaskHandle) error              { return d.RecoverTaskF(h) }
-func (d *MockDriver) StartTask(c *TaskConfig) (*TaskHandle, error) { return d.StartTaskF(c) }
+func (d *MockDriver) Capabilities() (*Capabilities, error) { return d.CapabilitiesF() }
+func (d *MockDriver) RecoverTask(h *TaskHandle) error      { return d.RecoverTaskF(h) }
+func (d *MockDriver) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error) {
+	return d.StartTaskF(c)
+}
 func (d *MockDriver) WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error) {
 	return d.WaitTaskF(ctx, id)
 }
@@ -178,7 +181,9 @@ func (d *MockDriver) DestroyTask(taskID string, force bool) error {
 	return d.DestroyTaskF(taskID, force)
 }
 func (d *MockDriver) InspectTask(taskID string) (*TaskStatus, error) { return d.InspectTaskF(taskID) }
-func (d *MockDriver) TaskStats(taskID string) (*TaskStats, error)    { return d.TaskStats(taskID) }
+func (d *MockDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+	return d.TaskStats(taskID)
+}
 func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
 	return d.TaskEventsF(ctx)
 }
