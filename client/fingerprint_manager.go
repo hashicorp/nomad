@@ -271,7 +271,7 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 // health checking a driver
 func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fingerprint, name string, cancel context.CancelFunc) {
 	var backoff time.Duration
-	var i int
+	var retry int
 	for {
 		if backoff > 0 {
 			time.Sleep(backoff)
@@ -288,7 +288,7 @@ func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fing
 			// if the channel is closed attempt to open a new one
 			newFpChan, newCancel, err := fm.dispenseDriverFingerprint(name)
 			if err != nil {
-				fm.logger.Warn("failed to fingerprint driver, retrying in 30s", "error", err)
+				fm.logger.Warn("failed to fingerprint driver, retrying in 30s", "error", err, "retry", retry)
 				di := &structs.DriverInfo{
 					Healthy:           false,
 					HealthDescription: "failed to fingerprint driver",
@@ -299,11 +299,11 @@ func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fing
 				}
 
 				// Calculate the new backoff
-				backoff = (1 << (2 * uint64(i))) * driverFPBackoffBaseline
+				backoff = (1 << (2 * uint64(retry))) * driverFPBackoffBaseline
 				if backoff > driverFPBackoffLimit {
 					backoff = driverFPBackoffLimit
 				}
-				i++
+				retry++
 				continue
 			}
 			cancel()
@@ -312,7 +312,7 @@ func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fing
 
 			// Reset backoff
 			backoff = 0
-			i = 0
+			retry = 0
 		}
 	}
 }
