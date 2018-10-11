@@ -33,8 +33,9 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	// Drain the wait channel or wait for the request context to be canceled
 	waitCh, err := handle.WaitCh(ctx)
 	if err != nil {
-		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", err)
+		return err
 	}
+
 	<-waitCh
 	return nil
 }
