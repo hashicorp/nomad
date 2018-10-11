@@ -121,6 +121,14 @@ type RequestedDevice struct {
 
 	// Count is the number of requested devices
 	Count *uint64
+
+	// Constraints are a set of constraints to apply when selecting the device
+	// to use.
+	Constraints []*Constraint
+
+	// Affinities are a set of affinites to apply when selecting the device
+	// to use.
+	Affinities []*Affinity
 }
 
 func (d *RequestedDevice) Canonicalize() {

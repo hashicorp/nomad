@@ -2032,6 +2032,15 @@ type RequestedDevice struct {
 
 	// Count is the number of requested devices
 	Count uint64
+
+	// TODO validate
+	// Constraints are a set of constraints to apply when selecting the device
+	// to use.
+	Constraints []*Constraint
+
+	// Affinities are a set of affinites to apply when selecting the device
+	// to use.
+	Affinities []*Affinity
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -2040,6 +2049,9 @@ func (r *RequestedDevice) Copy() *RequestedDevice {
 	}
 
 	nr := *r
+	nr.Constraints = CopySliceConstraints(nr.Constraints)
+	nr.Affinities = CopySliceAffinities(nr.Affinities)
+
 	return &nr
 }
 

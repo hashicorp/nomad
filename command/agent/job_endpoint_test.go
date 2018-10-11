@@ -1420,6 +1420,21 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								{
 									Name:  "nvidia/gpu",
 									Count: helper.Uint64ToPtr(4),
+									Constraints: []*api.Constraint{
+										{
+											LTarget: "x",
+											RTarget: "y",
+											Operand: "z",
+										},
+									},
+									Affinities: []*api.Affinity{
+										{
+											LTarget: "a",
+											RTarget: "b",
+											Operand: "c",
+											Weight:  50,
+										},
+									},
 								},
 								{
 									Name:  "gpu",
@@ -1704,6 +1719,21 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								{
 									Name:  "nvidia/gpu",
 									Count: 4,
+									Constraints: []*structs.Constraint{
+										{
+											LTarget: "x",
+											RTarget: "y",
+											Operand: "z",
+										},
+									},
+									Affinities: []*structs.Affinity{
+										{
+											LTarget: "a",
+											RTarget: "b",
+											Operand: "c",
+											Weight:  50,
+										},
+									},
 								},
 								{
 									Name:  "gpu",

@@ -199,6 +199,17 @@ job "binstore-storagelocker" {
 
         device "nvidia/gpu" {
             count = 10
+            constraint {
+              attribute = "${driver.attr.memory}"
+              value = "2GB"
+              operator = ">"
+            }
+
+            affinity {
+              attribute = "${driver.model}"
+              value     = "1080ti"
+              weight = 50
+            }
         }
         
         device "intel/gpu" {}
