@@ -90,7 +90,6 @@ func (tr *TaskRunner) prestart() error {
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrestartHook)
 		if !ok {
-			tr.logger.Trace("skipping non-prestart hook", "name", hook.Name())
 			continue
 		}
 
@@ -286,7 +285,7 @@ func (tr *TaskRunner) stop() error {
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
-			tr.logger.Trace("finished stop hooks", "name", name, "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished stop hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 
@@ -313,7 +312,6 @@ func (tr *TaskRunner) updateHooks() {
 	for _, hook := range tr.runnerHooks {
 		upd, ok := hook.(interfaces.TaskUpdateHook)
 		if !ok {
-			tr.logger.Trace("skipping non-update hook", "name", hook.Name())
 			continue
 		}
 
@@ -362,7 +360,6 @@ func (tr *TaskRunner) kill() {
 	for _, hook := range tr.runnerHooks {
 		upd, ok := hook.(interfaces.TaskKillHook)
 		if !ok {
-			tr.logger.Trace("skipping non-kill hook", "name", hook.Name())
 			continue
 		}
 
@@ -386,7 +383,7 @@ func (tr *TaskRunner) kill() {
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
-			tr.logger.Trace("finished kill hooks", "name", name, "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished kill hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 }
