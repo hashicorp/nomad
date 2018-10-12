@@ -16,6 +16,11 @@ func (tr *TaskRunner) setAlloc(updated *structs.Allocation) {
 	tr.allocLock.Unlock()
 }
 
+// IsLeader returns true if this task is the leader of its task group.
+func (tr *TaskRunner) IsLeader() bool {
+	return tr.taskLeader
+}
+
 func (tr *TaskRunner) Task() *structs.Task {
 	tr.taskLock.RLock()
 	defer tr.taskLock.RUnlock()
