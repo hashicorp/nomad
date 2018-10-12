@@ -635,7 +635,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 		if !res.Successful() {
 			t.Fatalf("err: %v", res)
 		}
-	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
+	case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
 		t.Fatalf("timeout")
 	}
 
