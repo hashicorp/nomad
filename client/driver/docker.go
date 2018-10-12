@@ -397,6 +397,12 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
 		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
 
+		if m.Type == "" {
+			// default to `volume` type for backwards compatibility
+			// TODO: talk to AD about placement of default
+			m.Type = "volume"
+		}
+
 		if m.Type != "bind" && m.Type != "volume" {
 			return nil, fmt.Errorf(`Docker mount type must be "bind" or "volume"`)
 		}
