@@ -673,7 +673,8 @@ func TestRktDriver_Exec(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-//  Verifies executing both correct and incorrect commands inside the container
+//  Verifies getting resource usage stats
+// TODO(preetha) figure out why stats are zero
 func TestRktDriver_Stats(t *testing.T) {
 	ctestutil.RktCompatible(t)
 	if !testutil.IsTravis() {
@@ -702,6 +703,7 @@ func TestRktDriver_Stats(t *testing.T) {
 	taskConfig := map[string]interface{}{
 		"trust_prefix": "coreos.com/etcd",
 		"image":        "coreos.com/etcd:v2.0.4",
+		"command":      "/etcd",
 		"net":          []string{"none"},
 	}
 
@@ -711,35 +713,25 @@ func TestRktDriver_Stats(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	_, _, err := harness.StartTask(task)
+	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
 
-	// Run command that should succeed
-	expected := []byte("etcd version")
-	testutil.WaitForResult(func() (bool, error) {
-		res, err := d.ExecTask(task.ID, []string{"/etcd", "--version"}, time.Second)
-		require.NoError(err)
-		require.True(res.ExitResult.Successful())
-		raw := res.Stdout
-		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	// Wait for task to start
+	_, err = harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
 
-	// Run command that should fail
-	expected = []byte("flag provided but not defined")
-	testutil.WaitForResult(func() (bool, error) {
-		res, err := d.ExecTask(task.ID, []string{"/etcd", "--cgdfgdfg"}, time.Second)
-		require.False(res.ExitResult.Successful())
-		fmt.Println(err)
-		fmt.Println(res.ExitResult.ExitCode)
-		raw := res.Stdout
-		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	// Wait until task started
+	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
+
+	resourceUsage, err := d.TaskStats(task.ID)
+	require.Nil(err)
+
+	//TODO(preetha) why are these zero
+	fmt.Printf("pid map %v\n", resourceUsage.Pids)
+	fmt.Printf("CPU:%+v Memory:%+v", resourceUsage.ResourceUsage.CpuStats, resourceUsage.ResourceUsage.MemoryStats)
 
 	require.NoError(harness.DestroyTask(task.ID, true))
+
 }
 
 func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
