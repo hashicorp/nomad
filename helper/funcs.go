@@ -77,6 +77,11 @@ func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
 }
 
+// Float64ToPtr returns the pointer to an float64
+func Float64ToPtr(f float64) *float64 {
+	return &f
+}
+
 func IntMin(a, b int) int {
 	if a < b {
 		return a

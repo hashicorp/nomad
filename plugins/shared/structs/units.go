@@ -1,7 +1,17 @@
-package structs.
+package structs
+
+import "sort"
 
 var (
-	UnitIndex = make(map[string]*Unit, len(binarySIBytes)+len(decimalSIBytes)+len(binarySIByteRates)+len(decimalSIByteRates)+len(watts)+len(hertz))
+	// numUnits is the number of known units
+	numUnits = len(binarySIBytes) + len(decimalSIBytes) + len(binarySIByteRates) + len(decimalSIByteRates) + len(watts) + len(hertz)
+
+	// UnitIndex is a map of unit name to unit
+	UnitIndex = make(map[string]*Unit, numUnits)
+
+	// lengthSortedUnits is a list of unit names sorted by length with longest
+	// first
+	lengthSortedUnits = make([]string, 0, numUnits)
 
 	binarySIBytes = []*Unit{
 		&Unit{
@@ -193,6 +203,11 @@ func init() {
 	for _, units := range [][]*Unit{binarySIBytes, decimalSIBytes, binarySIByteRates, decimalSIByteRates, watts, hertz} {
 		for _, unit := range units {
 			UnitIndex[unit.Name] = unit
+			lengthSortedUnits = append(lengthSortedUnits, unit.Name)
 		}
 	}
+
+	sort.Slice(lengthSortedUnits, func(i, j int) bool {
+		return len(lengthSortedUnits[i]) >= len(lengthSortedUnits[j])
+	})
 }
