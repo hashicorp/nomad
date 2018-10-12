@@ -146,10 +146,10 @@ func resourcesToProto(r *Resources) *proto.Resources {
 			Memory:   int64(r.NomadResources.MemoryMB),
 			Iops:     int64(r.NomadResources.IOPS),
 			Disk:     int64(r.NomadResources.DiskMB),
-			Networks: []*proto.NetworkResource{},
+			Networks: make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
 		}
 
-		for _, network := range r.NomadResources.Networks {
+		for i, network := range r.NomadResources.Networks {
 			var n proto.NetworkResource
 			n.Device = network.Device
 			n.Ip = network.IP
@@ -168,6 +168,7 @@ func resourcesToProto(r *Resources) *proto.Resources {
 					Value: int32(port.Value),
 				})
 			}
+			pb.RawResources.Networks[i] = &n
 		}
 	}
 
