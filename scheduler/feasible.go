@@ -774,9 +774,10 @@ OUTER:
 type DeviceChecker struct {
 	ctx Context
 
-	// required is a mapping of devices that must exist on the node to the count
-	// requested
-	required map[*structs.DeviceIdTuple]uint64
+	// required is a mapping of devices that must exist on the node
+	//required map[*structs.DeviceIdTuple][]*structs.RequestedDevice
+
+	required []*structs.RequestedDevice
 
 	// requiresDevices indicates if the task group requires devices
 	requiresDevices bool
@@ -790,11 +791,9 @@ func NewDeviceChecker(ctx Context) *DeviceChecker {
 }
 
 func (c *DeviceChecker) SetTaskGroup(tg *structs.TaskGroup) {
-	c.required = make(map[*structs.DeviceIdTuple]uint64)
+	c.required = nil
 	for _, task := range tg.Tasks {
-		for _, d := range task.Resources.Devices {
-			c.required[d.ID()] = d.Count
-		}
+		c.required = append(c.required, task.Resources.Devices...)
 	}
 	c.requiresDevices = len(c.required) != 0
 }
@@ -826,8 +825,8 @@ func (c *DeviceChecker) hasDevices(option *structs.Node) bool {
 		return false
 	}
 
-	// Create a list of the device IDs to their count
-	nodeDevIDs := make(map[*structs.DeviceIdTuple]uint64, len(nodeDevs))
+	// Create a mapping of node devices to the remaining count
+	available := make(map[*structs.NodeDeviceResource]uint64, len(nodeDevs))
 	for _, d := range nodeDevs {
 		var healthy uint64 = 0
 		for _, instance := range d.Instances {
@@ -835,31 +834,59 @@ func (c *DeviceChecker) hasDevices(option *structs.Node) bool {
 				healthy++
 			}
 		}
-		nodeDevIDs[d.ID()] = healthy
+		if healthy != 0 {
+			available[d] = healthy
+		}
 	}
 
+	// Go through the required devices trying to find matches
 OUTER:
-	for reqDev, reqCount := range c.required {
+	for _, req := range c.required {
+		// Determine how many there are to place
+		desiredCount := req.Count
+		//desiredCount := remainingRequested[req]
 
-		// It may take multiple device groups to satisfy the request
-		var found uint64 = 0
-
-		for nodeDev, healthyCount := range nodeDevIDs {
-			// The node device doesn't matches this request so skip
-			if !nodeDev.Matches(reqDev) {
+		// Go through the device resources and see if we have a match
+		for d, unused := range available {
+			if unused == 0 {
+				// Depleted
 				continue
 			}
 
-			// Add the instances we have found that match. If this matches or
-			// exceeds the request, we have enough to satisfy the request.
-			found += healthyCount
-			if found >= reqCount {
-				continue OUTER
+			if NodeDeviceMatches(d, req) {
+				// Consume the instances
+				if unused >= desiredCount {
+					// This device satisfies all our requests
+					available[d] -= desiredCount
+
+					// Move on to the next request
+					continue OUTER
+				} else {
+					// This device partially satisfies our requests
+					available[d] = 0
+					desiredCount -= unused
+				}
 			}
 		}
 
-		// No device matched the request so skip
+		// We couldn't match the request for the device
+		if desiredCount > 0 {
+			return false
+		}
+	}
+
+	// Only satisfied if there are no more devices to place
+	return true
+}
+
+func NodeDeviceMatches(d *structs.NodeDeviceResource, req *structs.RequestedDevice) bool {
+	if !d.ID().Matches(req.ID()) {
 		return false
+	}
+
+	// There are no constraints to consider
+	if len(req.Constraints) == 0 {
+		return true
 	}
 
 	return true

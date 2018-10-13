@@ -1621,8 +1621,6 @@ func TestSetContainsAny(t *testing.T) {
 }
 
 func TestDeviceChecker(t *testing.T) {
-	_, ctx := testContext(t)
-
 	getTg := func(devices ...*structs.RequestedDevice) *structs.TaskGroup {
 		return &structs.TaskGroup{
 			Name: "example",
@@ -1802,6 +1800,7 @@ func TestDeviceChecker(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			_, ctx := testContext(t)
 			checker := NewDeviceChecker(ctx)
 			checker.SetTaskGroup(getTg(c.RequestedDevices...))
 			if act := checker.Feasible(getNode(c.NodeDevices...)); act != c.Result {
