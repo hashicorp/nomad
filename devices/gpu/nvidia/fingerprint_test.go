@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -359,7 +360,7 @@ func TestAttributesFromFingerprintDeviceData(t *testing.T) {
 	for _, testCase := range []struct {
 		Name                  string
 		FingerprintDeviceData *nvml.FingerprintDeviceData
-		ExpectedResult        map[string]string
+		ExpectedResult        map[string]*structs.Attribute
 	}{
 		{
 			Name: "All attributes are not nil",
@@ -378,19 +379,41 @@ func TestAttributesFromFingerprintDeviceData(t *testing.T) {
 				DisplayState:       "Enabled",
 				PersistenceMode:    "Enabled",
 			},
-			ExpectedResult: map[string]string{
-				MemoryMiBAttr:          "256",
-				PowerWAttr:             "2",
-				BAR1MiBAttr:            "256",
-				PCIBandwidthMBPerSAttr: "1",
-				CoresClockMHzAttr:      "1",
-				MemoryClockMHzAttr:     "1",
-				DisplayStateAttr:       "Enabled",
-				PersistenceModeAttr:    "Enabled",
+			ExpectedResult: map[string]*structs.Attribute{
+				MemoryAttr: {
+					Int:  helper.Int64ToPtr(256),
+					Unit: structs.UnitMiB,
+				},
+				PowerAttr: {
+					Int:  helper.Int64ToPtr(2),
+					Unit: structs.UnitW,
+				},
+				BAR1Attr: {
+					Int:  helper.Int64ToPtr(256),
+					Unit: structs.UnitMiB,
+				},
+				PCIBandwidthAttr: {
+					Int:  helper.Int64ToPtr(1),
+					Unit: structs.UnitMBPerS,
+				},
+				CoresClockAttr: {
+					Int:  helper.Int64ToPtr(1),
+					Unit: structs.UnitMHz,
+				},
+				MemoryClockAttr: {
+					Int:  helper.Int64ToPtr(1),
+					Unit: structs.UnitMHz,
+				},
+				DisplayStateAttr: {
+					String: helper.StringToPtr("Enabled"),
+				},
+				PersistenceModeAttr: {
+					String: helper.StringToPtr("Enabled"),
+				},
 			},
 		},
 		{
-			Name: "MemoryMiB is nil and has to be replaced to N/A",
+			Name: "nil values are omitted",
 			FingerprintDeviceData: &nvml.FingerprintDeviceData{
 				DeviceData: &nvml.DeviceData{
 					UUID:       "1",
@@ -399,168 +422,31 @@ func TestAttributesFromFingerprintDeviceData(t *testing.T) {
 					PowerW:     helper.UintToPtr(2),
 					BAR1MiB:    helper.Uint64ToPtr(256),
 				},
-				PCIBusID:           "pciBusID1",
-				PCIBandwidthMBPerS: helper.UintToPtr(1),
-				CoresClockMHz:      helper.UintToPtr(1),
-				MemoryClockMHz:     helper.UintToPtr(1),
-				DisplayState:       "Enabled",
-				PersistenceMode:    "Enabled",
+				PCIBusID:        "pciBusID1",
+				DisplayState:    "Enabled",
+				PersistenceMode: "Enabled",
 			},
-			ExpectedResult: map[string]string{
-				MemoryMiBAttr:          notAvailable,
-				PowerWAttr:             "2",
-				BAR1MiBAttr:            "256",
-				PCIBandwidthMBPerSAttr: "1",
-				CoresClockMHzAttr:      "1",
-				MemoryClockMHzAttr:     "1",
-				DisplayStateAttr:       "Enabled",
-				PersistenceModeAttr:    "Enabled",
-			},
-		},
-		{
-			Name: "PowerW is nil and has to be replaced to N/A",
-			FingerprintDeviceData: &nvml.FingerprintDeviceData{
-				DeviceData: &nvml.DeviceData{
-					UUID:       "1",
-					DeviceName: helper.StringToPtr("Type1"),
-					MemoryMiB:  helper.Uint64ToPtr(256),
-					PowerW:     nil,
-					BAR1MiB:    helper.Uint64ToPtr(256),
+			ExpectedResult: map[string]*structs.Attribute{
+				PowerAttr: {
+					Int:  helper.Int64ToPtr(2),
+					Unit: structs.UnitW,
 				},
-				PCIBusID:           "pciBusID1",
-				PCIBandwidthMBPerS: helper.UintToPtr(1),
-				CoresClockMHz:      helper.UintToPtr(1),
-				MemoryClockMHz:     helper.UintToPtr(1),
-				DisplayState:       "Enabled",
-				PersistenceMode:    "Enabled",
-			},
-			ExpectedResult: map[string]string{
-				MemoryMiBAttr:          "256",
-				PowerWAttr:             notAvailable,
-				BAR1MiBAttr:            "256",
-				PCIBandwidthMBPerSAttr: "1",
-				CoresClockMHzAttr:      "1",
-				MemoryClockMHzAttr:     "1",
-				DisplayStateAttr:       "Enabled",
-				PersistenceModeAttr:    "Enabled",
-			},
-		},
-		{
-			Name: "BAR1MiB is nil and has to be replaced to N/A",
-			FingerprintDeviceData: &nvml.FingerprintDeviceData{
-				DeviceData: &nvml.DeviceData{
-					UUID:       "1",
-					DeviceName: helper.StringToPtr("Type1"),
-					MemoryMiB:  helper.Uint64ToPtr(256),
-					PowerW:     helper.UintToPtr(2),
-					BAR1MiB:    nil,
+				BAR1Attr: {
+					Int:  helper.Int64ToPtr(256),
+					Unit: structs.UnitMiB,
 				},
-				PCIBusID:           "pciBusID1",
-				PCIBandwidthMBPerS: helper.UintToPtr(1),
-				CoresClockMHz:      helper.UintToPtr(1),
-				MemoryClockMHz:     helper.UintToPtr(1),
-				DisplayState:       "Enabled",
-				PersistenceMode:    "Enabled",
-			},
-			ExpectedResult: map[string]string{
-				MemoryMiBAttr:          "256",
-				PowerWAttr:             "2",
-				BAR1MiBAttr:            notAvailable,
-				PCIBandwidthMBPerSAttr: "1",
-				CoresClockMHzAttr:      "1",
-				MemoryClockMHzAttr:     "1",
-				DisplayStateAttr:       "Enabled",
-				PersistenceModeAttr:    "Enabled",
-			},
-		},
-		{
-			Name: "PCIBandwidthMBPerS is nil and has to be replaced to N/A",
-			FingerprintDeviceData: &nvml.FingerprintDeviceData{
-				DeviceData: &nvml.DeviceData{
-					UUID:       "1",
-					DeviceName: helper.StringToPtr("Type1"),
-					MemoryMiB:  helper.Uint64ToPtr(256),
-					PowerW:     helper.UintToPtr(2),
-					BAR1MiB:    helper.Uint64ToPtr(256),
+				DisplayStateAttr: {
+					String: helper.StringToPtr("Enabled"),
 				},
-				PCIBusID:           "pciBusID1",
-				PCIBandwidthMBPerS: nil,
-				CoresClockMHz:      helper.UintToPtr(1),
-				MemoryClockMHz:     helper.UintToPtr(1),
-				DisplayState:       "Enabled",
-				PersistenceMode:    "Enabled",
-			},
-			ExpectedResult: map[string]string{
-				MemoryMiBAttr:          "256",
-				PowerWAttr:             "2",
-				BAR1MiBAttr:            "256",
-				PCIBandwidthMBPerSAttr: notAvailable,
-				CoresClockMHzAttr:      "1",
-				MemoryClockMHzAttr:     "1",
-				DisplayStateAttr:       "Enabled",
-				PersistenceModeAttr:    "Enabled",
-			},
-		},
-		{
-			Name: "CoresClockMHz is nil and has to be replaced to N/A",
-			FingerprintDeviceData: &nvml.FingerprintDeviceData{
-				DeviceData: &nvml.DeviceData{
-					UUID:       "1",
-					DeviceName: helper.StringToPtr("Type1"),
-					MemoryMiB:  helper.Uint64ToPtr(256),
-					PowerW:     helper.UintToPtr(2),
-					BAR1MiB:    helper.Uint64ToPtr(256),
+				PersistenceModeAttr: {
+					String: helper.StringToPtr("Enabled"),
 				},
-				PCIBusID:           "pciBusID1",
-				PCIBandwidthMBPerS: helper.UintToPtr(1),
-				CoresClockMHz:      nil,
-				MemoryClockMHz:     helper.UintToPtr(1),
-				DisplayState:       "Enabled",
-				PersistenceMode:    "Enabled",
-			},
-			ExpectedResult: map[string]string{
-				MemoryMiBAttr:          "256",
-				PowerWAttr:             "2",
-				BAR1MiBAttr:            "256",
-				PCIBandwidthMBPerSAttr: "1",
-				CoresClockMHzAttr:      notAvailable,
-				MemoryClockMHzAttr:     "1",
-				DisplayStateAttr:       "Enabled",
-				PersistenceModeAttr:    "Enabled",
-			},
-		},
-		{
-			Name: "MemoryClockMHz is nil and has to be replaced to N/A",
-			FingerprintDeviceData: &nvml.FingerprintDeviceData{
-				DeviceData: &nvml.DeviceData{
-					UUID:       "1",
-					DeviceName: helper.StringToPtr("Type1"),
-					MemoryMiB:  helper.Uint64ToPtr(256),
-					PowerW:     helper.UintToPtr(2),
-					BAR1MiB:    helper.Uint64ToPtr(256),
-				},
-				PCIBusID:           "pciBusID1",
-				PCIBandwidthMBPerS: helper.UintToPtr(1),
-				CoresClockMHz:      helper.UintToPtr(1),
-				MemoryClockMHz:     nil,
-				DisplayState:       "Enabled",
-				PersistenceMode:    "Enabled",
-			},
-			ExpectedResult: map[string]string{
-				MemoryMiBAttr:          "256",
-				PowerWAttr:             "2",
-				BAR1MiBAttr:            "256",
-				PCIBandwidthMBPerSAttr: "1",
-				CoresClockMHzAttr:      "1",
-				MemoryClockMHzAttr:     notAvailable,
-				DisplayStateAttr:       "Enabled",
-				PersistenceModeAttr:    "Enabled",
 			},
 		},
 	} {
 		t.Run(testCase.Name, func(t *testing.T) {
 			actualResult := attributesFromFingerprintDeviceData(testCase.FingerprintDeviceData)
-			require.New(t).Equal(testCase.ExpectedResult, actualResult)
+			require.Equal(t, testCase.ExpectedResult, actualResult)
 		})
 	}
 }
@@ -570,7 +456,7 @@ func TestDeviceGroupFromFingerprintData(t *testing.T) {
 		Name             string
 		GroupName        string
 		Devices          []*nvml.FingerprintDeviceData
-		CommonAttributes map[string]string
+		CommonAttributes map[string]*structs.Attribute
 		ExpectedResult   *device.DeviceGroup
 	}{
 		{
@@ -628,15 +514,37 @@ func TestDeviceGroupFromFingerprintData(t *testing.T) {
 						},
 					},
 				},
-				Attributes: map[string]string{
-					MemoryMiBAttr:          "100",
-					PowerWAttr:             "2",
-					BAR1MiBAttr:            "256",
-					PCIBandwidthMBPerSAttr: "1",
-					CoresClockMHzAttr:      "1",
-					MemoryClockMHzAttr:     "1",
-					DisplayStateAttr:       "Enabled",
-					PersistenceModeAttr:    "Enabled",
+				Attributes: map[string]*structs.Attribute{
+					MemoryAttr: {
+						Int:  helper.Int64ToPtr(100),
+						Unit: structs.UnitMiB,
+					},
+					PowerAttr: {
+						Int:  helper.Int64ToPtr(2),
+						Unit: structs.UnitW,
+					},
+					BAR1Attr: {
+						Int:  helper.Int64ToPtr(256),
+						Unit: structs.UnitMiB,
+					},
+					PCIBandwidthAttr: {
+						Int:  helper.Int64ToPtr(1),
+						Unit: structs.UnitMBPerS,
+					},
+					CoresClockAttr: {
+						Int:  helper.Int64ToPtr(1),
+						Unit: structs.UnitMHz,
+					},
+					MemoryClockAttr: {
+						Int:  helper.Int64ToPtr(1),
+						Unit: structs.UnitMHz,
+					},
+					DisplayStateAttr: {
+						String: helper.StringToPtr("Enabled"),
+					},
+					PersistenceModeAttr: {
+						String: helper.StringToPtr("Enabled"),
+					},
 				},
 			},
 		},
@@ -675,8 +583,10 @@ func TestDeviceGroupFromFingerprintData(t *testing.T) {
 					PersistenceMode:    "Enabled",
 				},
 			},
-			CommonAttributes: map[string]string{
-				DriverVersionAttr: "1",
+			CommonAttributes: map[string]*structs.Attribute{
+				DriverVersionAttr: {
+					String: helper.StringToPtr("1"),
+				},
 			},
 			ExpectedResult: &device.DeviceGroup{
 				Vendor: vendor,
@@ -698,24 +608,50 @@ func TestDeviceGroupFromFingerprintData(t *testing.T) {
 						},
 					},
 				},
-				Attributes: map[string]string{
-					MemoryMiBAttr:          "100",
-					PowerWAttr:             "2",
-					BAR1MiBAttr:            "256",
-					DriverVersionAttr:      "1",
-					PCIBandwidthMBPerSAttr: "1",
-					CoresClockMHzAttr:      "1",
-					MemoryClockMHzAttr:     "1",
-					DisplayStateAttr:       "Enabled",
-					PersistenceModeAttr:    "Enabled",
+				Attributes: map[string]*structs.Attribute{
+					MemoryAttr: {
+						Int:  helper.Int64ToPtr(100),
+						Unit: structs.UnitMiB,
+					},
+					PowerAttr: {
+						Int:  helper.Int64ToPtr(2),
+						Unit: structs.UnitW,
+					},
+					BAR1Attr: {
+						Int:  helper.Int64ToPtr(256),
+						Unit: structs.UnitMiB,
+					},
+					PCIBandwidthAttr: {
+						Int:  helper.Int64ToPtr(1),
+						Unit: structs.UnitMBPerS,
+					},
+					CoresClockAttr: {
+						Int:  helper.Int64ToPtr(1),
+						Unit: structs.UnitMHz,
+					},
+					MemoryClockAttr: {
+						Int:  helper.Int64ToPtr(1),
+						Unit: structs.UnitMHz,
+					},
+					DisplayStateAttr: {
+						String: helper.StringToPtr("Enabled"),
+					},
+					PersistenceModeAttr: {
+						String: helper.StringToPtr("Enabled"),
+					},
+					DriverVersionAttr: {
+						String: helper.StringToPtr("1"),
+					},
 				},
 			},
 		},
 		{
 			Name:      "Devices are not provided",
 			GroupName: "Type1",
-			CommonAttributes: map[string]string{
-				DriverVersionAttr: "1",
+			CommonAttributes: map[string]*structs.Attribute{
+				DriverVersionAttr: {
+					String: helper.StringToPtr("1"),
+				},
 			},
 			Devices:        nil,
 			ExpectedResult: nil,
@@ -806,16 +742,40 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 								},
 							},
 						},
-						Attributes: map[string]string{
-							MemoryMiBAttr:          "10",
-							PowerWAttr:             "100",
-							BAR1MiBAttr:            "256",
-							DriverVersionAttr:      "1",
-							PCIBandwidthMBPerSAttr: "1",
-							CoresClockMHzAttr:      "1",
-							MemoryClockMHzAttr:     "1",
-							DisplayStateAttr:       "Enabled",
-							PersistenceModeAttr:    "Enabled",
+						Attributes: map[string]*structs.Attribute{
+							MemoryAttr: {
+								Int:  helper.Int64ToPtr(10),
+								Unit: structs.UnitMiB,
+							},
+							PowerAttr: {
+								Int:  helper.Int64ToPtr(100),
+								Unit: structs.UnitW,
+							},
+							BAR1Attr: {
+								Int:  helper.Int64ToPtr(256),
+								Unit: structs.UnitMiB,
+							},
+							PCIBandwidthAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMBPerS,
+							},
+							CoresClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							MemoryClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							DisplayStateAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							PersistenceModeAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							DriverVersionAttr: {
+								String: helper.StringToPtr("1"),
+							},
 						},
 					},
 				},
@@ -893,16 +853,40 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 								},
 							},
 						},
-						Attributes: map[string]string{
-							MemoryMiBAttr:          "10",
-							DriverVersionAttr:      "1",
-							PowerWAttr:             "100",
-							BAR1MiBAttr:            "256",
-							PCIBandwidthMBPerSAttr: "1",
-							CoresClockMHzAttr:      "1",
-							MemoryClockMHzAttr:     "1",
-							DisplayStateAttr:       "Enabled",
-							PersistenceModeAttr:    "Enabled",
+						Attributes: map[string]*structs.Attribute{
+							MemoryAttr: {
+								Int:  helper.Int64ToPtr(10),
+								Unit: structs.UnitMiB,
+							},
+							PowerAttr: {
+								Int:  helper.Int64ToPtr(100),
+								Unit: structs.UnitW,
+							},
+							BAR1Attr: {
+								Int:  helper.Int64ToPtr(256),
+								Unit: structs.UnitMiB,
+							},
+							PCIBandwidthAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMBPerS,
+							},
+							CoresClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							MemoryClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							DisplayStateAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							PersistenceModeAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							DriverVersionAttr: {
+								String: helper.StringToPtr("1"),
+							},
 						},
 					},
 					{
@@ -918,16 +902,40 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 								},
 							},
 						},
-						Attributes: map[string]string{
-							MemoryMiBAttr:          "11",
-							DriverVersionAttr:      "1",
-							PowerWAttr:             "100",
-							BAR1MiBAttr:            "256",
-							PCIBandwidthMBPerSAttr: "1",
-							CoresClockMHzAttr:      "1",
-							MemoryClockMHzAttr:     "1",
-							DisplayStateAttr:       "Enabled",
-							PersistenceModeAttr:    "Enabled",
+						Attributes: map[string]*structs.Attribute{
+							MemoryAttr: {
+								Int:  helper.Int64ToPtr(11),
+								Unit: structs.UnitMiB,
+							},
+							PowerAttr: {
+								Int:  helper.Int64ToPtr(100),
+								Unit: structs.UnitW,
+							},
+							BAR1Attr: {
+								Int:  helper.Int64ToPtr(256),
+								Unit: structs.UnitMiB,
+							},
+							PCIBandwidthAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMBPerS,
+							},
+							CoresClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							MemoryClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							DisplayStateAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							PersistenceModeAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							DriverVersionAttr: {
+								String: helper.StringToPtr("1"),
+							},
 						},
 					},
 					{
@@ -943,16 +951,40 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 								},
 							},
 						},
-						Attributes: map[string]string{
-							MemoryMiBAttr:          "12",
-							DriverVersionAttr:      "1",
-							PowerWAttr:             "100",
-							BAR1MiBAttr:            "256",
-							PCIBandwidthMBPerSAttr: "1",
-							CoresClockMHzAttr:      "1",
-							MemoryClockMHzAttr:     "1",
-							DisplayStateAttr:       "Enabled",
-							PersistenceModeAttr:    "Enabled",
+						Attributes: map[string]*structs.Attribute{
+							MemoryAttr: {
+								Int:  helper.Int64ToPtr(12),
+								Unit: structs.UnitMiB,
+							},
+							PowerAttr: {
+								Int:  helper.Int64ToPtr(100),
+								Unit: structs.UnitW,
+							},
+							BAR1Attr: {
+								Int:  helper.Int64ToPtr(256),
+								Unit: structs.UnitMiB,
+							},
+							PCIBandwidthAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMBPerS,
+							},
+							CoresClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							MemoryClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							DisplayStateAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							PersistenceModeAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							DriverVersionAttr: {
+								String: helper.StringToPtr("1"),
+							},
 						},
 					},
 				},
@@ -1030,16 +1062,40 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 								},
 							},
 						},
-						Attributes: map[string]string{
-							MemoryMiBAttr:          "10",
-							DriverVersionAttr:      "1",
-							PowerWAttr:             "100",
-							BAR1MiBAttr:            "256",
-							PCIBandwidthMBPerSAttr: "1",
-							CoresClockMHzAttr:      "1",
-							MemoryClockMHzAttr:     "1",
-							DisplayStateAttr:       "Enabled",
-							PersistenceModeAttr:    "Enabled",
+						Attributes: map[string]*structs.Attribute{
+							MemoryAttr: {
+								Int:  helper.Int64ToPtr(10),
+								Unit: structs.UnitMiB,
+							},
+							PowerAttr: {
+								Int:  helper.Int64ToPtr(100),
+								Unit: structs.UnitW,
+							},
+							BAR1Attr: {
+								Int:  helper.Int64ToPtr(256),
+								Unit: structs.UnitMiB,
+							},
+							PCIBandwidthAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMBPerS,
+							},
+							CoresClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							MemoryClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							DisplayStateAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							PersistenceModeAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							DriverVersionAttr: {
+								String: helper.StringToPtr("1"),
+							},
 						},
 					},
 					{
@@ -1062,16 +1118,40 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 								},
 							},
 						},
-						Attributes: map[string]string{
-							MemoryMiBAttr:          "11",
-							DriverVersionAttr:      "1",
-							PowerWAttr:             "100",
-							BAR1MiBAttr:            "256",
-							PCIBandwidthMBPerSAttr: "1",
-							CoresClockMHzAttr:      "1",
-							MemoryClockMHzAttr:     "1",
-							DisplayStateAttr:       "Enabled",
-							PersistenceModeAttr:    "Enabled",
+						Attributes: map[string]*structs.Attribute{
+							MemoryAttr: {
+								Int:  helper.Int64ToPtr(11),
+								Unit: structs.UnitMiB,
+							},
+							PowerAttr: {
+								Int:  helper.Int64ToPtr(100),
+								Unit: structs.UnitW,
+							},
+							BAR1Attr: {
+								Int:  helper.Int64ToPtr(256),
+								Unit: structs.UnitMiB,
+							},
+							PCIBandwidthAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMBPerS,
+							},
+							CoresClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							MemoryClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							DisplayStateAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							PersistenceModeAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							DriverVersionAttr: {
+								String: helper.StringToPtr("1"),
+							},
 						},
 					},
 				},
@@ -1092,7 +1172,7 @@ func TestWriteFingerprintToChannel(t *testing.T) {
 			sort.Slice(testCase.ExpectedWriteToChannel.Devices, func(i, j int) bool {
 				return testCase.ExpectedWriteToChannel.Devices[i].Name < testCase.ExpectedWriteToChannel.Devices[j].Name
 			})
-			require.New(t).Equal(testCase.ExpectedWriteToChannel, actualResult)
+			require.Equal(t, testCase.ExpectedWriteToChannel, actualResult)
 		})
 	}
 }
@@ -1191,16 +1271,40 @@ func TestFingerprint(t *testing.T) {
 								},
 							},
 						},
-						Attributes: map[string]string{
-							MemoryMiBAttr:          "10",
-							DriverVersionAttr:      "1",
-							PowerWAttr:             "100",
-							BAR1MiBAttr:            "256",
-							PCIBandwidthMBPerSAttr: "1",
-							CoresClockMHzAttr:      "1",
-							MemoryClockMHzAttr:     "1",
-							DisplayStateAttr:       "Enabled",
-							PersistenceModeAttr:    "Enabled",
+						Attributes: map[string]*structs.Attribute{
+							MemoryAttr: {
+								Int:  helper.Int64ToPtr(10),
+								Unit: structs.UnitMiB,
+							},
+							PowerAttr: {
+								Int:  helper.Int64ToPtr(100),
+								Unit: structs.UnitW,
+							},
+							BAR1Attr: {
+								Int:  helper.Int64ToPtr(256),
+								Unit: structs.UnitMiB,
+							},
+							PCIBandwidthAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMBPerS,
+							},
+							CoresClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							MemoryClockAttr: {
+								Int:  helper.Int64ToPtr(1),
+								Unit: structs.UnitMHz,
+							},
+							DisplayStateAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							PersistenceModeAttr: {
+								String: helper.StringToPtr("Enabled"),
+							},
+							DriverVersionAttr: {
+								String: helper.StringToPtr("1"),
+							},
 						},
 					},
 				},

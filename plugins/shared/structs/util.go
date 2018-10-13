@@ -25,6 +25,58 @@ func ConvertProtoAttribute(in *proto.Attribute) *Attribute {
 	return out
 }
 
+func ConvertProtoAttributeMap(in map[string]*proto.Attribute) map[string]*Attribute {
+	if in == nil {
+		return nil
+	}
+
+	out := make(map[string]*Attribute, len(in))
+	for k, a := range in {
+		out[k] = ConvertProtoAttribute(a)
+	}
+
+	return out
+}
+
+func ConvertStructsAttribute(in *Attribute) *proto.Attribute {
+	out := &proto.Attribute{
+		Unit: in.Unit,
+	}
+
+	if in.Int != nil {
+		out.Value = &proto.Attribute_IntVal{
+			IntVal: *in.Int,
+		}
+	} else if in.Float != nil {
+		out.Value = &proto.Attribute_FloatVal{
+			FloatVal: *in.Float,
+		}
+	} else if in.String != nil {
+		out.Value = &proto.Attribute_StringVal{
+			StringVal: *in.String,
+		}
+	} else if in.Bool != nil {
+		out.Value = &proto.Attribute_BoolVal{
+			BoolVal: *in.Bool,
+		}
+	}
+
+	return out
+}
+
+func ConvertStructAttributeMap(in map[string]*Attribute) map[string]*proto.Attribute {
+	if in == nil {
+		return nil
+	}
+
+	out := make(map[string]*proto.Attribute, len(in))
+	for k, a := range in {
+		out[k] = ConvertStructsAttribute(a)
+	}
+
+	return out
+}
+
 func Pow(a, b int64) int64 {
 	var p int64 = 1
 	for b > 0 {

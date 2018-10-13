@@ -2,6 +2,53 @@ package structs
 
 import "sort"
 
+const (
+	// Binary SI Byte Units
+	UnitKiB = "KiB"
+	UnitMiB = "MiB"
+	UnitGiB = "GiB"
+	UnitTiB = "TiB"
+	UnitPiB = "PiB"
+	UnitEiB = "EiB"
+
+	// Decimal SI Byte Units
+	UnitkB = "kB"
+	UnitKB = "KB"
+	UnitMB = "MB"
+	UnitGB = "GB"
+	UnitTB = "TB"
+	UnitPB = "PB"
+	UnitEB = "EB"
+
+	// Binary SI Byte Rates
+	UnitKiBPerS = "KiB/s"
+	UnitMiBPerS = "MiB/s"
+	UnitGiBPerS = "GiB/s"
+	UnitTiBPerS = "TiB/s"
+	UnitPiBPerS = "PiB/s"
+	UnitEiBPerS = "EiB/s"
+
+	// Decimal SI Byte Rates
+	UnitkBPerS = "kB/s"
+	UnitKBPerS = "KB/s"
+	UnitMBPerS = "MB/s"
+	UnitGBPerS = "GB/s"
+	UnitTBPerS = "TB/s"
+	UnitPBPerS = "PB/s"
+	UnitEBPerS = "EB/s"
+
+	// Hertz units
+	UnitMHz = "MHz"
+	UnitGHz = "GHz"
+
+	// Watts units
+	UnitmW = "mW"
+	UnitW  = "W"
+	UnitkW = "kW"
+	UnitMW = "MW"
+	UnitGW = "GW"
+)
+
 var (
 	// numUnits is the number of known units
 	numUnits = len(binarySIBytes) + len(decimalSIBytes) + len(binarySIByteRates) + len(decimalSIByteRates) + len(watts) + len(hertz)
@@ -15,32 +62,32 @@ var (
 
 	binarySIBytes = []*Unit{
 		{
-			Name:       "KiB",
+			Name:       UnitKiB,
 			Base:       UnitByte,
 			Multiplier: 1 << 10,
 		},
 		{
-			Name:       "MiB",
+			Name:       UnitMiB,
 			Base:       UnitByte,
 			Multiplier: 1 << 20,
 		},
 		{
-			Name:       "GiB",
+			Name:       UnitGiB,
 			Base:       UnitByte,
 			Multiplier: 1 << 30,
 		},
 		{
-			Name:       "TiB",
+			Name:       UnitTiB,
 			Base:       UnitByte,
 			Multiplier: 1 << 40,
 		},
 		{
-			Name:       "PiB",
+			Name:       UnitPiB,
 			Base:       UnitByte,
 			Multiplier: 1 << 50,
 		},
 		{
-			Name:       "EiB",
+			Name:       UnitEiB,
 			Base:       UnitByte,
 			Multiplier: 1 << 60,
 		},
@@ -48,37 +95,37 @@ var (
 
 	decimalSIBytes = []*Unit{
 		{
-			Name:       "kB",
+			Name:       UnitkB,
 			Base:       UnitByte,
 			Multiplier: Pow(1000, 1),
 		},
 		{
-			Name:       "KB", // Alternative name for kB
+			Name:       UnitKB, // Alternative name for kB
 			Base:       UnitByte,
 			Multiplier: Pow(1000, 1),
 		},
 		{
-			Name:       "MB",
+			Name:       UnitMB,
 			Base:       UnitByte,
 			Multiplier: Pow(1000, 2),
 		},
 		{
-			Name:       "GB",
+			Name:       UnitGB,
 			Base:       UnitByte,
 			Multiplier: Pow(1000, 3),
 		},
 		{
-			Name:       "TB",
+			Name:       UnitTB,
 			Base:       UnitByte,
 			Multiplier: Pow(1000, 4),
 		},
 		{
-			Name:       "PB",
+			Name:       UnitPB,
 			Base:       UnitByte,
 			Multiplier: Pow(1000, 5),
 		},
 		{
-			Name:       "EB",
+			Name:       UnitEB,
 			Base:       UnitByte,
 			Multiplier: Pow(1000, 6),
 		},
@@ -86,32 +133,32 @@ var (
 
 	binarySIByteRates = []*Unit{
 		{
-			Name:       "KiB/s",
+			Name:       UnitKiBPerS,
 			Base:       UnitByteRate,
 			Multiplier: 1 << 10,
 		},
 		{
-			Name:       "MiB/s",
+			Name:       UnitMiBPerS,
 			Base:       UnitByteRate,
 			Multiplier: 1 << 20,
 		},
 		{
-			Name:       "GiB/s",
+			Name:       UnitGiBPerS,
 			Base:       UnitByteRate,
 			Multiplier: 1 << 30,
 		},
 		{
-			Name:       "TiB/s",
+			Name:       UnitTiBPerS,
 			Base:       UnitByteRate,
 			Multiplier: 1 << 40,
 		},
 		{
-			Name:       "PiB/s",
+			Name:       UnitPiBPerS,
 			Base:       UnitByteRate,
 			Multiplier: 1 << 50,
 		},
 		{
-			Name:       "EiB/s",
+			Name:       UnitEiBPerS,
 			Base:       UnitByteRate,
 			Multiplier: 1 << 60,
 		},
@@ -119,37 +166,37 @@ var (
 
 	decimalSIByteRates = []*Unit{
 		{
-			Name:       "kB/s",
+			Name:       UnitkBPerS,
 			Base:       UnitByteRate,
 			Multiplier: Pow(1000, 1),
 		},
 		{
-			Name:       "KB/s", // Alternative name for kB/s
+			Name:       UnitKBPerS,
 			Base:       UnitByteRate,
 			Multiplier: Pow(1000, 1),
 		},
 		{
-			Name:       "MB/s",
+			Name:       UnitMBPerS,
 			Base:       UnitByteRate,
 			Multiplier: Pow(1000, 2),
 		},
 		{
-			Name:       "GB/s",
+			Name:       UnitGBPerS,
 			Base:       UnitByteRate,
 			Multiplier: Pow(1000, 3),
 		},
 		{
-			Name:       "TB/s",
+			Name:       UnitTBPerS,
 			Base:       UnitByteRate,
 			Multiplier: Pow(1000, 4),
 		},
 		{
-			Name:       "PB/s",
+			Name:       UnitPBPerS,
 			Base:       UnitByteRate,
 			Multiplier: Pow(1000, 5),
 		},
 		{
-			Name:       "EB/s",
+			Name:       UnitEBPerS,
 			Base:       UnitByteRate,
 			Multiplier: Pow(1000, 6),
 		},
@@ -157,12 +204,12 @@ var (
 
 	hertz = []*Unit{
 		{
-			Name:       "MHz",
+			Name:       UnitMHz,
 			Base:       UnitHertz,
 			Multiplier: Pow(1000, 1),
 		},
 		{
-			Name:       "GHz",
+			Name:       UnitGHz,
 			Base:       UnitHertz,
 			Multiplier: Pow(1000, 3),
 		},
@@ -170,28 +217,28 @@ var (
 
 	watts = []*Unit{
 		{
-			Name:              "mW",
+			Name:              UnitmW,
 			Base:              UnitWatt,
 			Multiplier:        Pow(10, 3),
 			InverseMultiplier: true,
 		},
 		{
-			Name:       "W",
+			Name:       UnitW,
 			Base:       UnitWatt,
 			Multiplier: 1,
 		},
 		{
-			Name:       "kW",
+			Name:       UnitkW,
 			Base:       UnitWatt,
 			Multiplier: Pow(10, 3),
 		},
 		{
-			Name:       "MW",
+			Name:       UnitMW,
 			Base:       UnitWatt,
 			Multiplier: Pow(10, 6),
 		},
 		{
-			Name:       "GW",
+			Name:       UnitGW,
 			Base:       UnitWatt,
 			Multiplier: Pow(10, 9),
 		},
