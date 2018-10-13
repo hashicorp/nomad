@@ -27,9 +27,13 @@ import (
 	"container/heap"
 	"math"
 
+	hcodec "github.com/hashicorp/go-msgpack/codec"
+	multierror "github.com/hashicorp/go-multierror"
+
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -38,8 +42,6 @@ import (
 	"github.com/hashicorp/nomad/lib/kheap"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
-
-	hcodec "github.com/hashicorp/go-msgpack/codec"
 )
 
 var (
@@ -2388,7 +2390,7 @@ type NodeDeviceResource struct {
 	Type       string
 	Name       string
 	Instances  []*NodeDevice
-	Attributes map[string]string
+	Attributes map[string]*psstructs.Attribute
 }
 
 func (n *NodeDeviceResource) ID() *DeviceIdTuple {
@@ -2420,7 +2422,7 @@ func (n *NodeDeviceResource) Copy() *NodeDeviceResource {
 	}
 
 	// Copy the Attributes
-	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
+	nn.Attributes = psstructs.CopyMapStringAttribute(nn.Attributes)
 
 	return &nn
 }

@@ -72,6 +72,27 @@ type Attribute struct {
 	Unit string
 }
 
+func (a *Attribute) Copy() *Attribute {
+	ca := &Attribute{
+		Unit: a.Unit,
+	}
+
+	if a.Float != nil {
+		ca.Float = helper.Float64ToPtr(*a.Float)
+	}
+	if a.Int != nil {
+		ca.Int = helper.Int64ToPtr(*a.Int)
+	}
+	if a.Bool != nil {
+		ca.Bool = helper.BoolToPtr(*a.Bool)
+	}
+	if a.String != nil {
+		ca.String = helper.StringToPtr(*a.String)
+	}
+
+	return ca
+}
+
 // GoString returns a string representation of the attribute
 func (a *Attribute) GoString() string {
 	if a == nil {
