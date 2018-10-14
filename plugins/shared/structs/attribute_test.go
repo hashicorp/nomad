@@ -559,6 +559,12 @@ func TestAttribute_ParseAndValidate(t *testing.T) {
 			},
 		},
 		{
+			Input: "1",
+			Expected: &Attribute{
+				Int: helper.Int64ToPtr(1),
+			},
+		},
+		{
 			Input: "100",
 			Expected: &Attribute{
 				Int: helper.Int64ToPtr(100),

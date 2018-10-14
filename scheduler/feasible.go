@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -556,6 +558,48 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 	return constraints.Check(vers)
 }
 
+// checkAttributeVersionMatch is used to compare a version on the
+// left hand side with a set of constraints on the right hand side
+func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bool {
+	// Parse the version
+	var versionStr string
+	if s, ok := lVal.GetString(); ok {
+		versionStr = s
+	} else if i, ok := lVal.GetInt(); ok {
+		versionStr = fmt.Sprintf("%d", i)
+	} else {
+		return false
+	}
+
+	// Parse the version
+	vers, err := version.NewVersion(versionStr)
+	if err != nil {
+		return false
+	}
+
+	// Constraint must be a string
+	constraintStr, ok := rVal.GetString()
+	if !ok {
+		return false
+	}
+
+	// Check the cache for a match
+	cache := ctx.VersionConstraintCache()
+	constraints := cache[constraintStr]
+
+	// Parse the constraints
+	if constraints == nil {
+		constraints, err = version.NewConstraint(constraintStr)
+		if err != nil {
+			return false
+		}
+		cache[constraintStr] = constraints
+	}
+
+	// Check the constraints against the version
+	return constraints.Check(vers)
+}
+
 // checkRegexpMatch is used to compare a value on the
 // left hand side with a regexp on the right hand side
 func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
@@ -774,9 +818,7 @@ OUTER:
 type DeviceChecker struct {
 	ctx Context
 
-	// required is a mapping of devices that must exist on the node
-	//required map[*structs.DeviceIdTuple][]*structs.RequestedDevice
-
+	// required is the set of requested devices that must exist on the node
 	required []*structs.RequestedDevice
 
 	// requiresDevices indicates if the task group requires devices
@@ -844,7 +886,6 @@ OUTER:
 	for _, req := range c.required {
 		// Determine how many there are to place
 		desiredCount := req.Count
-		//desiredCount := remainingRequested[req]
 
 		// Go through the device resources and see if we have a match
 		for d, unused := range available {
@@ -853,7 +894,7 @@ OUTER:
 				continue
 			}
 
-			if NodeDeviceMatches(d, req) {
+			if nodeDeviceMatches(c.ctx, d, req) {
 				// Consume the instances
 				if unused >= desiredCount {
 					// This device satisfies all our requests
@@ -879,7 +920,9 @@ OUTER:
 	return true
 }
 
-func NodeDeviceMatches(d *structs.NodeDeviceResource, req *structs.RequestedDevice) bool {
+// nodeDeviceMatches checks if the device matches the request and its
+// constraints. It doesn't check the count.
+func nodeDeviceMatches(ctx Context, d *structs.NodeDeviceResource, req *structs.RequestedDevice) bool {
 	if !d.ID().Matches(req.ID()) {
 		return false
 	}
@@ -889,5 +932,109 @@ func NodeDeviceMatches(d *structs.NodeDeviceResource, req *structs.RequestedDevi
 		return true
 	}
 
+	for _, c := range req.Constraints {
+		// Resolve the targets
+		lVal, ok := resolveDeviceTarget(c.LTarget, d)
+		if !ok {
+			return false
+		}
+		rVal, ok := resolveDeviceTarget(c.RTarget, d)
+		if !ok {
+			return false
+		}
+
+		// Check if satisfied
+		if !checkAttributeConstraint(ctx, c.Operand, lVal, rVal) {
+			return false
+		}
+	}
+
 	return true
+}
+
+// resolveDeviceTarget is used to resolve the LTarget and RTarget of a Constraint
+// when used on a device
+func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstructs.Attribute, bool) {
+	// If no prefix, this must be a literal value
+	if !strings.HasPrefix(target, "${") {
+		return psstructs.ParseAttribute(target), true
+	}
+
+	// Handle the interpolations
+	switch {
+	case "${driver.model}" == target:
+		return psstructs.NewStringAttribute(d.Name), true
+
+	case "${driver.vendor}" == target:
+		return psstructs.NewStringAttribute(d.Vendor), true
+
+	case "${driver.type}" == target:
+		return psstructs.NewStringAttribute(d.Type), true
+
+	case strings.HasPrefix(target, "${driver.attr."):
+		attr := strings.TrimSuffix(strings.TrimPrefix(target, "${driver.attr."), "}")
+		val, ok := d.Attributes[attr]
+		return val, ok
+
+	default:
+		return nil, false
+	}
+}
+
+// checkAttributeConstraint checks if a constraint is satisfied
+func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs.Attribute) bool {
+	// Check for constraints not handled by this checker.
+	switch operand {
+	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
+		return true
+	default:
+		break
+	}
+
+	switch operand {
+	case "<", "<=", ">", ">=", "=", "==", "is", "!=", "not":
+		v, ok := lVal.Compare(rVal)
+		if !ok {
+			return false
+		}
+
+		switch operand {
+		case "not", "!=":
+			return v != 0
+		case "is", "==", "=":
+			return v == 0
+		case "<":
+			return v == -1
+		case "<=":
+			return v != 1
+		case ">":
+			return v == 1
+		case ">=":
+			return v != -1
+		default:
+			return false
+		}
+
+	case structs.ConstraintVersion:
+		return checkAttributeVersionMatch(ctx, lVal, rVal)
+	case structs.ConstraintRegex:
+		ls, ok := lVal.GetString()
+		rs, ok2 := rVal.GetString()
+		if !ok || !ok2 {
+			return false
+		}
+		return checkRegexpMatch(ctx, ls, rs)
+	case structs.ConstraintSetContains:
+		ls, ok := lVal.GetString()
+		rs, ok2 := rVal.GetString()
+		if !ok || !ok2 {
+			return false
+		}
+
+		return checkSetContainsAll(ctx, ls, rs)
+	default:
+		return false
+	}
+
+	return false
 }

@@ -53,6 +53,53 @@ func (u *Unit) Comparable(o *Unit) bool {
 	return u.Base == o.Base
 }
 
+// ParseAttribute takes a string and parses it into an attribute, pulling out
+// units if they are specified as a suffix on a number.
+func ParseAttribute(input string) *Attribute {
+	ll := len(input)
+	if ll == 0 {
+		return &Attribute{String: helper.StringToPtr(input)}
+	}
+
+	// Check if the string is a number ending with potential units
+	var unit string
+	numeric := input
+	if unicode.IsLetter(rune(input[ll-1])) {
+		// Try suffix matching
+		for _, u := range lengthSortedUnits {
+			if strings.HasSuffix(input, u) {
+				unit = u
+				break
+			}
+		}
+
+		// Check if we know about the unit.
+		if len(unit) != 0 {
+			numeric = strings.TrimSpace(strings.TrimSuffix(input, unit))
+		}
+	}
+
+	// Try to parse as an int
+	i, err := strconv.ParseInt(numeric, 10, 64)
+	if err == nil {
+		return &Attribute{Int: helper.Int64ToPtr(i), Unit: unit}
+	}
+
+	// Try to parse as a float
+	f, err := strconv.ParseFloat(numeric, 64)
+	if err == nil {
+		return &Attribute{Float: helper.Float64ToPtr(f), Unit: unit}
+	}
+
+	// Try to parse as a bool
+	b, err := strconv.ParseBool(input)
+	if err == nil {
+		return &Attribute{Bool: helper.BoolToPtr(b)}
+	}
+
+	return &Attribute{String: helper.StringToPtr(input)}
+}
+
 // Attribute is used to describe the value of an attribute, optionally
 // specifying units
 type Attribute struct {
@@ -72,7 +119,84 @@ type Attribute struct {
 	Unit string
 }
 
+// NewStringAttribute returns a new string attribute.
+func NewStringAttribute(s string) *Attribute {
+	return &Attribute{
+		String: helper.StringToPtr(s),
+	}
+}
+
+// NewBoolAttribute returns a new boolean attribute.
+func NewBoolAttribute(b bool) *Attribute {
+	return &Attribute{
+		Bool: helper.BoolToPtr(b),
+	}
+}
+
+// NewIntergerAttribute returns a new integer attribute. The unit is not checked
+// to be valid.
+func NewIntAttribute(i int64, unit string) *Attribute {
+	return &Attribute{
+		Int:  helper.Int64ToPtr(i),
+		Unit: unit,
+	}
+}
+
+// NewFloatAttribute returns a new float attribute. The unit is not checked to
+// be valid.
+func NewFloatAttribute(f float64, unit string) *Attribute {
+	return &Attribute{
+		Float: helper.Float64ToPtr(f),
+		Unit:  unit,
+	}
+}
+
+// GetString returns the string value of the attribute or false if the attribute
+// doesn't contain a string.
+func (a *Attribute) GetString() (value string, ok bool) {
+	if a.String == nil {
+		return "", false
+	}
+
+	return *a.String, true
+}
+
+// GetBool returns the boolean value of the attribute or false if the attribute
+// doesn't contain a boolean.
+func (a *Attribute) GetBool() (value bool, ok bool) {
+	if a.Bool == nil {
+		return false, false
+	}
+
+	return *a.Bool, true
+}
+
+// GetInt returns the integer value of the attribute or false if the attribute
+// doesn't contain a integer.
+func (a *Attribute) GetInt() (value int64, ok bool) {
+	if a.Int == nil {
+		return 0, false
+	}
+
+	return *a.Int, true
+}
+
+// GetFloat returns the float value of the attribute or false if the attribute
+// doesn't contain a float.
+func (a *Attribute) GetFloat() (value float64, ok bool) {
+	if a.Float == nil {
+		return 0.0, false
+	}
+
+	return *a.Float, true
+}
+
+// Copy returns a copied version of the attribute
 func (a *Attribute) Copy() *Attribute {
+	if a == nil {
+		return nil
+	}
+
 	ca := &Attribute{
 		Unit: a.Unit,
 	}
@@ -152,6 +276,39 @@ func (a *Attribute) Validate() error {
 	}
 
 	return nil
+}
+
+// Comparable returns whether the two attributes are comparable
+func (a *Attribute) Comparable(b *Attribute) bool {
+	if a == nil || b == nil {
+		return false
+	}
+
+	// First use the units to decide if comparison is possible
+	aUnit := a.getTypedUnit()
+	bUnit := b.getTypedUnit()
+	if aUnit != nil && bUnit != nil {
+		return aUnit.Comparable(bUnit)
+	} else if aUnit != nil && bUnit == nil {
+		return false
+	} else if aUnit == nil && bUnit != nil {
+		return false
+	}
+
+	if a.String != nil {
+		if b.String != nil {
+			return true
+		}
+		return false
+	}
+	if a.Bool != nil {
+		if b.Bool != nil {
+			return true
+		}
+		return false
+	}
+
+	return true
 }
 
 // Compare compares two attributes. If the returned boolean value is false, it
@@ -299,102 +456,7 @@ func (a *Attribute) getInt() int64 {
 	return i
 }
 
-// Comparable returns whether they are comparable
-func (a *Attribute) Comparable(b *Attribute) bool {
-	if a == nil || b == nil {
-		return false
-	}
-
-	// First use the units to decide if comparison is possible
-	aUnit := a.getTypedUnit()
-	bUnit := b.getTypedUnit()
-	if aUnit != nil && bUnit != nil {
-		return aUnit.Comparable(bUnit)
-	} else if aUnit != nil && bUnit == nil {
-		return false
-	} else if aUnit == nil && bUnit != nil {
-		return false
-	}
-
-	if a.String != nil {
-		if b.String != nil {
-			return true
-		}
-		return false
-	}
-	if a.Bool != nil {
-		if b.Bool != nil {
-			return true
-		}
-		return false
-	}
-
-	return true
-}
-
 // getTypedUnit returns the Unit for the attribute or nil if no unit exists.
 func (a *Attribute) getTypedUnit() *Unit {
 	return UnitIndex[a.Unit]
-}
-
-// ParseAttribute takes a string and parses it into an attribute, pulling out
-// units if they are specified as a suffix on a number
-func ParseAttribute(input string) *Attribute {
-	ll := len(input)
-	if ll == 0 {
-		return &Attribute{String: helper.StringToPtr(input)}
-	}
-
-	// Try to parse as a bool
-	b, err := strconv.ParseBool(input)
-	if err == nil {
-		return &Attribute{Bool: helper.BoolToPtr(b)}
-	}
-
-	// Check if the string is a number ending with potential units
-	if unicode.IsLetter(rune(input[ll-1])) {
-		// Try suffix matching
-		var unit string
-		for _, u := range lengthSortedUnits {
-			if strings.HasSuffix(input, u) {
-				unit = u
-				break
-			}
-		}
-
-		// Check if we know about the unit. If we don't we can only treat this
-		// as a string
-		if len(unit) == 0 {
-			return &Attribute{String: helper.StringToPtr(input)}
-		}
-
-		// Grab the numeric
-		numeric := strings.TrimSpace(strings.TrimSuffix(input, unit))
-
-		// Try to parse as an int
-		i, err := strconv.ParseInt(numeric, 10, 64)
-		if err == nil {
-			return &Attribute{Int: helper.Int64ToPtr(i), Unit: unit}
-		}
-
-		// Try to parse as a float
-		f, err := strconv.ParseFloat(numeric, 64)
-		if err == nil {
-			return &Attribute{Float: helper.Float64ToPtr(f), Unit: unit}
-		}
-	}
-
-	// Try to parse as an int
-	i, err := strconv.ParseInt(input, 10, 64)
-	if err == nil {
-		return &Attribute{Int: helper.Int64ToPtr(i)}
-	}
-
-	// Try to parse as a float
-	f, err := strconv.ParseFloat(input, 64)
-	if err == nil {
-		return &Attribute{Float: helper.Float64ToPtr(f)}
-	}
-
-	return &Attribute{String: helper.StringToPtr(input)}
 }

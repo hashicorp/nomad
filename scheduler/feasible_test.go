@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1680,6 +1681,11 @@ func TestDeviceChecker(t *testing.T) {
 		Vendor: "nvidia",
 		Type:   "gpu",
 		Name:   "1080ti",
+		Attributes: map[string]*psstructs.Attribute{
+			"memory":        psstructs.NewIntAttribute(4, psstructs.UnitGiB),
+			"pci_bandwidth": psstructs.NewIntAttribute(995, psstructs.UnitMiBPerS),
+			"cores_clock":   psstructs.NewIntAttribute(800, psstructs.UnitMHz),
+		},
 		Instances: []*structs.NodeDevice{
 			&structs.NodeDevice{
 				ID:      uuid.Generate(),
@@ -1796,6 +1802,105 @@ func TestDeviceChecker(t *testing.T) {
 			NodeDevices:      []*structs.NodeDeviceResource{nvidia, intel},
 			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
 		},
+		{
+			Name:        "meets constraints requirement",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 1,
+					Constraints: []*structs.Constraint{
+						{
+							Operand: "=",
+							LTarget: "${driver.model}",
+							RTarget: "1080ti",
+						},
+						{
+							Operand: ">",
+							LTarget: "${driver.attr.memory}",
+							RTarget: "1320.5 MB",
+						},
+						{
+							Operand: "<=",
+							LTarget: "${driver.attr.pci_bandwidth}",
+							RTarget: ".98   GiB/s",
+						},
+						{
+							Operand: "=",
+							LTarget: "${driver.attr.cores_clock}",
+							RTarget: "800MHz",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "does not meet first constraint",
+			Result:      false,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 1,
+					Constraints: []*structs.Constraint{
+						{
+							Operand: "=",
+							LTarget: "${driver.model}",
+							RTarget: "2080ti",
+						},
+						{
+							Operand: ">",
+							LTarget: "${driver.attr.memory}",
+							RTarget: "1320.5 MB",
+						},
+						{
+							Operand: "<=",
+							LTarget: "${driver.attr.pci_bandwidth}",
+							RTarget: ".98   GiB/s",
+						},
+						{
+							Operand: "=",
+							LTarget: "${driver.attr.cores_clock}",
+							RTarget: "800MHz",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "does not meet second constraint",
+			Result:      false,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 1,
+					Constraints: []*structs.Constraint{
+						{
+							Operand: "=",
+							LTarget: "${driver.model}",
+							RTarget: "1080ti",
+						},
+						{
+							Operand: "<",
+							LTarget: "${driver.attr.memory}",
+							RTarget: "1320.5 MB",
+						},
+						{
+							Operand: "<=",
+							LTarget: "${driver.attr.pci_bandwidth}",
+							RTarget: ".98   GiB/s",
+						},
+						{
+							Operand: "=",
+							LTarget: "${driver.attr.cores_clock}",
+							RTarget: "800MHz",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -1807,5 +1912,88 @@ func TestDeviceChecker(t *testing.T) {
 				t.Fatalf("got %v; want %v", act, c.Result)
 			}
 		})
+	}
+}
+
+func TestCheckAttributeConstraint(t *testing.T) {
+	type tcase struct {
+		op         string
+		lVal, rVal *psstructs.Attribute
+		result     bool
+	}
+	cases := []tcase{
+		{
+			op:     "=",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   psstructs.NewStringAttribute("foo"),
+			result: true,
+		},
+		{
+			op:     "is",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   psstructs.NewStringAttribute("foo"),
+			result: true,
+		},
+		{
+			op:     "==",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   psstructs.NewStringAttribute("foo"),
+			result: true,
+		},
+		{
+			op:     "!=",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   psstructs.NewStringAttribute("foo"),
+			result: false,
+		},
+		{
+			op:     "!=",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   psstructs.NewStringAttribute("bar"),
+			result: true,
+		},
+		{
+			op:     "not",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   psstructs.NewStringAttribute("bar"),
+			result: true,
+		},
+		{
+			op:     structs.ConstraintVersion,
+			lVal:   psstructs.NewStringAttribute("1.2.3"),
+			rVal:   psstructs.NewStringAttribute("~> 1.0"),
+			result: true,
+		},
+		{
+			op:     structs.ConstraintRegex,
+			lVal:   psstructs.NewStringAttribute("foobarbaz"),
+			rVal:   psstructs.NewStringAttribute("[\\w]+"),
+			result: true,
+		},
+		{
+			op:     "<",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   psstructs.NewStringAttribute("bar"),
+			result: false,
+		},
+		{
+			op:     structs.ConstraintSetContains,
+			lVal:   psstructs.NewStringAttribute("foo,bar,baz"),
+			rVal:   psstructs.NewStringAttribute("foo,  bar  "),
+			result: true,
+		},
+		{
+			op:     structs.ConstraintSetContains,
+			lVal:   psstructs.NewStringAttribute("foo,bar,baz"),
+			rVal:   psstructs.NewStringAttribute("foo,bam"),
+			result: false,
+		},
+	}
+
+	for _, tc := range cases {
+		_, ctx := testContext(t)
+		if res := checkAttributeConstraint(ctx, tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
 	}
 }
