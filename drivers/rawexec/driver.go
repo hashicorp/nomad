@@ -22,14 +22,24 @@ import (
 	"golang.org/x/net/context"
 )
 
-// When the package is loaded the driver is registered as an internal plugin
-// with the plugin catalog
+const (
+	// pluginName is the name of the plugin
+	pluginName = "raw_exec"
+
+	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
+	fingerprintPeriod = 30 * time.Second
+)
+
 var (
+	// PluginID is the rawexec plugin metadata registered in the plugin
+	// catalog.
 	PluginID = loader.PluginID{
 		Name:       pluginName,
 		PluginType: base.PluginTypeDriver,
 	}
 
+	// PluginConfig is the rawexec factory function registered in the
+	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
 		Factory: func(l hclog.Logger) interface{} { return NewRawExecDriver(l) },
@@ -46,14 +56,6 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	}
 	return conf, nil
 }
-
-const (
-	// pluginName is the name of the plugin
-	pluginName = "raw_exec"
-
-	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
-	fingerprintPeriod = 30 * time.Second
-)
 
 var (
 	// pluginInfo is the response returned for the PluginInfo RPC
