@@ -1,7 +1,10 @@
 package device
 
-import "github.com/hashicorp/nomad/plugins/device/proto"
-import "github.com/golang/protobuf/ptypes"
+import (
+	"github.com/golang/protobuf/ptypes"
+	"github.com/hashicorp/nomad/plugins/device/proto"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
+)
 
 // convertProtoDeviceGroups converts between a list of proto and structs DeviceGroup
 func convertProtoDeviceGroups(in []*proto.DeviceGroup) []*DeviceGroup {
@@ -28,7 +31,7 @@ func convertProtoDeviceGroup(in *proto.DeviceGroup) *DeviceGroup {
 		Type:       in.DeviceType,
 		Name:       in.DeviceName,
 		Devices:    convertProtoDevices(in.Devices),
-		Attributes: in.Attributes,
+		Attributes: structs.ConvertProtoAttributeMap(in.Attributes),
 	}
 }
 
@@ -164,7 +167,7 @@ func convertStructDeviceGroup(in *DeviceGroup) *proto.DeviceGroup {
 		DeviceType: in.Type,
 		DeviceName: in.Name,
 		Devices:    convertStructDevices(in.Devices),
-		Attributes: in.Attributes,
+		Attributes: structs.ConvertStructAttributeMap(in.Attributes),
 	}
 }
 

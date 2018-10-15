@@ -2,24 +2,25 @@ package nvidia
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
-	// Attribute names for reporting Fingerprint output
-	MemoryMiBAttr          = "memory_mib"
-	PowerWAttr             = "power_w"
-	BAR1MiBAttr            = "bar1_mib"
-	DriverVersionAttr      = "driver_version"
-	CoresClockMHzAttr      = "cores_clock_mhz"
-	MemoryClockMHzAttr     = "memory_clock_mhz"
-	PCIBandwidthMBPerSAttr = "pci_bandwidth_mb/s"
-	DisplayStateAttr       = "display_state"
-	PersistenceModeAttr    = "persistence_mode"
+	// Attribute names and units for reporting Fingerprint output
+	MemoryAttr          = "memory"
+	PowerAttr           = "power"
+	BAR1Attr            = "bar1"
+	DriverVersionAttr   = "driver_version"
+	CoresClockAttr      = "cores_clock"
+	MemoryClockAttr     = "memory_clock"
+	PCIBandwidthAttr    = "pci_bandwidth"
+	DisplayStateAttr    = "display_state"
+	PersistenceModeAttr = "persistence_mode"
 )
 
 // fingerprint is the long running goroutine that detects hardware
@@ -69,8 +70,10 @@ func (d *NvidiaDevice) writeFingerprintToChannel(devices chan<- *device.Fingerpr
 		return
 	}
 
-	commonAttributes := map[string]string{
-		DriverVersionAttr: fingerprintData.DriverVersion,
+	commonAttributes := map[string]*structs.Attribute{
+		DriverVersionAttr: {
+			String: helper.StringToPtr(fingerprintData.DriverVersion),
+		},
 	}
 
 	// Group all FingerprintDevices by DeviceName attribute
@@ -137,7 +140,7 @@ func (d *NvidiaDevice) fingerprintChanged(allDevices []*nvml.FingerprintDeviceDa
 }
 
 // deviceGroupFromFingerprintData composes deviceGroup from FingerprintDeviceData slice
-func deviceGroupFromFingerprintData(groupName string, deviceList []*nvml.FingerprintDeviceData, commonAttributes map[string]string) *device.DeviceGroup {
+func deviceGroupFromFingerprintData(groupName string, deviceList []*nvml.FingerprintDeviceData, commonAttributes map[string]*structs.Attribute) *device.DeviceGroup {
 	// deviceGroup without devices makes no sense -> return nil when no devices are provided
 	if len(deviceList) == 0 {
 		return nil
@@ -177,63 +180,52 @@ func deviceGroupFromFingerprintData(groupName string, deviceList []*nvml.Fingerp
 // attributesFromFingerprintDeviceData converts nvml.FingerprintDeviceData
 // struct to device.DeviceGroup.Attributes format (map[string]string)
 // this function performs all nil checks for FingerprintDeviceData pointers
-func attributesFromFingerprintDeviceData(fingerprintDeviceData *nvml.FingerprintDeviceData) map[string]string {
-	// The following fields in FingerprintDeviceData are pointers, so they can be nil
-	// In case they are nil -> return 'notAvailable' constant instead
-	var (
-		MemoryMiB          string
-		PowerW             string
-		BAR1MiB            string
-		CoresClockMHz      string
-		MemoryClockMHz     string
-		PCIBandwidthMBPerS string
-	)
-
-	if fingerprintDeviceData.MemoryMiB == nil {
-		MemoryMiB = notAvailable
-	} else {
-		MemoryMiB = fmt.Sprint(*fingerprintDeviceData.MemoryMiB)
+func attributesFromFingerprintDeviceData(d *nvml.FingerprintDeviceData) map[string]*structs.Attribute {
+	attrs := map[string]*structs.Attribute{
+		DisplayStateAttr: {
+			String: helper.StringToPtr(d.DisplayState),
+		},
+		PersistenceModeAttr: {
+			String: helper.StringToPtr(d.PersistenceMode),
+		},
 	}
 
-	if fingerprintDeviceData.PowerW == nil {
-		PowerW = notAvailable
-	} else {
-		PowerW = fmt.Sprint(*fingerprintDeviceData.PowerW)
+	if d.MemoryMiB != nil {
+		attrs[MemoryAttr] = &structs.Attribute{
+			Int:  helper.Int64ToPtr(int64(*d.MemoryMiB)),
+			Unit: structs.UnitMiB,
+		}
+	}
+	if d.PowerW != nil {
+		attrs[PowerAttr] = &structs.Attribute{
+			Int:  helper.Int64ToPtr(int64(*d.PowerW)),
+			Unit: structs.UnitW,
+		}
+	}
+	if d.BAR1MiB != nil {
+		attrs[BAR1Attr] = &structs.Attribute{
+			Int:  helper.Int64ToPtr(int64(*d.BAR1MiB)),
+			Unit: structs.UnitMiB,
+		}
+	}
+	if d.CoresClockMHz != nil {
+		attrs[CoresClockAttr] = &structs.Attribute{
+			Int:  helper.Int64ToPtr(int64(*d.CoresClockMHz)),
+			Unit: structs.UnitMHz,
+		}
+	}
+	if d.MemoryClockMHz != nil {
+		attrs[MemoryClockAttr] = &structs.Attribute{
+			Int:  helper.Int64ToPtr(int64(*d.MemoryClockMHz)),
+			Unit: structs.UnitMHz,
+		}
+	}
+	if d.PCIBandwidthMBPerS != nil {
+		attrs[PCIBandwidthAttr] = &structs.Attribute{
+			Int:  helper.Int64ToPtr(int64(*d.PCIBandwidthMBPerS)),
+			Unit: structs.UnitMBPerS,
+		}
 	}
 
-	if fingerprintDeviceData.BAR1MiB == nil {
-		BAR1MiB = notAvailable
-	} else {
-		BAR1MiB = fmt.Sprint(*fingerprintDeviceData.BAR1MiB)
-	}
-
-	if fingerprintDeviceData.CoresClockMHz == nil {
-		CoresClockMHz = notAvailable
-	} else {
-		CoresClockMHz = fmt.Sprint(*fingerprintDeviceData.CoresClockMHz)
-	}
-
-	if fingerprintDeviceData.MemoryClockMHz == nil {
-		MemoryClockMHz = notAvailable
-	} else {
-		MemoryClockMHz = fmt.Sprint(*fingerprintDeviceData.MemoryClockMHz)
-	}
-
-	if fingerprintDeviceData.PCIBandwidthMBPerS == nil {
-		PCIBandwidthMBPerS = notAvailable
-	} else {
-		PCIBandwidthMBPerS = fmt.Sprint(*fingerprintDeviceData.PCIBandwidthMBPerS)
-	}
-
-	return map[string]string{
-		DisplayStateAttr:       fingerprintDeviceData.DisplayState,
-		PersistenceModeAttr:    fingerprintDeviceData.PersistenceMode,
-		MemoryMiBAttr:          MemoryMiB,
-		PowerWAttr:             PowerW,
-		BAR1MiBAttr:            BAR1MiB,
-		CoresClockMHzAttr:      CoresClockMHz,
-		MemoryClockMHzAttr:     MemoryClockMHz,
-		PCIBandwidthMBPerSAttr: PCIBandwidthMBPerS,
-	}
-
+	return attrs
 }

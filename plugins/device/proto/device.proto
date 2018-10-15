@@ -3,6 +3,7 @@ package hashicorp.nomad.plugins.device;
 option go_package = "proto";
 
 import "google/protobuf/timestamp.proto";
+import "github.com/hashicorp/nomad/plugins/shared/structs/proto/attribute.proto";
 
 // DevicePlugin is the API exposed by device plugins
 service DevicePlugin {
@@ -48,7 +49,7 @@ message DeviceGroup {
 
   // attributes allows adding attributes to be used for constraints or
   // affinities.
-  map<string, string> attributes = 5;
+  map<string, hashicorp.nomad.plugins.shared.structs.Attribute> attributes = 5;
 }
 
 // DetectedDevice is a single detected device.

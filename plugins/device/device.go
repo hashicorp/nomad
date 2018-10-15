@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -69,7 +70,7 @@ type DeviceGroup struct {
 	Devices []*Device
 
 	// Attributes are a set of attributes shared for all the devices.
-	Attributes map[string]string
+	Attributes map[string]*structs.Attribute
 }
 
 // Device is an instance of a particular device.

@@ -8,6 +8,9 @@ import (
 
 	pb "github.com/golang/protobuf/proto"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/helper"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -179,6 +182,12 @@ func TestDevicePlugin_Fingerprint(t *testing.T) {
 			Vendor: "nvidia",
 			Type:   DeviceTypeGPU,
 			Name:   "foo",
+			Attributes: map[string]*psstructs.Attribute{
+				"memory": {
+					Int:  helper.Int64ToPtr(4),
+					Unit: "GiB",
+				},
+			},
 		},
 	}
 	devices2 := []*DeviceGroup{
