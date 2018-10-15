@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 	"io"
+	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -16,7 +17,6 @@ type mockTaskHandle struct {
 
 	runFor          time.Duration
 	killAfter       time.Duration
-	killTimeout     time.Duration
 	waitCh          chan struct{}
 	exitCode        int
 	exitSignal      int
@@ -26,8 +26,12 @@ type mockTaskHandle struct {
 	stdoutRepeat    int
 	stdoutRepeatDur time.Duration
 
-	task        *drivers.TaskConfig
-	procState   drivers.TaskState
+	task *drivers.TaskConfig
+
+	// stateLock guards the procState field
+	stateLock sync.Mutex
+	procState drivers.TaskState
+
 	startedAt   time.Time
 	completedAt time.Time
 	exitResult  *drivers.ExitResult
@@ -37,8 +41,25 @@ type mockTaskHandle struct {
 	killCh <-chan struct{}
 }
 
+func (h *mockTaskHandle) IsRunning() bool {
+	h.stateLock.Lock()
+	defer h.stateLock.Unlock()
+	return h.procState == drivers.TaskStateRunning
+}
+
 func (h *mockTaskHandle) run() {
-	defer close(h.waitCh)
+	defer func() {
+		h.stateLock.Lock()
+		h.procState = drivers.TaskStateExited
+		h.stateLock.Unlock()
+
+		h.completedAt = time.Now()
+		close(h.waitCh)
+	}()
+
+	h.stateLock.Lock()
+	h.procState = drivers.TaskStateRunning
+	h.stateLock.Unlock()
 
 	errCh := make(chan error, 1)
 
