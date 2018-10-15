@@ -679,7 +679,6 @@ func BenchmarkParse(b *testing.B) {
 		"100.25mW",
 	}
 
-	// run the Fib function b.N times
 	for n := 0; n < b.N; n++ {
 		for _, c := range cases {
 			ParseAttribute(c)

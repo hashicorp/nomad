@@ -143,26 +143,26 @@ func (a *Attribute) Compare(b *Attribute) (int, bool) {
 		return 0, false
 	}
 
-	return a.comparitor()(b)
+	return a.comparator()(b)
 }
 
-// comparitor returns the comparitor function for the attribute
-func (a *Attribute) comparitor() compareFn {
+// comparator returns the comparator function for the attribute
+func (a *Attribute) comparator() compareFn {
 	if a.Bool != nil {
-		return a.boolComparitor
+		return a.boolComparator
 	}
 	if a.String != nil {
-		return a.stringComparitor
+		return a.stringComparator
 	}
 	if a.Int != nil || a.Float != nil {
-		return a.numberComparitor
+		return a.numberComparator
 	}
 
-	return nullComparitor
+	return nullComparator
 }
 
-// boolComparitor compares two boolean attributes
-func (a *Attribute) boolComparitor(b *Attribute) (int, bool) {
+// boolComparator compares two boolean attributes
+func (a *Attribute) boolComparator(b *Attribute) (int, bool) {
 	if *a.Bool == *b.Bool {
 		return 0, true
 	}
@@ -170,17 +170,17 @@ func (a *Attribute) boolComparitor(b *Attribute) (int, bool) {
 	return 1, true
 }
 
-// stringComparitor compares two string attributes
-func (a *Attribute) stringComparitor(b *Attribute) (int, bool) {
+// stringComparator compares two string attributes
+func (a *Attribute) stringComparator(b *Attribute) (int, bool) {
 	return strings.Compare(*a.String, *b.String), true
 }
 
-// numberComparitor compares two number attributes, having either Int or Float
+// numberComparator compares two number attributes, having either Int or Float
 // set.
-func (a *Attribute) numberComparitor(b *Attribute) (int, bool) {
+func (a *Attribute) numberComparator(b *Attribute) (int, bool) {
 	// If they are both integers we do perfect precision comparisons
 	if a.Int != nil && b.Int != nil {
-		return a.intComparitor(b)
+		return a.intComparator(b)
 	}
 
 	// Push both into the float space
@@ -193,8 +193,8 @@ func (a *Attribute) numberComparitor(b *Attribute) (int, bool) {
 	return af.Cmp(bf), true
 }
 
-// intComparitor compares two integer attributes.
-func (a *Attribute) intComparitor(b *Attribute) (int, bool) {
+// intComparator compares two integer attributes.
+func (a *Attribute) intComparator(b *Attribute) (int, bool) {
 	ai := a.getInt()
 	bi := b.getInt()
 
@@ -207,9 +207,9 @@ func (a *Attribute) intComparitor(b *Attribute) (int, bool) {
 	}
 }
 
-// nullComparitor always returns false and is used when no comparison function
+// nullComparator always returns false and is used when no comparison function
 // is possible
-func nullComparitor(*Attribute) (int, bool) {
+func nullComparator(*Attribute) (int, bool) {
 	return 0, false
 }
 
