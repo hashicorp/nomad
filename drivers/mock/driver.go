@@ -28,13 +28,15 @@ const (
 )
 
 var (
-	// When the package is loaded the driver is registered as an internal plugin
-	// with the plugin catalog
+	// PluginID is the mock driver plugin metadata registered in the plugin
+	// catalog.
 	PluginID = loader.PluginID{
 		Name:       pluginName,
 		PluginType: base.PluginTypeDriver,
 	}
 
+	// PluginConfig is the mock driver factory function registered in the
+	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
 		Factory: func(l hclog.Logger) interface{} { return NewMockDriver(l) },
@@ -338,13 +340,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	handle := drivers.NewTaskHandle(pluginName)
 	handle.Config = cfg
 	if err := handle.SetDriverState(&driverState); err != nil {
-		d.logger.Error("failed to start task, error setting driver state", "error", err)
+		d.logger.Error("failed to start task, error setting driver state", "error", err, "task_name", cfg.Name)
 		return nil, nil, fmt.Errorf("failed to set driver state: %v", err)
 	}
 
 	d.tasks.Set(cfg.ID, h)
 
-	d.logger.Debug("starting task", "name", cfg.Name)
+	d.logger.Debug("starting task", "task_name", cfg.Name)
 	go h.run()
 	return handle, net, nil
 
@@ -380,11 +382,7 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		return drivers.ErrTaskNotFound
 	}
 
-	d.logger.Debug("killing task",
-		"task_name", h.task.Name,
-		"kill_after", h.killAfter,
-		"kill_timeout", h.killTimeout,
-	)
+	d.logger.Debug("killing task", "task_name", h.task.Name, "kill_after", h.killAfter)
 
 	select {
 	case <-h.waitCh:
@@ -392,15 +390,20 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 	case <-time.After(h.killAfter):
 		d.logger.Debug("killing task due to kill_after", "task_name", h.task.Name)
 		h.kill()
-	case <-time.After(h.killTimeout):
-		d.logger.Debug("killing task after kill_timeout", "task_name", h.task.Name)
-		h.kill()
 	}
 	return nil
 }
 
 func (d *Driver) DestroyTask(taskID string, force bool) error {
-	//TODO is there anything else to do here?
+	handle, ok := d.tasks.Get(taskID)
+	if !ok {
+		return drivers.ErrTaskNotFound
+	}
+
+	if handle.IsRunning() && !force {
+		return fmt.Errorf("cannot destroy running task")
+	}
+
 	d.tasks.Delete(taskID)
 	return nil
 }
@@ -414,8 +417,8 @@ func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	return nil, nil
 }
 
-func (d *Driver) TaskEvents(netctx.Context) (<-chan *drivers.TaskEvent, error) {
-	panic("not implemented")
+func (d *Driver) TaskEvents(ctx netctx.Context) (<-chan *drivers.TaskEvent, error) {
+	return d.eventer.TaskEvents(ctx)
 }
 
 func (d *Driver) SignalTask(taskID string, signal string) error {
