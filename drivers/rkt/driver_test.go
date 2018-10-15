@@ -527,9 +527,9 @@ func TestRktDriver_PortMapping(t *testing.T) {
 
 	taskConfig := map[string]interface{}{
 		"image": "docker://redis:3.2-alpine",
-		"port_map": []map[string]string{{
+		"port_map": map[string]string{
 			"main": "6379-tcp",
-		}},
+		},
 		"debug": "true",
 	}
 
