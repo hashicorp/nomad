@@ -218,6 +218,7 @@ func (r *RktDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprin
 }
 
 func (d *RktDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
+	defer close(ch)
 	ticker := time.NewTimer(0)
 	for {
 		select {

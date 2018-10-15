@@ -110,10 +110,6 @@ type TaskConfig struct {
 	StderrPath      string
 }
 
-func (tc *TaskConfig) GetRawConfig() []byte {
-	return tc.rawDriverConfig
-}
-
 func (tc *TaskConfig) Copy() *TaskConfig {
 	if tc == nil {
 		return nil
