@@ -758,7 +758,10 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	// Create a new task group that prevents in-place updates.
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
-	task := &structs.Task{Name: "FOO"}
+	task := &structs.Task{
+		Name:      "FOO",
+		Resources: &structs.Resources{},
+	}
 	tg.Tasks = nil
 	tg.Tasks = append(tg.Tasks, task)
 

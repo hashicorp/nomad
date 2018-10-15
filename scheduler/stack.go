@@ -48,6 +48,7 @@ type GenericStack struct {
 	jobConstraint       *ConstraintChecker
 	taskGroupDrivers    *DriverChecker
 	taskGroupConstraint *ConstraintChecker
+	taskGroupDevices    *DeviceChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -87,12 +88,15 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on task group constraints second
 	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
 
+	// Filter on task group devices
+	s.taskGroupDevices = NewDeviceChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupDevices}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct host constraints.
@@ -195,6 +199,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.taskGroupDevices.SetTaskGroup(tg)
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
@@ -225,13 +230,16 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 // SystemStack is the Stack used for the System scheduler. It is designed to
 // attempt to make placements on all nodes.
 type SystemStack struct {
-	ctx                        Context
-	source                     *StaticIterator
-	wrappedChecks              *FeasibilityWrapper
-	quota                      FeasibleIterator
-	jobConstraint              *ConstraintChecker
-	taskGroupDrivers           *DriverChecker
-	taskGroupConstraint        *ConstraintChecker
+	ctx    Context
+	source *StaticIterator
+
+	wrappedChecks       *FeasibilityWrapper
+	quota               FeasibleIterator
+	jobConstraint       *ConstraintChecker
+	taskGroupDrivers    *DriverChecker
+	taskGroupConstraint *ConstraintChecker
+	taskGroupDevices    *DeviceChecker
+
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
 	scoreNorm                  *ScoreNormalizationIterator
@@ -259,12 +267,15 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Filter on task group constraints second
 	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
 
+	// Filter on task group devices
+	s.taskGroupDevices = NewDeviceChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupDevices}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct property constraints.
@@ -311,6 +322,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.taskGroupDevices.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)

@@ -88,3 +88,16 @@ func Pow(a, b int64) int64 {
 	}
 	return p
 }
+
+// CopyMapStringAttribute copies a map of string to Attribute
+func CopyMapStringAttribute(in map[string]*Attribute) map[string]*Attribute {
+	if in == nil {
+		return nil
+	}
+
+	out := make(map[string]*Attribute, len(in))
+	for k, v := range in {
+		out[k] = v.Copy()
+	}
+	return out
+}

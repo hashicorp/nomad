@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -468,8 +470,10 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 		return checkVersionMatch(ctx, lVal, rVal)
 	case structs.ConstraintRegex:
 		return checkRegexpMatch(ctx, lVal, rVal)
-	case structs.ConstraintSetContains:
+	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
 		return checkSetContainsAll(ctx, lVal, rVal)
+	case structs.ConstraintSetContainsAny:
+		return checkSetContainsAny(lVal, rVal)
 	default:
 		return false
 	}
@@ -478,7 +482,7 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 // checkAffinity checks if a specific affinity is satisfied
 func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
 	switch operand {
-	case structs.ConstraintSetContaintsAny:
+	case structs.ConstraintSetContainsAny:
 		return checkSetContainsAny(lVal, rVal)
 	case structs.ConstraintSetContainsAll, structs.ConstraintSetContains:
 		return checkSetContainsAll(ctx, lVal, rVal)
@@ -535,6 +539,48 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 
 	// Constraint must be a string
 	constraintStr, ok := rVal.(string)
+	if !ok {
+		return false
+	}
+
+	// Check the cache for a match
+	cache := ctx.VersionConstraintCache()
+	constraints := cache[constraintStr]
+
+	// Parse the constraints
+	if constraints == nil {
+		constraints, err = version.NewConstraint(constraintStr)
+		if err != nil {
+			return false
+		}
+		cache[constraintStr] = constraints
+	}
+
+	// Check the constraints against the version
+	return constraints.Check(vers)
+}
+
+// checkAttributeVersionMatch is used to compare a version on the
+// left hand side with a set of constraints on the right hand side
+func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bool {
+	// Parse the version
+	var versionStr string
+	if s, ok := lVal.GetString(); ok {
+		versionStr = s
+	} else if i, ok := lVal.GetInt(); ok {
+		versionStr = fmt.Sprintf("%d", i)
+	} else {
+		return false
+	}
+
+	// Parse the version
+	vers, err := version.NewVersion(versionStr)
+	if err != nil {
+		return false
+	}
+
+	// Constraint must be a string
+	constraintStr, ok := rVal.GetString()
 	if !ok {
 		return false
 	}
@@ -767,4 +813,239 @@ OUTER:
 
 		return option
 	}
+}
+
+// DeviceChecker is a FeasibilityChecker which returns whether a node has the
+// devices necessary to scheduler a task group.
+type DeviceChecker struct {
+	ctx Context
+
+	// required is the set of requested devices that must exist on the node
+	required []*structs.RequestedDevice
+
+	// requiresDevices indicates if the task group requires devices
+	requiresDevices bool
+}
+
+// NewDeviceChecker creates a DeviceChecker
+func NewDeviceChecker(ctx Context) *DeviceChecker {
+	return &DeviceChecker{
+		ctx: ctx,
+	}
+}
+
+func (c *DeviceChecker) SetTaskGroup(tg *structs.TaskGroup) {
+	c.required = nil
+	for _, task := range tg.Tasks {
+		c.required = append(c.required, task.Resources.Devices...)
+	}
+	c.requiresDevices = len(c.required) != 0
+}
+
+func (c *DeviceChecker) Feasible(option *structs.Node) bool {
+	if c.hasDevices(option) {
+		return true
+	}
+
+	c.ctx.Metrics().FilterNode(option, "missing devices")
+	return false
+}
+
+func (c *DeviceChecker) hasDevices(option *structs.Node) bool {
+	if !c.requiresDevices {
+		return true
+	}
+
+	// COMPAT(0.11): Remove in 0.11
+	// The node does not have the new resources object so it can not have any
+	// devices
+	if option.NodeResources == nil {
+		return false
+	}
+
+	// Check if the node has any devices
+	nodeDevs := option.NodeResources.Devices
+	if len(nodeDevs) == 0 {
+		return false
+	}
+
+	// Create a mapping of node devices to the remaining count
+	available := make(map[*structs.NodeDeviceResource]uint64, len(nodeDevs))
+	for _, d := range nodeDevs {
+		var healthy uint64 = 0
+		for _, instance := range d.Instances {
+			if instance.Healthy {
+				healthy++
+			}
+		}
+		if healthy != 0 {
+			available[d] = healthy
+		}
+	}
+
+	// Go through the required devices trying to find matches
+OUTER:
+	for _, req := range c.required {
+		// Determine how many there are to place
+		desiredCount := req.Count
+
+		// Go through the device resources and see if we have a match
+		for d, unused := range available {
+			if unused == 0 {
+				// Depleted
+				continue
+			}
+
+			if nodeDeviceMatches(c.ctx, d, req) {
+				// Consume the instances
+				if unused >= desiredCount {
+					// This device satisfies all our requests
+					available[d] -= desiredCount
+
+					// Move on to the next request
+					continue OUTER
+				} else {
+					// This device partially satisfies our requests
+					available[d] = 0
+					desiredCount -= unused
+				}
+			}
+		}
+
+		// We couldn't match the request for the device
+		if desiredCount > 0 {
+			return false
+		}
+	}
+
+	// Only satisfied if there are no more devices to place
+	return true
+}
+
+// nodeDeviceMatches checks if the device matches the request and its
+// constraints. It doesn't check the count.
+func nodeDeviceMatches(ctx Context, d *structs.NodeDeviceResource, req *structs.RequestedDevice) bool {
+	if !d.ID().Matches(req.ID()) {
+		return false
+	}
+
+	// There are no constraints to consider
+	if len(req.Constraints) == 0 {
+		return true
+	}
+
+	for _, c := range req.Constraints {
+		// Resolve the targets
+		lVal, ok := resolveDeviceTarget(c.LTarget, d)
+		if !ok {
+			return false
+		}
+		rVal, ok := resolveDeviceTarget(c.RTarget, d)
+		if !ok {
+			return false
+		}
+
+		// Check if satisfied
+		if !checkAttributeConstraint(ctx, c.Operand, lVal, rVal) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// resolveDeviceTarget is used to resolve the LTarget and RTarget of a Constraint
+// when used on a device
+func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstructs.Attribute, bool) {
+	// If no prefix, this must be a literal value
+	if !strings.HasPrefix(target, "${") {
+		return psstructs.ParseAttribute(target), true
+	}
+
+	// Handle the interpolations
+	switch {
+	case "${driver.model}" == target:
+		return psstructs.NewStringAttribute(d.Name), true
+
+	case "${driver.vendor}" == target:
+		return psstructs.NewStringAttribute(d.Vendor), true
+
+	case "${driver.type}" == target:
+		return psstructs.NewStringAttribute(d.Type), true
+
+	case strings.HasPrefix(target, "${driver.attr."):
+		attr := strings.TrimPrefix(target, "${driver.attr.")
+		attr = strings.TrimSuffix(attr, "}")
+		val, ok := d.Attributes[attr]
+		return val, ok
+
+	default:
+		return nil, false
+	}
+}
+
+// checkAttributeConstraint checks if a constraint is satisfied
+func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs.Attribute) bool {
+	// Check for constraints not handled by this checker.
+	switch operand {
+	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
+		return true
+	default:
+		break
+	}
+
+	switch operand {
+	case "<", "<=", ">", ">=", "=", "==", "is", "!=", "not":
+		v, ok := lVal.Compare(rVal)
+		if !ok {
+			return false
+		}
+
+		switch operand {
+		case "not", "!=":
+			return v != 0
+		case "is", "==", "=":
+			return v == 0
+		case "<":
+			return v == -1
+		case "<=":
+			return v != 1
+		case ">":
+			return v == 1
+		case ">=":
+			return v != -1
+		default:
+			return false
+		}
+
+	case structs.ConstraintVersion:
+		return checkAttributeVersionMatch(ctx, lVal, rVal)
+	case structs.ConstraintRegex:
+		ls, ok := lVal.GetString()
+		rs, ok2 := rVal.GetString()
+		if !ok || !ok2 {
+			return false
+		}
+		return checkRegexpMatch(ctx, ls, rs)
+	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
+		ls, ok := lVal.GetString()
+		rs, ok2 := rVal.GetString()
+		if !ok || !ok2 {
+			return false
+		}
+
+		return checkSetContainsAll(ctx, ls, rs)
+	case structs.ConstraintSetContainsAny:
+		ls, ok := lVal.GetString()
+		rs, ok2 := rVal.GetString()
+		if !ok || !ok2 {
+			return false
+		}
+
+		return checkSetContainsAny(ls, rs)
+	default:
+		return false
+	}
+
+	return false
 }
