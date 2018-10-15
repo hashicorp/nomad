@@ -29,6 +29,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+var _ drivers.DriverPlugin = (*RktDriver)(nil)
+
 func TestRktVersionRegex(t *testing.T) {
 	ctestutil.RktCompatible(t)
 	t.Parallel()

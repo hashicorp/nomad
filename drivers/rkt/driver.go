@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -104,8 +103,6 @@ var (
 
 	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
 	reAppcVersion = regexp.MustCompile(`appc [vV]ersion[:]? (\d[.\d]+)`)
-
-	_ drivers.DriverPlugin = (*RktDriver)(nil)
 )
 
 // Config is the client configuration for the driver
@@ -240,8 +237,8 @@ func (d *RktDriver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: "healthy",
 	}
 
-	// Only enable if we are root when running on non-windows systems.
-	if runtime.GOOS != "windows" && syscall.Geteuid() != 0 {
+	// Only enable if we are root
+	if syscall.Geteuid() != 0 {
 		d.logger.Debug("must run as root user, disabling")
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = "driver must run as root user"
