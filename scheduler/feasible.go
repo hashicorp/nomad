@@ -470,8 +470,10 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 		return checkVersionMatch(ctx, lVal, rVal)
 	case structs.ConstraintRegex:
 		return checkRegexpMatch(ctx, lVal, rVal)
-	case structs.ConstraintSetContains:
+	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
 		return checkSetContainsAll(ctx, lVal, rVal)
+	case structs.ConstraintSetContainsAny:
+		return checkSetContainsAny(lVal, rVal)
 	default:
 		return false
 	}
@@ -480,7 +482,7 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 // checkAffinity checks if a specific affinity is satisfied
 func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
 	switch operand {
-	case structs.ConstraintSetContaintsAny:
+	case structs.ConstraintSetContainsAny:
 		return checkSetContainsAny(lVal, rVal)
 	case structs.ConstraintSetContainsAll, structs.ConstraintSetContains:
 		return checkSetContainsAll(ctx, lVal, rVal)
@@ -972,7 +974,8 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 		return psstructs.NewStringAttribute(d.Type), true
 
 	case strings.HasPrefix(target, "${driver.attr."):
-		attr := strings.TrimSuffix(strings.TrimPrefix(target, "${driver.attr."), "}")
+		attr := strings.TrimPrefix(target, "${driver.attr.")
+		attr = strings.TrimSuffix(attr, "}")
 		val, ok := d.Attributes[attr]
 		return val, ok
 
@@ -1024,7 +1027,7 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 			return false
 		}
 		return checkRegexpMatch(ctx, ls, rs)
-	case structs.ConstraintSetContains:
+	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
 		ls, ok := lVal.GetString()
 		rs, ok2 := rVal.GetString()
 		if !ok || !ok2 {
@@ -1032,6 +1035,14 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 
 		return checkSetContainsAll(ctx, ls, rs)
+	case structs.ConstraintSetContainsAny:
+		ls, ok := lVal.GetString()
+		rs, ok2 := rVal.GetString()
+		if !ok || !ok2 {
+			return false
+		}
+
+		return checkSetContainsAny(ls, rs)
 	default:
 		return false
 	}

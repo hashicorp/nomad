@@ -1836,6 +1836,72 @@ func TestDeviceChecker(t *testing.T) {
 			},
 		},
 		{
+			Name:        "meets constraints requirement multiple count",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 2,
+					Constraints: []*structs.Constraint{
+						{
+							Operand: "=",
+							LTarget: "${driver.model}",
+							RTarget: "1080ti",
+						},
+						{
+							Operand: ">",
+							LTarget: "${driver.attr.memory}",
+							RTarget: "1320.5 MB",
+						},
+						{
+							Operand: "<=",
+							LTarget: "${driver.attr.pci_bandwidth}",
+							RTarget: ".98   GiB/s",
+						},
+						{
+							Operand: "=",
+							LTarget: "${driver.attr.cores_clock}",
+							RTarget: "800MHz",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "meets constraints requirement over count",
+			Result:      false,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 5,
+					Constraints: []*structs.Constraint{
+						{
+							Operand: "=",
+							LTarget: "${driver.model}",
+							RTarget: "1080ti",
+						},
+						{
+							Operand: ">",
+							LTarget: "${driver.attr.memory}",
+							RTarget: "1320.5 MB",
+						},
+						{
+							Operand: "<=",
+							LTarget: "${driver.attr.pci_bandwidth}",
+							RTarget: ".98   GiB/s",
+						},
+						{
+							Operand: "=",
+							LTarget: "${driver.attr.cores_clock}",
+							RTarget: "800MHz",
+						},
+					},
+				},
+			},
+		},
+		{
 			Name:        "does not meet first constraint",
 			Result:      false,
 			NodeDevices: []*structs.NodeDeviceResource{nvidia},
@@ -1983,10 +2049,22 @@ func TestCheckAttributeConstraint(t *testing.T) {
 			result: true,
 		},
 		{
+			op:     structs.ConstraintSetContainsAll,
+			lVal:   psstructs.NewStringAttribute("foo,bar,baz"),
+			rVal:   psstructs.NewStringAttribute("foo,  bar  "),
+			result: true,
+		},
+		{
 			op:     structs.ConstraintSetContains,
 			lVal:   psstructs.NewStringAttribute("foo,bar,baz"),
 			rVal:   psstructs.NewStringAttribute("foo,bam"),
 			result: false,
+		},
+		{
+			op:     structs.ConstraintSetContainsAny,
+			lVal:   psstructs.NewStringAttribute("foo,bar,baz"),
+			rVal:   psstructs.NewStringAttribute("foo,bam"),
+			result: true,
 		},
 	}
 

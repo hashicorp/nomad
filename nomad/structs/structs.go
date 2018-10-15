@@ -6110,7 +6110,7 @@ const (
 	ConstraintVersion          = "version"
 	ConstraintSetContains      = "set_contains"
 	ConstraintSetContainsAll   = "set_contains_all"
-	ConstraintSetContaintsAny  = "set_contains_any"
+	ConstraintSetContainsAny   = "set_contains_any"
 )
 
 // Constraints are used to restrict placement options.
@@ -6159,7 +6159,7 @@ func (c *Constraint) Validate() error {
 	switch c.Operand {
 	case ConstraintDistinctHosts:
 		requireLtarget = false
-	case ConstraintSetContains:
+	case ConstraintSetContainsAll, ConstraintSetContainsAny, ConstraintSetContains:
 		if c.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains constraint requires an RTarget"))
 		}
@@ -6239,7 +6239,7 @@ func (a *Affinity) Validate() error {
 
 	// Perform additional validation based on operand
 	switch a.Operand {
-	case ConstraintSetContainsAll, ConstraintSetContaintsAny, ConstraintSetContains:
+	case ConstraintSetContainsAll, ConstraintSetContainsAny, ConstraintSetContains:
 		if a.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains operators require an RTarget"))
 		}

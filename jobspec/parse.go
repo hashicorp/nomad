@@ -655,8 +655,8 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 
 		// If "set_contains_any" is provided, set the operand
 		// to "set_contains_any" and the value to the "RTarget"
-		if affinity, ok := m[structs.ConstraintSetContaintsAny]; ok {
-			m["Operand"] = structs.ConstraintSetContaintsAny
+		if affinity, ok := m[structs.ConstraintSetContainsAny]; ok {
+			m["Operand"] = structs.ConstraintSetContainsAny
 			m["RTarget"] = affinity
 		}
 

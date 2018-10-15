@@ -1571,13 +1571,15 @@ func TestConstraint_Validate(t *testing.T) {
 		t.Fatalf("expected valid constraint: %v", err)
 	}
 
-	// Perform set_contains validation
-	c.Operand = ConstraintSetContains
+	// Perform set_contains* validation
 	c.RTarget = ""
-	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
-		t.Fatalf("err: %s", err)
+	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
+		c.Operand = o
+		err = c.Validate()
+		mErr = err.(*multierror.Error)
+		if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
+			t.Fatalf("err: %s", err)
+		}
 	}
 
 	// Perform LTarget validation
