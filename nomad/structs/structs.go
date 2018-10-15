@@ -2694,6 +2694,7 @@ type AllocatedTaskResources struct {
 	Cpu      AllocatedCpuResources
 	Memory   AllocatedMemoryResources
 	Networks Networks
+	Devices  []*AllocatedDeviceResource
 }
 
 func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
@@ -2702,6 +2703,8 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 	}
 	newA := new(AllocatedTaskResources)
 	*newA = *a
+
+	// Copy the networks
 	if a.Networks != nil {
 		n := len(a.Networks)
 		newA.Networks = make([]*NetworkResource, n)
@@ -2709,6 +2712,16 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 			newA.Networks[i] = a.Networks[i].Copy()
 		}
 	}
+
+	// Copy the devices
+	if newA.Devices != nil {
+		n := len(a.Devices)
+		newA.Devices = make([]*AllocatedDeviceResource, n)
+		for i := 0; i < n; i++ {
+			newA.Devices[i] = a.Devices[i].Copy()
+		}
+	}
+
 	return newA
 }
 
@@ -2732,6 +2745,16 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 			a.Networks = append(a.Networks, n.Copy())
 		} else {
 			a.Networks[idx].Add(n)
+		}
+	}
+
+	for _, d := range delta.Devices {
+		// Find the matching device
+		idx := AllocatedDevices(delta.Devices).Index(d)
+		if idx == -1 {
+			a.Devices = append(a.Devices, d.Copy())
+		} else {
+			a.Devices[idx].Add(d)
 		}
 	}
 }
@@ -2829,6 +2852,60 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+}
+
+type AllocatedDevices []*AllocatedDeviceResource
+
+// Index finds the matching index using the passed device. If not found, -1 is
+// returned.
+func (a AllocatedDevices) Index(d *AllocatedDeviceResource) int {
+	if d == nil {
+		return -1
+	}
+
+	for i, o := range a {
+		if o.Vendor == d.Vendor && o.Type == d.Type && o.Name == d.Name {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// AllocatedDeviceResource captures a set of allocated devices.
+type AllocatedDeviceResource struct {
+	// Vendor, Type, and Name are used to select the plugin to request the
+	// device IDs from.
+	Vendor string
+	Type   string
+	Name   string
+
+	// DeviceIDs is the set of allocated devices
+	DeviceIDs []string
+}
+
+func (a *AllocatedDeviceResource) Add(delta *AllocatedDeviceResource) {
+	if delta == nil {
+		return
+	}
+
+	a.DeviceIDs = append(a.DeviceIDs, delta.DeviceIDs...)
+}
+
+func (a *AllocatedDeviceResource) Copy() *AllocatedDeviceResource {
+	if a == nil {
+		return a
+	}
+
+	na := *a
+
+	// Copy the devices
+	na.DeviceIDs = make([]string, len(a.DeviceIDs))
+	for i, id := range a.DeviceIDs {
+		na.DeviceIDs[i] = id
+	}
+
+	return &na
 }
 
 // ComparableResources is the set of resources allocated to a task group but
