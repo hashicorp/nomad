@@ -153,7 +153,7 @@ type RktDriver struct {
 	// config is the driver configuration set by the SetConfig RPC
 	config *Config
 
-	// tasks is the in memory datastore mapping taskIDs to execDriverHandles
+	// tasks is the in memory datastore mapping taskIDs to rktTaskHandles
 	tasks *taskStore
 
 	// ctx is the context for the driver. It is passed to other subsystems to
@@ -373,7 +373,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 			return nil, nil, fmt.Errorf("Error running rkt trust: %s\n\nOutput: %s\n\nError: %s",
 				err, outBuf.String(), errBuf.String())
 		}
-		d.logger.Debug("added trust prefix", "trust_prefix", trustPrefix)
+		d.logger.Debug("added trust prefix", "trust_prefix", trustPrefix, "task_name", cfg.Name)
 	} else {
 		// Disable signature verification if the trust command was not run.
 		insecure = true
@@ -501,7 +501,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 		}
 	} else if network == "host" {
 		// Port mapping is skipped when host networking is used.
-		d.logger.Debug("driver.rkt: Ignoring port_map when using --net=host")
+		d.logger.Debug("Ignoring port_map when using --net=host", "task_name", cfg.Name)
 	} else {
 		network := cfg.Resources.NomadResources.Networks[0]
 		for _, port := range network.ReservedPorts {
@@ -534,7 +534,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 
 			hostPortStr := strconv.Itoa(port.Value)
 
-			d.logger.Debug("driver.rkt: exposed port", "containerPort", containerPort)
+			d.logger.Debug("exposed port", "containerPort", containerPort, "task_name", cfg.Name)
 			// Add port option to rkt run arguments. rkt allows multiple port args
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
 		}
@@ -646,7 +646,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	}
 
 	if err := handle.SetDriverState(&rktDriverState); err != nil {
-		d.logger.Error("failed to start task, error setting driver state", "error", err)
+		d.logger.Error("failed to start task, error setting driver state", "error", err, "task_name", cfg.Name)
 		execImpl.Shutdown("", 0)
 		pluginClient.Kill()
 		return nil, nil, fmt.Errorf("failed to set driver state: %v", err)
@@ -661,10 +661,10 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	// https://coreos.com/rkt/docs/latest/networking/overview.html#no-loopback-only-networking
 	var driverNetwork *cstructs.DriverNetwork
 	if network != "host" && network != "none" {
-		d.logger.Debug("retrieving network information for pod", "pod", img, "UUID", uuid, "task", cfg.Name)
+		d.logger.Debug("retrieving network information for pod", "pod", img, "UUID", uuid, "task_name", cfg.Name)
 		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap, d.logger)
 		if err != nil && !pluginClient.Exited() {
-			d.logger.Warn("network status retrieval for pod failed", "pod", img, "UUID", uuid, "task", cfg.Name, "error", err)
+			d.logger.Warn("network status retrieval for pod failed", "pod", img, "UUID", uuid, "task_name", cfg.Name, "error", err)
 
 			// If a portmap was given, this turns into a fatal error
 			if len(driverConfig.PortMap) != 0 {
@@ -775,7 +775,7 @@ func (d *RktDriver) SignalTask(taskID string, signal string) error {
 
 	sig := os.Interrupt
 	if s, ok := signals.SignalLookup[signal]; ok {
-		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.taskConfig.ID)
+		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.taskConfig.ID, "task_name", handle.taskConfig.Name)
 		sig = s
 	}
 	return handle.exec.Signal(sig)
@@ -985,9 +985,7 @@ func (d *RktDriver) handleWait(ctx context.Context, handle *rktTaskHandle, ch ch
 
 	select {
 	case <-ctx.Done():
-		return
 	case <-d.ctx.Done():
-		return
 	case ch <- result:
 	}
 }
