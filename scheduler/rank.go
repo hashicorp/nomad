@@ -191,6 +191,10 @@ OUTER:
 		netIdx.SetNode(option.Node)
 		netIdx.AddAllocs(proposed)
 
+		// Create a device allocator
+		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
+		devAllocator.AddAllocs(proposed)
+
 		// Assign the resources for each task
 		total := &structs.AllocatedResources{
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
@@ -271,6 +275,17 @@ OUTER:
 
 				// Update the network ask to the offer
 				taskResources.Networks = []*structs.NetworkResource{offer}
+			}
+
+			// Check if we need to assign devices
+			for _, req := range task.Resources.Devices {
+				offer, err := devAllocator.AssignDevice(req)
+				if offer == nil {
+					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
+					continue OUTER
+				}
+				devAllocator.AddReserved(offer)
+				taskResources.Devices = append(taskResources.Devices, offer)
 			}
 
 			// Store the task resource

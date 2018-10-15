@@ -7,10 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 // FeasibleIterator is used to iteratively yield nodes that
@@ -896,6 +895,8 @@ OUTER:
 				continue
 			}
 
+			// TODO invert the count logic since it is cheaper than checking if
+			// devices match
 			if nodeDeviceMatches(c.ctx, d, req) {
 				// Consume the instances
 				if unused >= desiredCount {
@@ -904,18 +905,19 @@ OUTER:
 
 					// Move on to the next request
 					continue OUTER
-				} else {
-					// This device partially satisfies our requests
-					available[d] = 0
-					desiredCount -= unused
-				}
+				} // else {
+				// This device partially satisfies our requests
+				//available[d] = 0
+				//desiredCount -= unused
+				//}
 			}
 		}
 
+		// TODO I don't think this behavior is desirable
 		// We couldn't match the request for the device
-		if desiredCount > 0 {
-			return false
-		}
+		//if desiredCount > 0 {
+		return false
+		//}
 	}
 
 	// Only satisfied if there are no more devices to place

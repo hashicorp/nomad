@@ -1714,22 +1714,6 @@ func TestDeviceChecker(t *testing.T) {
 		},
 	}
 
-	intel := &structs.NodeDeviceResource{
-		Vendor: "intel",
-		Type:   "gpu",
-		Name:   "GT640",
-		Instances: []*structs.NodeDevice{
-			{
-				ID:      uuid.Generate(),
-				Healthy: true,
-			},
-			{
-				ID:      uuid.Generate(),
-				Healthy: false,
-			},
-		},
-	}
-
 	cases := []struct {
 		Name             string
 		Result           bool
@@ -1796,12 +1780,12 @@ func TestDeviceChecker(t *testing.T) {
 			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
 			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
 		},
-		{
-			Name:             "request split over groups",
-			Result:           true,
-			NodeDevices:      []*structs.NodeDeviceResource{nvidia, intel},
-			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
-		},
+		//{
+		//Name:             "request split over groups",
+		//Result:           true,
+		//NodeDevices:      []*structs.NodeDeviceResource{nvidia, intel},
+		//RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
+		//},
 		{
 			Name:        "meets constraints requirement",
 			Result:      true,

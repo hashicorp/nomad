@@ -467,6 +467,280 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	}
 }
 
+// This is a fairly high level test that asserts the bin packer uses the device
+// allocator properly. It is not intended to handle every possible device
+// request versus availability scenario. That should be covered in device
+// allocator tests.
+func TestBinPackIterator_Devices(t *testing.T) {
+	nvidiaNode := mock.NvidiaNode()
+	devs := nvidiaNode.NodeResources.Devices[0].Instances
+	nvidiaDevices := []string{devs[0].ID, devs[1].ID}
+
+	nvidiaDev0 := mock.Alloc()
+	nvidiaDev0.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{
+		{
+			Type:      "gpu",
+			Vendor:    "nvidia",
+			Name:      "1080ti",
+			DeviceIDs: []string{nvidiaDevices[0]},
+		},
+	}
+
+	type devPlacementTuple struct {
+		Count      int
+		ExcludeIDs []string
+	}
+
+	cases := []struct {
+		Name               string
+		Node               *structs.Node
+		PlannedAllocs      []*structs.Allocation
+		ExistingAllocs     []*structs.Allocation
+		TaskGroup          *structs.TaskGroup
+		NoPlace            bool
+		ExpectedPlacements map[string]map[structs.DeviceIdTuple]devPlacementTuple
+	}{
+		{
+			Name: "single request, match",
+			Node: nvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "1080ti",
+					}: {
+						Count: 1,
+					},
+				},
+			},
+		},
+		{
+			Name: "single request multiple count, match",
+			Node: nvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 2,
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "1080ti",
+					}: {
+						Count: 2,
+					},
+				},
+			},
+		},
+		{
+			Name: "single request over count, no match",
+			Node: nvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 6,
+								},
+							},
+						},
+					},
+				},
+			},
+			NoPlace: true,
+		},
+		{
+			Name: "single request no device of matching type",
+			Node: nvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "fpga",
+									Count: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			NoPlace: true,
+		},
+		{
+			Name: "single request with previous uses",
+			Node: nvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "1080ti",
+					}: {
+						Count:      1,
+						ExcludeIDs: []string{nvidiaDevices[0]},
+					},
+				},
+			},
+			ExistingAllocs: []*structs.Allocation{nvidiaDev0},
+		},
+		{
+			Name: "single request with planned uses",
+			Node: nvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "1080ti",
+					}: {
+						Count:      1,
+						ExcludeIDs: []string{nvidiaDevices[0]},
+					},
+				},
+			},
+			PlannedAllocs: []*structs.Allocation{nvidiaDev0},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			require := require.New(t)
+
+			// Setup the context
+			state, ctx := testContext(t)
+
+			// Add the planned allocs
+			if len(c.PlannedAllocs) != 0 {
+				for _, alloc := range c.PlannedAllocs {
+					alloc.NodeID = c.Node.ID
+				}
+				plan := ctx.Plan()
+				plan.NodeAllocation[c.Node.ID] = c.PlannedAllocs
+			}
+
+			// Add the existing allocs
+			if len(c.ExistingAllocs) != 0 {
+				for _, alloc := range c.ExistingAllocs {
+					alloc.NodeID = c.Node.ID
+				}
+				require.NoError(state.UpsertAllocs(1000, c.ExistingAllocs))
+			}
+
+			static := NewStaticRankIterator(ctx, []*RankedNode{&RankedNode{Node: c.Node}})
+			binp := NewBinPackIterator(ctx, static, false, 0)
+			binp.SetTaskGroup(c.TaskGroup)
+
+			out := binp.Next()
+			if out == nil && !c.NoPlace {
+				t.Fatalf("expected placement")
+			}
+
+			// Check we got the placements we are expecting
+			for tname, devices := range c.ExpectedPlacements {
+				tr, ok := out.TaskResources[tname]
+				require.True(ok)
+
+				want := len(devices)
+				got := 0
+				for _, placed := range tr.Devices {
+					got++
+
+					expected, ok := devices[*placed.ID()]
+					require.True(ok)
+					require.Equal(expected.Count, len(placed.DeviceIDs))
+					for _, id := range expected.ExcludeIDs {
+						require.NotContains(placed.DeviceIDs, id)
+					}
+				}
+
+				require.Equal(want, got)
+			}
+		})
+	}
+}
+
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
