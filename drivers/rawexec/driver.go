@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"golang.org/x/net/context"
@@ -25,25 +24,27 @@ import (
 
 // When the package is loaded the driver is registered as an internal plugin
 // with the plugin catalog
-func init() {
-	catalog.RegisterDeferredConfig(loader.PluginID{
+var (
+	PluginID = loader.PluginID{
 		Name:       pluginName,
 		PluginType: base.PluginTypeDriver,
-	}, &loader.InternalPluginConfig{
+	}
+
+	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
 		Factory: func(l hclog.Logger) interface{} { return NewRawExecDriver(l) },
-	},
-		func(opts map[string]string) (map[string]interface{}, error) {
-			conf := map[string]interface{}{}
-			if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
-				conf["enabled"] = v
-			}
-			if v, err := strconv.ParseBool(opts["driver.raw_exec.no_cgroups"]); err == nil {
-				conf["no_cgroups"] = v
-			}
-			return conf, nil
-		},
-	)
+	}
+)
+
+func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
+	conf := map[string]interface{}{}
+	if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
+		conf["enabled"] = v
+	}
+	if v, err := strconv.ParseBool(opts["driver.raw_exec.no_cgroups"]); err == nil {
+		conf["no_cgroups"] = v
+	}
+	return conf, nil
 }
 
 const (
