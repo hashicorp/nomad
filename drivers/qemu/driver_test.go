@@ -55,10 +55,10 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 		"image_path":        "linux-0.2.img",
 		"accelerator":       "tcg",
 		"graceful_shutdown": false,
-		"port_map": []map[string]int{{
+		"port_map": map[string]int{
 			"main": 22,
 			"web":  8080,
-		}},
+		},
 		"args": []string{"-nodefconfig", "-nodefaults"},
 	}
 	encodeDriverHelper(require, task, taskConfig)
@@ -254,10 +254,10 @@ func TestQemuDriver_User(t *testing.T) {
 		"image_path":        "linux-0.2.img",
 		"accelerator":       "tcg",
 		"graceful_shutdown": false,
-		"port_map": []map[string]int{{
+		"port_map": map[string]int{
 			"main": 22,
 			"web":  8080,
-		}},
+		},
 		"args": []string{"-nodefconfig", "-nodefaults"},
 	}
 	encodeDriverHelper(require, task, taskConfig)

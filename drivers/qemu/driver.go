@@ -78,7 +78,7 @@ var (
 		"accelerator":       hclspec.NewAttr("accelerator", "string", false),
 		"graceful_shutdown": hclspec.NewAttr("graceful_shutdown", "bool", false),
 		"args":              hclspec.NewAttr("args", "list(string)", false),
-		"port_map":          hclspec.NewAttr("port_map", "list(map(number))", false), //TODO(preetha) since we only ever read the first element, should this become a map[string]int
+		"port_map":          hclspec.NewAttr("port_map", "map(number)", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -98,11 +98,11 @@ type Config struct {
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	ImagePath        string           `codec:"image_path" cty:"image_path"`
-	Accelerator      string           `codec:"accelerator" cty:"accelerator"`
-	Args             []string         `codec:"args" cty:"args"`         // extra arguments to qemu executable
-	PortMap          []map[string]int `codec:"port_map" cty:"port_map"` // A map of host port and the port name defined in the image manifest file
-	GracefulShutdown bool             `codec:"graceful_shutdown" cty:"graceful_shutdown"`
+	ImagePath        string         `codec:"image_path" cty:"image_path"`
+	Accelerator      string         `codec:"accelerator" cty:"accelerator"`
+	Args             []string       `codec:"args" cty:"args"`         // extra arguments to qemu executable
+	PortMap          map[string]int `codec:"port_map" cty:"port_map"` // A map of host port and the port name defined in the image manifest file
+	GracefulShutdown bool           `codec:"graceful_shutdown" cty:"graceful_shutdown"`
 }
 
 // QemuTaskState is the state which is encoded in the handle returned in
@@ -360,7 +360,7 @@ func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 		// Ex: hostfwd=tcp::22000-:22,hostfwd=tcp::80-:8080
 		var forwarding []string
 		taskPorts := cfg.Resources.NomadResources.Networks[0].PortLabels()
-		for label, guest := range driverConfig.PortMap[0] {
+		for label, guest := range driverConfig.PortMap {
 			host, ok := taskPorts[label]
 			if !ok {
 				return nil, nil, fmt.Errorf("Unknown port label %q", label)
@@ -454,7 +454,7 @@ func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	var driverNetwork *cstructs.DriverNetwork
 	if len(driverConfig.PortMap) == 1 {
 		driverNetwork = &cstructs.DriverNetwork{
-			PortMap: driverConfig.PortMap[0],
+			PortMap: driverConfig.PortMap,
 		}
 	}
 	return handle, driverNetwork, nil
