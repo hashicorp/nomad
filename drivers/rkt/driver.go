@@ -86,7 +86,7 @@ var (
 		"dns_servers":        hclspec.NewAttr("dns_servers", "list(string)", false),
 		"dns_search_domains": hclspec.NewAttr("dns_search_domains", "list(string)", false),
 		"net":                hclspec.NewAttr("net", "list(string)", false),
-		"port_map":           hclspec.NewAttr("port_map", "map(string)", false),
+		"port_map":           hclspec.NewAttr("port_map", "list(map(string))", false),
 		"volumes":            hclspec.NewAttr("volumes", "list(string)", false),
 		"insecure_options":   hclspec.NewAttr("insecure_options", "list(string)", false),
 		"no_overlay":         hclspec.NewAttr("no_overlay", "bool", false),
@@ -118,16 +118,16 @@ type Config struct {
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	ImageName        string            `codec:"image" cty:"image"`
-	Command          string            `codec:"command" cty:"command"`
-	Args             []string          `codec:"args" cty:"args"`
-	TrustPrefix      string            `codec:"trust_prefix" cty:"trust_prefix"`
-	DNSServers       []string          `codec:"dns_servers" cty:"dns_servers"`               // DNS Server for containers
-	DNSSearchDomains []string          `codec:"dns_search_domains" cty:"dns_search_domains"` // DNS Search domains for containers
-	Net              []string          `codec:"net" cty:"net"`                               // Networks for the containers
-	PortMap          map[string]string `codec:"port_map" cty:"port_map"`                     // A map of host port and the port name defined in the image manifest file
-	Volumes          []string          `codec:"volumes" cty:"volumes"`                       // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
-	InsecureOptions  []string          `codec:"insecure_options" cty:"insecure_options"`     // list of args for --insecure-options
+	ImageName        string              `codec:"image" cty:"image"`
+	Command          string              `codec:"command" cty:"command"`
+	Args             []string            `codec:"args" cty:"args"`
+	TrustPrefix      string              `codec:"trust_prefix" cty:"trust_prefix"`
+	DNSServers       []string            `codec:"dns_servers" cty:"dns_servers"`               // DNS Server for containers
+	DNSSearchDomains []string            `codec:"dns_search_domains" cty:"dns_search_domains"` // DNS Search domains for containers
+	Net              []string            `codec:"net" cty:"net"`                               // Networks for the containers
+	PortMap          []map[string]string `codec:"port_map" cty:"port_map"`                     // A map of host port and the port name defined in the image manifest file
+	Volumes          []string            `codec:"volumes" cty:"volumes"`                       // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
+	InsecureOptions  []string            `codec:"insecure_options" cty:"insecure_options"`     // list of args for --insecure-options
 
 	NoOverlay bool   `codec:"no_overlay" cty:"no_overlay"` // disable overlayfs for rkt run
 	Debug     bool   `codec:"debug" cty:"debug"`           // Enable debug option for rkt command
@@ -344,8 +344,6 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	}
 
 	var driverConfig TaskConfig
-	d.logger.Debug("msgpack encoding", "data", string(cfg.GetRawConfig()))
-
 	if err := cfg.DecodeDriverConfig(&driverConfig); err != nil {
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
@@ -497,6 +495,8 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 		runArgs = append(runArgs, fmt.Sprintf("--net=%s", network))
 	}
 
+	mergedPortMap := mapMergeStrStr(driverConfig.PortMap...)
+
 	// Setup port mapping and exposed ports
 	if len(cfg.Resources.NomadResources.Networks) == 0 {
 		d.logger.Debug("no network interfaces are available")
@@ -511,7 +511,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 		for _, port := range network.ReservedPorts {
 			var containerPort string
 
-			mapped, ok := driverConfig.PortMap[port.Label]
+			mapped, ok := mergedPortMap[port.Label]
 			if !ok {
 				// If the user doesn't have a mapped port using port_map, driver stops running container.
 				return nil, nil, fmt.Errorf("port_map is not set. When you defined port in the resources, you need to configure port_map.")
@@ -529,7 +529,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 			// By default we will map the allocated port 1:1 to the container
 			var containerPort string
 
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
+			if mapped, ok := mergedPortMap[port.Label]; ok {
 				containerPort = mapped
 			} else {
 				// If the user doesn't have mapped a port using port_map, driver stops running container.
@@ -666,7 +666,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	var driverNetwork *cstructs.DriverNetwork
 	if network != "host" && network != "none" {
 		d.logger.Debug("retrieving network information for pod", "pod", img, "UUID", uuid, "task", cfg.Name)
-		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap, d.logger)
+		driverNetwork, err = rktGetDriverNetwork(uuid, mergedPortMap, d.logger)
 		if err != nil && !pluginClient.Exited() {
 			d.logger.Warn("network status retrieval for pod failed", "pod", img, "UUID", uuid, "task", cfg.Name, "error", err)
 
@@ -994,4 +994,14 @@ func (d *RktDriver) handleWait(ctx context.Context, handle *rktTaskHandle, ch ch
 		return
 	case ch <- result:
 	}
+}
+
+func mapMergeStrStr(maps ...map[string]string) map[string]string {
+	out := map[string]string{}
+	for _, in := range maps {
+		for key, val := range in {
+			out[key] = val
+		}
+	}
+	return out
 }
