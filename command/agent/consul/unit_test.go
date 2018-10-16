@@ -67,7 +67,7 @@ func newMockExec() *mockExec {
 	}
 }
 
-func (m *mockExec) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+func (m *mockExec) Exec(dur time.Duration, cmd string, args []string) ([]byte, int, error) {
 	select {
 	case m.execs <- 1:
 	default:
@@ -76,6 +76,8 @@ func (m *mockExec) Exec(ctx context.Context, cmd string, args []string) ([]byte,
 		// Default impl is just "ok"
 		return []byte("ok"), 0, nil
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer cancel()
 	return m.ExecFunc(ctx, cmd, args)
 }
 

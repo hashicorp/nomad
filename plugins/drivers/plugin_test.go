@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
@@ -118,18 +119,18 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	state := &testDriverState{Pid: 1, Log: "log"}
 	var handle *TaskHandle
 	impl := &MockDriver{
-		StartTaskF: func(c *TaskConfig) (*TaskHandle, error) {
+		StartTaskF: func(c *TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error) {
 			handle = NewTaskHandle("test")
 			handle.Config = c
 			handle.State = TaskStateRunning
 			handle.SetDriverState(state)
-			return handle, nil
+			return handle, nil, nil
 		},
 	}
 
 	harness := NewDriverHarness(t, impl)
 	defer harness.Kill()
-	resp, err := harness.StartTask(cfg)
+	resp, _, err := harness.StartTask(cfg)
 	require.NoError(err)
 	require.Equal(cfg.ID, resp.Config.ID)
 	require.Equal(handle.State, resp.State)
