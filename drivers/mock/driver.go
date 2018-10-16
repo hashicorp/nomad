@@ -21,7 +21,7 @@ import (
 
 const (
 	// pluginName is the name of the plugin
-	pluginName = "mock"
+	pluginName = "mock_driver"
 
 	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
 	fingerprintPeriod = 500 * time.Millisecond
