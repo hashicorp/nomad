@@ -805,7 +805,7 @@ func (c *Client) restoreState() error {
 	// All allocs restored successfully, run them!
 	c.allocLock.Lock()
 	for _, ar := range c.allocs {
-		go ar.Run()
+		ar.Run()
 	}
 	c.allocLock.Unlock()
 
@@ -1933,7 +1933,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
 
-	go ar.Run()
+	ar.Run()
 	return nil
 }
 

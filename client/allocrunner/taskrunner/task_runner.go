@@ -171,9 +171,6 @@ type Config struct {
 	// VaultClient is the client to use to derive and renew Vault tokens
 	VaultClient vaultclient.VaultClient
 
-	// LocalState is optionally restored task state
-	LocalState *state.LocalState
-
 	// StateDB is used to store and restore state.
 	StateDB cstate.StateDB
 
@@ -197,6 +194,12 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		config.ClientConfig.Region,
 	)
 
+	// Initialize state from alloc if it is set
+	tstate := structs.NewTaskState()
+	if ts := config.Alloc.TaskStates[config.Task.Name]; ts != nil {
+		tstate = ts.Copy()
+	}
+
 	tr := &TaskRunner{
 		alloc:                 config.Alloc,
 		allocID:               config.Alloc.ID,
@@ -208,8 +211,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		envBuilder:            envBuilder,
 		consulClient:          config.Consul,
 		vaultClient:           config.VaultClient,
-		state:                 config.Alloc.TaskStates[config.Task.Name].Copy(),
-		localState:            config.LocalState,
+		state:                 tstate,
+		localState:            state.NewLocalState(),
 		stateDB:               config.StateDB,
 		stateUpdater:          config.StateUpdater,
 		ctx:                   trCtx,
@@ -230,9 +233,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
 
-	// Initialize the task state
-	tr.initState()
-
 	// Get the driver
 	if err := tr.initDriver(); err != nil {
 		tr.logger.Error("failed to create driver", "error", err)
@@ -246,17 +246,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.initLabels()
 
 	return tr, nil
-}
-
-func (tr *TaskRunner) initState() {
-	if tr.state == nil {
-		tr.state = &structs.TaskState{
-			State: structs.TaskStatePending,
-		}
-	}
-	if tr.localState == nil {
-		tr.localState = state.NewLocalState()
-	}
 }
 
 func (tr *TaskRunner) initLabels() {
@@ -590,10 +579,6 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	}
 }
 
-// XXX If the objects don't exists since the client shutdown before the task
-// runner ever saved state, then we should treat it as a new task runner and not
-// return an error
-//
 // Restore task runner state. Called by AllocRunner.Restore after NewTaskRunner
 // but before Run so no locks need to be acquired.
 func (tr *TaskRunner) Restore() error {
@@ -602,8 +587,14 @@ func (tr *TaskRunner) Restore() error {
 		return err
 	}
 
-	tr.localState = ls
-	tr.state = ts
+	if ls != nil {
+		ls.Canonicalize()
+		tr.localState = ls
+	}
+	if ts != nil {
+		ts.Canonicalize()
+		tr.state = ts
+	}
 	return nil
 }
 

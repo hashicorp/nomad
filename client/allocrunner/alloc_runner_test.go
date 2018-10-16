@@ -126,7 +126,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
-	go ar.Run()
+	ar.Run()
 
 	// Wait for all tasks to be killed
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -216,7 +216,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
-	go ar.Run()
+	ar.Run()
 
 	// Wait for tasks to start
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -269,6 +269,85 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 		}
 		t.Fatalf("err: %v", err)
 	})
+}
+
+// TestAllocRunner_TaskLeader_StopRestoredTG asserts that when stopping a
+// restored task group with a leader that failed before restoring the leader is
+// not stopped as it does not exist.
+// See https://github.com/hashicorp/nomad/issues/3420#issuecomment-341666932
+func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+
+	// Create a leader and follower task in the task group
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Name = "follower1"
+	task.Driver = "mock_driver"
+	task.KillTimeout = 10 * time.Second
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task2.Name = "leader"
+	task2.Driver = "mock_driver"
+	task2.Leader = true
+	task2.KillTimeout = 10 * time.Millisecond
+	task2.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
+	alloc.TaskResources[task2.Name] = task2.Resources
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	// Use a memory backed statedb
+	conf.StateDB = state.NewMemDB()
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer ar.Destroy()
+
+	// Mimic Nomad exiting before the leader stopping is able to stop other tasks.
+	ar.tasks["leader"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled))
+	ar.tasks["follower1"].UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+
+	// Create a new AllocRunner to test RestoreState and Run
+	ar2, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer ar2.Destroy()
+
+	if err := ar2.Restore(); err != nil {
+		t.Fatalf("error restoring state: %v", err)
+	}
+	ar2.Run()
+
+	// Wait for tasks to be stopped because leader is dead
+	testutil.WaitForResult(func() (bool, error) {
+		alloc := ar2.Alloc()
+		for task, state := range alloc.TaskStates {
+			if state.State != structs.TaskStateDead {
+				return false, fmt.Errorf("Task %q should be dead: %v", task, state.State)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Make sure it GCs properly
+	ar2.Destroy()
+
+	select {
+	case <-ar2.WaitCh():
+		// exited as expected
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for AR to GC")
+	}
 }
 
 /*

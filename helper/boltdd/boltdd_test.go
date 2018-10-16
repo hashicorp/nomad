@@ -232,7 +232,9 @@ func TestBucket_Delete(t *testing.T) {
 		require.NoError(err)
 
 		var v []byte
-		require.Error(child.Get(childKey, &v))
+		err = child.Get(childKey, &v)
+		require.Error(err)
+		require.True(IsErrNotFound(err))
 		require.Equal(([]byte)(nil), v)
 
 		require.Nil(child.Bucket(grandchildName1))
