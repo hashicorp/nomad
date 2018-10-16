@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	golog "log"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,16 +14,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	golog "log"
-
 	metrics "github.com/armon/go-metrics"
-	log "github.com/hashicorp/go-hclog"
-	uuidparse "github.com/hashicorp/go-uuid"
-	clientconfig "github.com/hashicorp/nomad/client/config"
-
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
+	log "github.com/hashicorp/go-hclog"
+	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -434,9 +432,9 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		res = new(structs.NodeReservedResources)
 		conf.Node.ReservedResources = res
 	}
-	res.Cpu.CpuShares = uint64(a.config.Client.Reserved.CPU)
-	res.Memory.MemoryMB = uint64(a.config.Client.Reserved.MemoryMB)
-	res.Disk.DiskMB = uint64(a.config.Client.Reserved.DiskMB)
+	res.Cpu.CpuShares = int64(a.config.Client.Reserved.CPU)
+	res.Memory.MemoryMB = int64(a.config.Client.Reserved.MemoryMB)
+	res.Disk.DiskMB = int64(a.config.Client.Reserved.DiskMB)
 	res.Networks.ReservedHostPorts = a.config.Client.Reserved.ReservedPorts
 
 	conf.Version = a.config.Version

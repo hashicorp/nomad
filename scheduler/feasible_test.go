@@ -1687,11 +1687,11 @@ func TestDeviceChecker(t *testing.T) {
 			"cores_clock":   psstructs.NewIntAttribute(800, psstructs.UnitMHz),
 		},
 		Instances: []*structs.NodeDevice{
-			&structs.NodeDevice{
+			{
 				ID:      uuid.Generate(),
 				Healthy: true,
 			},
-			&structs.NodeDevice{
+			{
 				ID:      uuid.Generate(),
 				Healthy: true,
 			},
@@ -1703,11 +1703,11 @@ func TestDeviceChecker(t *testing.T) {
 		Type:   "gpu",
 		Name:   "1080ti",
 		Instances: []*structs.NodeDevice{
-			&structs.NodeDevice{
+			{
 				ID:      uuid.Generate(),
 				Healthy: false,
 			},
-			&structs.NodeDevice{
+			{
 				ID:      uuid.Generate(),
 				Healthy: false,
 			},
@@ -1719,11 +1719,11 @@ func TestDeviceChecker(t *testing.T) {
 		Type:   "gpu",
 		Name:   "GT640",
 		Instances: []*structs.NodeDevice{
-			&structs.NodeDevice{
+			{
 				ID:      uuid.Generate(),
 				Healthy: true,
 			},
-			&structs.NodeDevice{
+			{
 				ID:      uuid.Generate(),
 				Healthy: false,
 			},

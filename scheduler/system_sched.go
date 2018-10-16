@@ -5,7 +5,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -318,7 +317,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			resources := &structs.AllocatedResources{
 				Tasks: option.TaskResources,
 				Shared: structs.AllocatedSharedResources{
-					DiskMB: uint64(missing.TaskGroup.EphemeralDisk.SizeMB),
+					DiskMB: int64(missing.TaskGroup.EphemeralDisk.SizeMB),
 				},
 			}
 

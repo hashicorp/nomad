@@ -171,15 +171,15 @@ type AllocatedTaskResources struct {
 }
 
 type AllocatedSharedResources struct {
-	DiskMB uint64
+	DiskMB int64
 }
 
 type AllocatedCpuResources struct {
-	CpuShares uint64
+	CpuShares int64
 }
 
 type AllocatedMemoryResources struct {
-	MemoryMB uint64
+	MemoryMB int64
 }
 
 // AllocIndexSort reverse sorts allocs by CreateIndex.

@@ -51,7 +51,7 @@ func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 
 		resp.NodeResources = &structs.NodeResources{
 			Memory: structs.NodeMemoryResources{
-				MemoryMB: uint64(totalMemory / bytesInMB),
+				MemoryMB: int64(totalMemory / bytesInMB),
 			},
 		}
 	}
