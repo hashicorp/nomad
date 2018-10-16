@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"fmt"
-
 	"math"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -193,17 +192,17 @@ OUTER:
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
 				len(iter.taskGroup.Tasks)),
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: iter.taskGroup.EphemeralDisk.SizeMB,
+				DiskMB: int64(iter.taskGroup.EphemeralDisk.SizeMB),
 			},
 		}
 		for _, task := range iter.taskGroup.Tasks {
 			// Allocate the resources
 			taskResources := &structs.AllocatedTaskResources{
 				Cpu: structs.AllocatedCpuResources{
-					CpuShares: task.Resources.CPU,
+					CpuShares: int64(task.Resources.CPU),
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: task.Resources.MemoryMB,
+					MemoryMB: int64(task.Resources.MemoryMB),
 				},
 			}
 

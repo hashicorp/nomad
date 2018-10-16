@@ -471,15 +471,15 @@ type NodeResources struct {
 }
 
 type NodeCpuResources struct {
-	TotalShares int
+	TotalShares int64
 }
 
 type NodeMemoryResources struct {
-	MemoryMB int
+	MemoryMB int64
 }
 
 type NodeDiskResources struct {
-	DiskMB int
+	DiskMB int64
 }
 
 type NodeReservedResources struct {
