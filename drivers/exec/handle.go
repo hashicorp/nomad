@@ -48,5 +48,5 @@ func (h *execTaskHandle) run() {
 	h.exitResult.ExitCode = ps.ExitCode
 	h.exitResult.Signal = ps.Signal
 	h.completedAt = ps.Time
-
+	// TODO: plumb OOM bool
 }

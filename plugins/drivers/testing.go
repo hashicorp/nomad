@@ -94,7 +94,6 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 	fsi := caps.FSIsolation
 	if fsi == cstructs.FSIsolationChroot {
 		entries = config.DefaultChrootEnv
-		//entries["/tmp"] = "/tmp"
 	}
 	require.NoError(h.t, taskDir.Build(false, entries, fsi))
 

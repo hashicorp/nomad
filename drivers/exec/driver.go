@@ -91,13 +91,13 @@ type ExecDriver struct {
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
 	// Enabled is set to true to enable the driver
-	Enabled bool `codec:"enabled" cty:"enabled"`
+	Enabled bool `cty:"enabled"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
-	Command string   `codec:"command" cty:"command"`
-	Args    []string `codec:"args" cty:"args"`
+	Command string   `cty:"command"`
+	Args    []string `cty:"args"`
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -174,16 +174,6 @@ func (d *ExecDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fin
 			ticker.Reset(fingerprintPeriod)
 			ch <- d.buildFingerprint()
 		}
-	}
-}
-
-func (d *ExecDriver) buildFingerprint() *drivers.Fingerprint {
-	return &drivers.Fingerprint{
-		Attributes: map[string]string{
-			"driver.exec": "1",
-		},
-		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
 	}
 }
 

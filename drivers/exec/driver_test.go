@@ -7,12 +7,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/hcl2/hcl"
+	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -29,9 +31,33 @@ func TestMain(m *testing.M) {
 	}
 }
 
+func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	require := require.New(t)
+	if runtime.GOOS == "linux" {
+		t.Skip("Test only available not on Linux")
+	}
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := drivers.NewDriverHarness(t, d)
+
+	fingerCh, err := harness.Fingerprint(context.Background())
+	require.NoError(err)
+	select {
+	case finger := <-fingerCh:
+		require.Equal(drivers.HealthStateUndetected, finger.Health)
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		require.Fail("timeout receiving fingerprint")
+	}
+}
+
 func TestExecDriver_Fingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -50,6 +76,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 func TestExecDriver_StartWait(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -57,9 +84,11 @@ func TestExecDriver_StartWait(t *testing.T) {
 		ID:   uuid.Generate(),
 		Name: "test",
 	}
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "go"
-	taskConfig["args"] = []string{"version"}
+
+	taskConfig := map[string]interface{}{
+		"command": "cat",
+		"args":    []string{"/proc/self/cgroup"},
+	}
 	encodeDriverHelper(require, task, taskConfig)
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -76,9 +105,10 @@ func TestExecDriver_StartWait(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-func TestRawExecDriver_StartWaitStop(t *testing.T) {
+func TestExecDriver_StartWaitStop(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -87,11 +117,12 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 		Name: "test",
 	}
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "/bin/sleep"
-	taskConfig["args"] = []string{"5"}
-
+	taskConfig := map[string]interface{}{
+		"command": "/bin/sleep",
+		"args":    []string{"5"},
+	}
 	encodeDriverHelper(require, task, taskConfig)
+
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
@@ -139,6 +170,7 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 func TestExecDriver_StartWaitRecover(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -147,11 +179,12 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 		Name: "test",
 	}
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "/bin/sleep"
-	taskConfig["args"] = []string{"5"}
-
+	taskConfig := map[string]interface{}{
+		"command": "/bin/sleep",
+		"args":    []string{"5"},
+	}
 	encodeDriverHelper(require, task, taskConfig)
+
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
@@ -206,6 +239,7 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 func TestExecDriver_Stats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -214,11 +248,12 @@ func TestExecDriver_Stats(t *testing.T) {
 		Name: "test",
 	}
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "/bin/sleep"
-	taskConfig["args"] = []string{"5"}
-
+	taskConfig := map[string]interface{}{
+		"command": "/bin/sleep",
+		"args":    []string{"5"},
+	}
 	encodeDriverHelper(require, task, taskConfig)
+
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
@@ -237,6 +272,7 @@ func TestExecDriver_Stats(t *testing.T) {
 func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -249,15 +285,13 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "/bin/bash"
-	taskConfig["args"] = []string{
-		"-c",
-		fmt.Sprintf(`sleep 1; echo -n %s > /alloc/%s`, string(exp), file),
+	taskConfig := map[string]interface{}{
+		"command": "/bin/bash",
+		"args": []string{
+			"-c",
+			fmt.Sprintf(`sleep 1; echo -n %s > /alloc/%s`, string(exp), file),
+		},
 	}
-
-	t.Logf("%v", taskConfig)
-
 	encodeDriverHelper(require, task, taskConfig)
 
 	handle, _, err := harness.StartTask(task)
@@ -283,9 +317,10 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-func TestExecDriverUser(t *testing.T) {
+func TestExecDriver_User(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -297,10 +332,9 @@ func TestExecDriverUser(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "/bin/sleep"
-	taskConfig["args"] = []string{
-		"100",
+	taskConfig := map[string]interface{}{
+		"command": "/bin/sleep",
+		"args":    []string{"100"},
 	}
 	encodeDriverHelper(require, task, taskConfig)
 
@@ -319,6 +353,7 @@ func TestExecDriverUser(t *testing.T) {
 func TestExecDriver_HandlerExec(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
+	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := drivers.NewDriverHarness(t, d)
@@ -329,10 +364,9 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "/bin/sleep"
-	taskConfig["args"] = []string{
-		"9000",
+	taskConfig := map[string]interface{}{
+		"command": "/bin/sleep",
+		"args":    []string{"9000"},
 	}
 	encodeDriverHelper(require, task, taskConfig)
 
