@@ -266,7 +266,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		if alloc.AllocatedResources != nil {
 			totalResource.Add(&alloc.AllocatedResources.Shared)
 		} else {
-			totalResource.DiskMB += alloc.Resources.DiskMB
+			totalResource.DiskMB += int64(alloc.Resources.DiskMB)
 		}
 	}
 
@@ -284,7 +284,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		}
 	}
 
-	var diskCleared int
+	var diskCleared int64
 	for {
 		select {
 		case <-a.shutdownCh:
@@ -322,11 +322,11 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		alloc := ar.Alloc()
 
 		// COMPAT(0.11): Remove in 0.11
-		var allocDiskMB int
+		var allocDiskMB int64
 		if alloc.AllocatedResources != nil {
 			allocDiskMB = alloc.AllocatedResources.Shared.DiskMB
 		} else {
-			allocDiskMB = alloc.Resources.DiskMB
+			allocDiskMB = int64(alloc.Resources.DiskMB)
 		}
 
 		// Destroy the alloc runner and wait until it exits

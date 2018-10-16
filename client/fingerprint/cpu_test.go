@@ -100,7 +100,7 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		if response.Resources.CPU != cfg.CpuCompute {
 			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.Resources.CPU)
 		}
-		if response.NodeResources.Cpu.CpuShares != uint64(cfg.CpuCompute) {
+		if response.NodeResources.Cpu.CpuShares != int64(cfg.CpuCompute) {
 			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.CpuShares)
 		}
 	}

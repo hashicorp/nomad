@@ -7,7 +7,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -553,7 +552,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: update.TaskGroup.EphemeralDisk.SizeMB,
+				DiskMB: int64(update.TaskGroup.EphemeralDisk.SizeMB),
 			},
 		}
 		newAlloc.Metrics = ctx.Metrics()
@@ -829,7 +828,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: newTG.EphemeralDisk.SizeMB,
+				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
 			},
 		}
 		newAlloc.Metrics = ctx.Metrics()

@@ -6,7 +6,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -482,7 +481,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				resources := &structs.AllocatedResources{
 					Tasks: option.TaskResources,
 					Shared: structs.AllocatedSharedResources{
-						DiskMB: tg.EphemeralDisk.SizeMB,
+						DiskMB: int64(tg.EphemeralDisk.SizeMB),
 					},
 				}
 
