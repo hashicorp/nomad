@@ -281,6 +281,44 @@ func TestDec_Convert_Block(t *testing.T) {
 	testSpecConversions(t, tests)
 }
 
+func TestDec_Convert_BlockAttrs(t *testing.T) {
+	t.Parallel()
+
+	tests := []testConversions{
+		{
+			Name: "block attr",
+			Input: &Spec{
+				Block: &Spec_BlockAttrs{
+					BlockAttrs: &BlockAttrs{
+						Name:     "test",
+						Type:     "string",
+						Required: true,
+					},
+				},
+			},
+			Expected: &hcldec.BlockAttrsSpec{
+				TypeName:    "test",
+				ElementType: cty.String,
+				Required:    true,
+			},
+		},
+		{
+			Name: "block list no name",
+			Input: &Spec{
+				Block: &Spec_BlockAttrs{
+					BlockAttrs: &BlockAttrs{
+						Type:     "string",
+						Required: true,
+					},
+				},
+			},
+			ExpectedError: "Missing name in block_attrs spec",
+		},
+	}
+
+	testSpecConversions(t, tests)
+}
+
 func TestDec_Convert_BlockList(t *testing.T) {
 	t.Parallel()
 
