@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 	"github.com/zclconf/go-cty/cty/msgpack"
 	"golang.org/x/net/context"
 )
@@ -145,17 +144,7 @@ func (tc *TaskConfig) TaskDir() *allocdir.TaskDir {
 }
 
 func (tc *TaskConfig) DecodeDriverConfig(t interface{}) error {
-	ty, err := gocty.ImpliedType(t)
-	if err != nil {
-		return err
-	}
-
-	val, err := msgpack.Unmarshal(tc.rawDriverConfig, ty)
-	if err != nil {
-		return err
-	}
-
-	return gocty.FromCtyValue(val, t)
+	return base.MsgPackDecode(tc.rawDriverConfig, t)
 }
 
 func (tc *TaskConfig) EncodeDriverConfig(val cty.Value) error {
