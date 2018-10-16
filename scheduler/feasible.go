@@ -1047,5 +1047,4 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		return false
 	}
 
-	return false
 }
