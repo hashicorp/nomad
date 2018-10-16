@@ -17,11 +17,11 @@ func TestClient_ACL_resolveTokenValue(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Create a policy / token
 	policy := mock.ACLPolicy()
@@ -66,11 +66,11 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Create a policy / token
 	policy := mock.ACLPolicy()
@@ -106,10 +106,10 @@ func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Should always get nil when disabled
 	aclObj, err := c1.ResolveToken("blah")
@@ -122,11 +122,11 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Create a policy / token
 	policy := mock.ACLPolicy()

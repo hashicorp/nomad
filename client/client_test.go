@@ -37,7 +37,8 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 
 func TestClient_StartStop(t *testing.T) {
 	t.Parallel()
-	client := TestClient(t, nil)
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -49,10 +50,11 @@ func TestClient_BaseLabels(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	client := TestClient(t, nil)
+	client, cleanup := TestClient(t, nil)
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	defer cleanup()
 
 	// directly invoke this function, as otherwise this will fail on a CI build
 	// due to a race condition
@@ -74,10 +76,10 @@ func TestClient_RPC(t *testing.T) {
 	s1, addr := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
@@ -94,10 +96,10 @@ func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 	s1, addr := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	watcher := c1.rpcRetryWatcher()
 
@@ -122,10 +124,10 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
@@ -140,8 +142,8 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 func TestClient_Fingerprint(t *testing.T) {
 	t.Parallel()
 
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Ensure we are fingerprinting
 	testutil.WaitForResult(func() (bool, error) {
@@ -162,13 +164,13 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			driver.ShutdownPeriodicAfter:    "true",
 			driver.ShutdownPeriodicDuration: "1",
 		}
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	node := c1.config.Node
 	{
@@ -251,10 +253,10 @@ func TestClient_MixedTLS(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -301,7 +303,7 @@ func TestClient_BadTLS(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
@@ -312,7 +314,7 @@ func TestClient_BadTLS(t *testing.T) {
 			KeyFile:              badkey,
 		}
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -339,10 +341,10 @@ func TestClient_Register(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -373,10 +375,10 @@ func TestClient_Heartbeat(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -406,10 +408,10 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
@@ -457,10 +459,10 @@ func TestClient_WatchAllocs(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
@@ -552,11 +554,11 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
@@ -670,10 +672,10 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Wait for the node to be ready
 	state := s1.State()
@@ -781,10 +783,10 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	alloc := mock.Alloc()
 	validToken, err := structs.GenerateMigrateToken(alloc.ID, c.secretNodeID())
@@ -797,10 +799,10 @@ func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	assert.Equal(c.ValidateMigrateToken("", ""), false)
 
@@ -813,8 +815,8 @@ func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := TestClient(t, func(c *config.Config) {})
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, func(c *config.Config) {})
+	defer cleanup()
 
 	assert.Equal(c.ValidateMigrateToken("", ""), true)
 }
@@ -835,10 +837,10 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// Registering a node over plaintext should succeed
 	{
@@ -911,7 +913,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	c1 := TestClient(t, func(c *config.Config) {
+	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
@@ -922,7 +924,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer c1.Shutdown()
+	defer cleanup()
 
 	// assert that when one node is running in encrypted mode, a RPC request to a
 	// node running in plaintext mode should fail
@@ -974,7 +976,8 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 // nomad server list.
 func TestClient_ServerList(t *testing.T) {
 	t.Parallel()
-	client := TestClient(t, func(c *config.Config) {})
+	client, cleanup := TestClient(t, func(c *config.Config) {})
+	defer cleanup()
 
 	if s := client.GetServers(); len(s) != 0 {
 		t.Fatalf("expected server lit to be empty but found: %+q", s)

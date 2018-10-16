@@ -57,8 +57,8 @@ func TestFS_Stat_NoAlloc(t *testing.T) {
 	require := require.New(t)
 
 	// Start a client
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Make the request with bad allocation id
 	req := &cstructs.FsStatRequest{
@@ -79,8 +79,8 @@ func TestFS_Stat(t *testing.T) {
 	require := require.New(t)
 
 	// Start a client
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Create and add an alloc
 	a := mock.Alloc()
@@ -134,11 +134,11 @@ func TestFS_Stat_ACL(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	client := TestClient(t, func(c *config.Config) {
+	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer client.Shutdown()
+	defer cleanup()
 
 	// Create a bad token
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
@@ -196,8 +196,8 @@ func TestFS_List_NoAlloc(t *testing.T) {
 	require := require.New(t)
 
 	// Start a client
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Make the request with bad allocation id
 	req := &cstructs.FsListRequest{
@@ -218,8 +218,8 @@ func TestFS_List(t *testing.T) {
 	require := require.New(t)
 
 	// Start a client
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Create and add an alloc
 	a := mock.Alloc()
@@ -273,11 +273,11 @@ func TestFS_List_ACL(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	client := TestClient(t, func(c *config.Config) {
+	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer client.Shutdown()
+	defer cleanup()
 
 	// Create a bad token
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
@@ -335,8 +335,8 @@ func TestFS_Stream_NoAlloc(t *testing.T) {
 	require := require.New(t)
 
 	// Start a client
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Make the request with bad allocation id
 	req := &cstructs.FsStreamRequest{
@@ -414,11 +414,11 @@ func TestFS_Stream_ACL(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	client := TestClient(t, func(c *config.Config) {
+	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer client.Shutdown()
+	defer cleanup()
 
 	// Create a bad token
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
@@ -534,10 +534,10 @@ func TestFS_Stream(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	expected := "Hello from the other side"
 	job := mock.BatchJob()
@@ -645,10 +645,10 @@ func TestFS_Stream_Follow(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	expectedBase := "Hello from the other side"
 	repeat := 10
@@ -743,10 +743,10 @@ func TestFS_Stream_Limit(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	var limit int64 = 5
 	full := "Hello from the other side"
@@ -833,8 +833,8 @@ func TestFS_Logs_NoAlloc(t *testing.T) {
 	require := require.New(t)
 
 	// Start a client
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Make the request with bad allocation id
 	req := &cstructs.FsLogsRequest{
@@ -916,10 +916,10 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
@@ -1024,11 +1024,11 @@ func TestFS_Logs_ACL(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	client := TestClient(t, func(c *config.Config) {
+	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer client.Shutdown()
+	defer cleanup()
 
 	// Create a bad token
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
@@ -1145,10 +1145,10 @@ func TestFS_Logs(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	expected := "Hello from the other side\n"
 	job := mock.BatchJob()
@@ -1247,10 +1247,10 @@ func TestFS_Logs_Follow(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	expectedBase := "Hello from the other side\n"
 	repeat := 10
@@ -1545,8 +1545,8 @@ func TestFS_findClosest(t *testing.T) {
 func TestFS_streamFile_NoFile(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	ad := tempAllocDir(t)
 	defer os.RemoveAll(ad.AllocDir)
@@ -1565,8 +1565,8 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 func TestFS_streamFile_Modify(t *testing.T) {
 	t.Parallel()
 
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
@@ -1634,8 +1634,8 @@ func TestFS_streamFile_Modify(t *testing.T) {
 
 func TestFS_streamFile_Truncate(t *testing.T) {
 	t.Parallel()
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
@@ -1739,8 +1739,8 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 func TestFS_streamImpl_Delete(t *testing.T) {
 	t.Parallel()
 
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Get a temp alloc dir
 	ad := tempAllocDir(t)
@@ -1807,8 +1807,8 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 func TestFS_logsImpl_NoFollow(t *testing.T) {
 	t.Parallel()
 
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
@@ -1874,8 +1874,8 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 func TestFS_logsImpl_Follow(t *testing.T) {
 	t.Parallel()
 
-	c := TestClient(t, nil)
-	defer c.Shutdown()
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	// Get a temp alloc dir and create the log dir
 	ad := tempAllocDir(t)
