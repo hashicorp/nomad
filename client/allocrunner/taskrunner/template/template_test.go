@@ -34,7 +34,7 @@ type MockTaskHooks struct {
 	Restarts  int
 	RestartCh chan struct{}
 
-	Signals  []os.Signal
+	Signals  []string
 	SignalCh chan struct{}
 
 	// SignalError is returned when Signal is called on the mock hook
@@ -67,7 +67,7 @@ func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, f
 	return nil
 }
 
-func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s os.Signal) error {
+func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
 	m.Signals = append(m.Signals, s)
 	select {
 	case m.SignalCh <- struct{}{}:
