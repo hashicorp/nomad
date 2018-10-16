@@ -1,7 +1,6 @@
 package taskrunner
 
 import (
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -51,7 +50,7 @@ func (tr *TaskRunner) setVaultToken(token string) {
 
 // getDriverHandle returns a driver handle and its result proxy. Use the
 // result proxy instead of the handle's WaitCh.
-func (tr *TaskRunner) getDriverHandle() interfaces.DriverHandle {
+func (tr *TaskRunner) getDriverHandle() *DriverHandle {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	return tr.handle
