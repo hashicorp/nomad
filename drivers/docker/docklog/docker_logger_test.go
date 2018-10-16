@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
-	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -13,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestDocklog(t *testing.T) {
+func TestDockerLogger(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -43,20 +42,23 @@ func TestDocklog(t *testing.T) {
 	err = client.StartContainer(container.ID, nil)
 	require.NoError(err)
 
-	var count int
-	for !container.State.Running {
-		if count > 10 {
-			t.Fatal("timeout waiting for container to start")
-		}
-		time.Sleep(100 * time.Millisecond)
+	testutil.WaitForResult(func() (bool, error) {
 		container, err = client.InspectContainer(container.ID)
-		count++
-	}
+		if err != nil {
+			return false, err
+		}
+		if !container.State.Running {
+			return false, fmt.Errorf("container not running")
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 
-	stdout := &noopCloser{bytes.NewBufferString("")}
-	stderr := &noopCloser{bytes.NewBufferString("")}
+	stdout := &noopCloser{bytes.NewBuffer(nil)}
+	stderr := &noopCloser{bytes.NewBuffer(nil)}
 
-	dl := NewDocklog(testlog.HCLogger(t)).(*dockerLogger)
+	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
 	dl.stderr = stderr
 	require.NoError(dl.Start(&StartOpts{
@@ -66,7 +68,6 @@ func TestDocklog(t *testing.T) {
 	echoToContainer(t, client, container.ID, "abc")
 	echoToContainer(t, client, container.ID, "123")
 
-	time.Sleep(2000 * time.Millisecond)
 	testutil.WaitForResult(func() (bool, error) {
 		act := stdout.String()
 		if "abc\n123\n" != act {

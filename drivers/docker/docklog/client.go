@@ -6,13 +6,13 @@ import (
 	"github.com/hashicorp/nomad/drivers/docker/docklog/proto"
 )
 
-// docklogClient implements the Docklog interface for client side requests
-type docklogClient struct {
-	client proto.DocklogClient
+// dockerLoggerClient implements the dockerLogger interface for client side requests
+type dockerLoggerClient struct {
+	client proto.DockerLoggerClient
 }
 
 // Start proxies the Start client side func to the protobuf interface
-func (c *docklogClient) Start(opts *StartOpts) error {
+func (c *dockerLoggerClient) Start(opts *StartOpts) error {
 	req := &proto.StartRequest{
 		Endpoint:    opts.Endpoint,
 		ContainerId: opts.ContainerID,
@@ -28,7 +28,7 @@ func (c *docklogClient) Start(opts *StartOpts) error {
 }
 
 // Stop proxies the Stop client side func to the protobuf interface
-func (c *docklogClient) Stop() error {
+func (c *dockerLoggerClient) Stop() error {
 	req := &proto.StopRequest{}
 	_, err := c.client.Stop(context.Background(), req)
 	return err

@@ -11,9 +11,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Docklog is a small utility to forward logs from a docker container to a target
+// DockerLogger is a small utility to forward logs from a docker container to a target
 // destination
-type Docklog interface {
+type DockerLogger interface {
 	Start(*StartOpts) error
 	Stop() error
 }
@@ -37,12 +37,12 @@ type StartOpts struct {
 	TLSCA   string
 }
 
-// NewDocklog returns an implementation of the Docklog interface
-func NewDocklog(logger hclog.Logger) Docklog {
+// NewDockerLogger returns an implementation of the DockerLogger interface
+func NewDockerLogger(logger hclog.Logger) DockerLogger {
 	return &dockerLogger{logger: logger}
 }
 
-// dockerLogger implements the Docklog interface
+// dockerLogger implements the DockerLogger interface
 type dockerLogger struct {
 	logger hclog.Logger
 
