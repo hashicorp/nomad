@@ -610,25 +610,20 @@ func (tr *TaskRunner) Restore() error {
 // UpdateState sets the task runners allocation state and triggers a server
 // update.
 func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
-	tr.logger.Debug("setting task state", "state", state, "event", event.Type)
+	tr.logger.Trace("setting task state", "state", state, "event", event.Type)
 
 	// Update the local state
-	stateCopy := tr.setStateLocal(state, event)
+	tr.setStateLocal(state, event)
 
 	// Notify the alloc runner of the transition
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy)
+	tr.stateUpdater.TaskStateUpdated()
 }
 
 // setStateLocal updates the local in-memory state, persists a copy to disk and returns a
 // copy of the task's state.
-func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *structs.TaskState {
+func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
-
-	//XXX REMOVE ME AFTER TESTING
-	if state == "" {
-		panic("UpdateState must not be called with an empty state")
-	}
 
 	// Update the task state
 	oldState := tr.state.State
@@ -681,8 +676,6 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 		// try to persist it again.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
 	}
-
-	return tr.state.Copy()
 }
 
 // EmitEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -692,6 +685,7 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 // logged. Use AppendEvent to simply add a new event.
 func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 	tr.stateLock.Lock()
+	defer tr.stateLock.Unlock()
 
 	tr.appendEvent(event)
 
@@ -701,11 +695,8 @@ func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 		tr.logger.Warn("error persisting event", "error", err, "event", event)
 	}
 
-	stateCopy := tr.state.Copy()
-	tr.stateLock.Unlock()
-
 	// Notify the alloc runner of the event
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy)
+	tr.stateUpdater.TaskStateUpdated()
 }
 
 // AppendEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -769,8 +760,10 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 	// Update tr.alloc
 	tr.setAlloc(update)
 
-	// Trigger update hooks
-	tr.triggerUpdateHooks()
+	// Trigger update hooks if not terminal
+	if !update.TerminalStatus() {
+		tr.triggerUpdateHooks()
+	}
 }
 
 // triggerUpdate if there isn't already an update pending. Should be called
