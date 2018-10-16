@@ -1,11 +1,15 @@
 ## 0.9.0 (Unreleased)
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * core: Switch to structured logging using [go-hclog](https://github.com/hashicorp/go-hclog)
+
 IMPROVEMENTS:
  * core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]
  * core: Added support for specifying node affinities. Affinities allow job operators to specify weighted placement preferences
  according to different node attributes [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * core: Added support for spreading allocations across a specific attribute. Operators can specify spread
    target percentages across failure domains such as datacenter or rack [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
+ * client: Refactor client to support plugins and improve state handling [[GH-4792](https://github.com/hashicorp/nomad/pull/4792)]
  * client: Extend timeout to 60 seconds for Windows CPU fingerprinting [[GH-4441](https://github.com/hashicorp/nomad/pull/4441)]
  * driver/docker: Add support for specifying `cpu_cfs_period` in the Docker driver [[GH-4462](https://github.com/hashicorp/nomad/issues/4462)]
  * telemetry: All client metrics include a new `node_class` tag [[GH-3882](https://github.com/hashicorp/nomad/issues/3882)]
