@@ -14,7 +14,8 @@ import (
 func TestClientStats_Stats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	client := TestClient(t, nil)
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	req := &nstructs.NodeSpecificRequest{}
 	var resp structs.ClientStatsResponse
@@ -30,11 +31,11 @@ func TestClientStats_Stats_ACL(t *testing.T) {
 	server, addr, root := testACLServer(t, nil)
 	defer server.Shutdown()
 
-	client := TestClient(t, func(c *config.Config) {
+	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.ACLEnabled = true
 	})
-	defer client.Shutdown()
+	defer cleanup()
 
 	// Try request without a token and expect failure
 	{

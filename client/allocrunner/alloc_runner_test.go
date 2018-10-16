@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/shared/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -56,21 +55,24 @@ func (m *MockStateUpdater) Reset() {
 }
 
 // testAllocRunnerConfig returns a new allocrunner.Config with mocks and noop
-// versions of dependencies.
-func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) *Config {
+// versions of dependencies along with a cleanup func.
+func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, func()) {
 	logger := testlog.HCLogger(t)
-	return &Config{
+	pluginLoader := catalog.TestPluginLoader(t)
+	clientConf, cleanup := config.TestClientConfig(t)
+	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
 		Alloc:                 alloc.Copy(),
 		Logger:                logger,
-		ClientConfig:          config.TestClientConfig(),
+		ClientConfig:          clientConf,
 		StateDB:               state.NoopDB{},
 		Consul:                consulapi.NewMockConsulServiceClient(t, logger),
 		Vault:                 vaultclient.NewMockVaultClient(),
 		StateUpdater:          &MockStateUpdater{},
 		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
-		PluginSingletonLoader: &loader.MockCatalog{},
+		PluginSingletonLoader: singleton.NewSingletonLoader(logger, pluginLoader),
 	}
+	return conf, cleanup
 }
 
 // TestAllocRunner_AllocState_Initialized asserts that getting TaskStates via
@@ -78,10 +80,11 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) *Config {
 func TestAllocRunner_AllocState_Initialized(t *testing.T) {
 	t.Parallel()
 
-	conf := testAllocRunnerConfig(t, mock.Alloc())
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
 
-	pluginLoader := catalog.TestPluginLoader(t)
-	conf.PluginSingletonLoader = singleton.NewSingletonLoader(conf.Logger, pluginLoader)
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 
@@ -105,7 +108,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.KillTimeout = 10 * time.Millisecond
 	task.Config = map[string]interface{}{
-		"run_for": "10s",
+		"run_for": 10 * time.Second,
 	}
 
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -113,12 +116,13 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task2.Driver = "mock_driver"
 	task2.Leader = true
 	task2.Config = map[string]interface{}{
-		"run_for": "1s",
+		"run_for": 1 * time.Second,
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
 	alloc.TaskResources[task2.Name] = task2.Resources
 
-	conf := testAllocRunnerConfig(t, alloc)
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
@@ -186,31 +190,29 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Name = "follower1"
 	task.Driver = "mock_driver"
-	task.KillTimeout = 10 * time.Millisecond
 	task.Config = map[string]interface{}{
-		"run_for": "10s",
+		"run_for": 10 * time.Second,
 	}
 
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	task2.Name = "leader"
 	task2.Driver = "mock_driver"
 	task2.Leader = true
-	task2.KillTimeout = 10 * time.Millisecond
 	task2.Config = map[string]interface{}{
-		"run_for": "10s",
+		"run_for": 10 * time.Second,
 	}
 
 	task3 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	task3.Name = "follower2"
 	task3.Driver = "mock_driver"
-	task3.KillTimeout = 10 * time.Millisecond
 	task3.Config = map[string]interface{}{
-		"run_for": "10s",
+		"run_for": 10 * time.Second,
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2, task3)
 	alloc.TaskResources[task2.Name] = task2.Resources
 
-	conf := testAllocRunnerConfig(t, alloc)
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
