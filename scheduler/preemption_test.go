@@ -12,96 +12,116 @@ import (
 )
 
 func TestResourceDistance(t *testing.T) {
-	resourceAsk := &structs.Resources{
-		CPU:      2048,
-		MemoryMB: 512,
-		IOPS:     300,
-		DiskMB:   4096,
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				MBits:  1024,
+	resourceAsk := &structs.ComparableResources{
+		Flattened: structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: 2048,
 			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: 512,
+			},
+			Networks: []*structs.NetworkResource{
+				{
+					Device: "eth0",
+					MBits:  1024,
+				},
+			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 4096,
 		},
 	}
 
 	type testCase struct {
-		allocResource    *structs.Resources
+		allocResource    *structs.ComparableResources
 		expectedDistance string
 	}
 
 	testCases := []*testCase{
 		{
-			&structs.Resources{
-				CPU:      2048,
-				MemoryMB: 512,
-				IOPS:     300,
-				DiskMB:   4096,
-				Networks: []*structs.NetworkResource{
-					{
-						Device: "eth0",
-						MBits:  1024,
+			&structs.ComparableResources{
+				Flattened: structs.AllocatedTaskResources{
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
 					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 512,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							MBits:  1024,
+						},
+					},
+				},
+				Shared: structs.AllocatedSharedResources{
+					DiskMB: 4096,
 				},
 			},
 			"0.000",
 		},
 		{
-			&structs.Resources{
-				CPU:      1024,
-				MemoryMB: 400,
-				IOPS:     200,
-				DiskMB:   1024,
-				Networks: []*structs.NetworkResource{
-					{
-						Device: "eth0",
-						MBits:  1024,
+			&structs.ComparableResources{
+				Flattened: structs.AllocatedTaskResources{
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 400,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							MBits:  1024,
+						},
 					},
 				},
-			},
-			"0.986",
-		},
-		{
-			&structs.Resources{
-				CPU:      1024,
-				MemoryMB: 200,
-				IOPS:     200,
-				DiskMB:   1024,
-				Networks: []*structs.NetworkResource{
-					{
-						Device: "eth0",
-						MBits:  512,
-					},
+				Shared: structs.AllocatedSharedResources{
+					DiskMB: 1024,
 				},
 			},
-			"1.138",
+			"0.928",
 		},
 		{
-			&structs.Resources{
-				CPU:      8192,
-				MemoryMB: 200,
-				IOPS:     200,
-				DiskMB:   1024,
-				Networks: []*structs.NetworkResource{
-					{
-						Device: "eth0",
-						MBits:  512,
+			&structs.ComparableResources{
+				Flattened: structs.AllocatedTaskResources{
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 8192,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 200,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							MBits:  512,
+						},
 					},
 				},
+				Shared: structs.AllocatedSharedResources{
+					DiskMB: 1024,
+				},
 			},
-			"3.169",
+			"3.152",
 		},
 		{
-			&structs.Resources{
-				CPU:      2048,
-				MemoryMB: 500,
-				IOPS:     300,
-				DiskMB:   4096,
-				Networks: []*structs.NetworkResource{
-					{
-						Device: "eth0",
-						MBits:  1024,
+			&structs.ComparableResources{
+				Flattened: structs.AllocatedTaskResources{
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
 					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 500,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							MBits:  1024,
+						},
+					},
+				},
+				Shared: structs.AllocatedSharedResources{
+					DiskMB: 4096,
 				},
 			},
 			"0.023",
@@ -111,7 +131,8 @@ func TestResourceDistance(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
 			require := require.New(t)
-			require.Equal(tc.expectedDistance, fmt.Sprintf("%3.3f", resourceDistance(tc.allocResource, resourceAsk)))
+			actualDistance := fmt.Sprintf("%3.3f", basicResourceDistance(resourceAsk, tc.allocResource))
+			require.Equal(tc.expectedDistance, actualDistance)
 		})
 
 	}
@@ -190,7 +211,7 @@ func TestPreemption(t *testing.T) {
 			nodeCapacity:         nodeResources,
 			jobPriority:          100,
 			resourceAsk: &structs.Resources{
-				CPU:      100,
+				CPU:      2000,
 				MemoryMB: 256,
 				DiskMB:   4 * 1024,
 				Networks: []*structs.NetworkResource{
@@ -373,7 +394,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -386,7 +406,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     10,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -399,12 +418,11 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     10,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
 							IP:     "192.168.0.200",
-							MBits:  300,
+							MBits:  320,
 						},
 					},
 				}),
@@ -736,6 +754,9 @@ func TestPreemption(t *testing.T) {
 			}
 			require := require.New(t)
 			err := state.UpsertAllocs(1001, tc.currentAllocations)
+			for _, alloc := range tc.currentAllocations {
+				fmt.Println(alloc.ID)
+			}
 			require.Nil(err)
 			if tc.currentPreemptions != nil {
 				ctx.plan.NodePreemptions[node.ID] = tc.currentPreemptions
@@ -752,6 +773,7 @@ func TestPreemption(t *testing.T) {
 					},
 				},
 			}
+
 			binPackIter.SetTaskGroup(taskGroup)
 			option := binPackIter.Next()
 			if tc.preemptedAllocIDs == nil {
@@ -760,6 +782,7 @@ func TestPreemption(t *testing.T) {
 				require.NotNil(option)
 				preemptedAllocs := option.PreemptedAllocs
 				require.Equal(len(tc.preemptedAllocIDs), len(preemptedAllocs))
+				fmt.Println(preemptedAllocs[0].ID)
 				for _, alloc := range preemptedAllocs {
 					_, ok := tc.preemptedAllocIDs[alloc.ID]
 					require.True(ok)

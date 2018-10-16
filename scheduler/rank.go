@@ -234,7 +234,7 @@ OUTER:
 					}
 
 					// Look for preemptible allocations to satisfy the network resource for this task
-					preemptedAllocsForTaskNetwork := preemptForNetworkResourceAsk(iter.priority, proposed, taskResources, netIdx, currentPreemptions)
+					preemptedAllocsForTaskNetwork := preemptForNetworkResourceAsk(iter.priority, proposed, ask, netIdx, currentPreemptions)
 					if preemptedAllocsForTaskNetwork == nil {
 						iter.ctx.Metrics().ExhaustedNode(option.Node,
 							fmt.Sprintf("unable to meet network resource %v after preemption", ask))
