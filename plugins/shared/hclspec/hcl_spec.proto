@@ -62,11 +62,12 @@ message Spec {
     Array array = 2;
     Attr Attr = 3;
     Block block_value = 4;
-    BlockList block_list = 5;
-    BlockSet block_set = 6;
-    BlockMap block_map = 7;
-    Default default = 8;
-    Literal literal = 9;
+    BlockAttrs block_attrs = 5;
+    BlockList block_list = 6;
+    BlockSet block_set = 7;
+    BlockMap block_map = 8;
+    Default default = 9;
+    Literal literal = 10;
   }
 }
 
@@ -145,6 +146,45 @@ message Block {
  string name = 1;
  bool required = 2;
  Spec nested = 3;
+}
+
+/*
+ The BlockAttrs spec type is similar to an Attr spec block of a map type,
+ but it produces a map from the attributes of a block rather than from an
+ attribute's expression.
+
+ ```hcl
+ BlockAttrs {
+   name     = "variables"
+   type     = string
+   required = false
+ }
+ ```
+
+ This allows a map with user-defined keys to be produced within block syntax,
+ but due to the constraints of that syntax it also means that the user will
+ be unable to dynamically-generate either individual key names using key
+ expressions or the entire map value using a `for` expression.
+
+ `BlockAttrs` spec blocks accept the following arguments:
+
+ * `name` (required) - The block type name to expect within the HCL
+   input file. This may be omitted when a default name selector is created
+   by a parent `object` spec, if the input block type name should match the
+   output JSON object property name.
+
+ * `type` (required) - The value type to require for each of the
+   attributes within a matched block. The resulting value will be a JSON
+   object whose property values are of this type.
+
+ * `required` (optional) - If `true`, an error will be produced if a block
+   of the given type is not present. If `false` -- the default -- an absent
+   block will be indicated by producing `null`.
+*/
+message BlockAttrs {
+ string name = 1;
+ string type = 2;
+ bool required = 3;
 }
 
 /* BlockList spec type is similar to `Block`, but it accepts zero or

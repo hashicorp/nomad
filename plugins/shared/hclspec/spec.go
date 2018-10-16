@@ -36,6 +36,15 @@ func BlockSpec(block *Block) *Spec {
 	}
 }
 
+// BlockAttrsSpec wraps the block attrs and returns a spec.
+func BlockAttrsSpec(blockAttrs *BlockAttrs) *Spec {
+	return &Spec{
+		Block: &Spec_BlockAttrs{
+			BlockAttrs: blockAttrs,
+		},
+	}
+}
+
 // BlockListSpec wraps the block list and returns a spec.
 func BlockListSpec(blockList *BlockList) *Spec {
 	return &Spec{
@@ -103,6 +112,15 @@ func NewBlock(name string, required bool, nested *Spec) *Spec {
 		Name:     name,
 		Required: required,
 		Nested:   nested,
+	})
+}
+
+// NewBlockAttrs returns a new block attrs spec
+func NewBlockAttrs(name, elementType string, required bool) *Spec {
+	return BlockAttrsSpec(&BlockAttrs{
+		Name:     name,
+		Required: required,
+		Type:     elementType,
 	})
 }
 
