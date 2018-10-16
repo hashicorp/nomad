@@ -207,8 +207,8 @@ type Builder struct {
 	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
-	cpuLimit         uint64
-	memLimit         uint64
+	cpuLimit         int
+	memLimit         int
 	taskName         string
 	allocIndex       int
 	datacenter       string
@@ -272,10 +272,10 @@ func (b *Builder) Build() *TaskEnv {
 
 	// Add the resource limits
 	if b.memLimit != 0 {
-		envMap[MemLimit] = strconv.FormatUint(b.memLimit, 10)
+		envMap[MemLimit] = strconv.FormatInt(int64(b.memLimit), 10)
 	}
 	if b.cpuLimit != 0 {
-		envMap[CpuLimit] = strconv.FormatUint(b.cpuLimit, 10)
+		envMap[CpuLimit] = strconv.FormatInt(int64(b.cpuLimit), 10)
 	}
 
 	// Add the task metadata
@@ -377,8 +377,8 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 		b.cpuLimit = 0
 		b.networks = []*structs.NetworkResource{}
 	} else {
-		b.memLimit = uint64(task.Resources.MemoryMB)
-		b.cpuLimit = uint64(task.Resources.CPU)
+		b.memLimit = task.Resources.MemoryMB
+		b.cpuLimit = task.Resources.CPU
 		// Copy networks to prevent sharing
 		b.networks = make([]*structs.NetworkResource, len(task.Resources.Networks))
 		for i, n := range task.Resources.Networks {

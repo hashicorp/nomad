@@ -318,7 +318,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			resources := &structs.AllocatedResources{
 				Tasks: option.TaskResources,
 				Shared: structs.AllocatedSharedResources{
-					DiskMB: uint64(missing.TaskGroup.EphemeralDisk.SizeMB),
+					DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
 				},
 			}
 

@@ -193,17 +193,17 @@ OUTER:
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
 				len(iter.taskGroup.Tasks)),
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: uint64(iter.taskGroup.EphemeralDisk.SizeMB),
+				DiskMB: iter.taskGroup.EphemeralDisk.SizeMB,
 			},
 		}
 		for _, task := range iter.taskGroup.Tasks {
 			// Allocate the resources
 			taskResources := &structs.AllocatedTaskResources{
 				Cpu: structs.AllocatedCpuResources{
-					CpuShares: uint64(task.Resources.CPU),
+					CpuShares: task.Resources.CPU,
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: uint64(task.Resources.MemoryMB),
+					MemoryMB: task.Resources.MemoryMB,
 				},
 			}
 

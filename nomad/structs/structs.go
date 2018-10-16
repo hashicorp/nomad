@@ -1600,14 +1600,14 @@ func (n *Node) ComparableReservedResources() *ComparableResources {
 	return &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: uint64(n.Reserved.CPU),
+				CpuShares: n.Reserved.CPU,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: uint64(n.Reserved.MemoryMB),
+				MemoryMB: n.Reserved.MemoryMB,
 			},
 		},
 		Shared: AllocatedSharedResources{
-			DiskMB: uint64(n.Reserved.DiskMB),
+			DiskMB: n.Reserved.DiskMB,
 		},
 	}
 }
@@ -1626,14 +1626,14 @@ func (n *Node) ComparableResources() *ComparableResources {
 	return &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: uint64(n.Resources.CPU),
+				CpuShares: n.Resources.CPU,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: uint64(n.Resources.MemoryMB),
+				MemoryMB: n.Resources.MemoryMB,
 			},
 		},
 		Shared: AllocatedSharedResources{
-			DiskMB: uint64(n.Resources.DiskMB),
+			DiskMB: n.Resources.DiskMB,
 		},
 	}
 }
@@ -2263,7 +2263,7 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 type NodeCpuResources struct {
 	// CpuShares is the CPU shares available. This is calculated by number of
 	// cores multiplied by the core frequency.
-	CpuShares uint64
+	CpuShares int
 }
 
 func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
@@ -2295,7 +2295,7 @@ func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
 // NodeMemoryResources captures the memory resources of the node
 type NodeMemoryResources struct {
 	// MemoryMB is the total available memory on the node
-	MemoryMB uint64
+	MemoryMB int
 }
 
 func (n *NodeMemoryResources) Merge(o *NodeMemoryResources) {
@@ -2327,7 +2327,7 @@ func (n *NodeMemoryResources) Equals(o *NodeMemoryResources) bool {
 // NodeDiskResources captures the disk resources of the node
 type NodeDiskResources struct {
 	// DiskMB is the total available disk space on the node
-	DiskMB uint64
+	DiskMB int
 }
 
 func (n *NodeDiskResources) Merge(o *NodeDiskResources) {
@@ -2601,17 +2601,17 @@ func (n *NodeReservedResources) Comparable() *ComparableResources {
 
 // NodeReservedCpuResources captures the reserved CPU resources of the node.
 type NodeReservedCpuResources struct {
-	CpuShares uint64
+	CpuShares int
 }
 
 // NodeReservedMemoryResources captures the reserved memory resources of the node.
 type NodeReservedMemoryResources struct {
-	MemoryMB uint64
+	MemoryMB int
 }
 
 // NodeReservedDiskResources captures the reserved disk resources of the node.
 type NodeReservedDiskResources struct {
-	DiskMB uint64
+	DiskMB int
 }
 
 // NodeReservedNetworkResources captures the reserved network resources of the node.
@@ -2731,9 +2731,47 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 	}
 }
 
+// Comparable turns AllocatedTaskResources into ComparableResources
+// as a helper step in preemption
+func (a *AllocatedTaskResources) Comparable() *ComparableResources {
+	ret := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: a.Cpu.CpuShares,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: a.Memory.MemoryMB,
+			},
+		},
+	}
+	if len(a.Networks) > 0 {
+		for _, net := range a.Networks {
+			ret.Flattened.Networks = append(ret.Flattened.Networks, net)
+		}
+	}
+	return ret
+}
+
+func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
+	if delta == nil {
+		return
+	}
+
+	a.Cpu.Subtract(&delta.Cpu)
+	a.Memory.Subtract(&delta.Memory)
+
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := a.NetIndex(n)
+		if idx != -1 {
+			a.Networks[idx].MBits -= delta.Networks[idx].MBits
+		}
+	}
+}
+
 // AllocatedSharedResources are the set of resources allocated to a task group.
 type AllocatedSharedResources struct {
-	DiskMB uint64
+	DiskMB int
 }
 
 func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
@@ -2744,9 +2782,17 @@ func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	a.DiskMB += delta.DiskMB
 }
 
+func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
+	if delta == nil {
+		return
+	}
+
+	a.DiskMB -= delta.DiskMB
+}
+
 // AllocatedCpuResources captures the allocated CPU resources.
 type AllocatedCpuResources struct {
-	CpuShares uint64
+	CpuShares int
 }
 
 func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
@@ -2757,9 +2803,17 @@ func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
 	a.CpuShares += delta.CpuShares
 }
 
+func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
+	if delta == nil {
+		return
+	}
+
+	a.CpuShares -= delta.CpuShares
+}
+
 // AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
-	MemoryMB uint64
+	MemoryMB int
 }
 
 func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
@@ -2768,6 +2822,14 @@ func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB += delta.MemoryMB
+}
+
+func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
+	if delta == nil {
+		return
+	}
+
+	a.MemoryMB -= delta.MemoryMB
 }
 
 // ComparableResources is the set of resources allocated to a task group but
@@ -2784,6 +2846,24 @@ func (c *ComparableResources) Add(delta *ComparableResources) {
 
 	c.Flattened.Add(&delta.Flattened)
 	c.Shared.Add(&delta.Shared)
+}
+
+func (c *ComparableResources) Subtract(delta *ComparableResources) {
+	if delta == nil {
+		return
+	}
+
+	c.Flattened.Subtract(&delta.Flattened)
+	c.Shared.Subtract(&delta.Shared)
+}
+
+func (c *ComparableResources) Copy() *ComparableResources {
+	if c == nil {
+		return nil
+	}
+	newR := new(ComparableResources)
+	*newR = *c
+	return newR
 }
 
 // Superset checks if one set of resources is a superset of another. This
@@ -7281,14 +7361,14 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 	return &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: uint64(resources.CPU),
+				CpuShares: resources.CPU,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: uint64(resources.MemoryMB),
+				MemoryMB: resources.MemoryMB,
 			},
 		},
 		Shared: AllocatedSharedResources{
-			DiskMB: uint64(resources.DiskMB),
+			DiskMB: resources.DiskMB,
 		},
 	}
 }

@@ -51,7 +51,7 @@ func allocUpdateFnInplace(existing *structs.Allocation, _ *structs.Job, newTG *s
 	newAlloc.AllocatedResources = &structs.AllocatedResources{
 		Tasks: map[string]*structs.AllocatedTaskResources{},
 		Shared: structs.AllocatedSharedResources{
-			DiskMB: uint64(newTG.EphemeralDisk.SizeMB),
+			DiskMB: newTG.EphemeralDisk.SizeMB,
 		},
 	}
 
@@ -60,10 +60,10 @@ func allocUpdateFnInplace(existing *structs.Allocation, _ *structs.Job, newTG *s
 		networks := existing.AllocatedResources.Tasks[task.Name].Copy().Networks
 		newAlloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
 			Cpu: structs.AllocatedCpuResources{
-				CpuShares: uint64(task.Resources.CPU),
+				CpuShares: task.Resources.CPU,
 			},
 			Memory: structs.AllocatedMemoryResources{
-				MemoryMB: uint64(task.Resources.MemoryMB),
+				MemoryMB: task.Resources.MemoryMB,
 			},
 			Networks: networks,
 		}

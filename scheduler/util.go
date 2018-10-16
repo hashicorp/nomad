@@ -553,7 +553,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: uint64(update.TaskGroup.EphemeralDisk.SizeMB),
+				DiskMB: update.TaskGroup.EphemeralDisk.SizeMB,
 			},
 		}
 		newAlloc.Metrics = ctx.Metrics()
@@ -829,7 +829,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks: option.TaskResources,
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: uint64(newTG.EphemeralDisk.SizeMB),
+				DiskMB: newTG.EphemeralDisk.SizeMB,
 			},
 		}
 		newAlloc.Metrics = ctx.Metrics()

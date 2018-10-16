@@ -482,7 +482,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				resources := &structs.AllocatedResources{
 					Tasks: option.TaskResources,
 					Shared: structs.AllocatedSharedResources{
-						DiskMB: uint64(tg.EphemeralDisk.SizeMB),
+						DiskMB: tg.EphemeralDisk.SizeMB,
 					},
 				}
 
