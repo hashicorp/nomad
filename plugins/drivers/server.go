@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"fmt"
 	"io"
 
 	"golang.org/x/net/context"
@@ -125,7 +126,19 @@ func (b *driverPluginServer) WaitTask(ctx context.Context, req *proto.WaitTaskRe
 		return nil, err
 	}
 
-	result := <-ch
+	var ok bool
+	var result *ExitResult
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case result, ok = <-ch:
+		if !ok {
+			return &proto.WaitTaskResponse{
+				Err: "channel closed",
+			}, nil
+		}
+	}
+
 	var errStr string
 	if result.Err != nil {
 		errStr = result.Err.Error()
@@ -206,7 +219,7 @@ func (b *driverPluginServer) TaskStats(ctx context.Context, req *proto.TaskStats
 
 	pb, err := taskStatsToProto(stats)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to encode task stats: %v", err)
 	}
 
 	resp := &proto.TaskStatsResponse{

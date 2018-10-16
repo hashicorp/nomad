@@ -14,6 +14,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/logmon"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -55,6 +56,7 @@ func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
 		server:       server,
 		DriverPlugin: dClient,
 		logger:       logger,
+		t:            t,
 	}
 
 	raw, err = client.Dispense("logmon")
@@ -84,7 +86,17 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 	allocDir := allocdir.NewAllocDir(h.logger, dir)
 	require.NoError(h.t, allocDir.Build())
 	taskDir := allocDir.NewTaskDir(t.Name)
-	require.NoError(h.t, taskDir.Build(false, nil, 0))
+
+	caps, err := h.Capabilities()
+	require.NoError(h.t, err)
+
+	var entries map[string]string
+	fsi := caps.FSIsolation
+	if fsi == cstructs.FSIsolationChroot {
+		entries = config.DefaultChrootEnv
+		//entries["/tmp"] = "/tmp"
+	}
+	require.NoError(h.t, taskDir.Build(false, entries, fsi))
 
 	//logmon
 	if enableLogs {
