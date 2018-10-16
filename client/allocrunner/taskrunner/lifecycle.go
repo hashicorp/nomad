@@ -91,7 +91,7 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	waitCh, err := handle.WaitCh(ctx)
 
 	// The error should be nil or TaskNotFound, if it's something else then a
-	// failure in the driver or transport layer occured
+	// failure in the driver or transport layer occurred
 	if err != nil {
 		if err == drivers.ErrTaskNotFound {
 			return nil

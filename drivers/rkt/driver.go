@@ -462,10 +462,10 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	}
 
 	// Add memory isolator
-	prepareArgs = append(prepareArgs, fmt.Sprintf("--memory=%v", int64(cfg.Resources.LinuxResources.MemoryLimitBytes)))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--memory=%v", cfg.Resources.LinuxResources.MemoryLimitBytes))
 
 	// Add CPU isolator
-	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu-shares=%v", int64(cfg.Resources.LinuxResources.CPUShares)))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu-shares=%v", cfg.Resources.LinuxResources.CPUShares))
 
 	// Add DNS servers
 	if len(driverConfig.DNSServers) == 1 && (driverConfig.DNSServers[0] == "host" || driverConfig.DNSServers[0] == "none") {
