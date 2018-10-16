@@ -7431,6 +7431,37 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 	}
 }
 
+// COMPAT(0.11): Remove in 0.11
+// CompatibleNetworkResources returns network resources on the allocation
+// by reading AllocatedResources which are populated starting in 0.9 and
+// falling back to pre 0.9 fields (Resources/TaskResources) if set
+func (a *Allocation) CompatibleNetworkResources() []*NetworkResource {
+	var ret []*NetworkResource
+	// Alloc already has 0.9+ behavior
+	if a.AllocatedResources != nil {
+		var comparableResources *ComparableResources
+		for _, taskResource := range a.AllocatedResources.Tasks {
+			if comparableResources == nil {
+				comparableResources = taskResource.Comparable()
+			} else {
+				comparableResources.Add(taskResource.Comparable())
+			}
+		}
+		ret = comparableResources.Flattened.Networks
+	} else if a.Resources != nil {
+		// Alloc has pre 0.9 total resources
+		ret = a.Resources.Networks
+	} else if a.TaskResources != nil {
+		// Alloc has pre 0.9 task resources
+		resources := new(Resources)
+		for _, taskResource := range a.TaskResources {
+			resources.Add(taskResource)
+		}
+		ret = resources.Networks
+	}
+	return ret
+}
+
 // LookupTask by name from the Allocation. Returns nil if the Job is not set, the
 // TaskGroup does not exist, or the task name cannot be found.
 func (a *Allocation) LookupTask(name string) *Task {
