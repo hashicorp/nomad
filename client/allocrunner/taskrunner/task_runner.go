@@ -602,8 +602,13 @@ func (tr *TaskRunner) Restore() error {
 		return err
 	}
 
-	tr.localState = ls
-	tr.state = ts
+	// Only overwrite initialized state if restored state is non-nil
+	if ls != nil {
+		tr.localState = ls
+	}
+	if ts != nil {
+		tr.state = ts
+	}
 	return nil
 }
 

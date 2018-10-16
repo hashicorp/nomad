@@ -157,7 +157,20 @@ func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
 	})
 }
 
-// GetTaskRunnerState restores TaskRunner specific state.
+// GetTaskRunnerState restores TaskRunner specific state. An error will be
+// returned if the alloc or task could not be found.
+//
+//FIXME make this the desired behavior:
+// - if task bucket doesn't exist: return all nils
+// - getTaskBucket *here* should be readonly (do not try to create if it doesn't exist)
+// - any other getTaskBucket errors should be returned
+//
+// - Get(taskLocalStateKey) -> if key doesn't exist, return nil
+//                          -> other errors should be returned
+// - Get(taskStateKey) -> if key doesn't exist, return nil
+//                     -> other errors should be returned
+//TODO make other Getters behave similarly
+//TODO make sure LocalState.Hooks map is non-nil *in TR.Restore*
 func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.LocalState, *structs.TaskState, error) {
 	var ls trstate.LocalState
 	var ts structs.TaskState
@@ -186,11 +199,10 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 	}
 
 	return &ls, &ts, nil
-
 }
 
 // PutTaskRunnerLocalState stores TaskRunner's LocalState or returns an error.
-func (s *BoltStateDB) PutTaskRunnerLocalState(allocID, taskName string, val interface{}) error {
+func (s *BoltStateDB) PutTaskRunnerLocalState(allocID, taskName string, val *trstate.LocalState) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		taskBkt, err := getTaskBucket(tx, allocID, taskName)
 		if err != nil {

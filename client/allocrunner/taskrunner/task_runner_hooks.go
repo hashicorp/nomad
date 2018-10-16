@@ -101,8 +101,11 @@ func (tr *TaskRunner) prestart() error {
 			TaskEnv: tr.envBuilder.Build(),
 		}
 
+		var origHookState *state.HookState
 		tr.localStateLock.RLock()
-		origHookState := tr.localState.Hooks[name]
+		if tr.localState.Hooks != nil {
+			origHookState = tr.localState.Hooks[name]
+		}
 		tr.localStateLock.RUnlock()
 		if origHookState != nil && origHookState.PrestartDone {
 			tr.logger.Trace("skipping done prestart hook", "name", pre.Name())

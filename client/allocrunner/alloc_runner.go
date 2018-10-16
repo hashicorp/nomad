@@ -58,8 +58,16 @@ type allocRunner struct {
 	waitCh chan struct{}
 
 	// destroyed is true when the Run() loop has exited, postrun hooks have
-	// run, and alloc runner has been destroyed
-	destroyed     bool
+	// run, and alloc runner has been destroyed. Must acquire destroyedLock
+	// to access.
+	destroyed bool
+
+	// runLaunched is true if Run() has been called. If this is false
+	// Destroy() does not wait on tasks to shutdown as they are not
+	// running. Must acquire destroyedLock to access.
+	runLaunched bool
+
+	// destroyedLock guards destroyed, ran, and serializes Destroy() calls.
 	destroyedLock sync.Mutex
 
 	// Alloc captures the allocation being run.
@@ -170,6 +178,21 @@ func (ar *allocRunner) WaitCh() <-chan struct{} {
 
 // Run is the main goroutine that executes all the tasks.
 func (ar *allocRunner) Run() {
+	ar.destroyedLock.Lock()
+	defer ar.destroyedLock.Unlock()
+
+	if ar.destroyed {
+		// Run should not be called after Destroy is called. This is a
+		// programming error.
+		ar.logger.Error("alloc destroyed; cannot run")
+		return
+	}
+	ar.runLaunched = true
+
+	go ar.runImpl()
+}
+
+func (ar *allocRunner) runImpl() {
 	// Close the wait channel on return
 	defer close(ar.waitCh)
 
@@ -183,7 +206,7 @@ func (ar *allocRunner) Run() {
 	}
 
 	// Run the runners and block until they exit
-	<-ar.runImpl()
+	<-ar.runTasks()
 
 POST:
 	// Run the postrun hooks
@@ -193,8 +216,8 @@ POST:
 	}
 }
 
-// runImpl is used to run the runners.
-func (ar *allocRunner) runImpl() <-chan struct{} {
+// runTasks is used to run the task runners.
+func (ar *allocRunner) runTasks() <-chan struct{} {
 	for _, task := range ar.tasks {
 		go task.Run()
 	}
@@ -355,7 +378,7 @@ func (ar *allocRunner) killTasks() {
 		}
 
 		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
-		if err != nil {
+		if err != nil && err != taskrunner.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
 		break
@@ -543,8 +566,10 @@ func (ar *allocRunner) Destroy() {
 	// Stop any running tasks
 	ar.killTasks()
 
-	// Wait for tasks to exit and postrun hooks to finish
-	<-ar.waitCh
+	// Wait for tasks to exit and postrun hooks to finish (if they ran at all)
+	if ar.runLaunched {
+		<-ar.waitCh
+	}
 
 	// Run destroy hooks
 	if err := ar.destroy(); err != nil {
@@ -552,8 +577,10 @@ func (ar *allocRunner) Destroy() {
 	}
 
 	// Wait for task state update handler to exit before removing local
-	// state.
-	<-ar.taskStateUpdateHandlerCh
+	// state if Run() ran at all.
+	if ar.runLaunched {
+		<-ar.taskStateUpdateHandlerCh
+	}
 
 	// Cleanup state db
 	if err := ar.stateDB.DeleteAllocationBucket(ar.id); err != nil {
