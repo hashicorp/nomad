@@ -34,7 +34,6 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
     '<Not>Valid JSON</Not>',
     JSON.stringify({ ResourceUsage: generateResources() }),
   ];
-  const backoffSequence = [50];
 
   this.server.get('/client/allocation/:id/stats', function() {
     const response = frames[++currentFrame];
@@ -61,7 +60,6 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
 
       this.setProperties({
         allocation,
-        backoffSequence,
         context: 'job',
         enablePolling: true,
       });
@@ -70,7 +68,6 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
         {{allocation-row
           allocation=allocation
           context=context
-          backoffSequence=backoffSequence
           enablePolling=enablePolling}}
       `);
       return wait();
