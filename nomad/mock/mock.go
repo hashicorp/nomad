@@ -92,6 +92,7 @@ func Node() *structs.Node {
 	return node
 }
 
+// NvidiaNode returns a node with two instances of an Nvidia GPU
 func NvidiaNode() *structs.Node {
 	n := Node()
 	n.NodeResources.Devices = []*structs.NodeDeviceResource{

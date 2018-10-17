@@ -1780,12 +1780,6 @@ func TestDeviceChecker(t *testing.T) {
 			NodeDevices:      []*structs.NodeDeviceResource{nvidia},
 			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
 		},
-		//{
-		//Name:             "request split over groups",
-		//Result:           true,
-		//NodeDevices:      []*structs.NodeDeviceResource{nvidia, intel},
-		//RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
-		//},
 		{
 			Name:        "meets constraints requirement",
 			Result:      true,

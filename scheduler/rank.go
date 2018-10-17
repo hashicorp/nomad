@@ -195,6 +195,10 @@ OUTER:
 		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
 		devAllocator.AddAllocs(proposed)
 
+		// Track the affinities of the devices
+		devicesWithAffinities := 0
+		deviceAffinityScore := 0.0
+
 		// Assign the resources for each task
 		total := &structs.AllocatedResources{
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
@@ -279,13 +283,21 @@ OUTER:
 
 			// Check if we need to assign devices
 			for _, req := range task.Resources.Devices {
-				offer, err := devAllocator.AssignDevice(req)
+				offer, score, err := devAllocator.AssignDevice(req)
 				if offer == nil {
 					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
 					continue OUTER
 				}
+
+				// Store the resource
 				devAllocator.AddReserved(offer)
 				taskResources.Devices = append(taskResources.Devices, offer)
+
+				// Add the scores
+				if len(req.Affinities) != 0 {
+					devicesWithAffinities++
+					deviceAffinityScore += score
+				}
 			}
 
 			// Store the task resource
@@ -336,6 +348,14 @@ OUTER:
 		normalizedFit := fitness / binPackingMaxFitScore
 		option.Scores = append(option.Scores, normalizedFit)
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)
+
+		// Score the device affinity
+		if devicesWithAffinities != 0 {
+			deviceAffinityScore /= float64(devicesWithAffinities)
+			option.Scores = append(option.Scores, deviceAffinityScore)
+			iter.ctx.Metrics().ScoreNode(option.Node, "devices", deviceAffinityScore)
+		}
+
 		return option
 	}
 }

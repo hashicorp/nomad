@@ -499,6 +499,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 		TaskGroup          *structs.TaskGroup
 		NoPlace            bool
 		ExpectedPlacements map[string]map[structs.DeviceIdTuple]devPlacementTuple
+		DeviceScore        float64
 	}{
 		{
 			Name: "single request, match",
@@ -565,6 +566,48 @@ func TestBinPackIterator_Devices(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			Name: "single request, with affinities",
+			Node: nvidiaNode,
+			TaskGroup: &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:      1024,
+							MemoryMB: 1024,
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 1,
+									Affinities: []*structs.Affinity{
+										{
+											LTarget: "${driver.attr.graphics_clock}",
+											Operand: ">",
+											RTarget: "1.4 GHz",
+											Weight:  0.9,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "1080ti",
+					}: {
+						Count: 1,
+					},
+				},
+			},
+			DeviceScore: 0.9,
 		},
 		{
 			Name: "single request over count, no match",
@@ -736,6 +779,12 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				}
 
 				require.Equal(want, got)
+			}
+
+			// Check potential affinity scores
+			if c.DeviceScore != 0.0 {
+				require.Len(out.Scores, 2)
+				require.Equal(out.Scores[1], c.DeviceScore)
 			}
 		})
 	}

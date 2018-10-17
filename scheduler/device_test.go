@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// deviceRequest takes the name, count and potential constraints and affinities
+// and returns a device request.
 func deviceRequest(name string, count uint64,
 	constraints []*structs.Constraint, affinities []*structs.Affinity) *structs.RequestedDevice {
 	return &structs.RequestedDevice{
@@ -20,6 +22,7 @@ func deviceRequest(name string, count uint64,
 	}
 }
 
+// nvidiaAllocatedDevice returns an allocated nvidia device
 func nvidiaAllocatedDevice() *structs.AllocatedDeviceResource {
 	return &structs.AllocatedDeviceResource{
 		Type:      "gpu",
@@ -29,6 +32,7 @@ func nvidiaAllocatedDevice() *structs.AllocatedDeviceResource {
 	}
 }
 
+// nvidiaAlloc returns an allocation that has been assigned an nvidia device.
 func nvidiaAlloc() *structs.Allocation {
 	a := mock.Alloc()
 	a.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{
@@ -37,6 +41,8 @@ func nvidiaAlloc() *structs.Allocation {
 	return a
 }
 
+// devNode returns a node containing two devices, an nvidia gpu and an intel
+// FPGA.
 func devNode() *structs.Node {
 	n := mock.NvidiaNode()
 	n.NodeResources.Devices = append(n.NodeResources.Devices, &structs.NodeDeviceResource{
@@ -60,6 +66,7 @@ func devNode() *structs.Node {
 	return n
 }
 
+// multipleNvidiaNode returns a node containing multiple nvidia device types.
 func multipleNvidiaNode() *structs.Node {
 	n := mock.NvidiaNode()
 	n.NodeResources.Devices = append(n.NodeResources.Devices, &structs.NodeDeviceResource{
@@ -279,9 +286,10 @@ func TestDeviceAllocator_Allocate_NoDeviceNode(t *testing.T) {
 	// Build the request
 	ask := deviceRequest("nvidia/gpu", 1, nil, nil)
 
-	out, err := d.AssignDevice(ask)
+	out, score, err := d.AssignDevice(ask)
 	require.Nil(out)
 	require.Error(err)
+	require.Zero(score)
 	require.Contains(err.Error(), "no devices available")
 }
 
@@ -296,8 +304,9 @@ func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
 	// Build the request
 	ask := deviceRequest("gpu", 1, nil, nil)
 
-	out, err := d.AssignDevice(ask)
+	out, score, err := d.AssignDevice(ask)
 	require.NotNil(out)
+	require.Zero(score)
 	require.NoError(err)
 
 	// Check that we got the nvidia device
@@ -316,8 +325,9 @@ func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
 	// Build the request
 	ask := deviceRequest("intel/fpga/F100", 1, nil, nil)
 
-	out, err := d.AssignDevice(ask)
+	out, score, err := d.AssignDevice(ask)
 	require.NotNil(out)
+	require.Zero(score)
 	require.NoError(err)
 
 	// Check that we got the nvidia device
@@ -336,7 +346,7 @@ func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 	// Build the request
 	ask := deviceRequest("gpu", 4, nil, nil)
 
-	out, err := d.AssignDevice(ask)
+	out, _, err := d.AssignDevice(ask)
 	require.Nil(out)
 	require.Error(err)
 	require.Contains(err.Error(), "no devices match request")
@@ -436,11 +446,12 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			// Build the request
 			ask := deviceRequest(c.Name, 1, c.Constraints, nil)
 
-			out, err := d.AssignDevice(ask)
+			out, score, err := d.AssignDevice(ask)
 			if c.NoPlacement {
 				require.Nil(out)
 			} else {
 				require.NotNil(out)
+				require.Zero(score)
 				require.NoError(err)
 
 				// Check that we got the nvidia device
@@ -451,5 +462,104 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 	}
 }
 
-// TODO
-// Assign with priorities to pick the best one
+// Test that asking for a device with affinities works
+func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
+	n := multipleNvidiaNode()
+	nvidia0 := n.NodeResources.Devices[0]
+	nvidia1 := n.NodeResources.Devices[1]
+
+	cases := []struct {
+		Name           string
+		Affinities     []*structs.Affinity
+		ExpectedDevice *structs.NodeDeviceResource
+		ZeroScore      bool
+	}{
+		{
+			Name: "gpu",
+			Affinities: []*structs.Affinity{
+				{
+					LTarget: "${driver.attr.cuda_cores}",
+					Operand: ">",
+					RTarget: "4000",
+					Weight:  0.6,
+				},
+			},
+			ExpectedDevice: nvidia1,
+		},
+		{
+			Name: "gpu",
+			Affinities: []*structs.Affinity{
+				{
+					LTarget: "${driver.attr.cuda_cores}",
+					Operand: "<",
+					RTarget: "4000",
+					Weight:  0.1,
+				},
+			},
+			ExpectedDevice: nvidia0,
+		},
+		{
+			Name: "gpu",
+			Affinities: []*structs.Affinity{
+				{
+					LTarget: "${driver.attr.cuda_cores}",
+					Operand: ">",
+					RTarget: "4000",
+					Weight:  -0.2,
+				},
+			},
+			ExpectedDevice: nvidia0,
+			ZeroScore:      true,
+		},
+		{
+			Name: "nvidia/gpu",
+			Affinities: []*structs.Affinity{
+				// First two are shared across both devices
+				{
+					LTarget: "${driver.attr.memory_bandwidth}",
+					Operand: ">",
+					RTarget: "10 GB/s",
+					Weight:  0.2,
+				},
+				{
+					LTarget: "${driver.attr.memory}",
+					Operand: "is",
+					RTarget: "11264 MiB",
+					Weight:  0.2,
+				},
+				{
+					LTarget: "${driver.attr.graphics_clock}",
+					Operand: ">",
+					RTarget: "1.4 GHz",
+					Weight:  0.9,
+				},
+			},
+			ExpectedDevice: nvidia0,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			require := require.New(t)
+			_, ctx := testContext(t)
+			d := newDeviceAllocator(ctx, n)
+			require.NotNil(d)
+
+			// Build the request
+			ask := deviceRequest(c.Name, 1, nil, c.Affinities)
+
+			out, score, err := d.AssignDevice(ask)
+			require.NotNil(out)
+			require.NoError(err)
+			if c.ZeroScore {
+				require.Zero(score)
+			} else {
+				require.NotZero(score)
+			}
+
+			// Check that we got the nvidia device
+			require.Len(out.DeviceIDs, 1)
+			require.Contains(collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
+		})
+	}
+}

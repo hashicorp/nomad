@@ -6,22 +6,27 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// deviceAllocator is used to allocate devices to allocations. The allocator
+// tracks availability as to not double allocate devices.
 type deviceAllocator struct {
 	ctx     Context
 	devices map[structs.DeviceIdTuple]*deviceAllocatorInstance
 }
 
+// deviceAllocatorInstance wraps a device and adds tracking to the instances of
+// the device to determine if they are free or not.
 type deviceAllocatorInstance struct {
-	d         *structs.NodeDeviceResource
+	// d is the device being wrapped
+	d *structs.NodeDeviceResource
+
+	// instances is a mapping of the device IDs of the instances to their usage.
+	// Only a value of 0 indicates that the instance is unused.
 	instances map[string]int
 }
 
-// Free returns if the device is free to use.
-func (d *deviceAllocatorInstance) Free(id string) bool {
-	uses, ok := d.instances[id]
-	return ok && uses == 0
-}
-
+// newDeviceAllocator returns a new device allocator. The node is used to
+// populate the set of available devices based on what healthy device instances
+// exist on the node.
 func newDeviceAllocator(ctx Context, n *structs.Node) *deviceAllocator {
 	numDevices := 0
 	var devices []*structs.NodeDeviceResource
@@ -57,7 +62,8 @@ func newDeviceAllocator(ctx Context, n *structs.Node) *deviceAllocator {
 }
 
 // AddAllocs takes a set of allocations and internally marks which devices are
-// used.
+// used. If a device is used more than once by the set of passed allocations,
+// the collision will be returned as true.
 func (d *deviceAllocator) AddAllocs(allocs []*structs.Allocation) (collision bool) {
 	for _, a := range allocs {
 		// Filter any terminal allocation
@@ -103,18 +109,23 @@ func (d *deviceAllocator) AddAllocs(allocs []*structs.Allocation) (collision boo
 	return
 }
 
+// AddReserved marks the device instances in the passed device reservation as
+// used and returns if there is a collision.
 func (d *deviceAllocator) AddReserved(res *structs.AllocatedDeviceResource) (collision bool) {
+	// Lookup the device.
 	devInst, ok := d.devices[*res.ID()]
 	if !ok {
 		return false
 	}
 
+	// For each reserved instance, mark it as used
 	for _, id := range res.DeviceIDs {
 		cur, ok := devInst.instances[id]
 		if !ok {
 			continue
 		}
 
+		// It has already been used, so mark that there is a collision
 		if cur != 0 {
 			collision = true
 		}
@@ -125,18 +136,21 @@ func (d *deviceAllocator) AddReserved(res *structs.AllocatedDeviceResource) (col
 	return
 }
 
-func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *structs.AllocatedDeviceResource, err error) {
+// AssignDevice takes a device request and returns an assignment as well as a
+// score for the assignment. If no assignment could be made, an error is
+// returned explaining why.
+func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *structs.AllocatedDeviceResource, score float64, err error) {
 	// Try to hot path
 	if len(d.devices) == 0 {
-		return nil, fmt.Errorf("no devices available")
+		return nil, 0.0, fmt.Errorf("no devices available")
 	}
 	if ask.Count == 0 {
-		return nil, fmt.Errorf("invalid request of zero devices")
+		return nil, 0.0, fmt.Errorf("invalid request of zero devices")
 	}
 
 	// Hold the current best offer
 	var offer *structs.AllocatedDeviceResource
-	var score float64
+	var offerScore float64
 
 	// Determine the devices that are feasible based on availability and
 	// constraints
@@ -161,16 +175,36 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 
 		// Score the choice
 		var choiceScore float64
-		if len(ask.Affinities) != 0 {
-			// TODO
+		if l := len(ask.Affinities); l != 0 {
+			for _, a := range ask.Affinities {
+				// Resolve the targets
+				lVal, ok := resolveDeviceTarget(a.LTarget, devInst.d)
+				if !ok {
+					continue
+				}
+				rVal, ok := resolveDeviceTarget(a.RTarget, devInst.d)
+				if !ok {
+					continue
+				}
+
+				// Check if satisfied
+				if !checkAttributeAffinity(d.ctx, a.Operand, lVal, rVal) {
+					continue
+				}
+				choiceScore += a.Weight
+			}
+
+			// normalize
+			choiceScore /= float64(l)
 		}
 
-		if offer != nil && choiceScore < score {
+		// Only use the device if it is a higher score than we have already seen
+		if offer != nil && choiceScore < offerScore {
 			continue
 		}
 
 		// Set the new highest score
-		score = choiceScore
+		offerScore = choiceScore
 
 		// Build the choice
 		offer = &structs.AllocatedDeviceResource{
@@ -192,9 +226,10 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 		}
 	}
 
+	// Failed to find a match
 	if offer == nil {
-		return nil, fmt.Errorf("no devices match request")
+		return nil, 0.0, fmt.Errorf("no devices match request")
 	}
 
-	return offer, nil
+	return offer, offerScore, nil
 }

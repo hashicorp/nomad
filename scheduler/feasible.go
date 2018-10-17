@@ -480,14 +480,12 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 
 // checkAffinity checks if a specific affinity is satisfied
 func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
-	switch operand {
-	case structs.ConstraintSetContainsAny:
-		return checkSetContainsAny(lVal, rVal)
-	case structs.ConstraintSetContainsAll, structs.ConstraintSetContains:
-		return checkSetContainsAll(ctx, lVal, rVal)
-	default:
-		return checkConstraint(ctx, operand, lVal, rVal)
-	}
+	return checkConstraint(ctx, operand, lVal, rVal)
+}
+
+// checkAttributeAffinity checks if an affinity is satisfied
+func checkAttributeAffinity(ctx Context, operand string, lVal, rVal *psstructs.Attribute) bool {
+	return checkAttributeConstraint(ctx, operand, lVal, rVal)
 }
 
 // checkLexicalOrder is used to check for lexical ordering
@@ -895,29 +893,24 @@ OUTER:
 				continue
 			}
 
-			// TODO invert the count logic since it is cheaper than checking if
-			// devices match
+			// First check we have enough instances of the device since this is
+			// cheaper than checking the constraints
+			if unused < desiredCount {
+				continue
+			}
+
+			// Check the constriants
 			if nodeDeviceMatches(c.ctx, d, req) {
 				// Consume the instances
-				if unused >= desiredCount {
-					// This device satisfies all our requests
-					available[d] -= desiredCount
+				available[d] -= desiredCount
 
-					// Move on to the next request
-					continue OUTER
-				} // else {
-				// This device partially satisfies our requests
-				//available[d] = 0
-				//desiredCount -= unused
-				//}
+				// Move on to the next request
+				continue OUTER
 			}
 		}
 
-		// TODO I don't think this behavior is desirable
 		// We couldn't match the request for the device
-		//if desiredCount > 0 {
 		return false
-		//}
 	}
 
 	// Only satisfied if there are no more devices to place
