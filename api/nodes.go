@@ -471,7 +471,7 @@ type NodeResources struct {
 }
 
 type NodeCpuResources struct {
-	TotalShares int64
+	CpuShares int64
 }
 
 type NodeMemoryResources struct {
@@ -490,7 +490,7 @@ type NodeReservedResources struct {
 }
 
 type NodeReservedCpuResources struct {
-	TotalShares uint64
+	CpuShares uint64
 }
 
 type NodeReservedMemoryResources struct {
