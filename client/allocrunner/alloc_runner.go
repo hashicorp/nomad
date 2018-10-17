@@ -34,8 +34,18 @@ type allocRunner struct {
 
 	clientConfig *config.Config
 
-	// stateUpdater is used to emit updated task state
+	// stateUpdater is used to emit updated alloc state
 	stateUpdater cinterfaces.AllocStateHandler
+
+	// taskStateUpdateCh is ticked whenever task state as changed. Must
+	// have len==1 to allow nonblocking notification of state updates while
+	// the goroutine is already processing a previous update.
+	taskStateUpdatedCh chan struct{}
+
+	// taskStateUpdateHandlerCh is closed when the task state handling
+	// goroutine exits. It is unsafe to destroy the local allocation state
+	// before this goroutine exits.
+	taskStateUpdateHandlerCh chan struct{}
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
@@ -48,8 +58,16 @@ type allocRunner struct {
 	waitCh chan struct{}
 
 	// destroyed is true when the Run() loop has exited, postrun hooks have
-	// run, and alloc runner has been destroyed
-	destroyed     bool
+	// run, and alloc runner has been destroyed. Must acquire destroyedLock
+	// to access.
+	destroyed bool
+
+	// runLaunched is true if Run() has been called. If this is false
+	// Destroy() does not wait on tasks to shutdown as they are not
+	// running. Must acquire destroyedLock to access.
+	runLaunched bool
+
+	// destroyedLock guards destroyed, ran, and serializes Destroy() calls.
 	destroyedLock sync.Mutex
 
 	// Alloc captures the allocation being run.
@@ -70,8 +88,7 @@ type allocRunner struct {
 	runnerHooks []interfaces.RunnerHook
 
 	// tasks are the set of task runners
-	tasks     map[string]*taskrunner.TaskRunner
-	tasksLock sync.RWMutex
+	tasks map[string]*taskrunner.TaskRunner
 
 	// allocBroadcaster sends client allocation updates to all listeners
 	allocBroadcaster *cstructs.AllocBroadcaster
@@ -94,19 +111,21 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	}
 
 	ar := &allocRunner{
-		id:                    alloc.ID,
-		alloc:                 alloc,
-		clientConfig:          config.ClientConfig,
-		consulClient:          config.Consul,
-		vaultClient:           config.Vault,
-		tasks:                 make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
-		waitCh:                make(chan struct{}),
-		state:                 &state.State{},
-		stateDB:               config.StateDB,
-		stateUpdater:          config.StateUpdater,
-		allocBroadcaster:      cstructs.NewAllocBroadcaster(),
-		prevAllocWatcher:      config.PrevAllocWatcher,
-		pluginSingletonLoader: config.PluginSingletonLoader,
+		id:                       alloc.ID,
+		alloc:                    alloc,
+		clientConfig:             config.ClientConfig,
+		consulClient:             config.Consul,
+		vaultClient:              config.Vault,
+		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
+		waitCh:                   make(chan struct{}),
+		state:                    &state.State{},
+		stateDB:                  config.StateDB,
+		stateUpdater:             config.StateUpdater,
+		taskStateUpdatedCh:       make(chan struct{}, 1),
+		taskStateUpdateHandlerCh: make(chan struct{}),
+		allocBroadcaster:         cstructs.NewAllocBroadcaster(),
+		prevAllocWatcher:         config.PrevAllocWatcher,
+		pluginSingletonLoader:    config.PluginSingletonLoader,
 	}
 
 	// Create the logger based on the allocation ID
@@ -157,32 +176,37 @@ func (ar *allocRunner) WaitCh() <-chan struct{} {
 	return ar.waitCh
 }
 
-// XXX How does alloc Restart work
 // Run is the main goroutine that executes all the tasks.
 func (ar *allocRunner) Run() {
-	// Close the wait channel
+	ar.destroyedLock.Lock()
+	defer ar.destroyedLock.Unlock()
+
+	if ar.destroyed {
+		// Run should not be called after Destroy is called. This is a
+		// programming error.
+		ar.logger.Error("alloc destroyed; cannot run")
+		return
+	}
+	ar.runLaunched = true
+
+	go ar.runImpl()
+}
+
+func (ar *allocRunner) runImpl() {
+	// Close the wait channel on return
 	defer close(ar.waitCh)
 
-	var taskWaitCh <-chan struct{}
+	// Start the task state update handler
+	go ar.handleTaskStateUpdates()
 
 	// Run the prestart hooks
-	// XXX Equivalent to TR.Prestart hook
 	if err := ar.prerun(); err != nil {
 		ar.logger.Error("prerun failed", "error", err)
 		goto POST
 	}
 
-	// Run the runners
-	taskWaitCh = ar.runImpl()
-
-MAIN:
-	for {
-		select {
-		case <-taskWaitCh:
-			// TaskRunners have all exited
-			break MAIN
-		}
-	}
+	// Run the runners and block until they exit
+	<-ar.runTasks()
 
 POST:
 	// Run the postrun hooks
@@ -192,8 +216,8 @@ POST:
 	}
 }
 
-// runImpl is used to run the runners.
-func (ar *allocRunner) runImpl() <-chan struct{} {
+// runTasks is used to run the task runners.
+func (ar *allocRunner) runTasks() <-chan struct{} {
 	for _, task := range ar.tasks {
 		go task.Run()
 	}
@@ -244,71 +268,146 @@ func (ar *allocRunner) Restore() error {
 }
 
 // TaskStateUpdated is called by TaskRunner when a task's state has been
-// updated. This hook is used to compute changes to the alloc's ClientStatus
-// and to update the server with the new state.
-func (ar *allocRunner) TaskStateUpdated(taskName string, state *structs.TaskState) {
-	// If a task is dead, we potentially want to kill other tasks in the group
-	if state.State == structs.TaskStateDead {
-		// Find all tasks that are not the one that is dead and check if the one
-		// that is dead is a leader
-		var otherTaskRunners []*taskrunner.TaskRunner
-		var otherTaskNames []string
-		leader := false
+// updated. It does not process the update synchronously but instead notifies a
+// goroutine the state has change. Since processing the state change may cause
+// the task to be killed (thus change its state again) it cannot be done
+// synchronously as it would cause a deadlock due to reentrancy.
+//
+// The goroutine is used to compute changes to the alloc's ClientStatus and to
+// update the server with the new state.
+func (ar *allocRunner) TaskStateUpdated() {
+	select {
+	case ar.taskStateUpdatedCh <- struct{}{}:
+	default:
+		// already pending updates
+	}
+}
+
+// handleTaskStateUpdates must be run in goroutine as it monitors
+// taskStateUpdateCh for task state update notifications and processes task
+// states.
+//
+// Processing task state updates must be done in a goroutine as it may have to
+// kill tasks which causes further task state updates.
+func (ar *allocRunner) handleTaskStateUpdates() {
+	defer close(ar.taskStateUpdateHandlerCh)
+
+	for done := false; !done; {
+		select {
+		case <-ar.taskStateUpdatedCh:
+		case <-ar.waitCh:
+			// Tasks have exited, run once more to ensure final
+			// states are collected.
+			done = true
+		}
+
+		// Set with the appropriate event if task runners should be
+		// killed.
+		var killEvent *structs.TaskEvent
+
+		// If task runners should be killed, this is set to the task
+		// name whose fault it is.
+		killTask := ""
+
+		// True if task runners should be killed because a leader
+		// failed (informational).
+		leaderFailed := false
+
+		// Task state has been updated; gather the state of the other tasks
+		trNum := len(ar.tasks)
+		liveRunners := make([]*taskrunner.TaskRunner, 0, trNum)
+		states := make(map[string]*structs.TaskState, trNum)
+
 		for name, tr := range ar.tasks {
-			if name != taskName {
-				otherTaskRunners = append(otherTaskRunners, tr)
-				otherTaskNames = append(otherTaskNames, name)
-			} else if tr.Task().Leader {
-				leader = true
-			}
-		}
-
-		// If the task failed, we should kill all the other tasks in the task group.
-		if state.Failed {
-			if len(otherTaskRunners) > 0 {
-				ar.logger.Debug("task failure, destroying all tasks", "failed_task", taskName, "destroying", otherTaskNames)
-			}
-			for _, tr := range otherTaskRunners {
-				tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskSiblingFailed).SetFailedSibling(taskName))
-			}
-		} else if leader {
-			if len(otherTaskRunners) > 0 {
-				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", taskName, "destroying", otherTaskNames)
-			}
-			// If the task was a leader task we should kill all the other tasks.
-			for _, tr := range otherTaskRunners {
-				tr.Kill(context.Background(), structs.NewTaskEvent(structs.TaskLeaderDead))
-			}
-		}
-	}
-
-	// Gather the state of the other tasks
-	ar.tasksLock.RLock()
-	states := make(map[string]*structs.TaskState, len(ar.tasks))
-	for name, tr := range ar.tasks {
-		if name == taskName {
+			state := tr.TaskState()
 			states[name] = state
-		} else {
-			states[name] = tr.TaskState()
+
+			// Capture live task runners in case we need to kill them
+			if state.State != structs.TaskStateDead {
+				liveRunners = append(liveRunners, tr)
+				continue
+			}
+
+			// Task is dead, determine if other tasks should be killed
+			if state.Failed {
+				// Only set failed event if no event has been
+				// set yet to give dead leaders priority.
+				if killEvent == nil {
+					killTask = name
+					killEvent = structs.NewTaskEvent(structs.TaskSiblingFailed).
+						SetFailedSibling(name)
+				}
+			} else if tr.IsLeader() {
+				killEvent = structs.NewTaskEvent(structs.TaskLeaderDead)
+				leaderFailed = true
+				killTask = name
+			}
 		}
+
+		// If there's a kill event set and live runners, kill them
+		if killEvent != nil && len(liveRunners) > 0 {
+
+			// Log kill reason
+			if leaderFailed {
+				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
+			} else {
+				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
+			}
+
+			ar.killTasks()
+		}
+
+		// Get the client allocation
+		calloc := ar.clientAlloc(states)
+
+		// Update the server
+		ar.stateUpdater.AllocStateUpdated(calloc)
+
+		// Broadcast client alloc to listeners
+		ar.allocBroadcaster.Send(calloc)
 	}
-	ar.tasksLock.RUnlock()
+}
 
-	// Get the client allocation
-	calloc := ar.clientAlloc(states)
+// killTasks kills all task runners, leader (if there is one) first. Errors are
+// logged except taskrunner.ErrTaskNotRunning which is ignored.
+func (ar *allocRunner) killTasks() {
+	// Kill leader first, synchronously
+	for name, tr := range ar.tasks {
+		if !tr.IsLeader() {
+			continue
+		}
 
-	// Update the server
-	ar.stateUpdater.AllocStateUpdated(calloc)
+		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
+		if err != nil && err != taskrunner.ErrTaskNotRunning {
+			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
+		}
+		break
+	}
 
-	// Broadcast client alloc to listeners
-	ar.allocBroadcaster.Send(calloc)
+	// Kill the rest concurrently
+	wg := sync.WaitGroup{}
+	for name, tr := range ar.tasks {
+		if tr.IsLeader() {
+			continue
+		}
+
+		wg.Add(1)
+		go func(name string, tr *taskrunner.TaskRunner) {
+			defer wg.Done()
+			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
+			if err != nil && err != taskrunner.ErrTaskNotRunning {
+				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
+			}
+		}(name, tr)
+	}
+	wg.Wait()
 }
 
 // clientAlloc takes in the task states and returns an Allocation populated
 // with Client specific fields
 func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *structs.Allocation {
-	ar.stateLock.RLock()
-	defer ar.stateLock.RUnlock()
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
 
 	// store task states for AllocState to expose
 	ar.state.TaskStates = taskStates
@@ -405,12 +504,10 @@ func (ar *allocRunner) AllocState() *state.State {
 	// If TaskStateUpdated has not been called yet, ar.state.TaskStates
 	// won't be set as it is not the canonical source of TaskStates.
 	if len(state.TaskStates) == 0 {
-		ar.tasksLock.RLock()
 		ar.state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
 		for k, tr := range ar.tasks {
 			state.TaskStates[k] = tr.TaskState()
 		}
-		ar.tasksLock.RUnlock()
 	}
 
 	return state
@@ -422,18 +519,30 @@ func (ar *allocRunner) AllocState() *state.State {
 // If there is already a pending update it will be discarded and replaced by
 // the latest update.
 func (ar *allocRunner) Update(update *structs.Allocation) {
+	// Detect Stop updates
+	stopping := !ar.Alloc().TerminalStatus() && update.TerminalStatus()
+
 	// Update ar.alloc
 	ar.setAlloc(update)
 
-	// Run hooks
-	if err := ar.update(update); err != nil {
-		ar.logger.Error("error running update hooks", "error", err)
+	// Run update hooks if not stopping or dead
+	if !update.TerminalStatus() {
+		if err := ar.update(update); err != nil {
+			ar.logger.Error("error running update hooks", "error", err)
+		}
+
 	}
 
 	// Update task runners
 	for _, tr := range ar.tasks {
 		tr.Update(update)
 	}
+
+	// If alloc is being terminated, kill all tasks, leader first
+	if stopping {
+		ar.killTasks()
+	}
+
 }
 
 func (ar *allocRunner) Listener() *cstructs.AllocListener {
@@ -446,26 +555,31 @@ func (ar *allocRunner) Listener() *cstructs.AllocListener {
 // This method is safe for calling concurrently with Run() and will cause it to
 // exit (thus closing WaitCh).
 func (ar *allocRunner) Destroy() {
-	// Stop tasks
-	ar.tasksLock.RLock()
-	for name, tr := range ar.tasks {
-		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
-		if err != nil {
-			if err == taskrunner.ErrTaskNotRunning {
-				ar.logger.Trace("task not running", "task_name", name)
-			} else {
-				ar.logger.Warn("failed to kill task", "error", err, "task_name", name)
-			}
-		}
+	ar.destroyedLock.Lock()
+	if ar.destroyed {
+		// Only destroy once
+		ar.destroyedLock.Unlock()
+		return
 	}
-	ar.tasksLock.RUnlock()
+	defer ar.destroyedLock.Unlock()
 
-	// Wait for tasks to exit and postrun hooks to finish
-	<-ar.waitCh
+	// Stop any running tasks
+	ar.killTasks()
+
+	// Wait for tasks to exit and postrun hooks to finish (if they ran at all)
+	if ar.runLaunched {
+		<-ar.waitCh
+	}
 
 	// Run destroy hooks
 	if err := ar.destroy(); err != nil {
 		ar.logger.Warn("error running destroy hooks", "error", err)
+	}
+
+	// Wait for task state update handler to exit before removing local
+	// state if Run() ran at all.
+	if ar.runLaunched {
+		<-ar.taskStateUpdateHandlerCh
 	}
 
 	// Cleanup state db
@@ -474,9 +588,7 @@ func (ar *allocRunner) Destroy() {
 	}
 
 	// Mark alloc as destroyed
-	ar.destroyedLock.Lock()
 	ar.destroyed = true
-	ar.destroyedLock.Unlock()
 }
 
 // IsDestroyed returns true if the alloc runner has been destroyed (stopped and
@@ -514,9 +626,6 @@ func (ar *allocRunner) StatsReporter() interfaces.AllocStatsReporter {
 // LatestAllocStats returns the latest stats for an allocation. If taskFilter
 // is set, only stats for that task -- if it exists -- are returned.
 func (ar *allocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error) {
-	ar.tasksLock.RLock()
-	defer ar.tasksLock.RUnlock()
-
 	astat := &cstructs.AllocResourceUsage{
 		Tasks: make(map[string]*cstructs.TaskResourceUsage, len(ar.tasks)),
 		ResourceUsage: &cstructs.ResourceUsage{

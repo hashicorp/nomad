@@ -52,10 +52,11 @@ const (
 )
 
 type TaskRunner struct {
-	// allocID and taskName are immutable so these fields may be accessed
-	// without locks
-	allocID  string
-	taskName string
+	// allocID, taskName, and taskLeader are immutable so these fields may
+	// be accessed without locks
+	allocID    string
+	taskName   string
+	taskLeader bool
 
 	alloc     *structs.Allocation
 	allocLock sync.Mutex
@@ -203,6 +204,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		task:                  config.Task,
 		taskDir:               config.TaskDir,
 		taskName:              config.Task.Name,
+		taskLeader:            config.Task.Leader,
 		envBuilder:            envBuilder,
 		consulClient:          config.Consul,
 		vaultClient:           config.VaultClient,
@@ -396,15 +398,6 @@ func (tr *TaskRunner) handleUpdates() {
 		case <-tr.triggerUpdateCh:
 		case <-tr.waitCh:
 			return
-		}
-
-		if tr.Alloc().TerminalStatus() {
-			// Terminal update: kill TaskRunner and let Run execute postrun hooks
-			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
-			if err != nil {
-				tr.logger.Warn("error stopping task", "error", err)
-			}
-			continue
 		}
 
 		// Non-terminal update; run hooks
@@ -609,32 +602,33 @@ func (tr *TaskRunner) Restore() error {
 		return err
 	}
 
-	tr.localState = ls
-	tr.state = ts
+	// Only overwrite initialized state if restored state is non-nil
+	if ls != nil {
+		tr.localState = ls
+	}
+	if ts != nil {
+		tr.state = ts
+	}
 	return nil
 }
 
 // UpdateState sets the task runners allocation state and triggers a server
 // update.
 func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
-	tr.logger.Debug("setting task state", "state", state, "event", event.Type)
+	tr.logger.Trace("setting task state", "state", state, "event", event.Type)
+
 	// Update the local state
-	stateCopy := tr.setStateLocal(state, event)
+	tr.setStateLocal(state, event)
 
 	// Notify the alloc runner of the transition
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy)
+	tr.stateUpdater.TaskStateUpdated()
 }
 
 // setStateLocal updates the local in-memory state, persists a copy to disk and returns a
 // copy of the task's state.
-func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *structs.TaskState {
+func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
-
-	//XXX REMOVE ME AFTER TESTING
-	if state == "" {
-		panic("UpdateState must not be called with an empty state")
-	}
 
 	// Update the task state
 	oldState := tr.state.State
@@ -687,8 +681,6 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 		// try to persist it again.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
 	}
-
-	return tr.state.Copy()
 }
 
 // EmitEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -709,7 +701,7 @@ func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 	}
 
 	// Notify the alloc runner of the event
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, tr.state.Copy())
+	tr.stateUpdater.TaskStateUpdated()
 }
 
 // AppendEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -773,8 +765,10 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 	// Update tr.alloc
 	tr.setAlloc(update)
 
-	// Trigger update hooks
-	tr.triggerUpdateHooks()
+	// Trigger update hooks if not terminal
+	if !update.TerminalStatus() {
+		tr.triggerUpdateHooks()
+	}
 }
 
 // triggerUpdate if there isn't already an update pending. Should be called

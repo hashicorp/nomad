@@ -40,7 +40,6 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.stateLock.Unlock()
 
 	// If deployment is unhealthy emit task events explaining why
-	a.ar.tasksLock.RLock()
 	if !healthy && isDeploy {
 		for task, event := range trackerTaskEvents {
 			if tr, ok := a.ar.tasks[task]; ok {
@@ -56,7 +55,6 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	for name, tr := range a.ar.tasks {
 		states[name] = tr.TaskState()
 	}
-	a.ar.tasksLock.RUnlock()
 
 	// Build the client allocation
 	calloc := a.ar.clientAlloc(states)
