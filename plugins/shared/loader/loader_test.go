@@ -698,6 +698,9 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	defer h.cleanup()
 
 	expKey := "set_config_worked"
+	expNomadConfig := &base.NomadConfig{
+		ClientMinPort: 100,
+	}
 
 	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
@@ -721,7 +724,7 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, expNomadConfig, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -732,6 +735,10 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(res)
 	require.Contains(res.Envs, expKey)
+
+	mock, ok := p.Plugin().(*mockPlugin)
+	require.True(ok)
+	require.Exactly(expNomadConfig, mock.nomadConfig)
 }
 
 func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
