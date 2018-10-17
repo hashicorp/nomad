@@ -15,6 +15,10 @@
     pointer-events: none;
     z-index: $z-tooltip;
 
+    &.is-snappy {
+      transition: 0.2s top ease-out, 0.05s left ease-out;
+    }
+
     &::before {
       pointer-events: none;
       display: inline-block;
@@ -53,40 +57,47 @@
 
     ol {
       list-style: none;
+    }
 
-      li {
-        display: flex;
-        flex-flow: row;
-        flex-wrap: nowrap;
-        justify-content: space-between;
-        padding: 0.25rem 0.5rem;
+    ol > li,
+    p {
+      display: flex;
+      flex-flow: row;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      padding: 0.25rem 0.5rem;
 
-        span {
-          display: inline-block;
+      span {
+        display: inline-block;
+      }
+
+      .label {
+        font-weight: $weight-bold;
+        color: $black;
+        margin: 0;
+
+        &.is-empty {
+          color: rgba($grey, 0.6);
         }
+      }
+    }
+
+    ol > li {
+      .label {
+        color: rgba($black, 0.6);
+      }
+
+      &.active {
+        color: $black;
+        background: $white-ter;
 
         .label {
-          font-weight: $weight-bold;
-          color: rgba($black, 0.6);
-          margin: 0;
-
-          &.is-empty {
-            color: rgba($grey, 0.6);
-          }
-        }
-
-        &.active {
           color: $black;
-          background: $white-ter;
-
-          .label {
-            color: $black;
-          }
         }
+      }
 
-        + li {
-          border-top: 1px solid $grey-light;
-        }
+      + li {
+        border-top: 1px solid $grey-light;
       }
     }
   }

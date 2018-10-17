@@ -38,6 +38,11 @@ export default create({
   eligibilityDefinition: text('[data-test-eligibility]'),
   datacenterDefinition: text('[data-test-datacenter-definition]'),
 
+  resourceCharts: collection('[data-test-primary-metric]', {
+    name: text('[data-test-primary-metric-title]'),
+    chartClass: attribute('class', '[data-test-percentage-chart] progress'),
+  }),
+
   ...allocations(),
 
   attributesTable: isPresent('[data-test-attributes]'),

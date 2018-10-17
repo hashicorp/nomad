@@ -94,6 +94,12 @@ test('breadcrumbs match jobs / job / task group / allocation / task', function(a
   });
 });
 
+test('/allocation/:id/:task_name should include resource utilization graphs', function(assert) {
+  assert.equal(Task.resourceCharts.length, 2, 'Two resource utilization graphs');
+  assert.equal(Task.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
+  assert.equal(Task.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+});
+
 test('the addresses table lists all reserved and dynamic ports', function(assert) {
   const taskResources = allocation.taskResourcesIds
     .map(id => server.db.taskResources.find(id))

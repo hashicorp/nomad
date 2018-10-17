@@ -18,6 +18,22 @@
   </div>
 
   <div class="boxed-section">
+    <div class="boxed-section-head is-hollow">
+      Resource Utilization
+    </div>
+    <div class="boxed-section-body">
+      <div class="columns">
+        <div class="column">
+          {{primary-metric resource=model metric="cpu"}}
+        </div>
+        <div class="column">
+          {{primary-metric resource=model metric="memory"}}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="boxed-section">
     <div class="boxed-section-head">
       Tasks
     </div>
@@ -34,52 +50,14 @@
           <th>Last Event</th>
           {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
           <th>Addresses</th>
+          <th>CPU</th>
+          <th>Memory</th>
         {{/t.head}}
         {{#t.body as |row|}}
-          <tr
-            data-test-task-row={{row.model.task.name}}
-            onclick={{action "taskClick" row.model.allocation row.model}}
-            class="is-interactive">
-            <td class="is-narrow">
-              {{#if (not row.model.driverStatus.healthy)}}
-                <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="{{row.model.driver}} is unhealthy">
-                  {{x-icon "warning" class="is-warning"}}
-                </span>
-              {{/if}}
-            </td>
-            <td data-test-name>
-              {{#link-to "allocations.allocation.task" row.model.allocation row.model class="is-primary"}}
-                {{row.model.name}}
-              {{/link-to}}
-            </td>
-            <td data-test-state>{{row.model.state}}</td>
-            <td data-test-message>
-              {{#if row.model.events.lastObject.message}}
-                {{row.model.events.lastObject.message}}
-              {{else}}
-                <em>No message</em>
-              {{/if}}
-            </td>
-            <td data-test-time>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss"}}</td>
-            <td data-test-ports>
-              <ul>
-                {{#with row.model.resources.networks.firstObject as |network|}}
-                  {{#each network.reservedPorts as |port|}}
-                    <li data-test-port>
-                      <strong>{{port.Label}}:</strong>
-                      <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
-                    </li>
-                  {{/each}}
-                  {{#each network.dynamicPorts as |port|}}
-                    <li>
-                      <strong>{{port.Label}}:</strong>
-                      <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
-                    </li>
-                  {{/each}}
-                {{/with}}
-              </ul>
-            </td>
-          </tr>
+          {{task-row
+            data-test-task-row=row.model.name
+            task=row.model
+            onClick=(action "taskClick" row.model.allocation row.model)}}
         {{/t.body}}
       {{/list-table}}
     </div>
