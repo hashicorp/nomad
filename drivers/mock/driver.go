@@ -212,7 +212,7 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *Driver) SetConfig(data []byte) error {
+func (d *Driver) SetConfig(data []byte, cfg *base.NomadConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err

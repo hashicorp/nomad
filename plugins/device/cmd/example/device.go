@@ -116,7 +116,7 @@ func (d *FsDevice) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 // SetConfig is used to set the configuration of the plugin.
-func (d *FsDevice) SetConfig(data []byte) error {
+func (d *FsDevice) SetConfig(data []byte, cfg *base.NomadConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err

@@ -49,10 +49,11 @@ func (b *BasePluginClient) ConfigSchema() (*hclspec.Spec, error) {
 	return presp.GetSpec(), nil
 }
 
-func (b *BasePluginClient) SetConfig(data []byte) error {
+func (b *BasePluginClient) SetConfig(data []byte, config *NomadConfig) error {
 	// Send the config
 	_, err := b.Client.SetConfig(context.Background(), &proto.SetConfigRequest{
 		MsgpackConfig: data,
+		NomadConfig:   config.toProto(),
 	})
 
 	return err

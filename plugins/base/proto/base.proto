@@ -32,7 +32,7 @@ message PluginInfoRequest {}
 message PluginInfoResponse {
   // type indicates what type of plugin this is.
   PluginType type = 1;
-  
+
   // plugin_api_version indicates the version of the Nomad Plugin API
   // this plugin is built against.
   string plugin_api_version = 2;
@@ -57,7 +57,21 @@ message ConfigSchemaResponse {
 // SetConfigRequest is used to set the configuration
 message SetConfigRequest {
   // msgpack_config is the configuration encoded as MessagePack.
-  bytes msgpack_config = 1;    
+  bytes msgpack_config = 1;
+
+  // nomad_config is the nomad client configuration sent to all plugins.
+  NomadConfig nomad_config = 2;
+}
+
+// NomadConfig is the client configuration sent to all plugins
+message NomadConfig {
+    // ClientMaxPort is the upper range of the ports that the client uses for
+	// communicating with plugin subsystems over loopback
+	uint32 ClientMaxPort = 1;
+
+	// ClientMinPort is the lower range of the ports that the client uses for
+	// communicating with plugin subsystems over loopback
+	uint32 ClientMinPort = 2;
 }
 
 // SetConfigResponse is used to respond to setting the configuration

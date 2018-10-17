@@ -1,6 +1,7 @@
 package base
 
 import (
+	"github.com/hashicorp/nomad/plugins/base/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -14,7 +15,7 @@ type BasePlugin interface {
 
 	// SetConfig is used to set the configuration by passing a MessagePack
 	// encoding of it.
-	SetConfig(data []byte) error
+	SetConfig(data []byte, config *NomadConfig) error
 }
 
 // PluginInfoResponse returns basic information about the plugin such that Nomad
@@ -32,4 +33,35 @@ type PluginInfoResponse struct {
 
 	// Name is the plugins name.
 	Name string
+}
+
+// NomadConfig is the nomad client configuration sent to all plugins
+type NomadConfig struct {
+	// ClientMaxPort is the upper range of the ports that the client uses for
+	// communicating with plugin subsystems over loopback
+	ClientMaxPort uint
+
+	// ClientMinPort is the lower range of the ports that the client uses for
+	// communicating with plugin subsystems over loopback
+	ClientMinPort uint
+}
+
+func (c *NomadConfig) toProto() *proto.NomadConfig {
+	if c == nil {
+		return nil
+	}
+	return &proto.NomadConfig{
+		ClientMaxPort: uint32(c.ClientMaxPort),
+		ClientMinPort: uint32(c.ClientMinPort),
+	}
+}
+
+func nomadConfigFromProto(pb *proto.NomadConfig) *NomadConfig {
+	if pb == nil {
+		return nil
+	}
+	return &NomadConfig{
+		ClientMaxPort: uint(pb.ClientMaxPort),
+		ClientMinPort: uint(pb.ClientMinPort),
+	}
 }

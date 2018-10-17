@@ -336,7 +336,7 @@ func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, 
 // and requests a fingerprint channel. The channel and a context cancel function
 // is returned to the caller
 func (fm *FingerprintManager) dispenseDriverFingerprint(driverName string) (<-chan *drivers.Fingerprint, context.CancelFunc, error) {
-	plug, err := fm.singletonLoader.Dispense(driverName, base.PluginTypeDriver, fm.logger)
+	plug, err := fm.singletonLoader.Dispense(driverName, base.PluginTypeDriver, fm.getConfig().NomadPluginConfig(), fm.logger)
 	if err != nil {
 		return nil, nil, err
 	}

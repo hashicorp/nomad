@@ -674,7 +674,7 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -721,7 +721,7 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -773,7 +773,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -822,7 +822,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -863,7 +863,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 

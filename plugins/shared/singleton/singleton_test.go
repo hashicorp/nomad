@@ -27,7 +27,7 @@ func TestSingleton_Dispense(t *testing.T) {
 
 	dispenseCalled := 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
@@ -50,7 +50,7 @@ func TestSingleton_Dispense(t *testing.T) {
 			<-waitCh
 
 			// Retrieve the plugin
-			p1, err := s.Dispense("foo", "bar", testlog.HCLogger(t))
+			p1, err := s.Dispense("foo", "bar", nil, testlog.HCLogger(t))
 			require.NotNil(p1)
 			require.NoError(err)
 			i1 := p1.Plugin()
@@ -77,7 +77,7 @@ func TestSingleton_Dispense_Exit_Dispense(t *testing.T) {
 	exited := false
 	dispenseCalled := 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return exited },
@@ -89,7 +89,7 @@ func TestSingleton_Dispense_Exit_Dispense(t *testing.T) {
 
 	// Retrieve the plugin
 	logger := testlog.HCLogger(t)
-	p1, err := s.Dispense("foo", "bar", logger)
+	p1, err := s.Dispense("foo", "bar", nil, logger)
 	require.NotNil(p1)
 	require.NoError(err)
 
@@ -99,14 +99,14 @@ func TestSingleton_Dispense_Exit_Dispense(t *testing.T) {
 
 	// Mark the plugin as exited and retrieve again
 	exited = true
-	_, err = s.Dispense("foo", "bar", logger)
+	_, err = s.Dispense("foo", "bar", nil, logger)
 	require.Error(err)
 	require.Contains(err.Error(), "exited")
 	require.Equal(1, dispenseCalled)
 
 	// Mark the plugin as non-exited and retrieve again
 	exited = false
-	p2, err := s.Dispense("foo", "bar", logger)
+	p2, err := s.Dispense("foo", "bar", nil, logger)
 	require.NotNil(p2)
 	require.NoError(err)
 	require.Equal(2, dispenseCalled)
@@ -125,7 +125,7 @@ func TestSingleton_DispenseError_Dispense(t *testing.T) {
 	require := require.New(t)
 
 	dispenseCalled := 0
-	good := func(_, _ string, _ log.Logger) (loader.PluginInstance, error) {
+	good := func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
@@ -135,7 +135,7 @@ func TestSingleton_DispenseError_Dispense(t *testing.T) {
 		return i, nil
 	}
 
-	bad := func(_, _ string, _ log.Logger) (loader.PluginInstance, error) {
+	bad := func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
 		dispenseCalled++
 		return nil, fmt.Errorf("bad")
 	}
@@ -145,14 +145,14 @@ func TestSingleton_DispenseError_Dispense(t *testing.T) {
 
 	// Retrieve the plugin
 	logger := testlog.HCLogger(t)
-	p1, err := s.Dispense("foo", "bar", logger)
+	p1, err := s.Dispense("foo", "bar", nil, logger)
 	require.Nil(p1)
 	require.Error(err)
 	require.Equal(1, dispenseCalled)
 
 	// Dispense again and ensure the same error isn't saved
 	c.DispenseF = good
-	p2, err := s.Dispense("foo", "bar", logger)
+	p2, err := s.Dispense("foo", "bar", nil, logger)
 	require.NotNil(p2)
 	require.NoError(err)
 	require.Equal(2, dispenseCalled)
@@ -169,7 +169,7 @@ func TestSingleton_ReattachError_Dispense(t *testing.T) {
 
 	dispenseCalled, reattachCalled := 0, 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
@@ -192,7 +192,7 @@ func TestSingleton_ReattachError_Dispense(t *testing.T) {
 	require.Equal(1, reattachCalled)
 
 	// Dispense and ensure the same error isn't saved
-	p2, err := s.Dispense("foo", "bar", logger)
+	p2, err := s.Dispense("foo", "bar", nil, logger)
 	require.NotNil(p2)
 	require.NoError(err)
 	require.Equal(1, dispenseCalled)
@@ -209,7 +209,7 @@ func TestSingleton_Reattach_Dispense(t *testing.T) {
 
 	dispenseCalled, reattachCalled := 0, 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
 		dispenseCalled++
 		return nil, fmt.Errorf("bad")
 	}
@@ -235,7 +235,7 @@ func TestSingleton_Reattach_Dispense(t *testing.T) {
 	require.NotNil(i1)
 
 	// Dispense and ensure the same instance returned
-	p2, err := s.Dispense("foo", "bar", logger)
+	p2, err := s.Dispense("foo", "bar", nil, logger)
 	require.NotNil(p2)
 	require.NoError(err)
 	require.Equal(0, dispenseCalled)

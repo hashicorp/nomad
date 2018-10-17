@@ -115,7 +115,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 		ConfigSchemaF: func() (*hclspec.Spec, error) {
 			return TestSpec, nil
 		},
-		SetConfigF: func(data []byte) error {
+		SetConfigF: func(data []byte, cfg *NomadConfig) error {
 			receivedData = data
 			return nil
 		},
@@ -144,7 +144,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 	})
 	cdata, err := msgpack.Marshal(config, config.Type())
 	require.NoError(err)
-	require.NoError(impl.SetConfig(cdata))
+	require.NoError(impl.SetConfig(cdata, &NomadConfig{}))
 	require.Equal(cdata, receivedData)
 
 	// Decode the value back

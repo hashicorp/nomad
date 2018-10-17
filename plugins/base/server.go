@@ -56,7 +56,7 @@ func (b *basePluginServer) ConfigSchema(context.Context, *proto.ConfigSchemaRequ
 
 func (b *basePluginServer) SetConfig(ctx context.Context, req *proto.SetConfigRequest) (*proto.SetConfigResponse, error) {
 	// Set the config
-	if err := b.impl.SetConfig(req.GetMsgpackConfig()); err != nil {
+	if err := b.impl.SetConfig(req.GetMsgpackConfig(), nomadConfigFromProto(req.GetNomadConfig())); err != nil {
 		return nil, fmt.Errorf("SetConfig failed: %v", err)
 	}
 
