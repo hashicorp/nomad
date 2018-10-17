@@ -263,7 +263,7 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 }
 
 func taskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
-	timestamp, err := ptypes.TimestampProto(time.Unix(stats.Timestamp, 0))
+	timestamp, err := ptypes.TimestampProto(time.Unix(0, stats.Timestamp))
 	if err != nil {
 		return nil, err
 	}

@@ -101,6 +101,10 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
+	if command.Resources == nil {
+		command.Resources = &Resources{}
+	}
+
 	l.command = command
 
 	// Move to the root cgroup until process is started
@@ -129,7 +133,26 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 	l.container = container
 
-	combined := append([]string{command.Cmd}, command.Args...)
+	// Look up the binary path and make it executable
+	absPath, err := lookupBin(command.TaskDir, command.Cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := makeExecutable(absPath); err != nil {
+		return nil, err
+	}
+
+	path := absPath
+
+	// Determine the path to run as it may have to be relative to the chroot.
+	rel, err := filepath.Rel(command.TaskDir, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
+	}
+	path = rel
+
+	combined := append([]string{path}, command.Args...)
 	stdout, err := command.Stdout()
 	if err != nil {
 		return nil, err

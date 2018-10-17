@@ -276,12 +276,12 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Stderr = stderr
 
 	// Look up the binary path and make it executable
-	absPath, err := e.lookupBin(command.Cmd)
+	absPath, err := lookupBin(command.TaskDir, command.Cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := e.makeExecutable(absPath); err != nil {
+	if err := makeExecutable(absPath); err != nil {
 		return nil, err
 	}
 
@@ -476,55 +476,6 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	return nil
 }
 
-// lookupBin looks for path to the binary to run by looking for the binary in
-// the following locations, in-order: task/local/, task/, based on host $PATH.
-// The return path is absolute.
-func (e *UniversalExecutor) lookupBin(bin string) (string, error) {
-	// Check in the local directory
-	local := filepath.Join(e.commandCfg.TaskDir, allocdir.TaskLocal, bin)
-	if _, err := os.Stat(local); err == nil {
-		return local, nil
-	}
-
-	// Check at the root of the task's directory
-	root := filepath.Join(e.commandCfg.TaskDir, bin)
-	if _, err := os.Stat(root); err == nil {
-		return root, nil
-	}
-
-	// Check the $PATH
-	if host, err := exec.LookPath(bin); err == nil {
-		return host, nil
-	}
-
-	return "", fmt.Errorf("binary %q could not be found", bin)
-}
-
-// makeExecutable makes the given file executable for root,group,others.
-func (e *UniversalExecutor) makeExecutable(binPath string) error {
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-
-	fi, err := os.Stat(binPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("binary %q does not exist", binPath)
-		}
-		return fmt.Errorf("specified binary is invalid: %v", err)
-	}
-
-	// If it is not executable, make it so.
-	perm := fi.Mode().Perm()
-	req := os.FileMode(0555)
-	if perm&req != req {
-		if err := os.Chmod(binPath, perm|req); err != nil {
-			return fmt.Errorf("error making %q executable: %s", binPath, err)
-		}
-	}
-	return nil
-}
-
 // Signal sends the passed signal to the task
 func (e *UniversalExecutor) Signal(s os.Signal) error {
 	if e.childCmd.Process == nil {
@@ -547,4 +498,53 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		return nil, err
 	}
 	return aggregatedResourceUsage(e.systemCpuStats, pidStats), nil
+}
+
+// lookupBin looks for path to the binary to run by looking for the binary in
+// the following locations, in-order: task/local/, task/, based on host $PATH.
+// The return path is absolute.
+func lookupBin(taskDir string, bin string) (string, error) {
+	// Check in the local directory
+	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
+	if _, err := os.Stat(local); err == nil {
+		return local, nil
+	}
+
+	// Check at the root of the task's directory
+	root := filepath.Join(taskDir, bin)
+	if _, err := os.Stat(root); err == nil {
+		return root, nil
+	}
+
+	// Check the $PATH
+	if host, err := exec.LookPath(bin); err == nil {
+		return host, nil
+	}
+
+	return "", fmt.Errorf("binary %q could not be found", bin)
+}
+
+// makeExecutable makes the given file executable for root,group,others.
+func makeExecutable(binPath string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	fi, err := os.Stat(binPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("binary %q does not exist", binPath)
+		}
+		return fmt.Errorf("specified binary is invalid: %v", err)
+	}
+
+	// If it is not executable, make it so.
+	perm := fi.Mode().Perm()
+	req := os.FileMode(0555)
+	if perm&req != req {
+		if err := os.Chmod(binPath, perm|req); err != nil {
+			return fmt.Errorf("error making %q executable: %s", binPath, err)
+		}
+	}
+	return nil
 }
