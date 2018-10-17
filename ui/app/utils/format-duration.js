@@ -1,5 +1,13 @@
 import moment from 'moment';
 
+/**
+ * Metadata for all unit types
+ * name: identifier for the unit. Also maps to moment methods when applicable
+ * suffix: the preferred suffix for a unit
+ * inMoment: whether or not moment can be used to compute this unit value
+ * pluralizable: whether or not this suffix can be pluralized
+ * longSuffix: the suffix to use instead of suffix when longForm is true
+ */
 const allUnits = [
   { name: 'years', suffix: 'year', inMoment: true, pluralizable: true },
   { name: 'months', suffix: 'month', inMoment: true, pluralizable: true },
@@ -14,15 +22,30 @@ const allUnits = [
 
 const pluralizeUnits = (amount, unit, longForm) => {
   let suffix;
+
   if (longForm && unit.longSuffix) {
+    // Long form means always using full words (seconds insteand of s) which means
+    // pluralization is necessary.
     suffix = amount === 1 ? unit.longSuffix : unit.longSuffix.pluralize();
   } else {
+    // In the normal case, only pluralize based on the pluralizable flag
     suffix = amount === 1 || !unit.pluralizable ? unit.suffix : unit.suffix.pluralize();
   }
+
+  // A space should go between the value and the unit when the unit is a full word
+  // 300ns vs. 1 hour
   const addSpace = unit.pluralizable || (longForm && unit.longSuffix);
   return `${amount}${addSpace ? ' ' : ''}${suffix}`;
 };
 
+/**
+ * Format a Duration at a preferred precision
+ *
+ * @param {Number} duration The duration to format
+ * @param {String} units The units for the duration. Default to nanoseconds.
+ * @param {Boolean} longForm Whether or not to expand single character suffixes,
+ *   used to ensure screen readers correctly read units.
+ */
 export default function formatDuration(duration = 0, units = 'ns', longForm = false) {
   const durationParts = {};
 
