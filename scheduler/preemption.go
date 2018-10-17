@@ -122,7 +122,8 @@ func findPreemptibleAllocationsForTaskGroup(jobPriority int, current []*structs.
 			availableResources.Add(nodeRemainingResources)
 
 			// This step needs the original resources asked for as the second arg, can't use the running total
-			allRequirementsMet = meetsNonNetworkRequirements(availableResources, resourceAsk.Comparable())
+			allRequirementsMet, _ = availableResources.Superset(resourceAsk.Comparable())
+
 			bestAllocs = append(bestAllocs, closestAlloc)
 
 			allocGrp.allocs[closestAllocIndex] = allocGrp.allocs[len(allocGrp.allocs)-1]
@@ -167,21 +168,6 @@ func computeCurrentPreemptions(currentAlloc *structs.Allocation, currentPreempti
 		}
 	}
 	return numCurrentPreemptionsForJob
-}
-
-// meetsNonNetworkRequirements checks if the first resource meets or exceeds the second resource's requirements
-// This intentionally ignores network requirements, those are handled by meetsNetworkRequirements
-func meetsNonNetworkRequirements(first *structs.ComparableResources, second *structs.ComparableResources) bool {
-	if first.Flattened.Cpu.CpuShares < second.Flattened.Cpu.CpuShares {
-		return false
-	}
-	if first.Flattened.Memory.MemoryMB < second.Flattened.Memory.MemoryMB {
-		return false
-	}
-	if first.Shared.DiskMB < second.Shared.DiskMB {
-		return false
-	}
-	return true
 }
 
 // meetsNetworkRequirements checks if the first resource meets or exceeds the second resource's network MBits requirements

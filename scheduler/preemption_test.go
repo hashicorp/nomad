@@ -754,9 +754,7 @@ func TestPreemption(t *testing.T) {
 			}
 			require := require.New(t)
 			err := state.UpsertAllocs(1001, tc.currentAllocations)
-			for _, alloc := range tc.currentAllocations {
-				fmt.Println(alloc.ID)
-			}
+
 			require.Nil(err)
 			if tc.currentPreemptions != nil {
 				ctx.plan.NodePreemptions[node.ID] = tc.currentPreemptions
@@ -782,7 +780,6 @@ func TestPreemption(t *testing.T) {
 				require.NotNil(option)
 				preemptedAllocs := option.PreemptedAllocs
 				require.Equal(len(tc.preemptedAllocIDs), len(preemptedAllocs))
-				fmt.Println(preemptedAllocs[0].ID)
 				for _, alloc := range preemptedAllocs {
 					_, ok := tc.preemptedAllocIDs[alloc.ID]
 					require.True(ok)
