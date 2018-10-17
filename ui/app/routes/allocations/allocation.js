@@ -24,7 +24,7 @@ export default Route.extend(WithWatchers, {
           model.get('job'),
           model.get('taskGroupName'),
           qpBuilder({
-            jobNamespace: model.get('namespace.name') || 'default',
+            jobNamespace: model.get('job.namespace.name') || 'default',
           }),
         ],
       },
