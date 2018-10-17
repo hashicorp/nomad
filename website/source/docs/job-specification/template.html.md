@@ -242,6 +242,8 @@ EOH
 }
 ```
 
+Make sure you set `generate_lease=true` on the `pki/issue/foo` role in Vault's PKI backend. Otherwise the template stanza will frequently render a new certificate (approximately every minute) which is probably not what you want.
+
 ### Vault KV API v1
 
 Under Vault KV API v1, paths start with `secret/`, and the response returns the
