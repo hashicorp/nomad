@@ -1563,11 +1563,30 @@ func TestSystemSched_Preemption(t *testing.T) {
 	var nodes []*structs.Node
 	for i := 0; i < 2; i++ {
 		node := mock.Node()
+		//TODO(preetha): remove in 0.11
 		node.Resources = &structs.Resources{
 			CPU:      3072,
 			MemoryMB: 5034,
 			DiskMB:   20 * 1024,
 			IOPS:     150,
+			Networks: []*structs.NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		}
+		node.NodeResources = &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{
+				CpuShares: 3072,
+			},
+			Memory: structs.NodeMemoryResources{
+				MemoryMB: 5034,
+			},
+			Disk: structs.NodeDiskResources{
+				DiskMB: 20 * 1024,
+			},
 			Networks: []*structs.NetworkResource{
 				{
 					Device: "eth0",
@@ -1614,42 +1633,30 @@ func TestSystemSched_Preemption(t *testing.T) {
 	alloc1.NodeID = nodes[0].ID
 	alloc1.Name = "my-job[0]"
 	alloc1.TaskGroup = job1.TaskGroups[0].Name
-	alloc1.Resources = &structs.Resources{
-		CPU:      512,
-		MemoryMB: 1024,
-		DiskMB:   5 * 1024,
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				MBits:  200,
-				ReservedPorts: []structs.Port{
+	alloc1.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 512,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 1024,
+				},
+				Networks: []*structs.NetworkResource{
 					{
-						Label: "web",
-						Value: 80,
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
+						MBits:         200,
 					},
 				},
 			},
 		},
-	}
-	alloc1.TaskResources = map[string]*structs.Resources{
-		"web": {
-			CPU:      512,
-			MemoryMB: 1024,
-			DiskMB:   5 * 1024,
-			Networks: []*structs.NetworkResource{
-				{
-					Device: "eth0",
-					MBits:  200,
-					ReservedPorts: []structs.Port{
-						{
-							Label: "web",
-							Value: 80,
-						},
-					},
-				},
-			},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 5 * 1024,
 		},
 	}
+
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job1))
 
 	job2 := mock.BatchJob()
@@ -1671,28 +1678,26 @@ func TestSystemSched_Preemption(t *testing.T) {
 	alloc2.NodeID = nodes[0].ID
 	alloc2.Name = "my-job[2]"
 	alloc2.TaskGroup = job2.TaskGroups[0].Name
-	alloc2.Resources = &structs.Resources{
-		CPU:      512,
-		MemoryMB: 1024,
-		DiskMB:   5 * 1024,
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				MBits:  200,
-			},
-		},
-	}
-	alloc2.TaskResources = map[string]*structs.Resources{
-		"web": {
-			CPU:      512,
-			MemoryMB: 1024,
-			DiskMB:   5 * 1024,
-			Networks: []*structs.NetworkResource{
-				{
-					Device: "eth0",
-					MBits:  200,
+	alloc2.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 512,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 1024,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  200,
+					},
 				},
 			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 5 * 1024,
 		},
 	}
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
@@ -1717,28 +1722,27 @@ func TestSystemSched_Preemption(t *testing.T) {
 	alloc3.NodeID = nodes[0].ID
 	alloc3.Name = "my-job[0]"
 	alloc3.TaskGroup = job3.TaskGroups[0].Name
-	alloc3.Resources = &structs.Resources{
-		CPU:      1024,
-		MemoryMB: 25,
-		DiskMB:   5 * 1024,
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				MBits:  400,
-			},
-		},
-	}
-	alloc3.TaskResources = map[string]*structs.Resources{
-		"web": {
-			CPU:      1024,
-			MemoryMB: 25,
-			DiskMB:   5 * 1024,
-			Networks: []*structs.NetworkResource{
-				{
-					Device: "eth0",
-					MBits:  400,
+	alloc3.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 1024,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 25,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
+						MBits:         400,
+					},
 				},
 			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 5 * 1024,
 		},
 	}
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc1, alloc2, alloc3}))
@@ -1765,28 +1769,27 @@ func TestSystemSched_Preemption(t *testing.T) {
 	alloc4.NodeID = nodes[0].ID
 	alloc4.Name = "my-job4[0]"
 	alloc4.TaskGroup = job4.TaskGroups[0].Name
-	alloc4.Resources = &structs.Resources{
-		CPU:      1024,
-		MemoryMB: 2048,
-		DiskMB:   2 * 1024,
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				MBits:  100,
-			},
-		},
-	}
-	alloc4.TaskResources = map[string]*structs.Resources{
-		"web": {
-			CPU:      1024,
-			MemoryMB: 2048,
-			DiskMB:   2 * 1024,
-			Networks: []*structs.NetworkResource{
-				{
-					Device: "eth0",
-					MBits:  100,
+	alloc4.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 1024,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 2048,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
+						MBits:         100,
+					},
 				},
 			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 2 * 1024,
 		},
 	}
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job4))
