@@ -10,11 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/blake2b"
-
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"golang.org/x/crypto/blake2b"
 )
 
 // MergeMultierrorWarnings takes job warnings and canonicalize warnings and
@@ -98,8 +97,9 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 // AllocsFit checks if a given set of allocations will fit on a node.
 // The netIdx can optionally be provided if its already been computed.
 // If the netIdx is provided, it is assumed that the client has already
-// ensured there are no collisions.
-func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, string, *ComparableResources, error) {
+// ensured there are no collisions. If checkDevices is set to true, we check if
+// there is a device oversubscription.
+func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
 	// Compute the utilization from zero
 	used := new(ComparableResources)
 
@@ -134,6 +134,14 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex) (bool, st
 	// Check if the network is overcommitted
 	if netIdx.Overcommitted() {
 		return false, "bandwidth exceeded", used, nil
+	}
+
+	// Check devices
+	if checkDevices {
+		accounter := NewDeviceAccounter(node)
+		if accounter.AddAllocs(allocs) {
+			return false, "device oversubscribed", used, nil
+		}
 	}
 
 	// Allocations fit!

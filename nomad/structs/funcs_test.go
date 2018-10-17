@@ -116,7 +116,7 @@ func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, dim, _, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, dim, _, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
 	}
 
 	// Should not fit second allocation
-	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
+	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestAllocsFit_Old(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
 
@@ -195,7 +195,7 @@ func TestAllocsFit_Old(t *testing.T) {
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 
 	// Should not fit second allocation
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
 
@@ -256,7 +256,7 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
 
@@ -267,7 +267,7 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
 	a2.DesiredStatus = AllocDesiredStatusStop
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil)
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit)
 
@@ -341,7 +341,7 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
 
@@ -350,7 +350,7 @@ func TestAllocsFit(t *testing.T) {
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 
 	// Should not fit second allocation
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil)
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
 
@@ -425,7 +425,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil)
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
 
@@ -436,13 +436,79 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
 	a2.DesiredStatus = AllocDesiredStatusStop
-	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil)
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit, dim)
 
 	// Sanity check the used resources
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+}
+
+// Tests that AllocsFit detects device collisions
+func TestAllocsFit_Devices(t *testing.T) {
+	require := require.New(t)
+
+	n := MockNvidiaNode()
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Devices: []*AllocatedDeviceResource{
+						{
+							Type:      "gpu",
+							Vendor:    "nvidia",
+							Name:      "1080ti",
+							DeviceIDs: []string{n.NodeResources.Devices[0].Instances[0].ID},
+						},
+					},
+				},
+			},
+			Shared: AllocatedSharedResources{
+				DiskMB: 5000,
+			},
+		},
+	}
+	a2 := a1.Copy()
+	a2.AllocatedResources.Tasks["web"] = &AllocatedTaskResources{
+		Cpu: AllocatedCpuResources{
+			CpuShares: 1000,
+		},
+		Memory: AllocatedMemoryResources{
+			MemoryMB: 1024,
+		},
+		Devices: []*AllocatedDeviceResource{
+			{
+				Type:      "gpu",
+				Vendor:    "nvidia",
+				Name:      "1080ti",
+				DeviceIDs: []string{n.NodeResources.Devices[0].Instances[0].ID}, // Use the same ID
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil, true)
+	require.NoError(err)
+	require.True(fit)
+
+	// Should not fit second allocation
+	fit, msg, _, err := AllocsFit(n, []*Allocation{a1, a1}, nil, true)
+	require.NoError(err)
+	require.False(fit)
+	require.Equal("device oversubscribed", msg)
+
+	// Should not fit second allocation but won't detect since we disabled
+	// devices
+	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	require.NoError(err)
+	require.True(fit)
 }
 
 // COMPAT(0.11): Remove in 0.11

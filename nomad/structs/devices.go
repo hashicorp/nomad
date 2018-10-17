@@ -18,6 +18,42 @@ type DeviceAccounterInstance struct {
 	Instances map[string]int
 }
 
+// NewDeviceAccounter returns a new device accounter. The node is used to
+// populate the set of available devices based on what healthy device instances
+// exist on the node.
+func NewDeviceAccounter(n *Node) *DeviceAccounter {
+	numDevices := 0
+	var devices []*NodeDeviceResource
+
+	// COMPAT(0.11): Remove in 0.11
+	if n.NodeResources != nil {
+		numDevices = len(n.NodeResources.Devices)
+		devices = n.NodeResources.Devices
+	}
+
+	d := &DeviceAccounter{
+		Devices: make(map[DeviceIdTuple]*DeviceAccounterInstance, numDevices),
+	}
+
+	for _, dev := range devices {
+		id := *dev.ID()
+		d.Devices[id] = &DeviceAccounterInstance{
+			Device:    dev,
+			Instances: make(map[string]int, len(dev.Instances)),
+		}
+		for _, instance := range dev.Instances {
+			// Skip unhealthy devices as they aren't allocatable
+			if !instance.Healthy {
+				continue
+			}
+
+			d.Devices[id].Instances[instance.ID] = 0
+		}
+	}
+
+	return d
+}
+
 // AddAllocs takes a set of allocations and internally marks which devices are
 // used. If a device is used more than once by the set of passed allocations,
 // the collision will be returned as true.
@@ -91,40 +127,4 @@ func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision b
 	}
 
 	return
-}
-
-// NewDeviceAccounter returns a new device accounter. The node is used to
-// populate the set of available devices based on what healthy device instances
-// exist on the node.
-func NewDeviceAccounter(n *Node) *DeviceAccounter {
-	numDevices := 0
-	var devices []*NodeDeviceResource
-
-	// COMPAT(0.11): Remove in 0.11
-	if n.NodeResources != nil {
-		numDevices = len(n.NodeResources.Devices)
-		devices = n.NodeResources.Devices
-	}
-
-	d := &DeviceAccounter{
-		Devices: make(map[DeviceIdTuple]*DeviceAccounterInstance, numDevices),
-	}
-
-	for _, dev := range devices {
-		id := *dev.ID()
-		d.Devices[id] = &DeviceAccounterInstance{
-			Device:    dev,
-			Instances: make(map[string]int, len(dev.Instances)),
-		}
-		for _, instance := range dev.Instances {
-			// Skip unhealthy devices as they aren't allocatable
-			if !instance.Healthy {
-				continue
-			}
-
-			d.Devices[id].Instances[instance.ID] = 0
-		}
-	}
-
-	return d
 }
