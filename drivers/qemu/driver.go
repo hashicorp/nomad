@@ -40,6 +40,7 @@ const (
 	// The key populated in Node Attributes to indicate presence of the Qemu driver
 	qemuDriverAttr        = "driver.qemu"
 	qemuDriverVersionAttr = "driver.qemu.version"
+
 	// Represents an ACPI shutdown request to the VM (emulates pressing a physical power button)
 	// Reference: https://en.wikibooks.org/wiki/QEMU/Monitor
 	qemuGracefulShutdownMsg = "system_powerdown\n"
