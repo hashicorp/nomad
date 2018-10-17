@@ -12,6 +12,8 @@ import (
 // number of allocations being preempted exceeds max_parallel value in the job's migrate stanza
 const maxParallelPenalty = 50.0
 
+// basicResourceDistance computes a distance using a coordinate system. It compares resource fields like CPU/Memory and Disk.
+// Values emitted are in the range [0, maxFloat]
 func basicResourceDistance(resourceAsk *structs.ComparableResources, resourceUsed *structs.ComparableResources) float64 {
 	memoryCoord, cpuCoord, diskMBCoord := 0.0, 0.0, 0.0
 	if resourceAsk.Flattened.Memory.MemoryMB > 0 {
@@ -30,30 +32,7 @@ func basicResourceDistance(resourceAsk *structs.ComparableResources, resourceUse
 	return originDist
 }
 
-// getPreemptionScoreForTaskGroupResources is used to calculate a score (lower is better) based on the distance between
-// the needed resource and requirements. A penalty is added when the choice already has some existing
-// allocations in the plan that are being preempted.
-func getPreemptionScoreForTaskGroupResources(resourceAsk *structs.ComparableResources, resourceUsed *structs.ComparableResources, maxParallel int, numPreemptedAllocs int) float64 {
-	maxParallelScorePenalty := 0.0
-	if maxParallel > 0 && numPreemptedAllocs >= maxParallel {
-		maxParallelScorePenalty = float64((numPreemptedAllocs+1)-maxParallel) * maxParallelPenalty
-	}
-	return basicResourceDistance(resourceAsk, resourceUsed) + maxParallelScorePenalty
-}
-
-// getPreemptionScoreForNetwork is similar to getPreemptionScoreForTaskGroupResources but only uses network mbits to calculate a preemption score
-func getPreemptionScoreForNetwork(resourceUsed *structs.NetworkResource, resourceNeeded *structs.NetworkResource, maxParallel int, numPreemptedAllocs int) float64 {
-	if resourceUsed == nil || resourceNeeded == nil {
-		return math.MaxFloat64
-	}
-	maxParallelScorePenalty := 0.0
-	if maxParallel > 0 && numPreemptedAllocs >= maxParallel {
-		maxParallelScorePenalty = float64((numPreemptedAllocs+1)-maxParallel) * maxParallelPenalty
-	}
-	return networkResourceDistance(resourceUsed, resourceNeeded) + maxParallelScorePenalty
-}
-
-// networkResourceDistance returns distance based on network megabits
+// networkResourceDistance returns a distance based only on network megabits
 func networkResourceDistance(resourceUsed *structs.NetworkResource, resourceNeeded *structs.NetworkResource) float64 {
 	networkCoord := math.MaxFloat64
 	if resourceUsed != nil && resourceNeeded != nil {
@@ -65,9 +44,33 @@ func networkResourceDistance(resourceUsed *structs.NetworkResource, resourceNeed
 	return originDist
 }
 
+// getPreemptionScoreForTaskGroupResources is used to calculate a score (lower is better) based on the distance between
+// the needed resource and requirements. A penalty is added when the choice already has some existing
+// allocations in the plan that are being preempted.
+func getPreemptionScoreForTaskGroupResources(resourceAsk *structs.ComparableResources, resourceUsed *structs.ComparableResources, maxParallel int, numPreemptedAllocs int) float64 {
+	maxParallelScorePenalty := 0.0
+	if maxParallel > 0 && numPreemptedAllocs >= maxParallel {
+		maxParallelScorePenalty = float64((numPreemptedAllocs+1)-maxParallel) * maxParallelPenalty
+	}
+	return basicResourceDistance(resourceAsk, resourceUsed) + maxParallelScorePenalty
+}
+
+// getPreemptionScoreForNetwork is similar to getPreemptionScoreForTaskGroupResources
+// but only uses network Mbits to calculate a preemption score
+func getPreemptionScoreForNetwork(resourceUsed *structs.NetworkResource, resourceNeeded *structs.NetworkResource, maxParallel int, numPreemptedAllocs int) float64 {
+	if resourceUsed == nil || resourceNeeded == nil {
+		return math.MaxFloat64
+	}
+	maxParallelScorePenalty := 0.0
+	if maxParallel > 0 && numPreemptedAllocs >= maxParallel {
+		maxParallelScorePenalty = float64((numPreemptedAllocs+1)-maxParallel) * maxParallelPenalty
+	}
+	return networkResourceDistance(resourceUsed, resourceNeeded) + maxParallelScorePenalty
+}
+
 // findPreemptibleAllocationsForTaskGroup computes a list of allocations to preempt to accommodate
 // the resources asked for. Only allocs with a job priority < 10 of jobPriority are considered
-// This method is used after network resource needs have already been met.
+// This method is meant only for finding preemptible allocations based on CPU/Memory/Disk
 func findPreemptibleAllocationsForTaskGroup(jobPriority int, current []*structs.Allocation, resourceAsk *structs.AllocatedResources, node *structs.Node, currentPreemptions []*structs.Allocation) []*structs.Allocation {
 	resourcesNeeded := resourceAsk.Comparable()
 	allocsByPriority := filterAndGroupPreemptibleAllocs(jobPriority, current)
@@ -183,6 +186,8 @@ type groupedAllocs struct {
 	allocs   []*structs.Allocation
 }
 
+// filterAndGroupPreemptibleAllocs groups allocations by priority after removing any from jobs of
+// a higher priority than jobPriority
 func filterAndGroupPreemptibleAllocs(jobPriority int, current []*structs.Allocation) []*groupedAllocs {
 	allocsByPriority := make(map[int][]*structs.Allocation)
 	for _, alloc := range current {
@@ -220,6 +225,9 @@ func filterAndGroupPreemptibleAllocs(jobPriority int, current []*structs.Allocat
 	return groupedSortedAllocs
 }
 
+// eliminateSuperSetAllocationsForTaskGroup is used as a final step to remove
+// any allocations that meet a superset of requirements from the set of allocations
+// to preempt
 func eliminateSuperSetAllocationsForTaskGroup(bestAllocs []*structs.Allocation,
 	nodeRemainingResources *structs.ComparableResources,
 	resourceAsk *structs.ComparableResources) []*structs.Allocation {
@@ -247,6 +255,8 @@ func eliminateSuperSetAllocationsForTaskGroup(bestAllocs []*structs.Allocation,
 	return filteredBestAllocs
 }
 
+// eliminateSuperSetAllocationsForNetwork is similar to eliminateSuperSetAllocationsForTaskGroup but only
+// considers network Mbits
 func eliminateSuperSetAllocationsForNetwork(bestAllocs []*structs.Allocation, networkResourcesAsk *structs.NetworkResource,
 	nodeRemainingResources *structs.ComparableResources) []*structs.Allocation {
 
@@ -274,8 +284,8 @@ func eliminateSuperSetAllocationsForNetwork(bestAllocs []*structs.Allocation, ne
 }
 
 // preemptForNetworkResourceAsk tries to find allocations to preempt to meet network resources.
-// this needs to consider network resources at the task level and for the same task it should
-// only preempt allocations that share the same network device
+// This is called once per task when assigning a network to the task. While finding allocations
+// to preempt, this only considers allocations that share the same network device
 func preemptForNetworkResourceAsk(jobPriority int, currentAllocs []*structs.Allocation, networkResourceAsk *structs.NetworkResource,
 	netIdx *structs.NetworkIndex, currentPreemptions []*structs.Allocation) []*structs.Allocation {
 
@@ -446,6 +456,9 @@ func preemptForNetworkResourceAsk(jobPriority int, currentAllocs []*structs.Allo
 	return filteredBestAllocs
 }
 
+// distanceComparatorForNetwork is used as the sorting function when finding allocations to preempt. It uses
+// both a coordinayte distance function based on Mbits needed, and a penalty if the allocation under consideration
+// belongs to a job that already has more preempted allocations
 func distanceComparatorForNetwork(allocs []*structs.Allocation, currentPreemptions []*structs.Allocation, networkResourceAsk *structs.NetworkResource, i int, j int) bool {
 	firstAlloc := allocs[i]
 	currentPreemptionCount1 := computeCurrentPreemptions(firstAlloc, currentPreemptions)
