@@ -22,7 +22,7 @@ func TestLinuxSpecialDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(allocDir)
 
-	td := newTaskDir(testlog.Logger(t), allocDir, "test")
+	td := newTaskDir(testlog.HCLogger(t), allocDir, "test")
 
 	// Despite the task dir not existing, unmountSpecialDirs should *not*
 	// return an error

@@ -185,7 +185,7 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Skipf("Environment variable %+q not empty, skipping test", skipOnlineTestsEnvVar)
 	}
 
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -236,7 +236,7 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 }
 
 func TestNetworkFingerprint_default_device_absent(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -259,7 +259,7 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_default_device(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -310,7 +310,7 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -357,7 +357,7 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -411,7 +411,7 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

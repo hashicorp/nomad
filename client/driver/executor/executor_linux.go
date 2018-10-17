@@ -1,188 +1,333 @@
+// +build linux
+
 package executor
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/user"
+	"os/exec"
+	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
-	"github.com/mitchellh/go-ps"
-	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
-	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
-
+	"github.com/armon/circbuf"
+	"github.com/hashicorp/consul-template/signals"
+	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
+	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/discover"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
+	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+
+	"github.com/syndtr/gocapability/capability"
+)
+
+const (
+	defaultCgroupParent = "nomad"
 )
 
 var (
 	// The statistics the executor exposes when using cgroups
 	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
+
+	// allCaps is all linux capabilities which is used to configure libcontainer
+	allCaps []string
 )
 
-// configureIsolation configures chroot and creates cgroups
-func (e *UniversalExecutor) configureIsolation() error {
-	if e.command.FSIsolation {
-		if err := e.configureChroot(); err != nil {
-			return err
-		}
+// initialize the allCaps var with all capabilities available on the system
+func init() {
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
 	}
-
-	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
-		if err := e.configureCgroups(e.ctx.Task.Resources); err != nil {
-			return fmt.Errorf("error creating cgroups: %v", err)
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
 		}
+		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
 	}
-	return nil
 }
 
-// applyLimits puts a process in a pre-configured cgroup
-func (e *UniversalExecutor) applyLimits(pid int) error {
-	if !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
-		return nil
-	}
+// LibcontainerExecutor implements an Executor with the runc/libcontainer api
+type LibcontainerExecutor struct {
+	id      string
+	command *ExecCommand
 
-	// Entering the process in the cgroup
-	manager := getCgroupManager(e.resConCtx.groups, nil)
-	if err := manager.Apply(pid); err != nil {
-		e.logger.Printf("[ERR] executor: error applying pid to cgroup: %v", err)
-		return err
-	}
+	logger hclog.Logger
 
-	e.resConCtx.cgPaths = manager.GetPaths()
+	totalCpuStats  *stats.CpuStats
+	userCpuStats   *stats.CpuStats
+	systemCpuStats *stats.CpuStats
+	pidCollector   *pidCollector
 
-	// Don't enter all the cgroups since we will inherit resources limits. Only
-	// use devices (required by libcontainer) and freezer. Freezer allows us to
-	// capture all pids and stop any fork/execs from happening while we are
-	// cleaning up.
-	if !e.command.ResourceLimits {
-		// Move the executor into the global cgroup so that the task specific
-		// cgroup can be destroyed.
-		nilGroup := &cgroupConfig.Cgroup{}
-		nilGroup.Path = "/"
-		nilGroup.Resources = e.resConCtx.groups.Resources
-		nilManager := getCgroupManager(nilGroup, nil)
-		err := nilManager.Apply(pid)
-		if err != nil {
-			return fmt.Errorf("failed to remove executor pid %d: %v", pid, err)
-		}
-
-		// Grab the freezer and devices cgroup paths. We do this from the old
-		// manager after the executor pid has been applied since there is no
-		// other way to determine what the proper cgroup paths would be.
-		freezer := &cgroupFs.FreezerGroup{}
-		devices := &cgroupFs.DevicesGroup{}
-		freezerName, devicesName := freezer.Name(), devices.Name()
-		newPath := map[string]string{
-			freezerName: e.resConCtx.cgPaths[freezerName],
-			devicesName: e.resConCtx.cgPaths[devicesName],
-		}
-
-		// Clear the cgroups paths so that everything is properly cleaned except
-		// the groups we want our process to stay in. This will delete the
-		// directories from disk.
-		manager.Cgroups.Paths = nil
-		delete(manager.Paths, freezerName)
-		delete(manager.Paths, devicesName)
-		if err := manager.Destroy(); err != nil {
-			e.logger.Printf("[ERR] executor: failed to destroy original: %v", err)
-			return err
-		}
-
-		// Update our context such that the new cgroup manager only is tracking
-		// the paths we care about now.
-		e.resConCtx.cgPaths = newPath
-		e.resConCtx.groups.Paths = newPath
-
-		// Apply just the freezer and devices now
-		manager = getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
-		if err := manager.Apply(pid); err != nil {
-			e.logger.Printf("[ERR] executor: error applying pid to cgroup subset %v: %v", e.resConCtx.cgPaths, err)
-			return err
-		}
-	}
-
-	cgConfig := cgroupConfig.Config{Cgroups: e.resConCtx.groups}
-	if err := manager.Set(&cgConfig); err != nil {
-		e.logger.Printf("[ERR] executor: error setting cgroup config: %v", err)
-		if er := DestroyCgroup(e.resConCtx.groups, e.resConCtx.cgPaths, os.Getpid()); er != nil {
-			e.logger.Printf("[ERR] executor: error destroying cgroup: %v", er)
-		}
-		return err
-	}
-	return nil
+	container      libcontainer.Container
+	userProc       *libcontainer.Process
+	userProcExited chan interface{}
+	exitState      *ProcessState
 }
 
-// configureCgroups converts a Nomad Resources specification into the equivalent
-// cgroup configuration. It returns an error if the resources are invalid.
-func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error {
-	e.resConCtx.groups = &cgroupConfig.Cgroup{}
-	e.resConCtx.groups.Resources = &cgroupConfig.Resources{}
-	cgroupName := uuid.Generate()
-	e.resConCtx.groups.Path = filepath.Join("/nomad", cgroupName)
-
-	// Allow access to /dev/
-	e.resConCtx.groups.Resources.AllowAllDevices = true
-
-	// Use a cgroup but don't apply limits
-	if !e.command.ResourceLimits {
-		return nil
+func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+	logger = logger.Named("isolated_executor")
+	if err := shelpers.Init(); err != nil {
+		logger.Error("unable to initialize stats", "error", err)
 	}
-
-	if resources.MemoryMB > 0 {
-		// Total amount of memory allowed to consume
-		e.resConCtx.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
-		// Disable swap to avoid issues on the machine
-		var memSwappiness int64 = 0
-		e.resConCtx.groups.Resources.MemorySwappiness = &memSwappiness
+	return &LibcontainerExecutor{
+		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
+		logger:         logger,
+		totalCpuStats:  stats.NewCpuStats(),
+		userCpuStats:   stats.NewCpuStats(),
+		systemCpuStats: stats.NewCpuStats(),
+		pidCollector:   newPidCollector(logger),
 	}
-
-	if resources.CPU < 2 {
-		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", resources.CPU)
-	}
-
-	// Set the relative CPU shares for this cgroup.
-	e.resConCtx.groups.Resources.CpuShares = int64(resources.CPU)
-
-	if resources.IOPS != 0 {
-		// Validate it is in an acceptable range.
-		if resources.IOPS < 10 || resources.IOPS > 1000 {
-			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", resources.IOPS)
-		}
-
-		e.resConCtx.groups.Resources.BlkioWeight = uint16(resources.IOPS)
-	}
-
-	return nil
 }
 
-// Stats reports the resource utilization of the cgroup. If there is no resource
-// isolation we aggregate the resource utilization of all the pids launched by
-// the executor.
-func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
-	// If we don't use full resource limits fallback to normal collection. It is
-	// not enough to be in the Cgroup since you must be in the memory, cpu, and
-	// cpuacct cgroup to gather the correct statistics.
-	if !e.command.ResourceLimits {
-		pidStats, err := e.pidStats()
-		if err != nil {
-			return nil, err
-		}
-		return e.aggregatedResourceUsage(pidStats), nil
+// Launch creates a new container in libcontainer and starts a new process with it
+func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
+	l.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	// Find the nomad executable to launch the executor process with
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
-	ts := time.Now()
-	manager := getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
-	stats, err := manager.GetStats()
+
+	l.command = command
+
+	// Move to the root cgroup until process is started
+	subsystems, err := cgroups.GetAllSubsystems()
 	if err != nil {
 		return nil, err
 	}
+	if err := JoinRootCgroup(subsystems); err != nil {
+		return nil, err
+	}
+
+	// create a new factory which will store the container state in the allocDir
+	factory, err := libcontainer.New(
+		path.Join(command.TaskDir, "../alloc/container"),
+		libcontainer.Cgroupfs,
+		libcontainer.InitArgs(bin, "libcontainer-shim"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create factory: %v", err)
+	}
+
+	// A container groups processes under the same isolation enforcement
+	container, err := factory.Create(l.id, newLibcontainerConfig(command))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
+	}
+	l.container = container
+
+	combined := append([]string{command.Cmd}, command.Args...)
+	stdout, err := command.Stdout()
+	if err != nil {
+		return nil, err
+	}
+	stderr, err := command.Stderr()
+	if err != nil {
+		return nil, err
+	}
+
+	// the task process will be started by the container
+	process := &libcontainer.Process{
+		Args:   combined,
+		Env:    command.Env,
+		Stdout: stdout,
+		Stderr: stderr,
+		Init:   true,
+	}
+
+	if command.User != "" {
+		process.User = command.User
+	}
+	l.userProc = process
+
+	l.totalCpuStats = stats.NewCpuStats()
+	l.userCpuStats = stats.NewCpuStats()
+	l.systemCpuStats = stats.NewCpuStats()
+
+	// Starts the task
+	if err := container.Run(process); err != nil {
+		container.Destroy()
+		return nil, err
+	}
+
+	pid, err := process.Pid()
+	if err != nil {
+		container.Destroy()
+		return nil, err
+	}
+
+	// Join process cgroups
+	containerState, err := container.State()
+	if err != nil {
+		l.logger.Error("error entering user process cgroups", "executor_pid", os.Getpid(), "error", err)
+	}
+	if err := cgroups.EnterPid(containerState.CgroupPaths, os.Getpid()); err != nil {
+		l.logger.Error("error entering user process cgroups", "executor_pid", os.Getpid(), "error", err)
+	}
+
+	// start a goroutine to wait on the process to complete, so Wait calls can
+	// be multiplexed
+	l.userProcExited = make(chan interface{})
+	go l.pidCollector.collectPids(l.userProcExited, l.getAllPids)
+	go l.wait()
+
+	return &ProcessState{
+		Pid:      pid,
+		ExitCode: -1,
+		Time:     time.Now(),
+	}, nil
+}
+
+func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
+	pids, err := l.container.Processes()
+	if err != nil {
+		return nil, err
+	}
+	nPids := make(map[int]*nomadPid)
+	for _, pid := range pids {
+		nPids[pid] = &nomadPid{
+			pid:           pid,
+			cpuStatsTotal: stats.NewCpuStats(),
+			cpuStatsUser:  stats.NewCpuStats(),
+			cpuStatsSys:   stats.NewCpuStats(),
+		}
+	}
+	return nPids, nil
+}
+
+// Wait waits until a process has exited and returns it's exitcode and errors
+func (l *LibcontainerExecutor) Wait() (*ProcessState, error) {
+	<-l.userProcExited
+	return l.exitState, nil
+}
+
+func (l *LibcontainerExecutor) wait() {
+	defer close(l.userProcExited)
+
+	ps, err := l.userProc.Wait()
+	if err != nil {
+		// If the process has exited before we called wait an error is returned
+		// the process state is embedded in the error
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			ps = exitErr.ProcessState
+		} else {
+			l.logger.Error("failed to call wait on user process", "error", err)
+			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+			return
+		}
+	}
+
+	l.command.Close()
+
+	exitCode := 1
+	var signal int
+	if status, ok := ps.Sys().(syscall.WaitStatus); ok {
+		exitCode = status.ExitStatus()
+		if status.Signaled() {
+			const exitSignalBase = 128
+			signal = int(status.Signal())
+			exitCode = exitSignalBase + signal
+		}
+	}
+
+	l.exitState = &ProcessState{
+		Pid:      ps.Pid(),
+		ExitCode: exitCode,
+		Signal:   signal,
+		Time:     time.Now(),
+	}
+}
+
+// Shutdown stops all processes started and cleans up any resources
+// created (such as mountpoints, devices, etc).
+func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) error {
+	if l.container == nil {
+		return nil
+	}
+
+	// move executor to root cgroup
+	subsystems, err := cgroups.GetAllSubsystems()
+	if err != nil {
+		return err
+	}
+	if err := JoinRootCgroup(subsystems); err != nil {
+		return err
+	}
+
+	status, err := l.container.Status()
+	if err != nil {
+		return err
+	}
+
+	defer l.container.Destroy()
+
+	if status == libcontainer.Stopped {
+		return nil
+	}
+
+	if grace > 0 {
+		if signal == "" {
+			signal = "SIGINT"
+		}
+
+		sig, ok := signals.SignalLookup[signal]
+		if !ok {
+			return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
+		}
+
+		err = l.container.Signal(sig, false)
+		if err != nil {
+			return err
+		}
+
+		select {
+		case <-l.userProcExited:
+			return nil
+		case <-time.After(grace):
+			return l.container.Signal(os.Kill, false)
+		}
+	} else {
+		return l.container.Signal(os.Kill, false)
+	}
+}
+
+// UpdateResources updates the resource isolation with new values to be enforced
+func (l *LibcontainerExecutor) UpdateResources(resources *Resources) error {
+	return nil
+}
+
+// Version returns the api version of the executor
+func (l *LibcontainerExecutor) Version() (*ExecutorVersion, error) {
+	return &ExecutorVersion{Version: ExecutorVersionLatest}, nil
+}
+
+// Stats returns the resource statistics for processes managed by the executor
+func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+	lstats, err := l.container.Stats()
+	if err != nil {
+		return nil, err
+	}
+
+	pidStats, err := l.pidCollector.pidStats()
+	if err != nil {
+		return nil, err
+	}
+
+	ts := time.Now()
+	stats := lstats.CgroupStats
 
 	// Memory Related Stats
 	swap := stats.MemoryStats.SwapUsage
@@ -204,14 +349,14 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	userModeTime := float64(stats.CpuStats.CpuUsage.UsageInUsermode)
 	kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
 
-	totalPercent := e.totalCpuStats.Percent(totalProcessCPUUsage)
+	totalPercent := l.totalCpuStats.Percent(totalProcessCPUUsage)
 	cs := &cstructs.CpuStats{
-		SystemMode:       e.systemCpuStats.Percent(kernelModeTime),
-		UserMode:         e.userCpuStats.Percent(userModeTime),
+		SystemMode:       l.systemCpuStats.Percent(kernelModeTime),
+		UserMode:         l.userCpuStats.Percent(userModeTime),
 		Percent:          totalPercent,
 		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
-		TotalTicks:       e.systemCpuStats.TicksConsumed(totalPercent),
+		TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
 		Measured:         ExecutorCgroupMeasuredCpuStats,
 	}
 	taskResUsage := cstructs.TaskResourceUsage{
@@ -220,181 +365,246 @@ func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 			CpuStats:    cs,
 		},
 		Timestamp: ts.UTC().UnixNano(),
+		Pids:      pidStats,
 	}
-	if pidStats, err := e.pidStats(); err == nil {
-		taskResUsage.Pids = pidStats
-	}
+
 	return &taskResUsage, nil
 }
 
-// runAs takes a user id as a string and looks up the user, and sets the command
-// to execute as that user.
-func (e *UniversalExecutor) runAs(userid string) error {
-	u, err := user.Lookup(userid)
-	if err != nil {
-		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
-	}
-
-	// Get the groups the user is a part of
-	gidStrings, err := u.GroupIds()
-	if err != nil {
-		return fmt.Errorf("Unable to lookup user's group membership: %v", err)
-	}
-
-	gids := make([]uint32, len(gidStrings))
-	for _, gidString := range gidStrings {
-		u, err := strconv.Atoi(gidString)
-		if err != nil {
-			return fmt.Errorf("Unable to convert user's group to int %s: %v", gidString, err)
-		}
-
-		gids = append(gids, uint32(u))
-	}
-
-	// Convert the uid and gid
-	uid, err := strconv.ParseUint(u.Uid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to convert userid to uint32: %s", err)
-	}
-	gid, err := strconv.ParseUint(u.Gid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to convert groupid to uint32: %s", err)
-	}
-
-	// Set the command to run as that user and group.
-	if e.cmd.SysProcAttr == nil {
-		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	if e.cmd.SysProcAttr.Credential == nil {
-		e.cmd.SysProcAttr.Credential = &syscall.Credential{}
-	}
-	e.cmd.SysProcAttr.Credential.Uid = uint32(uid)
-	e.cmd.SysProcAttr.Credential.Gid = uint32(gid)
-	e.cmd.SysProcAttr.Credential.Groups = gids
-
-	e.logger.Printf("[DEBUG] executor: running as user:group %d:%d with group membership in %v", uid, gid, gids)
-
-	return nil
+// Signal sends a signal to the process managed by the executor
+func (l *LibcontainerExecutor) Signal(s os.Signal) error {
+	return l.userProc.Signal(s)
 }
 
-// configureChroot configures a chroot
-func (e *UniversalExecutor) configureChroot() error {
-	if e.cmd.SysProcAttr == nil {
-		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+// Exec starts an additional process inside the container
+func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
+	combined := append([]string{cmd}, args...)
+	// Capture output
+	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
+
+	process := &libcontainer.Process{
+		Args:   combined,
+		Env:    l.command.Env,
+		Stdout: buf,
+		Stderr: buf,
 	}
-	e.cmd.SysProcAttr.Chroot = e.ctx.TaskDir
-	e.cmd.Dir = "/"
 
-	e.fsIsolationEnforced = true
-	return nil
-}
+	err := l.container.Run(process)
+	if err != nil {
+		return nil, 0, err
+	}
 
-// getAllPids returns the pids of all the processes spun up by the executor. We
-// use the libcontainer apis to get the pids when the user is using cgroup
-// isolation and we scan the entire process table if the user is not using any
-// isolation
-func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
-	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
-		manager := getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
-		pids, err := manager.GetAllPids()
-		if err != nil {
-			return nil, err
-		}
-		np := make(map[int]*nomadPid, len(pids))
-		for _, pid := range pids {
-			np[pid] = &nomadPid{
-				pid:           pid,
-				cpuStatsTotal: stats.NewCpuStats(),
-				cpuStatsSys:   stats.NewCpuStats(),
-				cpuStatsUser:  stats.NewCpuStats(),
+	waitCh := make(chan *waitResult)
+	defer close(waitCh)
+	go l.handleExecWait(waitCh, process)
+
+	select {
+	case result := <-waitCh:
+		ps := result.ps
+		if result.err != nil {
+			if exitErr, ok := result.err.(*exec.ExitError); ok {
+				ps = exitErr.ProcessState
+			} else {
+				return nil, 0, result.err
 			}
 		}
-		return np, nil
+		var exitCode int
+		if status, ok := ps.Sys().(syscall.WaitStatus); ok {
+			exitCode = status.ExitStatus()
+		}
+		return buf.Bytes(), exitCode, nil
+
+	case <-time.After(time.Until(deadline)):
+		process.Signal(os.Kill)
+		return nil, 0, context.DeadlineExceeded
 	}
-	allProcesses, err := ps.Processes()
-	if err != nil {
-		return nil, err
-	}
-	return e.scanPids(os.Getpid(), allProcesses)
+
 }
 
-// destroyCgroup kills all processes in the cgroup and removes the cgroup
-// configuration from the host. This function is idempotent.
-func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, executorPid int) error {
-	mErrs := new(multierror.Error)
-	if groups == nil {
-		return fmt.Errorf("Can't destroy: cgroup configuration empty")
+type waitResult struct {
+	ps  *os.ProcessState
+	err error
+}
+
+func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libcontainer.Process) {
+	ps, err := process.Wait()
+	ch <- &waitResult{ps, err}
+}
+
+func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
+	// TODO: allow better control of these
+	cfg.Capabilities = &lconfigs.Capabilities{
+		Bounding:    allCaps,
+		Permitted:   allCaps,
+		Inheritable: allCaps,
+		Ambient:     allCaps,
+		Effective:   allCaps,
 	}
 
-	// Move the executor into the global cgroup so that the task specific
-	// cgroup can be destroyed.
-	nilGroup := &cgroupConfig.Cgroup{}
-	nilGroup.Path = "/"
-	nilGroup.Resources = groups.Resources
-	nilManager := getCgroupManager(nilGroup, nil)
-	err := nilManager.Apply(executorPid)
-	if err != nil && !strings.Contains(err.Error(), "no such process") {
-		return fmt.Errorf("failed to remove executor pid %d: %v", executorPid, err)
+}
+
+func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
+	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+
+	// set the new root directory for the container
+	cfg.Rootfs = command.TaskDir
+
+	// launch with mount namespace
+	cfg.Namespaces = lconfigs.Namespaces{
+		{Type: lconfigs.NEWNS},
 	}
 
-	// Freeze the Cgroup so that it can not continue to fork/exec.
-	manager := getCgroupManager(groups, cgPaths)
-	err = manager.Freeze(cgroupConfig.Frozen)
-	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
-		return fmt.Errorf("failed to freeze cgroup: %v", err)
+	// paths to mask using a bind mount to /dev/null to prevent reading
+	cfg.MaskPaths = []string{
+		"/proc/kcore",
+		"/sys/firmware",
 	}
 
-	var procs []*os.Process
-	pids, err := manager.GetAllPids()
-	if err != nil {
-		multierror.Append(mErrs, fmt.Errorf("error getting pids: %v", err))
+	// paths that should be remounted as readonly inside the container
+	cfg.ReadonlyPaths = []string{
+		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
+	}
 
-		// Unfreeze the cgroup.
-		err = manager.Freeze(cgroupConfig.Thawed)
-		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
-			multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
+	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	cfg.Mounts = []*lconfigs.Mount{
+		{
+			Source:      "tmpfs",
+			Destination: "/dev",
+			Device:      "tmpfs",
+			Flags:       syscall.MS_NOSUID | syscall.MS_STRICTATIME,
+			Data:        "mode=755",
+		},
+		{
+			Source:      "devpts",
+			Destination: "/dev/pts",
+			Device:      "devpts",
+			Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
+			Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
+		},
+		{
+			Device:      "tmpfs",
+			Source:      "shm",
+			Destination: "/dev/shm",
+			Data:        "mode=1777,size=65536k",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Source:      "mqueue",
+			Destination: "/dev/mqueue",
+			Device:      "mqueue",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Source:      "sysfs",
+			Destination: "/sys",
+			Device:      "sysfs",
+			Flags:       defaultMountFlags | syscall.MS_RDONLY,
+		},
+	}
+}
+
+func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+
+	// If resources are not limited then manually create cgroups needed
+	if !command.ResourceLimits {
+		return configureBasicCgroups(cfg)
+	}
+
+	id := uuid.Generate()
+	cfg.Cgroups.Path = filepath.Join(defaultCgroupParent, id)
+	if command.Resources.MemoryMB > 0 {
+		// Total amount of memory allowed to consume
+		cfg.Cgroups.Resources.Memory = int64(command.Resources.MemoryMB * 1024 * 1024)
+		// Disable swap to avoid issues on the machine
+		var memSwappiness uint64 = 0
+		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
+	}
+
+	if command.Resources.CPU < 2 {
+		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", command.Resources.CPU)
+	}
+
+	// Set the relative CPU shares for this cgroup.
+	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.CPU)
+
+	if command.Resources.IOPS != 0 {
+		// Validate it is in an acceptable range.
+		if command.Resources.IOPS < 10 || command.Resources.IOPS > 1000 {
+			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", command.Resources.IOPS)
 		}
-		return mErrs.ErrorOrNil()
+
+		cfg.Cgroups.Resources.BlkioWeight = uint16(command.Resources.IOPS)
+	}
+	return nil
+}
+
+func configureBasicCgroups(cfg *lconfigs.Config) error {
+	id := uuid.Generate()
+
+	// Manually create freezer cgroup
+	cfg.Cgroups.Paths = map[string]string{}
+	root, err := cgroups.FindCgroupMountpointDir()
+	if err != nil {
+		return err
 	}
 
-	// Kill the processes in the cgroup
-	for _, pid := range pids {
-		proc, err := os.FindProcess(pid)
+	if _, err := os.Stat(root); err != nil {
+		return err
+	}
+
+	freezer := cgroupFs.FreezerGroup{}
+	subsystem := freezer.Name()
+	path, err := cgroups.FindCgroupMountpoint(subsystem)
+	if err != nil {
+		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
+	}
+	// Sometimes subsystems can be mounted together as 'cpu,cpuacct'.
+	path = filepath.Join(root, filepath.Base(path), defaultCgroupParent, id)
+
+	if err = os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
+
+	cfg.Cgroups.Paths[subsystem] = path
+	return nil
+}
+
+func newLibcontainerConfig(command *ExecCommand) *lconfigs.Config {
+	cfg := &lconfigs.Config{
+		Cgroups: &lconfigs.Cgroup{
+			Resources: &lconfigs.Resources{
+				AllowAllDevices:  nil,
+				MemorySwappiness: nil,
+				AllowedDevices:   lconfigs.DefaultAllowedDevices,
+			},
+		},
+		Version: "1.0.0",
+	}
+
+	configureCapabilities(cfg, command)
+	configureIsolation(cfg, command)
+	configureCgroups(cfg, command)
+	return cfg
+}
+
+// JoinRootCgroup moves the current process to the cgroups of the init process
+func JoinRootCgroup(subsystems []string) error {
+	mErrs := new(multierror.Error)
+	paths := map[string]string{}
+	for _, s := range subsystems {
+		mnt, _, err := cgroups.FindCgroupMountpointAndRoot(s)
 		if err != nil {
-			multierror.Append(mErrs, fmt.Errorf("error finding process %v: %v", pid, err))
+			multierror.Append(mErrs, fmt.Errorf("error getting cgroup path for subsystem: %s", s))
 			continue
 		}
 
-		procs = append(procs, proc)
-		if e := proc.Kill(); e != nil {
-			multierror.Append(mErrs, fmt.Errorf("error killing process %v: %v", pid, e))
-		}
+		paths[s] = mnt
 	}
 
-	// Unfreeze the cgroug so we can wait.
-	err = manager.Freeze(cgroupConfig.Thawed)
-	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
-		multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
+	err := cgroups.EnterPid(paths, os.Getpid())
+	if err != nil {
+		multierror.Append(mErrs, err)
 	}
 
-	// Wait on the killed processes to ensure they are cleaned up.
-	for _, proc := range procs {
-		// Don't capture the error because we expect this to fail for
-		// processes we didn't fork.
-		proc.Wait()
-	}
-
-	// Clear the cgroups paths so that everything is properly cleaned
-	manager.Cgroups.Paths = nil
-
-	// Remove the cgroup.
-	if err := manager.Destroy(); err != nil {
-		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
-	}
 	return mErrs.ErrorOrNil()
-}
-
-// getCgroupManager returns the correct libcontainer cgroup manager.
-func getCgroupManager(groups *cgroupConfig.Cgroup, paths map[string]string) *cgroupFs.Manager {
-	return &cgroupFs.Manager{Cgroups: groups, Paths: paths}
 }

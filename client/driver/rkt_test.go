@@ -107,7 +107,7 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -158,7 +158,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -230,7 +230,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -297,7 +297,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -359,7 +359,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	}
 
 	tctx := testDriverContexts(t, task)
-	defer tctx.AllocDir.Destroy()
+	defer tctx.Destroy()
 	d := NewRktDriver(tctx.DriverCtx)
 
 	_, err := d.Prestart(tctx.ExecCtx, task)
@@ -414,7 +414,7 @@ func TestRktTrustPrefix(t *testing.T) {
 		},
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -449,7 +449,7 @@ func TestRktTaskValidate(t *testing.T) {
 		Resources: basicResources,
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if err := d.Validate(task.Config); err != nil {
@@ -492,7 +492,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -556,7 +556,7 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -613,7 +613,7 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -685,7 +685,7 @@ func TestRktDriver_Stats(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {

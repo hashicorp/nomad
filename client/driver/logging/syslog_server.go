@@ -2,9 +2,10 @@ package logging
 
 import (
 	"bufio"
-	"log"
 	"net"
 	"sync"
+
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 // SyslogServer is a server which listens to syslog messages and parses them
@@ -17,11 +18,12 @@ type SyslogServer struct {
 	done     bool
 	doneLock sync.Mutex
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // NewSyslogServer creates a new syslog server
-func NewSyslogServer(l net.Listener, messages chan *SyslogMessage, logger *log.Logger) *SyslogServer {
+func NewSyslogServer(l net.Listener, messages chan *SyslogMessage, logger hclog.Logger) *SyslogServer {
+	logger = logger.Named("logcollector.server")
 	parser := NewDockerLogParser(logger)
 	return &SyslogServer{
 		listener: l,
@@ -48,7 +50,7 @@ func (s *SyslogServer) Start() {
 					return
 				}
 
-				s.logger.Printf("[ERR] logcollector.server: error in accepting connection: %v", err)
+				s.logger.Error("error in accepting connection", "err", err)
 				continue
 			}
 			go s.read(connection)

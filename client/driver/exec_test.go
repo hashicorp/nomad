@@ -56,7 +56,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 		Resources: structs.DefaultResources(),
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{
@@ -100,7 +100,7 @@ func TestExecDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -144,7 +144,7 @@ func TestExecDriver_Start_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -198,7 +198,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -252,7 +252,7 @@ func TestExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -304,7 +304,7 @@ func TestExecDriverUser(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -343,7 +343,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	//defer ctx.Destroy()
 	d := NewExecDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -397,7 +397,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		if line == "" {
 			continue
 		}
-		if !strings.Contains(line, ":/nomad/") {
+		if !strings.Contains(line, ":/nomad/") && !strings.Contains(line, ":name=") {
 			t.Errorf("Not a member of the alloc's cgroup: expected=...:/nomad/... -- found=%q", line)
 			continue
 		}
@@ -420,6 +420,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	}
 
 	if err := handle.Kill(); err != nil {
+		t.Logf("Check allocdir: %x", ctx.AllocDir.AllocDir)
 		t.Fatalf("error killing exec handle: %v", err)
 	}
 }

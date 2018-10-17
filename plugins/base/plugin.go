@@ -52,7 +52,9 @@ func (p *PluginBase) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, 
 
 // MsgpackHandle is a shared handle for encoding/decoding of structs
 var MsgpackHandle = func() *codec.MsgpackHandle {
-	h := &codec.MsgpackHandle{RawToString: true}
+	h := &codec.MsgpackHandle{}
+	h.RawToString = true
+	h.TypeInfos = codec.NewTypeInfos([]string{"cty", "codec"})
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	return h
 }()
@@ -60,4 +62,9 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 // MsgPackDecode is used to decode a MsgPack encoded object
 func MsgPackDecode(buf []byte, out interface{}) error {
 	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
+}
+
+// MsgPackEncode is used to encode an object to MsgPack
+func MsgPackEncode(b *[]byte, in interface{}) error {
+	return codec.NewEncoderBytes(b, MsgpackHandle).Encode(in)
 }

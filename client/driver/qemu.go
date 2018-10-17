@@ -75,6 +75,7 @@ type qemuHandle struct {
 	userPid        int
 	executor       executor.Executor
 	monitorPath    string
+	shutdownSignal string
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
 	logger         *log.Logger
@@ -319,24 +320,22 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &executor.ExecutorContext{
-		TaskEnv: ctx.TaskEnv,
-		Driver:  "qemu",
-		Task:    task,
-		TaskDir: ctx.TaskDir.Dir,
-		LogDir:  ctx.TaskDir.LogDir,
-	}
-	if err := exec.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
+
+	_, err = getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:  args[0],
-		Args: args[1:],
-		User: task.User,
+		Cmd:        args[0],
+		Args:       args[1:],
+		User:       task.User,
+		TaskDir:    ctx.TaskDir.Dir,
+		Env:        ctx.TaskEnv.List(),
+		StdoutPath: ctx.StdoutFifo,
+		StderrPath: ctx.StderrFifo,
 	}
-	ps, err := exec.LaunchCmd(execCmd)
+	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -349,6 +348,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		pluginClient:   pluginClient,
 		executor:       exec,
 		userPid:        ps.Pid,
+		shutdownSignal: task.KillSignal,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		monitorPath:    monitorPath,
@@ -373,6 +373,7 @@ type qemuId struct {
 	MaxKillTimeout time.Duration
 	UserPid        int
 	PluginConfig   *PluginReattachConfig
+	ShutdownSignal string
 }
 
 func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -404,6 +405,7 @@ func (d *QemuDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		logger:         d.logger,
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
+		shutdownSignal: id.ShutdownSignal,
 		version:        id.Version,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),
@@ -421,6 +423,7 @@ func (h *qemuHandle) ID() string {
 		MaxKillTimeout: h.maxKillTimeout,
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
+		ShutdownSignal: h.shutdownSignal,
 	}
 
 	data, err := json.Marshal(id)
@@ -437,7 +440,6 @@ func (h *qemuHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *qemuHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil
@@ -449,6 +451,10 @@ func (h *qemuHandle) Exec(ctx context.Context, cmd string, args []string) ([]byt
 
 func (h *qemuHandle) Signal(s os.Signal) error {
 	return fmt.Errorf("Qemu driver can't send signals")
+}
+
+func (d *qemuHandle) Network() *cstructs.DriverNetwork {
+	return nil
 }
 
 func (h *qemuHandle) Kill() error {
@@ -466,7 +472,7 @@ func (h *qemuHandle) Kill() error {
 	// the qemu process as a last resort
 	if gracefulShutdownSent == false {
 		h.logger.Printf("[DEBUG] driver.qemu: graceful shutdown is not enabled, sending an interrupt signal to pid: %d", h.userPid)
-		if err := h.executor.ShutDown(); err != nil {
+		if err := h.executor.Signal(os.Interrupt); err != nil {
 			if h.pluginClient.Exited() {
 				return nil
 			}
@@ -486,8 +492,8 @@ func (h *qemuHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		if err := h.executor.Exit(); err != nil {
-			return fmt.Errorf("executor Exit failed: %v", err)
+		if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
+			return fmt.Errorf("executor Destroy failed: %v", err)
 		}
 		return nil
 	}
@@ -506,8 +512,8 @@ func (h *qemuHandle) run() {
 	}
 	close(h.doneCh)
 
-	// Exit the executor
-	h.executor.Exit()
+	// Destroy the executor
+	h.executor.Shutdown(h.shutdownSignal, 0)
 	h.pluginClient.Kill()
 
 	// Send the results

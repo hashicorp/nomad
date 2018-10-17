@@ -12,7 +12,7 @@ import (
 )
 
 func TestMemoryFingerprint(t *testing.T) {
-	f := NewMemoryFingerprint(testlog.Logger(t))
+	f := NewMemoryFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -41,7 +41,7 @@ func TestMemoryFingerprint(t *testing.T) {
 }
 
 func TestMemoryFingerprint_Override(t *testing.T) {
-	f := NewMemoryFingerprint(testlog.Logger(t))
+	f := NewMemoryFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

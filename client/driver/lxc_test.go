@@ -33,7 +33,7 @@ func TestLxcDriver_Fingerprint(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewLxcDriver(ctx.DriverCtx)
 
 	node := &structs.Node{
@@ -104,7 +104,7 @@ func TestLxcDriver_Start_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewLxcDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -191,7 +191,7 @@ func TestLxcDriver_Open_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewLxcDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -290,7 +290,7 @@ func testVolumeConfig(t *testing.T, volConfig []string) error {
 	task.Config["volumes"] = volConfig
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 
 	driver := NewLxcDriver(ctx.DriverCtx)
 
@@ -320,7 +320,7 @@ func TestLxcDriver_Start_NoVolumes(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 
 	// set lxcVolumesConfigOption to false to disallow absolute paths as the source for the bind mount
 	ctx.DriverCtx.config.Options = map[string]string{lxcVolumesConfigOption: "false"}

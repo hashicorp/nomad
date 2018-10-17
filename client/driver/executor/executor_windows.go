@@ -9,10 +9,10 @@ import (
 // configure new process group for child process
 func (e *UniversalExecutor) setNewProcessGroup() error {
 	// We need to check that as build flags includes windows for this file
-	if e.cmd.SysProcAttr == nil {
-		e.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	if e.childCmd.SysProcAttr == nil {
+		e.childCmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	e.cmd.SysProcAttr.CreationFlags = syscall.CREATE_NEW_PROCESS_GROUP
+	e.childCmd.SysProcAttr.CreationFlags = syscall.CREATE_NEW_PROCESS_GROUP
 	return nil
 }
 
@@ -59,11 +59,11 @@ func sendCtrlBreak(pid int) error {
 
 // Send the process a Ctrl-Break event, allowing it to shutdown by itself
 // before being Terminate.
-func (e *UniversalExecutor) shutdownProcess(proc *os.Process) error {
+func (e *UniversalExecutor) shutdownProcess(_ os.Signal, proc *os.Process) error {
 	if err := sendCtrlBreak(proc.Pid); err != nil {
-		return fmt.Errorf("executor.shutdown error: %v", err)
+		return fmt.Errorf("executor shutdown error: %v", err)
 	}
-	e.logger.Printf("[INFO] executor: sent Ctrl-Break to process %v", proc.Pid)
+	e.logger.Info("sent Ctrl-Break to process", "pid", proc.Pid)
 
 	return nil
 }

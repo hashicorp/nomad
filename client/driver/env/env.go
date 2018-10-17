@@ -247,7 +247,8 @@ func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Tas
 // NewEmptyBuilder creates a new environment builder.
 func NewEmptyBuilder() *Builder {
 	return &Builder{
-		mu: &sync.RWMutex{},
+		mu:      &sync.RWMutex{},
+		envvars: make(map[string]string),
 	}
 }
 
@@ -360,6 +361,16 @@ func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Bui
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.setTask(task).setAlloc(alloc)
+}
+
+func (b *Builder) SetGenericEnv(envs map[string]string) *Builder {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for k, v := range envs {
+		b.envvars[k] = v
+	}
+
+	return b
 }
 
 // setTask is called from NewBuilder to populate task related environment

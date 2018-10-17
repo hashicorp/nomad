@@ -54,7 +54,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.Logger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	d.NewTaskDir(t1.Name)
 	d.NewTaskDir(t2.Name)
@@ -91,7 +91,7 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.Logger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -136,7 +136,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.Logger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -223,13 +223,13 @@ func TestAllocDir_Move(t *testing.T) {
 	defer os.RemoveAll(tmp2)
 
 	// Create two alloc dirs
-	d1 := NewAllocDir(testlog.Logger(t), tmp1)
+	d1 := NewAllocDir(testlog.HCLogger(t), tmp1)
 	if err := d1.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d1.Destroy()
 
-	d2 := NewAllocDir(testlog.Logger(t), tmp2)
+	d2 := NewAllocDir(testlog.HCLogger(t), tmp2)
 	if err := d2.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -284,7 +284,7 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.Logger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.Logger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestAllocDir_CreateDir(t *testing.T) {
 // TestAllocDir_Copy asserts that AllocDir.Copy does a deep copy of itself and
 // all TaskDirs.
 func TestAllocDir_Copy(t *testing.T) {
-	a := NewAllocDir(testlog.Logger(t), "foo")
+	a := NewAllocDir(testlog.HCLogger(t), "foo")
 	a.NewTaskDir("bar")
 	a.NewTaskDir("baz")
 

@@ -10,7 +10,7 @@ import (
 )
 
 func TestCPUFingerprint(t *testing.T) {
-	f := NewCPUFingerprint(testlog.Logger(t))
+	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -58,7 +58,7 @@ func TestCPUFingerprint(t *testing.T) {
 // TestCPUFingerprint_OverrideCompute asserts that setting cpu_total_compute in
 // the client config overrides the detected CPU freq (if any).
 func TestCPUFingerprint_OverrideCompute(t *testing.T) {
-	f := NewCPUFingerprint(testlog.Logger(t))
+	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

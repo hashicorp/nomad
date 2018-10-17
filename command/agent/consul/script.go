@@ -8,7 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -39,7 +39,7 @@ type scriptCheck struct {
 
 	id    string
 	check *structs.ServiceCheck
-	exec  driver.ScriptExecutor
+	exec  interfaces.ScriptExecutor
 	agent heartbeater
 
 	// lastCheckOk is true if the last check was ok; otherwise false
@@ -52,7 +52,7 @@ type scriptCheck struct {
 // newScriptCheck creates a new scriptCheck. run() should be called once the
 // initial check is registered with Consul.
 func newScriptCheck(allocID, taskName, checkID string, check *structs.ServiceCheck,
-	exec driver.ScriptExecutor, agent heartbeater, logger log.Logger,
+	exec interfaces.ScriptExecutor, agent heartbeater, logger log.Logger,
 	shutdownCh <-chan struct{}) *scriptCheck {
 
 	logger = logger.ResetNamed("consul.checks").With("task", taskName, "alloc_id", allocID, "check", check.Name)
@@ -93,9 +93,8 @@ func (s *scriptCheck) run() *scriptHandle {
 			metrics.IncrCounter([]string{"client", "consul", "script_runs"}, 1)
 
 			// Execute check script with timeout
-			execctx, cancel := context.WithTimeout(ctx, s.check.Timeout)
-			output, code, err := s.exec.Exec(execctx, s.check.Command, s.check.Args)
-			switch execctx.Err() {
+			output, code, err := s.exec.Exec(s.check.Timeout, s.check.Command, s.check.Args)
+			switch err {
 			case context.Canceled:
 				// check removed during execution; exit
 				cancel()

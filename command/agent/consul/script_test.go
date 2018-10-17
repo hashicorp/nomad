@@ -34,8 +34,10 @@ func newBlockingScriptExec() *blockingScriptExec {
 	return &blockingScriptExec{running: make(chan struct{})}
 }
 
-func (b *blockingScriptExec) Exec(ctx context.Context, _ string, _ []string) ([]byte, int, error) {
+func (b *blockingScriptExec) Exec(dur time.Duration, _ string, _ []string) ([]byte, int, error) {
 	b.running <- struct{}{}
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer cancel()
 	cmd := exec.CommandContext(ctx, testtask.Path(), "sleep", "9000h")
 	testtask.SetCmdEnv(cmd)
 	err := cmd.Run()
@@ -145,7 +147,7 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 // sleeperExec sleeps for 100ms but returns successfully to allow testing timeout conditions
 type sleeperExec struct{}
 
-func (sleeperExec) Exec(context.Context, string, []string) ([]byte, int, error) {
+func (sleeperExec) Exec(time.Duration, string, []string) ([]byte, int, error) {
 	time.Sleep(100 * time.Millisecond)
 	return []byte{}, 0, nil
 }
@@ -185,7 +187,7 @@ type simpleExec struct {
 	err  error
 }
 
-func (s simpleExec) Exec(context.Context, string, []string) ([]byte, int, error) {
+func (s simpleExec) Exec(time.Duration, string, []string) ([]byte, int, error) {
 	return []byte(fmt.Sprintf("code=%d err=%v", s.code, s.err)), s.code, s.err
 }
 

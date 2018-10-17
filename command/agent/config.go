@@ -572,9 +572,7 @@ func DevConfig() *Config {
 	}
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
-	}
-	conf.Client.Options = map[string]string{
-		"driver.docker.volumes": "true",
+		"driver.docker.volumes":  "true",
 	}
 	conf.Client.GCInterval = 10 * time.Minute
 	conf.Client.GCDiskUsageThreshold = 99

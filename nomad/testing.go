@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/shared/catalog"
+	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/mitchellh/go-testing-interface"
 )
 
@@ -68,6 +70,10 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
+
+	// Set the plugin loaders
+	config.PluginLoader = catalog.TestPluginLoader(t)
+	config.PluginSingletonLoader = singleton.NewSingletonLoader(config.Logger, config.PluginLoader)
 
 	// Invoke the callback if any
 	if cb != nil {

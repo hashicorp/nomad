@@ -320,6 +320,10 @@ type DriverHandle interface {
 	// ScriptExecutor is an interface used to execute commands such as
 	// health check scripts in the a DriverHandle's context.
 	ScriptExecutor
+
+	// Network returns the driver's network or nil if the driver did not
+	// create a network.
+	Network() *cstructs.DriverNetwork
 }
 
 // ScriptExecutor is an interface that supports Exec()ing commands in the
@@ -335,6 +339,12 @@ type ExecContext struct {
 
 	// TaskEnv contains the task's environment variables.
 	TaskEnv *env.TaskEnv
+
+	// StdoutFifo is the path to the named pipe to write stdout to
+	StdoutFifo string
+
+	// StderrFifo is the path to the named pipe to write stderr to
+	StderrFifo string
 }
 
 // NewExecContext is used to create a new execution context

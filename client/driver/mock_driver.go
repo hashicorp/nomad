@@ -14,6 +14,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/driver/logging"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -44,7 +45,8 @@ type MockDriverConfig struct {
 	// StartErrRecoverable marks the error returned is recoverable
 	StartErrRecoverable bool `mapstructure:"start_error_recoverable"`
 
-	// StartBlockFor specifies a duration in which to block before returning
+	// StartBlockFor specifies a duration in which to block Start before
+	// returning. Useful for testing the behavior of tasks in pending.
 	StartBlockFor time.Duration `mapstructure:"start_block_for"`
 
 	// KillAfter is the duration after which the mock driver indicates the task
@@ -373,6 +375,11 @@ func (h *mockDriverHandle) Update(task *structs.Task) error {
 }
 
 // TODO Implement when we need it.
+func (d *mockDriverHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
+// TODO Implement when we need it.
 func (h *mockDriverHandle) Signal(s os.Signal) error {
 	return h.signalErr
 }
@@ -409,6 +416,8 @@ func (h *mockDriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 // run waits for the configured amount of time and then indicates the task has
 // terminated
 func (h *mockDriverHandle) run() {
+	defer close(h.waitCh)
+
 	// Setup logging output
 	if h.stdoutString != "" {
 		go h.handleLogging()
@@ -442,7 +451,7 @@ func (h *mockDriverHandle) handleLogging() {
 	// Setup a log rotator
 	logFileSize := int64(h.task.LogConfig.MaxFileSizeMB * 1024 * 1024)
 	lro, err := logging.NewFileRotator(h.ctx.TaskDir.LogDir, fmt.Sprintf("%v.stdout", h.taskName),
-		h.task.LogConfig.MaxFiles, logFileSize, h.logger)
+		h.task.LogConfig.MaxFiles, logFileSize, hclog.Default()) //TODO: plumb hclog
 	if err != nil {
 		h.exitErr = err
 		close(h.doneCh)

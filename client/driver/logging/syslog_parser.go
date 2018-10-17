@@ -4,10 +4,10 @@ package logging
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 
 	syslog "github.com/RackSec/srslog"
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 // Errors related to parsing priority
@@ -41,11 +41,11 @@ type Priority struct {
 
 // DockerLogParser parses a line of log message that the docker daemon ships
 type DockerLogParser struct {
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // NewDockerLogParser creates a new DockerLogParser
-func NewDockerLogParser(logger *log.Logger) *DockerLogParser {
+func NewDockerLogParser(logger hclog.Logger) *DockerLogParser {
 	return &DockerLogParser{logger: logger}
 }
 
