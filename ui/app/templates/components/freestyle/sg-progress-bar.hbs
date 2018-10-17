@@ -1,5 +1,5 @@
 {{#freestyle-usage "progress-bar" title="Progress Bar"}}
-  <div class="inline-chart tooltip" aria-label="5 / 15">
+  <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
     <progress
       class="progress is-primary is-small"
       value="0.33"
@@ -12,7 +12,7 @@
 {{#freestyle-usage "progress-bar-colors" title="Progress Bar Colors"}}
   <div class="columns">
     <div class="column">
-      <div class="inline-chart tooltip" aria-label="5 / 15">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
         <progress
           class="progress is-info is-small"
           value="0.33"
@@ -22,7 +22,7 @@
       </div>
     </div>
     <div class="column">
-      <div class="inline-chart tooltip" aria-label="5 / 15">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
         <progress
           class="progress is-success is-small"
           value="0.33"
@@ -32,7 +32,7 @@
       </div>
     </div>
     <div class="column">
-      <div class="inline-chart tooltip" aria-label="5 / 15">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
         <progress
           class="progress is-warning is-small"
           value="0.33"
@@ -42,7 +42,7 @@
       </div>
     </div>
     <div class="column">
-      <div class="inline-chart tooltip" aria-label="5 / 15">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
         <progress
           class="progress is-danger is-small"
           value="0.33"
@@ -57,7 +57,7 @@
 {{#freestyle-usage "progress-bar-live" title="Progress Bar Live Updates"}}
   <div class="columns">
     <div class="column is-one-third">
-      <div class="inline-chart tooltip" aria-label="{{numerator}} / {{denominator}}">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="{{numerator}} / {{denominator}}">
         <progress
           class="progress is-primary is-small"
           value="{{percentage}}"
