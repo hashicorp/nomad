@@ -204,3 +204,70 @@ moduleForAcceptance('Acceptance | task detail (no addresses)', {
 test('when the task has no addresses, the addresses table is not shown', function(assert) {
   assert.notOk(Task.hasAddresses, 'No addresses table');
 });
+
+moduleForAcceptance('Acceptance | task detail (different namespace)', {
+  beforeEach() {
+    server.create('agent');
+    server.create('node');
+    server.create('namespace');
+    server.create('namespace', { id: 'other-namespace' });
+    server.create('job', { createAllocations: false, namespaceId: 'other-namespace' });
+    allocation = server.create('allocation', 'withTaskWithPorts');
+    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+
+    Task.visit({ id: allocation.id, name: task.name });
+  },
+});
+
+test('breadcrumbs match jobs / job / task group / allocation / task', function(assert) {
+  const { jobId, taskGroup } = allocation;
+  const job = server.db.jobs.find(jobId);
+
+  Task.breadcrumbFor('jobs.index').visit();
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      '/jobs?namespace=other-namespace',
+      'Jobs breadcrumb links correctly'
+    );
+  });
+  andThen(() => {
+    Task.visit({ id: allocation.id, name: task.name });
+  });
+  andThen(() => {
+    Task.breadcrumbFor('jobs.job.index').visit();
+  });
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}?namespace=other-namespace`,
+      'Job breadcrumb links correctly'
+    );
+  });
+  andThen(() => {
+    Task.visit({ id: allocation.id, name: task.name });
+  });
+  andThen(() => {
+    Task.breadcrumbFor('jobs.job.task-group').visit();
+  });
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/${taskGroup}?namespace=other-namespace`,
+      'Task Group breadcrumb links correctly'
+    );
+  });
+  andThen(() => {
+    Task.visit({ id: allocation.id, name: task.name });
+  });
+  andThen(() => {
+    Task.breadcrumbFor('allocations.allocation').visit();
+  });
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}`,
+      'Allocations breadcrumb links correctly'
+    );
+  });
+});
