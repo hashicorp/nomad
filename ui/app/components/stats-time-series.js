@@ -31,7 +31,7 @@ export default LineChart.extend({
 
     const duration = formatDuration(xRange[1] - xRange[0], 'ms', true);
 
-    return `Time-series data for the last ${duration}, with values ranging from ${yFormatter(yRange[0])} to ${yFormatter(yRange[1])}`;
+    return `Time series data for the last ${duration}, with values ranging from ${yFormatter(yRange[0])} to ${yFormatter(yRange[1])}`;
   }),
 
   xScale: computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset', function() {
