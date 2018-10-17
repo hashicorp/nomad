@@ -14,6 +14,7 @@ import (
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
 )
 
 // CgroupsMounted returns true if the cgroups are mounted on a system otherwise
@@ -25,7 +26,7 @@ func CgroupsMounted(node *structs.Node) bool {
 
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func CreateExecutor(w io.Writer, level hclog.Level, CMinPort, CMaxPort uint,
+func CreateExecutor(w io.Writer, level hclog.Level, nomadConfig *base.NomadConfig,
 	executorConfig *dstructs.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
@@ -42,8 +43,8 @@ func CreateExecutor(w io.Writer, level hclog.Level, CMinPort, CMaxPort uint,
 	}
 	config.HandshakeConfig = driver.HandshakeConfig
 	config.Plugins = driver.GetPluginMap(w, level, executorConfig.FSIsolation)
-	config.MaxPort = CMaxPort
-	config.MinPort = CMinPort
+	config.MaxPort = nomadConfig.ClientMaxPort
+	config.MinPort = nomadConfig.ClientMinPort
 
 	// setting the setsid of the plugin process so that it doesn't get signals sent to
 	// the nomad client.
@@ -65,6 +66,7 @@ func CreateExecutor(w io.Writer, level hclog.Level, CMinPort, CMaxPort uint,
 	return executorPlugin, executorClient, nil
 }
 
+// CreateExecutorWithConfig launches a plugin with a given plugin config
 func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = driver.HandshakeConfig
 

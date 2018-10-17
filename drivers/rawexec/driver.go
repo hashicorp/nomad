@@ -301,7 +301,7 @@ func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle,
 		LogLevel: "debug",
 	}
 
-	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, r.nomadConfig.ClientMinPort, r.nomadConfig.ClientMaxPort, executorConfig)
+	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, r.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
