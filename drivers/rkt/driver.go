@@ -4,22 +4,28 @@ package rkt
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	appcschema "github.com/appc/spec/schema"
+	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
@@ -29,14 +35,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	rktv1 "github.com/rkt/rkt/api/v1"
 	"golang.org/x/net/context"
-
-	"encoding/json"
-	"io/ioutil"
-	"math/rand"
-	"strconv"
-
-	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/nomad/client/driver/executor"
 )
 
 const (
@@ -85,7 +83,7 @@ var (
 		"dns_servers":        hclspec.NewAttr("dns_servers", "list(string)", false),
 		"dns_search_domains": hclspec.NewAttr("dns_search_domains", "list(string)", false),
 		"net":                hclspec.NewAttr("net", "list(string)", false),
-		"port_map":           hclspec.NewAttr("port_map", "map(string)", false),
+		"port_map":           hclspec.NewBlockAttrs("port_map", "string", false),
 		"volumes":            hclspec.NewAttr("volumes", "list(string)", false),
 		"insecure_options":   hclspec.NewAttr("insecure_options", "list(string)", false),
 		"no_overlay":         hclspec.NewAttr("no_overlay", "bool", false),
@@ -115,20 +113,20 @@ type Config struct {
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	ImageName        string            `codec:"image" cty:"image"`
-	Command          string            `codec:"command" cty:"command"`
-	Args             []string          `codec:"args" cty:"args"`
-	TrustPrefix      string            `codec:"trust_prefix" cty:"trust_prefix"`
-	DNSServers       []string          `codec:"dns_servers" cty:"dns_servers"`               // DNS Server for containers
-	DNSSearchDomains []string          `codec:"dns_search_domains" cty:"dns_search_domains"` // DNS Search domains for containers
-	Net              []string          `codec:"net" cty:"net"`                               // Networks for the containers
-	PortMap          map[string]string `codec:"port_map" cty:"port_map"`                     // A map of host port and the port name defined in the image manifest file
-	Volumes          []string          `codec:"volumes" cty:"volumes"`                       // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
-	InsecureOptions  []string          `codec:"insecure_options" cty:"insecure_options"`     // list of args for --insecure-options
+	ImageName        string            `codec:"image"`
+	Command          string            `codec:"command"`
+	Args             []string          `codec:"args"`
+	TrustPrefix      string            `codec:"trust_prefix"`
+	DNSServers       []string          `codec:"dns_servers"`        // DNS Server for containers
+	DNSSearchDomains []string          `codec:"dns_search_domains"` // DNS Search domains for containers
+	Net              []string          `codec:"net"`                // Networks for the containers
+	PortMap          map[string]string `codec:"port_map"`           // A map of host port and the port name defined in the image manifest file
+	Volumes          []string          `codec:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
+	InsecureOptions  []string          `codec:"insecure_options"`   // list of args for --insecure-options
 
-	NoOverlay bool   `codec:"no_overlay" cty:"no_overlay"` // disable overlayfs for rkt run
-	Debug     bool   `codec:"debug" cty:"debug"`           // Enable debug option for rkt command
-	Group     string `codec:"group" cty:"group"`           // Group override for the container
+	NoOverlay bool   `codec:"no_overlay"` // disable overlayfs for rkt run
+	Debug     bool   `codec:"debug"`      // Enable debug option for rkt command
+	Group     string `codec:"group"`      // Group override for the container
 }
 
 // RktTaskState is the state which is encoded in the handle returned in

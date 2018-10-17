@@ -125,16 +125,16 @@ type RawExecDriver struct {
 type Config struct {
 	// NoCgroups tracks whether we should use a cgroup to manage the process
 	// tree
-	NoCgroups bool `codec:"no_cgroups" cty:"no_cgroups"`
+	NoCgroups bool `codec:"no_cgroups"`
 
 	// Enabled is set to true to enable the raw_exec driver
-	Enabled bool `codec:"enabled" cty:"enabled"`
+	Enabled bool `codec:"enabled"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
-	Command string   `codec:"command" cty:"command"`
-	Args    []string `codec:"args" cty:"args"`
+	Command string   `codec:"command"`
+	Args    []string `codec:"args"`
 }
 
 // RawExecTaskState is the state which is encoded in the handle returned in

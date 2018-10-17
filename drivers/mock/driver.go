@@ -134,12 +134,12 @@ type Config struct {
 	// ShutdownPeriodicAfter is a toggle that can be used during tests to
 	// "stop" a previously-functioning driver, allowing for testing of periodic
 	// drivers and fingerprinters
-	ShutdownPeriodicAfter bool `cty:"shutdown_periodic_after"`
+	ShutdownPeriodicAfter bool `codec:"shutdown_periodic_after"`
 
 	// ShutdownPeriodicDuration is a option that can be used during tests
 	// to "stop" a previously functioning driver after the specified duration
 	// for testing of periodic drivers and fingerprinters.
-	ShutdownPeriodicDuration time.Duration `cty:"shutdown_periodic_duration"`
+	ShutdownPeriodicDuration time.Duration `codec:"shutdown_periodic_duration"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -147,56 +147,56 @@ type TaskConfig struct {
 
 	// StartErr specifies the error that should be returned when starting the
 	// mock driver.
-	StartErr string `cty:"start_error"`
+	StartErr string `codec:"start_error"`
 
 	// StartErrRecoverable marks the error returned is recoverable
-	StartErrRecoverable bool `cty:"start_error_recoverable"`
+	StartErrRecoverable bool `codec:"start_error_recoverable"`
 
 	// StartBlockFor specifies a duration in which to block before returning
-	StartBlockFor time.Duration `cty:"start_block_for"`
+	StartBlockFor time.Duration `codec:"start_block_for"`
 
 	// KillAfter is the duration after which the mock driver indicates the task
 	// has exited after getting the initial SIGINT signal
-	KillAfter time.Duration `cty:"kill_after"`
+	KillAfter time.Duration `codec:"kill_after"`
 
 	// RunFor is the duration for which the fake task runs for. After this
 	// period the MockDriver responds to the task running indicating that the
 	// task has terminated
-	RunFor time.Duration `cty:"run_for"`
+	RunFor time.Duration `codec:"run_for"`
 
 	// ExitCode is the exit code with which the MockDriver indicates the task
 	// has exited
-	ExitCode int `cty:"exit_code"`
+	ExitCode int `codec:"exit_code"`
 
 	// ExitSignal is the signal with which the MockDriver indicates the task has
 	// been killed
-	ExitSignal int `cty:"exit_signal"`
+	ExitSignal int `codec:"exit_signal"`
 
 	// ExitErrMsg is the error message that the task returns while exiting
-	ExitErrMsg string `cty:"exit_err_msg"`
+	ExitErrMsg string `codec:"exit_err_msg"`
 
 	// SignalErr is the error message that the task returns if signalled
-	SignalErr string `cty:"signal_error"`
+	SignalErr string `codec:"signal_error"`
 
 	// DriverIP will be returned as the DriverNetwork.IP from Start()
-	DriverIP string `cty:"driver_ip"`
+	DriverIP string `codec:"driver_ip"`
 
 	// DriverAdvertise will be returned as DriverNetwork.AutoAdvertise from
 	// Start().
-	DriverAdvertise bool `cty:"driver_advertise"`
+	DriverAdvertise bool `codec:"driver_advertise"`
 
 	// DriverPortMap will parse a label:number pair and return it in
 	// DriverNetwork.PortMap from Start().
-	DriverPortMap string `cty:"driver_port_map"`
+	DriverPortMap string `codec:"driver_port_map"`
 
 	// StdoutString is the string that should be sent to stdout
-	StdoutString string `cty:"stdout_string"`
+	StdoutString string `codec:"stdout_string"`
 
 	// StdoutRepeat is the number of times the output should be sent.
-	StdoutRepeat int `cty:"stdout_repeat"`
+	StdoutRepeat int `codec:"stdout_repeat"`
 
 	// StdoutRepeatDur is the duration between repeated outputs.
-	StdoutRepeatDur time.Duration `cty:"stdout_repeat_duration"`
+	StdoutRepeatDur time.Duration `codec:"stdout_repeat_duration"`
 }
 
 type MockTaskState struct {
