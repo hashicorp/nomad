@@ -77,7 +77,7 @@ func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
 
 	config, _, err = operator.SchedulerGetConfiguration(nil)
 	require.Nil(err)
-	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
+	require.False(config.PreemptionConfig.SystemSchedulerEnabled)
 }
 
 func TestAPI_OperatorSchedulerCASConfiguration(t *testing.T) {
