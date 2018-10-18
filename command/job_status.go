@@ -385,7 +385,16 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 
 	// Format the allocs
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-	c.Ui.Output(formatAllocListStubs(jobAllocs, c.verbose, c.length))
+
+	// For each alloc find the dc of the node id its on
+	dcs := make([]string, len(jobAllocs))
+	for i, alloc := range jobAllocs {
+		nodeInfo, _, err := client.Nodes().Info(alloc.NodeID, nil)
+		if err == nil {
+			dcs[i] = nodeInfo.Datacenter
+		}
+	}
+	c.Ui.Output(formatAllocListStubsWithDCs(jobAllocs, dcs, c.verbose, c.length))
 	return nil
 }
 
@@ -404,6 +413,58 @@ func (c *JobStatusCommand) formatDeployment(d *api.Deployment) string {
 	base += "\n\n[bold]Deployed[reset]\n"
 	base += formatDeploymentGroups(d, c.length)
 	return base
+}
+
+func formatAllocListStubsWithDCs(stubs []*api.AllocationListStub, dcs []string, verbose bool, uuidLength int) string {
+	if len(stubs) == 0 {
+		return "No allocations placed"
+	}
+
+	sort.Slice(stubs, func(i, j int) bool {
+		x := strings.Compare(dcs[i], dcs[j])
+		return x <= 0
+	})
+	sort.Slice(dcs, func(i, j int) bool {
+		x := strings.Compare(dcs[i], dcs[j])
+		return x <= 0
+	})
+
+	allocs := make([]string, len(stubs)+1)
+	if verbose {
+		allocs[0] = "ID|Eval ID|Node ID|Data Center|Task Group|Version|Desired|Status|Created|Modified"
+		for i, alloc := range stubs {
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s|%s|%s|%s",
+				limit(alloc.ID, uuidLength),
+				limit(alloc.EvalID, uuidLength),
+				limit(alloc.NodeID, uuidLength),
+				dcs[i],
+				alloc.TaskGroup,
+				alloc.JobVersion,
+				alloc.DesiredStatus,
+				alloc.ClientStatus,
+				formatUnixNanoTime(alloc.CreateTime),
+				formatUnixNanoTime(alloc.ModifyTime))
+		}
+	} else {
+		allocs[0] = "ID|Node ID|Data Center|Task Group|Version|Desired|Status|Created|Modified"
+		for i, alloc := range stubs {
+			now := time.Now()
+			createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
+			modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+				limit(alloc.ID, uuidLength),
+				limit(alloc.NodeID, uuidLength),
+				dcs[i],
+				alloc.TaskGroup,
+				alloc.JobVersion,
+				alloc.DesiredStatus,
+				alloc.ClientStatus,
+				createTimePretty,
+				modTimePretty)
+		}
+	}
+
+	return formatList(allocs)
 }
 
 func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLength int) string {

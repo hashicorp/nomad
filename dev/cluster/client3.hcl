@@ -2,16 +2,16 @@
 log_level = "DEBUG"
 
 # Setup data dir
-data_dir = "/tmp/client2"
+data_dir = "/tmp/client3"
 
 # Give the agent a unique name. Defaults to hostname
-name = "client2"
+name = "client3"
 
 # Enable the client
 client {
   enabled = true
   meta {
-    "rack" = "r2"
+    "rack" = "r1"
   }
   server_join {
     retry_join = ["127.0.0.1:4647", "127.0.0.1:5647", "127.0.0.1:6647"]
@@ -19,5 +19,5 @@ client {
 }
 
 ports {
-  http = 7646
+  http = 8646
 }

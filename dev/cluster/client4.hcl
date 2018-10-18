@@ -1,17 +1,17 @@
 # Increase log verbosity
 log_level = "DEBUG"
-
+datacenter = "dc2"
 # Setup data dir
-data_dir = "/tmp/client2"
+data_dir = "/tmp/client4"
 
 # Give the agent a unique name. Defaults to hostname
-name = "client2"
+name = "client4"
 
 # Enable the client
 client {
   enabled = true
   meta {
-    "rack" = "r2"
+   "team" = "web"
   }
   server_join {
     retry_join = ["127.0.0.1:4647", "127.0.0.1:5647", "127.0.0.1:6647"]
@@ -19,5 +19,5 @@ client {
 }
 
 ports {
-  http = 7646
+  http = 9646
 }
