@@ -274,6 +274,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 		ID:                 preemptedAlloc.ID,
 		Namespace:          preemptedAlloc.Namespace,
 		DesiredStatus:      structs.AllocDesiredStatusEvict,
+		ModifyTime:         time.Now().Unix(),
 		DesiredDescription: fmt.Sprintf("Preempted by allocation %v", alloc.ID),
 	}
 
