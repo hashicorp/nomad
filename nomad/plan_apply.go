@@ -191,9 +191,6 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	// Also gather jobids to create follow up evals
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 	for _, alloc := range req.NodePreemptions {
-		if alloc.CreateTime == 0 {
-			alloc.CreateTime = now
-		}
 		alloc.ModifyTime = now
 		id := structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID}
 		_, ok := preemptedJobIDs[id]
@@ -368,13 +365,13 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 				alloc, err := snap.AllocByID(nil, preemptedAlloc.ID)
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
+					continue
 				}
-				if alloc != nil {
-					if !alloc.TerminalStatus() {
-						filteredNodePreemptions = append(filteredNodePreemptions, preemptedAlloc)
-					}
+				if alloc != nil && !alloc.TerminalStatus() {
+					filteredNodePreemptions = append(filteredNodePreemptions, preemptedAlloc)
 				}
 			}
+
 			result.NodePreemptions[nodeID] = filteredNodePreemptions
 		}
 
