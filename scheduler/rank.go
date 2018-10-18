@@ -289,9 +289,9 @@ OUTER:
 				iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
 				continue
 			}
+
 			// If eviction is enabled and the node doesn't fit the alloc, check if
 			// any allocs can be preempted
-
 			preemptForTaskGroup := findPreemptibleAllocationsForTaskGroup(iter.priority, current, total, option.Node, currentPreemptions)
 			allocsToPreempt = append(allocsToPreempt, preemptForTaskGroup...)
 
