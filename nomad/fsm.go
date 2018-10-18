@@ -45,6 +45,7 @@ const (
 	DeploymentSnapshot
 	ACLPolicySnapshot
 	ACLTokenSnapshot
+	SchedulerConfigSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -815,6 +816,8 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 		n.logger.Error("ApplyPlan failed", "error", err)
 		return err
 	}
+
+	// Add evals for jobs that were preempted
 	n.handleUpsertedEvals(req.PreemptionEvals)
 	return nil
 }
@@ -994,6 +997,23 @@ func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
 		return act
 	}
 	return n.state.AutopilotSetConfig(index, &req.Config)
+}
+
+func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interface{} {
+	var req structs.SchedulerSetConfigRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "scheduler-config"}, time.Now())
+
+	if req.CAS {
+		act, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
+		if err != nil {
+			return err
+		}
+		return act
+	}
+	return n.state.SchedulerSetConfig(index, &req.Config)
 }
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
@@ -1213,6 +1233,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.ACLTokenRestore(token); err != nil {
+				return err
+			}
+
+		case SchedulerConfigSnapshot:
+			schedConfig := new(structs.SchedulerConfiguration)
+			if err := dec.Decode(schedConfig); err != nil {
+				return err
+			}
+			if err := restore.SchedulerConfigRestore(schedConfig); err != nil {
 				return err
 			}
 
@@ -1500,6 +1529,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistEnterpriseTables(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistSchedulerConfig(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1835,21 +1868,19 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 	return nil
 }
 
-func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interface{} {
-	var req structs.SchedulerSetConfigRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
+func (s *nomadSnapshot) persistSchedulerConfig(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get scheduler config
+	_, schedConfig, err := s.snap.SchedulerConfig()
+	if err != nil {
+		return err
 	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "scheduler-config"}, time.Now())
-
-	if req.CAS {
-		act, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
-		if err != nil {
-			return err
-		}
-		return act
+	// Write out scheduler config
+	sink.Write([]byte{byte(SchedulerConfigSnapshot)})
+	if err := encoder.Encode(schedConfig); err != nil {
+		return err
 	}
-	return n.state.SchedulerSetConfig(index, &req.Config)
+	return nil
 }
 
 // Release is a no-op, as we just need to GC the pointer
