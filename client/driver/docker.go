@@ -399,7 +399,6 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 
 		if m.Type == "" {
 			// default to `volume` type for backwards compatibility
-			// TODO: talk to AD about placement of default
 			m.Type = "volume"
 		}
 
