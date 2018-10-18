@@ -1,5 +1,7 @@
 job "redis2" {
     datacenters = ["dc1", "dc2"]
+    type = "service"
+
     spread {
       attribute = "${node.datacenter}"
       weight = 100

@@ -1,8 +1,8 @@
-job "redis1" {
+job "redis2" {
     datacenters = ["dc1", "dc2"]
     type = "service"
 
-  group "redis1" {
+  group "cache2" {
     count = 5
     affinity {
       attribute ="${meta.rack}"
