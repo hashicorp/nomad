@@ -234,17 +234,17 @@ OUTER:
 					}
 
 					// Look for preemptible allocations to satisfy the network resource for this task
-					preemptedAllocsForTaskNetwork := preemptForNetworkResourceAsk(iter.priority, proposed, ask, netIdx, currentPreemptions)
-					if preemptedAllocsForTaskNetwork == nil {
+					netPreemptions := preemptForNetworkResourceAsk(iter.priority, proposed, ask, netIdx, currentPreemptions)
+					if netPreemptions == nil {
 						iter.ctx.Metrics().ExhaustedNode(option.Node,
 							fmt.Sprintf("unable to meet network resource %v after preemption", ask))
 						netIdx.Release()
 						continue OUTER
 					}
-					allocsToPreempt = append(allocsToPreempt, preemptedAllocsForTaskNetwork...)
+					allocsToPreempt = append(allocsToPreempt, netPreemptions...)
 
 					// First subtract out preempted allocations
-					proposed = structs.RemoveAllocs(proposed, preemptedAllocsForTaskNetwork)
+					proposed = structs.RemoveAllocs(proposed, netPreemptions)
 
 					// Reset the network index and try the offer again
 					netIdx.Release()
@@ -254,8 +254,7 @@ OUTER:
 
 					offer, err = netIdx.AssignNetwork(ask)
 					if offer == nil {
-						iter.ctx.Metrics().ExhaustedNode(option.Node,
-							fmt.Sprintf("unexecpted error, unable to create offer after preempting:%v", err))
+						iter.ctx.Logger().Error(fmt.Sprintf("unexpected error, unable to create offer after preempting:%v", err))
 						netIdx.Release()
 						continue OUTER
 					}
@@ -275,6 +274,9 @@ OUTER:
 			total.Tasks[task.Name] = taskResources
 		}
 
+		// Store current set of running allocs before adding resources for the task group
+		current := proposed
+
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
 
@@ -290,10 +292,9 @@ OUTER:
 			// If eviction is enabled and the node doesn't fit the alloc, check if
 			// any allocs can be preempted
 
-			// Remove the last element containing the current placement from proposed allocs
-			current := proposed[:len(proposed)-1]
 			preemptForTaskGroup := findPreemptibleAllocationsForTaskGroup(iter.priority, current, total, option.Node, currentPreemptions)
 			allocsToPreempt = append(allocsToPreempt, preemptForTaskGroup...)
+
 			// If we were unable to find preempted allocs to meet these requirements
 			// mark as exhausted and continue
 			if len(preemptForTaskGroup) == 0 {
@@ -304,6 +305,7 @@ OUTER:
 		if len(allocsToPreempt) > 0 {
 			option.PreemptedAllocs = allocsToPreempt
 		}
+
 		// Score the fit normally otherwise
 		fitness := structs.ScoreFit(option.Node, util)
 		normalizedFit := fitness / binPackingMaxFitScore
