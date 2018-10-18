@@ -295,8 +295,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	rule, err := op.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
-	}
-	if rule != nil && !rule.AllowOperatorWrite() {
+	} else if rule != nil && !rule.AllowOperatorWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -305,8 +304,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	if err != nil {
 		op.logger.Error("failed applying Scheduler configuration", "error", err)
 		return err
-	}
-	if respErr, ok := resp.(error); ok {
+	} else if respErr, ok := resp.(error); ok {
 		return respErr
 	}
 
@@ -327,8 +325,7 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	rule, err := op.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
-	}
-	if rule != nil && !rule.AllowOperatorRead() {
+	} else if rule != nil && !rule.AllowOperatorRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -336,8 +333,7 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	_, config, err := state.SchedulerConfig()
 	if err != nil {
 		return err
-	}
-	if config == nil {
+	} else if config == nil {
 		return fmt.Errorf("scheduler config not initialized yet")
 	}
 
