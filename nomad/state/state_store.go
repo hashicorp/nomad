@@ -3973,6 +3973,13 @@ func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 	return nil
 }
 
+func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConfiguration) error {
+	if err := r.txn.Insert("scheduler_config", schedConfig); err != nil {
+		return fmt.Errorf("inserting scheduler config failed: %s", err)
+	}
+	return nil
+}
+
 // addEphemeralDiskToTaskGroups adds missing EphemeralDisk objects to TaskGroups
 func (r *StateRestore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 	for _, tg := range job.TaskGroups {

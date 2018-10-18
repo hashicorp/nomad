@@ -6766,6 +6766,33 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 	assert.Equal(t, token, out)
 }
 
+func TestStateStore_SchedulerConfig(t *testing.T) {
+	state := testStateStore(t)
+	schedConfig := &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: false,
+		},
+		CreateIndex: 100,
+		ModifyIndex: 200,
+	}
+
+	require := require.New(t)
+	restore, err := state.Restore()
+
+	require.Nil(err)
+
+	err = restore.SchedulerConfigRestore(schedConfig)
+	require.Nil(err)
+
+	restore.Commit()
+
+	modIndex, out, err := state.SchedulerConfig()
+	require.Nil(err)
+	require.Equal(schedConfig.ModifyIndex, modIndex)
+
+	require.Equal(schedConfig, out)
+}
+
 func TestStateStore_Abandon(t *testing.T) {
 	s := testStateStore(t)
 	abandonCh := s.AbandonCh()

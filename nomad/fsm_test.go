@@ -2634,6 +2634,29 @@ func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
 	assert.Equal(t, tk2, out2)
 }
 
+func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	schedConfig := &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: true,
+		},
+	}
+	state.SchedulerSetConfig(1000, schedConfig)
+
+	// Verify the contents
+	require := require.New(t)
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	index, out, err := state2.SchedulerConfig()
+	require.Nil(err)
+	require.EqualValues(1000, index)
+	require.Equal(schedConfig, out)
+
+}
+
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	t.Parallel()
 	// Add some state
