@@ -121,9 +121,6 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	var preemptedAllocs []*structs.Allocation
 	for _, preemptions := range result.NodePreemptions {
 		for _, alloc := range preemptions {
-			if alloc.CreateTime == 0 {
-				alloc.CreateTime = now
-			}
 			alloc.ModifyTime = now
 			preemptedAllocs = append(preemptedAllocs, alloc)
 		}

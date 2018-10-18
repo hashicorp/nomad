@@ -1885,27 +1885,6 @@ func (r *Resources) Add(delta *Resources) error {
 	return nil
 }
 
-// Subtract removes the resources of the delta to this, potentially
-// returning an error if not possible.
-func (r *Resources) Subtract(delta *Resources) error {
-	if delta == nil {
-		return nil
-	}
-	r.CPU -= delta.CPU
-	r.MemoryMB -= delta.MemoryMB
-	r.DiskMB -= delta.DiskMB
-	r.IOPS -= delta.IOPS
-
-	for _, n := range delta.Networks {
-		// Find the matching interface by IP or CIDR
-		idx := r.NetIndex(n)
-		if idx != -1 {
-			r.Networks[idx].MBits -= delta.Networks[idx].MBits
-		}
-	}
-	return nil
-}
-
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
@@ -8224,10 +8203,15 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preempting
 
 	// TaskResources are needed by the plan applier to check if allocations fit
 	// after removing preempted allocations
-	newAlloc.TaskResources = alloc.TaskResources
+	if alloc.AllocatedResources != nil {
+		newAlloc.AllocatedResources = alloc.AllocatedResources
+	} else {
+		newAlloc.TaskResources = alloc.TaskResources
+		newAlloc.SharedResources = alloc.SharedResources
+	}
 
-	node := alloc.NodeID
 	// Append this alloc to slice for this node
+	node := alloc.NodeID
 	existing := p.NodePreemptions[node]
 	p.NodePreemptions[node] = append(existing, newAlloc)
 }
@@ -8262,14 +8246,6 @@ func (p *Plan) IsNoOp() bool {
 		p.Deployment == nil &&
 		len(p.DeploymentUpdates) == 0
 }
-
-// PreemptedAllocs is used to store information about a set of allocations
-// for the same job that get preempted as part of placing allocations for the
-// job in the plan.
-
-// Preempted allocs represents a map from jobid to allocations
-// to be preempted
-type PreemptedAllocs map[*NamespacedID][]*Allocation
 
 // PlanResult is the result of a plan submitted to the leader.
 type PlanResult struct {
@@ -8341,7 +8317,7 @@ type DesiredUpdates struct {
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
 	Canary            uint64
-	Evict             uint64
+	Preemptions       uint64
 }
 
 func (d *DesiredUpdates) GoString() string {

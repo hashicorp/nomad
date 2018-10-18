@@ -347,7 +347,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				alloc.PreviousAllocation = missing.Alloc.ID
 			}
 
-			// If this placement involves preemption, set DesiredState to stop for those allocations
+			// If this placement involves preemption, set DesiredState to evict for those allocations
 			if option.PreemptedAllocs != nil {
 				var preemptedAllocIDs []string
 				for _, stop := range option.PreemptedAllocs {
@@ -358,7 +358,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 						s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
 						if s.plan.Annotations.DesiredTGUpdates != nil {
 							desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
-							desired.Evict += 1
+							desired.Preemptions += 1
 						}
 					}
 				}

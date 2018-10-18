@@ -120,6 +120,7 @@ type AutopilotConfig struct {
 	ModifyIndex uint64
 }
 
+// SchedulerConfiguration is the config for controlling scheduler behavior
 type SchedulerConfiguration struct {
 	// PreemptionConfig specifies whether to enable eviction of lower
 	// priority jobs to place higher priority jobs.
