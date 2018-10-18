@@ -11,7 +11,7 @@ type TaskHandle struct {
 	Driver      string
 	Config      *TaskConfig
 	State       TaskState
-	driverState []byte
+	DriverState []byte
 }
 
 func NewTaskHandle(driver string) *TaskHandle {
@@ -19,12 +19,12 @@ func NewTaskHandle(driver string) *TaskHandle {
 }
 
 func (h *TaskHandle) SetDriverState(v interface{}) error {
-	h.driverState = []byte{}
-	return base.MsgPackEncode(&h.driverState, v)
+	h.DriverState = []byte{}
+	return base.MsgPackEncode(&h.DriverState, v)
 }
 
 func (h *TaskHandle) GetDriverState(v interface{}) error {
-	return base.MsgPackDecode(h.driverState, v)
+	return base.MsgPackDecode(h.DriverState, v)
 
 }
 
@@ -34,7 +34,10 @@ func (h *TaskHandle) Copy() *TaskHandle {
 	}
 
 	handle := new(TaskHandle)
-	*handle = *h
+	handle.Driver = h.Driver
 	handle.Config = h.Config.Copy()
+	handle.State = h.State
+	handle.DriverState = make([]byte, len(h.DriverState))
+	copy(handle.DriverState, h.DriverState)
 	return handle
 }

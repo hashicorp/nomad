@@ -157,7 +157,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			StateDB:               ar.stateDB,
 			StateUpdater:          ar,
 			Consul:                ar.consulClient,
-			VaultClient:           ar.vaultClient,
+			Vault:                 ar.vaultClient,
 			PluginSingletonLoader: ar.pluginSingletonLoader,
 		}
 

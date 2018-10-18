@@ -61,7 +61,7 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s string) error {
 func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error {
 	// Cancel the task runner to break out of restart delay or the main run
 	// loop.
-	tr.ctxCancel()
+	tr.killCtxCancel()
 
 	// Grab the handle
 	handle := tr.getDriverHandle()

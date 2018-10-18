@@ -11,7 +11,6 @@ import (
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/shared/catalog"
@@ -57,13 +56,12 @@ func (m *MockStateUpdater) Reset() {
 // testAllocRunnerConfig returns a new allocrunner.Config with mocks and noop
 // versions of dependencies along with a cleanup func.
 func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, func()) {
-	logger := testlog.HCLogger(t)
 	pluginLoader := catalog.TestPluginLoader(t)
 	clientConf, cleanup := config.TestClientConfig(t)
 	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
 		Alloc:                 alloc.Copy(),
-		Logger:                logger,
+		Logger:                clientConf.Logger,
 		ClientConfig:          clientConf,
 		StateDB:               state.NoopDB{},
 		Consul:                consulapi.NewMockConsulServiceClient(t, logger),

@@ -242,9 +242,19 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
-		return fmt.Errorf("error: handle cannot be nil")
+		return fmt.Errorf("handle cannot be nil")
 	}
 
+	// If already attached to handle there's nothing to recover.
+	if _, ok := d.tasks.Get(handle.Config.ID); ok {
+		d.logger.Trace("nothing to recover; task already exists",
+			"task_id", handle.Config.ID,
+			"task_name", handle.Config.Name,
+		)
+		return nil
+	}
+
+	// Handle doesn't already exist, try to reattach
 	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
 		d.logger.Error("failed to decode task state from handle", "error", err, "task_id", handle.Config.ID)
@@ -261,6 +271,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		Reattach: plugRC,
 	}
 
+	// Create client for reattached executor
 	exec, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)

@@ -123,7 +123,7 @@ func (tr *TaskRunner) prestart() error {
 
 		// Run the prestart hook
 		var resp interfaces.TaskPrestartResponse
-		if err := pre.Prestart(tr.ctx, &req, &resp); err != nil {
+		if err := pre.Prestart(tr.killCtx, &req, &resp); err != nil {
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}
 
@@ -195,7 +195,7 @@ func (tr *TaskRunner) poststart() error {
 			TaskEnv:       tr.envBuilder.Build(),
 		}
 		var resp interfaces.TaskPoststartResponse
-		if err := post.Poststart(tr.ctx, &req, &resp); err != nil {
+		if err := post.Poststart(tr.killCtx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("poststart hook %q failed: %v", name, err))
 		}
 
@@ -237,7 +237,7 @@ func (tr *TaskRunner) exited() error {
 
 		req := interfaces.TaskExitedRequest{}
 		var resp interfaces.TaskExitedResponse
-		if err := post.Exited(tr.ctx, &req, &resp); err != nil {
+		if err := post.Exited(tr.killCtx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("exited hook %q failed: %v", name, err))
 		}
 
@@ -280,7 +280,7 @@ func (tr *TaskRunner) stop() error {
 
 		req := interfaces.TaskStopRequest{}
 		var resp interfaces.TaskStopResponse
-		if err := post.Stop(tr.ctx, &req, &resp); err != nil {
+		if err := post.Stop(tr.killCtx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("stop hook %q failed: %v", name, err))
 		}
 
@@ -336,7 +336,7 @@ func (tr *TaskRunner) updateHooks() {
 
 		// Run the update hook
 		var resp interfaces.TaskUpdateResponse
-		if err := upd.Update(tr.ctx, &req, &resp); err != nil {
+		if err := upd.Update(tr.killCtx, &req, &resp); err != nil {
 			tr.logger.Error("update hook failed", "name", name, "error", err)
 		}
 

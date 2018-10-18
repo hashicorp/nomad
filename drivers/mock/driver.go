@@ -273,9 +273,23 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	}
 }
 
-func (d *Driver) RecoverTask(*drivers.TaskHandle) error {
-	//TODO is there anything to do here?
-	return nil
+func (d *Driver) RecoverTask(h *drivers.TaskHandle) error {
+	if h == nil {
+		return fmt.Errorf("handle cannot be nil")
+	}
+
+	if _, ok := d.tasks.Get(h.Config.ID); ok {
+		d.logger.Debug("nothing to recover; task already exists",
+			"task_id", h.Config.ID,
+			"task_name", h.Config.Name,
+		)
+		return nil
+	}
+
+	// Recovering a task requires the task to be running external to the
+	// plugin. Since the mock_driver runs all tasks in process it cannot
+	// recover tasks.
+	return fmt.Errorf("%s cannot recover tasks", pluginName)
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
