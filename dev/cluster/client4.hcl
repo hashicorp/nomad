@@ -11,7 +11,7 @@ name = "client4"
 client {
   enabled = true
   meta {
-   "team" = "web"
+   "rack" = "r2"
   }
   server_join {
     retry_join = ["127.0.0.1:4647", "127.0.0.1:5647", "127.0.0.1:6647"]
