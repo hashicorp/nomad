@@ -32,7 +32,7 @@ In a Nomad multi-datacenter/multi-region architecture, communication happens via
 
 In cloud environments, a single datacenter may be deployed across multiple availability zones. For example, in AWS each Nomad server can be deployed to an associated EC2 instance, and those EC2 instances distributed across multiple AZs. Similarly, Nomad server clusters can be deployed to multiple cloud regions to allow for region level HA scenarios.
 
-For more information on Nomad server cluster design, see the [cluster requirements documentation](/guides/cluster/requirements.html).
+For more information on Nomad server cluster design, see the [cluster requirements documentation](/guides/operations/requirements.html).
 
 The design shared in this document is the recommended architecture for production environments, as it provides flexibility and resilience. Nomad utilizes an existing Consul server cluster; however, the deployment design of the Consul server cluster is outside the scope of this document.
 
@@ -56,7 +56,7 @@ By deploying Nomad server clusters in multiple regions, the user is able to inte
 
 Nomad server clusters in different datacenters can be federated using WAN links. The server clusters can be joined to communicate over the WAN on port `4648`. This same port is used for single datacenter deployments over LAN as well.
 
-Additional documentation is available to learn more about [Nomad server federation](/guides/cluster/federation.html).
+Additional documentation is available to learn more about [Nomad server federation](/guides/operations/federation.html).
 
 ## <a name="net"></a>Network Connectivity Details
 
@@ -105,7 +105,7 @@ When setting up high availability across regions, multiple Nomad server clusters
 
 ## Failure Scenarios
 
-Typical distribution in a cloud environment is to spread Nomad server nodes into separate Availability Zones (AZs) within a high bandwidth, low latency network, such as an AWS Region. The diagram below shows Nomad servers deployed in multipls AZs promoting a single voting member per AZ and providing both AZ-level and node-level failure protection.
+Typical distribution in a cloud environment is to spread Nomad server nodes into separate Availability Zones (AZs) within a high bandwidth, low latency network, such as an AWS Region. The diagram below shows Nomad servers deployed in multiple AZs promoting a single voting member per AZ and providing both AZ-level and node-level failure protection.
 
 ![Nomad fault tolerance](/assets/images/nomad_fault_tolerance.png)
 
