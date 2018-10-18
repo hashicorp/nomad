@@ -29,6 +29,10 @@ func (h *TaskHandle) GetDriverState(v interface{}) error {
 }
 
 func (h *TaskHandle) Copy() *TaskHandle {
+	if h == nil {
+		return nil
+	}
+
 	handle := new(TaskHandle)
 	*handle = *h
 	handle.Config = h.Config.Copy()
