@@ -1664,7 +1664,7 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 func TestFSM_ApplyPlanResults(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
-
+	fsm.evalBroker.SetEnabled(true)
 	// Create the request and create a deployment
 	alloc := mock.Alloc()
 	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
@@ -1683,13 +1683,39 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	fsm.State().UpsertEvals(1, []*structs.Evaluation{eval})
 
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+
+	// set up preempted jobs and allocs
+	job1 := mock.Job()
+	job2 := mock.Job()
+
+	alloc1 := mock.Alloc()
+	alloc1.Job = job1
+	alloc1.JobID = job1.ID
+	alloc1.PreemptedByAllocation = alloc.ID
+
+	alloc2 := mock.Alloc()
+	alloc2.Job = job2
+	alloc2.JobID = job2.ID
+	alloc2.PreemptedByAllocation = alloc.ID
+
+	fsm.State().UpsertAllocs(1, []*structs.Allocation{alloc1, alloc2})
+
+	// evals for preempted jobs
+	eval1 := mock.Eval()
+	eval1.JobID = job1.ID
+
+	eval2 := mock.Eval()
+	eval2.JobID = job2.ID
+
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
 			Job:   job,
 			Alloc: []*structs.Allocation{alloc},
 		},
-		Deployment: d,
-		EvalID:     eval.ID,
+		Deployment:      d,
+		EvalID:          eval.ID,
+		NodePreemptions: []*structs.Allocation{alloc1, alloc2},
+		PreemptionEvals: []*structs.Evaluation{eval1, eval2},
 	}
 	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
 	if err != nil {
@@ -1713,6 +1739,23 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	// Job should be re-attached
 	alloc.Job = job
 	assert.Equal(alloc, out)
+
+	// Verify that evals for preempted jobs have been created
+	e1, err := fsm.State().EvalByID(ws, eval1.ID)
+	require := require.New(t)
+	require.Nil(err)
+	require.NotNil(e1)
+
+	e2, err := fsm.State().EvalByID(ws, eval2.ID)
+	require.Nil(err)
+	require.NotNil(e2)
+
+	// Verify that eval broker has both evals
+	_, ok := fsm.evalBroker.evals[e1.ID]
+	require.True(ok)
+
+	_, ok = fsm.evalBroker.evals[e1.ID]
+	require.True(ok)
 
 	dout, err := fsm.State().DeploymentByID(ws, d.ID)
 	assert.Nil(err)
