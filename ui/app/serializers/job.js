@@ -1,6 +1,6 @@
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
-import queryString from 'npm:query-string';
+import queryString from 'query-string';
 
 export default ApplicationSerializer.extend({
   attrs: {
@@ -61,22 +61,27 @@ export default ApplicationSerializer.extend({
     return assign(this._super(...arguments), {
       allocations: {
         links: {
-          related: buildURL(`${jobURL}/allocations`, { namespace: namespace }),
+          related: buildURL(`${jobURL}/allocations`, { namespace }),
         },
       },
       versions: {
         links: {
-          related: buildURL(`${jobURL}/versions`, { namespace: namespace, diffs: true }),
+          related: buildURL(`${jobURL}/versions`, { namespace, diffs: true }),
         },
       },
       deployments: {
         links: {
-          related: buildURL(`${jobURL}/deployments`, { namespace: namespace }),
+          related: buildURL(`${jobURL}/deployments`, { namespace }),
+        },
+      },
+      latestDeployment: {
+        links: {
+          related: buildURL(`${jobURL}/deployment`, { namespace }),
         },
       },
       evaluations: {
         links: {
-          related: buildURL(`${jobURL}/evaluations`, { namespace: namespace }),
+          related: buildURL(`${jobURL}/evaluations`, { namespace }),
         },
       },
     });

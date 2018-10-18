@@ -6,6 +6,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -52,7 +53,7 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 	// Add a delay so we can get multiple queued up
 	mock := newMockImageClient(mapping, 10*time.Millisecond)
 	config := &dockerCoordinatorConfig{
-		logger:      testLogger(),
+		logger:      testlog.Logger(t),
 		cleanup:     true,
 		client:      mock,
 		removeDelay: 100 * time.Millisecond,
@@ -99,7 +100,7 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 	// Add a delay so we can get multiple queued up
 	mock := newMockImageClient(mapping, 10*time.Millisecond)
 	config := &dockerCoordinatorConfig{
-		logger:      testLogger(),
+		logger:      testlog.Logger(t),
 		cleanup:     true,
 		client:      mock,
 		removeDelay: 1 * time.Millisecond,
@@ -162,7 +163,7 @@ func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
 
 	mock := newMockImageClient(mapping, 1*time.Millisecond)
 	config := &dockerCoordinatorConfig{
-		logger:      testLogger(),
+		logger:      testlog.Logger(t),
 		cleanup:     true,
 		client:      mock,
 		removeDelay: 100 * time.Millisecond,
@@ -210,7 +211,7 @@ func TestDockerCoordinator_No_Cleanup(t *testing.T) {
 
 	mock := newMockImageClient(mapping, 1*time.Millisecond)
 	config := &dockerCoordinatorConfig{
-		logger:      testLogger(),
+		logger:      testlog.Logger(t),
 		cleanup:     false,
 		client:      mock,
 		removeDelay: 1 * time.Millisecond,

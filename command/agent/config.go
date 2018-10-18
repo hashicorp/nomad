@@ -19,6 +19,7 @@ import (
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 )
@@ -36,6 +37,9 @@ type Config struct {
 
 	// DataDir is the directory to store our state in
 	DataDir string `mapstructure:"data_dir"`
+
+	// PluginDir is the directory to lookup plugins.
+	PluginDir string `mapstructure:"plugin_dir"`
 
 	// LogLevel is the level of the logs to putout
 	LogLevel string `mapstructure:"log_level"`
@@ -133,6 +137,9 @@ type Config struct {
 
 	// Autopilot contains the configuration for Autopilot behavior.
 	Autopilot *config.AutopilotConfig `mapstructure:"autopilot"`
+
+	// Plugins is the set of configured plugins
+	Plugins []*config.PluginConfig `hcl:"plugin,expand"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -217,6 +224,9 @@ type ClientConfig struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -268,7 +278,7 @@ type ServerConfig struct {
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
-	NumSchedulers int `mapstructure:"num_schedulers"`
+	NumSchedulers *int `mapstructure:"num_schedulers"`
 
 	// EnabledSchedulers controls the set of sub-schedulers that are
 	// enabled for this server to handle. This will restrict the evaluations
@@ -311,21 +321,24 @@ type ServerConfig struct {
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
 	// addresses, then the agent will error and exit.
+	// Deprecated in Nomad 0.10
 	StartJoin []string `mapstructure:"start_join"`
 
 	// RetryJoin is a list of addresses to join with retry enabled.
+	// Deprecated in Nomad 0.10
 	RetryJoin []string `mapstructure:"retry_join"`
 
 	// RetryMaxAttempts specifies the maximum number of times to retry joining a
 	// host on startup. This is useful for cases where we know the node will be
 	// online eventually.
+	// Deprecated in Nomad 0.10
 	RetryMaxAttempts int `mapstructure:"retry_max"`
 
 	// RetryInterval specifies the amount of time to wait in between join
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
-	RetryInterval string        `mapstructure:"retry_interval"`
-	retryInterval time.Duration `mapstructure:"-"`
+	// Deprecated in Nomad 0.10
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
 	// When set to false (default), a leave causes Consul to not rejoin
@@ -346,6 +359,59 @@ type ServerConfig struct {
 
 	// Encryption key to use for the Serf communication
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
+}
+
+// ServerJoin is used in both clients and servers to bootstrap connections to
+// servers
+type ServerJoin struct {
+	// StartJoin is a list of addresses to attempt to join when the
+	// agent starts. If Serf is unable to communicate with any of these
+	// addresses, then the agent will error and exit.
+	StartJoin []string `mapstructure:"start_join"`
+
+	// RetryJoin is a list of addresses to join with retry enabled, or a single
+	// value to find multiple servers using go-discover syntax.
+	RetryJoin []string `mapstructure:"retry_join"`
+
+	// RetryMaxAttempts specifies the maximum number of times to retry joining a
+	// host on startup. This is useful for cases where we know the node will be
+	// online eventually.
+	RetryMaxAttempts int `mapstructure:"retry_max"`
+
+	// RetryInterval specifies the amount of time to wait in between join
+	// attempts on agent start. The minimum allowed value is 1 second and
+	// the default is 30s.
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
+}
+
+func (s *ServerJoin) Merge(b *ServerJoin) *ServerJoin {
+	if s == nil {
+		return b
+	}
+
+	result := *s
+
+	if b == nil {
+		return &result
+	}
+
+	if len(b.StartJoin) != 0 {
+		result.StartJoin = b.StartJoin
+	}
+	if len(b.RetryJoin) != 0 {
+		result.RetryJoin = b.RetryJoin
+	}
+	if b.RetryMaxAttempts != 0 {
+		result.RetryMaxAttempts = b.RetryMaxAttempts
+	}
+	if b.RetryInterval != 0 {
+		result.RetryInterval = b.RetryInterval
+	}
+
+	return &result
 }
 
 // EncryptBytes returns the encryption key configured.
@@ -473,71 +539,19 @@ type AdvertiseAddrs struct {
 }
 
 type Resources struct {
-	CPU                 int    `mapstructure:"cpu"`
-	MemoryMB            int    `mapstructure:"memory"`
-	DiskMB              int    `mapstructure:"disk"`
-	IOPS                int    `mapstructure:"iops"`
-	ReservedPorts       string `mapstructure:"reserved_ports"`
-	ParsedReservedPorts []int  `mapstructure:"-"`
+	CPU           int    `mapstructure:"cpu"`
+	MemoryMB      int    `mapstructure:"memory"`
+	DiskMB        int    `mapstructure:"disk"`
+	IOPS          int    `mapstructure:"iops"`
+	ReservedPorts string `mapstructure:"reserved_ports"`
 }
 
-// ParseReserved expands the ReservedPorts string into a slice of port numbers.
+// CanParseReserved returns if the reserved ports specification is parsable.
 // The supported syntax is comma separated integers or ranges separated by
 // hyphens. For example, "80,120-150,160"
-func (r *Resources) ParseReserved() error {
-	parts := strings.Split(r.ReservedPorts, ",")
-
-	// Hot path the empty case
-	if len(parts) == 1 && parts[0] == "" {
-		return nil
-	}
-
-	ports := make(map[int]struct{})
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		rangeParts := strings.Split(part, "-")
-		l := len(rangeParts)
-		switch l {
-		case 1:
-			if val := rangeParts[0]; val == "" {
-				return fmt.Errorf("can't specify empty port")
-			} else {
-				port, err := strconv.Atoi(val)
-				if err != nil {
-					return err
-				}
-				ports[port] = struct{}{}
-			}
-		case 2:
-			// We are parsing a range
-			start, err := strconv.Atoi(rangeParts[0])
-			if err != nil {
-				return err
-			}
-
-			end, err := strconv.Atoi(rangeParts[1])
-			if err != nil {
-				return err
-			}
-
-			if end < start {
-				return fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
-			}
-
-			for i := start; i <= end; i++ {
-				ports[i] = struct{}{}
-			}
-		default:
-			return fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
-		}
-	}
-
-	for port := range ports {
-		r.ParsedReservedPorts = append(r.ParsedReservedPorts, port)
-	}
-
-	sort.Ints(r.ParsedReservedPorts)
-	return nil
+func (r *Resources) CanParseReserved() error {
+	_, err := structs.ParsePortRanges(r.ReservedPorts)
+	return err
 }
 
 // DevConfig is a Config that is used for dev mode of Nomad.
@@ -558,9 +572,7 @@ func DevConfig() *Config {
 	}
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
-	}
-	conf.Client.Options = map[string]string{
-		"driver.docker.volumes": "true",
+		"driver.docker.volumes":  "true",
 	}
 	conf.Client.GCInterval = 10 * time.Minute
 	conf.Client.GCDiskUsageThreshold = 99
@@ -601,13 +613,20 @@ func DefaultConfig() *Config {
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
 			NoHostUUID:            helper.BoolToPtr(true),
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		Server: &ServerConfig{
-			Enabled:          false,
-			StartJoin:        []string{},
-			RetryJoin:        []string{},
-			RetryInterval:    "30s",
-			RetryMaxAttempts: 0,
+			Enabled:   false,
+			StartJoin: []string{},
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -667,6 +686,9 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 	if b.DataDir != "" {
 		result.DataDir = b.DataDir
+	}
+	if b.PluginDir != "" {
+		result.PluginDir = b.PluginDir
 	}
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
@@ -787,6 +809,16 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Autopilot = &autopilot
 	} else if b.Autopilot != nil {
 		result.Autopilot = result.Autopilot.Merge(b.Autopilot)
+	}
+
+	if len(result.Plugins) == 0 && len(b.Plugins) != 0 {
+		copy := make([]*config.PluginConfig, len(b.Plugins))
+		for i, v := range b.Plugins {
+			copy[i] = v.Copy()
+		}
+		result.Plugins = copy
+	} else if len(b.Plugins) != 0 {
+		result.Plugins = config.PluginConfigSetMerge(result.Plugins, b.Plugins)
 	}
 
 	// Merge config files lists
@@ -1009,8 +1041,8 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RaftProtocol != 0 {
 		result.RaftProtocol = b.RaftProtocol
 	}
-	if b.NumSchedulers != 0 {
-		result.NumSchedulers = b.NumSchedulers
+	if b.NumSchedulers != nil {
+		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
@@ -1036,9 +1068,8 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts
 	}
-	if b.RetryInterval != "" {
+	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
-		result.retryInterval = b.retryInterval
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
@@ -1054,6 +1085,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.EncryptKey != "" {
 		result.EncryptKey = b.EncryptKey
+	}
+	if b.ServerJoin != nil {
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
 	// Add the schedulers
@@ -1160,6 +1194,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	for k, v := range b.ChrootEnv {
 		result.ChrootEnv[k] = v
+	}
+
+	if b.ServerJoin != nil {
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
 	return &result
@@ -1318,9 +1356,6 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if b.ReservedPorts != "" {
 		result.ReservedPorts = b.ReservedPorts
-	}
-	if len(b.ParsedReservedPorts) != 0 {
-		result.ParsedReservedPorts = b.ParsedReservedPorts
 	}
 	return &result
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -28,7 +29,8 @@ const (
 
 // ACL endpoint is used for manipulating ACL tokens and policies
 type ACL struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // UpsertPolicies is used to create or update a set of policies
@@ -420,7 +422,7 @@ func (a *ACL) fileBootstrapResetIndex() uint64 {
 	raw, err := ioutil.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			a.srv.logger.Printf("[ERR] acl.bootstrap: failed to read %q: %v", path, err)
+			a.logger.Error("failed to read bootstrap file", "path", path, "error", err)
 		}
 		return 0
 	}
@@ -428,12 +430,12 @@ func (a *ACL) fileBootstrapResetIndex() uint64 {
 	// Attempt to parse the file
 	var resetIdx uint64
 	if _, err := fmt.Sscanf(string(raw), "%d", &resetIdx); err != nil {
-		a.srv.logger.Printf("[ERR] acl.bootstrap: failed to parse %q: %v", path, err)
+		a.logger.Error("failed to parse bootstrap file", "path", path, "error", err)
 		return 0
 	}
 
 	// Return the reset index
-	a.srv.logger.Printf("[WARN] acl.bootstrap: parsed %q: reset index %d", path, resetIdx)
+	a.logger.Warn("bootstrap file parsed", "path", path, "reset_index", resetIdx)
 	return resetIdx
 }
 

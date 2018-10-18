@@ -9,13 +9,18 @@ moduleForAdapter('node', 'Unit | Adapter | Node', {
     'adapter:node',
     'model:node-attributes',
     'model:allocation',
+    'model:node-driver',
+    'model:node-event',
+    'model:evaluation',
     'model:job',
     'serializer:application',
     'serializer:node',
+    'service:system',
     'service:token',
     'service:config',
     'service:watchList',
     'transform:fragment',
+    'transform:fragment-array',
   ],
   beforeEach() {
     this.server = startMirage();

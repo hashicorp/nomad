@@ -203,7 +203,7 @@ func (h *Harness) Snapshot() State {
 // Scheduler is used to return a new scheduler from
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory Factory) Scheduler {
-	logger := testlog.Logger(h.t)
+	logger := testlog.HCLogger(h.t)
 	return factory(logger, h.Snapshot(), h)
 }
 

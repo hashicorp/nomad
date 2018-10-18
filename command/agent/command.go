@@ -63,9 +63,11 @@ func (c *Command) readConfig() *Config {
 		Client: &ClientConfig{},
 		Consul: &config.ConsulConfig{},
 		Ports:  &Ports{},
-		Server: &ServerConfig{},
-		Vault:  &config.VaultConfig{},
-		ACL:    &ACLConfig{},
+		Server: &ServerConfig{
+			ServerJoin: &ServerJoin{},
+		},
+		Vault: &config.VaultConfig{},
+		ACL:   &ACLConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -78,13 +80,16 @@ func (c *Command) readConfig() *Config {
 
 	// Server-only options
 	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
-	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.StartJoin), "join", "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
-	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
-	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
 	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 	flags.IntVar(&cmdConfig.Server.RaftProtocol, "raft-protocol", 0, "")
+	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.StartJoin), "join", "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.RetryJoin), "retry-join", "")
+	flags.IntVar(&cmdConfig.Server.ServerJoin.RetryMaxAttempts, "retry-max", 0, "")
+	flags.Var((flaghelper.FuncDurationVar)(func(d time.Duration) error {
+		cmdConfig.Server.ServerJoin.RetryInterval = d
+		return nil
+	}), "retry-interval", "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -100,6 +105,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.BindAddr, "bind", "", "")
 	flags.StringVar(&cmdConfig.Region, "region", "", "")
 	flags.StringVar(&cmdConfig.DataDir, "data-dir", "", "")
+	flags.StringVar(&cmdConfig.PluginDir, "plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
@@ -251,6 +257,21 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
+	// Set up the TLS configuration properly if we have one.
+	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
+	// constructor-type actions like this.
+	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
+		if err := config.TLSConfig.SetChecksum(); err != nil {
+			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
+		}
+	}
+
+	// Default the plugin directory to be under that of the data directory if it
+	// isn't explicitly specified.
+	if config.PluginDir == "" && config.DataDir != "" {
+		config.PluginDir = filepath.Join(config.DataDir, "plugins")
+	}
+
 	if dev {
 		// Skip validation for dev mode
 		return config
@@ -267,14 +288,6 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	// Parse the RetryInterval.
-	dur, err := time.ParseDuration(config.Server.RetryInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
-		return nil
-	}
-	config.Server.retryInterval = dur
-
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
@@ -283,9 +296,10 @@ func (c *Command) readConfig() *Config {
 
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":  config.DataDir,
-		"alloc-dir": config.Client.AllocDir,
-		"state-dir": config.Client.StateDir,
+		"data-dir":   config.DataDir,
+		"plugin-dir": config.PluginDir,
+		"alloc-dir":  config.Client.AllocDir,
+		"state-dir":  config.Client.StateDir,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
@@ -298,7 +312,7 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	// Ensure that we have the directories we neet to run.
+	// Ensure that we have the directories we need to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
 		return nil
@@ -307,8 +321,8 @@ func (c *Command) readConfig() *Config {
 	// The config is valid if the top-level data-dir is set or if both
 	// alloc-dir and state-dir are set.
 	if config.Client.Enabled && config.DataDir == "" {
-		if config.Client.AllocDir == "" || config.Client.StateDir == "" {
-			c.Ui.Error("Must specify both the state and alloc dir if data-dir is omitted.")
+		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
+			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
 			return nil
 		}
 	}
@@ -320,15 +334,6 @@ func (c *Command) readConfig() *Config {
 	}
 	if config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
-	}
-
-	// Set up the TLS configuration properly if we have one.
-	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
-	// constructor-type actions like this.
-	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
-		if err := config.TLSConfig.SetChecksum(); err != nil {
-			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
-		}
 	}
 
 	return config
@@ -396,8 +401,9 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 	}
 	c.httpServer = http
 
-	// Setup update checking
-	if config.DisableUpdateCheck != nil && *config.DisableUpdateCheck {
+	// If DisableUpdateCheck is not enabled, set up update checking
+	// (DisableUpdateCheck is false by default)
+	if config.DisableUpdateCheck != nil && !*config.DisableUpdateCheck {
 		version := config.Version.Version
 		if config.Version.VersionPrerelease != "" {
 			version += fmt.Sprintf("-%s", config.Version.VersionPrerelease)
@@ -547,18 +553,87 @@ func (c *Command) Run(args []string) int {
 	logGate.Flush()
 
 	// Start retry join process
-	c.retryJoinErrCh = make(chan struct{})
-
-	joiner := retryJoiner{
-		join:     c.agent.server.Join,
-		discover: &discover.Discover{},
-		errCh:    c.retryJoinErrCh,
-		logger:   c.agent.logger,
+	if err := c.handleRetryJoin(config); err != nil {
+		c.Ui.Error(err.Error())
+		return 1
 	}
-	go joiner.RetryJoin(config)
 
 	// Wait for exit
 	return c.handleSignals()
+}
+
+// handleRetryJoin is used to start retry joining if it is configured.
+func (c *Command) handleRetryJoin(config *Config) error {
+	c.retryJoinErrCh = make(chan struct{})
+
+	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger.Named("joiner"),
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		// Remove the duplicate fields
+		if len(config.Server.RetryJoin) != 0 {
+			config.Server.ServerJoin.RetryJoin = config.Server.RetryJoin
+			config.Server.RetryJoin = nil
+		}
+		if config.Server.RetryMaxAttempts != 0 {
+			config.Server.ServerJoin.RetryMaxAttempts = config.Server.RetryMaxAttempts
+			config.Server.RetryMaxAttempts = 0
+		}
+		if config.Server.RetryInterval != 0 {
+			config.Server.ServerJoin.RetryInterval = config.Server.RetryInterval
+			config.Server.RetryInterval = 0
+		}
+
+		c.agent.logger.Warn("using deprecated retry_join fields. Upgrade configuration to use server_join")
+	}
+
+	if config.Server.Enabled &&
+		config.Server.ServerJoin != nil &&
+		len(config.Server.ServerJoin.RetryJoin) != 0 {
+
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger.Named("joiner"),
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		go joiner.RetryJoin(config.Server.ServerJoin)
+	}
+
+	if config.Client.Enabled &&
+		config.Client.ServerJoin != nil &&
+		len(config.Client.ServerJoin.RetryJoin) != 0 {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger.Named("joiner"),
+			clientJoin:    c.agent.client.SetServers,
+			clientEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		go joiner.RetryJoin(config.Client.ServerJoin)
+	}
+
+	return nil
 }
 
 // handleSignals blocks until we get an exit-causing signal
@@ -629,7 +704,7 @@ WAIT:
 // reloadHTTPServer shuts down the existing HTTP server and restarts it. This
 // is helpful when reloading the agent configuration.
 func (c *Command) reloadHTTPServer() error {
-	c.agent.logger.Println("[INFO] agent: Reloading HTTP server with new TLS configuration")
+	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
 
 	c.httpServer.Shutdown()
 
@@ -664,42 +739,51 @@ func (c *Command) handleReload() {
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
-	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := c.agent.ShouldReload(newConf)
+	shouldReloadAgent, shouldReloadHTTP := c.agent.ShouldReload(newConf)
 	if shouldReloadAgent {
-		c.agent.logger.Printf("[DEBUG] agent: starting reload of agent config")
+		c.agent.logger.Debug("starting reload of agent config")
 		err := c.agent.Reload(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
+			c.agent.logger.Error("failed to reload the config", "error", err)
 			return
 		}
 	}
 
-	if shouldReloadRPC {
-		if s := c.agent.Server(); s != nil {
-			sconf, err := convertServerConfig(newConf, c.logOutput)
-			c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
-			if err != nil {
-				c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
-				return
-			} else {
-				if err := s.Reload(sconf); err != nil {
-					c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
-					return
-				}
-			}
+	if s := c.agent.Server(); s != nil {
+		c.agent.logger.Debug("starting reload of server config")
+		sconf, err := convertServerConfig(newConf)
+		if err != nil {
+			c.agent.logger.Error("failed to convert server config", "error", err)
+			return
 		}
 
-		if s := c.agent.Client(); s != nil {
-			clientConfig, err := c.agent.clientConfig()
-			c.agent.logger.Printf("[DEBUG] agent: starting reload of client config")
-			if err != nil {
-				c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
-				return
-			}
-			if err := c.agent.Client().Reload(clientConfig); err != nil {
-				c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
-				return
-			}
+		// Finalize the config to get the agent objects injected in
+		c.agent.finalizeServerConfig(sconf)
+
+		// Reload the config
+		if err := s.Reload(sconf); err != nil {
+			c.agent.logger.Error("reloading server config failed", "error", err)
+			return
+		}
+	}
+
+	if s := c.agent.Client(); s != nil {
+		c.agent.logger.Debug("starting reload of client config")
+		clientConfig, err := convertClientConfig(newConf)
+		if err != nil {
+			c.agent.logger.Error("failed to convert client config", "error", err)
+			return
+		}
+
+		// Finalize the config to get the agent objects injected in
+		if err := c.agent.finalizeClientConfig(clientConfig); err != nil {
+			c.agent.logger.Error("failed to finalize client config", "error", err)
+			return
+		}
+
+		if err := c.agent.Client().Reload(clientConfig); err != nil {
+			c.agent.logger.Error("reloading client config failed", "error", err)
+			return
 		}
 	}
 
@@ -710,7 +794,7 @@ func (c *Command) handleReload() {
 	if shouldReloadHTTP {
 		err := c.reloadHTTPServer()
 		if err != nil {
-			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
+			c.agent.httpLogger.Error("reloading config failed", "error", err)
 			return
 		}
 	}
@@ -831,12 +915,34 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 }
 
 func (c *Command) startupJoin(config *Config) error {
-	if len(config.Server.StartJoin) == 0 || !config.Server.Enabled {
+	// Nothing to do
+	if !config.Server.Enabled {
 		return nil
 	}
 
+	// Validate both old and new aren't being set
+	old := len(config.Server.StartJoin)
+	var new int
+	if config.Server.ServerJoin != nil {
+		new = len(config.Server.ServerJoin.StartJoin)
+	}
+	if old != 0 && new != 0 {
+		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
+	}
+
+	// Nothing to do
+	if old+new == 0 {
+		return nil
+	}
+
+	// Combine the lists and join
+	joining := config.Server.StartJoin
+	if new != 0 {
+		joining = append(joining, config.Server.ServerJoin.StartJoin...)
+	}
+
 	c.Ui.Output("Joining cluster...")
-	n, err := c.agent.server.Join(config.Server.StartJoin)
+	n, err := c.agent.server.Join(joining)
 	if err != nil {
 		return err
 	}
@@ -924,6 +1030,10 @@ General Options (clients and servers):
     On client machines this is used to house allocation data such as
     downloaded artifacts used by drivers. On server nodes, the data
     dir is also used to store the replicated log.
+
+  -plugin-dir=<path>
+    The plugin directory is used to discover Nomad plugins. If not specified,
+    the plugin directory defaults to be that of <data-dir>/plugins/.
 
   -dc=<datacenter>
     The name of the datacenter this Nomad agent is a member of. By

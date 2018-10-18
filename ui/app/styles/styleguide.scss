@@ -1,11 +1,12 @@
 #styleguide {
   .mock-content {
     display: flex;
-    height: 250px;
+    min-height: 250px;
+    height: 100%;
 
     .mock-image,
     .mock-copy {
-      height: 100%;
+      min-height: 100%;
       width: 100%;
       margin: 1em;
     }
@@ -40,5 +41,15 @@
         transparent 14px
       );
     }
+
+    .mock-vague {
+      background: lighten($grey-blue, 15%);
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .mock-spacing {
+    padding: 2em;
   }
 }

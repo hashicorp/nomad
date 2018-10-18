@@ -1211,6 +1211,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Operand: "c",
 			},
 		},
+		Affinities: []*api.Affinity{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+				Weight:  50,
+			},
+		},
 		Update: &api.UpdateStrategy{
 			Stagger:          helper.TimeToPtr(1 * time.Second),
 			MaxParallel:      helper.IntToPtr(5),
@@ -1220,6 +1228,18 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			ProgressDeadline: helper.TimeToPtr(3 * time.Minute),
 			AutoRevert:       helper.BoolToPtr(false),
 			Canary:           helper.IntToPtr(1),
+		},
+		Spreads: []*api.Spread{
+			{
+				Attribute: "${meta.rack}",
+				Weight:    100,
+				SpreadTarget: []*api.SpreadTarget{
+					{
+						Value:   "r1",
+						Percent: 50,
+					},
+				},
+			},
 		},
 		Periodic: &api.PeriodicConfig{
 			Enabled:         helper.BoolToPtr(true),
@@ -1248,6 +1268,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Operand: "z",
 					},
 				},
+				Affinities: []*api.Affinity{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+						Weight:  100,
+					},
+				},
 				RestartPolicy: &api.RestartPolicy{
 					Interval: helper.TimeToPtr(1 * time.Second),
 					Attempts: helper.IntToPtr(5),
@@ -1267,6 +1295,18 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					HealthCheck:     helper.StringToPtr("task_events"),
 					MinHealthyTime:  helper.TimeToPtr(12 * time.Hour),
 					HealthyDeadline: helper.TimeToPtr(12 * time.Hour),
+				},
+				Spreads: []*api.Spread{
+					{
+						Attribute: "${node.datacenter}",
+						Weight:    100,
+						SpreadTarget: []*api.SpreadTarget{
+							{
+								Value:   "dc1",
+								Percent: 100,
+							},
+						},
+					},
 				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  helper.IntToPtr(100),
@@ -1301,6 +1341,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LTarget: "x",
 								RTarget: "y",
 								Operand: "z",
+							},
+						},
+						Affinities: []*api.Affinity{
+							{
+								LTarget: "a",
+								RTarget: "b",
+								Operand: "c",
+								Weight:  50,
 							},
 						},
 
@@ -1366,6 +1414,31 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Value: 2000,
 										},
 									},
+								},
+							},
+							Devices: []*api.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: helper.Uint64ToPtr(4),
+									Constraints: []*api.Constraint{
+										{
+											LTarget: "x",
+											RTarget: "y",
+											Operand: "z",
+										},
+									},
+									Affinities: []*api.Affinity{
+										{
+											LTarget: "a",
+											RTarget: "b",
+											Operand: "c",
+											Weight:  50,
+										},
+									},
+								},
+								{
+									Name:  "gpu",
+									Count: nil,
 								},
 							},
 						},
@@ -1443,6 +1516,26 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Operand: "c",
 			},
 		},
+		Affinities: []*structs.Affinity{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+				Weight:  50,
+			},
+		},
+		Spreads: []*structs.Spread{
+			{
+				Attribute: "${meta.rack}",
+				Weight:    100,
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "r1",
+						Percent: 50,
+					},
+				},
+			},
+		},
 		Update: structs.UpdateStrategy{
 			Stagger:     1 * time.Second,
 			MaxParallel: 5,
@@ -1474,11 +1567,31 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Operand: "z",
 					},
 				},
+				Affinities: []*structs.Affinity{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+						Weight:  100,
+					},
+				},
 				RestartPolicy: &structs.RestartPolicy{
 					Interval: 1 * time.Second,
 					Attempts: 5,
 					Delay:    10 * time.Second,
 					Mode:     "delay",
+				},
+				Spreads: []*structs.Spread{
+					{
+						Attribute: "${node.datacenter}",
+						Weight:    100,
+						SpreadTarget: []*structs.SpreadTarget{
+							{
+								Value:   "dc1",
+								Percent: 100,
+							},
+						},
+					},
 				},
 				ReschedulePolicy: &structs.ReschedulePolicy{
 					Interval:      12 * time.Hour,
@@ -1526,6 +1639,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LTarget: "x",
 								RTarget: "y",
 								Operand: "z",
+							},
+						},
+						Affinities: []*structs.Affinity{
+							{
+								LTarget: "a",
+								RTarget: "b",
+								Operand: "c",
+								Weight:  50,
 							},
 						},
 						Env: map[string]string{
@@ -1592,6 +1713,31 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Value: 2000,
 										},
 									},
+								},
+							},
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 4,
+									Constraints: []*structs.Constraint{
+										{
+											LTarget: "x",
+											RTarget: "y",
+											Operand: "z",
+										},
+									},
+									Affinities: []*structs.Affinity{
+										{
+											LTarget: "a",
+											RTarget: "b",
+											Operand: "c",
+											Weight:  50,
+										},
+									},
+								},
+								{
+									Name:  "gpu",
+									Count: 1,
 								},
 							},
 						},

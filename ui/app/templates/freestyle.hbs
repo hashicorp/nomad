@@ -15,6 +15,14 @@
     {{/freestyle-section}}
 
     {{#freestyle-section name="Components" as |section|}}
+      {{#section.subsection name="Accordion"}}
+        {{freestyle/sg-accordion}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Alerts"}}
+        {{freestyle/sg-alerts}}
+      {{/section.subsection}}
+
       {{#section.subsection name="Boxed section"}}
         {{freestyle/sg-boxed-section}}
       {{/section.subsection}}
@@ -28,32 +36,66 @@
       {{/section.subsection}}
 
       {{#section.subsection name="Diff Viewer"}}
+        {{freestyle/sg-diff-viewer}}
       {{/section.subsection}}
+
       {{#section.subsection name="Dropdown"}}
+        {{freestyle/sg-dropdown}}
       {{/section.subsection}}
-      {{#section.subsection name="Event stream"}}
+
+      {{#section.subsection name="Gutter menu"}}
+        {{freestyle/sg-gutter-menu}}
       {{/section.subsection}}
-      {{#section.subsection name="Gutter navigation"}}
-      {{/section.subsection}}
+
       {{#section.subsection name="Header"}}
+        {{freestyle/sg-header}}
       {{/section.subsection}}
+
       {{#section.subsection name="Inline definitions"}}
+        {{freestyle/sg-inline-definitions}}
       {{/section.subsection}}
+
       {{#section.subsection name="JSON Viewer"}}
+        {{freestyle/sg-json-viewer}}
       {{/section.subsection}}
+
       {{#section.subsection name="Log Stream"}}
+        {{freestyle/sg-log-stream}}
       {{/section.subsection}}
-      {{#section.subsection name="Metric"}}
+
+      {{#section.subsection name="Metrics"}}
+        {{freestyle/sg-metrics}}
       {{/section.subsection}}
+
       {{#section.subsection name="Page tabs"}}
+        {{freestyle/sg-page-tabs}}
       {{/section.subsection}}
+
       {{#section.subsection name="Page title"}}
+        {{freestyle/sg-page-title}}
       {{/section.subsection}}
+
       {{#section.subsection name="Search box"}}
+        {{freestyle/sg-search-box}}
       {{/section.subsection}}
+
       {{#section.subsection name="Table"}}
+        {{freestyle/sg-table
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          currentPage=currentPage}}
       {{/section.subsection}}
+
       {{#section.subsection name="Table, Configuration"}}
+        {{freestyle/sg-table-configuration}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Timeline"}}
+        {{freestyle/sg-timeline}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Two-step Button"}}
+        {{freestyle/sg-two-step-button}}
       {{/section.subsection}}
     {{/freestyle-section}}
 
@@ -66,7 +108,16 @@
         {{freestyle/sg-distribution-bar-jumbo}}
       {{/section.subsection}}
 
+      {{#section.subsection name="Line Chart"}}
+        {{freestyle/sg-line-chart}}
+      {{/section.subsection}}
+
       {{#section.subsection name="Progress Bar"}}
+        {{freestyle/sg-progress-bar}}
+      {{/section.subsection}}
+
+      {{#section.subsection name="Stats Time Series"}}
+        {{freestyle/sg-stats-time-series}}
       {{/section.subsection}}
     {{/freestyle-section}}
   {{/freestyle-guide}}

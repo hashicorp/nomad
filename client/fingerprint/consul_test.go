@@ -9,12 +9,13 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConsulFingerprint(t *testing.T) {
-	fp := NewConsulFingerprint(testLogger())
+	fp := NewConsulFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -170,7 +171,7 @@ const mockConsulResponse = `
 // See https://github.com/hashicorp/nomad/issues/3326
 func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	assert := assert.New(t)
-	fp := NewConsulFingerprint(testLogger())
+	fp := NewConsulFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

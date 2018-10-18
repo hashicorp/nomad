@@ -917,6 +917,21 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.NotZero(resp3.Index)
 	require.NotZero(resp3.EvalCreateIndex)
 	require.Len(resp3.EvalIDs, 1)
+
+	// Check for updated node in the FSM
+	ws = memdb.NewWatchSet()
+	out, err = state.NodeByID(ws, node.ID)
+	require.NoError(err)
+	require.Len(out.Events, 3)
+	require.Equal(NodeDrainEventDrainDisabled, out.Events[2].Message)
+
+	// Check that calling UpdateDrain with the same DrainStrategy does not emit
+	// a node event.
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp3))
+	ws = memdb.NewWatchSet()
+	out, err = state.NodeByID(ws, node.ID)
+	require.NoError(err)
+	require.Len(out.Events, 3)
 }
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {

@@ -1,24 +1,24 @@
 package fingerprint
 
 import (
-	"log"
-
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // NomadFingerprint is used to fingerprint the Nomad version
 type NomadFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	logger log.Logger
 }
 
 // NewNomadFingerprint is used to create a Nomad fingerprint
-func NewNomadFingerprint(logger *log.Logger) Fingerprint {
-	f := &NomadFingerprint{logger: logger}
+func NewNomadFingerprint(logger log.Logger) Fingerprint {
+	f := &NomadFingerprint{logger: logger.Named("nomad")}
 	return f
 }
 
 func (f *NomadFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	resp.AddAttribute("nomad.advertise.address", req.Node.HTTPAddr)
 	resp.AddAttribute("nomad.version", req.Config.Version.VersionNumber())
 	resp.AddAttribute("nomad.revision", req.Config.Version.Revision)
 	resp.Detected = true

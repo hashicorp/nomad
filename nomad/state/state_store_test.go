@@ -1352,41 +1352,6 @@ func TestStateStore_UpdateUpsertJob_PeriodicJob(t *testing.T) {
 
 }
 
-// This test ensures that UpsertJob creates the EphemeralDisk is a job doesn't have
-// one and clear out the task's disk resource asks
-// COMPAT 0.4.1 -> 0.5
-func TestStateStore_UpsertJob_NoEphemeralDisk(t *testing.T) {
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Set the EphemeralDisk to nil and set the tasks's DiskMB to 150
-	job.TaskGroups[0].EphemeralDisk = nil
-	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 150
-
-	err := state.UpsertJob(1000, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Expect the state store to create the EphemeralDisk and clear out Tasks's
-	// DiskMB
-	expected := job.Copy()
-	expected.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{
-		SizeMB: 150,
-	}
-	expected.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
-
-	if !reflect.DeepEqual(expected, out) {
-		t.Fatalf("bad: %#v %#v", expected, out)
-	}
-}
-
 func TestStateStore_UpsertJob_BadNamespace(t *testing.T) {
 	assert := assert.New(t)
 	state := testStateStore(t)
@@ -2118,45 +2083,6 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(out, job) {
-		t.Fatalf("Bad: %#v %#v", out, job)
-	}
-}
-
-// This test ensures that the state restore creates the EphemeralDisk for a job if
-// it doesn't have one
-// COMPAT 0.4.1 -> 0.5
-func TestStateStore_Jobs_NoEphemeralDisk(t *testing.T) {
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Set EphemeralDisk to nil and set the DiskMB to 150
-	job.TaskGroups[0].EphemeralDisk = nil
-	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 150
-
-	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	err = restore.JobRestore(job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	restore.Commit()
-
-	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Expect job to have local disk and clear out the task's disk resource ask
-	expected := job.Copy()
-	expected.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{
-		SizeMB: 150,
-	}
-	expected.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
-	if !reflect.DeepEqual(out, expected) {
 		t.Fatalf("Bad: %#v %#v", out, job)
 	}
 }
@@ -3763,34 +3689,6 @@ func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpsertAlloc_NoEphemeralDisk(t *testing.T) {
-	state := testStateStore(t)
-	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].EphemeralDisk = nil
-	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
-
-	if err := state.UpsertJob(999, alloc.Job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	ws := memdb.NewWatchSet()
-	out, err := state.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	expected := alloc.Copy()
-	expected.Job.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{SizeMB: 120}
-	if !reflect.DeepEqual(expected, out) {
-		t.Fatalf("bad: %#v %#v", expected, out)
-	}
-}
-
 func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
 	state := testStateStore(t)
 
@@ -4779,43 +4677,6 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 
 	if !reflect.DeepEqual(out, alloc) {
 		t.Fatalf("Bad: %#v %#v", out, alloc)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
-}
-
-func TestStateStore_RestoreAlloc_NoEphemeralDisk(t *testing.T) {
-	state := testStateStore(t)
-	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].EphemeralDisk = nil
-	alloc.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 120
-
-	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	err = restore.AllocRestore(alloc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	restore.Commit()
-
-	ws := memdb.NewWatchSet()
-	out, err := state.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	expected := alloc.Copy()
-	expected.Job.TaskGroups[0].EphemeralDisk = &structs.EphemeralDisk{SizeMB: 120}
-	expected.Job.TaskGroups[0].Tasks[0].Resources.DiskMB = 0
-
-	if !reflect.DeepEqual(out, expected) {
-		t.Fatalf("Bad: %#v %#v", out, expected)
 	}
 
 	if watchFired(ws) {

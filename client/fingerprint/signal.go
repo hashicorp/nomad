@@ -1,22 +1,22 @@
 package fingerprint
 
 import (
-	"log"
 	"strings"
 
 	"github.com/hashicorp/consul-template/signals"
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // SignalFingerprint is used to fingerprint the available signals
 type SignalFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	logger log.Logger
 }
 
 // NewSignalFingerprint is used to create a Signal fingerprint
-func NewSignalFingerprint(logger *log.Logger) Fingerprint {
-	f := &SignalFingerprint{logger: logger}
+func NewSignalFingerprint(logger log.Logger) Fingerprint {
+	f := &SignalFingerprint{logger: logger.Named("signals")}
 	return f
 }
 

@@ -1,8 +1,6 @@
 package deploymentwatcher
 
 import (
-	"log"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -12,10 +10,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	mocker "github.com/stretchr/testify/mock"
 )
-
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
-}
 
 type mockBackend struct {
 	mocker.Mock
@@ -125,17 +119,14 @@ type matchDeploymentStatusUpdateConfig struct {
 func matchDeploymentStatusUpdateRequest(c *matchDeploymentStatusUpdateConfig) func(args *structs.DeploymentStatusUpdateRequest) bool {
 	return func(args *structs.DeploymentStatusUpdateRequest) bool {
 		if args.DeploymentUpdate.DeploymentID != c.DeploymentID {
-			testLogger().Printf("deployment ids dont match")
 			return false
 		}
 
 		if args.DeploymentUpdate.Status != c.Status && args.DeploymentUpdate.StatusDescription != c.StatusDescription {
-			testLogger().Printf("status's dont match")
 			return false
 		}
 
 		if c.Eval && args.Eval == nil || !c.Eval && args.Eval != nil {
-			testLogger().Printf("evals dont match")
 			return false
 		}
 

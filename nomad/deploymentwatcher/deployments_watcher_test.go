@@ -7,6 +7,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -18,7 +19,7 @@ import (
 
 func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*Watcher, *mockBackend) {
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testLogger(), m, qps, batchDur)
+	w := NewDeploymentsWatcher(testlog.HCLogger(t), m, qps, batchDur)
 	return w, m
 }
 

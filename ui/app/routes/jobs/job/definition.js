@@ -8,4 +8,13 @@ export default Route.extend({
       definition,
     }));
   },
+
+  resetController(controller, isExiting) {
+    if (isExiting) {
+      const job = controller.get('job');
+      job.rollbackAttributes();
+      job.resetId();
+      controller.set('isEditing', false);
+    }
+  },
 });

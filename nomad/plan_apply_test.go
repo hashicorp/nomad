@@ -253,7 +253,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
-	alloc2.Resources = node2.Resources
+	alloc2.AllocatedResources = structs.NodeResourcesToAllocatedResources(node2.NodeResources)
 
 	// Create a deployment where the allocs are markeda as canaries
 	d := mock.Deployment()
@@ -300,7 +300,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
-	alloc2.Resources = node2.Resources
+	alloc2.AllocatedResources = structs.NodeResourcesToAllocatedResources(node2.NodeResources)
 	plan := &structs.Plan{
 		Job:       alloc.Job,
 		AllAtOnce: true, // Require all to make progress
@@ -361,7 +361,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -494,9 +494,9 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
+	node.ReservedResources = nil
 	alloc.NodeID = node.ID
-	node.Resources = alloc.Resources
-	node.Reserved = nil
+	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	state.UpsertNode(1000, node)
 	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
@@ -530,9 +530,10 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
-	alloc.NodeID = node.ID
-	node.Resources = alloc.Resources
+	node.ReservedResources = nil
 	node.Reserved = nil
+	alloc.NodeID = node.ID
+	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(1000, node)
 	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
@@ -561,9 +562,9 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
+	node.ReservedResources = nil
 	alloc.NodeID = node.ID
-	node.Resources = alloc.Resources
-	node.Reserved = nil
+	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(1000, node)
 	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
@@ -599,10 +600,10 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()
+	node.ReservedResources = nil
 	alloc.NodeID = node.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusEvict
-	node.Resources = alloc.Resources
-	node.Reserved = nil
+	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(1000, node)
 	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
 	snap, _ := state.Snapshot()
@@ -633,8 +634,8 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	alloc.NodeID = node.ID
-	node.Resources = alloc.Resources
-	node.Reserved = nil
+	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
+	node.ReservedResources = nil
 	node.Status = structs.NodeStatusDown
 	state.UpsertNode(1000, node)
 	state.UpsertAllocs(1001, []*structs.Allocation{alloc})

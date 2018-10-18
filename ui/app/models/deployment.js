@@ -1,5 +1,6 @@
-import { alias } from '@ember/object/computed';
+import { alias, equal } from '@ember/object/computed';
 import { computed } from '@ember/object';
+import { assert } from '@ember/debug';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
@@ -10,7 +11,8 @@ import sumAggregation from '../utils/properties/sum-aggregation';
 export default Model.extend({
   shortId: shortUUIDProperty('id'),
 
-  job: belongsTo('job'),
+  job: belongsTo('job', { inverse: 'deployments' }),
+  jobForLatest: belongsTo('job', { inverse: 'latestDeployment' }),
   versionNumber: attr('number'),
 
   // If any task group is not promoted yet requires promotion and the deployment
@@ -26,6 +28,9 @@ export default Model.extend({
 
   status: attr('string'),
   statusDescription: attr('string'),
+
+  isRunning: equal('status', 'running'),
+
   taskGroupSummaries: fragmentArray('task-group-deployment-summary'),
   allocations: hasMany('allocations'),
 
@@ -54,4 +59,9 @@ export default Model.extend({
 
     return classMap[this.get('status')] || 'is-dark';
   }),
+
+  promote() {
+    assert('A deployment needs to requirePromotion to be promoted', this.get('requiresPromotion'));
+    return this.store.adapterFor('deployment').promote(this);
+  },
 });

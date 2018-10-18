@@ -1,7 +1,7 @@
 import Mixin from '@ember/object/mixin';
 import { get, computed } from '@ember/object';
 import { reads } from '@ember/object/computed';
-import Fuse from 'npm:fuse.js';
+import Fuse from 'fuse.js';
 
 /**
   Searchable mixin

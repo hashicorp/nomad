@@ -9,7 +9,7 @@ description: |-
 # ACL Policies HTTP API
 
 The `/acl/policies` and `/acl/policy/` endpoints are used to manage ACL policies.
-For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
+For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 
 ## List Policies
 

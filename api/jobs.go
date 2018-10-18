@@ -610,10 +610,13 @@ type Job struct {
 	AllAtOnce         *bool `mapstructure:"all_at_once"`
 	Datacenters       []string
 	Constraints       []*Constraint
+	Affinities        []*Affinity
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
+	Spreads           []*Spread
 	Periodic          *PeriodicConfig
 	ParameterizedJob  *ParameterizedJobConfig
+	Dispatched        bool
 	Payload           []byte
 	Reschedule        *ReschedulePolicy
 	Migrate           *MigrateStrategy
@@ -636,7 +639,7 @@ func (j *Job) IsPeriodic() bool {
 
 // IsParameterized returns whether a job is parameterized job.
 func (j *Job) IsParameterized() bool {
-	return j.ParameterizedJob != nil
+	return j.ParameterizedJob != nil && !j.Dispatched
 }
 
 func (j *Job) Canonicalize() {
@@ -835,6 +838,12 @@ func (j *Job) Constrain(c *Constraint) *Job {
 	return j
 }
 
+// AddAffinity is used to add an affinity to a job.
+func (j *Job) AddAffinity(a *Affinity) *Job {
+	j.Affinities = append(j.Affinities, a)
+	return j
+}
+
 // AddTaskGroup adds a task group to an existing job.
 func (j *Job) AddTaskGroup(grp *TaskGroup) *Job {
 	j.TaskGroups = append(j.TaskGroups, grp)
@@ -844,6 +853,11 @@ func (j *Job) AddTaskGroup(grp *TaskGroup) *Job {
 // AddPeriodicConfig adds a periodic config to an existing job.
 func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 	j.Periodic = cfg
+	return j
+}
+
+func (j *Job) AddSpread(s *Spread) *Job {
+	j.Spreads = append(j.Spreads, s)
 	return j
 }
 

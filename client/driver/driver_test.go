@@ -1,19 +1,23 @@
 package driver
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/logmon"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -60,10 +64,6 @@ func copyFile(src, dst string, t *testing.T) {
 	}
 }
 
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
-}
-
 func testConfig(t *testing.T) *config.Config {
 	conf := config.DefaultConfig()
 
@@ -100,27 +100,39 @@ func testConfig(t *testing.T) *config.Config {
 	conf.MaxKillTimeout = 10 * time.Second
 	conf.Region = "global"
 	conf.Node = mock.Node()
+	conf.LogLevel = "DEBUG"
+	conf.LogOutput = testlog.NewWriter(t)
 	return conf
 }
 
 type testContext struct {
-	AllocDir   *allocdir.AllocDir
-	DriverCtx  *DriverContext
-	ExecCtx    *ExecContext
-	EnvBuilder *env.Builder
+	AllocDir     *allocdir.AllocDir
+	DriverCtx    *DriverContext
+	ExecCtx      *ExecContext
+	EnvBuilder   *env.Builder
+	logmon       logmon.LogMon
+	logmonPlugin *plugin.Client
+}
+
+func (ctx *testContext) Destroy() {
+	ctx.AllocDir.Destroy()
+	ctx.logmon.Stop()
+	ctx.logmonPlugin.Kill()
 }
 
 // testDriverContext sets up an alloc dir, task dir, DriverContext, and ExecContext.
 //
-// It is up to the caller to call AllocDir.Destroy to cleanup.
+// It is up to the caller to call Destroy to cleanup.
 func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	cfg := testConfig(t)
 	cfg.Node = mock.Node()
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, uuid.Generate()))
+	alloc := mock.Alloc()
+	alloc.NodeID = cfg.Node.ID
+
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(cfg.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	alloc := mock.Alloc()
 
 	// Build a temp driver so we can call FSIsolation and build the task dir
 	tmpdrv, err := NewDriver(task.Driver, NewEmptyDriverContext())
@@ -141,13 +153,46 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	SetEnvvars(eb, tmpdrv.FSIsolation(), td, cfg)
 	execCtx := NewExecContext(td, eb.Build())
 
-	logger := testLogger()
+	logger := testlog.Logger(t)
+	hcLogger := testlog.HCLogger(t)
 	emitter := func(m string, args ...interface{}) {
-		logger.Printf("[EVENT] "+m, args...)
+		hcLogger.Info(fmt.Sprintf("[EVENT] "+m, args...))
 	}
 	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, logger, emitter)
+	l, c, err := logmon.LaunchLogMon(hcLogger)
+	if err != nil {
+		allocDir.Destroy()
+		t.Fatalf("LaunchLogMon() failed: %v", err)
+	}
 
-	return &testContext{allocDir, driverCtx, execCtx, eb}
+	var stdoutFifo, stderrFifo string
+	if runtime.GOOS == "windows" {
+		id := uuid.Generate()[:8]
+		stdoutFifo = fmt.Sprintf("//./pipe/%s.stdout.%s", id, task.Name)
+		stderrFifo = fmt.Sprintf("//./pipe/%s.stderr.%s", id, task.Name)
+	} else {
+		stdoutFifo = filepath.Join(td.LogDir, fmt.Sprintf("%s.stdout", task.Name))
+		stderrFifo = filepath.Join(td.LogDir, fmt.Sprintf("%s.stderr", task.Name))
+	}
+
+	err = l.Start(&logmon.LogConfig{
+		LogDir:        td.LogDir,
+		StdoutLogFile: fmt.Sprintf("%s.stdout", task.Name),
+		StderrLogFile: fmt.Sprintf("%s.stderr", task.Name),
+		StdoutFifo:    stdoutFifo,
+		StderrFifo:    stderrFifo,
+		MaxFiles:      10,
+		MaxFileSizeMB: 10,
+	})
+	if err != nil {
+		allocDir.Destroy()
+		t.Fatalf("LogMon.Start() failed: %v", err)
+	}
+
+	execCtx.StdoutFifo = stdoutFifo
+	execCtx.StderrFifo = stderrFifo
+
+	return &testContext{allocDir, driverCtx, execCtx, eb, l, c}
 }
 
 // setupTaskEnv creates a test env for GetTaskEnv testing. Returns task dir,
@@ -180,9 +225,9 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = task
 	alloc.Name = "Bar"
-	alloc.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
+	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts[0].Value = 2000
 	conf := testConfig(t)
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(conf.AllocDir, alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(conf.AllocDir, alloc.ID))
 	taskDir := allocDir.NewTaskDir(task.Name)
 	eb := env.NewBuilder(conf.Node, alloc, task, conf.Region)
 	tmpDriver, err := NewDriver(driver, NewEmptyDriverContext())

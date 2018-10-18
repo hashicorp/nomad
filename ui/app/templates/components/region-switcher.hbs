@@ -1,0 +1,12 @@
+{{#if system.shouldShowRegions}}
+  {{#power-select
+    data-test-region-switcher
+    tagName="div"
+    triggerClass=decoration
+    options=sortedRegions
+    selected=system.activeRegion
+    searchEnabled=false
+    onchange=(action gotoRegion) as |region|}}
+    <span class="ember-power-select-prefix">Region: </span>{{region}}
+  {{/power-select}}
+{{/if}}

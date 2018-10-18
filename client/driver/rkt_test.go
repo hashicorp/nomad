@@ -107,7 +107,7 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -144,6 +144,8 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 			"image":        "coreos.com/etcd:v2.0.4",
 			"command":      "/etcd",
 			"args":         []string{"--version"},
+			// Disable networking to speed up test as it's not needed
+			"net": []string{"none"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -156,7 +158,7 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -214,6 +216,8 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 			"image":   "coreos.com/etcd:v2.0.4",
 			"command": "/etcd",
 			"args":    []string{"--version"},
+			// Disable networking to speed up test as it's not needed
+			"net": []string{"none"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -226,7 +230,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -273,11 +277,11 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 		Name:   "rkttest_alpine",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image":   "docker://alpine",
+			"image":   "docker://redis:3.2-alpine",
 			"command": "/bin/sh",
 			"args": []string{
 				"-c",
-				fmt.Sprintf(`echo -n %s > foo/%s`, string(exp), file),
+				fmt.Sprintf("echo -n %s > /foo/%s", string(exp), file),
 			},
 			"net":     []string{"none"},
 			"volumes": []string{fmt.Sprintf("%s:/foo", tmpvol)},
@@ -293,7 +297,7 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -335,12 +339,14 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	require := assert.New(t)
 
 	task := &structs.Task{
-		Name:   "etcd",
+		Name:   "sleepy",
 		Driver: "rkt",
 		User:   "nobody",
 		Config: map[string]interface{}{
-			"image": "docker://redis:3.2",
-			"group": "nogroup",
+			"image":   "docker://redis:3.2-alpine",
+			"group":   "nogroup",
+			"command": "sleep",
+			"args":    []string{"9000"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -353,36 +359,34 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	}
 
 	tctx := testDriverContexts(t, task)
-	defer tctx.AllocDir.Destroy()
+	defer tctx.Destroy()
 	d := NewRktDriver(tctx.DriverCtx)
 
 	_, err := d.Prestart(tctx.ExecCtx, task)
-	require.Nil(err)
+	require.NoError(err)
 	resp, err := d.Start(tctx.ExecCtx, task)
-	require.Nil(err)
+	require.NoError(err)
 	defer resp.Handle.Kill()
 
-	timeout := time.Duration(testutil.TestMultiplier()*15) * time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	ctx := context.Background()
 
 	// WaitUntil we can determine the user/group redis is running as
-	expected := []byte("redis-server *:6379         nobody   nogroup\n")
+	expected := []byte("\nnobody   nogroup  /bin/sleep 9000\n")
 	testutil.WaitForResult(func() (bool, error) {
-		raw, code, err := resp.Handle.Exec(ctx, "/bin/bash", []string{"-c", "ps -eo args,user,group | grep ^redis"})
+		raw, code, err := resp.Handle.Exec(ctx, "ps", []string{"-o", "user,group,args"})
 		if err != nil {
+			err = fmt.Errorf("original error: %v; code: %d; raw output: %s", err, code, string(raw))
 			return false, err
 		}
 		if code != 0 {
 			return false, fmt.Errorf("unexpected exit code: %d", code)
 		}
-		return bytes.Equal(expected, raw), fmt.Errorf("expected %q but found %q", expected, raw)
+		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
 
-	require.Nil(resp.Handle.Kill())
+	require.NoError(resp.Handle.Kill())
 }
 
 func TestRktTrustPrefix(t *testing.T) {
@@ -410,7 +414,7 @@ func TestRktTrustPrefix(t *testing.T) {
 		},
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -445,7 +449,7 @@ func TestRktTaskValidate(t *testing.T) {
 		Resources: basicResources,
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if err := d.Validate(task.Config); err != nil {
@@ -460,10 +464,10 @@ func TestRktDriver_PortMapping(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name:   "etcd",
+		Name:   "redis",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image": "docker://redis:3.2",
+			"image": "docker://redis:3.2-alpine",
 			"port_map": []map[string]string{
 				{
 					"main": "6379-tcp",
@@ -488,7 +492,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -529,10 +533,10 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 	}
 
 	task := &structs.Task{
-		Name:   "etcd",
+		Name:   "redis",
 		Driver: "rkt",
 		Config: map[string]interface{}{
-			"image": "docker://redis:latest",
+			"image": "docker://redis:3.2-alpine",
 			"net":   []string{"host"},
 		},
 		LogConfig: &structs.LogConfig{
@@ -552,7 +556,7 @@ func TestRktDriver_PortsMapping_Host(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -609,7 +613,7 @@ func TestRktDriver_HandlerExec(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -681,7 +685,7 @@ func TestRktDriver_Stats(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRktDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {

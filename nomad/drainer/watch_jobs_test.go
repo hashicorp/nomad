@@ -38,7 +38,7 @@ func testDrainingJobWatcher(t *testing.T, state *state.StateStore) (*drainingJob
 	t.Helper()
 
 	limiter := rate.NewLimiter(100.0, 100)
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	w := NewDrainingJobWatcher(ctx, limiter, state, logger)
 	return w, cancel

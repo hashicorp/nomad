@@ -4,11 +4,12 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestStorageFingerprint(t *testing.T) {
-	fp := NewStorageFingerprint(testLogger())
+	fp := NewStorageFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -36,10 +37,15 @@ func TestStorageFingerprint(t *testing.T) {
 		t.Fatalf("unique.storage.bytesfree %d is larger than unique.storage.bytestotal %d", free, total)
 	}
 
+	// COMPAT(0.10): Remove in 0.10
 	if response.Resources == nil {
 		t.Fatalf("Node Resources was nil")
 	}
 	if response.Resources.DiskMB == 0 {
+		t.Errorf("Expected node.Resources.DiskMB to be non-zero")
+	}
+
+	if response.NodeResources == nil || response.NodeResources.Disk.DiskMB == 0 {
 		t.Errorf("Expected node.Resources.DiskMB to be non-zero")
 	}
 }

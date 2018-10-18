@@ -37,17 +37,17 @@ type ExecDriverConfig struct {
 
 // execHandle is returned from Start/Open as a handle to the PID
 type execHandle struct {
-	pluginClient    *plugin.Client
-	executor        executor.Executor
-	isolationConfig *dstructs.IsolationConfig
-	userPid         int
-	taskDir         *allocdir.TaskDir
-	killTimeout     time.Duration
-	maxKillTimeout  time.Duration
-	logger          *log.Logger
-	waitCh          chan *dstructs.WaitResult
-	doneCh          chan struct{}
-	version         string
+	pluginClient       *plugin.Client
+	executor           executor.Executor
+	userPid            int
+	taskShutdownSignal string
+	taskDir            *allocdir.TaskDir
+	killTimeout        time.Duration
+	maxKillTimeout     time.Duration
+	logger             *log.Logger
+	waitCh             chan *dstructs.WaitResult
+	doneCh             chan struct{}
+	version            string
 }
 
 // NewExecDriver is used to create a new exec driver
@@ -110,26 +110,16 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
 	executorConfig := &dstructs.ExecutorConfig{
-		LogFile:  pluginLogFile,
-		LogLevel: d.config.LogLevel,
+		LogFile:     pluginLogFile,
+		LogLevel:    d.config.LogLevel,
+		FSIsolation: true,
 	}
 	exec, pluginClient, err := createExecutor(d.config.LogOutput, d.config, executorConfig)
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &executor.ExecutorContext{
-		TaskEnv: ctx.TaskEnv,
-		Driver:  "exec",
-		LogDir:  ctx.TaskDir.LogDir,
-		TaskDir: ctx.TaskDir.Dir,
-		Task:    task,
-	}
-	if err := exec.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
-	}
 
-	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+	_, err = getTaskKillSignal(task.KillSignal)
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +127,21 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	execCmd := &executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
-		TaskKillSignal: taskKillSignal,
-		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),
+		Resources: &executor.Resources{
+			CPU:      task.Resources.CPU,
+			MemoryMB: task.Resources.MemoryMB,
+			IOPS:     task.Resources.IOPS,
+			DiskMB:   task.Resources.DiskMB,
+		},
+		Env:        ctx.TaskEnv.List(),
+		TaskDir:    ctx.TaskDir.Dir,
+		StdoutPath: ctx.StdoutFifo,
+		StderrPath: ctx.StderrFifo,
 	}
 
-	ps, err := exec.LaunchCmd(execCmd)
+	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -154,17 +152,17 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	// Return a driver handle
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &execHandle{
-		pluginClient:    pluginClient,
-		userPid:         ps.Pid,
-		executor:        exec,
-		isolationConfig: ps.IsolationConfig,
-		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
-		maxKillTimeout:  maxKill,
-		logger:          d.logger,
-		version:         d.config.Version.VersionNumber(),
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
-		taskDir:         ctx.TaskDir,
+		pluginClient:       pluginClient,
+		userPid:            ps.Pid,
+		taskShutdownSignal: task.KillSignal,
+		executor:           exec,
+		killTimeout:        GetKillTimeout(task.KillTimeout, maxKill),
+		maxKillTimeout:     maxKill,
+		logger:             d.logger,
+		version:            d.config.Version.VersionNumber(),
+		doneCh:             make(chan struct{}),
+		waitCh:             make(chan *dstructs.WaitResult, 1),
+		taskDir:            ctx.TaskDir,
 	}
 	go h.run()
 	return &StartResponse{Handle: h}, nil
@@ -173,12 +171,11 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 func (d *ExecDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }
 
 type execId struct {
-	Version         string
-	KillTimeout     time.Duration
-	MaxKillTimeout  time.Duration
-	UserPid         int
-	IsolationConfig *dstructs.IsolationConfig
-	PluginConfig    *PluginReattachConfig
+	Version        string
+	KillTimeout    time.Duration
+	MaxKillTimeout time.Duration
+	UserPid        int
+	PluginConfig   *PluginReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -198,12 +195,6 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
 			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
-		if id.IsolationConfig != nil {
-			ePid := pluginConfig.Reattach.Pid
-			if e := executor.ClientCleanup(id.IsolationConfig, ePid); e != nil {
-				merrs.Errors = append(merrs.Errors, fmt.Errorf("destroying cgroup failed: %v", e))
-			}
-		}
 		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
@@ -211,17 +202,16 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 	d.logger.Printf("[DEBUG] driver.exec : version of executor: %v", ver.Version)
 	// Return a driver handle
 	h := &execHandle{
-		pluginClient:    client,
-		executor:        exec,
-		userPid:         id.UserPid,
-		isolationConfig: id.IsolationConfig,
-		logger:          d.logger,
-		version:         id.Version,
-		killTimeout:     id.KillTimeout,
-		maxKillTimeout:  id.MaxKillTimeout,
-		doneCh:          make(chan struct{}),
-		waitCh:          make(chan *dstructs.WaitResult, 1),
-		taskDir:         ctx.TaskDir,
+		pluginClient:   client,
+		executor:       exec,
+		userPid:        id.UserPid,
+		logger:         d.logger,
+		version:        id.Version,
+		killTimeout:    id.KillTimeout,
+		maxKillTimeout: id.MaxKillTimeout,
+		doneCh:         make(chan struct{}),
+		waitCh:         make(chan *dstructs.WaitResult, 1),
+		taskDir:        ctx.TaskDir,
 	}
 	go h.run()
 	return h, nil
@@ -229,12 +219,11 @@ func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, erro
 
 func (h *execHandle) ID() string {
 	id := execId{
-		Version:         h.version,
-		KillTimeout:     h.killTimeout,
-		MaxKillTimeout:  h.maxKillTimeout,
-		PluginConfig:    NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
-		UserPid:         h.userPid,
-		IsolationConfig: h.isolationConfig,
+		Version:        h.version,
+		KillTimeout:    h.killTimeout,
+		MaxKillTimeout: h.maxKillTimeout,
+		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		UserPid:        h.userPid,
 	}
 
 	data, err := json.Marshal(id)
@@ -251,7 +240,12 @@ func (h *execHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *execHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateTask(task)
+	h.executor.UpdateResources(&executor.Resources{
+		CPU:      task.Resources.CPU,
+		MemoryMB: task.Resources.MemoryMB,
+		IOPS:     task.Resources.IOPS,
+		DiskMB:   task.Resources.DiskMB,
+	})
 
 	// Update is not possible
 	return nil
@@ -270,12 +264,16 @@ func (h *execHandle) Signal(s os.Signal) error {
 	return h.executor.Signal(s)
 }
 
+func (d *execHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
 func (h *execHandle) Kill() error {
-	if err := h.executor.ShutDown(); err != nil {
+	if err := h.executor.Shutdown(h.taskShutdownSignal, h.killTimeout); err != nil {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		return fmt.Errorf("executor Shutdown failed: %v", err)
+		return fmt.Errorf("executor Kill failed: %v", err)
 	}
 
 	select {
@@ -284,8 +282,8 @@ func (h *execHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			break
 		}
-		if err := h.executor.Exit(); err != nil {
-			return fmt.Errorf("executor Exit failed: %v", err)
+		if err := h.executor.Shutdown(h.taskShutdownSignal, h.killTimeout); err != nil {
+			return fmt.Errorf("executor Destroy failed: %v", err)
 		}
 	}
 	return nil
@@ -299,22 +297,8 @@ func (h *execHandle) run() {
 	ps, werr := h.executor.Wait()
 	close(h.doneCh)
 
-	// If the exitcode is 0 and we had an error that means the plugin didn't
-	// connect and doesn't know the state of the user process so we are killing
-	// the user process so that when we create a new executor on restarting the
-	// new user process doesn't have collisions with resources that the older
-	// user pid might be holding onto.
-	if ps.ExitCode == 0 && werr != nil {
-		if h.isolationConfig != nil {
-			ePid := h.pluginClient.ReattachConfig().Pid
-			if e := executor.ClientCleanup(h.isolationConfig, ePid); e != nil {
-				h.logger.Printf("[ERR] driver.exec: destroying resource container failed: %v", e)
-			}
-		}
-	}
-
-	// Exit the executor
-	if err := h.executor.Exit(); err != nil {
+	// Destroy the executor
+	if err := h.executor.Shutdown(h.taskShutdownSignal, 0); err != nil {
 		h.logger.Printf("[ERR] driver.exec: error destroying executor: %v", err)
 	}
 	h.pluginClient.Kill()

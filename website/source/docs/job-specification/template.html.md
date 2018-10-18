@@ -99,11 +99,11 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
     lease is less than or equal to the configured grace, the template will request
     a new credential. This prevents Vault from revoking the secret at its
     expiration and the task having a stale secret.
-    
+
     If the grace is set to a value that is higher than your default TTL or max
     TTL, the template will always read a new secret. **If secrets are being
     renewed constantly, decrease the `vault_grace`.**
-    
+
     If the task defines several templates, the `vault_grace` will be set to the
     lowest value across all the templates.
 
@@ -225,6 +225,8 @@ README](https://github.com/hashicorp/go-envparse#readme).
 
 ## Vault Integration
 
+### PKI Certificate
+
 This example acquires a PKI certificate from Vault in PEM format and stores it into your application's secret directory.
 
 ```hcl
@@ -240,10 +242,47 @@ EOH
 }
 ```
 
+Most users should set `generate_lease=true` on the `pki/issue/foo` role in Vault's
+PKI backend. If this value is not set, the template stanza will frequently render a new
+certificate, approximately every minute, which is probably not what you want.
+
+### Vault KV API v1
+
+Under Vault KV API v1, paths start with `secret/`, and the response returns the
+raw key/value data. This secret was set using
+`vault kv put secret/aws/s3 aws_access_key_id=somekeyid`.
+
+```hcl
+  template {
+    data = <<EOF
+      AWS_ACCESS_KEY_ID = "{{with secret "secret/aws/s3"}}{{.Data.aws_access_key_id}}{{end}}"
+    EOF
+  }
+```
+
+### Vault KV API v2
+
+Under Vault KV API v2, paths start with `secret/data/`, and the response returns
+metadata in addition to key/value data. This secret was set using
+`vault kv put secret/aws/s3 aws_access_key_id=somekeyid`.
+
+```hcl
+  template {
+    data = <<EOF
+      AWS_ACCESS_KEY_ID = "{{with secret "secret/data/aws/s3"}}{{.Data.data.aws_access_key_id}}{{end}}"
+    EOF
+  }
+```
+
+Notice the addition of `data` in both the path and the field accessor string.
+Additionally, when using the Vault v2 API, the Vault policies applied to your
+Nomad jobs will need to grant permissions to `read` under `secret/data/...`
+rather than `secret/...`.
+
 ## Client Configuration
 
 The `template` block has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `template.allow_host_source` - Allows templates to specify their source
   template as an absolute path referencing host directories. Defaults to `true`.

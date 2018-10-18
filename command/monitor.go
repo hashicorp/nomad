@@ -373,8 +373,30 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 
 	// Print scores
 	if scores {
-		for name, score := range metrics.Scores {
-			out += fmt.Sprintf("%s* Score %q = %f\n", prefix, name, score)
+		if len(metrics.ScoreMetaData) > 0 {
+			scoreOutput := make([]string, len(metrics.ScoreMetaData)+1)
+
+			for i, scoreMeta := range metrics.ScoreMetaData {
+				// Add header as first row
+				if i == 0 {
+					scoreOutput[0] = "Node|"
+					for scorerName := range scoreMeta.Scores {
+						scoreOutput[0] += fmt.Sprintf("%v|", scorerName)
+					}
+					scoreOutput[0] += "Final Score"
+				}
+				scoreOutput[i+1] = fmt.Sprintf("%v|", scoreMeta.NodeID)
+				for _, scoreVal := range scoreMeta.Scores {
+					scoreOutput[i+1] += fmt.Sprintf("%v|", scoreVal)
+				}
+				scoreOutput[i+1] += fmt.Sprintf("%v", scoreMeta.NormScore)
+			}
+			out += formatList(scoreOutput)
+		} else {
+			// Backwards compatibility for old allocs
+			for name, score := range metrics.Scores {
+				out += fmt.Sprintf("%s* Score %q = %f\n", prefix, name, score)
+			}
 		}
 	}
 

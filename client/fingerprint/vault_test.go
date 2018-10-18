@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -13,7 +14,7 @@ func TestVaultFingerprint(t *testing.T) {
 	tv := testutil.NewTestVault(t)
 	defer tv.Stop()
 
-	fp := NewVaultFingerprint(testLogger())
+	fp := NewVaultFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

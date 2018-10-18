@@ -13,7 +13,13 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 )
 
-type Provider struct{}
+type Provider struct {
+	userAgent string
+}
+
+func (p *Provider) SetUserAgent(s string) {
+	p.userAgent = s
+}
 
 func (p *Provider) Help() string {
 	return `Microsoft Azure:
@@ -78,9 +84,12 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 
 	// Setup the client using autorest; followed the structure from Terraform
 	vmnet := network.NewInterfacesClient(subscriptionID)
-	vmnet.Client.UserAgent = "Hashicorp-Consul"
 	vmnet.Sender = autorest.CreateSender(autorest.WithLogging(l))
 	vmnet.Authorizer = autorest.NewBearerAuthorizer(sbt)
+
+	if p.userAgent != "" {
+		vmnet.Client.UserAgent = p.userAgent
+	}
 
 	if tagName != "" && tagValue != "" && resourceGroup == "" && vmScaleSet == "" {
 		l.Printf("[DEBUG] discover-azure: using tag method. tag_name: %s, tag_value: %s", tagName, tagValue)

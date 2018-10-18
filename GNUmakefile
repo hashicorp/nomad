@@ -152,6 +152,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/elazarl/go-bindata-assetfs/...
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+	go get -u github.com/golang/protobuf/protoc-gen-go
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -236,20 +237,37 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
 		make test-nomad; \
 		fi
+	@if [ $(RUN_WEBSITE_TESTS) ]; then \
+		make test-website; \
+		fi
 	@if [ $(RUN_UI_TESTS) ]; then \
 		make test-ui; \
+		fi
+	@if [ $(RUN_E2E_TESTS) ]; then \
+		make e2e-test; \
 		fi
 
 .PHONY: test-nomad
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
-	@go test $(if $(VERBOSE),-v) \
-			-cover \
-			-timeout=900s \
-			-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") go test \
+		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		-cover \
+		-timeout=900s \
+		-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
+
+.PHONY: e2e-test
+e2e-test: dev ## Run the Nomad e2e test suite
+	@echo "==> Running Nomad E2E test suites:"
+	go test \
+		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		-cover \
+		-timeout=900s \
+		github.com/hashicorp/nomad/e2e/vault/
+		-integration
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
@@ -282,13 +300,16 @@ static-assets: ## Compile the static routes to serve alongside the API
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
+.PHONY: test-webiste
+test-website: ## Run Website Link Checks
+	@cd website && make test
+
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
 	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
 	@echo "--> Running ember tests"
-	@cd ui && phantomjs --version
 	@cd ui && npm test
 
 .PHONY: ember-dist

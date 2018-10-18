@@ -6,10 +6,7 @@ import destroyApp from '../helpers/destroy-app';
 export default function(name, options = {}) {
   module(name, {
     beforeEach() {
-      // Clear session storage (a side effect of token storage)
-      window.sessionStorage.clear();
-
-      // Also clear local storage (a side effect of namespaces)
+      // Also clear local storage (a side effect of namespaces, regions, and tokens)
       window.localStorage.clear();
 
       this.application = startApp();

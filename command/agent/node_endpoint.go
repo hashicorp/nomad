@@ -124,6 +124,9 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 			drainRequest.DrainSpec = &api.DrainSpec{
 				Deadline: -1 * time.Second,
 			}
+		} else {
+			// If drain is disabled on an old client, mark the node as eligible for backwards compatibility
+			drainRequest.MarkEligible = true
 		}
 	} else {
 		if err := decodeBody(req, &drainRequest); err != nil {
@@ -159,14 +162,14 @@ func (s *HTTPServer) nodeToggleEligibility(resp http.ResponseWriter, req *http.R
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	var drainRequest structs.NodeUpdateEligibilityRequest
-	if err := decodeBody(req, &drainRequest); err != nil {
+	var eligibilityRequest structs.NodeUpdateEligibilityRequest
+	if err := decodeBody(req, &eligibilityRequest); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
-	s.parseWriteRequest(req, &drainRequest.WriteRequest)
+	s.parseWriteRequest(req, &eligibilityRequest.WriteRequest)
 
 	var out structs.NodeEligibilityUpdateResponse
-	if err := s.agent.RPC("Node.UpdateEligibility", &drainRequest, &out); err != nil {
+	if err := s.agent.RPC("Node.UpdateEligibility", &eligibilityRequest, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)

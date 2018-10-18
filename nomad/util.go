@@ -38,6 +38,7 @@ type serverParts struct {
 	Addr         net.Addr
 	RPCAddr      net.Addr
 	Status       serf.MemberStatus
+	NonVoter     bool
 }
 
 func (s *serverParts) String() string {
@@ -117,6 +118,9 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		}
 	}
 
+	// Check if the server is a non voter
+	_, nonVoter := m.Tags["nonvoter"]
+
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
 	parts := &serverParts{
@@ -134,6 +138,7 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		Build:        *buildVersion,
 		RaftVersion:  raftVsn,
 		Status:       m.Status,
+		NonVoter:     nonVoter,
 	}
 	return true, parts
 }

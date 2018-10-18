@@ -46,7 +46,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 		{
 			[]string{"-client", "-alloc-dir="},
-			"Must specify both the state and alloc dir if data-dir is omitted.",
+			"Must specify the state, alloc dir, and plugin dir if data-dir is omitted.",
 		},
 	}
 	for _, tc := range tcases {

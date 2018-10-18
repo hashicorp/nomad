@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 
@@ -32,7 +33,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 		Resources: structs.DefaultResources(),
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewQemuDriver(ctx.DriverCtx)
 
 	node := &structs.Node{
@@ -65,7 +66,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
-	logger := testLogger()
+	logger := testlog.Logger(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
 	}
@@ -99,7 +100,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewQemuDriver(ctx.DriverCtx)
 
 	// Copy the test image into the task's directory
@@ -143,7 +144,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 	}
 	ctestutils.QemuCompatible(t)
 
-	logger := testLogger()
+	logger := testlog.Logger(t)
 
 	// Graceful shutdown may be really slow unfortunately
 	killTimeout := 3 * time.Minute
@@ -180,7 +181,7 @@ func TestQemuDriver_GracefulShutdown(t *testing.T) {
 
 	ctx := testDriverContexts(t, task)
 	ctx.DriverCtx.config.MaxKillTimeout = killTimeout
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewQemuDriver(ctx.DriverCtx)
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: ctx.DriverCtx.node}
@@ -339,7 +340,7 @@ func TestQemuDriverUser(t *testing.T) {
 
 	for _, task := range tasks {
 		ctx := testDriverContexts(t, task)
-		defer ctx.AllocDir.Destroy()
+		defer ctx.Destroy()
 		d := NewQemuDriver(ctx.DriverCtx)
 
 		if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -390,7 +391,7 @@ func TestQemuDriverGetMonitorPathOldQemu(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 
 	// Simulate an older version of qemu which does not support long monitor socket paths
 	ctx.DriverCtx.node.Attributes[qemuDriverVersionAttr] = "2.0.0"
@@ -449,7 +450,7 @@ func TestQemuDriverGetMonitorPathNewQemu(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 
 	// Simulate a version of qemu which supports long monitor socket paths
 	ctx.DriverCtx.node.Attributes[qemuDriverVersionAttr] = "2.99.99"

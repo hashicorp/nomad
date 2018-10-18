@@ -5,11 +5,12 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestCPUFingerprint(t *testing.T) {
-	f := NewCPUFingerprint(testLogger())
+	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -44,7 +45,12 @@ func TestCPUFingerprint(t *testing.T) {
 		t.Fatalf("Missing CPU Total Compute")
 	}
 
+	// COMPAT(0.10): Remove in 0.10
 	if response.Resources == nil || response.Resources.CPU == 0 {
+		t.Fatalf("Expected to find CPU Resources")
+	}
+
+	if response.NodeResources == nil || response.NodeResources.Cpu.CpuShares == 0 {
 		t.Fatalf("Expected to find CPU Resources")
 	}
 }
@@ -52,7 +58,7 @@ func TestCPUFingerprint(t *testing.T) {
 // TestCPUFingerprint_OverrideCompute asserts that setting cpu_total_compute in
 // the client config overrides the detected CPU freq (if any).
 func TestCPUFingerprint_OverrideCompute(t *testing.T) {
-	f := NewCPUFingerprint(testLogger())
+	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -90,8 +96,12 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
+		// COMPAT(0.10): Remove in 0.10
 		if response.Resources.CPU != cfg.CpuCompute {
 			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.Resources.CPU)
+		}
+		if response.NodeResources.Cpu.CpuShares != int64(cfg.CpuCompute) {
+			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.CpuShares)
 		}
 	}
 }

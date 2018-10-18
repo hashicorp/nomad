@@ -9,7 +9,7 @@ import { logEncode } from '../../mirage/data/logs';
 const HOST = '1.1.1.1:1111';
 const allowedConnectionTime = 100;
 const commonProps = {
-  interval: 50,
+  interval: 200,
   allocation: {
     id: 'alloc-1',
     node: {
@@ -56,6 +56,7 @@ moduleForComponent('task-log', 'Integration | Component | task log', {
     this.server = new Pretender(function() {
       this.get(`http://${HOST}/v1/client/fs/logs/:allocation_id`, handler);
       this.get('/v1/client/fs/logs/:allocation_id', handler);
+      this.get('/v1/regions', () => [200, {}, '[]']);
     });
   },
   afterEach() {

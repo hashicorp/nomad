@@ -63,6 +63,12 @@ type TLSConfig struct {
 	// TLSMinVersion is used to set the minimum TLS version used for TLS
 	// connections. Should be either "tls10", "tls11", or "tls12".
 	TLSMinVersion string `mapstructure:"tls_min_version"`
+
+	// TLSPreferServerCipherSuites controls whether the server selects the
+	// client's most preferred ciphersuite, or the server's most preferred
+	// ciphersuite. If true then the server's preference, as expressed in
+	// the order of elements in CipherSuites, is used.
+	TLSPreferServerCipherSuites bool `mapstructure:"tls_prefer_server_cipher_suites"`
 }
 
 type KeyLoader struct {
@@ -89,6 +95,12 @@ func (k *KeyLoader) LoadKeyPair(certFile, keyFile string) (*tls.Certificate, err
 
 	k.certificate = &cert
 	return k.certificate, nil
+}
+
+func (k *KeyLoader) GetCertificate() *tls.Certificate {
+	k.cacheLock.Lock()
+	defer k.cacheLock.Unlock()
+	return k.certificate
 }
 
 // GetOutgoingCertificate fetches the currently-loaded certificate when
@@ -158,6 +170,8 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.TLSCipherSuites = t.TLSCipherSuites
 	new.TLSMinVersion = t.TLSMinVersion
 
+	new.TLSPreferServerCipherSuites = t.TLSPreferServerCipherSuites
+
 	new.SetChecksum()
 
 	return new
@@ -210,6 +224,9 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	}
 	if b.TLSMinVersion != "" {
 		result.TLSMinVersion = b.TLSMinVersion
+	}
+	if b.TLSPreferServerCipherSuites {
+		result.TLSPreferServerCipherSuites = true
 	}
 	return result
 }

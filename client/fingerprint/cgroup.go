@@ -1,22 +1,19 @@
-// +build linux
-
 package fingerprint
 
 import (
-	"log"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
-	cgroupAvailable   = "available"
 	cgroupUnavailable = "unavailable"
 	interval          = 15
 )
 
 type CGroupFingerprint struct {
-	logger             *log.Logger
+	logger             log.Logger
 	lastState          string
 	mountPointDetector MountPointDetector
 }
@@ -38,9 +35,9 @@ func (b *DefaultMountPointDetector) MountPoint() (string, error) {
 }
 
 // NewCGroupFingerprint returns a new cgroup fingerprinter
-func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
+func NewCGroupFingerprint(logger log.Logger) Fingerprint {
 	f := &CGroupFingerprint{
-		logger:             logger,
+		logger:             logger.Named("cgroup"),
 		lastState:          cgroupUnavailable,
 		mountPointDetector: &DefaultMountPointDetector{},
 	}

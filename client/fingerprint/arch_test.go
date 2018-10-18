@@ -5,11 +5,12 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestArchFingerprint(t *testing.T) {
-	f := NewArchFingerprint(testLogger())
+	f := NewArchFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

@@ -3,12 +3,15 @@ package nomad
 import (
 	"fmt"
 
+	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // System endpoint is used to call invoke system tasks.
 type System struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // GarbageCollect is used to trigger the system to immediately garbage collect nodes, evals

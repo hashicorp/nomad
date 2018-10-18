@@ -11,12 +11,13 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestGCEFingerprint_nonGCE(t *testing.T) {
 	os.Setenv("GCE_ENV_URL", "http://127.0.0.1/computeMetadata/v1/instance/")
-	f := NewEnvGCEFingerprint(testLogger())
+	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -90,7 +91,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	}))
 	defer ts.Close()
 	os.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
-	f := NewEnvGCEFingerprint(testLogger())
+	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 
 	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response cstructs.FingerprintResponse

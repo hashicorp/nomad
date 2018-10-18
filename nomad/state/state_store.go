@@ -3,13 +3,13 @@ package state
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"sort"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -33,8 +33,8 @@ type IndexEntry struct {
 
 // StateStoreConfig is used to configure a new state store
 type StateStoreConfig struct {
-	// LogOutput is used to configure the output of the state store's logs
-	LogOutput io.Writer
+	// Logger is used to output the state store's logs
+	Logger log.Logger
 
 	// Region is the region of the server embedding the state store.
 	Region string
@@ -48,7 +48,7 @@ type StateStoreConfig struct {
 // returned as a result of a read against the state store should be
 // considered a constant and NEVER modified in place.
 type StateStore struct {
-	logger *log.Logger
+	logger log.Logger
 	db     *memdb.MemDB
 
 	// config is the passed in configuration
@@ -69,7 +69,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(config.LogOutput, "", log.LstdFlags),
+		logger:    config.Logger.Named("state_store"),
 		db:        db,
 		config:    config,
 		abandonCh: make(chan struct{}),
@@ -185,6 +185,7 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	// being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(results.Job, results.Alloc)
 
+	// COMPAT(0.11): Remove in 0.11
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
 	// denormalized prior to being inserted into MemDB.
@@ -950,10 +951,6 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	s.addEphemeralDiskToTaskGroups(job)
-
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1605,7 +1602,7 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 					hasSummaryChanged = true
 				}
 			} else {
-				s.logger.Printf("[ERR] state_store: unable to update queued for job %q and task group %q", eval.JobID, tg)
+				s.logger.Error("unable to update queued for job and task group", "job_id", eval.JobID, "task_group", tg, "namespace", eval.Namespace)
 			}
 		}
 
@@ -1681,9 +1678,8 @@ func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID 
 		return fmt.Errorf("eval lookup failed: %v", err)
 	}
 	if existing == nil {
-		err := fmt.Errorf("unable to find eval id %q", evalID)
-		s.logger.Printf("[ERR] state_store: %v", err)
-		return err
+		s.logger.Error("unable to find eval", "eval_id", evalID)
+		return fmt.Errorf("unable to find eval id %q", evalID)
 	}
 	eval := existing.(*structs.Evaluation).Copy()
 	// Update the indexes
@@ -2061,12 +2057,6 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 
 		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
 			return err
-		}
-
-		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-		// COMPAT 0.4.1 -> 0.5
-		if alloc.Job != nil {
-			s.addEphemeralDiskToTaskGroups(alloc.Job)
 		}
 
 		if err := txn.Insert("allocs", alloc); err != nil {
@@ -2826,6 +2816,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
+			copy.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
 				return fmt.Errorf("error updating deployment: %v", err)
@@ -3012,7 +3003,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			case structs.AllocClientStatusPending:
 				tg.Starting += 1
 			default:
-				s.logger.Printf("[ERR] state_store: invalid client status: %v in allocation %q", alloc.ClientStatus, alloc.ID)
+				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
 			}
 			summary.Summary[alloc.TaskGroup] = tg
 		}
@@ -3448,8 +3439,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if existingAlloc == nil {
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.DesiredStatus)
+			s.logger.Error("new allocation inserted into state store with bad desired status",
+				"alloc_id", alloc.ID, "desired_status", alloc.DesiredStatus)
 		}
 		switch alloc.ClientStatus {
 		case structs.AllocClientStatusPending:
@@ -3460,8 +3451,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			summaryChanged = true
 		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
 			structs.AllocClientStatusComplete:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.ClientStatus)
+			s.logger.Error("new allocation inserted into state store with bad client status",
+				"alloc_id", alloc.ID, "client_status", alloc.ClientStatus)
 		}
 	} else if existingAlloc.ClientStatus != alloc.ClientStatus {
 		// Incrementing the client of the bin of the current state
@@ -3488,8 +3479,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			tgSummary.Lost -= 1
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
-			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
-				existingAlloc.ID, existingAlloc.ClientStatus)
+			s.logger.Error("invalid old client status for allocatio",
+				"alloc_id", existingAlloc.ID, "client_status", existingAlloc.ClientStatus)
 		}
 		summaryChanged = true
 	}
@@ -3861,10 +3852,6 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	r.addEphemeralDiskToTaskGroups(job)
-
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -3881,19 +3868,6 @@ func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 
 // AllocRestore is used to restore an allocation
 func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
-	// Set the shared resources if it's not present
-	// COMPAT 0.4.1 -> 0.5
-	if alloc.SharedResources == nil {
-		alloc.SharedResources = &structs.Resources{
-			DiskMB: alloc.Resources.DiskMB,
-		}
-	}
-
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	if alloc.Job != nil {
-		r.addEphemeralDiskToTaskGroups(alloc.Job)
-	}
-
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}

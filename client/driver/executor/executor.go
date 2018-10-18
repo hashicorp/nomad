@@ -5,41 +5,35 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/hashicorp/go-multierror"
-	"github.com/mitchellh/go-ps"
-	"github.com/shirou/gopsutil/process"
+	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/client/driver/logging"
+	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
-	"github.com/hashicorp/nomad/nomad/structs"
 
-	syslog "github.com/RackSec/srslog"
-
+	"github.com/hashicorp/consul-template/signals"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
-	// pidScanInterval is the interval at which the executor scans the process
-	// tree for finding out the pids that the executor and it's child processes
-	// have forked
-	pidScanInterval = 5 * time.Second
+	// ExecutorVersionLatest is the current and latest version of the executor
+	ExecutorVersionLatest = "2.0.0"
+
+	// ExecutorVersionPre0_9 is the version of executor use prior to the release
+	// of 0.9.x
+	ExecutorVersionPre0_9 = "1.1.0"
 )
 
 var (
@@ -51,45 +45,46 @@ var (
 // Executor is the interface which allows a driver to launch and supervise
 // a process
 type Executor interface {
-	SetContext(ctx *ExecutorContext) error
-	LaunchCmd(command *ExecCommand) (*ProcessState, error)
-	LaunchSyslogServer() (*SyslogServerState, error)
+	// Launch a user process configured by the given ExecCommand
+	Launch(launchCmd *ExecCommand) (*ProcessState, error)
+
+	// Wait blocks until the process exits or an error occures
 	Wait() (*ProcessState, error)
-	ShutDown() error
-	Exit() error
-	UpdateLogConfig(logConfig *structs.LogConfig) error
-	UpdateTask(task *structs.Task) error
+
+	// Shutdown will shutdown the executor by stopping the user process,
+	// cleaning up and resources created by the executor. The shutdown sequence
+	// will first send the given signal to the process. This defaults to "SIGINT"
+	// if not specified. The executor will then wait for the process to exit
+	// before cleaning up other resources. If the executor waits longer than the
+	// given grace period, the process is forcefully killed.
+	//
+	// To force kill the user process, gracePeriod can be set to 0.
+	Shutdown(signal string, gracePeriod time.Duration) error
+
+	// UpdateResources updates any resource isolation enforcement with new
+	// constraints if supported.
+	UpdateResources(*Resources) error
+
+	// Version returns the executor API version
 	Version() (*ExecutorVersion, error)
+
+	// Stats fetchs process usage stats for the executor and each pid if available
 	Stats() (*cstructs.TaskResourceUsage, error)
-	Signal(s os.Signal) error
+
+	// Signal sends the given signal to the user process
+	Signal(os.Signal) error
+
+	// Exec executes the given command and args inside the executor context
+	// and returns the output and exit code.
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 }
 
-// ExecutorContext holds context to configure the command user
-// wants to run and isolate it
-type ExecutorContext struct {
-	// TaskEnv holds information about the environment of a Task
-	TaskEnv *env.TaskEnv
-
-	// Task is the task whose executor is being launched
-	Task *structs.Task
-
-	// TaskDir is the host path to the task's root
-	TaskDir string
-
-	// LogDir is the host path where logs should be written
-	LogDir string
-
-	// Driver is the name of the driver that invoked the executor
-	Driver string
-
-	// PortUpperBound is the upper bound of the ports that we can use to start
-	// the syslog server
-	PortUpperBound uint
-
-	// PortLowerBound is the lower bound of the ports that we can use to start
-	// the syslog server
-	PortLowerBound uint
+// Resources describes the resource isolation required
+type Resources struct {
+	CPU      int
+	MemoryMB int
+	DiskMB   int
+	IOPS     int
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -101,42 +96,91 @@ type ExecCommand struct {
 	// Args is the args of the command that the user wants to run.
 	Args []string
 
-	// TaskKillSignal is an optional field which signal to kill the process
-	TaskKillSignal os.Signal
+	// Resources defined by the task
+	Resources *Resources
 
-	// FSIsolation determines whether the command would be run in a chroot.
-	FSIsolation bool
+	// StdoutPath is the path the procoess stdout should be written to
+	StdoutPath string
+	stdout     io.WriteCloser
+
+	// StderrPath is the path the procoess stderr should be written to
+	StderrPath string
+	stderr     io.WriteCloser
+
+	// Env is the list of KEY=val pairs of environment variables to be set
+	Env []string
 
 	// User is the user which the executor uses to run the command.
 	User string
 
+	// TaskDir is the directory path on the host where for the task
+	TaskDir string
+
 	// ResourceLimits determines whether resource limits are enforced by the
 	// executor.
 	ResourceLimits bool
+
+	// Cgroup marks whether we put the process in a cgroup. Setting this field
+	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
+	// Using the cgroup does allow more precise cleanup of processes.
+	BasicProcessCgroup bool
+}
+
+type nopCloser struct {
+	io.Writer
+}
+
+func (nopCloser) Close() error { return nil }
+
+// Stdout returns a writer for the configured file descriptor
+func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
+	if c.stdout == nil {
+		if c.StderrPath != "" {
+			f, err := fifo.Open(c.StdoutPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create stdout: %v", err)
+			}
+			c.stdout = f
+		} else {
+			c.stdout = nopCloser{ioutil.Discard}
+		}
+	}
+	return c.stdout, nil
+}
+
+// Stderr returns a writer for the configured file descriptor
+func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
+	if c.stderr == nil {
+		if c.StderrPath != "" {
+			f, err := fifo.Open(c.StderrPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create stderr: %v", err)
+			}
+			c.stderr = f
+		} else {
+			c.stderr = nopCloser{ioutil.Discard}
+		}
+	}
+	return c.stderr, nil
+}
+
+func (c *ExecCommand) Close() {
+	stdout, err := c.Stdout()
+	if err == nil {
+		stdout.Close()
+	}
+	stderr, err := c.Stderr()
+	if err == nil {
+		stderr.Close()
+	}
 }
 
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
-	Pid             int
-	ExitCode        int
-	Signal          int
-	IsolationConfig *dstructs.IsolationConfig
-	Time            time.Time
-}
-
-// nomadPid holds a pid and it's cpu percentage calculator
-type nomadPid struct {
-	pid           int
-	cpuStatsTotal *stats.CpuStats
-	cpuStatsUser  *stats.CpuStats
-	cpuStatsSys   *stats.CpuStats
-}
-
-// SyslogServerState holds the address and isolation information of a launched
-// syslog server
-type SyslogServerState struct {
-	IsolationConfig *dstructs.IsolationConfig
-	Addr            string
+	Pid      int
+	ExitCode int
+	Signal   int
+	Time     time.Time
 }
 
 // ExecutorVersion is the version of the executor
@@ -152,163 +196,129 @@ func (v *ExecutorVersion) GoString() string {
 // supervises processes. In addition to process supervision it provides resource
 // and file system isolation
 type UniversalExecutor struct {
-	cmd     exec.Cmd
-	ctx     *ExecutorContext
-	command *ExecCommand
+	childCmd   exec.Cmd
+	commandCfg *ExecCommand
 
-	pids                map[int]*nomadPid
-	pidLock             sync.RWMutex
-	exitState           *ProcessState
-	processExited       chan interface{}
-	fsIsolationEnforced bool
+	exitState     *ProcessState
+	processExited chan interface{}
 
-	lre         *logging.FileRotator
-	lro         *logging.FileRotator
-	rotatorLock sync.Mutex
-
-	syslogServer *logging.SyslogServer
-	syslogChan   chan *logging.SyslogMessage
-
+	// resConCtx is used to track and cleanup additional resources created by
+	// the executor. Currently this is only used for cgroups.
 	resConCtx resourceContainerContext
 
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
-	logger         *log.Logger
+	pidCollector   *pidCollector
+
+	logger hclog.Logger
 }
 
 // NewExecutor returns an Executor
-func NewExecutor(logger *log.Logger) Executor {
+func NewExecutor(logger hclog.Logger) Executor {
+	logger = logger.Named("executor")
 	if err := shelpers.Init(); err != nil {
-		logger.Printf("[ERR] executor: unable to initialize stats: %v", err)
+		logger.Error("unable to initialize stats", "error", err)
 	}
-
-	exec := &UniversalExecutor{
+	return &UniversalExecutor{
 		logger:         logger,
 		processExited:  make(chan interface{}),
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
-		pids:           make(map[int]*nomadPid),
+		pidCollector:   newPidCollector(logger),
 	}
-
-	return exec
 }
 
 // Version returns the api version of the executor
 func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
-	return &ExecutorVersion{Version: "1.1.0"}, nil
+	return &ExecutorVersion{Version: ExecutorVersionLatest}, nil
 }
 
-// SetContext is used to set the executors context and should be the first call
-// after launching the executor.
-func (e *UniversalExecutor) SetContext(ctx *ExecutorContext) error {
-	e.ctx = ctx
-	return nil
-}
-
-// LaunchCmd launches the main process and returns its state. It also
+// Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
-func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Printf("[INFO] executor: launching command %v %v", command.Cmd, strings.Join(command.Args, " "))
+func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
+	e.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
-	// Ensure the context has been set first
-	if e.ctx == nil {
-		return nil, fmt.Errorf("SetContext must be called before launching a command")
-	}
-
-	e.command = command
+	e.commandCfg = command
 
 	// setting the user of the process
 	if command.User != "" {
-		e.logger.Printf("[DEBUG] executor: running command as %s", command.User)
+		e.logger.Debug("running command as user", "user", command.User)
 		if err := e.runAs(command.User); err != nil {
 			return nil, err
 		}
 	}
 
 	// set the task dir as the working directory for the command
-	e.cmd.Dir = e.ctx.TaskDir
+	e.childCmd.Dir = e.commandCfg.TaskDir
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
 		return nil, err
 	}
 
-	// configuring the chroot, resource container, and start the plugin
-	// process in the chroot.
-	if err := e.configureIsolation(); err != nil {
-		return nil, err
-	}
-	// Apply ourselves into the resource container. The executor MUST be in
-	// the resource container before the user task is started, otherwise we
-	// are subject to a fork attack in which a process escapes isolation by
-	// immediately forking.
-	if err := e.applyLimits(os.Getpid()); err != nil {
+	// Setup cgroups on linux
+	if err := e.configureResourceContainer(os.Getpid()); err != nil {
 		return nil, err
 	}
 
-	// Setup the loggers
-	if err := e.configureLoggers(); err != nil {
+	stdout, err := e.commandCfg.Stdout()
+	if err != nil {
 		return nil, err
 	}
-	e.cmd.Stdout = e.lro
-	e.cmd.Stderr = e.lre
-
-	// Look up the binary path and make it executable
-	absPath, err := e.lookupBin(e.ctx.TaskEnv.ReplaceEnv(command.Cmd))
+	stderr, err := e.commandCfg.Stderr()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := e.makeExecutable(absPath); err != nil {
+	e.childCmd.Stdout = stdout
+	e.childCmd.Stderr = stderr
+
+	// Look up the binary path and make it executable
+	absPath, err := lookupBin(command.TaskDir, command.Cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := makeExecutable(absPath); err != nil {
 		return nil, err
 	}
 
 	path := absPath
 
-	// Determine the path to run as it may have to be relative to the chroot.
-	if e.fsIsolationEnforced {
-		rel, err := filepath.Rel(e.ctx.TaskDir, path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", e.ctx.TaskDir, path, err)
-		}
-		path = rel
-	}
-
 	// Set the commands arguments
-	e.cmd.Path = path
-	e.cmd.Args = append([]string{e.cmd.Path}, e.ctx.TaskEnv.ParseAndReplace(command.Args)...)
-	e.cmd.Env = e.ctx.TaskEnv.List()
+	e.childCmd.Path = path
+	e.childCmd.Args = append([]string{e.childCmd.Path}, command.Args...)
+	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
-	if err := e.cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.cmd.Args, err)
+	if err := e.childCmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
-	go e.collectPids()
+
+	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
-	ic := e.resConCtx.getIsolationConfig()
-	return &ProcessState{Pid: e.cmd.Process.Pid, ExitCode: -1, IsolationConfig: ic, Time: time.Now()}, nil
+	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
 
 // Exec a command inside a container for exec and java drivers.
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	return ExecScript(ctx, e.cmd.Dir, e.ctx.TaskEnv, e.cmd.SysProcAttr, name, args)
+	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, name, args)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
 // error. Output is truncated to client/driver/structs.CheckBufSize
-func ExecScript(ctx context.Context, dir string, env *env.TaskEnv, attrs *syscall.SysProcAttr,
+func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.SysProcAttr,
 	name string, args []string) ([]byte, int, error) {
-	name = env.ReplaceEnv(name)
-	cmd := exec.CommandContext(ctx, name, env.ParseAndReplace(args)...)
+	cmd := exec.CommandContext(ctx, name, args...)
 
 	// Copy runtime environment from the main command
 	cmd.SysProcAttr = attrs
 	cmd.Dir = dir
-	cmd.Env = env.List()
+	cmd.Env = env
 
 	// Capture output
 	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
@@ -336,83 +346,26 @@ func ExecScript(ctx context.Context, dir string, env *env.TaskEnv, attrs *syscal
 	return buf.Bytes(), 0, nil
 }
 
-// configureLoggers sets up the standard out/error file rotators
-func (e *UniversalExecutor) configureLoggers() error {
-	e.rotatorLock.Lock()
-	defer e.rotatorLock.Unlock()
-
-	logFileSize := int64(e.ctx.Task.LogConfig.MaxFileSizeMB * 1024 * 1024)
-	if e.lro == nil {
-		lro, err := logging.NewFileRotator(e.ctx.LogDir, fmt.Sprintf("%v.stdout", e.ctx.Task.Name),
-			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
-		if err != nil {
-			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.Task.Name, err)
-		}
-		e.lro = lro
-	}
-
-	if e.lre == nil {
-		lre, err := logging.NewFileRotator(e.ctx.LogDir, fmt.Sprintf("%v.stderr", e.ctx.Task.Name),
-			e.ctx.Task.LogConfig.MaxFiles, logFileSize, e.logger)
-		if err != nil {
-			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.Task.Name, err)
-		}
-		e.lre = lre
-	}
-	return nil
-}
-
 // Wait waits until a process has exited and returns it's exitcode and errors
 func (e *UniversalExecutor) Wait() (*ProcessState, error) {
 	<-e.processExited
 	return e.exitState, nil
 }
 
-// COMPAT: prior to Nomad 0.3.2, UpdateTask didn't exist.
-// UpdateLogConfig updates the log configuration
-func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error {
-	e.ctx.Task.LogConfig = logConfig
-	if e.lro == nil {
-		return fmt.Errorf("log rotator for stdout doesn't exist")
-	}
-	e.lro.MaxFiles = logConfig.MaxFiles
-	e.lro.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
-
-	if e.lre == nil {
-		return fmt.Errorf("log rotator for stderr doesn't exist")
-	}
-	e.lre.MaxFiles = logConfig.MaxFiles
-	e.lre.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
-	return nil
-}
-
-func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
-	e.ctx.Task = task
-
-	// Updating Log Config
-	e.rotatorLock.Lock()
-	if e.lro != nil && e.lre != nil {
-		fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
-		e.lro.MaxFiles = task.LogConfig.MaxFiles
-		e.lro.FileSize = fileSize
-		e.lre.MaxFiles = task.LogConfig.MaxFiles
-		e.lre.FileSize = fileSize
-	}
-	e.rotatorLock.Unlock()
+func (e *UniversalExecutor) UpdateResources(resources *Resources) error {
 	return nil
 }
 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
-	err := e.cmd.Wait()
-	ic := e.resConCtx.getIsolationConfig()
+	pid := e.childCmd.Process.Pid
+	err := e.childCmd.Wait()
 	if err == nil {
-		e.exitState = &ProcessState{Pid: 0, ExitCode: 0, IsolationConfig: ic, Time: time.Now()}
+		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
 		return
 	}
 
-	e.lre.Close()
-	e.lro.Close()
+	e.commandCfg.Close()
 
 	exitCode := 1
 	var signal int
@@ -433,10 +386,10 @@ func (e *UniversalExecutor) wait() {
 			}
 		}
 	} else {
-		e.logger.Printf("[WARN] executor: unexpected Cmd.Wait() error type: %v", err)
+		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
 	}
 
-	e.exitState = &ProcessState{Pid: 0, ExitCode: exitCode, Signal: signal, IsolationConfig: ic, Time: time.Now()}
+	e.exitState = &ProcessState{Pid: pid, ExitCode: exitCode, Signal: signal, Time: time.Now()}
 }
 
 var (
@@ -449,114 +402,116 @@ var (
 	noSuchProcessErr = "no such process"
 )
 
-// ClientCleanup is the cleanup routine that a Nomad Client uses to remove the
-// remnants of a child UniversalExecutor.
-func ClientCleanup(ic *dstructs.IsolationConfig, pid int) error {
-	return clientCleanup(ic, pid)
-}
-
 // Exit cleans up the alloc directory, destroys resource container and kills the
 // user process
-func (e *UniversalExecutor) Exit() error {
+func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
+	e.logger.Info("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error
-	if e.syslogServer != nil {
-		e.syslogServer.Shutdown()
-	}
-
-	if e.lre != nil {
-		e.lre.Close()
-	}
-
-	if e.lro != nil {
-		e.lro.Close()
-	}
 
 	// If the executor did not launch a process, return.
-	if e.command == nil {
+	if e.commandCfg == nil {
 		return nil
 	}
 
+	// If there is no process we can't shutdown
+	if e.childCmd.Process == nil {
+		e.logger.Warn("failed to shutdown", "error", "no process found")
+		return fmt.Errorf("executor failed to shutdown error: no process found")
+	}
+
+	proc, err := os.FindProcess(e.childCmd.Process.Pid)
+	if err != nil {
+		err = fmt.Errorf("executor failed to find process: %v", err)
+		e.logger.Warn("failed to shutdown", "error", err)
+		return err
+	}
+
+	// If grace is 0 then skip shutdown logic
+	if grace > 0 {
+		// Default signal to SIGINT if not set
+		if signal == "" {
+			signal = "SIGINT"
+		}
+
+		sig, ok := signals.SignalLookup[signal]
+		if !ok {
+			err = fmt.Errorf("error unknown signal given for shutdown: %s", signal)
+			e.logger.Warn("failed to shutdown", "error", err)
+			return err
+		}
+
+		if err := e.shutdownProcess(sig, proc); err != nil {
+			e.logger.Warn("failed to shutdown", "error", err)
+			return err
+		}
+
+		select {
+		case <-e.processExited:
+		case <-time.After(grace):
+			proc.Kill()
+		}
+	} else {
+		proc.Kill()
+	}
+
 	// Prefer killing the process via the resource container.
-	if e.cmd.Process != nil && !e.command.ResourceLimits {
-		proc, err := os.FindProcess(e.cmd.Process.Pid)
-		if err != nil {
-			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
-				e.cmd.Process.Pid, err)
-		} else if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
+	if !(e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup) {
+		if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
 			merr.Errors = append(merr.Errors,
-				fmt.Errorf("can't kill process with pid: %v, err: %v", e.cmd.Process.Pid, err))
+				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, err))
 		}
 	}
 
-	if e.command.ResourceLimits {
+	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
 		if err := e.resConCtx.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
 	}
-	return merr.ErrorOrNil()
+
+	if err := merr.ErrorOrNil(); err != nil {
+		e.logger.Warn("failed to shutdown", "error", err)
+		return err
+	}
+
+	return nil
 }
 
-// Shutdown sends an interrupt signal to the user process
-func (e *UniversalExecutor) ShutDown() error {
-	if e.cmd.Process == nil {
-		return fmt.Errorf("executor.shutdown error: no process found")
+// Signal sends the passed signal to the task
+func (e *UniversalExecutor) Signal(s os.Signal) error {
+	if e.childCmd.Process == nil {
+		return fmt.Errorf("Task not yet run")
 	}
-	proc, err := os.FindProcess(e.cmd.Process.Pid)
+
+	e.logger.Debug("sending signal to PID", "signal", s, "pid", e.childCmd.Process.Pid)
+	err := e.childCmd.Process.Signal(s)
 	if err != nil {
-		return fmt.Errorf("executor.shutdown failed to find process: %v", err)
+		e.logger.Error("sending signal failed", "signal", s, "error", err)
+		return err
 	}
-	return e.shutdownProcess(proc)
+
+	return nil
 }
 
-// pidStats returns the resource usage stats per pid
-func (e *UniversalExecutor) pidStats() (map[string]*cstructs.ResourceUsage, error) {
-	stats := make(map[string]*cstructs.ResourceUsage)
-	e.pidLock.RLock()
-	pids := make(map[int]*nomadPid, len(e.pids))
-	for k, v := range e.pids {
-		pids[k] = v
+func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+	pidStats, err := e.pidCollector.pidStats()
+	if err != nil {
+		return nil, err
 	}
-	e.pidLock.RUnlock()
-	for pid, np := range pids {
-		p, err := process.NewProcess(int32(pid))
-		if err != nil {
-			e.logger.Printf("[TRACE] executor: unable to create new process with pid: %v", pid)
-			continue
-		}
-		ms := &cstructs.MemoryStats{}
-		if memInfo, err := p.MemoryInfo(); err == nil {
-			ms.RSS = memInfo.RSS
-			ms.Swap = memInfo.Swap
-			ms.Measured = ExecutorBasicMeasuredMemStats
-		}
-
-		cs := &cstructs.CpuStats{}
-		if cpuStats, err := p.Times(); err == nil {
-			cs.SystemMode = np.cpuStatsSys.Percent(cpuStats.System * float64(time.Second))
-			cs.UserMode = np.cpuStatsUser.Percent(cpuStats.User * float64(time.Second))
-			cs.Measured = ExecutorBasicMeasuredCpuStats
-
-			// calculate cpu usage percent
-			cs.Percent = np.cpuStatsTotal.Percent(cpuStats.Total() * float64(time.Second))
-		}
-		stats[strconv.Itoa(pid)] = &cstructs.ResourceUsage{MemoryStats: ms, CpuStats: cs}
-	}
-
-	return stats, nil
+	return aggregatedResourceUsage(e.systemCpuStats, pidStats), nil
 }
 
 // lookupBin looks for path to the binary to run by looking for the binary in
 // the following locations, in-order: task/local/, task/, based on host $PATH.
 // The return path is absolute.
-func (e *UniversalExecutor) lookupBin(bin string) (string, error) {
+func lookupBin(taskDir string, bin string) (string, error) {
 	// Check in the local directory
-	local := filepath.Join(e.ctx.TaskDir, allocdir.TaskLocal, bin)
+	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
 	if _, err := os.Stat(local); err == nil {
 		return local, nil
 	}
 
 	// Check at the root of the task's directory
-	root := filepath.Join(e.ctx.TaskDir, bin)
+	root := filepath.Join(taskDir, bin)
 	if _, err := os.Stat(root); err == nil {
 		return root, nil
 	}
@@ -570,7 +525,7 @@ func (e *UniversalExecutor) lookupBin(bin string) (string, error) {
 }
 
 // makeExecutable makes the given file executable for root,group,others.
-func (e *UniversalExecutor) makeExecutable(binPath string) error {
+func makeExecutable(binPath string) error {
 	if runtime.GOOS == "windows" {
 		return nil
 	}
@@ -592,228 +547,4 @@ func (e *UniversalExecutor) makeExecutable(binPath string) error {
 		}
 	}
 	return nil
-}
-
-// getFreePort returns a free port ready to be listened on between upper and
-// lower bounds
-func (e *UniversalExecutor) getListener(lowerBound uint, upperBound uint) (net.Listener, error) {
-	if runtime.GOOS == "windows" {
-		return e.listenerTCP(lowerBound, upperBound)
-	}
-
-	return e.listenerUnix()
-}
-
-// listenerTCP creates a TCP listener using an unused port between an upper and
-// lower bound
-func (e *UniversalExecutor) listenerTCP(lowerBound uint, upperBound uint) (net.Listener, error) {
-	for i := lowerBound; i <= upperBound; i++ {
-		addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:%v", i))
-		if err != nil {
-			return nil, err
-		}
-		l, err := net.ListenTCP("tcp", addr)
-		if err != nil {
-			continue
-		}
-		return l, nil
-	}
-	return nil, fmt.Errorf("No free port found")
-}
-
-// listenerUnix creates a Unix domain socket
-func (e *UniversalExecutor) listenerUnix() (net.Listener, error) {
-	f, err := ioutil.TempFile("", "plugin")
-	if err != nil {
-		return nil, err
-	}
-	path := f.Name()
-
-	if err := f.Close(); err != nil {
-		return nil, err
-	}
-	if err := os.Remove(path); err != nil {
-		return nil, err
-	}
-
-	return net.Listen("unix", path)
-}
-
-// collectPids collects the pids of the child processes that the executor is
-// running every 5 seconds
-func (e *UniversalExecutor) collectPids() {
-	// Fire the timer right away when the executor starts from there on the pids
-	// are collected every scan interval
-	timer := time.NewTimer(0)
-	defer timer.Stop()
-	for {
-		select {
-		case <-timer.C:
-			pids, err := e.getAllPids()
-			if err != nil {
-				e.logger.Printf("[DEBUG] executor: error collecting pids: %v", err)
-			}
-			e.pidLock.Lock()
-
-			// Adding pids which are not being tracked
-			for pid, np := range pids {
-				if _, ok := e.pids[pid]; !ok {
-					e.pids[pid] = np
-				}
-			}
-			// Removing pids which are no longer present
-			for pid := range e.pids {
-				if _, ok := pids[pid]; !ok {
-					delete(e.pids, pid)
-				}
-			}
-			e.pidLock.Unlock()
-			timer.Reset(pidScanInterval)
-		case <-e.processExited:
-			return
-		}
-	}
-}
-
-// scanPids scans all the pids on the machine running the current executor and
-// returns the child processes of the executor.
-func (e *UniversalExecutor) scanPids(parentPid int, allPids []ps.Process) (map[int]*nomadPid, error) {
-	processFamily := make(map[int]struct{})
-	processFamily[parentPid] = struct{}{}
-
-	// A mapping of pids to their parent pids. It is used to build the process
-	// tree of the executing task
-	pidsRemaining := make(map[int]int, len(allPids))
-	for _, pid := range allPids {
-		pidsRemaining[pid.Pid()] = pid.PPid()
-	}
-
-	for {
-		// flag to indicate if we have found a match
-		foundNewPid := false
-
-		for pid, ppid := range pidsRemaining {
-			_, childPid := processFamily[ppid]
-
-			// checking if the pid is a child of any of the parents
-			if childPid {
-				processFamily[pid] = struct{}{}
-				delete(pidsRemaining, pid)
-				foundNewPid = true
-			}
-		}
-
-		// not scanning anymore if we couldn't find a single match
-		if !foundNewPid {
-			break
-		}
-	}
-
-	res := make(map[int]*nomadPid)
-	for pid := range processFamily {
-		np := nomadPid{
-			pid:           pid,
-			cpuStatsTotal: stats.NewCpuStats(),
-			cpuStatsUser:  stats.NewCpuStats(),
-			cpuStatsSys:   stats.NewCpuStats(),
-		}
-		res[pid] = &np
-	}
-	return res, nil
-}
-
-// aggregatedResourceUsage aggregates the resource usage of all the pids and
-// returns a TaskResourceUsage data point
-func (e *UniversalExecutor) aggregatedResourceUsage(pidStats map[string]*cstructs.ResourceUsage) *cstructs.TaskResourceUsage {
-	ts := time.Now().UTC().UnixNano()
-	var (
-		systemModeCPU, userModeCPU, percent float64
-		totalRSS, totalSwap                 uint64
-	)
-
-	for _, pidStat := range pidStats {
-		systemModeCPU += pidStat.CpuStats.SystemMode
-		userModeCPU += pidStat.CpuStats.UserMode
-		percent += pidStat.CpuStats.Percent
-
-		totalRSS += pidStat.MemoryStats.RSS
-		totalSwap += pidStat.MemoryStats.Swap
-	}
-
-	totalCPU := &cstructs.CpuStats{
-		SystemMode: systemModeCPU,
-		UserMode:   userModeCPU,
-		Percent:    percent,
-		Measured:   ExecutorBasicMeasuredCpuStats,
-		TotalTicks: e.systemCpuStats.TicksConsumed(percent),
-	}
-
-	totalMemory := &cstructs.MemoryStats{
-		RSS:      totalRSS,
-		Swap:     totalSwap,
-		Measured: ExecutorBasicMeasuredMemStats,
-	}
-
-	resourceUsage := cstructs.ResourceUsage{
-		MemoryStats: totalMemory,
-		CpuStats:    totalCPU,
-	}
-	return &cstructs.TaskResourceUsage{
-		ResourceUsage: &resourceUsage,
-		Timestamp:     ts,
-		Pids:          pidStats,
-	}
-}
-
-// Signal sends the passed signal to the task
-func (e *UniversalExecutor) Signal(s os.Signal) error {
-	if e.cmd.Process == nil {
-		return fmt.Errorf("Task not yet run")
-	}
-
-	e.logger.Printf("[DEBUG] executor: sending signal %s to PID %d", s, e.cmd.Process.Pid)
-	err := e.cmd.Process.Signal(s)
-	if err != nil {
-		e.logger.Printf("[ERR] executor: sending signal %v failed: %v", s, err)
-		return err
-	}
-
-	return nil
-}
-
-func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
-	// Ensure the context has been set first
-	if e.ctx == nil {
-		return nil, fmt.Errorf("SetContext must be called before launching the Syslog Server")
-	}
-
-	e.syslogChan = make(chan *logging.SyslogMessage, 2048)
-	l, err := e.getListener(e.ctx.PortLowerBound, e.ctx.PortUpperBound)
-	if err != nil {
-		return nil, err
-	}
-	e.logger.Printf("[DEBUG] syslog-server: launching syslog server on addr: %v", l.Addr().String())
-	if err := e.configureLoggers(); err != nil {
-		return nil, err
-	}
-
-	e.syslogServer = logging.NewSyslogServer(l, e.syslogChan, e.logger)
-	go e.syslogServer.Start()
-	go e.collectLogs(e.lre, e.lro)
-	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
-	return &SyslogServerState{Addr: syslogAddr}, nil
-}
-
-func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
-	for logParts := range e.syslogChan {
-		// If the severity of the log line is err then we write to stderr
-		// otherwise all messages go to stdout
-		if logParts.Severity == syslog.LOG_ERR {
-			e.lre.Write(logParts.Message)
-			e.lre.Write([]byte{'\n'})
-		} else {
-			e.lro.Write(logParts.Message)
-			e.lro.Write([]byte{'\n'})
-		}
-	}
 }

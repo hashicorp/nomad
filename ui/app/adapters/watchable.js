@@ -1,7 +1,7 @@
 import { get, computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import { inject as service } from '@ember/service';
-import queryString from 'npm:query-string';
+import queryString from 'query-string';
 import ApplicationAdapter from './application';
 import { AbortError } from 'ember-data/adapters/errors';
 
@@ -51,8 +51,8 @@ export default ApplicationAdapter.extend({
     return ajaxOptions;
   },
 
-  xhrKey(url /* method, options */) {
-    return url;
+  xhrKey(url, method /* options */) {
+    return `${method} ${url}`;
   },
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
@@ -149,7 +149,7 @@ export default ApplicationAdapter.extend({
       return;
     }
     const url = this.urlForFindRecord(id, modelName);
-    this.get('xhrs').cancel(url);
+    this.get('xhrs').cancel(`GET ${url}`);
   },
 
   cancelFindAll(modelName) {
@@ -161,7 +161,7 @@ export default ApplicationAdapter.extend({
     if (params) {
       url = `${url}?${params}`;
     }
-    this.get('xhrs').cancel(url);
+    this.get('xhrs').cancel(`GET ${url}`);
   },
 
   cancelReloadRelationship(model, relationshipName) {
@@ -175,7 +175,7 @@ export default ApplicationAdapter.extend({
       );
     } else {
       const url = model[relationship.kind](relationship.key).link();
-      this.get('xhrs').cancel(url);
+      this.get('xhrs').cancel(`GET ${url}`);
     }
   },
 });

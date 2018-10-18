@@ -1,24 +1,18 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type allocTuple struct {
-	exist, updated *structs.Allocation
-}
-
 // diffResult is used to return the sets that result from a diff
 type diffResult struct {
 	added   []*structs.Allocation
-	removed []*structs.Allocation
-	updated []allocTuple
-	ignore  []*structs.Allocation
+	removed []string
+	updated []*structs.Allocation
+	ignore  []string
 }
 
 func (d *diffResult) GoString() string {
@@ -28,38 +22,34 @@ func (d *diffResult) GoString() string {
 
 // diffAllocs is used to diff the existing and updated allocations
 // to see what has happened.
-func diffAllocs(existing []*structs.Allocation, allocs *allocUpdates) *diffResult {
+func diffAllocs(existing map[string]uint64, allocs *allocUpdates) *diffResult {
 	// Scan the existing allocations
 	result := &diffResult{}
-	existIdx := make(map[string]struct{})
-	for _, exist := range existing {
-		// Mark this as existing
-		existIdx[exist.ID] = struct{}{}
-
+	for existID, existIndex := range existing {
 		// Check if the alloc was updated or filtered because an update wasn't
 		// needed.
-		alloc, pulled := allocs.pulled[exist.ID]
-		_, filtered := allocs.filtered[exist.ID]
+		alloc, pulled := allocs.pulled[existID]
+		_, filtered := allocs.filtered[existID]
 
 		// If not updated or filtered, removed
 		if !pulled && !filtered {
-			result.removed = append(result.removed, exist)
+			result.removed = append(result.removed, existID)
 			continue
 		}
 
 		// Check for an update
-		if pulled && alloc.AllocModifyIndex > exist.AllocModifyIndex {
-			result.updated = append(result.updated, allocTuple{exist, alloc})
+		if pulled && alloc.AllocModifyIndex > existIndex {
+			result.updated = append(result.updated, alloc)
 			continue
 		}
 
 		// Ignore this
-		result.ignore = append(result.ignore, exist)
+		result.ignore = append(result.ignore, existID)
 	}
 
 	// Scan the updated allocations for any that are new
 	for id, pulled := range allocs.pulled {
-		if _, ok := existIdx[id]; !ok {
+		if _, ok := existing[id]; !ok {
 			result.added = append(result.added, pulled)
 		}
 	}
@@ -72,17 +62,4 @@ func shuffleStrings(list []string) {
 		j := rand.Intn(i + 1)
 		list[i], list[j] = list[j], list[i]
 	}
-}
-
-// pre060RestoreState is used to read back in the persisted state for pre v0.6.0
-// state
-func pre060RestoreState(path string, data interface{}) error {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(buf, data); err != nil {
-		return fmt.Errorf("failed to decode state: %v", err)
-	}
-	return nil
 }

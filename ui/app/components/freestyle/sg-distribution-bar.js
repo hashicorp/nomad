@@ -17,6 +17,10 @@ export default Component.extend({
     clearInterval(this.get('timer'));
   },
 
+  distributionBarDatum: computed(() => {
+    return [{ label: 'one', value: 10 }];
+  }),
+
   distributionBarData: computed(() => {
     return [
       { label: 'one', value: 10 },

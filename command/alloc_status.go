@@ -12,7 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/client"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/posener/complete"
 )
 
@@ -425,7 +425,7 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		desc = strings.Join(parts, ", ")
 	case api.TaskRestarting:
 		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-		if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
+		if event.RestartReason != "" && event.RestartReason != restarts.ReasonWithinPolicy {
 			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
 		} else {
 			desc = in

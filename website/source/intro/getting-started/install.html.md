@@ -8,10 +8,9 @@ description: |-
 
 # Install Nomad
 
-The task drivers that are available to Nomad vary by operating system,
-for example Docker is only available on Linux machines. To simplify the
-getting started experience, we will be working in a Vagrant environment.
-Create a new directory, and download [this `Vagrantfile`](https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile).
+To simplify the getting started experience, we will be working in a Vagrant
+environment. Create a new directory, and download [this
+`Vagrantfile`](https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile).
 
 ## Vagrant Setup
 

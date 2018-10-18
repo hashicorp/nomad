@@ -1,7 +1,9 @@
-import { click, find, findAll, fillIn, currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
+import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import moment from 'moment';
 
 let job;
@@ -53,7 +55,7 @@ moduleForAcceptance('Acceptance | task group detail', {
       previousAllocation: allocations[0].id,
     });
 
-    visit(`/jobs/${job.id}/${taskGroup.name}`);
+    TaskGroup.visit({ id: job.id, name: taskGroup.name });
   },
 });
 
@@ -62,55 +64,47 @@ test('/jobs/:id/:task-group should list high-level metrics for the allocation', 
   const totalMemory = tasks.mapBy('Resources.MemoryMB').reduce(sum, 0);
   const totalDisk = taskGroup.ephemeralDisk.SizeMB;
 
+  assert.equal(TaskGroup.tasksCount, `# Tasks ${tasks.length}`, '# Tasks');
   assert.equal(
-    find('[data-test-task-group-tasks]').textContent,
-    `# Tasks ${tasks.length}`,
-    '# Tasks'
-  );
-  assert.equal(
-    find('[data-test-task-group-cpu]').textContent,
+    TaskGroup.cpu,
     `Reserved CPU ${totalCPU} MHz`,
     'Aggregated CPU reservation for all tasks'
   );
   assert.equal(
-    find('[data-test-task-group-mem]').textContent,
+    TaskGroup.mem,
     `Reserved Memory ${totalMemory} MiB`,
     'Aggregated Memory reservation for all tasks'
   );
   assert.equal(
-    find('[data-test-task-group-disk]').textContent,
+    TaskGroup.disk,
     `Reserved Disk ${totalDisk} MiB`,
     'Aggregated Disk reservation for all tasks'
   );
 });
 
 test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
+  assert.equal(TaskGroup.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
   assert.equal(
-    find('[data-test-breadcrumb="Jobs"]').textContent.trim(),
-    'Jobs',
-    'First breadcrumb says jobs'
-  );
-  assert.equal(
-    find(`[data-test-breadcrumb="${job.name}"]`).textContent.trim(),
+    TaskGroup.breadcrumbFor('jobs.job.index').text,
     job.name,
     'Second breadcrumb says the job name'
   );
   assert.equal(
-    find(`[data-test-breadcrumb="${taskGroup.name}"]`).textContent.trim(),
+    TaskGroup.breadcrumbFor('jobs.job.task-group').text,
     taskGroup.name,
     'Third breadcrumb says the job name'
   );
 });
 
 test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(assert) {
-  click('[data-test-breadcrumb="Jobs"]');
+  TaskGroup.breadcrumbFor('jobs.index').visit();
   andThen(() => {
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 });
 
 test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', function(assert) {
-  click(`[data-test-breadcrumb="${job.name}"]`);
+  TaskGroup.breadcrumbFor('jobs.job.index').visit();
   andThen(() => {
     assert.equal(
       currentURL(),
@@ -121,25 +115,23 @@ test('/jobs/:id/:task-group second breadcrumb should link to the job for the tas
 });
 
 test('/jobs/:id/:task-group should list one page of allocations for the task group', function(assert) {
-  const pageSize = 10;
-
-  server.createList('allocation', 10, {
+  server.createList('allocation', TaskGroup.pageSize, {
     jobId: job.id,
     taskGroup: taskGroup.name,
   });
 
-  visit('/jobs');
-  visit(`/jobs/${job.id}/${taskGroup.name}`);
+  JobsList.visit();
+  TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
   andThen(() => {
     assert.ok(
-      server.db.allocations.where({ jobId: job.id }).length > pageSize,
+      server.db.allocations.where({ jobId: job.id }).length > TaskGroup.pageSize,
       'There are enough allocations to invoke pagination'
     );
 
     assert.equal(
-      findAll('[data-test-allocation]').length,
-      pageSize,
+      TaskGroup.allocations.length,
+      TaskGroup.pageSize,
       'All allocations for the task group'
     );
   });
@@ -147,42 +139,30 @@ test('/jobs/:id/:task-group should list one page of allocations for the task gro
 
 test('each allocation should show basic information about the allocation', function(assert) {
   const allocation = allocations.sortBy('modifyIndex').reverse()[0];
-  const allocationRow = find('[data-test-allocation]');
+  const allocationRow = TaskGroup.allocations.objectAt(0);
 
   andThen(() => {
+    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short id');
     assert.equal(
-      allocationRow.querySelector('[data-test-short-id]').textContent.trim(),
-      allocation.id.split('-')[0],
-      'Allocation short id'
+      allocationRow.createTime,
+      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      'Allocation create time'
     );
     assert.equal(
-      allocationRow.querySelector('[data-test-modify-time]').textContent.trim(),
-      moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
+      allocationRow.modifyTime,
+      moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
+    assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
+    assert.equal(allocationRow.jobVersion, allocation.jobVersion, 'Job Version');
     assert.equal(
-      allocationRow.querySelector('[data-test-name]').textContent.trim(),
-      allocation.name,
-      'Allocation name'
-    );
-    assert.equal(
-      allocationRow.querySelector('[data-test-client-status]').textContent.trim(),
-      allocation.clientStatus,
-      'Client status'
-    );
-    assert.equal(
-      allocationRow.querySelector('[data-test-job-version]').textContent.trim(),
-      allocation.jobVersion,
-      'Job Version'
-    );
-    assert.equal(
-      allocationRow.querySelector('[data-test-client]').textContent.trim(),
+      allocationRow.client,
       server.db.nodes.find(allocation.nodeId).id.split('-')[0],
       'Node ID'
     );
   });
 
-  click(allocationRow.querySelector('[data-test-client] a'));
+  allocationRow.visitClient();
 
   andThen(() => {
     assert.equal(currentURL(), `/clients/${allocation.nodeId}`, 'Node links to node page');
@@ -191,7 +171,8 @@ test('each allocation should show basic information about the allocation', funct
 
 test('each allocation should show stats about the allocation', function(assert) {
   const allocation = allocations.sortBy('name')[0];
-  const allocationRow = find('[data-test-allocation]');
+  const allocationRow = TaskGroup.allocations.objectAt(0);
+
   const allocStats = server.db.clientAllocationStats.find(allocation.id);
   const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
 
@@ -199,46 +180,47 @@ test('each allocation should show stats about the allocation', function(assert) 
   const memoryUsed = tasks.reduce((sum, task) => sum + task.Resources.MemoryMB, 0);
 
   assert.equal(
-    allocationRow.querySelector('[data-test-cpu]').textContent.trim(),
+    allocationRow.cpu,
     Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
     'CPU %'
   );
 
   assert.equal(
-    allocationRow.querySelector('[data-test-cpu] .tooltip').getAttribute('aria-label'),
+    allocationRow.cpuTooltip,
     `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
     'Detailed CPU information is in a tooltip'
   );
 
   assert.equal(
-    allocationRow.querySelector('[data-test-mem]').textContent.trim(),
+    allocationRow.mem,
     allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
     'Memory used'
   );
 
   assert.equal(
-    allocationRow.querySelector('[data-test-mem] .tooltip').getAttribute('aria-label'),
+    allocationRow.memTooltip,
     `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
     'Detailed memory information is in a tooltip'
   );
 });
 
 test('when the allocation search has no matches, there is an empty message', function(assert) {
-  fillIn('.search-box input', 'zzzzzz');
+  TaskGroup.search('zzzzzz');
 
   andThen(() => {
-    assert.ok(find('[data-test-empty-allocations-list]'));
-    assert.equal(find('[data-test-empty-allocations-list-headline]').textContent, 'No Matches');
+    assert.ok(TaskGroup.isEmpty, 'Empty state is shown');
+    assert.equal(
+      TaskGroup.emptyState.headline,
+      'No Matches',
+      'Empty state has an appropriate message'
+    );
   });
 });
 
 test('when the allocation has reschedule events, the allocation row is denoted with an icon', function(assert) {
-  const rescheduleRow = find(`[data-test-allocation="${allocations[0].id}"]`);
-  const normalRow = find(`[data-test-allocation="${allocations[1].id}"]`);
+  const rescheduleRow = TaskGroup.allocationFor(allocations[0].id);
+  const normalRow = TaskGroup.allocationFor(allocations[1].id);
 
-  assert.ok(
-    rescheduleRow.querySelector('[data-test-indicators] .icon'),
-    'Reschedule row has an icon'
-  );
-  assert.notOk(normalRow.querySelector('[data-test-indicators] .icon'), 'Normal row has no icon');
+  assert.ok(rescheduleRow.rescheduled, 'Reschedule row has a reschedule icon');
+  assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
 });

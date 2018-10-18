@@ -1,7 +1,75 @@
-## 0.8.4 (Unreleased)
+## 0.9.0 (Unreleased)
+
+__BACKWARDS INCOMPATIBILITIES:__
+ * core: Switch to structured logging using [go-hclog](https://github.com/hashicorp/go-hclog)
+
+IMPROVEMENTS:
+ * core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]
+ * core: Added support for specifying node affinities. Affinities allow job operators to specify weighted placement preferences
+ according to different node attributes [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
+ * core: Added support for spreading allocations across a specific attribute. Operators can specify spread
+   target percentages across failure domains such as datacenter or rack [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
+ * client: Refactor client to support plugins and improve state handling [[GH-4792](https://github.com/hashicorp/nomad/pull/4792)]
+ * client: Extend timeout to 60 seconds for Windows CPU fingerprinting [[GH-4441](https://github.com/hashicorp/nomad/pull/4441)]
+ * driver/docker: Add support for specifying `cpu_cfs_period` in the Docker driver [[GH-4462](https://github.com/hashicorp/nomad/issues/4462)]
+ * telemetry: All client metrics include a new `node_class` tag [[GH-3882](https://github.com/hashicorp/nomad/issues/3882)]
+ * telemetry: Added new tags with value of child job id and parent job id for
+   parameterized and periodic jobs [[GH-4392](https://github.com/hashicorp/nomad/issues/4392)]
+ * vendor: Removed library obsoleted by go 1.8 [[GH-4469](https://github.com/hashicorp/nomad/issues/4469)]
+
+BUG FIXES:
+ * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
+ * client: Fix an issue reloading the client config [[GH-4730](https://github.com/hashicorp/nomad/issues/4730)]
+
+## 0.8.6 (September 26, 2018)
+
+IMPROVEMENTS:
+* core: Increased scheduling performance when annotating existing allocations
+  [[GH-4713](https://github.com/hashicorp/nomad/issues/4713)]
+* core: Unique TriggerBy for evaluations that are created to place queued
+  allocations [[GH-4716](https://github.com/hashicorp/nomad/issues/4716)]
+
+BUG FIXES:
+* core: Fix a bug in Nomad Enterprise where non-voting servers could get
+  bootstrapped as voting servers [[GH-4702](https://github.com/hashicorp/nomad/issues/4702)]
+* core: Fix an issue where an evaluation could fail if an allocation was being
+  rescheduled and the node containing it was at capacity [[GH-4713](https://github.com/hashicorp/nomad/issues/4713)]
+* core: Fix an issue in which schedulers would reject evaluations created when
+  prior scheduling for a job failed [[GH-4712](https://github.com/hashicorp/nomad/issues/4712)]
+* cli: Fix a bug where enabling custom upgrade versions for autopilot was not
+  being honored [[GH-4723](https://github.com/hashicorp/nomad/issues/4723)]
+* deployments: Fix an issue where the deployment watcher could create a high
+  volume of evaluations [[GH-4709](https://github.com/hashicorp/nomad/issues/4709)]
+* vault: Fix a regression in which Nomad was only compatible with Vault versions
+  greater than 0.10.0 [[GH-4698](https://github.com/hashicorp/nomad/issues/4698)]
+
+# 0.8.5 (September 13, 2018)
+
+IMPROVEMENTS:
+
+* core: Failed deployments no longer block migrations [[GH-4659](https://github.com/hashicorp/nomad/issues/4659)]
+* client: Added option to prevent Nomad from removing containers when the task exits [[GH-4535](https://github.com/hashicorp/nomad/issues/4535)]
+
+BUG FIXES:
+
+* core: Reset queued allocation summary to zero when job stopped [[GH-4414](https://github.com/hashicorp/nomad/issues/4414)]
+* core: Fix inverted logic bug where if `disable_update_check` was enabled, update checks would be performed [[GH-4570](https://github.com/hashicorp/nomad/issues/4570)]
+* core: Fix panic due to missing synchronization in delayed evaluations heap [[GH-4632](https://github.com/hashicorp/nomad/issues/4632)]
+* core: Fix treating valid PEM files as invalid [[GH-4613](https://github.com/hashicorp/nomad/issues/4613)]
+* core: Fix panic in nomad job history when invoked with a job version that doesn't exist [[GH-4577](https://github.com/hashicorp/nomad/issues/4577)]
+* core: Fix issue with not properly closing connection multiplexer when its context is cancelled [[GH-4573](https://github.com/hashicorp/nomad/issues/4573)]
+* core: Upgrade vendored Vault client library to fix API incompatibility issue [[GH-4658](https://github.com/hashicorp/nomad/issues/4658)]
+* driver/docker: Fix kill timeout not being respected when timeout is over five minutes [[GH-4599](https://github.com/hashicorp/nomad/issues/4599)]
+* scheduler: Fix nil pointer dereference [[GH-4474](https://github.com/hashicorp/nomad/issues/4474)]
+* scheduler: Fix panic when allocation's reschedule policy doesn't exist [[GH-4647](https://github.com/hashicorp/nomad/issues/4647)]
+* client: Fix migrating ephemeral disks when TLS is enabled [[GH-4648](https://github.com/hashicorp/nomad/issues/4648)]
+
+## 0.8.4 (June 11, 2018)
 
 IMPROVEMENTS:
  * core: Updated serf library to improve how leave intents are handled [[GH-4278](https://github.com/hashicorp/nomad/issues/4278)]
+ * core: Add more descriptive errors when parsing agent TLS certificates [[GH-4340](https://github.com/hashicorp/nomad/issues/4340)]
+ * core: Added TLS configuration option to prefer server's ciphersuites over clients[[GH-4338](https://github.com/hashicorp/nomad/issues/4338)]
  * core: Add the option for operators to configure TLS versions and allowed
    cipher suites. Default is a subset of safe ciphers and TLS 1.2 [[GH-4269](https://github.com/hashicorp/nomad/pull/4269)]
  * core: Add a new [progress_deadline](https://www.nomadproject.io/docs/job-specification/update.html#progress_deadline) parameter to
@@ -14,6 +82,8 @@ IMPROVEMENTS:
    isolate canary instances during deployments [[GH-4259](https://github.com/hashicorp/nomad/issues/4259)]
  * core: Emit Node events for drain and eligibility operations as well as for
    missed heartbeats [[GH-4284](https://github.com/hashicorp/nomad/issues/4284)], [[GH-4291](https://github.com/hashicorp/nomad/issues/4291)], [[GH-4292](https://github.com/hashicorp/nomad/issues/4292)]
+ * agent: Support go-discover for auto-joining clusters based on cloud metadata
+   [[GH-4277](https://github.com/hashicorp/nomad/issues/4277)]
  * cli: Add node drain monitoring with new `-monitor` flag on node drain
    command [[GH-4260](https://github.com/hashicorp/nomad/issues/4260)]
  * cli: Add node drain details to node status [[GH-4247](https://github.com/hashicorp/nomad/issues/4247)]
@@ -21,27 +91,51 @@ IMPROVEMENTS:
  * command: Add -short option to init command that emits a minimal
    jobspec [[GH-4239](https://github.com/hashicorp/nomad/issues/4239)]
  * discovery: Support Consul gRPC health checks. [[GH-4251](https://github.com/hashicorp/nomad/issues/4251)]
+ * driver/docker: OOM kill metric [[GH-4185](https://github.com/hashicorp/nomad/issues/4185)]
  * driver/docker: Pull image with digest [[GH-4298](https://github.com/hashicorp/nomad/issues/4298)]
+ * driver/docker: Support Docker pid limits [[GH-4341](https://github.com/hashicorp/nomad/issues/4341)]
  * driver/docker: Add progress monitoring and inactivity detection to docker
-   image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)] 
+   image pulls [[GH-4192](https://github.com/hashicorp/nomad/issues/4192)]
+ * driver/raw_exec: Use cgroups to manage process tree for precise cleanup of
+   launched processes [[GH-4350](https://github.com/hashicorp/nomad/issues/4350)]
  * env: Default interpolation of optional meta fields of parameterized jobs to
    an empty string rather than the field key. [[GH-3720](https://github.com/hashicorp/nomad/issues/3720)]
+ * ui: Show node drain, node eligibility, and node drain strategy information in the Client list and Client detail pages [[GH-4353](https://github.com/hashicorp/nomad/issues/4353)]
+ * ui: Show reschedule-event information for allocations that were server-side rescheduled [[GH-4254](https://github.com/hashicorp/nomad/issues/4254)]
+ * ui: Show the running deployment Progress Deadlines on the Job Detail Page [[GH-4388](https://github.com/hashicorp/nomad/issues/4388)]
+ * ui: Show driver health status and node events on the Client Detail Page [[GH-4294](https://github.com/hashicorp/nomad/issues/4294)]
+ * ui: Fuzzy and tokenized search on the Jobs List Page [[GH-4201](https://github.com/hashicorp/nomad/issues/4201)]
+ * ui: The stop job button looks more dangerous [[GH-4339](https://github.com/hashicorp/nomad/issues/4339)]
 
 BUG FIXES:
+ * core: Clean up leaked deployments on restoration [[GH-4329](https://github.com/hashicorp/nomad/issues/4329)]
+ * core: Fix regression to allow for dynamic Vault configuration reload [[GH-4395](https://github.com/hashicorp/nomad/issues/4395)]
  * core: Fix bug where older failed allocations of jobs that have been updated to a newer version were
    not being garbage collected [[GH-4313](https://github.com/hashicorp/nomad/issues/4313)]
+ * core: Fix bug when upgrading an existing server to Raft protocol 3 that
+   caused servers to never change their ID in the Raft configuration. [[GH-4349](https://github.com/hashicorp/nomad/issues/4349)]
+ * core: Fix bug with scheduler not creating a new deployment when job is purged
+   and re-added [[GH-4377](https://github.com/hashicorp/nomad/issues/4377)]
  * api/client: Fix potentially out of order logs and streamed file contents
    [[GH-4234](https://github.com/hashicorp/nomad/issues/4234)]
+ * discovery: Fix flapping services when Nomad Server and Client point to the same
+   Consul agent [[GH-4365](https://github.com/hashicorp/nomad/issues/4365)]
  * driver/docker: Fix docker credential helper support [[GH-4266](https://github.com/hashicorp/nomad/issues/4266)]
  * driver/docker: Fix panic when docker client configuration options are invalid [[GH-4303](https://github.com/hashicorp/nomad/issues/4303)]
+ * driver/exec: Disable exec on non-linux platforms [[GH-4366](https://github.com/hashicorp/nomad/issues/4366)]
  * rpc: Fix RPC tunneling when running both client/server on one machine [[GH-4317](https://github.com/hashicorp/nomad/issues/4317)]
+ * ui: Track the method in XHR tracking to prevent errant ACL error dialogs when stopping a job [[GH-4319](https://github.com/hashicorp/nomad/issues/4319)]
+ * ui: Make the tasks list on the Allocation Detail Page look and behave like other lists [[GH-4387](https://github.com/hashicorp/nomad/issues/4387)] [[GH-4393](https://github.com/hashicorp/nomad/issues/4393)]
+ * ui: Use the Network IP, not the Node IP, for task addresses [[GH-4369](https://github.com/hashicorp/nomad/issues/4369)]
+ * ui: Use Polling instead of Streaming for logs in Safari [[GH-4335](https://github.com/hashicorp/nomad/issues/4335)]
+ * ui: Track PlaceCanaries in deployment metrics [[GH-4325](https://github.com/hashicorp/nomad/issues/4325)]
 
 ## 0.8.3 (April 27, 2018)
 
 BUG FIXES:
  * core: Fix panic proxying node connections when the server does not have a
    connection to the node [[GH-4231](https://github.com/hashicorp/nomad/issues/4231)]
- * core: Fix bug with not updating ModifyIndex of allocations after updates to 
+ * core: Fix bug with not updating ModifyIndex of allocations after updates to
    the `NextAllocation` field [[GH-4250](https://github.com/hashicorp/nomad/issues/4250)]
 
 ## 0.8.2 (April 26, 2018)

@@ -3,7 +3,6 @@ package fingerprint
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,8 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -51,13 +52,13 @@ var ec2InstanceSpeedMap = map[*regexp.Regexp]int{
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
 	timeout time.Duration
-	logger  *log.Logger
+	logger  log.Logger
 }
 
 // NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
-func NewEnvAWSFingerprint(logger *log.Logger) Fingerprint {
+func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
 	f := &EnvAWSFingerprint{
-		logger:  logger,
+		logger:  logger.Named("env_aws"),
 		timeout: AwsMetadataTimeout,
 	}
 	return f
@@ -107,7 +108,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 	for k, unique := range keys {
 		res, err := client.Get(metadataURL + k)
 		if res.StatusCode != http.StatusOK {
-			f.logger.Printf("[DEBUG]: fingerprint.env_aws: Could not read value for attribute %q", k)
+			f.logger.Debug("could not read attribute value", "attribute", k)
 			continue
 		}
 		if err != nil {
@@ -122,7 +123,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 		resp, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil {
-			f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for AWS %s", k)
+			f.logger.Error("error reading response body for AWS attribute", "attribute", k, "error", err)
 		}
 
 		// assume we want blank entries
@@ -165,7 +166,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, re
 	}
 
 	newNetwork.MBits = throughput
-	response.Resources = &structs.Resources{
+	response.NodeResources = &structs.NodeResources{
 		Networks: []*structs.NetworkResource{newNetwork},
 	}
 
@@ -194,7 +195,7 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 	// Query the metadata url for the ami-id, to verify we're on AWS
 	resp, err := client.Get(metadataURL + "ami-id")
 	if err != nil {
-		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")
+		f.logger.Debug("error querying AWS Metadata URL, skipping")
 		return false
 	}
 	defer resp.Body.Close()
@@ -206,7 +207,7 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 
 	instanceID, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error reading AWS Instance ID, skipping")
+		f.logger.Debug("error reading AWS Instance ID, skipping")
 		return false
 	}
 
@@ -235,14 +236,14 @@ func (f *EnvAWSFingerprint) linkSpeed() int {
 
 	res, err := client.Get(metadataURL + "instance-type")
 	if err != nil {
-		f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading instance-type: %v", err)
+		f.logger.Error("error reading instance-type", "error", err)
 		return 0
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for instance-type: %v", err)
+		f.logger.Error("error reading response body for instance-type", "error", err)
 		return 0
 	}
 

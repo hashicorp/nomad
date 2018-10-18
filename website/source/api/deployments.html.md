@@ -52,6 +52,7 @@ $ curl \
     "JobID": "example",
     "JobVersion": 1,
     "JobModifyIndex": 17,
+    "JobSpecModifyIndex": 17,
     "JobCreateIndex": 7,
     "TaskGroups": {
       "cache": {
@@ -108,6 +109,7 @@ $ curl \
   "JobID": "example",
   "JobVersion": 1,
   "JobModifyIndex": 17,
+  "JobSpecModifyIndex": 17,
   "JobCreateIndex": 7,
   "TaskGroups": {
     "cache": {

@@ -9,17 +9,17 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.0.7
+CONSULVERSION=1.2.0
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=0.10.0
+VAULTVERSION=0.10.3
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.8.1
+NOMADVERSION=0.8.4
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad

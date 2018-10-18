@@ -221,6 +221,14 @@ job "example" {
     # set to true.
     healthy_deadline = "3m"
 
+    # The "progress_deadline" parameter specifies the deadline in which an
+    # allocation must be marked as healthy. The deadline begins when the first
+    # allocation for the deployment is created and is reset whenever an allocation
+    # as part of the deployment transitions to a healthy state. If no allocation
+    # transitions to the healthy state before the progress deadline, the
+    # deployment is marked as failed.
+    progress_deadline = "10m"
+
     # The "auto_revert" parameter specifies if the job should auto-revert to the
     # last stable job on deployment failure. A job is marked as stable if all the
     # allocations as part of its deployment were marked healthy.

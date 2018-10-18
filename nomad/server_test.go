@@ -219,7 +219,7 @@ func TestServer_Reload_Vault(t *testing.T) {
 	}
 
 	tr := true
-	config := s1.config
+	config := DefaultConfig()
 	config.VaultConfig.Enabled = &tr
 	config.VaultConfig.Token = uuid.Generate()
 
@@ -531,7 +531,7 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 
 	// Set the config to not have the core scheduler
 	config := DefaultConfig()
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	s := &Server{
 		config: config,
 		logger: logger,

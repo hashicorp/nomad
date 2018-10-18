@@ -1,0 +1,79 @@
+<td class="is-narrow">
+  {{#if (not task.driverStatus.healthy)}}
+    <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="{{task.driver}} is unhealthy">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{/if}}
+</td>
+<td data-test-name>
+  {{#link-to "allocations.allocation.task" task.allocation task class="is-primary"}}
+    {{task.name}}
+  {{/link-to}}
+</td>
+<td data-test-state>{{task.state}}</td>
+<td data-test-message>
+  {{#if task.events.lastObject.message}}
+    {{task.events.lastObject.message}}
+  {{else}}
+    <em>No message</em>
+  {{/if}}
+</td>
+<td data-test-time>{{moment-format task.events.lastObject.time "MM/DD/YY HH:mm:ss"}}</td>
+<td data-test-ports>
+  <ul>
+    {{#with task.resources.networks.firstObject as |network|}}
+      {{#each network.reservedPorts as |port|}}
+        <li data-test-port>
+          <strong>{{port.Label}}:</strong>
+          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+        </li>
+      {{/each}}
+      {{#each network.dynamicPorts as |port|}}
+        <li>
+          <strong>{{port.Label}}:</strong>
+          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+        </li>
+      {{/each}}
+    {{/with}}
+  </ul>
+</td>
+<td data-test-cpu class="is-1 has-text-centered">
+  {{#if (and (not cpu) fetchStats.isRunning)}}
+    ...
+  {{else if (not task)}}
+    {{! nothing when there's no task}}
+  {{else if statsError}}
+    <span class="tooltip text-center" role="tooltip" aria-label="Couldn't collect stats">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{else}}
+    <div class="inline-chart is-small tooltip" role="tooltip" aria-label="{{cpu.used}} / {{taskStats.reservedCPU}} MHz">
+      <progress
+        class="progress is-info is-small"
+        value="{{cpu.percent}}"
+        max="1">
+        {{cpu.percent}}
+      </progress>
+    </div>
+  {{/if}}
+</td>
+<td data-test-mem class="is-1 has-text-centered">
+  {{#if (and (not memory) fetchStats.isRunning)}}
+    ...
+  {{else if (not task)}}
+    {{! nothing when there's no task}}
+  {{else if statsError}}
+    <span class="tooltip is-small text-center" role="tooltip" aria-label="Couldn't collect stats">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{else}}
+    <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-bytes memory.used}} / {{taskStats.reservedMemory}} MiB">
+      <progress
+        class="progress is-danger is-small"
+        value="{{memory.percent}}"
+        max="1">
+        {{memory.percent}}
+      </progress>
+    </div>
+  {{/if}}
+</td>
