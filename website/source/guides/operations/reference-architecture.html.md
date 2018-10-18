@@ -44,7 +44,7 @@ A single Nomad cluster is recommended for applications deployed in the same regi
 
 Each cluster is expected to have either three or five servers. This strikes a balance between availability in the case of failure and performance, as [Raft](https://raft.github.io/) consensus gets progressively slower as more servers are added.
 
-The time taken for gossip to converge increases as more client nodes are added. Similarly, the time taken by a new server to join an existing large cluster may increase as they are replicated to the new server's log.
+The time taken by a new server to join an existing large cluster may increase as the size of the cluster increases.
 
 #### Reference Diagram
 
@@ -98,8 +98,6 @@ Nomad clients can be setup with specialized workloads as well. For example, if w
 ## High Availability
 
 A Nomad server cluster is the highly-available unit of deployment within a single datacenter. A recommended approach is to deploy a three or five node Nomad server cluster. With this configuration, during a Nomad server outage, failover is handled immediately without human intervention.
-
-High-availability and data locality across datacenters requires Nomad Enterprise.
 
 When setting up high availability across regions, multiple Nomad server clusters are deployed and connected via WAN gossip. Nomad clusters in regions are fully independent from each other and do not share jobs, clients, or state. Data residing in a single region-specific cluster is not replicated to other clusters in other regions.
 
