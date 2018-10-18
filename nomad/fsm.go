@@ -1004,14 +1004,14 @@ func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interfac
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "scheduler-config"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_scheduler_config"}, time.Now())
 
 	if req.CAS {
-		act, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
+		applied, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
 		if err != nil {
 			return err
 		}
-		return act
+		return applied
 	}
 	return n.state.SchedulerSetConfig(index, &req.Config)
 }
