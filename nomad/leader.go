@@ -42,6 +42,9 @@ const (
 
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
+// Default configuration for scheduler with preemption emabled for system jobs
+var defaultSchedulerConfig = &structs.SchedulerConfiguration{PreemptionConfig: structs.PreemptionConfig{SystemSchedulerEnabled: true}}
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -1246,8 +1249,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 		return config
 	}
 
-	config = &structs.SchedulerConfiguration{PreemptionConfig: structs.PreemptionConfig{SystemSchedulerEnabled: true}}
-	req := structs.SchedulerSetConfigRequest{Config: *config}
+	req := structs.SchedulerSetConfigRequest{Config: *defaultSchedulerConfig}
 	if _, _, err = s.raftApply(structs.SchedulerConfigRequestType, req); err != nil {
 		s.logger.Named("core").Error("failed to initialize config", "error", err)
 		return nil
