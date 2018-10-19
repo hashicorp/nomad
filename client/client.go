@@ -769,6 +769,7 @@ func (c *Client) restoreState() error {
 			StateUpdater:          c,
 			Consul:                c.consulService,
 			Vault:                 c.vaultClient,
+			PrevAllocWatcher:      &allocwatcher.NoopPrevAlloc{},
 			PluginLoader:          c.config.PluginLoader,
 			PluginSingletonLoader: c.config.PluginSingletonLoader,
 		}

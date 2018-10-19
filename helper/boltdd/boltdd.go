@@ -14,6 +14,9 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+// NoDataAtKey is a error prefix (see Bucket.Get method)
+const NoDataAtKey = "no data at key"
+
 // DB wraps an underlying bolt.DB to create write deduplicating buckets and
 // msgpack encoded values.
 type DB struct {
@@ -277,12 +280,13 @@ func (b *Bucket) Put(key []byte, val interface{}) error {
 
 }
 
-// Get value by key from boltdb or return an error if key not found.
+// Get value by key from boltdb or return an error if key not found
+// (prefix of the error is defined by constant NoDataAtKey).
 func (b *Bucket) Get(key []byte, obj interface{}) error {
 	// Get the raw data from the underlying boltdb
 	data := b.boltBucket.Get(key)
 	if data == nil {
-		return fmt.Errorf("no data at key %v", string(key))
+		return fmt.Errorf(NoDataAtKey+" %v", string(key))
 	}
 
 	// Deserialize the object

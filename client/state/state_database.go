@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
@@ -118,13 +119,14 @@ func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, m
 		allocID := string(k)
 		allocBkt := allocationsBkt.Bucket(k)
 		if allocBkt == nil {
-			errs[allocID] = fmt.Errorf("missing alloc bucket")
-			continue
+			continue // No allocs
 		}
 
 		var ae allocEntry
 		if err := allocBkt.Get(allocKey, &ae); err != nil {
-			errs[allocID] = fmt.Errorf("failed to decode alloc: %v", err)
+			if !strings.HasPrefix(err.Error(), boltdd.NoDataAtKey) { //this can happen while restarting Nomad
+				errs[allocID] = fmt.Errorf("failed to decode alloc: %v", err)
+			}
 			continue
 		}
 
@@ -158,24 +160,34 @@ func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
 }
 
 // GetTaskRunnerState restores TaskRunner specific state.
-func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.LocalState, *structs.TaskState, error) {
-	var ls trstate.LocalState
-	var ts structs.TaskState
-
-	err := s.db.View(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (retLs *trstate.LocalState, retTs *structs.TaskState, err error) {
+	err = s.db.View(func(tx *boltdd.Tx) error {
 		bkt, err := getTaskBucket(tx, allocID, taskName)
 		if err != nil {
 			return fmt.Errorf("failed to get task %q bucket: %v", taskName, err)
 		}
+		if bkt == nil {
+			return nil // No tasks
+		}
 
 		// Restore Local State
+		var ls trstate.LocalState
 		if err := bkt.Get(taskLocalStateKey, &ls); err != nil {
-			return fmt.Errorf("failed to read local task runner state: %v", err)
+			if !strings.HasPrefix(err.Error(), boltdd.NoDataAtKey) { //this can happen while restarting Nomad
+				return fmt.Errorf("failed to read local task runner state: %v", err)
+			}
+		} else {
+			retLs = &ls
 		}
 
 		// Restore Task State
+		var ts structs.TaskState
 		if err := bkt.Get(taskStateKey, &ts); err != nil {
-			return fmt.Errorf("failed to read task state: %v", err)
+			if !strings.HasPrefix(err.Error(), boltdd.NoDataAtKey) { //this can happen while restarting Nomad
+				return fmt.Errorf("failed to read task state: %v", err)
+			}
+		} else {
+			retTs = &ts
 		}
 
 		return nil
@@ -185,7 +197,7 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 		return nil, nil, err
 	}
 
-	return &ls, &ts, nil
+	return
 
 }
 
@@ -223,13 +235,13 @@ func (s *BoltStateDB) DeleteTaskBucket(allocID, taskName string) error {
 		// Retrieve the root allocations bucket
 		allocations := tx.Bucket(allocationsBucket)
 		if allocations == nil {
-			return nil
+			return nil // No allocs
 		}
 
 		// Retrieve the specific allocations bucket
 		alloc := allocations.Bucket([]byte(allocID))
 		if alloc == nil {
-			return nil
+			return nil // No allocs
 		}
 
 		// Check if the bucket exists
@@ -244,7 +256,7 @@ func (s *BoltStateDB) DeleteAllocationBucket(allocID string) error {
 		// Retrieve the root allocations bucket
 		allocations := tx.Bucket(allocationsBucket)
 		if allocations == nil {
-			return nil
+			return nil // No allocs
 		}
 
 		key := []byte(allocID)
@@ -270,7 +282,7 @@ func getAllocationBucket(tx *boltdd.Tx, allocID string) (*boltdd.Bucket, error) 
 	allocations := tx.Bucket(allocationsBucket)
 	if allocations == nil {
 		if !w {
-			return nil, fmt.Errorf("Allocations bucket doesn't exist and transaction is not writable")
+			return nil, nil // No allocs
 		}
 
 		allocations, err = tx.CreateBucketIfNotExists(allocationsBucket)
@@ -284,7 +296,7 @@ func getAllocationBucket(tx *boltdd.Tx, allocID string) (*boltdd.Bucket, error) 
 	alloc := allocations.Bucket(key)
 	if alloc == nil {
 		if !w {
-			return nil, fmt.Errorf("Allocation bucket doesn't exist and transaction is not writable")
+			return nil, nil // No allocs
 		}
 
 		alloc, err = allocations.CreateBucket(key)
@@ -312,7 +324,7 @@ func getTaskBucket(tx *boltdd.Tx, allocID, taskName string) (*boltdd.Bucket, err
 	task := alloc.Bucket(key)
 	if task == nil {
 		if !w {
-			return nil, fmt.Errorf("Task bucket doesn't exist and transaction is not writable")
+			return nil, nil // No tasks
 		}
 
 		task, err = alloc.CreateBucket(key)
