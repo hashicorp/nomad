@@ -154,7 +154,7 @@ type RktDriver struct {
 	config *Config
 
 	// nomadConfig is the client config from nomad
-	nomadConfig *base.NomadConfig
+	nomadConfig *base.NomadDriverConfig
 
 	// tasks is the in memory datastore mapping taskIDs to rktTaskHandles
 	tasks *taskStore
@@ -200,7 +200,9 @@ func (d *RktDriver) SetConfig(data []byte, cfg *base.NomadConfig) error {
 	}
 
 	d.config = &config
-	d.nomadConfig = cfg
+	if cfg != nil {
+		d.nomadConfig = cfg.Driver
+	}
 	return nil
 }
 

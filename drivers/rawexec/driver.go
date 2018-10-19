@@ -106,7 +106,7 @@ type RawExecDriver struct {
 	config *Config
 
 	// nomadConfig is the client config from nomad
-	nomadConfig *base.NomadConfig
+	nomadConfig *base.NomadDriverConfig
 
 	// tasks is the in memory datastore mapping taskIDs to rawExecDriverHandles
 	tasks *taskStore
@@ -179,7 +179,9 @@ func (r *RawExecDriver) SetConfig(data []byte, cfg *base.NomadConfig) error {
 	}
 
 	r.config = &config
-	r.nomadConfig = cfg
+	if cfg != nil {
+		r.nomadConfig = cfg.Driver
+	}
 	return nil
 }
 
