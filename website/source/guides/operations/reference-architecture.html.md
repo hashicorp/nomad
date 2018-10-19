@@ -15,8 +15,8 @@ This document provides recommended practices and a reference architecture for Ha
 The following topics are addressed:
 
 - [Reference Architecture](#ra)
-- [Deployment Topology within One Datacenter](#one-dc)
-- [Deployment Topology within Multiple Datacenters](#multi-dc)
+- [Deployment Topology within a Single Region](#one-region)
+- [Deployment Topology across Multiple Regions](#multi-region)
 - [Network Connectivity Details](#net)
 - [Deployment System Requirements](#system-reqs)
 - [High Availability](#high-availability)
@@ -26,11 +26,11 @@ This document describes deploying a Nomad cluster in combination with, or with a
 
 ## <a name="ra"></a>Reference Architecture
 
-A Nomad cluster typically comprises three or five servers (but no more than seven) and a number of client agents. A cluster can be deployed in a single physical datacenter or it can span multiple datacenters/regions. There is an important distinction to make in that Nomad divides infrastructure into regions, which are served by one Nomad server cluster, but can manage multiple datacenters. For example, a _US Region_ can include datacenters _us-east-1_ and _us-west-2_.
+A Nomad cluster typically comprises three or five servers (but no more than seven) and a number of client agents. Nomad differs slightly from Consul in that it divides infrastruture into regions which are served by one Nomad server cluster, but can manage multiple datacenters or availability zones. For example, a _US Region_ can include datacenters _us-east-1_ and _us-west-2_.
 
-In a Nomad multi-datacenter/multi-region architecture, communication happens via [WAN gossip](/docs/internals/gossip.html). Additionally, Nomad can integrate easily with Consul to provide features such as automatic clustering, service discovery, and dynamic configurations. Thus we recommend you use Consul in your Nomad deployment to simplify the deployment.
+In a Nomad multi-region architecture, communication happens via [WAN gossip](/docs/internals/gossip.html). Additionally, Nomad can integrate easily with Consul to provide features such as automatic clustering, service discovery, and dynamic configurations. Thus we recommend you use Consul in your Nomad deployment to simplify the deployment.
 
-In cloud environments, a single datacenter may be deployed across multiple availability zones. For example, in AWS each Nomad server can be deployed to an associated EC2 instance, and those EC2 instances distributed across multiple AZs. Similarly, Nomad server clusters can be deployed to multiple cloud regions to allow for region level HA scenarios.
+In cloud environments, a single cluster may be deployed across multiple availability zones. For example, in AWS each Nomad server can be deployed to an associated EC2 instance, and those EC2 instances distributed across multiple AZs. Similarly, Nomad server clusters can be deployed to multiple cloud regions to allow for region level HA scenarios.
 
 For more information on Nomad server cluster design, see the [cluster requirements documentation](/guides/operations/requirements.html).
 
@@ -38,7 +38,7 @@ The design shared in this document is the recommended architecture for productio
 
 Nomad to Consul connectivity is over HTTP and should be secured with TLS as well as a Consul token to provide encryption of all traffic. This is done using Nomad's [Automatic Clustering with Consul](/guides/operations/cluster/automatic.html).
 
-### <a name="one-dc"></a>Deployment Topology within One Datacenter
+### <a name="one-region"></a>Deployment Topology within a Single Region
 
 A single Nomad cluster is recommended for applications deployed in the same region.
 
@@ -50,7 +50,7 @@ The time taken by a new server to join an existing large cluster may increase as
 
 ![Reference diagram](/assets/images/nomad_reference_diagram.png)
 
-### <a name="multi-dc"></a>Deployment Topology within Multiple Datacenters (Federation)
+### <a name="multi-region"></a>Deployment Topology across Multiple Regions
 
 By deploying Nomad server clusters in multiple regions, the user is able to interact with the Nomad servers by targeting any region from any Nomad server even if that server resides in a separate region. Data, however, is not replicated between regions as they are fully independent clusters.
 
@@ -68,7 +68,7 @@ Nomad client clusters require the ability to receive traffic as noted above in t
 
 Additional documentation is available to learn more about [Nomad networking](/guides/operations/requirements.html#network-topology).
 
-## <a name="system-reqs"></a> Deployment System Requirements
+## <a name="system-reqs"></a>Deployment System Requirements
 
 Nomad server agents are responsible for maintaining the cluster state, responding to RPC queries (read operations), and for processing all write operations. Given that Nomad server agents do most of the heavy lifting, server sizing is critical for the overall performance efficiency and health of the Nomad cluster.
 
