@@ -55,8 +55,22 @@ func (b *basePluginServer) ConfigSchema(context.Context, *proto.ConfigSchemaRequ
 }
 
 func (b *basePluginServer) SetConfig(ctx context.Context, req *proto.SetConfigRequest) (*proto.SetConfigResponse, error) {
+	info, err := b.impl.PluginInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	// Client configuration is filtered based on plugin type
+	cfg := nomadConfigFromProto(req.GetNomadConfig())
+	filteredCfg := new(NomadConfig)
+
+	switch info.Type {
+	case PluginTypeDriver:
+		filteredCfg.Driver = cfg.Driver
+	}
+
 	// Set the config
-	if err := b.impl.SetConfig(req.GetMsgpackConfig(), nomadConfigFromProto(req.GetNomadConfig())); err != nil {
+	if err := b.impl.SetConfig(req.GetMsgpackConfig(), filteredCfg); err != nil {
 		return nil, fmt.Errorf("SetConfig failed: %v", err)
 	}
 

@@ -65,6 +65,13 @@ message SetConfigRequest {
 
 // NomadConfig is the client configuration sent to all plugins
 message NomadConfig {
+    // driver specific configuration sent to all plugins
+    NomadDriverConfig driver = 1;
+}
+
+// NomadDriverConfig is the driver specific client configuration sent to all
+// driver plugins
+message NomadDriverConfig {
     // ClientMaxPort is the upper range of the ports that the client uses for
 	// communicating with plugin subsystems over loopback
 	uint32 ClientMaxPort = 1;

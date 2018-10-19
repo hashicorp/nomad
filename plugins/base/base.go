@@ -37,6 +37,11 @@ type PluginInfoResponse struct {
 
 // NomadConfig is the nomad client configuration sent to all plugins
 type NomadConfig struct {
+	Driver *NomadDriverConfig
+}
+
+// NomadDriverConfig is the driver specific configuration for all driver plugins
+type NomadDriverConfig struct {
 	// ClientMaxPort is the upper range of the ports that the client uses for
 	// communicating with plugin subsystems over loopback
 	ClientMaxPort uint
@@ -50,18 +55,31 @@ func (c *NomadConfig) toProto() *proto.NomadConfig {
 	if c == nil {
 		return nil
 	}
-	return &proto.NomadConfig{
-		ClientMaxPort: uint32(c.ClientMaxPort),
-		ClientMinPort: uint32(c.ClientMinPort),
+
+	cfg := &proto.NomadConfig{}
+	if c.Driver != nil {
+
+		cfg.Driver = &proto.NomadDriverConfig{
+			ClientMaxPort: uint32(c.Driver.ClientMaxPort),
+			ClientMinPort: uint32(c.Driver.ClientMinPort),
+		}
 	}
+
+	return cfg
 }
 
 func nomadConfigFromProto(pb *proto.NomadConfig) *NomadConfig {
 	if pb == nil {
 		return nil
 	}
-	return &NomadConfig{
-		ClientMaxPort: uint(pb.ClientMaxPort),
-		ClientMinPort: uint(pb.ClientMinPort),
+
+	cfg := &NomadConfig{}
+	if pb.Driver != nil {
+		cfg.Driver = &NomadDriverConfig{
+			ClientMaxPort: uint(pb.Driver.ClientMaxPort),
+			ClientMinPort: uint(pb.Driver.ClientMinPort),
+		}
 	}
+
+	return cfg
 }

@@ -370,7 +370,9 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 // NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
 func (c *Config) NomadPluginConfig() *base.NomadConfig {
 	return &base.NomadConfig{
-		ClientMinPort: c.ClientMinPort,
-		ClientMaxPort: c.ClientMaxPort,
+		Driver: &base.NomadDriverConfig{
+			ClientMinPort: c.ClientMinPort,
+			ClientMaxPort: c.ClientMaxPort,
+		},
 	}
 }

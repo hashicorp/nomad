@@ -112,6 +112,9 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 
 	var receivedData []byte
 	mock := &MockPlugin{
+		PluginInfoF: func() (*PluginInfoResponse, error) {
+			return &PluginInfoResponse{Type: PluginTypeDriver}, nil
+		},
 		ConfigSchemaF: func() (*hclspec.Spec, error) {
 			return TestSpec, nil
 		},

@@ -26,7 +26,7 @@ func CgroupsMounted(node *structs.Node) bool {
 
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func CreateExecutor(w io.Writer, level hclog.Level, nomadConfig *base.NomadConfig,
+func CreateExecutor(w io.Writer, level hclog.Level, nomadConfig *base.NomadDriverConfig,
 	executorConfig *dstructs.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
@@ -43,6 +43,7 @@ func CreateExecutor(w io.Writer, level hclog.Level, nomadConfig *base.NomadConfi
 	}
 	config.HandshakeConfig = driver.HandshakeConfig
 	config.Plugins = driver.GetPluginMap(w, level, executorConfig.FSIsolation)
+
 	config.MaxPort = nomadConfig.ClientMaxPort
 	config.MinPort = nomadConfig.ClientMinPort
 

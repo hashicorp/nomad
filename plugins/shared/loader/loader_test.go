@@ -699,7 +699,9 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 
 	expKey := "set_config_worked"
 	expNomadConfig := &base.NomadConfig{
-		ClientMinPort: 100,
+		Driver: &base.NomadDriverConfig{
+			ClientMinPort: 100,
+		},
 	}
 
 	logger := testlog.HCLogger(t)
