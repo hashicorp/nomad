@@ -1204,6 +1204,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			"check",
 			"address_mode",
 			"check_restart",
+			"sidecar",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -1217,6 +1218,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 
 		delete(m, "check")
 		delete(m, "check_restart")
+		delete(m, "sidecar")
 
 		if err := mapstructure.WeakDecode(m, &service); err != nil {
 			return err
@@ -1245,6 +1247,16 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
 			} else {
 				service.CheckRestart = cr
+			}
+		}
+
+		// Filter sidecar services
+		if sidecar := checkList.Filter("sidecar"); len(sidecar.Items) > 0 {
+			if len(sidecar.Items) > 1 {
+				return fmt.Errorf("sidecar `%s`: cannot have more than 1 sidecar", service.Name)
+			}
+			if err := parseSidecarService(&service, sidecar.Items[0]); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("service: %q", service.Name))
 			}
 		}
 
@@ -1386,6 +1398,91 @@ func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 	}
 
 	return &checkRestart, nil
+}
+
+func parseSidecarService(service *api.Service, sc *ast.ObjectItem) error {
+	valid := []string{
+		"config",
+		"upstream",
+	}
+
+	var listVal *ast.ObjectList
+	if ot, ok := sc.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("sidecar: should be an object")
+	}
+
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return multierror.Prefix(err, "sidecar ->")
+	}
+
+	var sidecar api.SidecarService
+	var scm map[string]interface{}
+	if err := hcl.DecodeObject(&scm, listVal); err != nil {
+		return err
+	}
+
+	delete(scm, "upstream")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &sidecar,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(scm); err != nil {
+		return err
+	}
+
+	service.SidecarService = &sidecar
+
+	if upstreams := listVal.Filter("upstream"); len(upstreams.Items) > 0 {
+		for _, upstream := range upstreams.Items {
+			up, err := parseUpstream(service, upstream)
+			if err != nil {
+				return multierror.Prefix(err, "upstream: ")
+			}
+			sidecar.Upstreams = append(sidecar.Upstreams, up)
+		}
+	}
+
+	return nil
+}
+
+func parseUpstream(service *api.Service, uo *ast.ObjectItem) (*api.ProxyUpstream, error) {
+	valid := []string{
+		"name",
+		"type",
+		"datacenter",
+		"port",
+	}
+
+	if err := helper.CheckHCLKeys(uo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "upstream ->")
+	}
+
+	var upstream api.ProxyUpstream
+	var um map[string]interface{}
+	if err := hcl.DecodeObject(&um, uo.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &upstream,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(um); err != nil {
+		return nil, err
+	}
+
+	return &upstream, nil
 }
 
 func parseResources(result *api.Resources, list *ast.ObjectList) error {

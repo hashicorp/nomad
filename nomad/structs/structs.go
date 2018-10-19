@@ -4800,6 +4800,32 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// SidecarService respresents the Consul embedded sidecar service definition
+type SidecarService struct {
+	// Config is an opaque config block available to the sidecar
+	Config map[string]interface{}
+
+	// Upstreams are the services which will need to have a proxy to
+	Upstreams []*ProxyUpstream
+}
+
+// ProxyUpstream represents an upstream service which the sidecar proxt should
+// create listeners for
+type ProxyUpstream struct {
+	//DestinationName is the name of the service or prepared query to route connect to.
+	DestinationName string
+
+	// DestinationType is the type of discovery query to use to find an instance
+	// to connect to. Valid values are 'service' or 'prepared_query'.
+	DestinationType string
+
+	// Datacenter specifies the datacenter to issue the discovery query to
+	Datacenter string
+
+	// PortLabel is used to assign a port to a labeled port for this listener
+	PortLabel string
+}
+
 const (
 	AddressModeAuto   = "auto"
 	AddressModeHost   = "host"
@@ -4825,6 +4851,10 @@ type Service struct {
 	Tags       []string        // List of tags for the service
 	CanaryTags []string        // List of tags for the service when it is a canary
 	Checks     []*ServiceCheck // List of checks associated with the service
+
+	// SidecarService is the configuration to populate the service configuration
+	// for a sidecar
+	SidecarService *SidecarService
 }
 
 func (s *Service) Copy() *Service {

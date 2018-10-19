@@ -337,14 +337,15 @@ type ServiceCheck struct {
 
 // The Service model represents a Consul service definition
 type Service struct {
-	Id           string
-	Name         string
-	Tags         []string
-	CanaryTags   []string `mapstructure:"canary_tags"`
-	PortLabel    string   `mapstructure:"port"`
-	AddressMode  string   `mapstructure:"address_mode"`
-	Checks       []ServiceCheck
-	CheckRestart *CheckRestart `mapstructure:"check_restart"`
+	Id             string
+	Name           string
+	Tags           []string
+	CanaryTags     []string `mapstructure:"canary_tags"`
+	PortLabel      string   `mapstructure:"port"`
+	AddressMode    string   `mapstructure:"address_mode"`
+	Checks         []ServiceCheck
+	SidecarService *SidecarService `mapstructure:"sidecar"`
+	CheckRestart   *CheckRestart   `mapstructure:"check_restart"`
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
@@ -363,6 +364,18 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
 		s.Checks[i].CheckRestart.Canonicalize()
 	}
+}
+
+type SidecarService struct {
+	Upstreams []*ProxyUpstream
+	Config    map[string]interface{} `mapstructure:"config"`
+}
+
+type ProxyUpstream struct {
+	DestinationType string `mapstructure:"type"`
+	DestinationName string `mapstructure:"name"`
+	Datacenter      string `mapstructure:"datacenter"`
+	PortLabel       string `mapstructure:"port"`
 }
 
 // EphemeralDisk is an ephemeral disk object

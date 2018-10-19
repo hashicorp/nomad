@@ -436,8 +436,10 @@ func (c *ServiceClient) sync() error {
 		return fmt.Errorf("error querying Consul checks: %v", err)
 	}
 
+	skipChecksFor := map[string]struct{}{}
+
 	// Remove Nomad services in Consul but unknown locally
-	for id := range consulServices {
+	for id, svc := range consulServices {
 		if _, ok := c.services[id]; ok {
 			// Known service, skip
 			continue
@@ -449,6 +451,13 @@ func (c *ServiceClient) sync() error {
 		// registered by client agents
 		if !isNomadService(id) || !c.isClientAgent {
 			// Not managed by Nomad, skip
+			continue
+		}
+
+		// Ignore generated connect proxy services
+		if svc.Kind == api.ServiceKindConnectProxy {
+			// Skip an checks associated with this service ID
+			skipChecksFor[id] = struct{}{}
 			continue
 		}
 
@@ -482,6 +491,11 @@ func (c *ServiceClient) sync() error {
 	for id, check := range consulChecks {
 		if _, ok := c.checks[id]; ok {
 			// Known check, leave it
+			continue
+		}
+
+		if _, ok := skipChecksFor[id]; ok {
+			// check associated with connect proxy, leave it
 			continue
 		}
 
@@ -566,6 +580,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			Tags:    service.Tags,
 			Address: host,
 			Port:    port,
+			Meta:    map[string]string{"external-source": "nomad"},
 		}
 		ops.regServices = append(ops.regServices, serviceReg)
 
@@ -660,6 +675,35 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Tags:    tags,
 		Address: ip,
 		Port:    port,
+		Meta:    map[string]string{"external-source": "nomad"},
+	}
+
+	if service.SidecarService != nil {
+		serviceReg.Connect = &api.AgentServiceConnect{
+			SidecarService: &api.AgentServiceRegistration{
+				Proxy: &api.AgentServiceConnectProxyConfig{
+					DestinationServiceName: service.Name,
+					DestinationServiceID:   id,
+					LocalServicePort:       port,
+					Config:                 service.SidecarService.Config,
+				},
+			},
+		}
+		if l := len(service.SidecarService.Upstreams); l != 0 {
+			serviceReg.Connect.SidecarService.Proxy.Upstreams = make([]api.Upstream, l)
+			for i, upstream := range service.SidecarService.Upstreams {
+				_, upstreamPort, err := getAddress(addrMode, upstream.PortLabel, task.Networks, task.DriverNetwork)
+				if err != nil {
+					return nil, err
+				}
+				serviceReg.Connect.SidecarService.Proxy.Upstreams[i] = api.Upstream{
+					DestinationType: api.UpstreamDestType(upstream.DestinationType),
+					DestinationName: upstream.DestinationName,
+					Datacenter:      upstream.Datacenter,
+					LocalBindPort:   upstreamPort,
+				}
+			}
+		}
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 

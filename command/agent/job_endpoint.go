@@ -788,6 +788,23 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 					}
 				}
 			}
+
+			if service.SidecarService != nil {
+				structsTask.Services[i].SidecarService = &structs.SidecarService{
+					Config: service.SidecarService.Config,
+				}
+				if l := len(service.SidecarService.Upstreams); l != 0 {
+					structsTask.Services[i].SidecarService.Upstreams = make([]*structs.ProxyUpstream, l)
+					for j, upstream := range service.SidecarService.Upstreams {
+						structsTask.Services[i].SidecarService.Upstreams[j] = &structs.ProxyUpstream{
+							DestinationName: upstream.DestinationName,
+							DestinationType: upstream.DestinationType,
+							Datacenter:      upstream.Datacenter,
+							PortLabel:       upstream.PortLabel,
+						}
+					}
+				}
+			}
 		}
 	}
 

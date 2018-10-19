@@ -100,7 +100,7 @@ job "binstore-storagelocker" {
       operator = "="
       weight = 100
     }
-    
+
     spread {
       attribute = "${node.datacenter}"
       weight = 50
@@ -166,6 +166,19 @@ job "binstore-storagelocker" {
             ignore_warnings = true
           }
         }
+
+        sidecar {
+          upstream {
+            name = "db1"
+            port = "proxy1"
+          }
+
+          upstream {
+            name = "db2"
+            datacenter = "dc2"
+            port = "proxy2"
+          }
+        }
       }
 
       resources {
@@ -195,6 +208,12 @@ job "binstore-storagelocker" {
 
           port "admin" {
           }
+
+          port "proxy1" {
+          }
+
+          port "proxy2" {
+          }
         }
 
         device "nvidia/gpu" {
@@ -211,7 +230,7 @@ job "binstore-storagelocker" {
               weight = 50
             }
         }
-        
+
         device "intel/gpu" {}
       }
 
