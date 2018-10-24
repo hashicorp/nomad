@@ -173,6 +173,17 @@ func (c *JobPlanCommand) Run(args []string) int {
 			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", resp.Warnings)))
 	}
 
+	// Print any preemptions if there are any
+
+	if resp.Annotations != nil && len(resp.Annotations.PreemptedAllocs) > 0 {
+		c.Ui.Output(c.Colorize().Color("[bold][yellow]Preemptions:\n[reset]"))
+		var allocs []string
+		allocs = append(allocs, fmt.Sprintf("Alloc ID|Job ID|Task Group"))
+		for _, alloc := range resp.Annotations.PreemptedAllocs {
+			allocs = append(allocs, fmt.Sprintf("%s|%s|%s", alloc.ID, alloc.JobID, alloc.TaskGroup))
+		}
+		c.Ui.Output(formatList(allocs))
+	}
 	// Print the job index info
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return getExitCode(resp)
