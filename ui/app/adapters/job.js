@@ -88,6 +88,7 @@ export default Watchable.extend({
       },
     }).then(json => {
       json.ID = jobId;
+      console.log(json);
       store.pushPayload('job-plan', { jobPlans: [json] });
       return store.peekRecord('job-plan', jobId);
     });

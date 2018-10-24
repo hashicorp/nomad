@@ -7,6 +7,7 @@ export default ApplicationSerializer.extend({
     hash.FailedTGAllocs = Object.keys(hash.FailedTGAllocs || {}).map(key => {
       return assign({ Name: key }, get(hash, `FailedTGAllocs.${key}`) || {});
     });
+    hash.PreemptionIDs = (get(hash, 'Annotations.PreemptedAllocs') || []).mapBy('ID');
     return this._super(...arguments);
   },
 });
