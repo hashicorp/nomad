@@ -125,7 +125,7 @@ type QemuDriver struct {
 	// config is the driver configuration set by the SetConfig RPC
 	config *Config
 
-	// tasks is the in memory datastore mapping taskIDs to execDriverHandles
+	// tasks is the in memory datastore mapping taskIDs to qemuTaskHandle
 	tasks *taskStore
 
 	// ctx is the context for the driver. It is passed to other subsystems to
