@@ -598,7 +598,6 @@ func (d *QemuDriver) handleWait(ctx context.Context, handle *qemuTaskHandle, ch 
 	select {
 	case <-ctx.Done():
 	case <-d.ctx.Done():
-		return
 	case ch <- result:
 	}
 }
