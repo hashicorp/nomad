@@ -56,7 +56,6 @@ var (
 	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
 	// We should consider this if driver.qemu.version is < 2.10.1 and the
 	// generated monitor path is too long.
-
 	//
 	// Relevant fix is here:
 	// https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6
