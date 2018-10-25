@@ -91,10 +91,6 @@ var (
 	_ drivers.DriverPlugin = (*QemuDriver)(nil)
 )
 
-// Config is the client configuration for the driver
-type Config struct {
-}
-
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
 	ImagePath        string         `codec:"image_path"`
@@ -120,9 +116,6 @@ type QemuDriver struct {
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
 
-	// config is the driver configuration set by the SetConfig RPC
-	config *Config
-
 	// tasks is the in memory datastore mapping taskIDs to qemuTaskHandle
 	tasks *taskStore
 
@@ -144,7 +137,6 @@ func NewQemuDriver(logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &QemuDriver{
 		eventer:        eventer.NewEventer(ctx, logger),
-		config:         &Config{},
 		tasks:          newTaskStore(),
 		ctx:            ctx,
 		signalShutdown: cancel,
@@ -421,7 +413,6 @@ func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	}
 	d.logger.Debug("started new QemuVM", "ID", vmID)
 
-	//TODO(preetha) figure out if monitor path is needed
 	h := &qemuTaskHandle{
 		exec:         execImpl,
 		pid:          ps.Pid,
