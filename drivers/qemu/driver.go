@@ -637,7 +637,7 @@ func sendQemuShutdown(logger hclog.Logger, monitorPath string, userPid int) erro
 		return err
 	}
 	defer monitorSocket.Close()
-	logger.Debug("sending graceful shutdown command to qemu monitor socket %q for user process pid %d", monitorPath, userPid)
+	logger.Debug("sending graceful shutdown command to qemu monitor socket", "monitor_path", monitorPath, "pid", userPid)
 	_, err = monitorSocket.Write([]byte(qemuGracefulShutdownMsg))
 	if err != nil {
 		logger.Warn("failed to send shutdown message", "shutdown message", qemuGracefulShutdownMsg, "monitorPath", monitorPath, "userPid", userPid, "error", err)
