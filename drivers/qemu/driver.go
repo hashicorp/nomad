@@ -45,6 +45,7 @@ const (
 	// Reference: https://en.wikibooks.org/wiki/QEMU/Monitor
 	qemuGracefulShutdownMsg = "system_powerdown\n"
 	qemuMonitorSocketName   = "qemu-monitor.sock"
+
 	// Maximum socket path length prior to qemu 2.10.1
 	qemuLegacyMaxMonitorPathLen = 108
 )
