@@ -11,8 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"net"
+	"strconv"
+
+	"github.com/coreos/go-semver/semver"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
@@ -21,13 +26,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"golang.org/x/net/context"
-
-	"strconv"
-
-	"net"
-
-	"github.com/coreos/go-semver/semver"
-	"github.com/hashicorp/nomad/client/driver/executor"
 )
 
 const (
