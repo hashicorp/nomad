@@ -760,6 +760,11 @@ func (c *Client) restoreState() error {
 	var mErr multierror.Error
 	for _, alloc := range allocs {
 
+		//XXX On Restore we give up on watching previous allocs because
+		//    we need the local AllocRunners initialized first. We could
+		//    add a second loop to initialize just the alloc watcher.
+		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
+
 		c.configLock.RLock()
 		arConf := &allocrunner.Config{
 			Alloc:                 alloc,
@@ -769,6 +774,7 @@ func (c *Client) restoreState() error {
 			StateUpdater:          c,
 			Consul:                c.consulService,
 			Vault:                 c.vaultClient,
+			PrevAllocWatcher:      prevAllocWatcher,
 			PluginLoader:          c.config.PluginLoader,
 			PluginSingletonLoader: c.config.PluginSingletonLoader,
 		}
@@ -805,7 +811,7 @@ func (c *Client) restoreState() error {
 	// All allocs restored successfully, run them!
 	c.allocLock.Lock()
 	for _, ar := range c.allocs {
-		go ar.Run()
+		ar.Run()
 	}
 	c.allocLock.Unlock()
 
@@ -1933,7 +1939,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
 
-	go ar.Run()
+	ar.Run()
 	return nil
 }
 

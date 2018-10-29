@@ -5573,6 +5573,21 @@ type TaskState struct {
 	Events []*TaskEvent
 }
 
+// NewTaskState returns a TaskState initialized in the Pending state.
+func NewTaskState() *TaskState {
+	return &TaskState{
+		State: TaskStatePending,
+	}
+}
+
+// Canonicalize ensures the TaskState has a State set. It should default to
+// Pending.
+func (ts *TaskState) Canonicalize() {
+	if ts.State == "" {
+		ts.State = TaskStatePending
+	}
+}
+
 func (ts *TaskState) Copy() *TaskState {
 	if ts == nil {
 		return nil

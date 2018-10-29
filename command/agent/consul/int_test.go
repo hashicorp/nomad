@@ -27,8 +27,8 @@ type mockUpdater struct {
 	logger log.Logger
 }
 
-func (m *mockUpdater) TaskStateUpdated(task string, state *structs.TaskState) {
-	m.logger.Named("test.updater").Debug("update", "task", task, "state", state)
+func (m *mockUpdater) TaskStateUpdated() {
+	m.logger.Named("mock.updater").Debug("Update!")
 }
 
 // TODO Fix

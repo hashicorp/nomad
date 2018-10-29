@@ -52,10 +52,11 @@ const (
 )
 
 type TaskRunner struct {
-	// allocID and taskName are immutable so these fields may be accessed
-	// without locks
-	allocID  string
-	taskName string
+	// allocID, taskName, and taskLeader are immutable so these fields may
+	// be accessed without locks
+	allocID    string
+	taskName   string
+	taskLeader bool
 
 	alloc     *structs.Allocation
 	allocLock sync.Mutex
@@ -170,9 +171,6 @@ type Config struct {
 	// VaultClient is the client to use to derive and renew Vault tokens
 	VaultClient vaultclient.VaultClient
 
-	// LocalState is optionally restored task state
-	LocalState *state.LocalState
-
 	// StateDB is used to store and restore state.
 	StateDB cstate.StateDB
 
@@ -196,6 +194,12 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		config.ClientConfig.Region,
 	)
 
+	// Initialize state from alloc if it is set
+	tstate := structs.NewTaskState()
+	if ts := config.Alloc.TaskStates[config.Task.Name]; ts != nil {
+		tstate = ts.Copy()
+	}
+
 	tr := &TaskRunner{
 		alloc:                 config.Alloc,
 		allocID:               config.Alloc.ID,
@@ -203,11 +207,12 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		task:                  config.Task,
 		taskDir:               config.TaskDir,
 		taskName:              config.Task.Name,
+		taskLeader:            config.Task.Leader,
 		envBuilder:            envBuilder,
 		consulClient:          config.Consul,
 		vaultClient:           config.VaultClient,
-		state:                 config.Alloc.TaskStates[config.Task.Name].Copy(),
-		localState:            config.LocalState,
+		state:                 tstate,
+		localState:            state.NewLocalState(),
 		stateDB:               config.StateDB,
 		stateUpdater:          config.StateUpdater,
 		ctx:                   trCtx,
@@ -228,9 +233,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
 
-	// Initialize the task state
-	tr.initState()
-
 	// Get the driver
 	if err := tr.initDriver(); err != nil {
 		tr.logger.Error("failed to create driver", "error", err)
@@ -244,17 +246,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.initLabels()
 
 	return tr, nil
-}
-
-func (tr *TaskRunner) initState() {
-	if tr.state == nil {
-		tr.state = &structs.TaskState{
-			State: structs.TaskStatePending,
-		}
-	}
-	if tr.localState == nil {
-		tr.localState = state.NewLocalState()
-	}
 }
 
 func (tr *TaskRunner) initLabels() {
@@ -396,15 +387,6 @@ func (tr *TaskRunner) handleUpdates() {
 		case <-tr.triggerUpdateCh:
 		case <-tr.waitCh:
 			return
-		}
-
-		if tr.Alloc().TerminalStatus() {
-			// Terminal update: kill TaskRunner and let Run execute postrun hooks
-			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
-			if err != nil {
-				tr.logger.Warn("error stopping task", "error", err)
-			}
-			continue
 		}
 
 		// Non-terminal update; run hooks
@@ -597,10 +579,6 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	}
 }
 
-// XXX If the objects don't exists since the client shutdown before the task
-// runner ever saved state, then we should treat it as a new task runner and not
-// return an error
-//
 // Restore task runner state. Called by AllocRunner.Restore after NewTaskRunner
 // but before Run so no locks need to be acquired.
 func (tr *TaskRunner) Restore() error {
@@ -609,32 +587,34 @@ func (tr *TaskRunner) Restore() error {
 		return err
 	}
 
-	tr.localState = ls
-	tr.state = ts
+	if ls != nil {
+		ls.Canonicalize()
+		tr.localState = ls
+	}
+	if ts != nil {
+		ts.Canonicalize()
+		tr.state = ts
+	}
 	return nil
 }
 
 // UpdateState sets the task runners allocation state and triggers a server
 // update.
 func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
-	tr.logger.Debug("setting task state", "state", state, "event", event.Type)
+	tr.logger.Trace("setting task state", "state", state, "event", event.Type)
+
 	// Update the local state
-	stateCopy := tr.setStateLocal(state, event)
+	tr.setStateLocal(state, event)
 
 	// Notify the alloc runner of the transition
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy)
+	tr.stateUpdater.TaskStateUpdated()
 }
 
 // setStateLocal updates the local in-memory state, persists a copy to disk and returns a
 // copy of the task's state.
-func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *structs.TaskState {
+func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
-
-	//XXX REMOVE ME AFTER TESTING
-	if state == "" {
-		panic("UpdateState must not be called with an empty state")
-	}
 
 	// Update the task state
 	oldState := tr.state.State
@@ -687,8 +667,6 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 		// try to persist it again.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
 	}
-
-	return tr.state.Copy()
 }
 
 // EmitEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -709,7 +687,7 @@ func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 	}
 
 	// Notify the alloc runner of the event
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, tr.state.Copy())
+	tr.stateUpdater.TaskStateUpdated()
 }
 
 // AppendEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -773,8 +751,10 @@ func (tr *TaskRunner) Update(update *structs.Allocation) {
 	// Update tr.alloc
 	tr.setAlloc(update)
 
-	// Trigger update hooks
-	tr.triggerUpdateHooks()
+	// Trigger update hooks if not terminal
+	if !update.TerminalStatus() {
+		tr.triggerUpdateHooks()
+	}
 }
 
 // triggerUpdate if there isn't already an update pending. Should be called

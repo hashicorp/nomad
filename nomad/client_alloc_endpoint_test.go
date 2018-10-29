@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
@@ -26,10 +27,10 @@ func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s.connectedNodes()
@@ -188,11 +189,11 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
@@ -268,11 +269,11 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -283,7 +284,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": "2s",
+			"run_for": 2 * time.Second,
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -417,11 +418,11 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -432,7 +433,7 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": "2s",
+			"run_for": 2 * time.Second,
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -539,10 +540,10 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -553,7 +554,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": "2s",
+			"run_for": 2 * time.Second,
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -688,10 +689,10 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -702,7 +703,7 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": "2s",
+			"run_for": 2 * time.Second,
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{

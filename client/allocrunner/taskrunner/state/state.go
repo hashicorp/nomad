@@ -25,6 +25,23 @@ func NewLocalState() *LocalState {
 	}
 }
 
+// Canonicalize ensures LocalState is in a consistent state by initializing
+// Hooks and ensuring no HookState's are nil. Useful for cleaning unmarshalled
+// state which may be in an unknown state.
+func (s *LocalState) Canonicalize() {
+	if s.Hooks == nil {
+		// Hooks is nil, create it
+		s.Hooks = make(map[string]*HookState)
+	} else {
+		for k, v := range s.Hooks {
+			// Remove invalid nil entries from Hooks map
+			if v == nil {
+				delete(s.Hooks, k)
+			}
+		}
+	}
+}
+
 // Copy should be called with the lock held
 func (s *LocalState) Copy() *LocalState {
 	// Create a copy

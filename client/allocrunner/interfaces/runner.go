@@ -2,8 +2,6 @@ package interfaces
 
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/state"
-	"github.com/hashicorp/nomad/nomad/structs"
-
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -24,8 +22,9 @@ type AllocRunner interface {
 
 // TaskStateHandler exposes a handler to be called when a task's state changes
 type TaskStateHandler interface {
-	// TaskStateUpdated is used to emit updated task state
-	TaskStateUpdated(task string, state *structs.TaskState)
+	// TaskStateUpdated is used to notify the alloc runner about task state
+	// changes.
+	TaskStateUpdated()
 }
 
 // AllocStatsReporter gives acess to the latest resource usage from the
