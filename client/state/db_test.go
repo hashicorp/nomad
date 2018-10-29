@@ -3,11 +3,13 @@ package state
 import (
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,6 +72,13 @@ func TestStateDB_Allocations(t *testing.T) {
 		// Put allocations
 		alloc1 := mock.Alloc()
 		alloc2 := mock.BatchAlloc()
+
+		//XXX Sadly roundtripping allocs loses time.Duration type
+		//    information from the Config map[string]interface{}. As
+		//    the mock driver itself with unmarshal run_for into the
+		//    proper type, we can safely ignore it here.
+		delete(alloc2.Job.TaskGroups[0].Tasks[0].Config, "run_for")
+
 		require.NoError(db.PutAllocation(alloc1))
 		require.NoError(db.PutAllocation(alloc2))
 
@@ -78,8 +87,22 @@ func TestStateDB_Allocations(t *testing.T) {
 		require.NoError(err)
 		require.NotNil(allocs)
 		require.Len(allocs, 2)
-		require.Contains(allocs, alloc1)
-		require.Contains(allocs, alloc2)
+		for _, a := range allocs {
+			switch a.ID {
+			case alloc1.ID:
+				if !reflect.DeepEqual(a, alloc1) {
+					pretty.Ldiff(t, a, alloc1)
+					t.Fatalf("alloc %q unequal", a.ID)
+				}
+			case alloc2.ID:
+				if !reflect.DeepEqual(a, alloc2) {
+					pretty.Ldiff(t, a, alloc2)
+					t.Fatalf("alloc %q unequal", a.ID)
+				}
+			default:
+				t.Fatalf("unexpected alloc id %q", a.ID)
+			}
+		}
 		require.NotNil(errs)
 		require.Empty(errs)
 
@@ -98,7 +121,7 @@ func TestStateDB_Allocations(t *testing.T) {
 
 		// Deleting a nonexistent alloc is a noop
 		require.NoError(db.DeleteAllocationBucket("asdf"))
-		allocs, errs, err = db.GetAllAllocations()
+		allocs, _, err = db.GetAllAllocations()
 		require.NoError(err)
 		require.NotNil(allocs)
 		require.Len(allocs, 3)
