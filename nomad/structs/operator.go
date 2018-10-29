@@ -131,6 +131,16 @@ type SchedulerConfiguration struct {
 	ModifyIndex uint64
 }
 
+// SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration
+type SchedulerConfigurationResponse struct {
+	// SchedulerConfig contains scheduler config options
+	SchedulerConfig SchedulerConfiguration
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {
 	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs

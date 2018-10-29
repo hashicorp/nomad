@@ -220,18 +220,24 @@ func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, re
 			return nil, nil
 		}
 
-		var reply structs.SchedulerConfiguration
+		var reply structs.SchedulerConfigurationResponse
 		if err := s.agent.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
 			return nil, err
 		}
 
 		out := api.SchedulerConfiguration{
-			PreemptionConfig: api.PreemptionConfig{SystemSchedulerEnabled: reply.PreemptionConfig.SystemSchedulerEnabled},
+			PreemptionConfig: api.PreemptionConfig{SystemSchedulerEnabled: reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled},
 			CreateIndex:      reply.CreateIndex,
 			ModifyIndex:      reply.ModifyIndex,
 		}
 
-		return out, nil
+		resp := api.SchedulerConfigurationResponse{
+			SchedulerConfig: out,
+			CreateIndex:     out.CreateIndex,
+			ModifyIndex:     out.ModifyIndex,
+		}
+
+		return resp, nil
 
 	case "PUT":
 		var args structs.SchedulerSetConfigRequest

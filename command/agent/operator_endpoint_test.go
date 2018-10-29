@@ -269,9 +269,9 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 		obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(err)
 		require.Equal(200, resp.Code)
-		out, ok := obj.(api.SchedulerConfiguration)
+		out, ok := obj.(api.SchedulerConfigurationResponse)
 		require.True(ok)
-		require.True(out.PreemptionConfig.SystemSchedulerEnabled)
+		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	})
 }
 

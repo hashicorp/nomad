@@ -119,14 +119,24 @@ type SchedulerConfiguration struct {
 	ModifyIndex uint64
 }
 
+// SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration
+type SchedulerConfigurationResponse struct {
+	// SchedulerConfig contains scheduler config options
+	SchedulerConfig SchedulerConfiguration
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {
 	SystemSchedulerEnabled bool
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.
-func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfiguration, *QueryMeta, error) {
-	var resp SchedulerConfiguration
+func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfigurationResponse, *QueryMeta, error) {
+	var resp SchedulerConfigurationResponse
 	qm, err := op.c.query("/v1/operator/scheduler/config", &resp, q)
 	if err != nil {
 		return nil, nil, err

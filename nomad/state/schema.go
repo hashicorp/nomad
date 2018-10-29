@@ -611,6 +611,7 @@ func schedulerConfigTableSchema() *memdb.TableSchema {
 				Name:         "id",
 				AllowMissing: true,
 				Unique:       true,
+				// This indexer ensures that this table is a singleton
 				Indexer: &memdb.ConditionalIndex{
 					Conditional: func(obj interface{}) (bool, error) { return true, nil },
 				},

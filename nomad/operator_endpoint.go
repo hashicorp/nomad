@@ -316,7 +316,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 }
 
 // SchedulerGetConfiguration is used to retrieve the current Scheduler configuration.
-func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, reply *structs.SchedulerConfiguration) error {
+func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, reply *structs.SchedulerConfigurationResponse) error {
 	if done, err := op.srv.forward("Operator.SchedulerGetConfiguration", args, args, reply); done {
 		return err
 	}
@@ -337,7 +337,12 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 		return fmt.Errorf("scheduler config not initialized yet")
 	}
 
-	*reply = *config
+	resp := &structs.SchedulerConfigurationResponse{
+		SchedulerConfig: *config,
+		CreateIndex:     config.CreateIndex,
+		ModifyIndex:     config.ModifyIndex,
+	}
+	*reply = *resp
 
 	return nil
 }
