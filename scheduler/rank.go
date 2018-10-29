@@ -202,12 +202,17 @@ OUTER:
 
 		var allocsToPreempt []*structs.Allocation
 
+		// Initialize preemptor with node
+		preemptor := NewPreemptor(iter.priority)
+		preemptor.SetNode(option.Node)
+
 		// Count the number of existing preemptions
 		allPreemptions := iter.ctx.Plan().NodePreemptions
 		var currentPreemptions []*structs.Allocation
 		for _, allocs := range allPreemptions {
 			currentPreemptions = append(currentPreemptions, allocs...)
 		}
+		preemptor.SetPreemptions(currentPreemptions)
 
 		for _, task := range iter.taskGroup.Tasks {
 			// Allocate the resources
@@ -234,7 +239,9 @@ OUTER:
 					}
 
 					// Look for preemptible allocations to satisfy the network resource for this task
-					netPreemptions := preemptForNetworkResourceAsk(iter.priority, proposed, ask, netIdx, currentPreemptions)
+					preemptor.SetCandidates(proposed)
+
+					netPreemptions := preemptor.preemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
 						iter.ctx.Metrics().ExhaustedNode(option.Node,
 							fmt.Sprintf("unable to meet network resource %v after preemption", ask))
@@ -292,12 +299,16 @@ OUTER:
 
 			// If eviction is enabled and the node doesn't fit the alloc, check if
 			// any allocs can be preempted
-			preemptForTaskGroup := findPreemptibleAllocationsForTaskGroup(iter.priority, current, total, option.Node, currentPreemptions)
-			allocsToPreempt = append(allocsToPreempt, preemptForTaskGroup...)
+
+			// Initialize preemptor with candidate set
+			preemptor.SetCandidates(current)
+
+			preemptedAllocs := preemptor.preemptForTaskGroup(total)
+			allocsToPreempt = append(allocsToPreempt, preemptedAllocs...)
 
 			// If we were unable to find preempted allocs to meet these requirements
 			// mark as exhausted and continue
-			if len(preemptForTaskGroup) == 0 {
+			if len(preemptedAllocs) == 0 {
 				iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
 				continue
 			}
