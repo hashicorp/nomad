@@ -264,7 +264,7 @@ func BatchJob() *structs.Job {
 						Name:   "worker",
 						Driver: "mock_driver",
 						Config: map[string]interface{}{
-							"run_for": "500ms",
+							"run_for": 500 * time.Millisecond,
 						},
 						Env: map[string]string{
 							"FOO": "bar",
