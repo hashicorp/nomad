@@ -2672,6 +2672,15 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			},
 			true,
 		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "md5:${ARTIFACT_CHECKSUM}",
+				},
+			},
+			false,
+		},
 	}
 
 	for i, tc := range cases {
