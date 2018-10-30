@@ -46,6 +46,7 @@
       {{search-box
         searchTerm=(mut searchTerm)
         placeholder="Search allocations..."
+        onChange=(action resetPagination)
         class="is-inline pull-right"
         inputClass="is-compact"}}
     </div>
