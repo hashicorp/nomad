@@ -4,7 +4,12 @@
   {{else}}
     {{#if nodes.length}}
       <div class="content">
-        <div>{{search-box searchTerm=(mut searchTerm) placeholder="Search clients..."}}</div>
+        <div>
+          {{search-box
+            searchTerm=(mut searchTerm)
+            onChange=(action resetPagination)
+            placeholder="Search clients..."}}
+        </div>
       </div>
     {{/if}}
     {{#list-pagination
