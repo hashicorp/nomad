@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"golang.org/x/net/context"
 )
 
@@ -49,6 +50,20 @@ const (
 )
 
 var (
+	// PluginID is the qemu plugin metadata registered in the plugin
+	// catalog.
+	PluginID = loader.PluginID{
+		Name:       pluginName,
+		PluginType: base.PluginTypeDriver,
+	}
+
+	// PluginConfig is the qemu driver factory function registered in the
+	// plugin catalog.
+	PluginConfig = &loader.InternalPluginConfig{
+		Config:  map[string]interface{}{},
+		Factory: func(l hclog.Logger) interface{} { return NewQemuDriver(l) },
+	}
+
 	reQemuVersion = regexp.MustCompile(`version (\d[\.\d+]+)`)
 
 	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
@@ -123,6 +138,9 @@ type QemuDriver struct {
 	// coordinate shutdown
 	ctx context.Context
 
+	// nomadConf is the client agent's configuration
+	nomadConfig *base.ClientDriverConfig
+
 	// signalShutdown is called when the driver is shutting down and cancels the
 	// ctx passed to any subsystems
 	signalShutdown context.CancelFunc
@@ -152,8 +170,10 @@ func (d *QemuDriver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *QemuDriver) SetConfig(data []byte) error {
-	// nothing to do, no driver config
+func (d *QemuDriver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
+	if cfg != nil {
+		d.nomadConfig = cfg.Driver
+	}
 	return nil
 }
 
@@ -391,8 +411,7 @@ func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 		LogLevel: "debug",
 	}
 
-	// TODO: best way to pass port ranges in from client config
-	execImpl, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, 14000, 14512, executorConfig)
+	execImpl, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}
