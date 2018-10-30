@@ -110,8 +110,7 @@ type Driver struct {
 
 	shutdownFingerprintTime time.Time
 
-	// logger will log to the plugin output which is usually an 'executor.out'
-	// file located in the root of the TaskDir
+	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 

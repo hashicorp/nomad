@@ -116,20 +116,20 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 
 	fingerPrint := &drivers.Fingerprint{
 		Attributes: map[string]string{
-			qemuDriverVersionAttr: "2.0.0",
+			driverVersionAttr: "2.0.0",
 		},
 	}
 	shortPath := strings.Repeat("x", 10)
-	qemuDriver := d.(*QemuDriver)
+	qemuDriver := d.(*Driver)
 	_, err := qemuDriver.getMonitorPath(shortPath, fingerPrint)
 	require.Nil(err)
 
-	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
+	longPath := strings.Repeat("x", legacyMaxMonitorPathLen+100)
 	_, err = qemuDriver.getMonitorPath(longPath, fingerPrint)
 	require.NotNil(err)
 
 	// Max length includes the '/' separator and socket name
-	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
+	maxLengthCount := legacyMaxMonitorPathLen - len(monitorSocketName) - 1
 	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
 	_, err = qemuDriver.getMonitorPath(maxLengthLegacyPath, fingerPrint)
 	require.Nil(err)
@@ -167,21 +167,21 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 
 	fingerPrint := &drivers.Fingerprint{
 		Attributes: map[string]string{
-			qemuDriverVersionAttr: "2.99.99",
+			driverVersionAttr: "2.99.99",
 		},
 	}
 	shortPath := strings.Repeat("x", 10)
-	qemuDriver := d.(*QemuDriver)
+	qemuDriver := d.(*Driver)
 	_, err := qemuDriver.getMonitorPath(shortPath, fingerPrint)
 	require.Nil(err)
 
 	// Should not return an error in this qemu version
-	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
+	longPath := strings.Repeat("x", legacyMaxMonitorPathLen+100)
 	_, err = qemuDriver.getMonitorPath(longPath, fingerPrint)
 	require.Nil(err)
 
 	// Max length includes the '/' separator and socket name
-	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
+	maxLengthCount := legacyMaxMonitorPathLen - len(monitorSocketName) - 1
 	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
 	_, err = qemuDriver.getMonitorPath(maxLengthLegacyPath, fingerPrint)
 	require.Nil(err)
