@@ -319,6 +319,8 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 			scorePenalty := -1 * float64(collisions+1) / float64(iter.desiredCount)
 			option.Scores = append(option.Scores, scorePenalty)
 			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", scorePenalty)
+		} else {
+			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", 0)
 		}
 		return option
 	}
@@ -362,6 +364,8 @@ func (iter *NodeReschedulingPenaltyIterator) Next() *RankedNode {
 		if ok {
 			option.Scores = append(option.Scores, -1)
 			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", -1)
+		} else {
+			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", 0)
 		}
 		return option
 	}
@@ -428,6 +432,7 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 		return nil
 	}
 	if !iter.hasAffinities() {
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", 0)
 		return option
 	}
 	// TODO(preetha): we should calculate normalized weights once and reuse it here
