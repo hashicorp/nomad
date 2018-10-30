@@ -560,7 +560,7 @@ func (v *vaultClient) renew() error {
 	// Attempt to renew the token
 	secret, err := v.auth.RenewSelf(v.tokenData.CreationTTL)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to renew the vault token: %v", err)
 	}
 	if secret == nil {
 		// It's possible for RenewSelf to return (nil, nil) if the
@@ -914,6 +914,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 
 	// Determine whether it is unrecoverable
 	if err != nil {
+		err = fmt.Errorf("failed to create an alloc vault token: %v", err)
 		if structs.VaultUnrecoverableError.MatchString(err.Error()) {
 			return secret, err
 		}
