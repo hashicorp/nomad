@@ -100,7 +100,7 @@ type mockPlugin struct {
 	// config is built on SetConfig
 	config *mockPluginConfig
 	// nomadconfig is set on SetConfig
-	nomadConfig *base.NomadConfig
+	nomadConfig *base.ClientAgentConfig
 }
 
 // mockPluginConfig is the configuration for the mock plugin
@@ -140,7 +140,7 @@ func (m *mockPlugin) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 // SetConfig decodes the configuration and stores it
-func (m *mockPlugin) SetConfig(data []byte, cfg *base.NomadConfig) error {
+func (m *mockPlugin) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config mockPluginConfig
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err

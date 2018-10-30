@@ -62,7 +62,7 @@ func (b *basePluginServer) SetConfig(ctx context.Context, req *proto.SetConfigRe
 
 	// Client configuration is filtered based on plugin type
 	cfg := nomadConfigFromProto(req.GetNomadConfig())
-	filteredCfg := new(NomadConfig)
+	filteredCfg := new(ClientAgentConfig)
 
 	switch info.Type {
 	case PluginTypeDriver:

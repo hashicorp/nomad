@@ -121,7 +121,7 @@ func (d *NvidiaDevice) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 // SetConfig is used to set the configuration of the plugin.
-func (d *NvidiaDevice) SetConfig(data []byte, cfg *base.NomadConfig) error {
+func (d *NvidiaDevice) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err

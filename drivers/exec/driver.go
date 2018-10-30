@@ -73,7 +73,7 @@ type ExecDriver struct {
 	config *Config
 
 	// nomadConfig is the client config from nomad
-	nomadConfig *base.NomadDriverConfig
+	nomadConfig *base.ClientDriverConfig
 
 	// tasks is the in memory datastore mapping taskIDs to execDriverHandles
 	tasks *taskStore
@@ -135,7 +135,7 @@ func (*ExecDriver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *ExecDriver) SetConfig(data []byte, cfg *base.NomadConfig) error {
+func (d *ExecDriver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err

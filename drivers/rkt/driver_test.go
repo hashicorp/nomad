@@ -64,13 +64,13 @@ func TestRktDriver_SetConfig(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 	require.Exactly(config, d.(*RktDriver).config)
 
 	config.VolumesEnabled = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 	require.Exactly(config, d.(*RktDriver).config)
 
 }
@@ -434,7 +434,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),

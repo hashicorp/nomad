@@ -52,9 +52,11 @@ type TestConfig struct {
 type MockPlugin struct {
 	PluginInfoF   func() (*PluginInfoResponse, error)
 	ConfigSchemaF func() (*hclspec.Spec, error)
-	SetConfigF    func([]byte, *NomadConfig) error
+	SetConfigF    func([]byte, *ClientAgentConfig) error
 }
 
-func (p *MockPlugin) PluginInfo() (*PluginInfoResponse, error)      { return p.PluginInfoF() }
-func (p *MockPlugin) ConfigSchema() (*hclspec.Spec, error)          { return p.ConfigSchemaF() }
-func (p *MockPlugin) SetConfig(data []byte, cfg *NomadConfig) error { return p.SetConfigF(data, cfg) }
+func (p *MockPlugin) PluginInfo() (*PluginInfoResponse, error) { return p.PluginInfoF() }
+func (p *MockPlugin) ConfigSchema() (*hclspec.Spec, error)     { return p.ConfigSchemaF() }
+func (p *MockPlugin) SetConfig(data []byte, cfg *ClientAgentConfig) error {
+	return p.SetConfigF(data, cfg)
+}

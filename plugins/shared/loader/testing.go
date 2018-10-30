@@ -8,12 +8,12 @@ import (
 
 // MockCatalog provides a mock PluginCatalog to be used for testing
 type MockCatalog struct {
-	DispenseF func(name, pluginType string, cfg *base.NomadConfig, logger log.Logger) (PluginInstance, error)
+	DispenseF func(name, pluginType string, cfg *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error)
 	ReattachF func(name, pluginType string, config *plugin.ReattachConfig) (PluginInstance, error)
 	CatalogF  func() map[string][]*base.PluginInfoResponse
 }
 
-func (m *MockCatalog) Dispense(name, pluginType string, cfg *base.NomadConfig, logger log.Logger) (PluginInstance, error) {
+func (m *MockCatalog) Dispense(name, pluginType string, cfg *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error) {
 	return m.DispenseF(name, pluginType, cfg, logger)
 }
 

@@ -230,10 +230,7 @@ func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 	// Set its permissions to be non-executable
 	f.Chmod(os.FileMode(0610))
 
-	// Make a fake executor
-	executor := NewExecutor(testlog.HCLogger(t)).(*UniversalExecutor)
-
-	err = executor.makeExecutable(f.Name())
+	err = makeExecutable(f.Name())
 	if err != nil {
 		t.Fatalf("makeExecutable() failed: %v", err)
 	}

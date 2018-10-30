@@ -43,20 +43,20 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 	require.Exactly(config, d.(*RawExecDriver).config)
 
 	config.Enabled = true
 	config.NoCgroups = true
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 	require.Exactly(config, d.(*RawExecDriver).config)
 
 	config.NoCgroups = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 	require.Exactly(config, d.(*RawExecDriver).config)
 }
 
@@ -72,7 +72,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 
 	fingerCh, err := harness.Fingerprint(context.Background())
 	require.NoError(err)
@@ -88,7 +88,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	config.Enabled = true
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 
 FINGER_LOOP:
 	for {

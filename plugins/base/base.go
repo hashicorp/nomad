@@ -15,7 +15,7 @@ type BasePlugin interface {
 
 	// SetConfig is used to set the configuration by passing a MessagePack
 	// encoding of it.
-	SetConfig(data []byte, config *NomadConfig) error
+	SetConfig(data []byte, config *ClientAgentConfig) error
 }
 
 // PluginInfoResponse returns basic information about the plugin such that Nomad
@@ -35,13 +35,13 @@ type PluginInfoResponse struct {
 	Name string
 }
 
-// NomadConfig is the nomad client configuration sent to all plugins
-type NomadConfig struct {
-	Driver *NomadDriverConfig
+// ClientAgentConfig is the nomad client configuration sent to all plugins
+type ClientAgentConfig struct {
+	Driver *ClientDriverConfig
 }
 
-// NomadDriverConfig is the driver specific configuration for all driver plugins
-type NomadDriverConfig struct {
+// ClientDriverConfig is the driver specific configuration for all driver plugins
+type ClientDriverConfig struct {
 	// ClientMaxPort is the upper range of the ports that the client uses for
 	// communicating with plugin subsystems over loopback
 	ClientMaxPort uint
@@ -51,7 +51,7 @@ type NomadDriverConfig struct {
 	ClientMinPort uint
 }
 
-func (c *NomadConfig) toProto() *proto.NomadConfig {
+func (c *ClientAgentConfig) toProto() *proto.NomadConfig {
 	if c == nil {
 		return nil
 	}
@@ -68,14 +68,14 @@ func (c *NomadConfig) toProto() *proto.NomadConfig {
 	return cfg
 }
 
-func nomadConfigFromProto(pb *proto.NomadConfig) *NomadConfig {
+func nomadConfigFromProto(pb *proto.NomadConfig) *ClientAgentConfig {
 	if pb == nil {
 		return nil
 	}
 
-	cfg := &NomadConfig{}
+	cfg := &ClientAgentConfig{}
 	if pb.Driver != nil {
-		cfg.Driver = &NomadDriverConfig{
+		cfg.Driver = &ClientDriverConfig{
 			ClientMaxPort: uint(pb.Driver.ClientMaxPort),
 			ClientMinPort: uint(pb.Driver.ClientMinPort),
 		}

@@ -27,7 +27,7 @@ func TestSingleton_Dispense(t *testing.T) {
 
 	dispenseCalled := 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.ClientAgentConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
@@ -77,7 +77,7 @@ func TestSingleton_Dispense_Exit_Dispense(t *testing.T) {
 	exited := false
 	dispenseCalled := 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.ClientAgentConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return exited },
@@ -125,7 +125,7 @@ func TestSingleton_DispenseError_Dispense(t *testing.T) {
 	require := require.New(t)
 
 	dispenseCalled := 0
-	good := func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
+	good := func(_, _ string, _ *base.ClientAgentConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
@@ -135,7 +135,7 @@ func TestSingleton_DispenseError_Dispense(t *testing.T) {
 		return i, nil
 	}
 
-	bad := func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
+	bad := func(_, _ string, _ *base.ClientAgentConfig, _ log.Logger) (loader.PluginInstance, error) {
 		dispenseCalled++
 		return nil, fmt.Errorf("bad")
 	}
@@ -169,7 +169,7 @@ func TestSingleton_ReattachError_Dispense(t *testing.T) {
 
 	dispenseCalled, reattachCalled := 0, 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.ClientAgentConfig, _ log.Logger) (loader.PluginInstance, error) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
@@ -209,7 +209,7 @@ func TestSingleton_Reattach_Dispense(t *testing.T) {
 
 	dispenseCalled, reattachCalled := 0, 0
 	s, c := harness(t)
-	c.DispenseF = func(_, _ string, _ *base.NomadConfig, _ log.Logger) (loader.PluginInstance, error) {
+	c.DispenseF = func(_, _ string, _ *base.ClientAgentConfig, _ log.Logger) (loader.PluginInstance, error) {
 		dispenseCalled++
 		return nil, fmt.Errorf("bad")
 	}

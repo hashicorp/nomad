@@ -698,8 +698,8 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	defer h.cleanup()
 
 	expKey := "set_config_worked"
-	expNomadConfig := &base.NomadConfig{
-		Driver: &base.NomadDriverConfig{
+	expNomadConfig := &base.ClientAgentConfig{
+		Driver: &base.ClientDriverConfig{
 			ClientMinPort: 100,
 		},
 	}

@@ -52,7 +52,7 @@ General Options:
 ` + generalOptionsUsage() + `
 
 Device Options:
-  
+
   -trace
     Enable trace level log output.
 `
@@ -119,7 +119,7 @@ func (c *Device) Run(args []string) int {
 	}
 	c.spec = spec
 
-	if err := c.setConfig(spec, config); err != nil {
+	if err := c.setConfig(spec, config, nil); err != nil {
 		c.logger.Error("failed to set config", "error", err)
 		return 1
 	}
@@ -187,7 +187,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 	return schema, nil
 }
 
-func (c *Device) setConfig(spec hcldec.Spec, config []byte) error {
+func (c *Device) setConfig(spec hcldec.Spec, config []byte, nmdCfg *base.ClientAgentConfig) error {
 	// Parse the config into hcl
 	configVal, err := hclConfigToInterface(config)
 	if err != nil {
@@ -216,7 +216,7 @@ func (c *Device) setConfig(spec hcldec.Spec, config []byte) error {
 	}
 
 	c.logger.Trace("msgpack config", "config", string(cdata))
-	if err := c.dev.SetConfig(cdata); err != nil {
+	if err := c.dev.SetConfig(cdata, nmdCfg); err != nil {
 		return err
 	}
 

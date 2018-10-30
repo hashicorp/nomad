@@ -18,7 +18,7 @@ import (
 type PluginCatalog interface {
 	// Dispense returns the plugin given its name and type. This will also
 	// configure the plugin
-	Dispense(name, pluginType string, config *base.NomadConfig, logger log.Logger) (PluginInstance, error)
+	Dispense(name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error)
 
 	// Reattach is used to reattach to a previously launched external plugin.
 	Reattach(name, pluginType string, config *plugin.ReattachConfig) (PluginInstance, error)
@@ -114,7 +114,7 @@ func NewPluginLoader(config *PluginLoaderConfig) (*PluginLoader, error) {
 
 // Dispense returns a plugin instance, loading it either internally or by
 // launching an external plugin.
-func (l *PluginLoader) Dispense(name, pluginType string, config *base.NomadConfig, logger log.Logger) (PluginInstance, error) {
+func (l *PluginLoader) Dispense(name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error) {
 	id := PluginID{
 		Name:       name,
 		PluginType: pluginType,
