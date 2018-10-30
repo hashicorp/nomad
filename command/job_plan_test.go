@@ -7,8 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"strconv"
+
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	require2 "github.com/stretchr/testify/require"
 )
 
 func TestPlanCommand_Implements(t *testing.T) {
@@ -168,4 +172,87 @@ func TestPlanCommand_From_URL(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error getting jobfile") {
 		t.Fatalf("expected error getting jobfile, got: %s", out)
 	}
+}
+
+func TestPlanCommad_Preemptions(t *testing.T) {
+	t.Parallel()
+	ui := new(cli.MockUi)
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+	require := require2.New(t)
+
+	// Only one preempted alloc
+	resp1 := &api.JobPlanResponse{
+		Annotations: &api.PlanAnnotations{
+			PreemptedAllocs: []*api.AllocationListStub{
+				{
+					ID:        "alloc1",
+					JobID:     "jobID1",
+					TaskGroup: "meta",
+					JobType:   "batch",
+					Namespace: "test",
+				},
+			},
+		},
+	}
+	cmd.addPreemptions(resp1)
+	out := ui.OutputWriter.String()
+	require.Contains(out, "Alloc ID")
+	require.Contains(out, "alloc1")
+
+	// Less than 10 unique job ids
+	var preemptedAllocs []*api.AllocationListStub
+	for i := 0; i < 12; i++ {
+		job_id := "job" + strconv.Itoa(i%4)
+		alloc := &api.AllocationListStub{
+			ID:        "alloc",
+			JobID:     job_id,
+			TaskGroup: "meta",
+			JobType:   "batch",
+			Namespace: "test",
+		}
+		preemptedAllocs = append(preemptedAllocs, alloc)
+	}
+
+	resp2 := &api.JobPlanResponse{
+		Annotations: &api.PlanAnnotations{
+			PreemptedAllocs: preemptedAllocs,
+		},
+	}
+	ui.OutputWriter.Reset()
+	cmd.addPreemptions(resp2)
+	out = ui.OutputWriter.String()
+	require.Contains(out, "Job ID")
+	require.Contains(out, "Namespace")
+
+	// More than 10 unique job IDs
+	preemptedAllocs = make([]*api.AllocationListStub, 0)
+	job_type := "batch"
+	for i := 0; i < 20; i++ {
+		job_id := "job" + strconv.Itoa(i)
+		if i%2 == 0 {
+			job_type = "service"
+		} else {
+			job_type = "batch"
+		}
+		alloc := &api.AllocationListStub{
+			ID:        "alloc",
+			JobID:     job_id,
+			TaskGroup: "meta",
+			JobType:   job_type,
+			Namespace: "test",
+		}
+		preemptedAllocs = append(preemptedAllocs, alloc)
+	}
+
+	resp3 := &api.JobPlanResponse{
+		Annotations: &api.PlanAnnotations{
+			PreemptedAllocs: preemptedAllocs,
+		},
+	}
+	ui.OutputWriter.Reset()
+	cmd.addPreemptions(resp3)
+	out = ui.OutputWriter.String()
+	require.Contains(out, "Job Type")
+	require.Contains(out, "batch")
+	require.Contains(out, "service")
 }
