@@ -6154,7 +6154,6 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes allocation directory"))
 	}
 
-	// Verify the checksum
 	if err := ta.validateChecksum(); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
@@ -6168,9 +6167,9 @@ func (ta *TaskArtifact) validateChecksum() error {
 		return nil
 	}
 
-	// job struct validation occurs before interpolation resolution can be effective
-	// skip checking if checksum contain variable reference, and artifacts fetching will
-	// eventually fail at pick up time if checksum is indeed invalid
+	// Job struct validation occurs before interpolation resolution can be effective.
+	// Skip checking if checksum contain variable reference, and artifacts fetching will
+	// eventually fail, if checksum is indeed invalid.
 	if args.ContainsEnv(check) {
 		return nil
 	}

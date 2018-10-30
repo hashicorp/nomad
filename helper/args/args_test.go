@@ -92,9 +92,11 @@ func TestArgs_ContainsEnv(t *testing.T) {
 		"test",
 		"test-$",
 		"test-${asdf",
+		"test-{asdf}",
+		"$test",
 	}
 	for _, c := range negativeCases {
-		t.Run(fmt.Sprintf("positive case: %v", c), func(t *testing.T) {
+		t.Run(fmt.Sprintf("negative case: %v", c), func(t *testing.T) {
 			if ContainsEnv(c) {
 				t.Fatalf("ContainsEnv(%v) returned true; want false", c)
 			}
