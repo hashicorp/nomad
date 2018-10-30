@@ -14,6 +14,17 @@ import (
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
+)
+
+const (
+	// ExecutorDefaultMaxPort is the default max port used by the executor for
+	// searching for an available port
+	ExecutorDefaultMaxPort = 14512
+
+	// ExecutorDefaultMinPort is the default min port used by the executor for
+	// searching for an available port
+	ExecutorDefaultMinPort = 14000
 )
 
 // CgroupsMounted returns true if the cgroups are mounted on a system otherwise
@@ -25,7 +36,7 @@ func CgroupsMounted(node *structs.Node) bool {
 
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func CreateExecutor(w io.Writer, level hclog.Level, CMinPort, CMaxPort uint,
+func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDriverConfig,
 	executorConfig *dstructs.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
@@ -42,8 +53,14 @@ func CreateExecutor(w io.Writer, level hclog.Level, CMinPort, CMaxPort uint,
 	}
 	config.HandshakeConfig = driver.HandshakeConfig
 	config.Plugins = driver.GetPluginMap(w, level, executorConfig.FSIsolation)
-	config.MaxPort = CMaxPort
-	config.MinPort = CMinPort
+
+	if driverConfig != nil {
+		config.MaxPort = driverConfig.ClientMaxPort
+		config.MinPort = driverConfig.ClientMinPort
+	} else {
+		config.MaxPort = ExecutorDefaultMaxPort
+		config.MinPort = ExecutorDefaultMinPort
+	}
 
 	// setting the setsid of the plugin process so that it doesn't get signals sent to
 	// the nomad client.
@@ -65,6 +82,7 @@ func CreateExecutor(w io.Writer, level hclog.Level, CMinPort, CMaxPort uint,
 	return executorPlugin, executorClient, nil
 }
 
+// CreateExecutorWithConfig launches a plugin with a given plugin config
 func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = driver.HandshakeConfig
 

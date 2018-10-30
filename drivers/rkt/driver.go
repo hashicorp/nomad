@@ -151,6 +151,9 @@ type RktDriver struct {
 	// config is the driver configuration set by the SetConfig RPC
 	config *Config
 
+	// nomadConfig is the client config from nomad
+	nomadConfig *base.ClientDriverConfig
+
 	// tasks is the in memory datastore mapping taskIDs to rktTaskHandles
 	tasks *taskStore
 
@@ -188,13 +191,16 @@ func (d *RktDriver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *RktDriver) SetConfig(data []byte) error {
+func (d *RktDriver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err
 	}
 
 	d.config = &config
+	if cfg != nil {
+		d.nomadConfig = cfg.Driver
+	}
 	return nil
 }
 
@@ -567,8 +573,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 		LogLevel: "debug",
 	}
 
-	// TODO: best way to pass port ranges in from client config
-	execImpl, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, 14000, 14512, executorConfig)
+	execImpl, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}

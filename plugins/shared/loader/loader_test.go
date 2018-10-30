@@ -674,7 +674,7 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -698,6 +698,11 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	defer h.cleanup()
 
 	expKey := "set_config_worked"
+	expNomadConfig := &base.ClientAgentConfig{
+		Driver: &base.ClientDriverConfig{
+			ClientMinPort: 100,
+		},
+	}
 
 	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
@@ -721,7 +726,7 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, expNomadConfig, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -732,6 +737,10 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(res)
 	require.Contains(res.Envs, expKey)
+
+	mock, ok := p.Plugin().(*mockPlugin)
+	require.True(ok)
+	require.Exactly(expNomadConfig, mock.nomadConfig)
 }
 
 func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
@@ -773,7 +782,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -822,7 +831,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -863,7 +872,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 

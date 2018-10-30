@@ -493,7 +493,7 @@ func (tr *TaskRunner) runDriver() error {
 
 // initDriver retrives the DriverPlugin from the plugin loader for this task
 func (tr *TaskRunner) initDriver() error {
-	plugin, err := tr.pluginSingletonLoader.Dispense(tr.Task().Driver, base.PluginTypeDriver, tr.logger)
+	plugin, err := tr.pluginSingletonLoader.Dispense(tr.Task().Driver, base.PluginTypeDriver, tr.clientConfig.NomadPluginConfig(), tr.logger)
 	if err != nil {
 		return err
 	}

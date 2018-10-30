@@ -397,7 +397,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 	info.msgpackConfig = cdata
 
 	// Dispense the plugin and set its config and ensure it is error free
-	instance, err := l.Dispense(id.Name, id.PluginType, l.logger)
+	instance, err := l.Dispense(id.Name, id.PluginType, nil, l.logger)
 	if err != nil {
 		return fmt.Errorf("failed to dispense plugin: %v", err)
 	}
@@ -408,7 +408,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 		return fmt.Errorf("dispensed plugin %s doesn't meet base plugin interface", id)
 	}
 
-	if err := base.SetConfig(cdata); err != nil {
+	if err := base.SetConfig(cdata, nil); err != nil {
 		return fmt.Errorf("setting config on plugin failed: %v", err)
 	}
 	return nil

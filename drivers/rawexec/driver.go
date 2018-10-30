@@ -105,6 +105,9 @@ type RawExecDriver struct {
 	// config is the driver configuration set by the SetConfig RPC
 	config *Config
 
+	// nomadConfig is the client config from nomad
+	nomadConfig *base.ClientDriverConfig
+
 	// tasks is the in memory datastore mapping taskIDs to rawExecDriverHandles
 	tasks *taskStore
 
@@ -169,13 +172,16 @@ func (r *RawExecDriver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (r *RawExecDriver) SetConfig(data []byte) error {
+func (r *RawExecDriver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err
 	}
 
 	r.config = &config
+	if cfg != nil {
+		r.nomadConfig = cfg.Driver
+	}
 	return nil
 }
 
@@ -297,8 +303,7 @@ func (r *RawExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle,
 		LogLevel: "debug",
 	}
 
-	// TODO: best way to pass port ranges in from client config
-	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, 14000, 14512, executorConfig)
+	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, r.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}

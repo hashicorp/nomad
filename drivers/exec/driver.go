@@ -72,6 +72,9 @@ type ExecDriver struct {
 	// config is the driver configuration set by the SetConfig RPC
 	config *Config
 
+	// nomadConfig is the client config from nomad
+	nomadConfig *base.ClientDriverConfig
+
 	// tasks is the in memory datastore mapping taskIDs to execDriverHandles
 	tasks *taskStore
 
@@ -132,13 +135,16 @@ func (*ExecDriver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *ExecDriver) SetConfig(data []byte) error {
+func (d *ExecDriver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err
 	}
 
 	d.config = &config
+	if cfg != nil {
+		d.nomadConfig = cfg.Driver
+	}
 	return nil
 }
 
@@ -240,7 +246,7 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	}
 
 	// TODO: best way to pass port ranges in from client config
-	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, 14000, 14512, executorConfig)
+	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}
