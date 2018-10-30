@@ -491,33 +491,9 @@ func (v *vaultClient) renewalLoop() {
 				break
 			}
 
-			// Back off, increasing the amount of backoff each time. There are some rules:
-			//
-			// * If we have an existing authentication that is going to expire,
-			// never back off more than half of the amount of time remaining
-			// until expiration
-			// * Never back off more than 30 seconds multiplied by a random
-			// value between 1 and 2
-			// * Use randomness so that many clients won't keep hitting Vault
-			// at the same time
-
-			// Set base values and add some backoff
-
 			v.logger.Warn("got error or bad auth, so backing off", "error", err)
-			switch {
-			case backoff < 5:
-				backoff = 5
-			case backoff >= 24:
-				backoff = 30
-			default:
-				backoff = backoff * 1.25
-			}
-
-			// Add randomness
-			backoff = backoff * (1.0 + rand.Float64())
-
-			maxBackoff := currentExpiration.Sub(time.Now()) / 2
-			if maxBackoff < 0 {
+			backoff = nextBackoff(backoff, currentExpiration)
+			if backoff < 0 {
 				// We have failed to renew the token past its expiration. Stop
 				// renewing with Vault.
 				v.logger.Error("failed to renew Vault token before lease expiration. Shutting down Vault client")
@@ -526,9 +502,6 @@ func (v *vaultClient) renewalLoop() {
 				v.connEstablishedErr = err
 				v.l.Unlock()
 				return
-
-			} else if backoff > maxBackoff.Seconds() {
-				backoff = maxBackoff.Seconds()
 			}
 
 			durationUntilRetry := time.Duration(backoff) * time.Second
@@ -537,6 +510,48 @@ func (v *vaultClient) renewalLoop() {
 			authRenewTimer.Reset(durationUntilRetry)
 		}
 	}
+}
+
+// nextBackoff returns the delay for the next auto renew interval, in seconds.
+// Returns negative value if past expiration
+//
+// It should increaes the amount of backoff each time, with the following rules:
+//
+// * If we have an existing authentication that is going to expire,
+// never back off more than half of the amount of time remaining
+// until expiration (with 1s floor)
+// * Never back off more than 30 seconds multiplied by a random
+// value between 1 and 2
+// * Use randomness so that many clients won't keep hitting Vault
+// at the same time
+func nextBackoff(backoff float64, expiry time.Time) float64 {
+	maxBackoff := time.Until(expiry) / 2
+	if maxBackoff < 0 {
+		return -1
+	}
+
+	switch {
+	case backoff < 5:
+		backoff = 5
+	case backoff >= 24:
+		backoff = 30
+	default:
+		backoff = backoff * 1.25
+	}
+
+	// Add randomness
+	backoff = backoff * (1.0 + rand.Float64())
+
+	if backoff > maxBackoff.Seconds() {
+		backoff = maxBackoff.Seconds()
+	}
+
+	// avoid hammering Vault
+	if backoff < 1 {
+		backoff = 1
+	}
+
+	return backoff
 }
 
 // renew attempts to renew our Vault token. If the renewal fails, an error is

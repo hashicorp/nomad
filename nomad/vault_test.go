@@ -1258,3 +1258,42 @@ func waitForConnection(v *vaultClient, t *testing.T) {
 		t.Fatalf("Connection not established")
 	})
 }
+
+func TestVaultClient_nextBackoff(t *testing.T) {
+	simpleCases := []struct {
+		name        string
+		initBackoff float64
+
+		// define range of acceptable backoff values accounting for random factor
+		rangeMin float64
+		rangeMax float64
+	}{
+		{"simple case", 7.0, 8.7, 17.60},
+		{"too low", 2.0, 5.0, 10.0},
+		{"too large", 100, 30.0, 60.0},
+	}
+
+	for _, c := range simpleCases {
+		t.Run(c.name, func(t *testing.T) {
+			b := nextBackoff(c.initBackoff, time.Now().Add(10*time.Hour))
+			if !(c.rangeMin <= b && b <= c.rangeMax) {
+				t.Fatalf("Expected backoff within [%v, %v] but found %v", c.rangeMin, c.rangeMax, b)
+			}
+		})
+	}
+
+	// some edge cases
+	t.Run("close to expiry", func(t *testing.T) {
+		b := nextBackoff(20, time.Now().Add(1100*time.Millisecond))
+		if !(1.0 <= b && b <= 3) {
+			t.Fatalf("Expected backoff within [1, 3] but found %v", b)
+		}
+	})
+
+	t.Run("past expiry", func(t *testing.T) {
+		b := nextBackoff(20, time.Now().Add(-1100*time.Millisecond))
+		if b >= 0.0 {
+			t.Fatalf("Expected backoff to be negative but found %v", b)
+		}
+	})
+}
