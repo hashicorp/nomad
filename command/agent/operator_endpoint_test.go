@@ -294,10 +294,10 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 			},
 		}
 
-		var reply structs.SchedulerConfiguration
+		var reply structs.SchedulerConfigurationResponse
 		err = s.RPC("Operator.SchedulerGetConfiguration", &args, &reply)
 		require.Nil(err)
-		require.True(reply.PreemptionConfig.SystemSchedulerEnabled)
+		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	})
 }
 
@@ -320,11 +320,11 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 			},
 		}
 
-		var reply structs.SchedulerConfiguration
+		var reply structs.SchedulerConfigurationResponse
 		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		require.True(reply.PreemptionConfig.SystemSchedulerEnabled)
+		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 
 		// Create a CAS request, bad index
 		{
@@ -354,6 +354,6 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		require.False(reply.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	})
 }
