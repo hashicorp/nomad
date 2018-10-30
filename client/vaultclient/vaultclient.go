@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -156,6 +157,10 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 		logger.Error("error creating vault client", "error", err)
 		return nil, err
 	}
+
+	client.SetHeaders(http.Header{
+		"User-Agent": []string{"HashiCorp/nomad"},
+	})
 
 	c.client = client
 
