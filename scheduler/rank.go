@@ -241,7 +241,7 @@ OUTER:
 					// Look for preemptible allocations to satisfy the network resource for this task
 					preemptor.SetCandidates(proposed)
 
-					netPreemptions := preemptor.preemptForNetwork(ask, netIdx)
+					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
 						iter.ctx.Metrics().ExhaustedNode(option.Node,
 							fmt.Sprintf("unable to meet network resource %v after preemption", ask))
@@ -303,7 +303,7 @@ OUTER:
 			// Initialize preemptor with candidate set
 			preemptor.SetCandidates(current)
 
-			preemptedAllocs := preemptor.preemptForTaskGroup(total)
+			preemptedAllocs := preemptor.PreemptForTaskGroup(total)
 			allocsToPreempt = append(allocsToPreempt, preemptedAllocs...)
 
 			// If we were unable to find preempted allocs to meet these requirements

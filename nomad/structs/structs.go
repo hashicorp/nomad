@@ -7403,6 +7403,7 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 			Memory: AllocatedMemoryResources{
 				MemoryMB: int64(resources.MemoryMB),
 			},
+			Networks: resources.Networks,
 		},
 		Shared: AllocatedSharedResources{
 			DiskMB: int64(resources.DiskMB),
