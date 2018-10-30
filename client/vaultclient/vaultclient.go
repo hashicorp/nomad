@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -303,6 +304,7 @@ func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, err
 	// error channel.
 	if err := c.renew(renewalReq); err != nil {
 		c.logger.Error("error during renewal of token", "error", err)
+		metrics.IncrCounter([]string{"client", "vault", "renew_token_failure"}, 1)
 		return nil, err
 	}
 
@@ -340,6 +342,7 @@ func (c *vaultClient) RenewLease(leaseId string, increment int) (<-chan error, e
 	// Renew the secret and send any error to the dedicated error channel
 	if err := c.renew(renewalReq); err != nil {
 		c.logger.Error("error during renewal of lease", "error", err)
+		metrics.IncrCounter([]string{"client", "vault", "renew_lease_error"}, 1)
 		return nil, err
 	}
 
@@ -536,6 +539,7 @@ func (c *vaultClient) run() {
 		case <-renewalCh:
 			if err := c.renew(renewalReq); err != nil {
 				c.logger.Error("error renewing token", "error", err)
+				metrics.IncrCounter([]string{"client", "vault", "renew_token_error"}, 1)
 			}
 		case <-c.updateCh:
 			continue
