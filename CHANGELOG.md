@@ -21,6 +21,7 @@ BUG FIXES:
  * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
  * client: Fix an issue reloading the client config [[GH-4730](https://github.com/hashicorp/nomad/issues/4730)]
  * driver/raw_exec: Fix issue where tasks that used an interpolated command in driver configuration would not start [[GH-4813](https://github.com/hashicorp/nomad/pull/4813)]
+ * core: Fix an issue where artifact checksums containing interpolated variables failed validation [[GH-4810](https://github.com/hashicorp/nomad/pull/4819)]
 
 ## 0.8.6 (September 26, 2018)
 
