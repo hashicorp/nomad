@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"net"
-	"strconv"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/hashicorp/go-hclog"
@@ -42,11 +41,11 @@ const (
 
 	// Represents an ACPI shutdown request to the VM (emulates pressing a physical power button)
 	// Reference: https://en.wikibooks.org/wiki/QEMU/Monitor
-	gracefulShutdownMsg = "system_powerdown\n"
-	monitorSocketName   = "qemu-monitor.sock"
+	qemuGracefulShutdownMsg = "system_powerdown\n"
+	qemuMonitorSocketName   = "qemu-monitor.sock"
 
 	// Maximum socket path length prior to qemu 2.10.1
-	legacyMaxMonitorPathLen = 108
+	qemuLegacyMaxMonitorPathLen = 108
 )
 
 var (
@@ -72,7 +71,7 @@ var (
 	//
 	// Relevant fix is here:
 	// https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6
-	versionLongSocketPathFix = semver.New("2.10.1")
+	qemuVersionLongSocketPathFix = semver.New("2.10.1")
 
 	// pluginInfo is the response returned for the PluginInfo RPC
 	pluginInfo = &base.PluginInfoResponse{
@@ -184,9 +183,9 @@ func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (r *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
-	go r.handleFingerprint(ctx, ch)
+	go d.handleFingerprint(ctx, ch)
 	return ch, nil
 }
 
@@ -267,7 +266,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
-	h := &qemuTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		pid:          taskState.Pid,
 		pluginClient: pluginClient,
@@ -431,7 +430,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 	d.logger.Debug("started new QemuVM", "ID", vmID)
 
-	h := &qemuTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		pid:          ps.Pid,
 		monitorPath:  monitorPath,
@@ -536,22 +535,7 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	handle.stateLock.RLock()
-	defer handle.stateLock.RUnlock()
-
-	status := &drivers.TaskStatus{
-		ID:          handle.taskConfig.ID,
-		Name:        handle.taskConfig.Name,
-		State:       handle.procState,
-		StartedAt:   handle.startedAt,
-		CompletedAt: handle.completedAt,
-		ExitResult:  handle.exitResult,
-		DriverAttributes: map[string]string{
-			"pid": strconv.Itoa(handle.pid),
-		},
-	}
-
-	return status, nil
+	return handle.TaskStatus(), nil
 }
 
 func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
@@ -587,7 +571,7 @@ func GetAbsolutePath(bin string) (string, error) {
 	return filepath.EvalSymlinks(lp)
 }
 
-func (d *Driver) handleWait(ctx context.Context, handle *qemuTaskHandle, ch chan *drivers.ExitResult) {
+func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
 	ps, err := handle.exec.Wait()
@@ -618,15 +602,15 @@ func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (s
 	var longPathSupport bool
 	currentQemuVer := fingerPrint.Attributes[driverVersionAttr]
 	currentQemuSemver := semver.New(currentQemuVer)
-	if currentQemuSemver.LessThan(*versionLongSocketPathFix) {
+	if currentQemuSemver.LessThan(*qemuVersionLongSocketPathFix) {
 		longPathSupport = false
 		d.logger.Debug("long socket paths are not available in this version of QEMU", "version", currentQemuVer)
 	} else {
 		longPathSupport = true
 		d.logger.Debug("long socket paths available in this version of QEMU", "version", currentQemuVer)
 	}
-	fullSocketPath := fmt.Sprintf("%s/%s", dir, monitorSocketName)
-	if len(fullSocketPath) > legacyMaxMonitorPathLen && longPathSupport == false {
+	fullSocketPath := fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName)
+	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && longPathSupport == false {
 		return "", fmt.Errorf("monitor path is too long for this version of qemu")
 	}
 	return fullSocketPath, nil
@@ -645,9 +629,9 @@ func sendQemuShutdown(logger hclog.Logger, monitorPath string, userPid int) erro
 	}
 	defer monitorSocket.Close()
 	logger.Debug("sending graceful shutdown command to qemu monitor socket", "monitor_path", monitorPath, "pid", userPid)
-	_, err = monitorSocket.Write([]byte(gracefulShutdownMsg))
+	_, err = monitorSocket.Write([]byte(qemuGracefulShutdownMsg))
 	if err != nil {
-		logger.Warn("failed to send shutdown message", "shutdown message", gracefulShutdownMsg, "monitorPath", monitorPath, "userPid", userPid, "error", err)
+		logger.Warn("failed to send shutdown message", "shutdown message", qemuGracefulShutdownMsg, "monitorPath", monitorPath, "userPid", userPid, "error", err)
 	}
 	return err
 }

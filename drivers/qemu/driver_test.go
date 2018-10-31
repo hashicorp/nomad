@@ -124,12 +124,12 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 	_, err := qemuDriver.getMonitorPath(shortPath, fingerPrint)
 	require.Nil(err)
 
-	longPath := strings.Repeat("x", legacyMaxMonitorPathLen+100)
+	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
 	_, err = qemuDriver.getMonitorPath(longPath, fingerPrint)
 	require.NotNil(err)
 
 	// Max length includes the '/' separator and socket name
-	maxLengthCount := legacyMaxMonitorPathLen - len(monitorSocketName) - 1
+	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
 	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
 	_, err = qemuDriver.getMonitorPath(maxLengthLegacyPath, fingerPrint)
 	require.Nil(err)
@@ -176,12 +176,12 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	require.Nil(err)
 
 	// Should not return an error in this qemu version
-	longPath := strings.Repeat("x", legacyMaxMonitorPathLen+100)
+	longPath := strings.Repeat("x", qemuLegacyMaxMonitorPathLen+100)
 	_, err = qemuDriver.getMonitorPath(longPath, fingerPrint)
 	require.Nil(err)
 
 	// Max length includes the '/' separator and socket name
-	maxLengthCount := legacyMaxMonitorPathLen - len(monitorSocketName) - 1
+	maxLengthCount := qemuLegacyMaxMonitorPathLen - len(qemuMonitorSocketName) - 1
 	maxLengthLegacyPath := strings.Repeat("x", maxLengthCount)
 	_, err = qemuDriver.getMonitorPath(maxLengthLegacyPath, fingerPrint)
 	require.Nil(err)
