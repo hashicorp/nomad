@@ -1,17 +1,22 @@
-package rawexec
+package java
 
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strconv"
+	"runtime"
+	"syscall"
 	"time"
 
+	"strconv"
+
 	"github.com/hashicorp/consul-template/signals"
-	hclog "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -24,41 +29,31 @@ import (
 
 const (
 	// pluginName is the name of the plugin
-	pluginName = "raw_exec"
+	pluginName = "java"
 
 	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
 	fingerprintPeriod = 30 * time.Second
+
+	// The key populated in Node Attributes to indicate presence of the Java driver
+	driverAttr        = "driver.java"
+	driverVersionAttr = "driver.java.version"
 )
 
 var (
-	// PluginID is the rawexec plugin metadata registered in the plugin
+	// PluginID is the java plugin metadata registered in the plugin
 	// catalog.
 	PluginID = loader.PluginID{
 		Name:       pluginName,
 		PluginType: base.PluginTypeDriver,
 	}
 
-	// PluginConfig is the rawexec factory function registered in the
+	// PluginConfig is the java driver factory function registered in the
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewRawExecDriver(l) },
+		Factory: func(l hclog.Logger) interface{} { return NewDriver(l) },
 	}
-)
 
-// PluginLoader maps pre-0.9 client driver options to post-0.9 plugin options.
-func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
-	conf := map[string]interface{}{}
-	if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
-		conf["enabled"] = v
-	}
-	if v, err := strconv.ParseBool(opts["driver.raw_exec.no_cgroups"]); err == nil {
-		conf["no_cgroups"] = v
-	}
-	return conf, nil
-}
-
-var (
 	// pluginInfo is the response returned for the PluginInfo RPC
 	pluginInfo = &base.PluginInfoResponse{
 		Type:             base.PluginTypeDriver,
@@ -68,80 +63,49 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"enabled": hclspec.NewDefault(
-			hclspec.NewAttr("enabled", "bool", false),
-			hclspec.NewLiteral("false"),
-		),
-		"no_cgroups": hclspec.NewDefault(
-			hclspec.NewAttr("no_cgroups", "bool", false),
-			hclspec.NewLiteral("false"),
-		),
-	})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
-	// a task within a job. It is returned in the TaskConfigSchema RPC
+	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"command": hclspec.NewAttr("command", "string", true),
-		"args":    hclspec.NewAttr("args", "list(string)", false),
+		// It's required for either `class` or `jar_path` to be set,
+		// but that's not expressable in hclspec.  Marking both as optional
+		// and setting checking explicitly later
+		"class":     hclspec.NewAttr("class", "string", false),
+		"classpath": hclspec.NewAttr("classpath", "string", false),
+		"jar_path":  hclspec.NewAttr("jar_path", "string", false),
+		"java_opts": hclspec.NewAttr("java_opts", "list(string)", false),
+		"args":      hclspec.NewAttr("args", "list(string)", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
-		SendSignals: true,
-		Exec:        true,
+		SendSignals: false,
+		Exec:        false,
 		FSIsolation: cstructs.FSIsolationNone,
 	}
+
+	_ drivers.DriverPlugin = (*Driver)(nil)
 )
 
-// Driver is a privileged version of the exec driver. It provides no
-// resource isolation and just fork/execs. The Exec driver should be preferred
-// and this should only be used when explicitly needed.
-type Driver struct {
-	// eventer is used to handle multiplexing of TaskEvents calls such that an
-	// event can be broadcast to all callers
-	eventer *eventer.Eventer
-
-	// config is the driver configuration set by the SetConfig RPC
-	config *Config
-
-	// nomadConfig is the client config from nomad
-	nomadConfig *base.ClientDriverConfig
-
-	// tasks is the in memory datastore mapping taskIDs to rawExecDriverHandles
-	tasks *taskStore
-
-	// ctx is the context for the driver. It is passed to other subsystems to
-	// coordinate shutdown
-	ctx context.Context
-
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
-	// logger will log to the Nomad agent
-	logger hclog.Logger
+func init() {
+	if runtime.GOOS == "linux" {
+		capabilities.FSIsolation = cstructs.FSIsolationChroot
+	}
 }
 
-// Config is the driver configuration set by the SetConfig RPC call
-type Config struct {
-	// NoCgroups tracks whether we should use a cgroup to manage the process
-	// tree
-	NoCgroups bool `codec:"no_cgroups"`
-
-	// Enabled is set to true to enable the raw_exec driver
-	Enabled bool `codec:"enabled"`
-}
-
-// TaskConfig is the driver configuration of a task within a job
+// TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	Command string   `codec:"command"`
-	Args    []string `codec:"args"`
+	Class     string   `codec:"class"`
+	ClassPath string   `codec:"classpath"`
+	JarPath   string   `codec:"jar_path"`
+	JvmOpts   []string `codec:"java_opts"`
+	Args      []string `codec:"args"` // extra arguments to java executable
 }
 
 // TaskState is the state which is encoded in the handle returned in
-// StartTask. This information is needed to rebuild the task state and handler
+// StartTask. This information is needed to rebuild the taskConfig state and handler
 // during recovery.
 type TaskState struct {
 	ReattachConfig *utils.ReattachConfig
@@ -150,13 +114,36 @@ type TaskState struct {
 	StartedAt      time.Time
 }
 
-// NewRawExecDriver returns a new DriverPlugin implementation
-func NewRawExecDriver(logger hclog.Logger) drivers.DriverPlugin {
+// Driver is a driver for running images via Java
+type Driver struct {
+	// eventer is used to handle multiplexing of TaskEvents calls such that an
+	// event can be broadcast to all callers
+	eventer *eventer.Eventer
+
+	// tasks is the in memory datastore mapping taskIDs to taskHandle
+	tasks *taskStore
+
+	// ctx is the context for the driver. It is passed to other subsystems to
+	// coordinate shutdown
+	ctx context.Context
+
+	// nomadConf is the client agent's configuration
+	nomadConfig *base.ClientDriverConfig
+
+	// signalShutdown is called when the driver is shutting down and cancels the
+	// ctx passed to any subsystems
+	signalShutdown context.CancelFunc
+
+	// logger will log to the plugin output which is usually an 'executor.out'
+	// file located in the root of the TaskDir
+	logger hclog.Logger
+}
+
+func NewDriver(logger hclog.Logger) drivers.DriverPlugin {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger = logger.Named(pluginName)
 	return &Driver{
 		eventer:        eventer.NewEventer(ctx, logger),
-		config:         &Config{},
 		tasks:          newTaskStore(),
 		ctx:            ctx,
 		signalShutdown: cancel,
@@ -172,21 +159,10 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
-	var config Config
-	if err := base.MsgPackDecode(data, &config); err != nil {
-		return err
-	}
-
-	d.config = &config
+func (d *Driver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
 	if cfg != nil {
 		d.nomadConfig = cfg.Driver
 	}
-	return nil
-}
-
-func (d *Driver) Shutdown(ctx context.Context) error {
-	d.signalShutdown()
 	return nil
 }
 
@@ -198,14 +174,13 @@ func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+func (r *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
-	go d.handleFingerprint(ctx, ch)
+	go r.handleFingerprint(ctx, ch)
 	return ch, nil
 }
 
-func (d *Driver) handleFingerprint(ctx context.Context, ch chan<- *drivers.Fingerprint) {
-	defer close(ch)
+func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
 	ticker := time.NewTimer(0)
 	for {
 		select {
@@ -221,65 +196,81 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan<- *drivers.Finge
 }
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
-	var health drivers.HealthState
-	var desc string
-	attrs := map[string]string{}
-	if d.config.Enabled {
-		health = drivers.HealthStateHealthy
-		desc = "ready"
-		attrs["driver.raw_exec"] = "1"
-	} else {
-		health = drivers.HealthStateUndetected
-		desc = "disabled"
+	fp := &drivers.Fingerprint{
+		Attributes:        map[string]string{},
+		Health:            drivers.HealthStateHealthy,
+		HealthDescription: "healthy",
 	}
 
-	return &drivers.Fingerprint{
-		Attributes:        attrs,
-		Health:            health,
-		HealthDescription: desc,
+	if runtime.GOOS == "linux" {
+		// Only enable if w are root and cgroups are mounted when running on linux system
+		if syscall.Geteuid() != 0 {
+			fp.Health = drivers.HealthStateUnhealthy
+			fp.HealthDescription = "java driver must run as root"
+			return fp
+		}
+
+		mount, err := fingerprint.FindCgroupMountpointDir()
+		if err != nil {
+			fp.Health = drivers.HealthStateUnhealthy
+			fp.HealthDescription = "failed to discover cgroup mount point"
+			d.logger.Warn(fp.HealthDescription, "error", err)
+			return fp
+		}
+
+		if mount == "" {
+			fp.Health = drivers.HealthStateUnhealthy
+			fp.HealthDescription = "cgroups are unavailable"
+			return fp
+		}
 	}
+
+	version, runtime, vm, err := javaVersionInfo()
+	if err != nil {
+		// return no error, as it isn't an error to not find java, it just means we
+		// can't use it.
+		fp.Health = drivers.HealthStateUndetected
+		fp.HealthDescription = ""
+		return fp
+	}
+
+	fp.Attributes[driverAttr] = "1"
+	fp.Attributes[driverVersionAttr] = version
+	fp.Attributes["driver.java.runtime"] = runtime
+	fp.Attributes["driver.java.vm"] = vm
+
+	return fp
 }
 
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
-		return fmt.Errorf("handle cannot be nil")
+		return fmt.Errorf("error: handle cannot be nil")
 	}
 
-	// If already attached to handle there's nothing to recover.
-	if _, ok := d.tasks.Get(handle.Config.ID); ok {
-		d.logger.Trace("nothing to recover; task already exists",
-			"task_id", handle.Config.ID,
-			"task_name", handle.Config.Name,
-		)
-		return nil
-	}
-
-	// Handle doesn't already exist, try to reattach
 	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
-		d.logger.Error("failed to decode task state from handle", "error", err, "task_id", handle.Config.ID)
-		return fmt.Errorf("failed to decode task state from handle: %v", err)
+		d.logger.Error("failed to decode taskConfig state from handle", "error", err, "task_id", handle.Config.ID)
+		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
 	}
 
 	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
-		d.logger.Error("failed to build ReattachConfig from task state", "error", err, "task_id", handle.Config.ID)
-		return fmt.Errorf("failed to build ReattachConfig from task state: %v", err)
+		d.logger.Error("failed to build ReattachConfig from taskConfig state", "error", err, "task_id", handle.Config.ID)
+		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
 	pluginConfig := &plugin.ClientConfig{
 		Reattach: plugRC,
 	}
 
-	// Create client for reattached executor
-	exec, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
+	execImpl, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
 	h := &taskHandle{
-		exec:         exec,
+		exec:         execImpl,
 		pid:          taskState.Pid,
 		pluginClient: pluginClient,
 		taskConfig:   taskState.TaskConfig,
@@ -304,7 +295,19 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
+	if driverConfig.Class == "" && driverConfig.JarPath == "" {
+		return nil, nil, fmt.Errorf("jar_path or class must be specified")
+	}
+
+	absPath, err := GetAbsolutePath("java")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to find java binary: %s", err)
+	}
+
+	args := javaCmdArgs(driverConfig)
+
+	d.logger.Info("starting java task", "driver_cfg", hclog.Fmt("%+v", driverConfig), "args", args)
+
 	handle := drivers.NewTaskHandle(pluginName)
 	handle.Config = cfg
 
@@ -320,14 +323,19 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:                driverConfig.Command,
-		Args:               driverConfig.Args,
-		Env:                cfg.EnvList(),
-		User:               cfg.User,
-		BasicProcessCgroup: !d.config.NoCgroups,
-		TaskDir:            cfg.TaskDir().Dir,
-		StdoutPath:         cfg.StdoutPath,
-		StderrPath:         cfg.StderrPath,
+		Cmd:            absPath,
+		Args:           args,
+		Env:            cfg.EnvList(),
+		User:           cfg.User,
+		ResourceLimits: true,
+		Resources: &executor.Resources{
+			CPU:      int(cfg.Resources.LinuxResources.CPUShares),
+			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
+			DiskMB:   cfg.Resources.NomadResources.DiskMB,
+		},
+		TaskDir:    cfg.TaskDir().Dir,
+		StdoutPath: cfg.StdoutPath,
+		StderrPath: cfg.StderrPath,
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -363,6 +371,36 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	d.tasks.Set(cfg.ID, h)
 	go h.run()
 	return handle, nil, nil
+}
+
+func javaCmdArgs(driverConfig TaskConfig) []string {
+	args := []string{}
+	// Look for jvm options
+	if len(driverConfig.JvmOpts) != 0 {
+		args = append(args, driverConfig.JvmOpts...)
+	}
+
+	// Add the classpath
+	if driverConfig.ClassPath != "" {
+		args = append(args, "-cp", driverConfig.ClassPath)
+	}
+
+	// Add the jar
+	if driverConfig.JarPath != "" {
+		args = append(args, "-jar", driverConfig.JarPath)
+	}
+
+	// Add the class
+	if driverConfig.Class != "" {
+		args = append(args, driverConfig.Class)
+	}
+
+	// Add any args
+	if len(driverConfig.Args) != 0 {
+		args = append(args, driverConfig.Args...)
+	}
+
+	return args
 }
 
 func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
@@ -447,7 +485,22 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	return handle.TaskStatus(), nil
+	handle.stateLock.RLock()
+	defer handle.stateLock.RUnlock()
+
+	status := &drivers.TaskStatus{
+		ID:          handle.taskConfig.ID,
+		Name:        handle.taskConfig.Name,
+		State:       handle.procState,
+		StartedAt:   handle.startedAt,
+		CompletedAt: handle.completedAt,
+		ExitResult:  handle.exitResult,
+		DriverAttributes: map[string]string{
+			"pid": strconv.Itoa(handle.pid),
+		},
+	}
+
+	return status, nil
 }
 
 func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
@@ -497,4 +550,15 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 			ExitCode: exitCode,
 		},
 	}, nil
+}
+
+// GetAbsolutePath returns the absolute path of the passed binary by resolving
+// it in the path and following symlinks.
+func GetAbsolutePath(bin string) (string, error) {
+	lp, err := exec.LookPath(bin)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve path to %q executable: %v", bin, err)
+	}
+
+	return filepath.EvalSymlinks(lp)
 }
