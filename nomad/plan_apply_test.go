@@ -643,6 +643,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 // Test that we detect device oversubscription
 func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.NvidiaNode()
@@ -688,15 +689,9 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 	}
 
 	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fit {
-		t.Fatalf("bad")
-	}
-	if reason != "device oversubscribed" {
-		t.Fatalf("bad: %q", reason)
-	}
+	require.NoError(err)
+	require.False(fit)
+	require.Equal("device oversubscribed", reason)
 }
 
 func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {

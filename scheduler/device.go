@@ -64,6 +64,7 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 		// Score the choice
 		var choiceScore float64
 		if l := len(ask.Affinities); l != 0 {
+			totalWeight := 0.0
 			for _, a := range ask.Affinities {
 				// Resolve the targets
 				lVal, ok := resolveDeviceTarget(a.LTarget, devInst.Device)
@@ -75,6 +76,8 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 					continue
 				}
 
+				totalWeight += a.Weight
+
 				// Check if satisfied
 				if !checkAttributeAffinity(d.ctx, a.Operand, lVal, rVal) {
 					continue
@@ -83,7 +86,7 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 			}
 
 			// normalize
-			choiceScore /= float64(l)
+			choiceScore /= totalWeight
 		}
 
 		// Only use the device if it is a higher score than we have already seen

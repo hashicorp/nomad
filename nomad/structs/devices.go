@@ -4,6 +4,7 @@ package structs
 // when a node is oversubscribed and can be used for deciding what devices are
 // free
 type DeviceAccounter struct {
+	// Devices maps a device group to its device accounter instance
 	Devices map[DeviceIdTuple]*DeviceAccounterInstance
 }
 
@@ -13,7 +14,7 @@ type DeviceAccounterInstance struct {
 	// Device is the device being wrapped
 	Device *NodeDeviceResource
 
-	// Instances is a mapping of the device IDs of the instances to their usage.
+	// Instances is a mapping of the device IDs to their usage.
 	// Only a value of 0 indicates that the instance is unused.
 	Instances map[string]int
 }

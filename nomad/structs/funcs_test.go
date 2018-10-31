@@ -499,14 +499,14 @@ func TestAllocsFit_Devices(t *testing.T) {
 	require.True(fit)
 
 	// Should not fit second allocation
-	fit, msg, _, err := AllocsFit(n, []*Allocation{a1, a1}, nil, true)
+	fit, msg, _, err := AllocsFit(n, []*Allocation{a1, a2}, nil, true)
 	require.NoError(err)
 	require.False(fit)
 	require.Equal("device oversubscribed", msg)
 
 	// Should not fit second allocation but won't detect since we disabled
 	// devices
-	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit)
 }
