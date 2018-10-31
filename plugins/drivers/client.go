@@ -86,10 +86,10 @@ func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fin
 			return
 		}
 		if err != nil {
-			d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
 			select {
 			case <-ctx.Done():
 			case ch <- &Fingerprint{Err: fmt.Errorf("error from RPC stream: %v", err)}:
+				d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
 			}
 			return
 		}
