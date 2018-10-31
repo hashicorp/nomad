@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-// mockTaskHandle is a task handler which supervises a mock task
-type mockTaskHandle struct {
+// taskHandle supervises a mock task
+type taskHandle struct {
 	logger hclog.Logger
 
 	runFor          time.Duration
@@ -26,10 +26,10 @@ type mockTaskHandle struct {
 	stdoutRepeat    int
 	stdoutRepeatDur time.Duration
 
-	task *drivers.TaskConfig
+	taskConfig *drivers.TaskConfig
 
 	// stateLock guards the procState field
-	stateLock sync.Mutex
+	stateLock sync.RWMutex
 	procState drivers.TaskState
 
 	startedAt   time.Time
@@ -41,13 +41,28 @@ type mockTaskHandle struct {
 	killCh <-chan struct{}
 }
 
-func (h *mockTaskHandle) IsRunning() bool {
+func (h *taskHandle) TaskStatus() *drivers.TaskStatus {
+	h.stateLock.RLock()
+	defer h.stateLock.RUnlock()
+
+	return &drivers.TaskStatus{
+		ID:               h.taskConfig.ID,
+		Name:             h.taskConfig.Name,
+		State:            h.procState,
+		StartedAt:        h.startedAt,
+		CompletedAt:      h.completedAt,
+		ExitResult:       h.exitResult,
+		DriverAttributes: map[string]string{},
+	}
+}
+
+func (h *taskHandle) IsRunning() bool {
 	h.stateLock.Lock()
 	defer h.stateLock.Unlock()
 	return h.procState == drivers.TaskStateRunning
 }
 
-func (h *mockTaskHandle) run() {
+func (h *taskHandle) run() {
 	defer func() {
 		h.stateLock.Lock()
 		h.procState = drivers.TaskStateExited
@@ -92,8 +107,8 @@ func (h *mockTaskHandle) run() {
 	return
 }
 
-func (h *mockTaskHandle) handleLogging(errCh chan<- error) {
-	stdout, err := fifo.Open(h.task.StdoutPath)
+func (h *taskHandle) handleLogging(errCh chan<- error) {
+	stdout, err := fifo.Open(h.taskConfig.StdoutPath)
 	if err != nil {
 		h.logger.Error("failed to write to stdout", "error", err)
 		errCh <- err
