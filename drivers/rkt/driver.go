@@ -237,9 +237,9 @@ func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (r *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
-	go r.handleFingerprint(ctx, ch)
+	go d.handleFingerprint(ctx, ch)
 	return ch, nil
 }
 
@@ -346,7 +346,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	filter := strings.Split(config.DefaultEnvBlacklist, ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
-	h := &rktTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		env:          rktEnv,
 		pid:          taskState.Pid,
@@ -653,7 +653,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	d.logger.Debug("started taskConfig", "aci", img, "uuid", uuid, "task_name", cfg.Name, "args", runArgs)
-	h := &rktTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		env:          rktEnv,
 		pid:          ps.Pid,
@@ -764,22 +764,7 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	handle.stateLock.RLock()
-	defer handle.stateLock.RUnlock()
-
-	status := &drivers.TaskStatus{
-		ID:          handle.taskConfig.ID,
-		Name:        handle.taskConfig.Name,
-		State:       handle.procState,
-		StartedAt:   handle.startedAt,
-		CompletedAt: handle.completedAt,
-		ExitResult:  handle.exitResult,
-		DriverAttributes: map[string]string{
-			"pid": strconv.Itoa(handle.pid),
-		},
-	}
-
-	return status, nil
+	return handle.TaskStatus(), nil
 }
 
 func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
@@ -996,7 +981,7 @@ func elide(inBuf bytes.Buffer) string {
 	return tempBuf.String()
 }
 
-func (d *Driver) handleWait(ctx context.Context, handle *rktTaskHandle, ch chan *drivers.ExitResult) {
+func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
 	ps, err := handle.exec.Wait()
