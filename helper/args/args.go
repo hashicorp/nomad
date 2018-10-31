@@ -26,3 +26,8 @@ func ReplaceEnv(arg string, environments ...map[string]string) string {
 func ReplaceEnvWithPlaceHolder(arg string, placeholder string) string {
 	return envRe.ReplaceAllString(arg, placeholder)
 }
+
+// ContainsEnv takes an arg and returns true if if contains an environment variable reference
+func ContainsEnv(arg string) bool {
+	return envRe.MatchString(arg)
+}

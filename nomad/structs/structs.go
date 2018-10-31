@@ -6154,50 +6154,62 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes allocation directory"))
 	}
 
-	// Verify the checksum
-	if check, ok := ta.GetterOptions["checksum"]; ok {
-		check = strings.TrimSpace(check)
-		if check == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("checksum value cannot be empty"))
-			return mErr.ErrorOrNil()
-		}
-
-		parts := strings.Split(check, ":")
-		if l := len(parts); l != 2 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf(`checksum must be given as "type:value"; got %q`, check))
-			return mErr.ErrorOrNil()
-		}
-
-		checksumVal := parts[1]
-		checksumBytes, err := hex.DecodeString(checksumVal)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid checksum: %v", err))
-			return mErr.ErrorOrNil()
-		}
-
-		checksumType := parts[0]
-		expectedLength := 0
-		switch checksumType {
-		case "md5":
-			expectedLength = md5.Size
-		case "sha1":
-			expectedLength = sha1.Size
-		case "sha256":
-			expectedLength = sha256.Size
-		case "sha512":
-			expectedLength = sha512.Size
-		default:
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported checksum type: %s", checksumType))
-			return mErr.ErrorOrNil()
-		}
-
-		if len(checksumBytes) != expectedLength {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal))
-			return mErr.ErrorOrNil()
-		}
+	if err := ta.validateChecksum(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+func (ta *TaskArtifact) validateChecksum() error {
+	check, ok := ta.GetterOptions["checksum"]
+	if !ok {
+		return nil
+	}
+
+	// Job struct validation occurs before interpolation resolution can be effective.
+	// Skip checking if checksum contain variable reference, and artifacts fetching will
+	// eventually fail, if checksum is indeed invalid.
+	if args.ContainsEnv(check) {
+		return nil
+	}
+
+	check = strings.TrimSpace(check)
+	if check == "" {
+		return fmt.Errorf("checksum value cannot be empty")
+	}
+
+	parts := strings.Split(check, ":")
+	if l := len(parts); l != 2 {
+		return fmt.Errorf(`checksum must be given as "type:value"; got %q`, check)
+	}
+
+	checksumVal := parts[1]
+	checksumBytes, err := hex.DecodeString(checksumVal)
+	if err != nil {
+		return fmt.Errorf("invalid checksum: %v", err)
+	}
+
+	checksumType := parts[0]
+	expectedLength := 0
+	switch checksumType {
+	case "md5":
+		expectedLength = md5.Size
+	case "sha1":
+		expectedLength = sha1.Size
+	case "sha256":
+		expectedLength = sha256.Size
+	case "sha512":
+		expectedLength = sha512.Size
+	default:
+		return fmt.Errorf("unsupported checksum type: %s", checksumType)
+	}
+
+	if len(checksumBytes) != expectedLength {
+		return fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal)
+	}
+
+	return nil
 }
 
 const (
