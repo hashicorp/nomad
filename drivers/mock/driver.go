@@ -259,11 +259,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	attrs := map[string]string{}
 	if !d.shutdownFingerprintTime.IsZero() && time.Now().After(d.shutdownFingerprintTime) {
 		health = drivers.HealthStateUndetected
-		desc = "mock disabled"
+		desc = "disabled"
 	} else {
 		health = drivers.HealthStateHealthy
 		attrs["driver.mock"] = "1"
-		desc = "mock enabled"
+		desc = "ready"
 	}
 
 	return &drivers.Fingerprint{
