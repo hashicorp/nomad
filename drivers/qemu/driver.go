@@ -209,7 +209,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]string{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
+		HealthDescription: "ready",
 	}
 
 	bin := "qemu-system-x86_64"

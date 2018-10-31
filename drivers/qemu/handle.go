@@ -16,6 +16,7 @@ type qemuTaskHandle struct {
 	pluginClient *plugin.Client
 	logger       hclog.Logger
 	monitorPath  string
+
 	// stateLock syncs access to all fields below
 	stateLock sync.RWMutex
 
@@ -27,19 +28,24 @@ type qemuTaskHandle struct {
 }
 
 func (h *qemuTaskHandle) IsRunning() bool {
+	h.stateLock.RLock()
+	defer h.stateLock.RUnlock()
 	return h.procState == drivers.TaskStateRunning
 }
 
 func (h *qemuTaskHandle) run() {
 
-	// since run is called immediately after the handle is created this
+	// Since run is called immediately after the handle is created this
 	// ensures the exitResult is initialized so we avoid a nil pointer
 	// thus it does not need to be included in the lock
+	h.stateLock.Lock()
 	if h.exitResult == nil {
 		h.exitResult = &drivers.ExitResult{}
 	}
+	h.stateLock.Unlock()
 
 	ps, err := h.exec.Wait()
+
 	h.stateLock.Lock()
 	defer h.stateLock.Unlock()
 
