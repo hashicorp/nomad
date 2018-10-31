@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"golang.org/x/net/context"
 )
 
@@ -30,6 +31,13 @@ const (
 )
 
 var (
+	// PluginID is the rawexec plugin metadata registered in the plugin
+	// catalog.
+	PluginID = loader.PluginID{
+		Name:       pluginName,
+		PluginType: base.PluginTypeDriver,
+	}
+
 	// pluginInfo is the response returned for the PluginInfo RPC
 	pluginInfo = &base.PluginInfoResponse{
 		Type:             base.PluginTypeDriver,
@@ -39,12 +47,7 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"enabled": hclspec.NewDefault(
-			hclspec.NewAttr("enabled", "bool", false),
-			hclspec.NewLiteral("true"),
-		),
-	})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
@@ -69,9 +72,6 @@ type ExecDriver struct {
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
 
-	// config is the driver configuration set by the SetConfig RPC
-	config *Config
-
 	// nomadConfig is the client config from nomad
 	nomadConfig *base.ClientDriverConfig
 
@@ -89,12 +89,6 @@ type ExecDriver struct {
 	// logger will log to the plugin output which is usually an 'executor.out'
 	// file located in the root of the TaskDir
 	logger hclog.Logger
-}
-
-// Config is the driver configuration set by the SetConfig RPC call
-type Config struct {
-	// Enabled is set to true to enable the driver
-	Enabled bool `cty:"enabled"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -119,7 +113,6 @@ func NewExecDriver(logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &ExecDriver{
 		eventer:        eventer.NewEventer(ctx, logger),
-		config:         &Config{},
 		tasks:          newTaskStore(),
 		ctx:            ctx,
 		signalShutdown: cancel,
@@ -135,13 +128,7 @@ func (*ExecDriver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *ExecDriver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
-	var config Config
-	if err := base.MsgPackDecode(data, &config); err != nil {
-		return err
-	}
-
-	d.config = &config
+func (d *ExecDriver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
 	if cfg != nil {
 		d.nomadConfig = cfg.Driver
 	}
@@ -257,9 +244,14 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 		Env:            cfg.EnvList(),
 		User:           cfg.User,
 		ResourceLimits: true,
-		TaskDir:        cfg.TaskDir().Dir,
-		StdoutPath:     cfg.StdoutPath,
-		StderrPath:     cfg.StderrPath,
+		Resources: &executor.Resources{
+			CPU:      int(cfg.Resources.LinuxResources.CPUShares),
+			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
+			DiskMB:   cfg.Resources.NomadResources.DiskMB,
+		},
+		TaskDir:    cfg.TaskDir().Dir,
+		StdoutPath: cfg.StdoutPath,
+		StderrPath: cfg.StderrPath,
 	}
 
 	ps, err := exec.Launch(execCmd)
