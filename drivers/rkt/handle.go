@@ -32,17 +32,21 @@ type rktTaskHandle struct {
 }
 
 func (h *rktTaskHandle) IsRunning() bool {
+	h.stateLock.RLock()
+	defer h.stateLock.RUnlock()
 	return h.procState == drivers.TaskStateRunning
 }
 
 func (h *rktTaskHandle) run() {
 
-	// since run is called immediately after the handle is created this
+	// Since run is called immediately after the handle is created this
 	// ensures the exitResult is initialized so we avoid a nil pointer
 	// thus it does not need to be included in the lock
+	h.stateLock.Lock()
 	if h.exitResult == nil {
 		h.exitResult = &drivers.ExitResult{}
 	}
+	h.stateLock.Unlock()
 
 	ps, err := h.exec.Wait()
 	h.stateLock.Lock()

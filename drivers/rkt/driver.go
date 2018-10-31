@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	rktv1 "github.com/rkt/rkt/api/v1"
 	"golang.org/x/net/context"
 )
@@ -56,6 +57,31 @@ const (
 	// information to become available.
 	networkDeadline = 1 * time.Minute
 )
+
+var (
+	// PluginID is the rawexec plugin metadata registered in the plugin
+	// catalog.
+	PluginID = loader.PluginID{
+		Name:       pluginName,
+		PluginType: base.PluginTypeDriver,
+	}
+
+	// PluginConfig is the rawexec factory function registered in the
+	// plugin catalog.
+	PluginConfig = &loader.InternalPluginConfig{
+		Config:  map[string]interface{}{},
+		Factory: func(l hclog.Logger) interface{} { return NewRktDriver(l) },
+	}
+)
+
+// PluginLoader maps pre-0.9 client driver options to post-0.9 plugin options.
+func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
+	conf := map[string]interface{}{}
+	if v, err := strconv.ParseBool(opts["driver.rkt.volumes.enabled"]); err == nil {
+		conf["volumes_enabled"] = v
+	}
+	return conf, nil
+}
 
 var (
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -237,7 +263,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]string{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
+		HealthDescription: "ready",
 	}
 
 	// Only enable if we are root
