@@ -81,7 +81,7 @@ func (d *devicePluginClient) Reserve(deviceIDs []string) (*ContainerReservation,
 	}
 
 	// Make the request
-	resp, err := d.client.Reserve(context.Background(), req)
+	resp, err := d.client.Reserve(d.doneCtx, req)
 	if err != nil {
 		return nil, err
 	}
