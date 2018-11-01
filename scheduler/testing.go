@@ -117,7 +117,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		}
 	}
 
-	// Set create and modify time for preempted allocs and flatten them
+	// Set modify time for preempted allocs and flatten them
 	var preemptedAllocs []*structs.Allocation
 	for _, preemptions := range result.NodePreemptions {
 		for _, alloc := range preemptions {
