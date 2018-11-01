@@ -6,6 +6,7 @@
         {{search-box
           data-test-allocations-search
           searchTerm=(mut searchTerm)
+          onChange=(action resetPagination)
           placeholder="Search allocations..."}}
       </div>
     </div>
