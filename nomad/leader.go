@@ -42,8 +42,12 @@ const (
 
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
-// Default configuration for scheduler with preemption emabled for system jobs
-var defaultSchedulerConfig = &structs.SchedulerConfiguration{PreemptionConfig: structs.PreemptionConfig{SystemSchedulerEnabled: true}}
+// Default configuration for scheduler with preemption enabled for system jobs
+var defaultSchedulerConfig = &structs.SchedulerConfiguration{
+	PreemptionConfig: structs.PreemptionConfig{
+		SystemSchedulerEnabled: true,
+	},
+}
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
@@ -1237,7 +1241,8 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 	return config
 }
 
-// getOrCreateSchedulerConfig is used to get the scheduler config, initializing it if necessary
+// getOrCreateSchedulerConfig is used to get the scheduler config. We create a default
+// config if it doesn't already exist for bootstrapping an empty cluster
 func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	state := s.fsm.State()
 	_, config, err := state.SchedulerConfig()

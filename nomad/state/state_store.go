@@ -3889,9 +3889,9 @@ func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerCon
 	return nil
 }
 
-// SchedulerCASConfig is used to try updating the scheduler configuration with a
+// SchedulerCASConfig is used to update the scheduler configuration with a
 // given Raft index. If the CAS index specified is not equal to the last observed index
-// for the config, then the call is a noop,
+// for the config, then the call is a noop.
 func (s *StateStore) SchedulerCASConfig(idx, cidx uint64, config *structs.SchedulerConfiguration) (bool, error) {
 	tx := s.db.Txn(true)
 	defer tx.Abort()

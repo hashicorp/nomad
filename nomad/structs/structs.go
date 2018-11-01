@@ -8176,6 +8176,7 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preempting
 	if alloc.AllocatedResources != nil {
 		newAlloc.AllocatedResources = alloc.AllocatedResources
 	} else {
+		// COMPAT Remove in version 0.11
 		newAlloc.TaskResources = alloc.TaskResources
 		newAlloc.SharedResources = alloc.SharedResources
 	}
