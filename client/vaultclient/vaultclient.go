@@ -160,7 +160,7 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 	}
 
 	client.SetHeaders(http.Header{
-		"User-Agent": []string{"HashiCorp/nomad"},
+		"User-Agent": []string{"hashicorp/nomad"},
 	})
 
 	c.client = client

@@ -1285,8 +1285,8 @@ func TestVaultClient_nextBackoff(t *testing.T) {
 	// some edge cases
 	t.Run("close to expiry", func(t *testing.T) {
 		b := nextBackoff(20, time.Now().Add(1100*time.Millisecond))
-		if !(1.0 <= b && b <= 3) {
-			t.Fatalf("Expected backoff within [1, 3] but found %v", b)
+		if b != 5.0 {
+			t.Fatalf("Expected backoff is 5 but found %v", b)
 		}
 	})
 

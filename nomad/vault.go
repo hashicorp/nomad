@@ -515,11 +515,11 @@ func (v *vaultClient) renewalLoop() {
 // nextBackoff returns the delay for the next auto renew interval, in seconds.
 // Returns negative value if past expiration
 //
-// It should increaes the amount of backoff each time, with the following rules:
+// It should increase the amount of backoff each time, with the following rules:
 //
 // * If we have an existing authentication that is going to expire,
 // never back off more than half of the amount of time remaining
-// until expiration (with 1s floor)
+// until expiration (with 5s floor)
 // * Never back off more than 30 seconds multiplied by a random
 // value between 1 and 2
 // * Use randomness so that many clients won't keep hitting Vault
@@ -531,8 +531,6 @@ func nextBackoff(backoff float64, expiry time.Time) float64 {
 	}
 
 	switch {
-	case backoff < 5:
-		backoff = 5
 	case backoff >= 24:
 		backoff = 30
 	default:
@@ -546,9 +544,8 @@ func nextBackoff(backoff float64, expiry time.Time) float64 {
 		backoff = maxBackoff.Seconds()
 	}
 
-	// avoid hammering Vault
-	if backoff < 1 {
-		backoff = 1
+	if backoff < 5 {
+		backoff = 5
 	}
 
 	return backoff
