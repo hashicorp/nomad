@@ -259,6 +259,64 @@ func TestPreemption(t *testing.T) {
 			},
 		},
 		{
+			desc: "preemption impossible - static port needed is used by higher priority alloc",
+			currentAllocations: []*structs.Allocation{
+				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1200,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					IOPS:     50,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				createAlloc(allocIDs[1], highPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					IOPS:     50,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  600,
+							ReservedPorts: []structs.Port{
+								{
+									Label: "db",
+									Value: 88,
+								},
+							},
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         nodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      600,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  700,
+						ReservedPorts: []structs.Port{
+							{
+								Label: "db",
+								Value: 88,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			desc: "Combination of high/low priority allocs, without static ports",
 			currentAllocations: []*structs.Allocation{
 				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
@@ -326,7 +384,8 @@ func TestPreemption(t *testing.T) {
 				allocIDs[2]: {},
 				allocIDs[3]: {},
 			},
-		}, {
+		},
+		{
 			desc: "Preemption needed for all resources except network",
 			currentAllocations: []*structs.Allocation{
 				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
@@ -522,7 +581,7 @@ func TestPreemption(t *testing.T) {
 			},
 		},
 		{
-			desc: "alloc that meets static port need also meets other needds",
+			desc: "alloc that meets static port need also meets other needs",
 			currentAllocations: []*structs.Allocation{
 				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,

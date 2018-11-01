@@ -255,6 +255,10 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 	deviceToAllocs := make(map[string][]*structs.Allocation)
 	MbitsNeeded := networkResourceAsk.MBits
 	reservedPortsNeeded := networkResourceAsk.ReservedPorts
+	reservedPorts := make(map[int]interface{})
+	for _, port := range reservedPortsNeeded {
+		reservedPorts[port.Value] = struct{}{}
+	}
 
 	// Create a map from each device to allocs
 	// We can only preempt within allocations that
@@ -266,6 +270,12 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 
 		// Filter out alloc that's ineligible due to priority
 		if p.jobPriority-alloc.Job.Priority < 10 {
+			// If this allocation uses a needed reserved port
+			// preemption is impossible so we return early
+			networks := alloc.ComparableResources().Flattened.Networks
+			if len(networks) > 0 && usedReservedPorts(networks[0], reservedPorts) {
+				return nil
+			}
 			continue
 		}
 		allocResources := p.allocDetails[alloc.ID].resources
@@ -289,6 +299,7 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 	met := false
 	freeBandwidth := 0
 
+OUTER:
 	for device, currentAllocs := range deviceToAllocs {
 		totalBandwidth := netIdx.AvailBandwidth[device]
 
@@ -324,7 +335,8 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 			for _, port := range reservedPortsNeeded {
 				alloc, ok := usedPortToAlloc[port.Value]
 				if ok {
-					preemptedBandwidth += alloc.Resources.Networks[0].MBits
+					allocResources := p.allocDetails[alloc.ID].resources
+					preemptedBandwidth += allocResources.Flattened.Networks[0].MBits
 					allocsToPreempt = append(allocsToPreempt, alloc)
 				}
 			}
@@ -335,7 +347,8 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 
 		// If bandwidth requirements have been met, stop
 		if preemptedBandwidth+freeBandwidth >= MbitsNeeded {
-			break
+			met = true
+			break OUTER
 		}
 
 		// Split by priority
@@ -351,25 +364,21 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 
 			// Iterate over allocs until end of if requirements have been met
 			for _, alloc := range allocs {
-				preemptedBandwidth += alloc.Resources.Networks[0].MBits
+				allocResources := p.allocDetails[alloc.ID].resources
+				preemptedBandwidth += allocResources.Flattened.Networks[0].MBits
 				allocsToPreempt = append(allocsToPreempt, alloc)
 				if preemptedBandwidth+freeBandwidth >= MbitsNeeded {
 					met = true
-					break
+					break OUTER
 				}
 			}
 
-			// If we met bandwidth needs we can break out of iterating by priority within a device
-			if met {
-				break
-			}
 		}
-		// If we met bandwidth needs we don't need to examine the next network device
-		if met {
-			break
-		}
+
 	}
-	if len(allocsToPreempt) == 0 {
+
+	// Early return if we could not meet resource needs after examining allocs
+	if !met {
 		return nil
 	}
 
@@ -396,6 +405,19 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 	}
 	filteredBestAllocs := filterSuperset(allocsToPreempt, nodeRemainingResources, resourcesNeeded, preemptionResourceFactory)
 	return filteredBestAllocs
+}
+
+func usedReservedPorts(net *structs.NetworkResource, portMap map[int]interface{}) bool {
+	ports := net.ReservedPorts
+	if len(ports) > 0 {
+		for _, p := range ports {
+			_, ok := portMap[p.Value]
+			if ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // basicResourceDistance computes a distance using a coordinate system. It compares resource fields like CPU/Memory and Disk.
