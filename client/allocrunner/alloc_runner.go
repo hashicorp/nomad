@@ -181,14 +181,30 @@ func (ar *allocRunner) Run() {
 	ar.destroyedLock.Lock()
 	defer ar.destroyedLock.Unlock()
 
+	// Run should not be called after Destroy is called. This is a
+	// programming error.
 	if ar.destroyed {
-		// Run should not be called after Destroy is called. This is a
-		// programming error.
 		ar.logger.Error("alloc destroyed; cannot run")
 		return
 	}
-	ar.runLaunched = true
 
+	// Do not run allocs that are terminal on the client
+	if ar.Alloc().ClientTerminalStatus() {
+		ar.logger.Trace("alloc terminal; not running", "status", ar.Alloc().ClientStatus)
+		return
+	}
+
+	// It's possible that the alloc local state was marked terminal before
+	// the server copy of the alloc (checked above) was marked as terminal,
+	// so check the local state as well.
+	switch clientStatus := ar.AllocState().ClientStatus; clientStatus {
+	case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed, structs.AllocClientStatusLost:
+		ar.logger.Trace("alloc terminal; updating server and not running", "status", clientStatus)
+		return
+	}
+
+	// Run! (and mark as having been run to ensure Destroy cleans up properly)
+	ar.runLaunched = true
 	go ar.runImpl()
 }
 
@@ -509,6 +525,12 @@ func (ar *allocRunner) AllocState() *state.State {
 			state.TaskStates[k] = tr.TaskState()
 		}
 	}
+
+	// Generate alloc to get other state fields
+	alloc := ar.clientAlloc(state.TaskStates)
+	state.ClientStatus = alloc.ClientStatus
+	state.ClientDescription = alloc.ClientDescription
+	state.DeploymentStatus = alloc.DeploymentStatus
 
 	return state
 }
