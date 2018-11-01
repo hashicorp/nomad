@@ -184,7 +184,8 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 
 	// Subtract current allocations
 	for _, alloc := range p.currentAllocs {
-		p.nodeRemainingResources.Subtract(alloc.ComparableResources())
+		allocResources := p.allocDetails[alloc.ID].resources
+		p.nodeRemainingResources.Subtract(allocResources)
 	}
 
 	// Group candidates by priority, filter out ineligible allocs
@@ -213,7 +214,8 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 				}
 			}
 			closestAlloc := allocGrp.allocs[closestAllocIndex]
-			availableResources.Add(closestAlloc.ComparableResources())
+			closestResources := p.allocDetails[closestAlloc.ID].resources
+			availableResources.Add(closestResources)
 
 			// This step needs the original resources asked for as the second arg, can't use the running total
 			allRequirementsMet, _ = availableResources.Superset(resourceAsk.Comparable())
@@ -224,7 +226,7 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 			allocGrp.allocs = allocGrp.allocs[:len(allocGrp.allocs)-1]
 
 			// This is the remaining total of resources needed
-			resourcesNeeded.Subtract(closestAlloc.ComparableResources())
+			resourcesNeeded.Subtract(closestResources)
 		}
 		if allRequirementsMet {
 			break
@@ -276,7 +278,8 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 
 			// If this allocation uses a needed reserved port
 			// preemption is impossible so we return early
-			networks := alloc.ComparableResources().Flattened.Networks
+			allocResources := p.allocDetails[alloc.ID].resources
+			networks := allocResources.Flattened.Networks
 			if len(networks) > 0 && usedReservedPorts(networks[0], reservedPorts) {
 				return nil
 			}
@@ -527,8 +530,10 @@ func (p *Preemptor) filterSuperset(bestAllocs []*structs.Allocation,
 
 	// Sort bestAllocs by distance descending (without penalty)
 	sort.Slice(bestAllocs, func(i, j int) bool {
-		distance1 := preemptionResourceFactory(bestAllocs[i].ComparableResources(), resourceAsk).Distance()
-		distance2 := preemptionResourceFactory(bestAllocs[j].ComparableResources(), resourceAsk).Distance()
+		a1Resources := p.allocDetails[bestAllocs[i].ID].resources
+		a2Resources := p.allocDetails[bestAllocs[j].ID].resources
+		distance1 := preemptionResourceFactory(a1Resources, resourceAsk).Distance()
+		distance2 := preemptionResourceFactory(a2Resources, resourceAsk).Distance()
 		return distance1 > distance2
 	})
 
@@ -566,7 +571,8 @@ func (p *Preemptor) distanceComparatorForNetwork(allocs []*structs.Allocation, n
 	}
 
 	// Dereference network usage on first alloc if its there
-	firstAllocNetworks := firstAlloc.ComparableResources().Flattened.Networks
+	firstAllocResources := p.allocDetails[firstAlloc.ID].resources
+	firstAllocNetworks := firstAllocResources.Flattened.Networks
 	var firstAllocNetResourceUsed *structs.NetworkResource
 	if len(firstAllocNetworks) > 0 {
 		firstAllocNetResourceUsed = firstAllocNetworks[0]
@@ -582,7 +588,8 @@ func (p *Preemptor) distanceComparatorForNetwork(allocs []*structs.Allocation, n
 	}
 
 	// Dereference network usage on second alloc if its there
-	secondAllocNetworks := secondAlloc.ComparableResources().Flattened.Networks
+	secondAllocResources := p.allocDetails[secondAlloc.ID].resources
+	secondAllocNetworks := secondAllocResources.Flattened.Networks
 	var secondAllocNetResourceUsed *structs.NetworkResource
 	if len(secondAllocNetworks) > 0 {
 		secondAllocNetResourceUsed = secondAllocNetworks[0]
