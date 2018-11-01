@@ -1,5 +1,7 @@
 /* eslint-env node */
 
+const USE_MIRAGE = true;
+
 module.exports = function(environment) {
   var ENV = {
     modulePrefix: 'nomad-ui',
@@ -35,7 +37,8 @@ module.exports = function(environment) {
     // ENV.APP.LOG_VIEW_LOOKUPS = true;
 
     ENV['ember-cli-mirage'] = {
-      // enabled: false,
+      enabled: USE_MIRAGE,
+      excludeFilesFromBuild: !USE_MIRAGE,
     };
   }
 
