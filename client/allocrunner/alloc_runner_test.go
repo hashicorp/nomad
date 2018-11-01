@@ -64,11 +64,11 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		Logger:                clientConf.Logger,
 		ClientConfig:          clientConf,
 		StateDB:               state.NoopDB{},
-		Consul:                consulapi.NewMockConsulServiceClient(t, logger),
+		Consul:                consulapi.NewMockConsulServiceClient(t, clientConf.Logger),
 		Vault:                 vaultclient.NewMockVaultClient(),
 		StateUpdater:          &MockStateUpdater{},
 		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
-		PluginSingletonLoader: singleton.NewSingletonLoader(logger, pluginLoader),
+		PluginSingletonLoader: singleton.NewSingletonLoader(clientConf.Logger, pluginLoader),
 	}
 	return conf, cleanup
 }

@@ -144,20 +144,14 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	// Wait for new task runner to exit when the process does
 	<-newTR.WaitCh()
 
-	// Assert that the process was only started once, and only restored once
+	// Assert that the process was only started once
 	started := 0
-	restored := 0
 	state := newTR.TaskState()
 	require.Equal(structs.TaskStateDead, state.State)
 	for _, ev := range state.Events {
-		t.Logf("task event: %s %s", ev.Type, ev.Message)
-		switch ev.Type {
-		case structs.TaskStarted:
+		if ev.Type == structs.TaskStarted {
 			started++
-		case structs.TaskRestored:
-			restored++
 		}
 	}
 	assert.Equal(t, 1, started)
-	assert.Equal(t, 1, restored)
 }
