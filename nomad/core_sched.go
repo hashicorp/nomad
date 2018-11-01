@@ -286,6 +286,14 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		return false, nil, err
 	}
 
+	// Get the allocations by eval
+	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
+	if err != nil {
+		c.logger.Error("failed to get allocs for eval",
+			"eval_id", eval.ID, "error", err)
+		return false, nil, err
+	}
+
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the
@@ -311,16 +319,10 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		// We don't want to gc anything related to a job which is not dead
 		// If the batch job doesn't exist we can GC it regardless of allowBatch
 		if !collect {
-			return false, nil, nil
+			// Find allocs associated with older (based on modifyindex) and GC them if terminal
+			oldAllocs := olderVersionTerminalAllocs(allocs, job)
+			return false, oldAllocs, nil
 		}
-	}
-
-	// Get the allocations by eval
-	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
-	if err != nil {
-		c.logger.Error("failed to get allocs for eval",
-			"eval_id", eval.ID, "error", err)
-		return false, nil, err
 	}
 
 	// Scan the allocations to ensure they are terminal and old
@@ -338,6 +340,18 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	}
 
 	return gcEval, gcAllocIDs, nil
+}
+
+// olderVersionTerminalAllocs returns terminal allocations whose job modify index
+// is older than the job's modify index
+func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job) []string {
+	var ret []string
+	for _, alloc := range allocs {
+		if alloc.Job != nil && alloc.Job.JobModifyIndex < job.JobModifyIndex && alloc.TerminalStatus() {
+			ret = append(ret, alloc.ID)
+		}
+	}
+	return ret
 }
 
 // evalReap contacts the leader and issues a reap on the passed evals and
