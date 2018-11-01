@@ -10,6 +10,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -40,11 +41,11 @@ type Manager interface {
 type StateStorage interface {
 	// GetDevicePluginState is used to retrieve the device manager's plugin
 	// state.
-	GetDevicePluginState() (*PluginState, error)
+	GetDevicePluginState() (*state.PluginState, error)
 
 	// PutDevicePluginState is used to store the device manager's plugin
 	// state.
-	PutDevicePluginState(state *PluginState) error
+	PutDevicePluginState(state *state.PluginState) error
 }
 
 // UpdateNodeDevices is a callback for updating the set of devices on a node.
@@ -136,6 +137,12 @@ func (m *manager) Run() {
 
 	// Get device plugins
 	devices := m.loader.Catalog()[base.PluginTypeDevice]
+	if len(devices) == 0 {
+		m.logger.Debug("exiting since there are no device plugins")
+		m.cancel()
+		return
+	}
+
 	for _, d := range devices {
 		id := loader.PluginInfoID(d)
 		storeFn := func(c *plugin.ReattachConfig) error {
@@ -290,7 +297,7 @@ func (m *manager) storePluginReattachConfig(id loader.PluginID, c *plugin.Reatta
 	m.reattachConfigs[id] = shared.ReattachConfigFromGoPlugin(c)
 
 	// Persist the state
-	s := &PluginState{
+	s := &state.PluginState{
 		ReattachConfigs: make(map[string]*shared.ReattachConfig, len(m.reattachConfigs)),
 	}
 

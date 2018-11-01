@@ -6,17 +6,8 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
-
-// PluginState is used to store the device managers state across restarts of the
-// agent
-type PluginState struct {
-	// ReattachConfigs are the set of reattach configs for plugin's launched by
-	// the device manager
-	ReattachConfigs map[string]*shared.ReattachConfig
-}
 
 // UnknownDeviceError is returned when an operation is attempted on an unknown
 // device.

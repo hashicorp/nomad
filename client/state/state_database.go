@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
-	"github.com/hashicorp/nomad/client/devicemanager"
+	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,7 +21,7 @@ allocations/ (bucket)
         |--> task_runner persisted objects (k/v)
 
 devicemanager/
-|--> plugin-state -> *devicemanager.PluginState
+|--> plugin-state -> *dmstate.PluginState
 */
 
 var (
@@ -369,7 +369,7 @@ func getTaskBucket(tx *boltdd.Tx, allocID, taskName string) (*boltdd.Bucket, err
 
 // PutDevicePluginState stores the device manager's plugin state or returns an
 // error.
-func (s *BoltStateDB) PutDevicePluginState(ps *devicemanager.PluginState) error {
+func (s *BoltStateDB) PutDevicePluginState(ps *dmstate.PluginState) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		// Retrieve the root device manager bucket
 		devBkt, err := tx.CreateBucketIfNotExists(devManagerBucket)
@@ -383,8 +383,8 @@ func (s *BoltStateDB) PutDevicePluginState(ps *devicemanager.PluginState) error 
 
 // GetDevicePluginState stores the device manager's plugin state or returns an
 // error.
-func (s *BoltStateDB) GetDevicePluginState() (*devicemanager.PluginState, error) {
-	var ps *devicemanager.PluginState
+func (s *BoltStateDB) GetDevicePluginState() (*dmstate.PluginState, error) {
+	var ps *dmstate.PluginState
 
 	err := s.db.View(func(tx *boltdd.Tx) error {
 		devBkt := tx.Bucket(devManagerBucket)
@@ -394,7 +394,7 @@ func (s *BoltStateDB) GetDevicePluginState() (*devicemanager.PluginState, error)
 		}
 
 		// Restore Plugin State if it exists
-		ps = &devicemanager.PluginState{}
+		ps = &dmstate.PluginState{}
 		if err := devBkt.Get(devManagerPluginStateKey, ps); err != nil {
 			if !boltdd.IsErrNotFound(err) {
 				return fmt.Errorf("failed to read device manager plugin state: %v", err)

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
-	"github.com/hashicorp/nomad/client/devicemanager"
+	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
@@ -206,7 +206,7 @@ func TestStateDB_DeviceManager(t *testing.T) {
 		require.Nil(ps)
 
 		// Putting PluginState should work
-		state := &devicemanager.PluginState{}
+		state := &dmstate.PluginState{}
 		require.NoError(db.PutDevicePluginState(state))
 
 		// Getting should return the available state

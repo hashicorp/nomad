@@ -1,8 +1,11 @@
 package loader
 
 import (
+	"net"
+
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/base"
 )
 
@@ -39,3 +42,36 @@ func (m *MockInstance) Kill()                                          { m.KillF
 func (m *MockInstance) ReattachConfig() (*plugin.ReattachConfig, bool) { return m.ReattachConfigF() }
 func (m *MockInstance) Plugin() interface{}                            { return m.PluginF() }
 func (m *MockInstance) Exited() bool                                   { return m.ExitedF() }
+
+// MockBasicExternalPlugin returns a MockInstance that simulates an external
+// plugin returning it has been exited after kill is called. It returns the
+// passed inst as the plugin
+func MockBasicExternalPlugin(inst interface{}) *MockInstance {
+	killed := helper.BoolToPtr(false)
+	return &MockInstance{
+		InternalPlugin: false,
+		KillF: func() {
+			*killed = true
+		},
+
+		ReattachConfigF: func() (*plugin.ReattachConfig, bool) {
+			return &plugin.ReattachConfig{
+				Protocol: "tcp",
+				Addr: &net.TCPAddr{
+					IP:   net.IPv4(127, 0, 0, 1),
+					Port: 3200,
+					Zone: "",
+				},
+				Pid: 1000,
+			}, true
+		},
+
+		PluginF: func() interface{} {
+			return inst
+		},
+
+		ExitedF: func() bool {
+			return *killed
+		},
+	}
+}

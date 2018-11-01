@@ -2,7 +2,7 @@ package state
 
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
-	"github.com/hashicorp/nomad/client/devicemanager"
+	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -44,11 +44,11 @@ type StateDB interface {
 
 	// GetDevicePluginState is used to retrieve the device manager's plugin
 	// state.
-	GetDevicePluginState() (*devicemanager.PluginState, error)
+	GetDevicePluginState() (*dmstate.PluginState, error)
 
 	// PutDevicePluginState is used to store the device manager's plugin
 	// state.
-	PutDevicePluginState(state *devicemanager.PluginState) error
+	PutDevicePluginState(state *dmstate.PluginState) error
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.
