@@ -64,9 +64,11 @@ func (b *basePluginServer) SetConfig(ctx context.Context, req *proto.SetConfigRe
 	cfg := nomadConfigFromProto(req.GetNomadConfig())
 	filteredCfg := new(ClientAgentConfig)
 
-	switch info.Type {
-	case PluginTypeDriver:
-		filteredCfg.Driver = cfg.Driver
+	if cfg != nil {
+		switch info.Type {
+		case PluginTypeDriver:
+			filteredCfg.Driver = cfg.Driver
+		}
 	}
 
 	// Set the config

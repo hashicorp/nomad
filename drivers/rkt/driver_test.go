@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var _ drivers.DriverPlugin = (*RktDriver)(nil)
+var _ drivers.DriverPlugin = (*Driver)(nil)
 
 func TestRktVersionRegex(t *testing.T) {
 	ctestutil.RktCompatible(t)
@@ -65,13 +65,13 @@ func TestRktDriver_SetConfig(t *testing.T) {
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	require.NoError(harness.SetConfig(data, nil))
-	require.Exactly(config, d.(*RktDriver).config)
+	require.Exactly(config, d.(*Driver).config)
 
 	config.VolumesEnabled = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	require.NoError(harness.SetConfig(data, nil))
-	require.Exactly(config, d.(*RktDriver).config)
+	require.Exactly(config, d.(*Driver).config)
 
 }
 
@@ -381,7 +381,7 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	originalStatus, err := d.InspectTask(task.ID)
 	require.NoError(err)
 
-	d.(*RktDriver).tasks.Delete(task.ID)
+	d.(*Driver).tasks.Delete(task.ID)
 
 	wg.Wait()
 	require.True(waitDone)

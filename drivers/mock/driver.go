@@ -110,8 +110,7 @@ type Driver struct {
 
 	shutdownFingerprintTime time.Time
 
-	// logger will log to the plugin output which is usually an 'executor.out'
-	// file located in the root of the TaskDir
+	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
@@ -260,11 +259,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	attrs := map[string]string{}
 	if !d.shutdownFingerprintTime.IsZero() && time.Now().After(d.shutdownFingerprintTime) {
 		health = drivers.HealthStateUndetected
-		desc = "mock disabled"
+		desc = "disabled"
 	} else {
 		health = drivers.HealthStateHealthy
 		attrs["driver.mock"] = "1"
-		desc = "mock enabled"
+		desc = "ready"
 	}
 
 	return &drivers.Fingerprint{
@@ -312,8 +311,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 
 	killCtx, killCancel := context.WithCancel(context.Background())
 
-	h := &mockTaskHandle{
-		task:            cfg,
+	h := &taskHandle{
+		taskConfig:      cfg,
 		runFor:          driverConfig.RunFor,
 		killAfter:       driverConfig.KillAfter,
 		exitCode:        driverConfig.ExitCode,
@@ -364,7 +363,7 @@ func (d *Driver) WaitTask(ctx netctx.Context, taskID string) (<-chan *drivers.Ex
 	return ch, nil
 
 }
-func (d *Driver) handleWait(ctx context.Context, handle *mockTaskHandle, ch chan *drivers.ExitResult) {
+func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 
 	select {
@@ -382,13 +381,13 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		return drivers.ErrTaskNotFound
 	}
 
-	d.logger.Debug("killing task", "task_name", h.task.Name, "kill_after", h.killAfter)
+	d.logger.Debug("killing task", "task_name", h.taskConfig.Name, "kill_after", h.killAfter)
 
 	select {
 	case <-h.waitCh:
-		d.logger.Debug("not killing task: already exited", "task_name", h.task.Name)
+		d.logger.Debug("not killing task: already exited", "task_name", h.taskConfig.Name)
 	case <-time.After(h.killAfter):
-		d.logger.Debug("killing task due to kill_after", "task_name", h.task.Name)
+		d.logger.Debug("killing task due to kill_after", "task_name", h.taskConfig.Name)
 		h.kill()
 	}
 	return nil
@@ -437,7 +436,7 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 	}
 
 	res := drivers.ExecTaskResult{
-		Stdout:     []byte(fmt.Sprintf("Exec(%q, %q)", h.task.Name, cmd)),
+		Stdout:     []byte(fmt.Sprintf("Exec(%q, %q)", h.taskConfig.Name, cmd)),
 		ExitResult: &drivers.ExitResult{},
 	}
 	return &res, nil

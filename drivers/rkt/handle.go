@@ -3,6 +3,7 @@
 package rkt
 
 import (
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-type rktTaskHandle struct {
+type taskHandle struct {
 	exec         executor.Executor
 	env          *env.TaskEnv
 	uuid         string
@@ -31,18 +32,35 @@ type rktTaskHandle struct {
 	exitResult  *drivers.ExitResult
 }
 
-func (h *rktTaskHandle) IsRunning() bool {
+func (h *taskHandle) TaskStatus() *drivers.TaskStatus {
+	h.stateLock.RLock()
+	defer h.stateLock.RUnlock()
+
+	return &drivers.TaskStatus{
+		ID:          h.taskConfig.ID,
+		Name:        h.taskConfig.Name,
+		State:       h.procState,
+		StartedAt:   h.startedAt,
+		CompletedAt: h.completedAt,
+		ExitResult:  h.exitResult,
+		DriverAttributes: map[string]string{
+			"pid": strconv.Itoa(h.pid),
+		},
+	}
+}
+
+func (h *taskHandle) IsRunning() bool {
+	h.stateLock.RLock()
+	defer h.stateLock.RUnlock()
 	return h.procState == drivers.TaskStateRunning
 }
 
-func (h *rktTaskHandle) run() {
-
-	// since run is called immediately after the handle is created this
-	// ensures the exitResult is initialized so we avoid a nil pointer
-	// thus it does not need to be included in the lock
+func (h *taskHandle) run() {
+	h.stateLock.Lock()
 	if h.exitResult == nil {
 		h.exitResult = &drivers.ExitResult{}
 	}
+	h.stateLock.Unlock()
 
 	ps, err := h.exec.Wait()
 	h.stateLock.Lock()

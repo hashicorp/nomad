@@ -116,11 +116,11 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 
 	fingerPrint := &drivers.Fingerprint{
 		Attributes: map[string]string{
-			qemuDriverVersionAttr: "2.0.0",
+			driverVersionAttr: "2.0.0",
 		},
 	}
 	shortPath := strings.Repeat("x", 10)
-	qemuDriver := d.(*QemuDriver)
+	qemuDriver := d.(*Driver)
 	_, err := qemuDriver.getMonitorPath(shortPath, fingerPrint)
 	require.Nil(err)
 
@@ -167,11 +167,11 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 
 	fingerPrint := &drivers.Fingerprint{
 		Attributes: map[string]string{
-			qemuDriverVersionAttr: "2.99.99",
+			driverVersionAttr: "2.99.99",
 		},
 	}
 	shortPath := strings.Repeat("x", 10)
-	qemuDriver := d.(*QemuDriver)
+	qemuDriver := d.(*Driver)
 	_, err := qemuDriver.getMonitorPath(shortPath, fingerPrint)
 	require.Nil(err)
 

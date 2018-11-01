@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"net"
-	"strconv"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/hashicorp/go-hclog"
@@ -37,8 +36,8 @@ const (
 	fingerprintPeriod = 30 * time.Second
 
 	// The key populated in Node Attributes to indicate presence of the Qemu driver
-	qemuDriverAttr        = "driver.qemu"
-	qemuDriverVersionAttr = "driver.qemu.version"
+	driverAttr        = "driver.qemu"
+	driverVersionAttr = "driver.qemu.version"
 
 	// Represents an ACPI shutdown request to the VM (emulates pressing a physical power button)
 	// Reference: https://en.wikibooks.org/wiki/QEMU/Monitor
@@ -64,7 +63,7 @@ var (
 		Factory: func(l hclog.Logger) interface{} { return NewQemuDriver(l) },
 	}
 
-	reQemuVersion = regexp.MustCompile(`version (\d[\.\d+]+)`)
+	versionRegex = regexp.MustCompile(`version (\d[\.\d+]+)`)
 
 	// Prior to qemu 2.10.1, monitor socket paths are truncated to 108 bytes.
 	// We should consider this if driver.qemu.version is < 2.10.1 and the
@@ -103,7 +102,7 @@ var (
 		FSIsolation: cstructs.FSIsolationImage,
 	}
 
-	_ drivers.DriverPlugin = (*QemuDriver)(nil)
+	_ drivers.DriverPlugin = (*Driver)(nil)
 )
 
 // TaskConfig is the driver configuration of a taskConfig within a job
@@ -115,18 +114,18 @@ type TaskConfig struct {
 	GracefulShutdown bool           `codec:"graceful_shutdown"`
 }
 
-// QemuTaskState is the state which is encoded in the handle returned in
-// StartTask. This information is needed to rebuild the taskConfig state and handler
+// TaskState is the state which is encoded in the handle returned in StartTask.
+// This information is needed to rebuild the taskConfig state and handler
 // during recovery.
-type QemuTaskState struct {
+type TaskState struct {
 	ReattachConfig *utils.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
 }
 
-// QemuDriver is a driver for running images via Qemu
-type QemuDriver struct {
+// Driver is a driver for running images via Qemu
+type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
@@ -145,15 +144,14 @@ type QemuDriver struct {
 	// ctx passed to any subsystems
 	signalShutdown context.CancelFunc
 
-	// logger will log to the plugin output which is usually an 'executor.out'
-	// file located in the root of the TaskDir
+	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
 func NewQemuDriver(logger hclog.Logger) drivers.DriverPlugin {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger = logger.Named(pluginName)
-	return &QemuDriver{
+	return &Driver{
 		eventer:        eventer.NewEventer(ctx, logger),
 		tasks:          newTaskStore(),
 		ctx:            ctx,
@@ -162,36 +160,36 @@ func NewQemuDriver(logger hclog.Logger) drivers.DriverPlugin {
 	}
 }
 
-func (d *QemuDriver) PluginInfo() (*base.PluginInfoResponse, error) {
+func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
 	return pluginInfo, nil
 }
 
-func (d *QemuDriver) ConfigSchema() (*hclspec.Spec, error) {
+func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *QemuDriver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
+func (d *Driver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
 	if cfg != nil {
 		d.nomadConfig = cfg.Driver
 	}
 	return nil
 }
 
-func (d *QemuDriver) TaskConfigSchema() (*hclspec.Spec, error) {
+func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 	return taskConfigSpec, nil
 }
 
-func (d *QemuDriver) Capabilities() (*drivers.Capabilities, error) {
+func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (r *QemuDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
-	go r.handleFingerprint(ctx, ch)
+	go d.handleFingerprint(ctx, ch)
 	return ch, nil
 }
 
-func (d *QemuDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
+func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
 	ticker := time.NewTimer(0)
 	for {
 		select {
@@ -206,11 +204,11 @@ func (d *QemuDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fin
 	}
 }
 
-func (d *QemuDriver) buildFingerprint() *drivers.Fingerprint {
+func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]string{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
+		HealthDescription: "ready",
 	}
 
 	bin := "qemu-system-x86_64"
@@ -229,24 +227,24 @@ func (d *QemuDriver) buildFingerprint() *drivers.Fingerprint {
 	}
 	out := strings.TrimSpace(string(outBytes))
 
-	matches := reQemuVersion.FindStringSubmatch(out)
+	matches := versionRegex.FindStringSubmatch(out)
 	if len(matches) != 2 {
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("failed to parse qemu version from %v", out)
 		return fingerprint
 	}
 	currentQemuVersion := matches[1]
-	fingerprint.Attributes[qemuDriverAttr] = "1"
-	fingerprint.Attributes[qemuDriverVersionAttr] = currentQemuVersion
+	fingerprint.Attributes[driverAttr] = "1"
+	fingerprint.Attributes[driverVersionAttr] = currentQemuVersion
 	return fingerprint
 }
 
-func (d *QemuDriver) RecoverTask(handle *drivers.TaskHandle) error {
+func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
 		return fmt.Errorf("error: handle cannot be nil")
 	}
 
-	var taskState QemuTaskState
+	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
 		d.logger.Error("failed to decode taskConfig state from handle", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
@@ -268,7 +266,7 @@ func (d *QemuDriver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
-	h := &qemuTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		pid:          taskState.Pid,
 		pluginClient: pluginClient,
@@ -284,7 +282,7 @@ func (d *QemuDriver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
 	}
@@ -432,7 +430,7 @@ func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	}
 	d.logger.Debug("started new QemuVM", "ID", vmID)
 
-	h := &qemuTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		pid:          ps.Pid,
 		monitorPath:  monitorPath,
@@ -443,7 +441,7 @@ func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 		logger:       d.logger,
 	}
 
-	qemuDriverState := QemuTaskState{
+	qemuDriverState := TaskState{
 		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
@@ -469,7 +467,7 @@ func (d *QemuDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	return handle, driverNetwork, nil
 }
 
-func (d *QemuDriver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
+func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -481,7 +479,7 @@ func (d *QemuDriver) WaitTask(ctx context.Context, taskID string) (<-chan *drive
 	return ch, nil
 }
 
-func (d *QemuDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
+func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -507,7 +505,7 @@ func (d *QemuDriver) StopTask(taskID string, timeout time.Duration, signal strin
 	return nil
 }
 
-func (d *QemuDriver) DestroyTask(taskID string, force bool) error {
+func (d *Driver) DestroyTask(taskID string, force bool) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -531,31 +529,16 @@ func (d *QemuDriver) DestroyTask(taskID string, force bool) error {
 	return nil
 }
 
-func (d *QemuDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
+func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	handle.stateLock.RLock()
-	defer handle.stateLock.RUnlock()
-
-	status := &drivers.TaskStatus{
-		ID:          handle.taskConfig.ID,
-		Name:        handle.taskConfig.Name,
-		State:       handle.procState,
-		StartedAt:   handle.startedAt,
-		CompletedAt: handle.completedAt,
-		ExitResult:  handle.exitResult,
-		DriverAttributes: map[string]string{
-			"pid": strconv.Itoa(handle.pid),
-		},
-	}
-
-	return status, nil
+	return handle.TaskStatus(), nil
 }
 
-func (d *QemuDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -564,15 +547,15 @@ func (d *QemuDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, erro
 	return handle.exec.Stats()
 }
 
-func (d *QemuDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
+func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.eventer.TaskEvents(ctx)
 }
 
-func (d *QemuDriver) SignalTask(taskID string, signal string) error {
+func (d *Driver) SignalTask(taskID string, signal string) error {
 	return fmt.Errorf("Qemu driver can't signal commands")
 }
 
-func (d *QemuDriver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
+func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	return nil, fmt.Errorf("Qemu driver can't execute commands")
 
 }
@@ -588,7 +571,7 @@ func GetAbsolutePath(bin string) (string, error) {
 	return filepath.EvalSymlinks(lp)
 }
 
-func (d *QemuDriver) handleWait(ctx context.Context, handle *qemuTaskHandle, ch chan *drivers.ExitResult) {
+func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
 	ps, err := handle.exec.Wait()
@@ -615,9 +598,9 @@ func (d *QemuDriver) handleWait(ctx context.Context, handle *qemuTaskHandle, ch 
 // present on the host. If it is safe to use, the socket's full path is
 // returned along with a nil error. Otherwise, an empty string is returned
 // along with a descriptive error.
-func (d *QemuDriver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (string, error) {
+func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (string, error) {
 	var longPathSupport bool
-	currentQemuVer := fingerPrint.Attributes[qemuDriverVersionAttr]
+	currentQemuVer := fingerPrint.Attributes[driverVersionAttr]
 	currentQemuSemver := semver.New(currentQemuVer)
 	if currentQemuSemver.LessThan(*qemuVersionLongSocketPathFix) {
 		longPathSupport = false
