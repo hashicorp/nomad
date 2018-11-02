@@ -267,7 +267,7 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 		reservedPorts[port.Value] = struct{}{}
 	}
 
-	usedPortToAlloc := make(map[int]*structs.Allocation)
+	filteredReservedPorts := make(map[string]map[int]struct{})
 
 	// Create a map from each device to allocs
 	// We can only preempt within allocations that
@@ -284,8 +284,14 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 			// preemption is impossible so we return early
 			allocResources := p.allocDetails[alloc.ID].resources
 			networks := allocResources.Flattened.Networks
-			if len(networks) > 0 && usedReservedPorts(networks[0], reservedPorts) {
-				return nil
+			net := networks[0]
+			for _, port := range net.ReservedPorts {
+				portMap, ok := filteredReservedPorts[net.Device]
+				if !ok {
+					portMap = make(map[int]struct{})
+					filteredReservedPorts[net.Device] = portMap
+				}
+				portMap[port.Value] = struct{}{}
 			}
 			continue
 		}
@@ -298,14 +304,6 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 			allocsForDevice := deviceToAllocs[device]
 			allocsForDevice = append(allocsForDevice, alloc)
 			deviceToAllocs[device] = allocsForDevice
-
-			// Populate map from used reserved ports to allocation
-			for _, n := range allocResources.Flattened.Networks {
-				reservedPorts := n.ReservedPorts
-				for _, p := range reservedPorts {
-					usedPortToAlloc[p.Value] = alloc
-				}
-			}
 		}
 	}
 
@@ -335,31 +333,37 @@ OUTER:
 		// Reset allocsToPreempt since we don't want to preempt across devices for the same task
 		allocsToPreempt = nil
 
+		usedPortToAlloc := make(map[int]*structs.Allocation)
+
 		// First try to satisfy needed reserved ports
 		if len(reservedPortsNeeded) > 0 {
 
+			// Populate usedPort map
+			for _, alloc := range currentAllocs {
+				allocResources := p.allocDetails[alloc.ID].resources
+				for _, n := range allocResources.Flattened.Networks {
+					reservedPorts := n.ReservedPorts
+					for _, p := range reservedPorts {
+						usedPortToAlloc[p.Value] = alloc
+					}
+				}
+			}
 			// Look for allocs that are using reserved ports needed
 			for _, port := range reservedPortsNeeded {
 				alloc, ok := usedPortToAlloc[port.Value]
-
+				allocResources := p.allocDetails[alloc.ID].resources
+				allocDevice := allocResources.Flattened.Networks[0].Device
 				if ok {
-					// If the reserved port is in the map, we need
-					// to check if the device matches.
-					allocResources := p.allocDetails[alloc.ID].resources
-					allocDevice := allocResources.Flattened.Networks[0].Device
-					if allocDevice == device {
-						preemptedBandwidth += allocResources.Flattened.Networks[0].MBits
-						allocsToPreempt = append(allocsToPreempt, alloc)
-					} else {
-						//  If its on a different device we continue to the
-						// outer loop because the current device cannot meet
-						// a needed, used reserved port
+					preemptedBandwidth += allocResources.Flattened.Networks[0].MBits
+					allocsToPreempt = append(allocsToPreempt, alloc)
+				} else {
+					// Check if a higher priority allocation is using this port
+					// It cant be preempted so we skip to the next device
+					_, ok := filteredReservedPorts[allocDevice][port.Value]
+					if ok {
 						continue OUTER
 					}
 				}
-
-				// If the reserved port is not in the usedPortToAlloc map it means
-				// no alloc is using it.
 			}
 
 			// Remove allocs that were preempted to satisfy reserved ports
