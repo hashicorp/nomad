@@ -9,8 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"strconv"
-
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -134,8 +132,7 @@ type Driver struct {
 	// ctx passed to any subsystems
 	signalShutdown context.CancelFunc
 
-	// logger will log to the plugin output which is usually an 'executor.out'
-	// file located in the root of the TaskDir
+	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
@@ -206,7 +203,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		// Only enable if w are root and cgroups are mounted when running on linux system
 		if syscall.Geteuid() != 0 {
 			fp.Health = drivers.HealthStateUnhealthy
-			fp.HealthDescription = "java driver must run as root"
+			fp.HealthDescription = "run as root"
 			return fp
 		}
 
@@ -485,22 +482,7 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	handle.stateLock.RLock()
-	defer handle.stateLock.RUnlock()
-
-	status := &drivers.TaskStatus{
-		ID:          handle.taskConfig.ID,
-		Name:        handle.taskConfig.Name,
-		State:       handle.procState,
-		StartedAt:   handle.startedAt,
-		CompletedAt: handle.completedAt,
-		ExitResult:  handle.exitResult,
-		DriverAttributes: map[string]string{
-			"pid": strconv.Itoa(handle.pid),
-		},
-	}
-
-	return status, nil
+	return handle.TaskStatus(), nil
 }
 
 func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
