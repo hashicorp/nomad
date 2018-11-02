@@ -187,7 +187,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		alloc.ModifyTime = now
 	}
 
-	// Set create and modify time for preempted allocs if any
+	// Set modify time for preempted allocs if any
 	// Also gather jobids to create follow up evals
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 	for _, alloc := range req.NodePreemptions {
@@ -358,9 +358,10 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 		}
 
 		if nodePreemptions := plan.NodePreemptions[nodeID]; nodePreemptions != nil {
-			var filteredNodePreemptions []*structs.Allocation
+
 			// Do a pass over preempted allocs in the plan to check
 			// whether the alloc is already in a terminal state
+			var filteredNodePreemptions []*structs.Allocation
 			for _, preemptedAlloc := range nodePreemptions {
 				alloc, err := snap.AllocByID(nil, preemptedAlloc.ID)
 				if err != nil {
