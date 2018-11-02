@@ -2764,14 +2764,6 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 
 	a.Cpu.Subtract(&delta.Cpu)
 	a.Memory.Subtract(&delta.Memory)
-
-	for _, n := range delta.Networks {
-		// Find the matching interface by IP or CIDR
-		idx := a.NetIndex(n)
-		if idx != -1 {
-			a.Networks[idx].MBits -= delta.Networks[idx].MBits
-		}
-	}
 }
 
 // AllocatedSharedResources are the set of resources allocated to a task group.

@@ -243,8 +243,7 @@ OUTER:
 
 					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
-						iter.ctx.Metrics().ExhaustedNode(option.Node,
-							fmt.Sprintf("unable to meet network resource %v after preemption", ask))
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unable to meet network resource %v after preemption", ask))
 						netIdx.Release()
 						continue OUTER
 					}
@@ -261,7 +260,7 @@ OUTER:
 
 					offer, err = netIdx.AssignNetwork(ask)
 					if offer == nil {
-						iter.ctx.Logger().Error(fmt.Sprintf("unexpected error, unable to create offer after preempting:%v", err))
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unexpected error, unable to create offer after preempting:%v", err))
 						netIdx.Release()
 						continue OUTER
 					}
