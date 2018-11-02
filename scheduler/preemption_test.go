@@ -318,7 +318,7 @@ func TestPreemption(t *testing.T) {
 			},
 		},
 		{
-			desc: "preempt only from device that has allocation with used reserved port",
+			desc: "preempt only from device that has allocation with unused reserved port",
 			currentAllocations: []*structs.Allocation{
 				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,
@@ -333,7 +333,7 @@ func TestPreemption(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				createAlloc(allocIDs[1], highPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -405,7 +405,7 @@ func TestPreemption(t *testing.T) {
 				},
 			},
 			preemptedAllocIDs: map[string]struct{}{
-				allocIDs[1]: {},
+				allocIDs[2]: {},
 			},
 		},
 		{
