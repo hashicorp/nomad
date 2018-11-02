@@ -2757,6 +2757,8 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 	return ret
 }
 
+// Subtract only subtracts CPU and Memory resources. Network utilization
+// is managed separately in NetworkIndex
 func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 	if delta == nil {
 		return
