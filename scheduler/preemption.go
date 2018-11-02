@@ -351,15 +351,14 @@ OUTER:
 			// Look for allocs that are using reserved ports needed
 			for _, port := range reservedPortsNeeded {
 				alloc, ok := usedPortToAlloc[port.Value]
-				allocResources := p.allocDetails[alloc.ID].resources
-				allocDevice := allocResources.Flattened.Networks[0].Device
 				if ok {
+					allocResources := p.allocDetails[alloc.ID].resources
 					preemptedBandwidth += allocResources.Flattened.Networks[0].MBits
 					allocsToPreempt = append(allocsToPreempt, alloc)
 				} else {
 					// Check if a higher priority allocation is using this port
 					// It cant be preempted so we skip to the next device
-					_, ok := filteredReservedPorts[allocDevice][port.Value]
+					_, ok := filteredReservedPorts[device][port.Value]
 					if ok {
 						continue OUTER
 					}
