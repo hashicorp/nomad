@@ -127,7 +127,7 @@ type VaultClient interface {
 	Running() bool
 
 	// Stats returns the Vault clients statistics
-	Stats() *VaultStats
+	Stats() map[string]string
 
 	// EmitStats emits that clients statistics at the given period until stopCh
 	// is called.
@@ -1223,7 +1223,7 @@ func (v *vaultClient) EmitStats(period time.Duration, stopCh chan struct{}) {
 	for {
 		select {
 		case <-time.After(period):
-			stats := v.Stats()
+			stats := v.stats()
 			metrics.SetGauge([]string{"nomad", "vault", "distributed_tokens_revoking"}, float32(stats.TrackedForRevoke))
 		case <-stopCh:
 			return
