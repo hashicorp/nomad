@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -269,6 +270,120 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	if !reflect.DeepEqual(result.DeploymentUpdates, plan.DeploymentUpdates) {
 		t.Fatalf("incorrect deployment updates")
 	}
+}
+
+func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
+	t.Parallel()
+	state := testStateStore(t)
+	node := mock.Node()
+	node.NodeResources = &structs.NodeResources{
+		Cpu: structs.NodeCpuResources{
+			CpuShares: 2000,
+		},
+		Memory: structs.NodeMemoryResources{
+			MemoryMB: 4192,
+		},
+		Disk: structs.NodeDiskResources{
+			DiskMB: 30 * 1024,
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				CIDR:   "192.168.0.100/32",
+				MBits:  1000,
+			},
+		},
+	}
+	state.UpsertNode(1000, node)
+
+	preemptedAlloc := mock.Alloc()
+	preemptedAlloc.NodeID = node.ID
+	preemptedAlloc.AllocatedResources = &structs.AllocatedResources{
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 25 * 1024,
+		},
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 1500,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 4000,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+						MBits:         800,
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+	}
+
+	// Insert a preempted alloc such that the alloc will fit only after preemption
+	state.UpsertAllocs(1001, []*structs.Allocation{preemptedAlloc})
+
+	alloc := mock.Alloc()
+	alloc.AllocatedResources = &structs.AllocatedResources{
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 24 * 1024,
+		},
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 1500,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 3200,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+						MBits:         800,
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+	}
+	plan := &structs.Plan{
+		Job: alloc.Job,
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+		NodePreemptions: map[string][]*structs.Allocation{
+			node.ID: {preemptedAlloc},
+		},
+		Deployment: mock.Deployment(),
+		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
+			{
+				DeploymentID:      uuid.Generate(),
+				Status:            "foo",
+				StatusDescription: "bar",
+			},
+		},
+	}
+	snap, _ := state.Snapshot()
+
+	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
+	defer pool.Shutdown()
+
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
+
+	require := require.New(t)
+	require.NoError(err)
+	require.NotNil(result)
+
+	require.Equal(result.NodeAllocation, plan.NodeAllocation)
+	require.Equal(result.Deployment, plan.Deployment)
+	require.Equal(result.DeploymentUpdates, plan.DeploymentUpdates)
+	require.Equal(result.NodePreemptions, plan.NodePreemptions)
+
 }
 
 func TestPlanApply_EvalPlan_Partial(t *testing.T) {

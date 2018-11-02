@@ -218,6 +218,45 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		}
 	}
 
+	// Prepare preempted allocs in the plan results for update
+	var preemptedAllocs []*structs.Allocation
+	for _, preemptedAlloc := range results.NodePreemptions {
+		// Look for existing alloc
+		existing, err := txn.First("allocs", "id", preemptedAlloc.ID)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+
+		// Nothing to do if this does not exist
+		if existing == nil {
+			continue
+		}
+		exist := existing.(*structs.Allocation)
+
+		// Copy everything from the existing allocation
+		copyAlloc := exist.Copy()
+
+		// Only update the fields set by the scheduler
+		copyAlloc.DesiredStatus = preemptedAlloc.DesiredStatus
+		copyAlloc.PreemptedByAllocation = preemptedAlloc.PreemptedByAllocation
+		copyAlloc.DesiredDescription = preemptedAlloc.DesiredDescription
+		copyAlloc.ModifyTime = preemptedAlloc.ModifyTime
+		preemptedAllocs = append(preemptedAllocs, copyAlloc)
+
+	}
+
+	// Upsert the preempted allocations
+	if err := s.upsertAllocsImpl(index, preemptedAllocs, txn); err != nil {
+		return err
+	}
+
+	// Upsert followup evals for allocs that were preempted
+	for _, eval := range results.PreemptionEvals {
+		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
+			return err
+		}
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -3820,6 +3859,84 @@ func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs
 	return nil
 }
 
+// SchedulerConfig is used to get the current Scheduler configuration.
+func (s *StateStore) SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error) {
+	tx := s.db.Txn(false)
+	defer tx.Abort()
+
+	// Get the scheduler config
+	c, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	config, ok := c.(*structs.SchedulerConfiguration)
+	if !ok {
+		return 0, nil, nil
+	}
+
+	return config.ModifyIndex, config, nil
+}
+
+// SchedulerSetConfig is used to set the current Scheduler configuration.
+func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerConfiguration) error {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	s.schedulerSetConfigTxn(idx, tx, config)
+
+	tx.Commit()
+	return nil
+}
+
+// SchedulerCASConfig is used to update the scheduler configuration with a
+// given Raft index. If the CAS index specified is not equal to the last observed index
+// for the config, then the call is a noop.
+func (s *StateStore) SchedulerCASConfig(idx, cidx uint64, config *structs.SchedulerConfiguration) (bool, error) {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	// Check for an existing config
+	existing, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return false, fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	// If the existing index does not match the provided CAS
+	// index arg, then we shouldn't update anything and can safely
+	// return early here.
+	e, ok := existing.(*structs.SchedulerConfiguration)
+	if !ok || e.ModifyIndex != cidx {
+		return false, nil
+	}
+
+	s.schedulerSetConfigTxn(idx, tx, config)
+
+	tx.Commit()
+	return true, nil
+}
+
+func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *memdb.Txn, config *structs.SchedulerConfiguration) error {
+	// Check for an existing config
+	existing, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	// Set the indexes.
+	if existing != nil {
+		config.CreateIndex = existing.(*structs.SchedulerConfiguration).CreateIndex
+	} else {
+		config.CreateIndex = idx
+	}
+	config.ModifyIndex = idx
+
+	if err := tx.Insert("scheduler_config", config); err != nil {
+		return fmt.Errorf("failed updating scheduler config: %s", err)
+	}
+	return nil
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -3934,6 +4051,13 @@ func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
 func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 	if err := r.txn.Insert("acl_token", token); err != nil {
 		return fmt.Errorf("inserting acl token failed: %v", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConfiguration) error {
+	if err := r.txn.Insert("scheduler_config", schedConfig); err != nil {
+		return fmt.Errorf("inserting scheduler config failed: %s", err)
 	}
 	return nil
 }

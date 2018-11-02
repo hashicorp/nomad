@@ -81,6 +81,7 @@ const (
 	AllocUpdateDesiredTransitionRequestType
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
+	SchedulerConfigRequestType
 )
 
 const (
@@ -643,6 +644,14 @@ type ApplyPlanResultsRequest struct {
 	// processed many times, potentially making state updates, without the state of
 	// the evaluation itself being updated.
 	EvalID string
+
+	// NodePreemptions is a slice of allocations from other lower priority jobs
+	// that are preempted. Preempted allocations are marked as evicted.
+	NodePreemptions []*Allocation
+
+	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
+	// have been preempted to place allocs in this plan
+	PreemptionEvals []*Evaluation
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -7052,6 +7061,14 @@ type Allocation struct {
 	// that can be rescheduled in the future
 	FollowupEvalID string
 
+	// PreemptedAllocations captures IDs of any allocations that were preempted
+	// in order to place this allocation
+	PreemptedAllocations []string
+
+	// PreemptedByAllocation tracks the alloc ID of the allocation that caused this allocation
+	// to stop running because it got preempted
+	PreemptedByAllocation string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -7126,6 +7143,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.RescheduleTracker = a.RescheduleTracker.Copy()
+	na.PreemptedAllocations = helper.CopySliceString(a.PreemptedAllocations)
 	return na
 }
 
@@ -7397,6 +7415,7 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 			Memory: AllocatedMemoryResources{
 				MemoryMB: int64(resources.MemoryMB),
 			},
+			Networks: resources.Networks,
 		},
 		Shared: AllocatedSharedResources{
 			DiskMB: int64(resources.DiskMB),
@@ -7770,6 +7789,7 @@ const (
 	EvalTriggerMaxPlans          = "max-plan-attempts"
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
 	EvalTriggerQueuedAllocs      = "queued-allocs"
+	EvalTriggerPreemption        = "preemption"
 )
 
 const (
@@ -7995,11 +8015,12 @@ func (e *Evaluation) ShouldBlock() bool {
 // for a given Job
 func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
-		EvalID:         e.ID,
-		Priority:       e.Priority,
-		Job:            j,
-		NodeUpdate:     make(map[string][]*Allocation),
-		NodeAllocation: make(map[string][]*Allocation),
+		EvalID:          e.ID,
+		Priority:        e.Priority,
+		Job:             j,
+		NodeUpdate:      make(map[string][]*Allocation),
+		NodeAllocation:  make(map[string][]*Allocation),
+		NodePreemptions: make(map[string][]*Allocation),
 	}
 	if j != nil {
 		p.AllAtOnce = j.AllAtOnce
@@ -8112,6 +8133,11 @@ type Plan struct {
 	// deployments. This allows the scheduler to cancel any unneeded deployment
 	// because the job is stopped or the update block is removed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as evicted.
+	NodePreemptions map[string][]*Allocation
 }
 
 // AppendUpdate marks the allocation for eviction. The clientStatus of the
@@ -8142,6 +8168,35 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]
 	p.NodeUpdate[node] = append(existing, newAlloc)
+}
+
+// AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
+// To minimize the size of the plan, this only sets a minimal set of fields in the allocation
+func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preemptingAllocID string) {
+	newAlloc := &Allocation{}
+	newAlloc.ID = alloc.ID
+	newAlloc.JobID = alloc.JobID
+	newAlloc.Namespace = alloc.Namespace
+	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.PreemptedByAllocation = preemptingAllocID
+
+	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
+	newAlloc.DesiredDescription = desiredDesc
+
+	// TaskResources are needed by the plan applier to check if allocations fit
+	// after removing preempted allocations
+	if alloc.AllocatedResources != nil {
+		newAlloc.AllocatedResources = alloc.AllocatedResources
+	} else {
+		// COMPAT Remove in version 0.11
+		newAlloc.TaskResources = alloc.TaskResources
+		newAlloc.SharedResources = alloc.SharedResources
+	}
+
+	// Append this alloc to slice for this node
+	node := alloc.NodeID
+	existing := p.NodePreemptions[node]
+	p.NodePreemptions[node] = append(existing, newAlloc)
 }
 
 func (p *Plan) PopUpdate(alloc *Allocation) {
@@ -8189,6 +8244,11 @@ type PlanResult struct {
 	// DeploymentUpdates is the set of deployment updates that were committed.
 	DeploymentUpdates []*DeploymentStatusUpdate
 
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as stopped.
+	NodePreemptions map[string][]*Allocation
+
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
 	// If any allocations were rejected due to stale data (node state,
@@ -8225,6 +8285,9 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 type PlanAnnotations struct {
 	// DesiredTGUpdates is the set of desired updates per task group.
 	DesiredTGUpdates map[string]*DesiredUpdates
+
+	// PreemptedAllocs is the set of allocations to be preempted to make the placement successful.
+	PreemptedAllocs []*AllocListStub
 }
 
 // DesiredUpdates is the set of changes the scheduler would like to make given
@@ -8237,6 +8300,7 @@ type DesiredUpdates struct {
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
 	Canary            uint64
+	Preemptions       uint64
 }
 
 func (d *DesiredUpdates) GoString() string {

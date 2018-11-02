@@ -14,8 +14,9 @@ import (
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 	state := state.TestStateStore(t)
 	plan := &structs.Plan{
-		NodeUpdate:     make(map[string][]*structs.Allocation),
-		NodeAllocation: make(map[string][]*structs.Allocation),
+		NodeUpdate:      make(map[string][]*structs.Allocation),
+		NodeAllocation:  make(map[string][]*structs.Allocation),
+		NodePreemptions: make(map[string][]*structs.Allocation),
 	}
 
 	logger := testlog.HCLogger(t)

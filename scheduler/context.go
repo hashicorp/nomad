@@ -123,6 +123,12 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 		proposed = structs.RemoveAllocs(existingAlloc, update)
 	}
 
+	// Remove any allocs that are being preempted
+	nodePreemptedAllocs := e.plan.NodePreemptions[nodeID]
+	if len(nodePreemptedAllocs) > 0 {
+		proposed = structs.RemoveAllocs(existingAlloc, nodePreemptedAllocs)
+	}
+
 	// We create an index of the existing allocations so that if an inplace
 	// update occurs, we do not double count and we override the old allocation.
 	proposedIDs := make(map[string]*structs.Allocation, len(proposed))
