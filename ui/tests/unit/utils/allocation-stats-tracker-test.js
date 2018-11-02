@@ -6,6 +6,7 @@ import sinon from 'sinon';
 import Pretender from 'pretender';
 import AllocationStatsTracker, { stats } from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import fetch from 'nomad-ui/utils/fetch';
+import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
 module('Unit | Util | AllocationStatsTracker');
 
@@ -452,4 +453,28 @@ test('changing the value of the allocationProp constructs a new AllocationStatsT
     stats1 === stats2,
     'Changing the value of alloc results in creating a new AllocationStatsTracker instance'
   );
+});
+
+statsTrackerFrameMissingBehavior({
+  resourceName: 'allocation',
+  ResourceConstructor: MockAllocation,
+  TrackerConstructor: AllocationStatsTracker,
+  mockFrame,
+  compileResources(frame) {
+    const timestamp = makeDate(frame.Timestamp);
+    const cpu = frame.ResourceUsage.CpuStats.TotalTicks;
+    const memory = frame.ResourceUsage.MemoryStats.RSS;
+    return [
+      {
+        timestamp,
+        used: cpu,
+        percent: cpu / 200,
+      },
+      {
+        timestamp,
+        used: memory,
+        percent: memory / 1024 / 1024 / 512,
+      },
+    ];
+  },
 });
