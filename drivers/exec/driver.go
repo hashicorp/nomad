@@ -31,11 +31,18 @@ const (
 )
 
 var (
-	// PluginID is the rawexec plugin metadata registered in the plugin
+	// PluginID is the exec plugin metadata registered in the plugin
 	// catalog.
 	PluginID = loader.PluginID{
 		Name:       pluginName,
 		PluginType: base.PluginTypeDriver,
+	}
+
+	// PluginConfig is the exec driver factory function registered in the
+	// plugin catalog.
+	PluginConfig = &loader.InternalPluginConfig{
+		Config:  map[string]interface{}{},
+		Factory: func(l hclog.Logger) interface{} { return NewExecDriver(l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC
