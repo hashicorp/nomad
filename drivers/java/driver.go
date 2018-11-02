@@ -326,8 +326,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		User:           cfg.User,
 		ResourceLimits: true,
 		Resources: &executor.Resources{
-			CPU:      int(cfg.Resources.LinuxResources.CPUShares),
-			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
+			CPU:      cfg.Resources.NomadResources.CPU,
+			MemoryMB: cfg.Resources.NomadResources.MemoryMB,
 			DiskMB:   cfg.Resources.NomadResources.DiskMB,
 		},
 		TaskDir:    cfg.TaskDir().Dir,
