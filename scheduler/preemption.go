@@ -318,9 +318,11 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 	var allocsToPreempt []*structs.Allocation
 	met := false
 	freeBandwidth := 0
+	preemptedDevice := ""
 
 OUTER:
 	for device, currentAllocs := range deviceToAllocs {
+		preemptedDevice = device
 		totalBandwidth := netIdx.AvailBandwidth[device]
 
 		// If the device doesn't have enough total available bandwidth, skip
@@ -411,13 +413,11 @@ OUTER:
 	}
 
 	// Build a resource object with just the network Mbits filled in
-	// Its safe to use the first preempted allocation's network resource
-	// here because all allocations preempted will be from the same device
 	nodeRemainingResources := &structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{
 			Networks: []*structs.NetworkResource{
 				{
-					Device: allocsToPreempt[0].Resources.Networks[0].Device,
+					Device: preemptedDevice,
 					MBits:  freeBandwidth,
 				},
 			},

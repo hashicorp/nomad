@@ -1,9 +1,8 @@
 package scheduler
 
 import (
-	"testing"
-
 	"fmt"
+	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -143,8 +142,8 @@ func TestPreemption(t *testing.T) {
 	type testCase struct {
 		desc                 string
 		currentAllocations   []*structs.Allocation
-		nodeReservedCapacity *structs.Resources
-		nodeCapacity         *structs.Resources
+		nodeReservedCapacity *structs.NodeReservedResources
+		nodeCapacity         *structs.NodeResources
 		resourceAsk          *structs.Resources
 		jobPriority          int
 		currentPreemptions   []*structs.Allocation
@@ -163,12 +162,16 @@ func TestPreemption(t *testing.T) {
 	// Create some persistent alloc ids to use in test cases
 	allocIDs := []string{uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate()}
 
-	// TODO(preetha): Switch to using NodeResources and NodeReservedResources
-	defaultNodeResources := &structs.Resources{
-		CPU:      4000,
-		MemoryMB: 8192,
-		DiskMB:   100 * 1024,
-		IOPS:     150,
+	defaultNodeResources := &structs.NodeResources{
+		Cpu: structs.NodeCpuResources{
+			CpuShares: 4000,
+		},
+		Memory: structs.NodeMemoryResources{
+			MemoryMB: 8192,
+		},
+		Disk: structs.NodeDiskResources{
+			DiskMB: 100 * 1024,
+		},
 		Networks: []*structs.NetworkResource{
 			{
 				Device: "eth0",
@@ -177,17 +180,16 @@ func TestPreemption(t *testing.T) {
 			},
 		},
 	}
-	reservedNodeResources := &structs.Resources{
-		CPU:      100,
-		MemoryMB: 256,
-		DiskMB:   4 * 1024,
-		Networks: []*structs.NetworkResource{
-			{
-				Device:        "eth0",
-				IP:            "192.168.0.100",
-				ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
-				MBits:         1,
-			},
+
+	reservedNodeResources := &structs.NodeReservedResources{
+		Cpu: structs.NodeReservedCpuResources{
+			CpuShares: 100,
+		},
+		Memory: structs.NodeReservedMemoryResources{
+			MemoryMB: 256,
+		},
+		Disk: structs.NodeReservedDiskResources{
+			DiskMB: 4 * 1024,
 		},
 	}
 
@@ -368,11 +370,16 @@ func TestPreemption(t *testing.T) {
 			},
 			nodeReservedCapacity: reservedNodeResources,
 			// This test sets up a node with two NICs
-			nodeCapacity: &structs.Resources{
-				CPU:      4000,
-				MemoryMB: 8192,
-				DiskMB:   100 * 1024,
-				IOPS:     150,
+			nodeCapacity: &structs.NodeResources{
+				Cpu: structs.NodeCpuResources{
+					CpuShares: 4000,
+				},
+				Memory: structs.NodeMemoryResources{
+					MemoryMB: 8192,
+				},
+				Disk: structs.NodeDiskResources{
+					DiskMB: 100 * 1024,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						Device: "eth0",
@@ -415,7 +422,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      2800,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     150,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -428,7 +434,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -441,7 +446,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -890,9 +894,8 @@ func TestPreemption(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			node := mock.Node()
-			node.Resources = tc.nodeCapacity
-			node.Reserved = tc.nodeReservedCapacity
-			node.NodeResources = nil
+			node.NodeResources = tc.nodeCapacity
+			node.ReservedResources = tc.nodeReservedCapacity
 
 			state, ctx := testContext(t)
 			nodes := []*RankedNode{
