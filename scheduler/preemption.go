@@ -143,7 +143,7 @@ func (p *Preemptor) SetCandidates(allocs []*structs.Allocation) {
 		if tg != nil && tg.Migrate != nil {
 			maxParallel = tg.Migrate.MaxParallel
 		}
-		p.allocDetails[alloc.ID] = &allocInfo{maxParallel, alloc.ComparableResources()}
+		p.allocDetails[alloc.ID] = &allocInfo{maxParallel: maxParallel, resources: alloc.ComparableResources()}
 	}
 }
 
@@ -197,6 +197,7 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 	// Initialize variable to track resources as they become available from preemption
 	availableResources := p.nodeRemainingResources.Copy()
 
+	resourcesAsked := resourceAsk.Comparable()
 	// Iterate over allocations grouped by priority to find preemptible allocations
 	for _, allocGrp := range allocsByPriority {
 		for len(allocGrp.allocs) > 0 && !allRequirementsMet {
@@ -218,7 +219,7 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 			availableResources.Add(closestResources)
 
 			// This step needs the original resources asked for as the second arg, can't use the running total
-			allRequirementsMet, _ = availableResources.Superset(resourceAsk.Comparable())
+			allRequirementsMet, _ = availableResources.Superset(resourcesAsked)
 
 			bestAllocs = append(bestAllocs, closestAlloc)
 
@@ -262,11 +263,14 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 	reservedPortsNeeded := networkResourceAsk.ReservedPorts
 
 	// Build map of reserved ports needed for fast access
-	reservedPorts := make(map[int]interface{})
+	reservedPorts := make(map[int]struct{})
 	for _, port := range reservedPortsNeeded {
 		reservedPorts[port.Value] = struct{}{}
 	}
 
+	// filteredReservedPorts tracks reserved ports that are
+	// currently used by higher priority allocations that can't
+	// be preempted
 	filteredReservedPorts := make(map[string]map[int]struct{})
 
 	// Create a map from each device to allocs
@@ -279,9 +283,8 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 
 		// Filter out alloc that's ineligible due to priority
 		if p.jobPriority-alloc.Job.Priority < 10 {
-
-			// If this allocation uses a needed reserved port
-			// preemption is impossible so we return early
+			// Populate any reserved ports used by
+			// this allocation that cannot be preempted
 			allocResources := p.allocDetails[alloc.ID].resources
 			networks := allocResources.Flattened.Networks
 			net := networks[0]
@@ -333,6 +336,7 @@ OUTER:
 		// Reset allocsToPreempt since we don't want to preempt across devices for the same task
 		allocsToPreempt = nil
 
+		// usedPortToAlloc tracks used ports by allocs in this device
 		usedPortToAlloc := make(map[int]*structs.Allocation)
 
 		// First try to satisfy needed reserved ports
@@ -429,19 +433,6 @@ OUTER:
 	}
 	filteredBestAllocs := p.filterSuperset(allocsToPreempt, nodeRemainingResources, resourcesNeeded, preemptionResourceFactory)
 	return filteredBestAllocs
-}
-
-func usedReservedPorts(net *structs.NetworkResource, portMap map[int]interface{}) bool {
-	ports := net.ReservedPorts
-	if len(ports) > 0 {
-		for _, p := range ports {
-			_, ok := portMap[p.Value]
-			if ok {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // basicResourceDistance computes a distance using a coordinate system. It compares resource fields like CPU/Memory and Disk.
