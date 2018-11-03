@@ -37,6 +37,13 @@ export default create({
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
 
+  error: {
+    isPresent: isPresent('[data-test-error]'),
+    title: text('[data-test-error-title]'),
+    message: text('[data-test-error-message]'),
+    seekHelp: clickable('[data-test-error-message] a'),
+  },
+
   emptyState: {
     headline: text('[data-test-empty-allocations-list-headline]'),
   },
