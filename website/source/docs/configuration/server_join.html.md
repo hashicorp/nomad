@@ -122,7 +122,7 @@ nomad-01.company.local => nomad-01.company.local:4648
 As of Nomad 0.8.4, `retry_join` accepts a unified interface using the
 [go-discover](https://github.com/hashicorp/go-discover) library for doing
 automated cluster joining using cloud metadata. See [Cloud
-Auto-join][cloud_auto_join] for more information.
+Auto-join][#cloud_auto_join] for more information.
 
 ```
 "provider=aws tag_key=..." => 1.2.3.4:4648
