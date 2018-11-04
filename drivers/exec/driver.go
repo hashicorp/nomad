@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
+	"runtime"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -12,6 +12,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -73,9 +75,9 @@ var (
 	}
 )
 
-// ExecDriver fork/execs tasks using many of the underlying OS's isolation
+// Driver fork/execs tasks using many of the underlying OS's isolation
 // features where configured.
-type ExecDriver struct {
+type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
@@ -83,7 +85,7 @@ type ExecDriver struct {
 	// nomadConfig is the client config from nomad
 	nomadConfig *base.ClientDriverConfig
 
-	// tasks is the in memory datastore mapping taskIDs to execDriverHandles
+	// tasks is the in memory datastore mapping taskIDs to driverHandles
 	tasks *taskStore
 
 	// ctx is the context for the driver. It is passed to other subsystems to
@@ -94,15 +96,14 @@ type ExecDriver struct {
 	// ctx passed to any subsystems
 	signalShutdown context.CancelFunc
 
-	// logger will log to the plugin output which is usually an 'executor.out'
-	// file located in the root of the TaskDir
+	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
-	Command string   `cty:"command"`
-	Args    []string `cty:"args"`
+	Command string   `codec:"command"`
+	Args    []string `codec:"args"`
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -119,7 +120,7 @@ type TaskState struct {
 func NewExecDriver(logger hclog.Logger) drivers.DriverPlugin {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger = logger.Named(pluginName)
-	return &ExecDriver{
+	return &Driver{
 		eventer:        eventer.NewEventer(ctx, logger),
 		tasks:          newTaskStore(),
 		ctx:            ctx,
@@ -128,41 +129,41 @@ func NewExecDriver(logger hclog.Logger) drivers.DriverPlugin {
 	}
 }
 
-func (*ExecDriver) PluginInfo() (*base.PluginInfoResponse, error) {
+func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
 	return pluginInfo, nil
 }
 
-func (*ExecDriver) ConfigSchema() (*hclspec.Spec, error) {
+func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *ExecDriver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
+func (d *Driver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
 	if cfg != nil {
 		d.nomadConfig = cfg.Driver
 	}
 	return nil
 }
 
-func (d *ExecDriver) Shutdown(ctx context.Context) error {
+func (d *Driver) Shutdown(ctx context.Context) error {
 	d.signalShutdown()
 	return nil
 }
 
-func (d *ExecDriver) TaskConfigSchema() (*hclspec.Spec, error) {
+func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 	return taskConfigSpec, nil
 }
 
-func (d *ExecDriver) Capabilities() (*drivers.Capabilities, error) {
+func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (d *ExecDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
 	go d.handleFingerprint(ctx, ch)
 	return ch, nil
 
 }
-func (d *ExecDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
+func (d *Driver) handleFingerprint(ctx context.Context, ch chan<- *drivers.Fingerprint) {
 	defer close(ch)
 	ticker := time.NewTimer(0)
 	for {
@@ -178,20 +179,70 @@ func (d *ExecDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fin
 	}
 }
 
-func (d *ExecDriver) RecoverTask(handle *drivers.TaskHandle) error {
-	var taskState TaskState
-	logger := d.logger.With("task_id", handle.Config.ID)
-
-	err := handle.GetDriverState(&taskState)
-	if err != nil {
-		logger.Error("failed to decode driver state during task recovery", "error", err)
-		return fmt.Errorf("failed to decode state: %v", err)
+func (d *Driver) buildFingerprint() *drivers.Fingerprint {
+	if runtime.GOOS != "linux" {
+		return &drivers.Fingerprint{
+			Health:            drivers.HealthStateUndetected,
+			HealthDescription: "exec driver unsupported on client OS",
+		}
 	}
 
+	fp := &drivers.Fingerprint{
+		Attributes:        map[string]string{},
+		Health:            drivers.HealthStateHealthy,
+		HealthDescription: "healthy",
+	}
+
+	mount, err := fingerprint.FindCgroupMountpointDir()
+	if err != nil {
+		fp.Health = drivers.HealthStateUnhealthy
+		fp.HealthDescription = "failed to discover cgroup mount point"
+		d.logger.Warn(fp.HealthDescription, "error", err)
+		return fp
+	}
+
+	if mount == "" {
+		fp.Health = drivers.HealthStateUnhealthy
+		fp.HealthDescription = "cgroups are unavailable"
+		return fp
+	}
+
+	if unix.Geteuid() != 0 {
+		fp.Health = drivers.HealthStateUnhealthy
+		fp.HealthDescription = "exec driver must run as root"
+		return fp
+	}
+
+	fp.Attributes["driver.exec"] = "1"
+	return fp
+}
+
+func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
+	if handle == nil {
+		return fmt.Errorf("handle cannot be nil")
+	}
+
+	// If already attached to handle there's nothing to recover.
+	if _, ok := d.tasks.Get(handle.Config.ID); ok {
+		d.logger.Trace("nothing to recover; task already exists",
+			"task_id", handle.Config.ID,
+			"task_name", handle.Config.Name,
+		)
+		return nil
+	}
+
+	// Handle doesn't already exist, try to reattach
+	var taskState TaskState
+	if err := handle.GetDriverState(&taskState); err != nil {
+		d.logger.Error("failed to decode task state from handle", "error", err, "task_id", handle.Config.ID)
+		return fmt.Errorf("failed to decode task state from handle: %v", err)
+	}
+
+	// Create client for reattached executor
 	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
-		logger.Error("failed to build reattach config during task recovery", "error", err)
-		return fmt.Errorf("failed to build reattach config: %v", err)
+		d.logger.Error("failed to build ReattachConfig from task state", "error", err, "task_id", handle.Config.ID)
+		return fmt.Errorf("failed to build ReattachConfig from task state: %v", err)
 	}
 
 	pluginConfig := &plugin.ClientConfig{
@@ -200,18 +251,18 @@ func (d *ExecDriver) RecoverTask(handle *drivers.TaskHandle) error {
 
 	exec, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
 	if err != nil {
-		logger.Error("failed to build executor during task recovery", "error", err)
-		return fmt.Errorf("failed to build executor: %v", err)
+		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
+		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
-	h := &execTaskHandle{
+	h := &taskHandle{
 		exec:         exec,
 		pid:          taskState.Pid,
 		pluginClient: pluginClient,
-		task:         taskState.TaskConfig,
+		taskConfig:   taskState.TaskConfig,
 		procState:    drivers.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
-		exitCh:       make(chan struct{}),
+		exitResult:   &drivers.ExitResult{},
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
@@ -220,9 +271,9 @@ func (d *ExecDriver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
-		return nil, nil, fmt.Errorf("task with ID '%s' already started", cfg.ID)
+		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
 
 	var driverConfig TaskConfig
@@ -230,6 +281,7 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
 	handle := drivers.NewTaskHandle(pluginName)
 	handle.Config = cfg
 
@@ -243,7 +295,7 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	// TODO: best way to pass port ranges in from client config
 	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
 	execCmd := &executor.ExecCommand{
@@ -253,8 +305,8 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 		User:           cfg.User,
 		ResourceLimits: true,
 		Resources: &executor.Resources{
-			CPU:      int(cfg.Resources.LinuxResources.CPUShares),
-			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
+			CPU:      cfg.Resources.NomadResources.CPU,
+			MemoryMB: cfg.Resources.NomadResources.MemoryMB,
 			DiskMB:   cfg.Resources.NomadResources.DiskMB,
 		},
 		TaskDir:    cfg.TaskDir().Dir,
@@ -265,21 +317,20 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to launch command with executor: %v", err)
 	}
 
-	h := &execTaskHandle{
+	h := &taskHandle{
 		exec:         exec,
 		pid:          ps.Pid,
 		pluginClient: pluginClient,
-		task:         cfg,
+		taskConfig:   cfg,
 		procState:    drivers.TaskStateRunning,
 		startedAt:    time.Now().Round(time.Millisecond),
 		logger:       d.logger,
-		exitCh:       make(chan struct{}),
 	}
 
-	driverState := &TaskState{
+	driverState := TaskState{
 		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
@@ -290,7 +341,7 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 		d.logger.Error("failed to start task, error setting driver state", "error", err)
 		exec.Shutdown("", 0)
 		pluginClient.Kill()
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to set driver state: %v", err)
 	}
 
 	d.tasks.Set(cfg.ID, h)
@@ -298,31 +349,43 @@ func (d *ExecDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *c
 	return handle, nil, nil
 }
 
-func (d *ExecDriver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
-	ch := make(chan *drivers.ExitResult)
+func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
+
+	ch := make(chan *drivers.ExitResult)
 	go d.handleWait(ctx, handle, ch)
 
 	return ch, nil
 }
 
-func (d *ExecDriver) handleWait(ctx context.Context, handle *execTaskHandle, ch chan *drivers.ExitResult) {
+func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
+	var result *drivers.ExitResult
+	ps, err := handle.exec.Wait()
+	if err != nil {
+		result = &drivers.ExitResult{
+			Err: fmt.Errorf("executor: error waiting on process: %v", err),
+		}
+	} else {
+		result = &drivers.ExitResult{
+			ExitCode: ps.ExitCode,
+			Signal:   ps.Signal,
+		}
+	}
 
 	select {
 	case <-ctx.Done():
 		return
 	case <-d.ctx.Done():
 		return
-	case <-handle.exitCh:
-		ch <- handle.exitResult
+	case ch <- result:
 	}
 }
 
-func (d *ExecDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
+func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -338,7 +401,7 @@ func (d *ExecDriver) StopTask(taskID string, timeout time.Duration, signal strin
 	return nil
 }
 
-func (d *ExecDriver) DestroyTask(taskID string, force bool) error {
+func (d *Driver) DestroyTask(taskID string, force bool) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -362,49 +425,29 @@ func (d *ExecDriver) DestroyTask(taskID string, force bool) error {
 	return nil
 }
 
-func (d *ExecDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
+func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	handle.stateLock.RLock()
-	defer handle.stateLock.RUnlock()
-
-	status := &drivers.TaskStatus{
-		ID:          handle.task.ID,
-		Name:        handle.task.Name,
-		State:       handle.procState,
-		StartedAt:   handle.startedAt,
-		CompletedAt: handle.completedAt,
-		ExitResult:  handle.exitResult,
-		DriverAttributes: map[string]string{
-			"pid": strconv.Itoa(handle.pid),
-		},
-	}
-
-	return status, nil
+	return handle.TaskStatus(), nil
 }
 
-func (d *ExecDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	stats, err := handle.exec.Stats()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve stats from executor: %v", err)
-	}
-
-	return stats, nil
+	return handle.exec.Stats()
 }
 
-func (d *ExecDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
+func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.eventer.TaskEvents(ctx)
 }
 
-func (d *ExecDriver) SignalTask(taskID string, signal string) error {
+func (d *Driver) SignalTask(taskID string, signal string) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -412,13 +455,13 @@ func (d *ExecDriver) SignalTask(taskID string, signal string) error {
 
 	sig := os.Interrupt
 	if s, ok := signals.SignalLookup[signal]; ok {
-		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.task.ID)
+		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.taskConfig.ID)
 		sig = s
 	}
 	return handle.exec.Signal(sig)
 }
 
-func (d *ExecDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
+func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	if len(cmd) == 0 {
 		return nil, fmt.Errorf("error cmd must have atleast one value")
 	}

@@ -110,7 +110,7 @@ type Driver struct {
 	// nomadConfig is the client config from nomad
 	nomadConfig *base.ClientDriverConfig
 
-	// tasks is the in memory datastore mapping taskIDs to rawExecDriverHandles
+	// tasks is the in memory datastore mapping taskIDs to driverHandles
 	tasks *taskStore
 
 	// ctx is the context for the driver. It is passed to other subsystems to
