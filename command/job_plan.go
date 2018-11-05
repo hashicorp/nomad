@@ -20,7 +20,10 @@ When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.`
-	preemptionShowByJobIdThreshold = 10
+
+	// preemptionDisplayThreshold is an upper bound used to limit and summarize
+	// the details of preempted jobs in the output
+	preemptionDisplayThreshold = 10
 )
 
 type JobPlanCommand struct {
@@ -187,7 +190,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 // addPreemptions shows details about preempted allocations
 func (c *JobPlanCommand) addPreemptions(resp *api.JobPlanResponse) {
 	c.Ui.Output(c.Colorize().Color("[bold][yellow]Preemptions:\n[reset]"))
-	if len(resp.Annotations.PreemptedAllocs) < preemptionShowByJobIdThreshold {
+	if len(resp.Annotations.PreemptedAllocs) < preemptionDisplayThreshold {
 		var allocs []string
 		allocs = append(allocs, fmt.Sprintf("Alloc ID|Job ID|Task Group"))
 		for _, alloc := range resp.Annotations.PreemptedAllocs {
@@ -213,9 +216,10 @@ func (c *JobPlanCommand) addPreemptions(resp *api.JobPlanResponse) {
 			countMap[id] = cnt + 1
 			allocDetails[alloc.JobType] = countMap
 		}
-		var output []string
+
 		// Show counts grouped by job ID if its less than a threshold
-		if numJobs < preemptionShowByJobIdThreshold {
+		var output []string
+		if numJobs < preemptionDisplayThreshold {
 			output = append(output, fmt.Sprintf("Job ID|Namespace|Job Type|Preemptions"))
 			for jobType, jobCounts := range allocDetails {
 				for jobId, count := range jobCounts {
