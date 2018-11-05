@@ -26,13 +26,9 @@ export default Route.extend(WithWatchers, {
   model({ name }) {
     const job = this.modelFor('jobs.job');
 
-    // If there is no job, then there is no task group, so handle this as a 404
-    if (!job) {
-      const err = new EmberError(`Job for task group ${name} not found`);
-      err.code = '404';
-      this.controllerFor('application').set('error', err);
-      return;
-    }
+    // If there is no job, then there is no task group.
+    // Let the job route handle the 404.
+    if (!job) return;
 
     // If the job is a partial (from the list request) it won't have task
     // groups. Reload the job to ensure task groups are present.
