@@ -39,7 +39,10 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 		return err
 	}
 
-	<-waitCh
+	select {
+	case <-waitCh:
+	case <-ctx.Done():
+	}
 	return nil
 }
 
@@ -104,7 +107,10 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 		return err
 	}
 
-	<-waitCh
+	select {
+	case <-waitCh:
+	case <-ctx.Done():
+	}
 
 	// Store that the task has been destroyed and any associated error.
 	tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(killErr))
