@@ -2705,7 +2705,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 
 		// Ensure the canaries are healthy
-		if !alloc.DeploymentStatus.IsHealthy() {
+		if alloc.TerminalStatus() || !alloc.DeploymentStatus.IsHealthy() {
 			continue
 		}
 
