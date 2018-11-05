@@ -158,6 +158,9 @@ The `Job` object supports the following keys:
 - `Constraints` - A list to define additional constraints where a job can be
   run. See the constraint reference for more details.
 
+- `Affinities` - A list to define placement preferences on nodes where a job can be
+  run. See the affinity reference for more details.
+
 - `Datacenters` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
@@ -258,6 +261,9 @@ attributes:
 - `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
 
+- `Affinities` - This is a list of `Affinity` objects. See the affinity
+    reference for more details.
+
 - `Count` - Specifies the number of the task groups that should
   be running. Must be non-negative, defaults to one.
 
@@ -312,6 +318,9 @@ The `Task` object supports the following keys:
 
 - `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
+
+- `Affinities` - This is a list of `Affinity` objects. See the affinity
+    reference for more details.
 
 - `DispatchPayload` - Configures the task to have access to dispatch payloads.
   The `DispatchPayload` object supports the following attributes:
@@ -713,6 +722,34 @@ The `Constraint` object supports the following keys:
 
   - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.
+
+### Affinity
+
+The `Affinity` object supports the following keys:
+
+- `LTarget` - Specifies the attribute to examine for the
+  affinity. See the table of attributes [here](/docs/runtime/interpolation.html#interpreted_node_vars).
+
+- `RTarget` - Specifies the value to compare the attribute against.
+  This can be a literal value, another attribute or a regular expression if
+  the `Operator` is in "regexp" mode.
+
+- `Operand` - Specifies the test to be performed on the two targets. It takes on the
+  following values:
+
+  - `regexp` - Allows the `RTarget` to be a regular expression to be matched.
+
+  - `set_contains_all` - Allows the `RTarget` to be a comma separated list of values
+    that should be contained in the LTarget's value.
+
+  - `set_contains_any` - Allows the `RTarget` to be a comma separated list of values
+        any of which should be contained in the LTarget's value.
+
+  - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+    ordering is compared lexically.
+
+- `Weight` - A non zero weight, valid values are from -100 to 100. Used to express
+   relative preference when there is more than one affinity.
 
 ### Log Rotation
 
