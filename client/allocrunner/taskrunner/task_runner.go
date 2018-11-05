@@ -479,58 +479,21 @@ func (tr *TaskRunner) runDriver() error {
 	//TODO mounts and devices
 	//XXX Evaluate and encode driver config
 
-	var handle *drivers.TaskHandle
-	var net *cstructs.DriverNetwork
-	var err error
-
-	// Check to see if a task handle was restored
-	tr.localStateLock.RLock()
-	handle = tr.localState.TaskHandle
-	net = tr.localState.DriverNetwork
-	tr.localStateLock.RUnlock()
-
-	if handle != nil {
-		tr.logger.Trace("restored handle; recovering task", "task_id", handle.Config.ID)
-		if err := tr.driver.RecoverTask(handle); err != nil {
-			tr.logger.Error("error recovering task; destroying and restarting",
-				"error", err, "task_id", handle.Config.ID)
-
-			// Clear invalid task state
-			tr.localStateLock.Lock()
-			tr.localState.TaskHandle = nil
-			tr.localState.DriverNetwork = nil
-			tr.localStateLock.Unlock()
-
-			// Try to cleanup any existing task state in the plugin before restarting
-			if err := tr.driver.DestroyTask(handle.Config.ID, true); err != nil {
-				// Ignore ErrTaskNotFound errors as ideally
-				// this task has already been stopped and
-				// therefore doesn't exist.
-				if err != drivers.ErrTaskNotFound {
-					tr.logger.Warn("error destroying unrecoverable task",
-						"error", err, "task_id", handle.Config.ID)
-				}
-
-			}
-
-			goto START
-		}
-
-		// Update driver handle on task runner
-		tr.setDriverHandle(NewDriverHandle(tr.driver, handle.Config.ID, tr.Task(), net))
-
+	// If there's already a task handle (eg from a Restore) there's nothing
+	// to do except update state.
+	if tr.getDriverHandle() != nil {
 		// Ensure running state is persisted but do *not* append a new
 		// task event as restoring is a client event and not relevant
 		// to a task's lifecycle.
 		if err := tr.updateStateImpl(structs.TaskStateRunning); err != nil {
+			//TODO return error and destroy task to avoid an orphaned task?
 			tr.logger.Warn("error persisting task state", "error", err)
 		}
 		return nil
 	}
 
-START:
 	// Start the job if there's no existing handle (or if RecoverTask failed)
-	handle, net, err = tr.driver.StartTask(taskConfig)
+	handle, net, err := tr.driver.StartTask(taskConfig)
 	if err != nil {
 		return fmt.Errorf("driver start failed: %v", err)
 	}
@@ -619,17 +582,17 @@ func (tr *TaskRunner) initDriver() error {
 	return nil
 }
 
-// handleDestroy kills the task handle. In the case that killing fails,
-// handleDestroy will retry with an exponential backoff and will give up at a
-// given limit. It returns whether the task was destroyed and the error
-// associated with the last kill attempt.
-func (tr *TaskRunner) handleDestroy(handle *DriverHandle) (destroyed bool, err error) {
+// killTask kills the task handle. In the case that killing fails,
+// killTask will retry with an exponential backoff and will give up at a
+// given limit. Returns an error if the task could not be killed.
+func (tr *TaskRunner) killTask(handle *DriverHandle) error {
 	// Cap the number of times we attempt to kill the task.
+	var err error
 	for i := 0; i < killFailureLimit; i++ {
 		if err = handle.Kill(); err != nil {
 			if err == drivers.ErrTaskNotFound {
 				tr.logger.Warn("couldn't find task to kill", "task_id", handle.ID())
-				return true, nil
+				return nil
 			}
 			// Calculate the new backoff
 			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
@@ -641,10 +604,10 @@ func (tr *TaskRunner) handleDestroy(handle *DriverHandle) (destroyed bool, err e
 			time.Sleep(backoff)
 		} else {
 			// Kill was successful
-			return true, nil
+			return nil
 		}
 	}
-	return
+	return err
 }
 
 // persistLocalState persists local state to disk synchronously.
@@ -685,11 +648,52 @@ func (tr *TaskRunner) Restore() error {
 		ls.Canonicalize()
 		tr.localState = ls
 	}
+
 	if ts != nil {
 		ts.Canonicalize()
 		tr.state = ts
 	}
+
+	// If a TaskHandle was persisted, ensure it is valid or destroy it.
+	if taskHandle := tr.localState.TaskHandle; taskHandle != nil {
+		//TODO if RecoverTask returned the DriverNetwork we wouldn't
+		//     have to persist it at all!
+		tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+	}
 	return nil
+}
+
+// restoreHandle ensures a TaskHandle is valid by calling Driver.RecoverTask
+// and sets the driver handle. If the TaskHandle is not valid, DestroyTask is
+// called.
+func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstructs.DriverNetwork) {
+	// Ensure handle is well-formed
+	if taskHandle.Config == nil {
+		return
+	}
+
+	if err := tr.driver.RecoverTask(taskHandle); err != nil {
+		tr.logger.Error("error recovering task; destroying and restarting",
+			"error", err, "task_id", taskHandle.Config.ID)
+
+		// Try to cleanup any existing task state in the plugin before restarting
+		if err := tr.driver.DestroyTask(taskHandle.Config.ID, true); err != nil {
+			// Ignore ErrTaskNotFound errors as ideally
+			// this task has already been stopped and
+			// therefore doesn't exist.
+			if err != drivers.ErrTaskNotFound {
+				tr.logger.Warn("error destroying unrecoverable task",
+					"error", err, "task_id", taskHandle.Config.ID)
+			}
+
+		}
+
+		return
+	}
+
+	// Update driver handle on task runner
+	tr.setDriverHandle(NewDriverHandle(tr.driver, taskHandle.Config.ID, tr.Task(), net))
+	return
 }
 
 // UpdateState sets the task runners allocation state and triggers a server

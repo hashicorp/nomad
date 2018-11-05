@@ -188,10 +188,29 @@ func (ar *allocRunner) Run() {
 		return
 	}
 
-	// Do not run allocs that are terminal on the client
-	if ar.Alloc().ClientTerminalStatus() {
-		ar.logger.Trace("alloc terminal; not running", "status", ar.Alloc().ClientStatus)
+	// If an alloc should not be run, ensure any restored task handles are
+	// destroyed and exit to wait for the AR to be GC'd by the client.
+	if !ar.shouldRun() {
+		ar.logger.Debug("not running terminal alloc")
+		ar.killTasks()
 		return
+	}
+
+	// Run! (and mark as having been run to ensure Destroy cleans up properly)
+	ar.runLaunched = true
+	go ar.runImpl()
+}
+
+// shouldRun returns true if the alloc is in a state that the alloc runner
+// should run it.
+func (ar *allocRunner) shouldRun() bool {
+	// Do not run allocs that are terminal
+	if ar.Alloc().TerminalStatus() {
+		ar.logger.Trace("alloc terminal; not running",
+			"desired_status", ar.Alloc().DesiredStatus,
+			"client_status", ar.Alloc().ClientStatus,
+		)
+		return false
 	}
 
 	// It's possible that the alloc local state was marked terminal before
@@ -200,12 +219,10 @@ func (ar *allocRunner) Run() {
 	switch clientStatus := ar.AllocState().ClientStatus; clientStatus {
 	case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed, structs.AllocClientStatusLost:
 		ar.logger.Trace("alloc terminal; updating server and not running", "status", clientStatus)
-		return
+		return false
 	}
 
-	// Run! (and mark as having been run to ensure Destroy cleans up properly)
-	ar.runLaunched = true
-	go ar.runImpl()
+	return true
 }
 
 func (ar *allocRunner) runImpl() {

@@ -26,7 +26,6 @@ func (tr *TaskRunner) initHooks() {
 		newLogMonHook(tr.logmonHookConfig, hookLogger),
 		newDispatchHook(tr.Alloc(), hookLogger),
 		newArtifactHook(tr, hookLogger),
-		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 	}
 
@@ -349,8 +348,8 @@ func (tr *TaskRunner) updateHooks() {
 	}
 }
 
-// kill is used to run the runners kill hooks.
-func (tr *TaskRunner) kill() {
+// killing is used to run the runners kill hooks.
+func (tr *TaskRunner) killing() {
 	if tr.logger.IsTrace() {
 		start := time.Now()
 		tr.logger.Trace("running kill hooks", "start", start)
@@ -378,7 +377,7 @@ func (tr *TaskRunner) kill() {
 		// Run the update hook
 		req := interfaces.TaskKillRequest{}
 		var resp interfaces.TaskKillResponse
-		if err := upd.Kill(context.Background(), &req, &resp); err != nil {
+		if err := upd.Killing(context.Background(), &req, &resp); err != nil {
 			tr.logger.Error("kill hook failed", "name", name, "error", err)
 		}
 
