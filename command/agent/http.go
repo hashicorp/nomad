@@ -13,10 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	log "github.com/hashicorp/go-hclog"
-
-	"github.com/NYTimes/gziphandler"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/rs/cors"

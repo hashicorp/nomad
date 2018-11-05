@@ -7,9 +7,8 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -2695,7 +2694,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 
 		// Ensure the canaries are healthy
-		if !alloc.DeploymentStatus.IsHealthy() {
+		if alloc.TerminalStatus() || !alloc.DeploymentStatus.IsHealthy() {
 			continue
 		}
 
