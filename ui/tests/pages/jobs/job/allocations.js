@@ -10,6 +10,7 @@ import {
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
+import error from 'nomad-ui/tests/pages/components/error';
 
 export default create({
   visit: visitable('/jobs/:id/allocations'),
@@ -37,4 +38,6 @@ export default create({
       .findBy('id', id)
       .sort();
   },
+
+  error: error(),
 });
