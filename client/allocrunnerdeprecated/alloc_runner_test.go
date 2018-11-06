@@ -157,8 +157,10 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Deadline(t *testing.T) {
 	// Make the task block
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["start_block_for"] = "4s"
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"start_block_for": "4s",
+		"run_for":         "10s",
+	}
 
 	// Make the alloc be part of a deployment
 	ar.alloc.DeploymentID = uuid.Generate()
@@ -216,7 +218,9 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 	// Make the task run healthy
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 
 	// Create a task that takes longer to become healthy
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task.Copy())
@@ -264,7 +268,9 @@ func TestAllocRunner_DeploymentHealth_Healthy_Checks(t *testing.T) {
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 
 	// Create a task that has no checks
 	ar.alloc.Job.TaskGroups[0].Tasks = append(ar.alloc.Job.TaskGroups[0].Tasks, task.Copy())
@@ -357,7 +363,9 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	// Make the task fail
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 
 	// Make the alloc be part of a deployment
 	ar.alloc.DeploymentID = uuid.Generate()
@@ -426,7 +434,9 @@ func TestAllocRunner_DeploymentHealth_Healthy_UpdatedDeployment(t *testing.T) {
 	// Make the task run healthy
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "30s"
+	task.Config = map[string]interface{}{
+		"run_for": "30s",
+	}
 
 	// Make the alloc be part of a deployment
 	ar.alloc.DeploymentID = uuid.Generate()
@@ -484,7 +494,9 @@ func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
 	tg := ar.alloc.Job.TaskGroups[0]
 	task := tg.Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "30s"
+	task.Config = map[string]interface{}{
+		"run_for": "30s",
+	}
 
 	// Shorten the default migration healthy time
 	tg.Migrate = structs.DefaultMigrateStrategy()
@@ -530,7 +542,9 @@ func TestAllocRunner_DeploymentHealth_BatchDisabled(t *testing.T) {
 
 	task := tg.Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "5s"
+	task.Config = map[string]interface{}{
+		"run_for": "5s",
+	}
 	upd, ar := TestAllocRunnerFromAlloc(t, alloc, false)
 
 	go ar.Run()
@@ -621,7 +635,9 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 	go ar.Run()
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -720,7 +736,9 @@ func TestAllocRunner_Destroy(t *testing.T) {
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 	go ar.Run()
 	start := time.Now()
 
@@ -779,7 +797,9 @@ func TestAllocRunner_Update(t *testing.T) {
 	// Ensure task takes some time
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 	go ar.Run()
 	defer ar.Destroy()
 
@@ -880,7 +900,9 @@ func TestAllocRunner_SaveRestoreState_TerminalAlloc(t *testing.T) {
 	// Ensure task takes some time
 	ar.alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	task := ar.alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config["run_for"] = "10s"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 	go ar.Run()
 	defer ar.Destroy()
 

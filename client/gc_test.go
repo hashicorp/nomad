@@ -372,7 +372,9 @@ func TestAllocGarbageCollector_MaxAllocs(t *testing.T) {
 	state := server.State()
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	job.TaskGroups[0].Tasks[0].Config["run_for"] = "30s"
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "30s",
+	}
 	nodeID := client.Node().ID
 	if err := state.UpsertJob(98, job); err != nil {
 		t.Fatalf("error upserting job: %v", err)

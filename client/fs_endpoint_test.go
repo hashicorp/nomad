@@ -86,7 +86,9 @@ func TestFS_Stat(t *testing.T) {
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "500ms"
+	task.Config = map[string]interface{}{
+		"run_for": "500ms",
+	}
 	c.addAlloc(a, "")
 
 	// Wait for the client to start it
@@ -225,7 +227,9 @@ func TestFS_List(t *testing.T) {
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "500ms"
+	task.Config = map[string]interface{}{
+		"run_for": "500ms",
+	}
 	c.addAlloc(a, "")
 
 	// Wait for the client to start it

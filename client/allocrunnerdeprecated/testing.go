@@ -63,6 +63,8 @@ func TestAllocRunner(t *testing.T, restarts bool) (*MockAllocStateUpdater, *Allo
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "500ms"
+	task.Config = map[string]interface{}{
+		"run_for": "500ms",
+	}
 	return TestAllocRunnerFromAlloc(t, alloc, restarts)
 }
