@@ -21,12 +21,20 @@ func TestDockerLogger(t *testing.T) {
 		t.Skip("docker unavailable:", err)
 	}
 
+	err = client.PullImage(docker.PullImageOptions{
+		Repository: "alpine",
+		Tag:        "latest",
+	}, docker.AuthConfiguration{})
+	if err != nil {
+		t.Fatalf("failed to pull image: %v", err)
+	}
+
 	containerConf := docker.CreateContainerOptions{
 		Config: &docker.Config{
 			Cmd: []string{
 				"/bin/ash", "-c", "touch /tmp/docklog; tail -f /tmp/docklog",
 			},
-			Image: "alpine",
+			Image: "alpine:latest",
 		},
 		Context: context.Background(),
 	}
