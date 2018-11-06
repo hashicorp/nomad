@@ -1924,7 +1924,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 			Networks: []*NetworkResource{
 				{
 					CIDR:          "10.0.0.0/8",
-					MBits:         80,
+					MBits:         100,
 					ReservedPorts: []Port{{"ssh", 22}},
 				},
 			},
