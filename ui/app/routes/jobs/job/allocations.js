@@ -6,11 +6,13 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 export default Route.extend(WithWatchers, {
   model() {
     const job = this.modelFor('jobs.job');
-    return job.get('allocations').then(() => job);
+    return job && job.get('allocations').then(() => job);
   },
 
   startWatchers(controller, model) {
-    controller.set('watchAllocations', this.get('watchAllocations').perform(model));
+    if (model) {
+      controller.set('watchAllocations', this.get('watchAllocations').perform(model));
+    }
   },
 
   watchAllocations: watchRelationship('allocations'),

@@ -108,3 +108,18 @@ test('when a search yields no results, the search box remains', function(assert)
     assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
   });
 });
+
+test('when the job for the allocations is not found, an error message is shown, but the URL persists', function(assert) {
+  Allocations.visit({ id: 'not-a-real-job' });
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/job/not-a-real-job',
+      'A request to the nonexistent job is made'
+    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/allocations', 'The URL persists');
+    assert.ok(Allocations.error.isPresent, 'Error message is shown');
+    assert.equal(Allocations.error.title, 'Not Found', 'Error message is for 404');
+  });
+});

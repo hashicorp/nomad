@@ -29,7 +29,7 @@ test('each version mentions the version number, the stability, and the submitted
   assert.equal(versionRow.submitTime, formattedSubmitTime, 'Submit time');
 });
 
-test('when the job for the definition is not found, an error message is shown, but the URL persists', function(assert) {
+test('when the job for the versions is not found, an error message is shown, but the URL persists', function(assert) {
   Versions.visit({ id: 'not-a-real-job' });
 
   andThen(() => {
