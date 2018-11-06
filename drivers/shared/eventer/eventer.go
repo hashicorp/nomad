@@ -81,6 +81,15 @@ func (e *Eventer) iterateConsumers(event *drivers.TaskEvent) {
 	e.consumersLock.Lock()
 	filtered := e.consumers[:0]
 	for _, consumer := range e.consumers {
+
+		// prioritize checking if context is cancelled prior
+		// to attempting to forwarding events
+		// golang select evaluations aren't predictable
+		if consumer.ctx.Err() != nil {
+			close(consumer.ch)
+			continue
+		}
+
 		select {
 		case <-time.After(consumer.timeout):
 			filtered = append(filtered, consumer)

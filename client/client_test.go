@@ -549,7 +549,7 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 
 func TestClient_SaveRestoreState(t *testing.T) {
 	t.Parallel()
-	ctestutil.ExecCompatible(t)
+
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -573,6 +573,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "10s",
 	}
+	alloc1.ClientStatus = structs.AllocClientStatusRunning
 
 	state := s1.State()
 	if err := state.UpsertJob(100, job); err != nil {
