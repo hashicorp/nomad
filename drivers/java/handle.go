@@ -16,7 +16,6 @@ type taskHandle struct {
 	pid          int
 	pluginClient *plugin.Client
 	logger       hclog.Logger
-	monitorPath  string
 
 	// stateLock syncs access to all fields below
 	stateLock sync.RWMutex
