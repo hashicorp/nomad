@@ -51,6 +51,8 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 	}
 	return &TaskConfig{
 		ID:              pb.Id,
+		JobName:         pb.JobName,
+		TaskGroupName:   pb.TaskGroupName,
 		Name:            pb.Name,
 		Env:             pb.Env,
 		rawDriverConfig: pb.MsgpackDriverConfig,
@@ -70,6 +72,8 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 	}
 	pb := &proto.TaskConfig{
 		Id:                  cfg.ID,
+		JobName:             cfg.JobName,
+		TaskGroupName:       cfg.TaskGroupName,
 		Name:                cfg.Name,
 		Env:                 cfg.Env,
 		Resources:           resourcesToProto(cfg.Resources),

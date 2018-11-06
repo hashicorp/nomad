@@ -650,12 +650,16 @@ func (tr *TaskRunner) persistLocalState() error {
 // buildTaskConfig builds a drivers.TaskConfig with an unique ID for the task.
 // The ID is consistently built from the alloc ID, task name and restart attempt.
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
+
 	return &drivers.TaskConfig{
 		ID:   fmt.Sprintf("%s/%s/%d", tr.allocID, tr.taskName, tr.restartTracker.GetCount()),
 		Name: tr.task.Name,
 		Resources: &drivers.Resources{
 			NomadResources: tr.task.Resources,
-			//TODO Calculate the LinuxResources
+			LinuxResources: &drivers.LinuxResources{
+				MemoryLimitBytes: int64(tr.Task().Resources.MemoryMB) * 1024 * 1024,
+				CPUShares:        int64(tr.Task().Resources.CPU),
+			},
 		},
 		Env:        tr.envBuilder.Build().Map(),
 		User:       tr.task.User,

@@ -17,6 +17,11 @@ import (
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
+const (
+	// CheckBufSize is the size of the check output result<Paste>
+	CheckBufSize = 4 * 1024
+)
+
 // DriverPlugin is the interface with drivers will implement. It is also
 // implemented by a plugin client which proxies the calls to go-plugin. See
 // the proto/driver.proto file for detailed information about each RPC and
@@ -98,6 +103,8 @@ type Capabilities struct {
 
 type TaskConfig struct {
 	ID              string
+	JobName         string
+	TaskGroupName   string
 	Name            string
 	Env             map[string]string
 	Resources       *Resources
@@ -149,6 +156,17 @@ func (tc *TaskConfig) DecodeDriverConfig(t interface{}) error {
 
 func (tc *TaskConfig) EncodeDriverConfig(val cty.Value) error {
 	data, err := msgpack.Marshal(val, val.Type())
+	if err != nil {
+		return err
+	}
+
+	tc.rawDriverConfig = data
+	return nil
+}
+
+func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
+	data := []byte{}
+	err := base.MsgPackEncode(&data, t)
 	if err != nil {
 		return err
 	}

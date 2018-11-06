@@ -331,6 +331,12 @@ message TaskConfig {
 
     // StderrPath is the path to the file to open and write task stderr to
     string stderr_path = 11;
+
+    // TaskGroupName is the name of the task group which this task is a member of
+    string task_group_name = 12;
+
+    // JobName is the name of the job of which this task is part of
+    string job_name = 13;
 }
 
 message Resources {
