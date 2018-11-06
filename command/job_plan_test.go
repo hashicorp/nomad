@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
-
-	"strconv"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	require2 "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPlanCommand_Implements(t *testing.T) {
@@ -178,7 +177,7 @@ func TestPlanCommad_Preemptions(t *testing.T) {
 	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
-	require := require2.New(t)
+	require := require.New(t)
 
 	// Only one preempted alloc
 	resp1 := &api.JobPlanResponse{

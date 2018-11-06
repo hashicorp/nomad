@@ -197,48 +197,49 @@ func (c *JobPlanCommand) addPreemptions(resp *api.JobPlanResponse) {
 			allocs = append(allocs, fmt.Sprintf("%s|%s|%s", alloc.ID, alloc.JobID, alloc.TaskGroup))
 		}
 		c.Ui.Output(formatList(allocs))
-	} else {
-		// Display in a summary format if the list is too large
-		// Group by job type and job ids
-		allocDetails := make(map[string]map[namespaceIdPair]int)
-		numJobs := 0
-		for _, alloc := range resp.Annotations.PreemptedAllocs {
-			id := namespaceIdPair{alloc.JobID, alloc.Namespace}
-			countMap := allocDetails[alloc.JobType]
-			if countMap == nil {
-				countMap = make(map[namespaceIdPair]int)
-			}
-			cnt, ok := countMap[id]
-			if !ok {
-				// First time we are seeing this job, increment counter
-				numJobs++
-			}
-			countMap[id] = cnt + 1
-			allocDetails[alloc.JobType] = countMap
-		}
-
-		// Show counts grouped by job ID if its less than a threshold
-		var output []string
-		if numJobs < preemptionDisplayThreshold {
-			output = append(output, fmt.Sprintf("Job ID|Namespace|Job Type|Preemptions"))
-			for jobType, jobCounts := range allocDetails {
-				for jobId, count := range jobCounts {
-					output = append(output, fmt.Sprintf("%s|%s|%s|%d", jobId.id, jobId.namespace, jobType, count))
-				}
-			}
-		} else {
-			// Show counts grouped by job type
-			output = append(output, fmt.Sprintf("Job Type|Preemptions"))
-			for jobType, jobCounts := range allocDetails {
-				total := 0
-				for _, count := range jobCounts {
-					total += count
-				}
-				output = append(output, fmt.Sprintf("%s|%d", jobType, total))
-			}
-		}
-		c.Ui.Output(formatList(output))
+		return
 	}
+	// Display in a summary format if the list is too large
+	// Group by job type and job ids
+	allocDetails := make(map[string]map[namespaceIdPair]int)
+	numJobs := 0
+	for _, alloc := range resp.Annotations.PreemptedAllocs {
+		id := namespaceIdPair{alloc.JobID, alloc.Namespace}
+		countMap := allocDetails[alloc.JobType]
+		if countMap == nil {
+			countMap = make(map[namespaceIdPair]int)
+		}
+		cnt, ok := countMap[id]
+		if !ok {
+			// First time we are seeing this job, increment counter
+			numJobs++
+		}
+		countMap[id] = cnt + 1
+		allocDetails[alloc.JobType] = countMap
+	}
+
+	// Show counts grouped by job ID if its less than a threshold
+	var output []string
+	if numJobs < preemptionDisplayThreshold {
+		output = append(output, fmt.Sprintf("Job ID|Namespace|Job Type|Preemptions"))
+		for jobType, jobCounts := range allocDetails {
+			for jobId, count := range jobCounts {
+				output = append(output, fmt.Sprintf("%s|%s|%s|%d", jobId.id, jobId.namespace, jobType, count))
+			}
+		}
+	} else {
+		// Show counts grouped by job type
+		output = append(output, fmt.Sprintf("Job Type|Preemptions"))
+		for jobType, jobCounts := range allocDetails {
+			total := 0
+			for _, count := range jobCounts {
+				total += count
+			}
+			output = append(output, fmt.Sprintf("%s|%d", jobType, total))
+		}
+	}
+	c.Ui.Output(formatList(output))
+
 }
 
 type namespaceIdPair struct {
