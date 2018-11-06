@@ -868,7 +868,7 @@ func TestClientFS_Streaming_Local_Follow(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":                2 * time.Second,
+			"run_for":                3 * time.Second,
 			"stdout_string":          expectedBase,
 			"stdout_repeat":          repeat,
 			"stdout_repeat_duration": 200 * time.Millisecond,
