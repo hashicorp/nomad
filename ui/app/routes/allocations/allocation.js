@@ -8,7 +8,9 @@ import { jobCrumbs } from 'nomad-ui/utils/breadcrumb-utils';
 
 export default Route.extend(WithWatchers, {
   startWatchers(controller, model) {
-    controller.set('watcher', this.get('watch').perform(model));
+    if (model) {
+      controller.set('watcher', this.get('watch').perform(model));
+    }
   },
 
   // Allocation breadcrumbs extend from job / task group breadcrumbs
