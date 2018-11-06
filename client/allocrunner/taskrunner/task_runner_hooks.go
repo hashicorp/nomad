@@ -26,7 +26,6 @@ func (tr *TaskRunner) initHooks() {
 		newLogMonHook(tr.logmonHookConfig, hookLogger),
 		newDispatchHook(tr.Alloc(), hookLogger),
 		newArtifactHook(tr, hookLogger),
-		newShutdownDelayHook(task.ShutdownDelay, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 	}
 
@@ -123,7 +122,7 @@ func (tr *TaskRunner) prestart() error {
 
 		// Run the prestart hook
 		var resp interfaces.TaskPrestartResponse
-		if err := pre.Prestart(tr.ctx, &req, &resp); err != nil {
+		if err := pre.Prestart(tr.killCtx, &req, &resp); err != nil {
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}
 
@@ -195,7 +194,7 @@ func (tr *TaskRunner) poststart() error {
 			TaskEnv:       tr.envBuilder.Build(),
 		}
 		var resp interfaces.TaskPoststartResponse
-		if err := post.Poststart(tr.ctx, &req, &resp); err != nil {
+		if err := post.Poststart(tr.killCtx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("poststart hook %q failed: %v", name, err))
 		}
 
@@ -237,7 +236,7 @@ func (tr *TaskRunner) exited() error {
 
 		req := interfaces.TaskExitedRequest{}
 		var resp interfaces.TaskExitedResponse
-		if err := post.Exited(tr.ctx, &req, &resp); err != nil {
+		if err := post.Exited(tr.killCtx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("exited hook %q failed: %v", name, err))
 		}
 
@@ -280,7 +279,7 @@ func (tr *TaskRunner) stop() error {
 
 		req := interfaces.TaskStopRequest{}
 		var resp interfaces.TaskStopResponse
-		if err := post.Stop(tr.ctx, &req, &resp); err != nil {
+		if err := post.Stop(tr.killCtx, &req, &resp); err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("stop hook %q failed: %v", name, err))
 		}
 
@@ -336,7 +335,7 @@ func (tr *TaskRunner) updateHooks() {
 
 		// Run the update hook
 		var resp interfaces.TaskUpdateResponse
-		if err := upd.Update(tr.ctx, &req, &resp); err != nil {
+		if err := upd.Update(tr.killCtx, &req, &resp); err != nil {
 			tr.logger.Error("update hook failed", "name", name, "error", err)
 		}
 
@@ -349,8 +348,8 @@ func (tr *TaskRunner) updateHooks() {
 	}
 }
 
-// kill is used to run the runners kill hooks.
-func (tr *TaskRunner) kill() {
+// killing is used to run the runners kill hooks.
+func (tr *TaskRunner) killing() {
 	if tr.logger.IsTrace() {
 		start := time.Now()
 		tr.logger.Trace("running kill hooks", "start", start)
@@ -378,7 +377,7 @@ func (tr *TaskRunner) kill() {
 		// Run the update hook
 		req := interfaces.TaskKillRequest{}
 		var resp interfaces.TaskKillResponse
-		if err := upd.Kill(context.Background(), &req, &resp); err != nil {
+		if err := upd.Killing(context.Background(), &req, &resp); err != nil {
 			tr.logger.Error("kill hook failed", "name", name, "error", err)
 		}
 

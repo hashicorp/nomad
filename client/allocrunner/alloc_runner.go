@@ -157,7 +157,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			StateDB:               ar.stateDB,
 			StateUpdater:          ar,
 			Consul:                ar.consulClient,
-			VaultClient:           ar.vaultClient,
+			Vault:                 ar.vaultClient,
 			PluginSingletonLoader: ar.pluginSingletonLoader,
 		}
 
@@ -181,15 +181,59 @@ func (ar *allocRunner) Run() {
 	ar.destroyedLock.Lock()
 	defer ar.destroyedLock.Unlock()
 
+	// Run should not be called after Destroy is called. This is a
+	// programming error.
 	if ar.destroyed {
-		// Run should not be called after Destroy is called. This is a
-		// programming error.
 		ar.logger.Error("alloc destroyed; cannot run")
 		return
 	}
-	ar.runLaunched = true
 
+	// If an alloc should not be run, ensure any restored task handles are
+	// destroyed and exit to wait for the AR to be GC'd by the client.
+	if !ar.shouldRun() {
+		ar.logger.Debug("not running terminal alloc")
+
+		// Cleanup and sync state
+		states := ar.killTasks()
+
+		// Get the client allocation
+		calloc := ar.clientAlloc(states)
+
+		// Update the server
+		ar.stateUpdater.AllocStateUpdated(calloc)
+
+		// Broadcast client alloc to listeners
+		ar.allocBroadcaster.Send(calloc)
+		return
+	}
+
+	// Run! (and mark as having been run to ensure Destroy cleans up properly)
+	ar.runLaunched = true
 	go ar.runImpl()
+}
+
+// shouldRun returns true if the alloc is in a state that the alloc runner
+// should run it.
+func (ar *allocRunner) shouldRun() bool {
+	// Do not run allocs that are terminal
+	if ar.Alloc().TerminalStatus() {
+		ar.logger.Trace("alloc terminal; not running",
+			"desired_status", ar.Alloc().DesiredStatus,
+			"client_status", ar.Alloc().ClientStatus,
+		)
+		return false
+	}
+
+	// It's possible that the alloc local state was marked terminal before
+	// the server copy of the alloc (checked above) was marked as terminal,
+	// so check the local state as well.
+	switch clientStatus := ar.AllocState().ClientStatus; clientStatus {
+	case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed, structs.AllocClientStatusLost:
+		ar.logger.Trace("alloc terminal; updating server and not running", "status", clientStatus)
+		return false
+	}
+
+	return true
 }
 
 func (ar *allocRunner) runImpl() {
@@ -354,7 +398,7 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
 			}
 
-			ar.killTasks()
+			states = ar.killTasks()
 		}
 
 		// Get the client allocation
@@ -369,8 +413,12 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 }
 
 // killTasks kills all task runners, leader (if there is one) first. Errors are
-// logged except taskrunner.ErrTaskNotRunning which is ignored.
-func (ar *allocRunner) killTasks() {
+// logged except taskrunner.ErrTaskNotRunning which is ignored. Task states
+// after Kill has been called are returned.
+func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
+	var mu sync.Mutex
+	states := make(map[string]*structs.TaskState, len(ar.tasks))
+
 	// Kill leader first, synchronously
 	for name, tr := range ar.tasks {
 		if !tr.IsLeader() {
@@ -381,6 +429,9 @@ func (ar *allocRunner) killTasks() {
 		if err != nil && err != taskrunner.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
+
+		state := tr.TaskState()
+		states[name] = state
 		break
 	}
 
@@ -398,9 +449,16 @@ func (ar *allocRunner) killTasks() {
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}
+
+			state := tr.TaskState()
+			mu.Lock()
+			states[name] = state
+			mu.Unlock()
 		}(name, tr)
 	}
 	wg.Wait()
+
+	return states
 }
 
 // clientAlloc takes in the task states and returns an Allocation populated
@@ -510,6 +568,12 @@ func (ar *allocRunner) AllocState() *state.State {
 		}
 	}
 
+	// Generate alloc to get other state fields
+	alloc := ar.clientAlloc(state.TaskStates)
+	state.ClientStatus = alloc.ClientStatus
+	state.ClientDescription = alloc.ClientDescription
+	state.DeploymentStatus = alloc.DeploymentStatus
+
 	return state
 }
 
@@ -563,8 +627,11 @@ func (ar *allocRunner) Destroy() {
 	}
 	defer ar.destroyedLock.Unlock()
 
-	// Stop any running tasks
-	ar.killTasks()
+	// Stop any running tasks and persist states in case the client is
+	// shutdown before Destroy finishes.
+	states := ar.killTasks()
+	calloc := ar.clientAlloc(states)
+	ar.stateUpdater.AllocStateUpdated(calloc)
 
 	// Wait for tasks to exit and postrun hooks to finish (if they ran at all)
 	if ar.runLaunched {

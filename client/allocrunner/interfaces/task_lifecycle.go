@@ -109,8 +109,8 @@ type TaskKillResponse struct{}
 type TaskKillHook interface {
 	TaskHook
 
-	// Kill is called when a task is going to be killed.
-	Kill(context.Context, *TaskKillRequest, *TaskKillResponse) error
+	// Killing is called when a task is going to be Killed or Restarted.
+	Killing(context.Context, *TaskKillRequest, *TaskKillResponse) error
 }
 
 type TaskExitedRequest struct{}

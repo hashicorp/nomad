@@ -103,7 +103,7 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 	defer harness.Kill()
 
 	handle := &TaskHandle{
-		driverState: buf.Bytes(),
+		DriverState: buf.Bytes(),
 	}
 	err := harness.RecoverTask(handle)
 	require.NoError(err)

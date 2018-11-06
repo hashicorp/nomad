@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -34,6 +35,7 @@ type serviceHook struct {
 	logger    log.Logger
 
 	// The following fields may be updated
+	delay      time.Duration
 	driverExec tinterfaces.ScriptExecutor
 	driverNet  *cstructs.DriverNetwork
 	canary     bool
@@ -53,6 +55,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		taskName:  c.task.Name,
 		services:  c.task.Services,
 		restarter: c.restarter,
+		delay:     c.task.ShutdownDelay,
 	}
 
 	if res := c.alloc.TaskResources[c.task.Name]; res != nil {
@@ -111,6 +114,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	}
 
 	// Update service hook fields
+	h.delay = task.ShutdownDelay
 	h.taskEnv = req.TaskEnv
 	h.services = task.Services
 	h.networks = networks
@@ -122,10 +126,35 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	return h.consul.UpdateTask(oldTaskServices, newTaskServices)
 }
 
-func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
+func (h *serviceHook) Killing(ctx context.Context, req *interfaces.TaskKillRequest, resp *interfaces.TaskKillResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// Deregister before killing task
+	h.deregister()
+
+	// If there's no shutdown delay, exit early
+	if h.delay == 0 {
+		return nil
+	}
+
+	h.logger.Debug("waiting before killing task", "shutdown_delay", h.delay)
+	select {
+	case <-ctx.Done():
+	case <-time.After(h.delay):
+	}
+	return nil
+}
+
+func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.deregister()
+	return nil
+}
+
+// deregister services from Consul.
+func (h *serviceHook) deregister() {
 	taskServices := h.getTaskServices()
 	h.consul.RemoveTask(taskServices)
 
@@ -134,7 +163,6 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 	taskServices.Canary = !taskServices.Canary
 	h.consul.RemoveTask(taskServices)
 
-	return nil
 }
 
 func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {

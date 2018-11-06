@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/go-testing-interface"
 )
@@ -14,6 +15,7 @@ import (
 // a cleanup func to remove the state and alloc dirs when finished.
 func TestClientConfig(t testing.T) (*Config, func()) {
 	conf := DefaultConfig()
+	conf.Logger = testlog.HCLogger(t)
 
 	// Create a tempdir to hold state and alloc subdirs
 	parent, err := ioutil.TempDir("", "nomadtest")

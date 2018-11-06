@@ -46,7 +46,7 @@ type DriverPlugin interface {
 // DriverPlugin interface.
 type DriverSignalTaskNotSupported struct{}
 
-func (_ DriverSignalTaskNotSupported) SignalTask(taskID, signal string) error {
+func (DriverSignalTaskNotSupported) SignalTask(taskID, signal string) error {
 	return fmt.Errorf("SignalTask is not supported by this driver")
 }
 
