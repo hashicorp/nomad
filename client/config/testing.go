@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/go-testing-interface"
 )
 
@@ -15,6 +15,7 @@ import (
 // a cleanup func to remove the state and alloc dirs when finished.
 func TestClientConfig(t testing.T) (*Config, func()) {
 	conf := DefaultConfig()
+	conf.Node = mock.Node()
 	conf.Logger = testlog.HCLogger(t)
 
 	// Create a tempdir to hold state and alloc subdirs
@@ -42,11 +43,6 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 
 	conf.VaultConfig.Enabled = helper.BoolToPtr(false)
 	conf.DevMode = true
-	conf.Node = &structs.Node{
-		Reserved: &structs.Resources{
-			DiskMB: 0,
-		},
-	}
 
 	// Loosen GC threshold
 	conf.GCDiskUsageThreshold = 98.0

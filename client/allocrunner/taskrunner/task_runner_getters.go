@@ -61,11 +61,15 @@ func (tr *TaskRunner) getDriverHandle() *DriverHandle {
 	return tr.handle
 }
 
-// setDriverHanlde sets the driver handle and creates a new result proxy.
+// setDriverHanlde sets the driver handle, creates a new result proxy, and
+// updates the driver network in the task's environment.
 func (tr *TaskRunner) setDriverHandle(handle *DriverHandle) {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	tr.handle = handle
+
+	// Update the environment's driver network
+	tr.envBuilder.SetDriverNetwork(handle.net)
 }
 
 func (tr *TaskRunner) clearDriverHandle() {

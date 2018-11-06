@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // A set of environment variables that are exported by each driver.
@@ -154,6 +155,20 @@ func (t *TaskEnv) All() map[string]string {
 	}
 	for k, v := range t.NodeAttrs {
 		m[k] = v
+	}
+
+	return m
+}
+
+// AllValues is a map of the task's environment variables and the node's
+// attributes with cty.Value (String) values.
+func (t *TaskEnv) AllValues() map[string]cty.Value {
+	m := make(map[string]cty.Value, len(t.EnvMap)+len(t.NodeAttrs))
+	for k, v := range t.EnvMap {
+		m[k] = cty.StringVal(v)
+	}
+	for k, v := range t.NodeAttrs {
+		m[k] = cty.StringVal(v)
 	}
 
 	return m

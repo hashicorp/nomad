@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -153,4 +155,62 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, started)
+}
+
+// TestTaskRunner_TaskEnv asserts driver configurations are interpolated.
+func TestTaskRunner_TaskEnv(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.Job.TaskGroups[0].Meta = map[string]string{
+		"common_user": "somebody",
+	}
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Name = "testtask_taskenv"
+	task.Driver = "mock_driver"
+	task.Meta = map[string]string{
+		"foo": "bar",
+	}
+
+	// Use interpolation from both node attributes and meta vars
+	task.Config = map[string]interface{}{
+		"run_for":       time.Millisecond,
+		"stdout_string": `${node.region} ${NOMAD_META_foo}`,
+	}
+	task.User = "${NOMAD_META_common_user}"
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	fmt.Println(conf.ClientConfig.Node)
+
+	// Run the first TaskRunner
+	tr, err := NewTaskRunner(conf)
+	require.NoError(err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for task to complete
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(3 * time.Second):
+	}
+
+	// Get the mock driver plugin
+	driverPlugin, err := conf.PluginSingletonLoader.Dispense(
+		mockdriver.PluginID.Name,
+		mockdriver.PluginID.PluginType,
+		nil,
+		conf.Logger,
+	)
+	require.NoError(err)
+	mockDriver := driverPlugin.Plugin().(*mockdriver.Driver)
+
+	// Assert its config has been properly interpolated
+	driverCfg, mockCfg := mockDriver.GetTaskConfig()
+	require.NotNil(driverCfg)
+	require.NotNil(mockCfg)
+	assert.Equal(t, "somebody", driverCfg.User)
+	assert.Equal(t, "global bar", mockCfg.StdoutString)
 }

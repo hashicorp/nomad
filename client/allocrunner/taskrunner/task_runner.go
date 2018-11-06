@@ -462,8 +462,8 @@ func (tr *TaskRunner) runDriver() error {
 	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
 	taskConfig := tr.buildTaskConfig()
 
-	// TODO: load variables
 	evalCtx := &hcl.EvalContext{
+		Variables: tr.envBuilder.Build().AllValues(),
 		Functions: shared.GetStdlibFuncs(),
 	}
 
