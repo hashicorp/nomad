@@ -3,6 +3,7 @@ package base
 import (
 	"bytes"
 	"context"
+	"errors"
 	"reflect"
 
 	plugin "github.com/hashicorp/go-plugin"
@@ -29,6 +30,9 @@ var (
 		MagicCookieKey:   "NOMAD_PLUGIN_MAGIC_COOKIE",
 		MagicCookieValue: "e4327c2e01eabfd75a8a67adb114fb34a757d57eee7728d857a8cec6e91a7255",
 	}
+
+	// ErrPluginShutdown is returned when the plugin has shutdown.
+	ErrPluginShutdown = errors.New("plugin is shut down")
 )
 
 // PluginBase is wraps a BasePlugin and implements go-plugins GRPCPlugin

@@ -10,13 +10,12 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/kr/pretty"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/kr/pretty"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -56,10 +55,6 @@ var (
 			hclspec.NewAttr("unhealthy_perm", "string", false),
 			hclspec.NewLiteral("\"-rwxrwxrwx\""),
 		),
-		"stats_period": hclspec.NewDefault(
-			hclspec.NewAttr("stats_period", "string", false),
-			hclspec.NewLiteral("\"5s\""),
-		),
 	})
 )
 
@@ -67,7 +62,6 @@ var (
 type Config struct {
 	Dir           string `codec:"dir"`
 	ListPeriod    string `codec:"list_period"`
-	StatsPeriod   string `codec:"stats_period"`
 	UnhealthyPerm string `codec:"unhealthy_perm"`
 }
 
@@ -87,10 +81,6 @@ type FsDevice struct {
 	// listPeriod is how often we should list the device directory to detect new
 	// devices
 	listPeriod time.Duration
-
-	// statsPeriod is how often we should collect statistics for fingerprinted
-	// devices.
-	statsPeriod time.Duration
 
 	// devices is the set of detected devices and maps whether they are healthy
 	devices    map[string]bool
@@ -132,13 +122,6 @@ func (d *FsDevice) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 		return fmt.Errorf("failed to parse list period %q: %v", config.ListPeriod, err)
 	}
 	d.listPeriod = period
-
-	// Convert the stats period
-	speriod, err := time.ParseDuration(config.StatsPeriod)
-	if err != nil {
-		return fmt.Errorf("failed to parse list period %q: %v", config.StatsPeriod, err)
-	}
-	d.statsPeriod = speriod
 
 	d.logger.Debug("test debug")
 	d.logger.Info("config set", "config", log.Fmt("% #v", pretty.Formatter(config)))
@@ -290,14 +273,14 @@ func (d *FsDevice) Reserve(deviceIDs []string) (*device.ContainerReservation, er
 }
 
 // Stats streams statistics for the detected devices.
-func (d *FsDevice) Stats(ctx context.Context) (<-chan *device.StatsResponse, error) {
+func (d *FsDevice) Stats(ctx context.Context, interval time.Duration) (<-chan *device.StatsResponse, error) {
 	outCh := make(chan *device.StatsResponse)
-	go d.stats(ctx, outCh)
+	go d.stats(ctx, outCh, interval)
 	return outCh, nil
 }
 
 // stats is the long running goroutine that streams device statistics
-func (d *FsDevice) stats(ctx context.Context, stats chan *device.StatsResponse) {
+func (d *FsDevice) stats(ctx context.Context, stats chan *device.StatsResponse, interval time.Duration) {
 	defer close(stats)
 
 	// Create a timer that will fire immediately for the first detection
@@ -308,7 +291,7 @@ func (d *FsDevice) stats(ctx context.Context, stats chan *device.StatsResponse) 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			ticker.Reset(d.listPeriod)
+			ticker.Reset(interval)
 		}
 
 		deviceStats, err := d.collectStats()

@@ -899,7 +899,7 @@ OUTER:
 				continue
 			}
 
-			// Check the constriants
+			// Check the constraints
 			if nodeDeviceMatches(c.ctx, d, req) {
 				// Consume the instances
 				available[d] -= desiredCount

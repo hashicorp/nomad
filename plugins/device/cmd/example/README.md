@@ -13,7 +13,6 @@ The configuration should be passed via an HCL file that begins with a top level 
 config {
   dir = "/my/path/to/scan"
   list_period = "1s"
-  stats_period = "5s"
   unhealthy_perm = "-rw-rw-rw-"
 }
 ```
@@ -22,5 +21,4 @@ The valid configuration options are:
 
 * `dir` (`string`: `"."`): The directory to scan for files that will represent fake devices.
 * `list_period` (`string`: `"5s"`): The interval to scan the directory for changes.
-* `stats_period` (`string`: `"5s"`): The interval at which to emit statistics about the devices.
 * `unhealthy_perm` (`string`: `"-rwxrwxrwx"`): The file mode permission that if set on a detected file will casue the device to be considered unhealthy.
