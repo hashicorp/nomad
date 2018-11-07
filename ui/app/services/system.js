@@ -113,7 +113,7 @@ export default Service.extend({
 
       // If the namespace in localStorage is no longer in the cluster, it needs to
       // be cleared from localStorage
-      this.set('activeNamespace', null);
+      window.localStorage.removeItem('nomadActiveNamespace');
       return this.get('namespaces').findBy('id', 'default');
     },
     set(key, value) {

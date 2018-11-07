@@ -14,18 +14,20 @@ export default Route.extend(WithWatchers, {
   // Allocation breadcrumbs extend from job / task group breadcrumbs
   // even though the route structure does not.
   breadcrumbs(model) {
+    const jobQueryParams = qpBuilder({
+      jobNamespace: model.get('job.namespace.name') || 'default',
+    });
+
     return [
-      { label: 'Jobs', args: ['jobs.index'] },
+      { label: 'Jobs', args: ['jobs.index', jobQueryParams] },
       ...jobCrumbs(model.get('job')),
       {
         label: model.get('taskGroupName'),
         args: [
           'jobs.job.task-group',
-          model.get('job'),
+          model.get('job.plainId'),
           model.get('taskGroupName'),
-          qpBuilder({
-            jobNamespace: model.get('namespace.name') || 'default',
-          }),
+          jobQueryParams,
         ],
       },
       {
