@@ -325,9 +325,11 @@ export default Component.extend(WindowResizable, {
   },
 
   mountD3Elements() {
-    d3.select(this.element.querySelector('.x-axis')).call(this.get('xAxis'));
-    d3.select(this.element.querySelector('.y-axis')).call(this.get('yAxis'));
-    d3.select(this.element.querySelector('.y-gridlines')).call(this.get('yGridlines'));
+    if (!this.get('isDestroyed') && !this.get('isDestroying')) {
+      d3.select(this.element.querySelector('.x-axis')).call(this.get('xAxis'));
+      d3.select(this.element.querySelector('.y-axis')).call(this.get('yAxis'));
+      d3.select(this.element.querySelector('.y-gridlines')).call(this.get('yGridlines'));
+    }
   },
 
   windowResizeHandler() {
