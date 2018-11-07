@@ -47,7 +47,7 @@ var (
 
 	// devManagerPluginStateKey is the key serialized device manager
 	// plugin state is stored at
-	devManagerPluginStateKey = []byte("plugin-state")
+	devManagerPluginStateKey = []byte("plugin_state")
 )
 
 // NewStateDBFunc creates a StateDB given a state directory.

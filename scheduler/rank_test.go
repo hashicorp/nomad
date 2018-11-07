@@ -523,7 +523,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -556,7 +556,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -597,7 +597,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -677,7 +677,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -712,7 +712,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -751,7 +751,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				require.NoError(state.UpsertAllocs(1000, c.ExistingAllocs))
 			}
 
-			static := NewStaticRankIterator(ctx, []*RankedNode{&RankedNode{Node: c.Node}})
+			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
 			binp := NewBinPackIterator(ctx, static, false, 0)
 			binp.SetTaskGroup(c.TaskGroup)
 

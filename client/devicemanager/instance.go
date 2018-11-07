@@ -105,9 +105,6 @@ type instanceManager struct {
 	// fingerprinted once. It is used to gate launching the stats collection.
 	firstFingerprintCh chan struct{}
 	hasFingerprinted   bool
-
-	// wg is used to track the launched goroutines
-	wg sync.WaitGroup
 }
 
 // newInstanceManager returns a new device instance manager. It is expected that
@@ -135,8 +132,8 @@ func newInstanceManager(c *instanceManagerConfig) *instanceManager {
 
 // HasDevices returns if the instance is managing the passed devices
 func (i *instanceManager) HasDevices(d *structs.AllocatedDeviceResource) bool {
-	i.deviceLock.Lock()
-	defer i.deviceLock.Unlock()
+	i.deviceLock.RLock()
+	defer i.deviceLock.RUnlock()
 
 OUTER:
 	for _, dev := range i.devices {
@@ -164,15 +161,15 @@ OUTER:
 
 // AllStats returns all the device statistics returned by the device plugin.
 func (i *instanceManager) AllStats() []*device.DeviceGroupStats {
-	i.deviceStatsLock.Lock()
-	defer i.deviceStatsLock.Unlock()
+	i.deviceStatsLock.RLock()
+	defer i.deviceStatsLock.RUnlock()
 	return i.deviceStats
 }
 
 // DeviceStats returns the device statistics for the request devices.
 func (i *instanceManager) DeviceStats(d *structs.AllocatedDeviceResource) *device.DeviceGroupStats {
-	i.deviceStatsLock.Lock()
-	defer i.deviceStatsLock.Unlock()
+	i.deviceStatsLock.RLock()
+	defer i.deviceStatsLock.RUnlock()
 
 	// Find the device in question and then gather the instance statistics we
 	// are interested in
@@ -214,8 +211,8 @@ func (i *instanceManager) Reserve(d *structs.AllocatedDeviceResource) (*device.C
 
 // Devices returns the detected devices.
 func (i *instanceManager) Devices() []*device.DeviceGroup {
-	i.deviceLock.Lock()
-	defer i.deviceLock.Unlock()
+	i.deviceLock.RLock()
+	defer i.deviceLock.RUnlock()
 	return i.devices
 }
 
@@ -238,9 +235,16 @@ func (i *instanceManager) run() {
 		return
 	}
 
+	// Create a waitgroup to block on shutdown for all created goroutines to
+	// exit
+	var wg sync.WaitGroup
+
 	// Start the fingerprinter
-	i.wg.Add(1)
-	go i.fingerprint()
+	wg.Add(1)
+	go func() {
+		i.fingerprint()
+		wg.Done()
+	}()
 
 	// Wait for a valid result before starting stats collection
 	select {
@@ -250,12 +254,15 @@ func (i *instanceManager) run() {
 	}
 
 	// Start stats
-	i.wg.Add(1)
-	go i.collectStats()
+	wg.Add(1)
+	go func() {
+		i.collectStats()
+		wg.Done()
+	}()
 
 	// Do a final cleanup
 DONE:
-	i.wg.Wait()
+	wg.Wait()
 	i.cleanup()
 }
 
@@ -305,6 +312,8 @@ func (i *instanceManager) dispense() (plugin device.DevicePlugin, err error) {
 // cleanup shutsdown the plugin
 func (i *instanceManager) cleanup() {
 	i.shutdownLock.Lock()
+	i.pluginLock.Lock()
+	defer i.pluginLock.Unlock()
 	defer i.shutdownLock.Unlock()
 
 	if i.plugin != nil && !i.plugin.Exited() {
@@ -315,8 +324,6 @@ func (i *instanceManager) cleanup() {
 
 // fingerprint is a long lived routine used to fingerprint the device
 func (i *instanceManager) fingerprint() {
-	defer i.wg.Done()
-
 START:
 	// Get a device plugin
 	devicePlugin, err := i.dispense()
@@ -344,7 +351,7 @@ START:
 		}
 
 		if !ok {
-			i.logger.Debug("exiting since fingerprinting gracefully shutdown")
+			i.logger.Trace("exiting since fingerprinting gracefully shutdown")
 			i.handleFingerprintError()
 			return
 		}
@@ -401,7 +408,7 @@ func (i *instanceManager) handleFingerprintError() {
 // handleFingerprint stores the new devices and triggers the fingerprint output
 // channel. An error is returned if the passed devices don't pass validation.
 func (i *instanceManager) handleFingerprint(f *device.FingerprintResponse) error {
-	// Safety check
+	// If no devices are returned then there is nothing to do.
 	if f.Devices == nil {
 		return nil
 	}
@@ -442,8 +449,6 @@ func (i *instanceManager) handleFingerprint(f *device.FingerprintResponse) error
 // collectStats is a long lived goroutine for collecting device statistics. It
 // handles errors by backing off exponentially and retrying.
 func (i *instanceManager) collectStats() {
-	defer i.wg.Done()
-
 	attempt := 0
 
 START:
@@ -472,7 +477,7 @@ START:
 		}
 
 		if !ok {
-			i.logger.Debug("exiting since stats gracefully shutdown")
+			i.logger.Trace("exiting since stats gracefully shutdown")
 			return
 		}
 

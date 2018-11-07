@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -192,10 +191,6 @@ type Client struct {
 	shutdownCh   chan struct{}
 	shutdownLock sync.Mutex
 
-	// ctx is cancelled at the same time as the shutdownCh
-	ctx       context.Context
-	ctxCancel context.CancelFunc
-
 	// vaultClient is used to interact with Vault for token and secret renewals
 	vaultClient vaultclient.VaultClient
 
@@ -244,9 +239,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the logger
 	logger := cfg.Logger.ResetNamed("client")
 
-	// Create a context
-	ctx, cancel := context.WithCancel(context.Background())
-
 	// Create the client
 	c := &Client{
 		config:               cfg,
@@ -261,8 +253,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		allocs:               make(map[string]AllocRunner),
 		allocUpdates:         make(chan *structs.Allocation, 64),
 		shutdownCh:           make(chan struct{}),
-		ctx:                  ctx,
-		ctxCancel:            cancel,
 		triggerDiscoveryCh:   make(chan struct{}),
 		triggerNodeUpdate:    make(chan struct{}, 8),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
@@ -584,7 +574,6 @@ func (c *Client) Shutdown() error {
 
 	c.shutdown = true
 	close(c.shutdownCh)
-	c.ctxCancel()
 	c.connPool.Shutdown()
 	return nil
 }

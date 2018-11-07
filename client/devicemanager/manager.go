@@ -49,7 +49,7 @@ type StateStorage interface {
 }
 
 // UpdateNodeDevices is a callback for updating the set of devices on a node.
-type UpdateNodeDevices func(devices []*structs.NodeDeviceResource)
+type UpdateNodeDevicesFn func(devices []*structs.NodeDeviceResource)
 
 // StorePluginReattachFn is used to store plugin reattachment configurations.
 type StorePluginReattachFn func(*plugin.ReattachConfig) error
@@ -66,7 +66,7 @@ type Config struct {
 	PluginConfig *base.ClientAgentConfig
 
 	// Updater is used to update the node when device information changes
-	Updater UpdateNodeDevices
+	Updater UpdateNodeDevicesFn
 
 	// StatsInterval is the interval at which to collect statistics
 	StatsInterval time.Duration
@@ -94,7 +94,7 @@ type manager struct {
 	pluginConfig *base.ClientAgentConfig
 
 	// updater is used to update the node when device information changes
-	updater UpdateNodeDevices
+	updater UpdateNodeDevicesFn
 
 	// statsInterval is the duration at which to collect statistics
 	statsInterval time.Duration
