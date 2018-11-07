@@ -640,6 +640,60 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	}
 }
 
+// Test that we detect device oversubscription
+func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	alloc := mock.Alloc()
+	state := testStateStore(t)
+	node := mock.NvidiaNode()
+	node.ReservedResources = nil
+
+	nvidia0 := node.NodeResources.Devices[0].Instances[0].ID
+
+	// Have the allocation use a Nvidia device
+	alloc.NodeID = node.ID
+	alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{
+		{
+			Type:      "gpu",
+			Vendor:    "nvidia",
+			Name:      "1080ti",
+			DeviceIDs: []string{nvidia0},
+		},
+	}
+
+	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
+	state.UpsertNode(1000, node)
+	state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+
+	// Alloc2 tries to use the same device
+	alloc2 := mock.Alloc()
+	alloc2.AllocatedResources.Tasks["web"].Networks = nil
+	alloc2.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{
+		{
+			Type:      "gpu",
+			Vendor:    "nvidia",
+			Name:      "1080ti",
+			DeviceIDs: []string{nvidia0},
+		},
+	}
+	alloc2.NodeID = node.ID
+	state.UpsertJobSummary(1200, mock.JobSummary(alloc2.JobID))
+
+	snap, _ := state.Snapshot()
+	plan := &structs.Plan{
+		Job: alloc.Job,
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc2},
+		},
+	}
+
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	require.NoError(err)
+	require.False(fit)
+	require.Equal("device oversubscribed", reason)
+}
+
 func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	t.Parallel()
 	alloc := mock.Alloc()

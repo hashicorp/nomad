@@ -191,6 +191,14 @@ OUTER:
 		netIdx.SetNode(option.Node)
 		netIdx.AddAllocs(proposed)
 
+		// Create a device allocator
+		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
+		devAllocator.AddAllocs(proposed)
+
+		// Track the affinities of the devices
+		totalDeviceAffinityWeight := 0.0
+		deviceAffinityScore := 0.0
+
 		// Assign the resources for each task
 		total := &structs.AllocatedResources{
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
@@ -273,6 +281,27 @@ OUTER:
 				taskResources.Networks = []*structs.NetworkResource{offer}
 			}
 
+			// Check if we need to assign devices
+			for _, req := range task.Resources.Devices {
+				offer, score, err := devAllocator.AssignDevice(req)
+				if offer == nil {
+					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
+					continue OUTER
+				}
+
+				// Store the resource
+				devAllocator.AddReserved(offer)
+				taskResources.Devices = append(taskResources.Devices, offer)
+
+				// Add the scores
+				if len(req.Affinities) != 0 {
+					for _, a := range req.Affinities {
+						totalDeviceAffinityWeight += a.Weight
+					}
+					deviceAffinityScore += score
+				}
+			}
+
 			// Store the task resource
 			option.SetTaskResources(task, taskResources)
 
@@ -286,8 +315,8 @@ OUTER:
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
 
-		// Check if these allocations fit
-		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx)
+		// Check if these allocations fit, if they do not, simply skip this node
+		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx, false)
 		netIdx.Release()
 		if !fit {
 			// Skip the node if evictions are not enabled
@@ -321,6 +350,14 @@ OUTER:
 		normalizedFit := fitness / binPackingMaxFitScore
 		option.Scores = append(option.Scores, normalizedFit)
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)
+
+		// Score the device affinity
+		if totalDeviceAffinityWeight != 0 {
+			deviceAffinityScore /= totalDeviceAffinityWeight
+			option.Scores = append(option.Scores, deviceAffinityScore)
+			iter.ctx.Metrics().ScoreNode(option.Node, "devices", deviceAffinityScore)
+		}
+
 		return option
 	}
 }
