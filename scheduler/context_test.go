@@ -3,7 +3,7 @@ package scheduler
 import (
 	"log"
 	"os"
-	"reflect"
+
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -229,7 +229,7 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	e.SetTaskGroupEligibility(false, "fizz", "v1:3")
 
 	expClasses := map[string]bool{
-		"v1:1": true,
+		"v1:1": false,
 		"v1:2": false,
 		"v1:3": true,
 		"v1:4": false,
@@ -237,9 +237,7 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	}
 
 	actClasses := e.GetClasses()
-	if !reflect.DeepEqual(actClasses, expClasses) {
-		t.Fatalf("GetClasses() returned %#v; want %#v", actClasses, expClasses)
-	}
+	require.Equal(t, expClasses, actClasses)
 }
 func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T) {
 	e := NewEvalEligibility()
