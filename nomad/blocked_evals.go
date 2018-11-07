@@ -52,7 +52,7 @@ type BlockedEvals struct {
 
 	// jobs is the map of blocked job and is used to ensure that only one
 	// blocked eval exists for each job. The value is the blocked evaluation ID.
-	jobs map[string]string
+	jobs map[structs.NamespacedID]string
 
 	// unblockIndexes maps computed node classes or quota name to the index in
 	// which they were unblocked. This is used to check if an evaluation could
@@ -113,7 +113,7 @@ func NewBlockedEvals(evalBroker *EvalBroker, logger log.Logger) *BlockedEvals {
 		evalBroker:       evalBroker,
 		captured:         make(map[string]wrappedEval),
 		escaped:          make(map[string]wrappedEval),
-		jobs:             make(map[string]string),
+		jobs:             make(map[structs.NamespacedID]string),
 		unblockIndexes:   make(map[string]uint64),
 		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
 		duplicateCh:      make(chan struct{}, 1),
@@ -198,7 +198,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	}
 
 	// Mark the job as tracked.
-	b.jobs[eval.JobID] = eval.ID
+	b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)] = eval.ID
 	b.stats.TotalBlocked++
 
 	// Track that the evaluation is being added due to reaching the quota limit
@@ -236,7 +236,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 // prefer the newer evaluation, since it will contain the most up to date set of
 // class eligibility. This should be called with the lock held.
 func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
-	existingID, hasExisting := b.jobs[eval.JobID]
+	existingID, hasExisting := b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)]
 	if !hasExisting {
 		return
 	}
@@ -256,7 +256,7 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
 		if !ok {
 			// This is a programming error
 			b.logger.Error("existing blocked evaluation is niether tracked as captured or escaped", "existing_id", existingID)
-			delete(b.jobs, eval.JobID)
+			delete(b.jobs, structs.NewNamespacedID(eval.JobID, eval.Namespace))
 			return
 		}
 
@@ -344,7 +344,7 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 // Untrack causes any blocked evaluation for the passed job to be no longer
 // tracked. Untrack is called when there is a successful evaluation for the job
 // and a blocked evaluation is no longer needed.
-func (b *BlockedEvals) Untrack(jobID string) {
+func (b *BlockedEvals) Untrack(jobID, namespace string) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -353,8 +353,10 @@ func (b *BlockedEvals) Untrack(jobID string) {
 		return
 	}
 
+	nsID := structs.NewNamespacedID(jobID, namespace)
+
 	// Get the evaluation ID to cancel
-	evalID, ok := b.jobs[jobID]
+	evalID, ok := b.jobs[nsID]
 	if !ok {
 		// No blocked evaluation so exit
 		return
@@ -362,7 +364,7 @@ func (b *BlockedEvals) Untrack(jobID string) {
 
 	// Attempt to delete the evaluation
 	if w, ok := b.captured[evalID]; ok {
-		delete(b.jobs, w.eval.JobID)
+		delete(b.jobs, nsID)
 		delete(b.captured, evalID)
 		b.stats.TotalBlocked--
 		if w.eval.QuotaLimitReached != "" {
@@ -371,7 +373,7 @@ func (b *BlockedEvals) Untrack(jobID string) {
 	}
 
 	if w, ok := b.escaped[evalID]; ok {
-		delete(b.jobs, w.eval.JobID)
+		delete(b.jobs, nsID)
 		delete(b.escaped, evalID)
 		b.stats.TotalEscaped--
 		b.stats.TotalBlocked--
@@ -493,7 +495,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 		for id, wrapped := range b.escaped {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.escaped, id)
-			delete(b.jobs, wrapped.eval.JobID)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 
 			if wrapped.eval.QuotaLimitReached != "" {
 				numQuotaLimit++
@@ -520,7 +522,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 		// is eligible based on the computed node class, or never seen the
 		// computed node class.
 		unblocked[wrapped.eval] = wrapped.token
-		delete(b.jobs, wrapped.eval.JobID)
+		delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 		delete(b.captured, id)
 		if wrapped.eval.QuotaLimitReached != "" {
 			numQuotaLimit++
@@ -555,7 +557,7 @@ func (b *BlockedEvals) UnblockFailed() {
 		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.captured, id)
-			delete(b.jobs, wrapped.eval.JobID)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 			if wrapped.eval.QuotaLimitReached != "" {
 				quotaLimit++
 			}
@@ -566,7 +568,7 @@ func (b *BlockedEvals) UnblockFailed() {
 		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.escaped, id)
-			delete(b.jobs, wrapped.eval.JobID)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 			b.stats.TotalEscaped -= 1
 			if wrapped.eval.QuotaLimitReached != "" {
 				quotaLimit++
@@ -624,7 +626,7 @@ func (b *BlockedEvals) Flush() {
 	b.stats.TotalQuotaLimit = 0
 	b.captured = make(map[string]wrappedEval)
 	b.escaped = make(map[string]wrappedEval)
-	b.jobs = make(map[string]string)
+	b.jobs = make(map[structs.NamespacedID]string)
 	b.unblockIndexes = make(map[string]uint64)
 	b.timetable = nil
 	b.duplicates = nil

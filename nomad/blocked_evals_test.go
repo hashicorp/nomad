@@ -661,7 +661,7 @@ func TestBlockedEvals_Untrack(t *testing.T) {
 	}
 
 	// Untrack and verify
-	blocked.Untrack(e.JobID)
+	blocked.Untrack(e.JobID, e.Namespace)
 	bStats = blocked.Stats()
 	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
 		t.Fatalf("bad: %#v", bStats)
@@ -686,7 +686,7 @@ func TestBlockedEvals_Untrack_Quota(t *testing.T) {
 	}
 
 	// Untrack and verify
-	blocked.Untrack(e.JobID)
+	blocked.Untrack(e.JobID, e.Namespace)
 	bs = blocked.Stats()
 	if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
 		t.Fatalf("bad: %#v", bs)
