@@ -10,6 +10,7 @@ import {
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
+import error from 'nomad-ui/tests/pages/components/error';
 
 export default create({
   pageSize: 10,
@@ -36,6 +37,8 @@ export default create({
   ...allocations(),
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
+
+  error: error(),
 
   emptyState: {
     headline: text('[data-test-empty-allocations-list-headline]'),

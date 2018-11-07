@@ -1,5 +1,7 @@
 import { attribute, clickable, create, collection, text, visitable } from 'ember-cli-page-object';
 
+import error from 'nomad-ui/tests/pages/components/error';
+
 export default create({
   visit: visitable('/jobs/:id/evaluations'),
 
@@ -18,4 +20,6 @@ export default create({
       .findBy('id', id)
       .sort();
   },
+
+  error: error(),
 });
