@@ -77,10 +77,6 @@ type NvidiaDevice struct {
 	// fingerprintPeriod is how often we should call nvml to get list of devices
 	fingerprintPeriod time.Duration
 
-	// statsPeriod is how often we should collect statistics for fingerprinted
-	// devices.
-	statsPeriod time.Duration
-
 	// devices is the set of detected eligible devices
 	devices    map[string]struct{}
 	deviceLock sync.RWMutex
