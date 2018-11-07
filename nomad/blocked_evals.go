@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -176,21 +177,8 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 		return
 	}
 
-	// Check if the job already has a blocked evaluation. If it does add it to
-	// the list of duplicates. We only ever want one blocked evaluation per job,
-	// otherwise we would create unnecessary work for the scheduler as multiple
-	// evals for the same job would be run, all producing the same outcome.
-	if _, existing := b.jobs[eval.JobID]; existing {
-		b.duplicates = append(b.duplicates, eval)
-
-		// Unblock any waiter.
-		select {
-		case b.duplicateCh <- struct{}{}:
-		default:
-		}
-
-		return
-	}
+	// Handle the new evaluation being for a job we are already tracking.
+	b.processBlockJobDuplicate(eval)
 
 	// Check if the eval missed an unblock while it was in the scheduler at an
 	// older index. The scheduler could have been invoked with a snapshot of
@@ -232,6 +220,65 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	// Add the eval to the set of blocked evals whose jobs constraints are
 	// captured by computed node class.
 	b.captured[eval.ID] = wrapped
+}
+
+// processBlockJobDuplicate handles the case where the new eval is for a job
+// that we are already tracking. If the eval is a duplicate, we add the older
+// evaluation by Raft index to the list of duplicates such that it can be
+// cancelled. We only ever want one blocked evaluation per job, otherwise we
+// would create unnecessary work for the scheduler as multiple evals for the
+// same job would be run, all producing the same outcome. It is critical to
+// prefer the newer evaluation, since it will contain the most up to date set of
+// class eligibility. This should be called with the lock held.
+func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
+	existingID, hasExisting := b.jobs[eval.JobID]
+	if !hasExisting {
+		return
+	}
+
+	var dup *structs.Evaluation
+	existingW, ok := b.captured[existingID]
+	if ok {
+		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
+			delete(b.captured, existingID)
+			b.stats.TotalBlocked--
+			dup = existingW.eval
+		} else {
+			dup = eval
+		}
+	} else {
+		existingW, ok = b.escaped[existingID]
+		if !ok {
+			// This is a programming error
+			delete(b.jobs, eval.JobID)
+			return
+		}
+
+		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
+			delete(b.escaped, existingID)
+			b.stats.TotalEscaped--
+			dup = existingW.eval
+		} else {
+			dup = eval
+		}
+	}
+
+	b.duplicates = append(b.duplicates, dup)
+
+	// Unblock any waiter.
+	select {
+	case b.duplicateCh <- struct{}{}:
+	default:
+	}
+}
+
+// latestEvalIndex returns the max of the evaluations create and snapshot index
+func latestEvalIndex(eval *structs.Evaluation) uint64 {
+	if eval == nil {
+		return 0
+	}
+
+	return helper.Uint64Max(eval.CreateIndex, eval.SnapshotIndex)
 }
 
 // missedUnblock returns whether an evaluation missed an unblock while it was in

@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
@@ -239,4 +240,26 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	if !reflect.DeepEqual(actClasses, expClasses) {
 		t.Fatalf("GetClasses() returned %#v; want %#v", actClasses, expClasses)
 	}
+}
+func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T) {
+	e := NewEvalEligibility()
+	e.SetJobEligibility(true, "v1:1")
+	e.SetTaskGroupEligibility(false, "foo", "v1:1")
+
+	e.SetJobEligibility(true, "v1:2")
+	e.SetTaskGroupEligibility(false, "foo", "v1:2")
+	e.SetTaskGroupEligibility(true, "bar", "v1:2")
+
+	e.SetJobEligibility(true, "v1:3")
+	e.SetTaskGroupEligibility(false, "foo", "v1:3")
+	e.SetTaskGroupEligibility(false, "bar", "v1:3")
+
+	expClasses := map[string]bool{
+		"v1:1": false,
+		"v1:2": true,
+		"v1:3": false,
+	}
+
+	actClasses := e.GetClasses()
+	require.Equal(t, expClasses, actClasses)
 }
