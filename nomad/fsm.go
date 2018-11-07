@@ -628,7 +628,7 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 		len(eval.FailedTGAllocs) == 0 {
 		// If we have a successful evaluation for a node, untrack any
 		// blocked evaluation
-		n.blockedEvals.Untrack(eval.JobID)
+		n.blockedEvals.Untrack(eval.JobID, eval.Namespace)
 	}
 }
 
