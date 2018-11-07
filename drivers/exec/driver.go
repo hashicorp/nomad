@@ -202,13 +202,13 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	if mount == "" {
 		fp.Health = drivers.HealthStateUnhealthy
-		fp.HealthDescription = "cgroups are unavailable"
+		fp.HealthDescription = "requires cgroup"
 		return fp
 	}
 
 	if !utils.IsUnixRoot() {
 		fp.Health = drivers.HealthStateUnhealthy
-		fp.HealthDescription = "exec driver must run as root"
+		fp.HealthDescription = "requires root"
 		return fp
 	}
 
