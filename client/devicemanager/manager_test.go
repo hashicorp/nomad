@@ -19,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -306,7 +305,6 @@ func TestManager_DeviceStats(t *testing.T) {
 		stats := m.AllStats()
 		l := len(stats)
 		if l == 2 {
-			t.Logf("% #v", pretty.Formatter(stats))
 			return true, nil
 		}
 

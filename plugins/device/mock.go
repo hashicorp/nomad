@@ -71,7 +71,7 @@ func ErrorReserve(err error) ReserveFn {
 	}
 }
 
-// StaticStats returns the passed statistics only updating the timestamp
+// StaticStats returns the passed statistics
 func StaticStats(out []*DeviceGroupStats) StatsFn {
 	return func(ctx context.Context, intv time.Duration) (<-chan *StatsResponse, error) {
 		outCh := make(chan *StatsResponse, 1)
@@ -84,13 +84,6 @@ func StaticStats(out []*DeviceGroupStats) StatsFn {
 					return
 				case <-ticker.C:
 					ticker.Reset(intv)
-				}
-
-				now := time.Now()
-				for _, g := range out {
-					for _, i := range g.InstanceStats {
-						i.Timestamp = now
-					}
 				}
 
 				outCh <- &StatsResponse{

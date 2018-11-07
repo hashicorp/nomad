@@ -2,6 +2,7 @@ package loader
 
 import (
 	"net"
+	"sync"
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -47,10 +48,13 @@ func (m *MockInstance) Exited() bool                                   { return 
 // plugin returning it has been exited after kill is called. It returns the
 // passed inst as the plugin
 func MockBasicExternalPlugin(inst interface{}) *MockInstance {
+	var killedLock sync.Mutex
 	killed := helper.BoolToPtr(false)
 	return &MockInstance{
 		InternalPlugin: false,
 		KillF: func() {
+			killedLock.Lock()
+			defer killedLock.Unlock()
 			*killed = true
 		},
 
@@ -71,6 +75,8 @@ func MockBasicExternalPlugin(inst interface{}) *MockInstance {
 		},
 
 		ExitedF: func() bool {
+			killedLock.Lock()
+			defer killedLock.Unlock()
 			return *killed
 		},
 	}
