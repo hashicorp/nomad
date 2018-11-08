@@ -225,7 +225,7 @@ func TestPlanCommad_Preemptions(t *testing.T) {
 
 	// More than 10 unique job IDs
 	preemptedAllocs = make([]*api.AllocationListStub, 0)
-	job_type := "batch"
+	var job_type string
 	for i := 0; i < 20; i++ {
 		job_id := "job" + strconv.Itoa(i)
 		if i%2 == 0 {
