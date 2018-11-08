@@ -32,7 +32,7 @@ func javaCompatible(t *testing.T) {
 	}
 }
 
-func TestDriver_Fingerprint(t *testing.T) {
+func TestJavaDriver_Fingerprint(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -53,7 +53,7 @@ func TestDriver_Fingerprint(t *testing.T) {
 	}
 }
 
-func TestDriver_Jar_Start_Wait(t *testing.T) {
+func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -92,7 +92,7 @@ func TestDriver_Jar_Start_Wait(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-func TestDriver_Jar_Stop_Wait(t *testing.T) {
+func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -156,7 +156,7 @@ func TestDriver_Jar_Stop_Wait(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-func TestDriver_Class_Start_Wait(t *testing.T) {
+func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
