@@ -464,6 +464,9 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	case "!=", "not":
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
+		if valIsNumeric(lVal) && valIsNumeric(rVal) {
+			return checkNumericOrder(operand,lVal,rVal)
+		}
 		return checkLexicalOrder(operand, lVal, rVal)
 	case structs.ConstraintVersion:
 		return checkVersionMatch(ctx, lVal, rVal)
@@ -478,6 +481,7 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	}
 }
 
+
 // checkAffinity checks if a specific affinity is satisfied
 func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
 	return checkConstraint(ctx, operand, lVal, rVal)
@@ -486,6 +490,72 @@ func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
 // checkAttributeAffinity checks if an affinity is satisfied
 func checkAttributeAffinity(ctx Context, operand string, lVal, rVal *psstructs.Attribute) bool {
 	return checkAttributeConstraint(ctx, operand, lVal, rVal)
+}
+
+// valIsNumeric is used to detect if val is number
+func valIsNumeric(val interface{}) bool {
+	re := regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
+	if str, ok := val.(string); ok {
+		if re.Match([]byte(str)) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkNumericOrder is used if strings vals can be converted to numeric type
+func checkNumericOrder(op string,lVal, rVal interface{}) bool {
+	// values must be string
+	lStr, _:= lVal.(string)
+	rStr, _:= rVal.(string)
+
+	// equals on float types are tricky so we check it as strings
+	if op == "==" {
+		if lStr == rStr{
+			return true
+		}
+	}
+    // if at least one of values are float whe must convert both to float
+	if strings.Contains(lStr,".") || strings.Contains(lStr,".") {
+		lFloat,_ := strconv.ParseFloat(lStr,64)
+		rFloat, _ := strconv.ParseFloat(rStr,64)
+		return checkFloatOrder(op,lFloat,rFloat)
+	}
+	lInt,_ := strconv.Atoi(lStr)
+	rInt, _ := strconv.Atoi(rStr)
+	return checkIntegerOrder(op,lInt,rInt)
+}
+
+// checkIntegerOrder is used when values can be converted to integer type
+func checkIntegerOrder(op string,lVal,rVal int) bool {
+	switch op {
+	case "<":
+		return lVal < rVal
+	case "<=":
+		return lVal<= rVal
+	case ">":
+		return lVal > rVal
+	case ">=":
+		return lVal >= rVal
+	default:
+		return false
+	}
+}
+
+// checkFloatOrder is used when values can be converted to float type
+func checkFloatOrder(op string,lVal,rVal float64) bool {
+	switch op {
+	case "<":
+		return lVal < rVal
+	case "<=":
+		return lVal<= rVal
+	case ">":
+		return lVal > rVal
+	case ">=":
+		return lVal >= rVal
+	default:
+		return false
+	}
 }
 
 // checkLexicalOrder is used to check for lexical ordering

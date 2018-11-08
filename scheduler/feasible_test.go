@@ -373,6 +373,11 @@ func TestCheckConstraint(t *testing.T) {
 			result: false,
 		},
 		{
+			op:   ">",
+			lVal: "8", rVal: "10",
+			result: false,
+		},
+		{
 			op:   structs.ConstraintSetContains,
 			lVal: "foo,bar,baz", rVal: "foo,  bar  ",
 			result: true,
@@ -387,6 +392,36 @@ func TestCheckConstraint(t *testing.T) {
 	for _, tc := range cases {
 		_, ctx := testContext(t)
 		if res := checkConstraint(ctx, tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
+	}
+}
+
+func TestCheckNumericOrder(t *testing.T){
+	type tcase struct {
+		op         string
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			op:     "<",
+			lVal:   "8.21", rVal: "8.14",
+			result: false,
+		},
+		{
+			op:     "==",
+			lVal:   "8.14323", rVal: "8.14323",
+			result: true,
+		},
+		{
+			op:     "<",
+			lVal:   "8", rVal: "12",
+			result: true,
+		},
+	}
+	for _, tc := range cases {
+		if res := checkNumericOrder(tc.op, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
