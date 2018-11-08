@@ -67,6 +67,7 @@ export default Factory.extend({
     // It is the Parameterized job's responsibility to create
     // parameterizedChild jobs and provide a parent job.
     type: 'batch',
+    parameterized: true,
     payload: window.btoa(faker.lorem.sentence()),
   }),
 
