@@ -255,7 +255,7 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
 		existingW, ok = b.escaped[existingID]
 		if !ok {
 			// This is a programming error
-			b.logger.Error("existing blocked evaluation is niether tracked as captured or escaped", "existing_id", existingID)
+			b.logger.Error("existing blocked evaluation is neither tracked as captured or escaped", "existing_id", existingID)
 			delete(b.jobs, structs.NewNamespacedID(eval.JobID, eval.Namespace))
 			return
 		}
