@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/client/testutil"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -55,11 +57,16 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	task, _, _ := dockerTask(t)
 	task.Config["pids_limit"] = "1"
 	task.Config["command"] = "/bin/sh"
-	task.Config["args"] = []string{"-c", "sleep 2 & sleep 2"}
+	task.Config["args"] = []string{"-c", "sleep 1000"}
 
 	ctx := testDockerDriverContexts(t, task)
 	defer ctx.Destroy()
 	d := NewDockerDriver(ctx.DriverCtx)
+
+	// TODO: current log capture of docker driver is broken
+	// so we must fetch logs from docker daemon directly
+	// which works in Linux as well as Mac
+	d.(*DockerDriver).DriverContext.config.Options[dockerCleanupContainerConfigOption] = "false"
 
 	// Copy the image into the task's directory
 	copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
@@ -72,6 +79,13 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
+	h := resp.Handle.(*DockerHandle)
+	defer h.client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:            h.containerID,
+		RemoveVolumes: true,
+		Force:         true,
+	})
+
 	defer resp.Handle.Kill()
 
 	select {
@@ -79,20 +93,30 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 		if res.Successful() {
 			t.Fatalf("expected error, but container exited successful")
 		}
+
+		// /bin/sh exits with 2
+		if res.ExitCode != 2 {
+			t.Fatalf("expected exit code of 2 but found %v", res.ExitCode)
+		}
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
 		t.Fatalf("timeout")
 	}
 
 	// XXX Logging doesn't work on OSX so just test on Linux
 	// Check that data was written to the directory.
-	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "redis-demo.stderr.0")
-	act, err := ioutil.ReadFile(outputFile)
+	var act bytes.Buffer
+	err = h.client.Logs(docker.LogsOptions{
+		Container:   h.containerID,
+		Stderr:      true,
+		ErrorStream: &act,
+	})
 	if err != nil {
-		t.Fatalf("Couldn't read expected output: %v", err)
+		t.Fatalf("error in fetching logs: %v", err)
+
 	}
 
 	exp := "can't fork"
-	if !strings.Contains(string(act), exp) {
+	if !strings.Contains(act.String(), exp) {
 		t.Fatalf("Expected failed fork: %q", act)
 	}
 
