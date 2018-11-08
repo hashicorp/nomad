@@ -3,7 +3,9 @@
   height: 100%;
   padding-top: 25vh;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: start;
+  align-items: center;
   background: $grey-lighter;
 
   .error-message {
@@ -18,5 +20,13 @@
   .error-stack-trace {
     border: 1px solid $grey-light;
     border-radius: $radius;
+  }
+
+  .error-links {
+    padding-top: 15px;
+    margin-top: 15px;
+    border-top: 1px solid $grey-light;
+    width: 600px;
+    text-align: center;
   }
 }
