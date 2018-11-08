@@ -607,7 +607,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 					},
 				},
 			},
-			DeviceScore: 0.9,
+			DeviceScore: 1.0,
 		},
 		{
 			Name: "single request over count, no match",
@@ -784,7 +784,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			// Check potential affinity scores
 			if c.DeviceScore != 0.0 {
 				require.Len(out.Scores, 2)
-				require.Equal(out.Scores[1], c.DeviceScore)
+				require.Equal(c.DeviceScore, out.Scores[1])
 			}
 		})
 	}

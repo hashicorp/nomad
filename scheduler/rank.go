@@ -196,7 +196,7 @@ OUTER:
 		devAllocator.AddAllocs(proposed)
 
 		// Track the affinities of the devices
-		totalDeviceAffinityWeight := 0.0
+		devicesWithAffinities := 0.0
 		deviceAffinityScore := 0.0
 
 		// Assign the resources for each task
@@ -295,9 +295,7 @@ OUTER:
 
 				// Add the scores
 				if len(req.Affinities) != 0 {
-					for _, a := range req.Affinities {
-						totalDeviceAffinityWeight += a.Weight
-					}
+					devicesWithAffinities++
 					deviceAffinityScore += score
 				}
 			}
@@ -352,8 +350,8 @@ OUTER:
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)
 
 		// Score the device affinity
-		if totalDeviceAffinityWeight != 0 {
-			deviceAffinityScore /= totalDeviceAffinityWeight
+		if devicesWithAffinities != 0 {
+			deviceAffinityScore /= float64(devicesWithAffinities)
 			option.Scores = append(option.Scores, deviceAffinityScore)
 			iter.ctx.Metrics().ScoreNode(option.Node, "devices", deviceAffinityScore)
 		}

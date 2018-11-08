@@ -3,6 +3,8 @@ package scheduler
 import (
 	"fmt"
 
+	"math"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -76,7 +78,7 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 					continue
 				}
 
-				totalWeight += a.Weight
+				totalWeight += math.Abs(a.Weight)
 
 				// Check if satisfied
 				if !checkAttributeAffinity(d.ctx, a.Operand, lVal, rVal) {
