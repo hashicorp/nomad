@@ -7,9 +7,8 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -1962,11 +1961,24 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
 
-	// Merge the deployment status taking only what the client should set
-	oldDeploymentStatus := copyAlloc.DeploymentStatus
-	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
-	if oldDeploymentStatus != nil && oldDeploymentStatus.Canary {
-		copyAlloc.DeploymentStatus.Canary = true
+	// The client can only set its deployment health and timestamp, so just take
+	// those
+	if copyAlloc.DeploymentStatus != nil && alloc.DeploymentStatus != nil {
+		oldHasHealthy := copyAlloc.DeploymentStatus.HasHealth()
+		newHasHealthy := alloc.DeploymentStatus.HasHealth()
+
+		// We got new health information from the client
+		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
+			// Updated deployment health and timestamp
+			copyAlloc.DeploymentStatus.Healthy = helper.BoolToPtr(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
+			copyAlloc.DeploymentStatus.ModifyIndex = index
+		}
+	} else if alloc.DeploymentStatus != nil {
+		// First time getting a deployment status so copy everything and just
+		// set the index
+		copyAlloc.DeploymentStatus = alloc.DeploymentStatus.Copy()
+		copyAlloc.DeploymentStatus.ModifyIndex = index
 	}
 
 	// Update the modify index
@@ -2734,7 +2746,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 
 		// Ensure the canaries are healthy
-		if !alloc.DeploymentStatus.IsHealthy() {
+		if alloc.TerminalStatus() || !alloc.DeploymentStatus.IsHealthy() {
 			continue
 		}
 
