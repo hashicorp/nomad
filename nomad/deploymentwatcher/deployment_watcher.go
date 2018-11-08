@@ -419,7 +419,12 @@ FAIL:
 				}
 
 				// If the next deadline is zero, we should not reset the timer
-				// as we aren't tracking towards a progress deadline yet.
+				// as we aren't tracking towards a progress deadline yet. This
+				// can happen if you have multiple task groups with progress
+				// deadlines and one of the task groups hasn't made any
+				// placements. As soon as the other task group finishes its
+				// rollout, the next progress deadline becomes zero, so we want
+				// to avoid resetting, causing a deployment failure.
 				if !next.IsZero() {
 					deadlineTimer.Reset(next.Sub(time.Now()))
 				}
@@ -855,6 +860,12 @@ func (w *deploymentWatcher) jobEvalStatus() (latestIndex uint64, err error) {
 		return 0, err
 	}
 
+	// If there are no evals for the job, return zero, since we want any
+	// allocation change to trigger an evaluation.
+	if len(evals) == 0 {
+		return 0, nil
+	}
+
 	var max uint64
 	for _, eval := range evals {
 		// A cancelled eval never impacts what the scheduler has saw, so do not
@@ -869,11 +880,6 @@ func (w *deploymentWatcher) jobEvalStatus() (latestIndex uint64, err error) {
 		} else if max < eval.CreateIndex {
 			max = eval.CreateIndex
 		}
-	}
-
-	if max == uint64(0) {
-		index, err := snap.Index("evals")
-		return index, err
 	}
 
 	return max, nil
