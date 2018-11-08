@@ -41,7 +41,7 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 	// Hold the current best offer
 	var offer *structs.AllocatedDeviceResource
 	var offerScore float64
-
+	var matchedWeights float64
 	// Determine the devices that are feasible based on availability and
 	// constraints
 	for id, devInst := range d.Devices {
@@ -86,6 +86,7 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 				}
 				choiceScore += a.Weight
 			}
+			matchedWeights += choiceScore
 
 			// normalize
 			choiceScore /= totalWeight
@@ -124,5 +125,5 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 		return nil, 0.0, fmt.Errorf("no devices match request")
 	}
 
-	return offer, offerScore, nil
+	return offer, matchedWeights, nil
 }

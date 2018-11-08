@@ -302,7 +302,6 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 				},
 			},
 			ExpectedDevice: nvidia0,
-			ZeroScore:      true,
 		},
 		{
 			Name: "nvidia/gpu",
