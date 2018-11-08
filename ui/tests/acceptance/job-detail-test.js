@@ -5,32 +5,43 @@ import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
-moduleForJob('Acceptance | job detail (batch)', () => server.create('job', { type: 'batch' }));
-moduleForJob('Acceptance | job detail (system)', () => server.create('job', { type: 'system' }));
-moduleForJob('Acceptance | job detail (periodic)', () => server.create('job', 'periodic'));
+moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
+  server.create('job', { type: 'batch' })
+);
+moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
+  server.create('job', { type: 'system' })
+);
+moduleForJob('Acceptance | job detail (periodic)', 'children', () =>
+  server.create('job', 'periodic')
+);
 
-moduleForJob('Acceptance | job detail (parameterized)', () =>
+moduleForJob('Acceptance | job detail (parameterized)', 'children', () =>
   server.create('job', 'parameterized')
 );
 
-moduleForJob('Acceptance | job detail (periodic child)', () => {
+moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
   const parent = server.create('job', 'periodic');
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
 
-moduleForJob('Acceptance | job detail (parameterized child)', () => {
+moduleForJob('Acceptance | job detail (parameterized child)', 'allocations', () => {
   const parent = server.create('job', 'parameterized');
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
 
-moduleForJob('Acceptance | job detail (service)', () => server.create('job', { type: 'service' }), {
-  'the subnav links to deployment': (job, assert) => {
-    JobDetail.tabFor('deployments').visit();
-    andThen(() => {
-      assert.equal(currentURL(), `/jobs/${job.id}/deployments`);
-    });
-  },
-});
+moduleForJob(
+  'Acceptance | job detail (service)',
+  'allocations',
+  () => server.create('job', { type: 'service' }),
+  {
+    'the subnav links to deployment': (job, assert) => {
+      JobDetail.tabFor('deployments').visit();
+      andThen(() => {
+        assert.equal(currentURL(), `/jobs/${job.id}/deployments`);
+      });
+    },
+  }
+);
 
 let job;
 

@@ -68,6 +68,7 @@ export default Factory.extend({
     // parameterizedChild jobs and provide a parent job.
     type: 'batch',
     parameterized: true,
+    dispatched: true,
     payload: window.btoa(faker.lorem.sentence()),
   }),
 
@@ -121,7 +122,7 @@ export default Factory.extend({
       task_group_ids: groups.mapBy('id'),
     });
 
-    const hasChildren = job.periodic || job.parameterized;
+    const hasChildren = job.periodic || (job.parameterized && !job.parentId);
     const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
       groupNames: groups.mapBy('name'),
       job,
@@ -187,7 +188,7 @@ export default Factory.extend({
       });
     }
 
-    if (job.parameterized) {
+    if (job.parameterized && !job.parentId) {
       // Create parameterizedChild jobs
       server.createList('job', job.childrenCount, 'parameterizedChild', {
         parentId: job.id,
