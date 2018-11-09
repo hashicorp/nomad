@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/davecgh/go-spew/spew"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
@@ -565,6 +564,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *struc
 	container, err := d.createContainer(client, containerCfg, &driverConfig)
 	if err != nil {
 		d.logger.Error("failed to create container", "error", err)
+		return nil, nil, nstructs.NewRecoverableError(fmt.Errorf("failed to create container: %v", err), nstructs.IsRecoverable(err))
 	}
 
 	d.logger.Info("created container", "container_id", container.ID)
@@ -1172,7 +1172,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			logger.Debug("exposed port", "port", port.Value)
 		}
 
-		spew.Dump(network)
 		for _, port := range network.DynamicPorts {
 			// By default we will map the allocated port 1:1 to the container
 			containerPortInt := port.Value
@@ -1389,6 +1388,25 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 			"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)
 	}
 
+	if err := d.cleanupImage(h); err != nil {
+		h.logger.Error("failed to cleanup image after destroying container",
+			"error", err)
+	}
+
+	return nil
+}
+
+// cleanupImage removes a Docker image. No error is returned if the image
+// doesn't exist or is still in use. Requires the global client to already be
+// initialized.
+func (d *Driver) cleanupImage(handle *taskHandle) error {
+	if !d.config.ImageGC {
+		return nil
+	}
+
+	coordinator, callerID := d.getDockerCoordinator(client, handle.task)
+	coordinator.RemoveImage(handle.container.Image, callerID)
+
 	return nil
 }
 
@@ -1398,7 +1416,27 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	return &drivers.TaskStatus{ID: h.container.ID}, nil
+	status := &drivers.TaskStatus{
+		ID:          h.task.ID,
+		Name:        h.task.Name,
+		StartedAt:   h.container.State.StartedAt,
+		CompletedAt: h.container.State.FinishedAt,
+		DriverAttributes: map[string]string{
+			"container_id": h.container.ID,
+		},
+		NetworkOverride: h.net,
+		ExitResult:      h.exitResult,
+	}
+
+	status.State = drivers.TaskStateUnknown
+	if h.container.State.Running {
+		status.State = drivers.TaskStateRunning
+	}
+	if h.container.State.Dead {
+		status.State = drivers.TaskStateExited
+	}
+
+	return status, nil
 }
 
 func (d *Driver) TaskStats(taskID string) (*structs.TaskResourceUsage, error) {

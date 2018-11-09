@@ -2,6 +2,7 @@
 
 package docker
 
+/*
 import (
 	"io/ioutil"
 	"path/filepath"
@@ -102,4 +103,4 @@ done
 	if strings.TrimSpace(string(act)) != exp {
 		t.Fatalf("Command outputted %v; want %v", act, exp)
 	}
-}
+}*/

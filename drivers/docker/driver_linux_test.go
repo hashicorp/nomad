@@ -5,12 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/hashicorp/nomad/client/testutil"
-	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,6 +40,7 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	require.Equal(t, []byte("https://registry.local:5000"), content)
 }
 
+/*
 func TestDockerDriver_PidsLimit(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
@@ -96,4 +93,4 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 		t.Fatalf("Expected failed fork: %q", act)
 	}
 
-}
+}*/

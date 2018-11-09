@@ -211,6 +211,9 @@ func taskHandleToProto(handle *TaskHandle) *proto.TaskHandle {
 }
 
 func exitResultToProto(result *ExitResult) *proto.ExitResult {
+	if result == nil {
+		return &proto.ExitResult{}
+	}
 	return &proto.ExitResult{
 		ExitCode:  int32(result.ExitCode),
 		Signal:    int32(result.Signal),

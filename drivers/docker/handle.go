@@ -35,10 +35,9 @@ type taskHandle struct {
 	waitCh                chan struct{}
 	removeContainerOnExit bool
 	net                   *structs.DriverNetwork
+	imageID               string
 
-	startedAt   time.Time
-	completedAt time.Time
-	exitResult  *drivers.ExitResult
+	exitResult *drivers.ExitResult
 }
 
 func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*drivers.ExecTaskResult, error) {
