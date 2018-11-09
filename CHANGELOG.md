@@ -20,7 +20,7 @@ IMPROVEMENTS:
 BUG FIXES:
  * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
   * core: Fix an issue where artifact checksums containing interpolated variables failed validation [[GH-4810](https://github.com/hashicorp/nomad/pull/4819)]
- * core: Fixed bug that affects garbage collection of batch jobs that are purged and resubmitted with the same id. The job    create index is used to gc terminal allocations of the older job. [[GH-4839](https://github.com/hashicorp/nomad/pull/4839)]
+ * core: Fixed bug that affects garbage collection of batch jobs that are purged and resubmitted with the same id [[GH-4839](https://github.com/hashicorp/nomad/pull/4839)]
  * client: Fix an issue reloading the client config [[GH-4730](https://github.com/hashicorp/nomad/issues/4730)]
  * deployments: Fix an issue where a deployment with multiple task groups could
    be marked as failed when the first progress deadline was hit regardless of if
