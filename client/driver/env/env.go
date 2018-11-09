@@ -161,17 +161,67 @@ func (t *TaskEnv) All() map[string]string {
 }
 
 // AllValues is a map of the task's environment variables and the node's
-// attributes with cty.Value (String) values.
-func (t *TaskEnv) AllValues() map[string]cty.Value {
-	m := make(map[string]cty.Value, len(t.EnvMap)+len(t.NodeAttrs))
+// attributes with cty.Value (String) values. Errors including keys are
+// returned in a map by key name.
+//
+// In the rare case of a fatal error, only an error value is returned. This is
+// likely a programming error as user input should not be able to cause a fatal
+// error.
+func (t *TaskEnv) AllValues() (map[string]cty.Value, map[string]error, error) {
+	errs := make(map[string]error)
+
+	// Intermediate map for building up nested go types
+	allMap := make(map[string]interface{}, len(t.EnvMap)+len(t.NodeAttrs))
+
+	// Intermediate map for all env vars including those whose keys that
+	// cannot be nested (eg foo...bar)
+	envMap := make(map[string]cty.Value, len(t.EnvMap))
+
+	// Prepare job-based variables (eg job.meta, job.group.task.env, etc)
 	for k, v := range t.EnvMap {
-		m[k] = cty.StringVal(v)
-	}
-	for k, v := range t.NodeAttrs {
-		m[k] = cty.StringVal(v)
+		if err := addNestedKey(allMap, k, v); err != nil {
+			errs[k] = err
+		}
+		envMap[k] = cty.StringVal(v)
 	}
 
-	return m
+	// Prepare node-based variables (eg node.*, attr.*, meta.*)
+	for k, v := range t.NodeAttrs {
+		if err := addNestedKey(allMap, k, v); err != nil {
+			errs[k] = err
+		}
+	}
+
+	// Add flat envMap as a Map to allMap so users can access any key via
+	// HCL2's indexing syntax: ${env["foo...bar"]}
+	allMap["env"] = cty.MapVal(envMap)
+
+	// Add meta and attr to node if they exist to properly namespace things
+	// a bit.
+	nodeMapI, ok := allMap["node"]
+	if !ok {
+		return nil, nil, fmt.Errorf("missing node variable")
+	}
+	nodeMap, ok := nodeMapI.(map[string]interface{})
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid type for node variable: %T", nodeMapI)
+	}
+	if attrMap, ok := allMap["attr"]; ok {
+		nodeMap["attr"] = attrMap
+	}
+	if metaMap, ok := allMap["meta"]; ok {
+		nodeMap["meta"] = metaMap
+	}
+
+	// ctyify the entire tree of strings and maps
+	tree, err := ctyify(allMap)
+	if err != nil {
+		// This should not be possible and is likely a programming
+		// error. Invalid user input should be cleaned earlier.
+		return nil, nil, err
+	}
+
+	return tree, errs, nil
 }
 
 // ParseAndReplace takes the user supplied args replaces any instance of an

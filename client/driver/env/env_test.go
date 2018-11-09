@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/hcl2/gohcl"
+	"github.com/hashicorp/hcl2/hcl"
+	"github.com/hashicorp/hcl2/hcl/hclsyntax"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -319,9 +322,13 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 }
 
 func TestEnvironment_AllValues(t *testing.T) {
+	t.Parallel()
+
 	n := mock.Node()
 	n.Meta = map[string]string{
-		"metaKey": "metaVal",
+		"metaKey":           "metaVal",
+		"nested.meta.key":   "a",
+		"invalid...metakey": "b",
 	}
 	a := mock.Alloc()
 	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
@@ -346,13 +353,22 @@ func TestEnvironment_AllValues(t *testing.T) {
 	}
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{
-		"taskEnvKey": "taskEnvVal",
+		"taskEnvKey":        "taskEnvVal",
+		"nested.task.key":   "x",
+		"invalid...taskkey": "y",
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
 		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
 
-	act := env.Build().AllValues()
+	values, errs, err := env.Build().AllValues()
+	require.NoError(t, err)
+
+	// Assert the keys we couldn't nest were reported
+	require.Len(t, errs, 2)
+	require.Contains(t, errs, "invalid...taskkey")
+	require.Contains(t, errs, "meta.invalid...metakey")
+
 	exp := map[string]string{
 		// Node
 		"node.unique.id":          n.ID,
@@ -366,6 +382,14 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"attr.driver.mock_driver": "1",
 		"attr.kernel.name":        "linux",
 		"attr.nomad.version":      "0.5.0",
+
+		// 0.9 style meta and attr
+		"node.meta.metaKey":            "metaVal",
+		"node.attr.arch":               "x86",
+		"node.attr.driver.exec":        "1",
+		"node.attr.driver.mock_driver": "1",
+		"node.attr.kernel.name":        "linux",
+		"node.attr.nomad.version":      "0.5.0",
 
 		// Env
 		"taskEnvKey":                    "taskEnvVal",
@@ -402,15 +426,32 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_JOB_NAME":                "my-job",
 		"NOMAD_ALLOC_ID":                a.ID,
 		"NOMAD_ALLOC_INDEX":             "0",
+
+		// 0.9 style env map
+		`env["taskEnvKey"]`:        "taskEnvVal",
+		`env["NOMAD_ADDR_http"]`:   "127.0.0.1:80",
+		`env["nested.task.key"]`:   "x",
+		`env["invalid...taskkey"]`: "y",
 	}
 
-	// Should be able to convert all values back to strings
-	actStr := make(map[string]string, len(act))
-	for k, v := range act {
-		actStr[k] = v.AsString()
+	evalCtx := &hcl.EvalContext{
+		Variables: values,
 	}
 
-	require.Equal(t, exp, actStr)
+	for k, expectedVal := range exp {
+		t.Run(k, func(t *testing.T) {
+			// Parse HCL containing the test key
+			hclStr := fmt.Sprintf(`"${%s}"`, k)
+			expr, diag := hclsyntax.ParseExpression([]byte(hclStr), "test.hcl", hcl.Pos{})
+			require.Empty(t, diag)
+
+			// Decode with the TaskEnv values
+			out := ""
+			diag = gohcl.DecodeExpression(expr, evalCtx, &out)
+			require.Empty(t, diag)
+			require.Equal(t, out, expectedVal)
+		})
+	}
 }
 
 func TestEnvironment_VaultToken(t *testing.T) {
