@@ -3,6 +3,9 @@
 __BACKWARDS INCOMPATIBILITIES:__
  * core: Switch to structured logging using [go-hclog](https://github.com/hashicorp/go-hclog)
  * core: Allow the != constraint to match against keys that do not exist [[GH-4875](https://github.com/hashicorp/nomad/pull/4875)]
+ * client: Task config interpolation requires names to be valid identifiers
+   (`node.region` or `NOMAD_DC`). Interpolating other variables requires a new
+   indexing syntax: `env[".invalid.identifier."]`. [[GH-4843](https://github.com/hashicorp/nomad/issues/4843)]
 
 IMPROVEMENTS:
  * core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]

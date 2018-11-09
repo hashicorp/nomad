@@ -201,4 +201,39 @@ a particular node and as such can not be used in constraints.
 Environment variables should be enclosed in brackets `${...}` for
 interpolation.
 
+### Dots in Variables <a id="dots_in_vars"></a>
+
+Starting in Nomad 0.9, task configuration interpolation requires variables to
+be valid identifiers. While this does not affect default variables or common
+custom variables, it is possible to define a variable that is not a valid
+identifier:
+
+```hcl
+env {
+  "valid.name"     = "ok"
+  "invalid...name" = "not a valid identifier"
+}
+```
+
+The environment variable `invalid...name` cannot be interpolated using the
+standard `"${invalid...name}"` syntax. The dots wil be interpreted as object
+notation so multiple consecutive dots are invalid.
+
+To continue supporting all user environment variables Nomad 0.9 added a new
+`env` variable which allows accessing any environment variable through index
+syntax:
+
+```hcl
+task "redis" {
+  driver = "docker"
+  config {
+    image  = "redis:3.2"
+    labels {
+      label1 = "${env["invalid...name"]}"
+      label2 = "${env["valid.name"]}"
+    }
+  }
+}
+```
+
 <%= partial "envvars.html.md" %>
