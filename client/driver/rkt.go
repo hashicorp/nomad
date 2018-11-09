@@ -671,16 +671,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		Cmd:            absPath,
 		Args:           runArgs,
 		ResourceLimits: true,
-		Resources: &executor.Resources{
-			CPU:      task.Resources.CPU,
-			MemoryMB: task.Resources.MemoryMB,
-			IOPS:     task.Resources.IOPS,
-			DiskMB:   task.Resources.DiskMB,
-		},
-		Env:        ctx.TaskEnv.List(),
-		TaskDir:    ctx.TaskDir.Dir,
-		StdoutPath: ctx.StdoutFifo,
-		StderrPath: ctx.StderrFifo,
 	}
 	ps, err := execIntf.Launch(execCmd)
 	if err != nil {
