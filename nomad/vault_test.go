@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/helper"
@@ -528,6 +530,49 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 	if ttl == 0 {
 		t.Fatalf("token renewal failed; ttl %v", ttl)
 	}
+
+	if client.currentExpiration.Before(time.Now()) {
+		t.Fatalf("found current expiration to be in past %s", time.Until(client.currentExpiration))
+	}
+}
+
+func TestVaultClientRenewUpdatesExpiration(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+
+	// Start the client
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(v.Config, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	defer client.Stop()
+
+	// Get the current TTL
+	a := v.Client.Auth().Token()
+	s2, err := a.Lookup(v.Config.Token)
+	if err != nil {
+		t.Fatalf("failed to lookup token: %v", err)
+	}
+	exp0 := time.Now().Add(time.Duration(parseTTLFromLookup(s2, t)) * time.Second)
+
+	time.Sleep(1 * time.Second)
+
+	err = client.renew()
+	require.NoError(t, err)
+	exp1 := client.currentExpiration
+	require.True(t, exp0.Before(exp1))
+
+	time.Sleep(1 * time.Second)
+
+	err = client.renew()
+	require.NoError(t, err)
+	exp2 := client.currentExpiration
+	require.True(t, exp1.Before(exp2))
 }
 
 func parseTTLFromLookup(s *vapi.Secret, t *testing.T) int64 {
@@ -1114,7 +1159,7 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 		t.Fatalf("didn't add to revoke loop")
 	}
 
-	if client.Stats().TrackedForRevoke != 2 {
+	if client.stats().TrackedForRevoke != 2 {
 		t.Fatalf("didn't add to revoke loop")
 	}
 }
