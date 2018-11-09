@@ -6,27 +6,29 @@
   flex-direction: column;
   justify-content: start;
   align-items: center;
-  background: $grey-lighter;
+  background: $white-ter;
 
   .error-message {
+    width: 95vw;
     max-width: 600px;
 
-    .title,
-    .subtitle {
+    .title {
       text-align: center;
     }
   }
 
   .error-stack-trace {
-    border: 1px solid $grey-light;
+    border: 1px solid $grey-lighter;
     border-radius: $radius;
+    background: $white;
   }
 
   .error-links {
     padding-top: 15px;
     margin-top: 15px;
-    border-top: 1px solid $grey-light;
-    width: 600px;
+    border-top: 1px solid $grey-lighter;
+    width: 95vw;
+    max-width: 600px;
     text-align: center;
   }
 }
