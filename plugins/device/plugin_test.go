@@ -127,6 +127,14 @@ func TestDevicePlugin_SetConfig(t *testing.T) {
 	var receivedData []byte
 	mock := &MockDevicePlugin{
 		MockPlugin: &base.MockPlugin{
+			PluginInfoF: func() (*base.PluginInfoResponse, error) {
+				return &base.PluginInfoResponse{
+					Type:             base.PluginTypeDevice,
+					PluginApiVersion: "v0.0.1",
+					PluginVersion:    "v0.0.1",
+					Name:             "mock",
+				}, nil
+			},
 			ConfigSchemaF: func() (*hclspec.Spec, error) {
 				return base.TestSpec, nil
 			},
