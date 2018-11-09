@@ -303,14 +303,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		Env:            cfg.EnvList(),
 		User:           cfg.User,
 		ResourceLimits: true,
-		Resources: &executor.Resources{
-			CPU:      cfg.Resources.NomadResources.CPU,
-			MemoryMB: cfg.Resources.NomadResources.MemoryMB,
-			DiskMB:   cfg.Resources.NomadResources.DiskMB,
-		},
-		TaskDir:    cfg.TaskDir().Dir,
-		StdoutPath: cfg.StdoutPath,
-		StderrPath: cfg.StderrPath,
+		Resources:      toExecResources(cfg.Resources),
+		TaskDir:        cfg.TaskDir().Dir,
+		StdoutPath:     cfg.StdoutPath,
+		StderrPath:     cfg.StderrPath,
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -346,6 +342,19 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	d.tasks.Set(cfg.ID, h)
 	go h.run()
 	return handle, nil, nil
+}
+
+func toExecResources(resources *drivers.Resources) *executor.Resources {
+	if resources == nil || resources.NomadResources == nil {
+		return nil
+	}
+
+	return &executor.Resources{
+		CPU:      resources.NomadResources.CPU,
+		MemoryMB: resources.NomadResources.MemoryMB,
+		DiskMB:   resources.NomadResources.DiskMB,
+	}
+
 }
 
 func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
