@@ -440,7 +440,7 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 	alloc3.Job = job2
 	alloc3.JobID = job2.ID
 	alloc3.EvalID = eval.ID
-	job2.JobModifyIndex = 500
+	job2.CreateIndex = 500
 	alloc3.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc3.ClientStatus = structs.AllocClientStatusLost
 
