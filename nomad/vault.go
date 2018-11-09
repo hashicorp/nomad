@@ -1221,7 +1221,7 @@ func (v *vaultClient) Stats() map[string]string {
 
 	return map[string]string{
 		"tracked_for_revoked": strconv.Itoa(stat.TrackedForRevoke),
-		"token_ttl":           stat.TokenTTL.String(),
+		"token_ttl":           stat.TokenTTL.Round(time.Second).String(),
 		"token_expire_time":   expireTimeStr,
 	}
 }
