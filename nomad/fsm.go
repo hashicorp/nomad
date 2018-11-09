@@ -499,12 +499,14 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: deregistering job failed: %v", err)
-		return err
-	}
+	return n.state.WithWriteTransaction(func(tx state.Txn) error {
+		if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx); err != nil {
+			n.logger.Printf("deregistering job failed:%v", err)
+			return err
+		}
 
-	return nil
+		return nil
+	})
 }
 
 func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
@@ -514,18 +516,32 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	for jobNS, options := range req.Jobs {
-		if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: deregistering %v failed: %v", jobNS, err)
+	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
+		for jobNS, options := range req.Jobs {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
+				n.logger.Printf("[ERR] deregistering job %v failed: %v", jobNS)
+				return err
+			}
+		}
+
+		if err := n.state.UpsertEvalsTxn(index, req.Evals, tx); err != nil {
+			n.logger.Printf("[ERR] UpsertEvals failed:%v", err)
 			return err
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
-	return n.upsertEvals(index, req.Evals)
+	n.handleUpsertedEvals(req.Evals)
+	return nil
 }
 
 // handleJobDeregister is used to deregister a job.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
@@ -533,7 +549,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 	}
 
 	if purge {
-		if err := n.state.DeleteJob(index, namespace, jobID); err != nil {
+		if err := n.state.DeleteJobTxn(index, namespace, jobID, tx); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 			return err
 		}
@@ -541,11 +557,11 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		// We always delete from the periodic launch table because it is possible that
 		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
-		n.state.DeletePeriodicLaunch(index, namespace, jobID)
+		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
 		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByID(ws, namespace, jobID)
+		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: JobByID lookup failed: %v", err)
 			return err
@@ -558,7 +574,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped := current.Copy()
 		stopped.Stop = true
 
-		if err := n.state.UpsertJob(index, stopped); err != nil {
+		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
 			return err
 		}
