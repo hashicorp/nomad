@@ -12,7 +12,7 @@ moduleForAcceptance('Acceptance | task detail', {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts');
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     Task.visit({ id: allocation.id, name: task.name });
@@ -212,7 +212,7 @@ moduleForAcceptance('Acceptance | task detail (different namespace)', {
     server.create('namespace');
     server.create('namespace', { id: 'other-namespace' });
     server.create('job', { createAllocations: false, namespaceId: 'other-namespace' });
-    allocation = server.create('allocation', 'withTaskWithPorts');
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     Task.visit({ id: allocation.id, name: task.name });
