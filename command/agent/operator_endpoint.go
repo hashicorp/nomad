@@ -224,20 +224,9 @@ func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, re
 		if err := s.agent.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
 			return nil, err
 		}
+		setMeta(resp, &reply.QueryMeta)
 
-		out := api.SchedulerConfiguration{
-			PreemptionConfig: api.PreemptionConfig{SystemSchedulerEnabled: reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled},
-			CreateIndex:      reply.CreateIndex,
-			ModifyIndex:      reply.ModifyIndex,
-		}
-
-		resp := api.SchedulerConfigurationResponse{
-			SchedulerConfig: out,
-			CreateIndex:     out.CreateIndex,
-			ModifyIndex:     out.ModifyIndex,
-		}
-
-		return resp, nil
+		return reply, nil
 
 	case "PUT":
 		var args structs.SchedulerSetConfigRequest
@@ -263,15 +252,11 @@ func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, re
 			args.CAS = true
 		}
 
-		var reply bool
+		var reply structs.SchedulerSetConfigurationResponse
 		if err := s.agent.RPC("Operator.SchedulerSetConfiguration", &args, &reply); err != nil {
 			return nil, err
 		}
-
-		// Only use the out value if this was a CAS
-		if !args.CAS {
-			return true, nil
-		}
+		setIndex(resp, reply.Index)
 		return reply, nil
 
 	default:
