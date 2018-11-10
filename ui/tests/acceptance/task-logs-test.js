@@ -10,9 +10,9 @@ moduleForAcceptance('Acceptance | task logs', {
   beforeEach() {
     server.create('agent');
     server.create('node', 'forceIPv4');
-    const job = server.create('job');
+    const job = server.create('job', { createAllocations: false });
 
-    allocation = server.db.allocations.where({ jobId: job.id })[0];
+    allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     run.later(run, run.cancelTimers, 1000);
