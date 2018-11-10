@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -320,12 +322,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
+	// Only use cgroups when running as root on linux - Doing so in other cases
+	// will cause an error.
+	useCgroups := !d.config.NoCgroups && runtime.GOOS == "linux" && syscall.Geteuid() == 0
+
 	execCmd := &executor.ExecCommand{
 		Cmd:                driverConfig.Command,
 		Args:               driverConfig.Args,
 		Env:                cfg.EnvList(),
 		User:               cfg.User,
-		BasicProcessCgroup: !d.config.NoCgroups,
+		BasicProcessCgroup: useCgroups,
 		TaskDir:            cfg.TaskDir().Dir,
 		StdoutPath:         cfg.StdoutPath,
 		StderrPath:         cfg.StderrPath,
