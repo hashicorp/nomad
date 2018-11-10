@@ -3918,7 +3918,7 @@ func (s *StateStore) SchedulerCASConfig(idx, cidx uint64, config *structs.Schedu
 	// index arg, then we shouldn't update anything and can safely
 	// return early here.
 	e, ok := existing.(*structs.SchedulerConfiguration)
-	if !ok || e.ModifyIndex != cidx {
+	if !ok || (e != nil && e.ModifyIndex != cidx) {
 		return false, nil
 	}
 

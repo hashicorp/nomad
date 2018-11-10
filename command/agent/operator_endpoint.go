@@ -215,51 +215,59 @@ func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, re
 	// Switch on the method
 	switch req.Method {
 	case "GET":
-		var args structs.GenericRequest
-		if done := s.parse(resp, req, &args.Region, &args.QueryOptions); done {
-			return nil, nil
-		}
+		return s.schedulerGetConfig(resp, req)
 
-		var reply structs.SchedulerConfigurationResponse
-		if err := s.agent.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
-			return nil, err
-		}
-		setMeta(resp, &reply.QueryMeta)
-
-		return reply, nil
-
-	case "PUT":
-		var args structs.SchedulerSetConfigRequest
-		s.parseWriteRequest(req, &args.WriteRequest)
-
-		var conf api.SchedulerConfiguration
-		if err := decodeBody(req, &conf); err != nil {
-			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing scheduler config: %v", err))
-		}
-
-		args.Config = structs.SchedulerConfiguration{
-			PreemptionConfig: structs.PreemptionConfig{SystemSchedulerEnabled: conf.PreemptionConfig.SystemSchedulerEnabled},
-		}
-
-		// Check for cas value
-		params := req.URL.Query()
-		if _, ok := params["cas"]; ok {
-			casVal, err := strconv.ParseUint(params.Get("cas"), 10, 64)
-			if err != nil {
-				return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing cas value: %v", err))
-			}
-			args.Config.ModifyIndex = casVal
-			args.CAS = true
-		}
-
-		var reply structs.SchedulerSetConfigurationResponse
-		if err := s.agent.RPC("Operator.SchedulerSetConfiguration", &args, &reply); err != nil {
-			return nil, err
-		}
-		setIndex(resp, reply.Index)
-		return reply, nil
+	case "PUT", "POST":
+		return s.schedulerUpdateConfig(resp, req)
 
 	default:
-		return nil, CodedError(404, ErrInvalidMethod)
+		return nil, CodedError(405, ErrInvalidMethod)
 	}
+}
+
+func (s *HTTPServer) schedulerGetConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var args structs.GenericRequest
+	if done := s.parse(resp, req, &args.Region, &args.QueryOptions); done {
+		return nil, nil
+	}
+
+	var reply structs.SchedulerConfigurationResponse
+	if err := s.agent.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &reply.QueryMeta)
+
+	return reply, nil
+}
+
+func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var args structs.SchedulerSetConfigRequest
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var conf api.SchedulerConfiguration
+	if err := decodeBody(req, &conf); err != nil {
+		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing scheduler config: %v", err))
+	}
+
+	args.Config = structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{SystemSchedulerEnabled: conf.PreemptionConfig.SystemSchedulerEnabled},
+	}
+
+	// Check for cas value
+	params := req.URL.Query()
+	if _, ok := params["cas"]; ok {
+		casVal, err := strconv.ParseUint(params.Get("cas"), 10, 64)
+		if err != nil {
+			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing cas value: %v", err))
+		}
+		args.Config.ModifyIndex = casVal
+		args.CAS = true
+	}
+
+	var reply structs.SchedulerSetConfigurationResponse
+	if err := s.agent.RPC("Operator.SchedulerSetConfiguration", &args, &reply); err != nil {
+		return nil, err
+	}
+	setIndex(resp, reply.Index)
+	return reply, nil
 }
