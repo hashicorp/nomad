@@ -286,7 +286,7 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *autopilot.
 }
 
 // SchedulerSetConfiguration is used to set the current Scheduler configuration.
-func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRequest, reply *bool) error {
+func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRequest, reply *structs.SchedulerSetConfigurationResponse) error {
 	if done, err := op.srv.forward("Operator.SchedulerSetConfiguration", args, args, reply); done {
 		return err
 	}
@@ -300,7 +300,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	}
 
 	// Apply the update
-	resp, _, err := op.srv.raftApply(structs.SchedulerConfigRequestType, args)
+	resp, index, err := op.srv.raftApply(structs.SchedulerConfigRequestType, args)
 	if err != nil {
 		op.logger.Error("failed applying Scheduler configuration", "error", err)
 		return err
@@ -308,10 +308,12 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 		return respErr
 	}
 
-	// Check if the return type is a bool.
+	// Check if the return type is a bool
+	// Only applies to CAS requests
 	if respBool, ok := resp.(bool); ok {
-		*reply = respBool
+		reply.Updated = respBool
 	}
+	reply.Index = index
 	return nil
 }
 
@@ -330,19 +332,17 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	}
 
 	state := op.srv.fsm.State()
-	_, config, err := state.SchedulerConfig()
+	index, config, err := state.SchedulerConfig()
+
 	if err != nil {
 		return err
 	} else if config == nil {
 		return fmt.Errorf("scheduler config not initialized yet")
 	}
 
-	resp := &structs.SchedulerConfigurationResponse{
-		SchedulerConfig: *config,
-		CreateIndex:     config.CreateIndex,
-		ModifyIndex:     config.ModifyIndex,
-	}
-	*reply = *resp
+	reply.SchedulerConfig = config
+	reply.QueryMeta.Index = index
+	op.srv.setQueryMeta(&reply.QueryMeta)
 
 	return nil
 }
