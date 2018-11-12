@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
@@ -110,7 +111,7 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 		Resources: t.Resources.NomadResources,
 	}
 	taskBuilder := env.NewBuilder(mock.Node(), mock.Alloc(), task, "global")
-	taskBuilder.SetAllocDir(dir).SetSecretsDir(taskDir.SecretsDir).SetTaskLocalDir(taskDir.LocalDir)
+	utils.SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
 
 	taskEnv := taskBuilder.Build()
 	if t.Env == nil {

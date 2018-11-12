@@ -178,6 +178,7 @@ func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
 type Resources struct {
 	NomadResources *structs.Resources
 	LinuxResources *LinuxResources
+	NodeResources  *structs.Resources
 }
 
 func (r *Resources) Copy() *Resources {
@@ -190,6 +191,9 @@ func (r *Resources) Copy() *Resources {
 	}
 	if r.LinuxResources != nil {
 		res.LinuxResources = r.LinuxResources.Copy()
+	}
+	if r.NodeResources != nil {
+		res.NodeResources = r.NodeResources.Copy()
 	}
 	return res
 }

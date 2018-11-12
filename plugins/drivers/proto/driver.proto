@@ -352,6 +352,9 @@ message Resources {
 
     // LinuxResources are the computed values to set for specific Linux features
     LinuxResources linux_resources = 2;
+
+    // NodeResources are the total resources the Node has been allocated
+    RawResources node_resources = 3;
 }
 
 message RawResources {
