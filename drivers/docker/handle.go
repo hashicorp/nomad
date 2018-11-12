@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"golang.org/x/net/context"
 )
 
@@ -38,6 +39,20 @@ type taskHandle struct {
 	imageID               string
 
 	exitResult *drivers.ExitResult
+}
+
+type taskHandleState struct {
+	ReattachConfig *utils.ReattachConfig
+	ContainerID    string
+	DriverNetwork  *structs.DriverNetwork
+}
+
+func (h *taskHandle) buildState() *taskHandleState {
+	return &taskHandleState{
+		ReattachConfig: utils.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
+		ContainerID:    h.container.ID,
+		DriverNetwork:  h.net,
+	}
 }
 
 func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*drivers.ExecTaskResult, error) {

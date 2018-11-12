@@ -24,6 +24,7 @@ import (
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
@@ -525,8 +526,55 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	return fp
 }
 
-func (d *Driver) RecoverTask(*drivers.TaskHandle) error {
-	panic("not implemented")
+func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
+	if _, ok := d.tasks.Get(handle.Config.ID); ok {
+		return nil
+	}
+
+	var handleState taskHandleState
+	if err := handle.GetDriverState(&handleState); err != nil {
+		return fmt.Errorf("failed to decode driver task state: %v", err)
+	}
+
+	client, _, err := d.dockerClients()
+	if err != nil {
+		return fmt.Errorf("failed to get docker client: %v", err)
+	}
+
+	container, err := client.InspectContainer(handleState.ContainerID)
+	if err != nil {
+		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
+	}
+
+	reattach, err := utils.ReattachConfigToGoPlugin(handleState.ReattachConfig)
+	if err != nil {
+		return err
+	}
+
+	dlogger, dloggerPluginClient, err := docklog.ReattachDockerLogger(reattach)
+	if err != nil {
+		return fmt.Errorf("failed to reattach to docker logger process")
+	}
+
+	h := &taskHandle{
+		client:                client,
+		waitClient:            waitClient,
+		dlogger:               dlogger,
+		dloggerPluginClient:   dloggerPluginClient,
+		logger:                d.logger.With("container_id", container.ID),
+		task:                  handle.Config,
+		container:             container,
+		doneCh:                make(chan bool),
+		waitCh:                make(chan struct{}),
+		removeContainerOnExit: d.config.ContainerGC,
+		net:                   handleState.DriverNetwork,
+	}
+
+	d.tasks.Set(handle.Config.ID, h)
+	go h.collectStats()
+	go h.run()
+
+	return nil
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *structs.DriverNetwork, error) {
@@ -609,6 +657,8 @@ CREATE:
 
 	dlogger, pluginClient, err := docklog.LaunchDockerLogger(d.logger)
 	if err != nil {
+		d.logger.Error("an error occured after container startup, terminating container", "container_id", container.ID)
+		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
 		return nil, nil, fmt.Errorf("failed to launch docker logger plugin: %v", err)
 	}
 
@@ -622,6 +672,9 @@ CREATE:
 		TLSCA:       d.config.TLS.CA,
 	}); err != nil {
 		pluginClient.Kill()
+
+		d.logger.Error("an error occured after container startup, terminating container", "container_id", container.ID)
+		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
 		return nil, nil, fmt.Errorf("failed to launch docker logger process %s: %v", container.ID, err)
 	}
 
@@ -648,6 +701,13 @@ CREATE:
 		removeContainerOnExit: d.config.ContainerGC,
 		net:                   net,
 	}
+
+	if err := handle.SetDriverState(h.buildState()); err != nil {
+		d.logger.Error("unable to encode container state into handle", "error", err)
+		d.logger.Error("an error occured after container startup, terminating container", "container_id", container.ID)
+		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
+	}
+
 	d.tasks.Set(cfg.ID, h)
 	go h.collectStats()
 	go h.run()

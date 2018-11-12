@@ -26,7 +26,7 @@ func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, erro
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
-			PluginName: &Plugin{impl: NewDockerLogger(hclog.L().Named(PluginName))},
+			PluginName: &Plugin{impl: NewDockerLogger(logger)},
 		},
 		Cmd: exec.Command(bin, PluginName),
 		AllowedProtocols: []plugin.Protocol{
@@ -47,6 +47,32 @@ func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, erro
 	l := raw.(DockerLogger)
 	return l, client, nil
 
+}
+
+func ReattachDockerLogger(reattachCfg *plugin.ReattachConfig) (DockerLogger, *plugin.Client, error) {
+	client := plugin.NewClient(&plugin.ClientConfig{
+		HandshakeConfig: base.Handshake,
+		Plugins: map[string]plugin.Plugin{
+			PluginName: &Plugin{impl: NewDockerLogger(hclog.L().Named(PluginName))},
+		},
+		Reattach: reattachCfg,
+		AllowedProtocols: []plugin.Protocol{
+			plugin.ProtocolGRPC,
+		},
+	})
+
+	rpcClient, err := client.Client()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	raw, err := rpcClient.Dispense(PluginName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	l := raw.(DockerLogger)
+	return l, client, nil
 }
 
 // Plugin is the go-plugin implementation
