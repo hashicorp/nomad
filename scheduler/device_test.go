@@ -301,6 +301,7 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 					Weight:  -0.2,
 				},
 			},
+			ZeroScore:      true,
 			ExpectedDevice: nvidia0,
 		},
 		{

@@ -65,6 +65,10 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 
 		// Score the choice
 		var choiceScore float64
+
+		// Track the sum of matched affinity weights in a separate variable
+		// We return this if this device had the best score compared to other devices considered
+		var sumMatchedWeights float64
 		if l := len(ask.Affinities); l != 0 {
 			totalWeight := 0.0
 			for _, a := range ask.Affinities {
@@ -85,8 +89,8 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 					continue
 				}
 				choiceScore += a.Weight
+				sumMatchedWeights += a.Weight
 			}
-			matchedWeights += choiceScore
 
 			// normalize
 			choiceScore /= totalWeight
@@ -99,6 +103,9 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 
 		// Set the new highest score
 		offerScore = choiceScore
+
+		// Set the new sum of matching affinity weights
+		matchedWeights = sumMatchedWeights
 
 		// Build the choice
 		offer = &structs.AllocatedDeviceResource{
