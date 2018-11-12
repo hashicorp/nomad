@@ -176,9 +176,8 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	// Use interpolation from both node attributes and meta vars
 	task.Config = map[string]interface{}{
 		"run_for":       time.Millisecond,
-		"stdout_string": `${node.region} ${NOMAD_META_foo}`,
+		"stdout_string": `${node.region} ${NOMAD_META_foo} ${NOMAD_META_common_user}`,
 	}
-	task.User = "${NOMAD_META_common_user}"
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
@@ -211,6 +210,5 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	driverCfg, mockCfg := mockDriver.GetTaskConfig()
 	require.NotNil(driverCfg)
 	require.NotNil(mockCfg)
-	assert.Equal(t, "somebody", driverCfg.User)
-	assert.Equal(t, "global bar", mockCfg.StdoutString)
+	assert.Equal(t, "global bar somebody", mockCfg.StdoutString)
 }

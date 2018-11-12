@@ -462,8 +462,29 @@ func (tr *TaskRunner) runDriver() error {
 	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
 	taskConfig := tr.buildTaskConfig()
 
+	// Build hcl context variables
+	vars, errs, err := tr.envBuilder.Build().AllValues()
+	if err != nil {
+		return err
+	}
+
+	// Handle per-key errors
+	if len(errs) > 0 {
+		keys := make([]string, 0, len(errs))
+		for k, err := range errs {
+			keys = append(keys, k)
+
+			if tr.logger.IsTrace() {
+				// Verbosely log every diagnostic for debugging
+				tr.logger.Trace("error building environment variables", "key", k, "error", err)
+			}
+		}
+
+		tr.logger.Warn("some environment variables not available for rendering", "keys", strings.Join(keys, ", "))
+	}
+
 	evalCtx := &hcl.EvalContext{
-		Variables: tr.envBuilder.Build().AllValues(),
+		Variables: vars,
 		Functions: shared.GetStdlibFuncs(),
 	}
 
