@@ -42,6 +42,7 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 	var offer *structs.AllocatedDeviceResource
 	var offerScore float64
 	var matchedWeights float64
+
 	// Determine the devices that are feasible based on availability and
 	// constraints
 	for id, devInst := range d.Devices {
