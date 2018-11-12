@@ -197,7 +197,7 @@ OUTER:
 
 		// Track the affinities of the devices
 		totalDeviceAffinityWeight := 0.0
-		deviceAffinityScore := 0.0
+		sumMatchingAffinities := 0.0
 
 		// Assign the resources for each task
 		total := &structs.AllocatedResources{
@@ -283,7 +283,7 @@ OUTER:
 
 			// Check if we need to assign devices
 			for _, req := range task.Resources.Devices {
-				offer, score, err := devAllocator.AssignDevice(req)
+				offer, sumAffinities, err := devAllocator.AssignDevice(req)
 				if offer == nil {
 					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
 					continue OUTER
@@ -296,9 +296,9 @@ OUTER:
 				// Add the scores
 				if len(req.Affinities) != 0 {
 					for _, a := range req.Affinities {
-						totalDeviceAffinityWeight += a.Weight
+						totalDeviceAffinityWeight += math.Abs(a.Weight)
 					}
-					deviceAffinityScore += score
+					sumMatchingAffinities += sumAffinities
 				}
 			}
 
@@ -353,9 +353,9 @@ OUTER:
 
 		// Score the device affinity
 		if totalDeviceAffinityWeight != 0 {
-			deviceAffinityScore /= totalDeviceAffinityWeight
-			option.Scores = append(option.Scores, deviceAffinityScore)
-			iter.ctx.Metrics().ScoreNode(option.Node, "devices", deviceAffinityScore)
+			sumMatchingAffinities /= totalDeviceAffinityWeight
+			option.Scores = append(option.Scores, sumMatchingAffinities)
+			iter.ctx.Metrics().ScoreNode(option.Node, "devices", sumMatchingAffinities)
 		}
 
 		return option

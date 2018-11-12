@@ -3,6 +3,8 @@ package scheduler
 import (
 	"fmt"
 
+	"math"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -39,6 +41,7 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 	// Hold the current best offer
 	var offer *structs.AllocatedDeviceResource
 	var offerScore float64
+	var matchedWeights float64
 
 	// Determine the devices that are feasible based on availability and
 	// constraints
@@ -63,6 +66,10 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 
 		// Score the choice
 		var choiceScore float64
+
+		// Track the sum of matched affinity weights in a separate variable
+		// We return this if this device had the best score compared to other devices considered
+		var sumMatchedWeights float64
 		if l := len(ask.Affinities); l != 0 {
 			totalWeight := 0.0
 			for _, a := range ask.Affinities {
@@ -76,13 +83,14 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 					continue
 				}
 
-				totalWeight += a.Weight
+				totalWeight += math.Abs(a.Weight)
 
 				// Check if satisfied
 				if !checkAttributeAffinity(d.ctx, a.Operand, lVal, rVal) {
 					continue
 				}
 				choiceScore += a.Weight
+				sumMatchedWeights += a.Weight
 			}
 
 			// normalize
@@ -96,6 +104,9 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 
 		// Set the new highest score
 		offerScore = choiceScore
+
+		// Set the new sum of matching affinity weights
+		matchedWeights = sumMatchedWeights
 
 		// Build the choice
 		offer = &structs.AllocatedDeviceResource{
@@ -122,5 +133,5 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 		return nil, 0.0, fmt.Errorf("no devices match request")
 	}
 
-	return offer, offerScore, nil
+	return offer, matchedWeights, nil
 }
