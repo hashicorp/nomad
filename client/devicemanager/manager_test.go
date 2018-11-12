@@ -72,14 +72,14 @@ var (
 		Name:   "1080ti",
 		InstanceStats: map[string]*device.DeviceStats{
 			nvidiaDevice0ID: {
-				Summary: &device.StatValue{
+				Summary: &psstructs.StatValue{
 					IntNumeratorVal: 212,
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
 			},
 			nvidiaDevice1ID: {
-				Summary: &device.StatValue{
+				Summary: &psstructs.StatValue{
 					IntNumeratorVal: 218,
 					Unit:            "F",
 					Desc:            "Temperature",
@@ -94,7 +94,7 @@ var (
 		Name:   "640GT",
 		InstanceStats: map[string]*device.DeviceStats{
 			intelDeviceID: {
-				Summary: &device.StatValue{
+				Summary: &psstructs.StatValue{
 					IntNumeratorVal: 220,
 					Unit:            "F",
 					Desc:            "Temperature",

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/kr/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -335,13 +336,13 @@ func (d *FsDevice) collectStats() (*device.DeviceGroupStats, error) {
 		}
 
 		s := &device.DeviceStats{
-			Summary: &device.StatValue{
+			Summary: &structs.StatValue{
 				IntNumeratorVal: f.Size(),
 				Unit:            "bytes",
 				Desc:            "Filesize in bytes",
 			},
-			Stats: &device.StatObject{
-				Attributes: map[string]*device.StatValue{
+			Stats: &structs.StatObject{
+				Attributes: map[string]*structs.StatValue{
 					"size": {
 						IntNumeratorVal: f.Size(),
 						Unit:            "bytes",

@@ -101,3 +101,83 @@ func CopyMapStringAttribute(in map[string]*Attribute) map[string]*Attribute {
 	}
 	return out
 }
+
+// ConvertProtoStatObject converts between a proto and struct StatObject
+func ConvertProtoStatObject(in *proto.StatObject) *StatObject {
+	if in == nil {
+		return nil
+	}
+
+	out := &StatObject{
+		Nested:     make(map[string]*StatObject, len(in.Nested)),
+		Attributes: make(map[string]*StatValue, len(in.Attributes)),
+	}
+
+	for k, v := range in.Nested {
+		out.Nested[k] = ConvertProtoStatObject(v)
+	}
+
+	for k, v := range in.Attributes {
+		out.Attributes[k] = ConvertProtoStatValue(v)
+	}
+
+	return out
+}
+
+// ConvertProtoStatValue converts between a proto and struct StatValue
+func ConvertProtoStatValue(in *proto.StatValue) *StatValue {
+	if in == nil {
+		return nil
+	}
+
+	return &StatValue{
+		FloatNumeratorVal:   in.FloatNumeratorVal,
+		FloatDenominatorVal: in.FloatDenominatorVal,
+		IntNumeratorVal:     in.IntNumeratorVal,
+		IntDenominatorVal:   in.IntDenominatorVal,
+		StringVal:           in.StringVal,
+		BoolVal:             in.BoolVal,
+		Unit:                in.Unit,
+		Desc:                in.Desc,
+	}
+}
+
+// ConvertStructStatObject converts between a struct and proto StatObject
+func ConvertStructStatObject(in *StatObject) *proto.StatObject {
+	if in == nil {
+		return nil
+	}
+
+	out := &proto.StatObject{
+		Nested:     make(map[string]*proto.StatObject, len(in.Nested)),
+		Attributes: make(map[string]*proto.StatValue, len(in.Attributes)),
+	}
+
+	for k, v := range in.Nested {
+		out.Nested[k] = ConvertStructStatObject(v)
+	}
+
+	for k, v := range in.Attributes {
+		out.Attributes[k] = ConvertStructStatValue(v)
+	}
+
+	return out
+}
+
+// ConvertStructStatValue converts between a struct and proto StatValue
+func ConvertStructStatValue(in *StatValue) *proto.StatValue {
+	if in == nil {
+		return nil
+	}
+
+	return &proto.StatValue{
+		FloatNumeratorVal:   in.FloatNumeratorVal,
+		FloatDenominatorVal: in.FloatDenominatorVal,
+		IntNumeratorVal:     in.IntNumeratorVal,
+		IntDenominatorVal:   in.IntDenominatorVal,
+		StringVal:           in.StringVal,
+		BoolVal:             in.BoolVal,
+		Unit:                in.Unit,
+		Desc:                in.Desc,
+	}
+}

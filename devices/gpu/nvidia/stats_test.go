@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -445,13 +446,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -539,13 +540,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:      PowerUsageUnit,
 							Desc:      PowerUsageDesc,
@@ -632,13 +633,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:      PowerUsageUnit,
 							Desc:      PowerUsageDesc,
@@ -725,13 +726,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -819,13 +820,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -913,13 +914,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1007,13 +1008,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1101,13 +1102,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:      TemperatureUnit,
 					Desc:      TemperatureDesc,
 					StringVal: notAvailable,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1195,13 +1196,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1288,13 +1289,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1381,13 +1382,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1474,13 +1475,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1567,13 +1568,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1661,13 +1662,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1755,13 +1756,13 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    nil,
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
 					IntNumeratorVal: 1,
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
@@ -1911,13 +1912,13 @@ func TestStatsForGroup(t *testing.T) {
 				Name:   "DeviceName1",
 				InstanceStats: map[string]*device.DeviceStats{
 					"UUID1": {
-						Summary: &device.StatValue{
+						Summary: &structs.StatValue{
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
 							IntNumeratorVal: 1,
 						},
-						Stats: &device.StatObject{
-							Attributes: map[string]*device.StatValue{
+						Stats: &structs.StatObject{
+							Attributes: map[string]*structs.StatValue{
 								PowerUsageAttr: {
 									Unit:              PowerUsageUnit,
 									Desc:              PowerUsageDesc,
@@ -1981,13 +1982,13 @@ func TestStatsForGroup(t *testing.T) {
 						Timestamp: time.Date(1974, time.May, 19, 1, 2, 3, 4, time.UTC),
 					},
 					"UUID2": {
-						Summary: &device.StatValue{
+						Summary: &structs.StatValue{
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
 							IntNumeratorVal: 2,
 						},
-						Stats: &device.StatObject{
-							Attributes: map[string]*device.StatValue{
+						Stats: &structs.StatObject{
+							Attributes: map[string]*structs.StatValue{
 								PowerUsageAttr: {
 									Unit:              PowerUsageUnit,
 									Desc:              PowerUsageDesc,
@@ -2051,13 +2052,13 @@ func TestStatsForGroup(t *testing.T) {
 						Timestamp: time.Date(1974, time.May, 19, 1, 2, 3, 4, time.UTC),
 					},
 					"UUID3": {
-						Summary: &device.StatValue{
+						Summary: &structs.StatValue{
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
 							IntNumeratorVal: 3,
 						},
-						Stats: &device.StatObject{
-							Attributes: map[string]*device.StatValue{
+						Stats: &structs.StatObject{
+							Attributes: map[string]*structs.StatValue{
 								PowerUsageAttr: {
 									Unit:              PowerUsageUnit,
 									Desc:              PowerUsageDesc,
@@ -2232,13 +2233,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName1",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 1,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
@@ -2309,13 +2310,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName2",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID2": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 2,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
@@ -2386,13 +2387,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName3",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID3": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 3,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
@@ -2543,13 +2544,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName1",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 1,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
@@ -2620,13 +2621,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName2",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID3": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 3,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
@@ -2690,13 +2691,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 								Timestamp: time.Date(1974, time.May, 19, 1, 2, 3, 4, time.UTC),
 							},
 							"UUID2": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 2,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
@@ -2846,13 +2847,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName1",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 1,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
@@ -2923,13 +2924,13 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName2",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID2": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
 									IntNumeratorVal: 2,
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
