@@ -2,18 +2,19 @@
 
 package docker
 
-/*
 import (
+	"context"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerDriver_Signal(t *testing.T) {
@@ -24,33 +25,19 @@ func TestDockerDriver_Signal(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task := &structs.Task{
-		Name:   "redis-demo",
-		Driver: "docker",
-		Config: map[string]interface{}{
-			"image":   "busybox",
-			"load":    "busybox.tar",
-			"command": "/bin/sh",
-			"args":    []string{"local/test.sh"},
-		},
-		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-	}
+	task, cfg, _ := dockerTask(t)
+	cfg.Command = "/bin/sh"
+	cfg.Args = []string{"local/test.sh"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	ctx := testDockerDriverContexts(t, task)
-	defer ctx.Destroy()
-	d := NewDockerDriver(ctx.DriverCtx)
+	driver := dockerDriverHarness(t, nil)
+	cleanup := driver.MkAllocDir(task, true)
+	defer cleanup()
 
 	// Copy the image into the task's directory
-	copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
+	copyImage(t, task.TaskDir(), "busybox.tar")
 
-	testFile := filepath.Join(ctx.ExecCtx.TaskDir.LocalDir, "test.sh")
+	testFile := filepath.Join(task.TaskDir().LocalDir, "test.sh")
 	testData := []byte(`
 at_term() {
     echo 'Terminated.' > $NOMAD_TASK_DIR/output
@@ -62,38 +49,30 @@ while true; do
     sleep 0.2
 done
 	`)
-	if err := ioutil.WriteFile(testFile, testData, 0777); err != nil {
-		t.Fatalf("Failed to write data: %v", err)
-	}
+	require.NoError(t, ioutil.WriteFile(testFile, testData, 0777))
+	_, _, err := driver.StartTask(task)
+	require.NoError(t, err)
+	defer driver.DestroyTask(task.ID, true)
+	require.NoError(t, driver.WaitUntilStarted(task.ID, time.Duration(tu.TestMultiplier()*5)*time.Second))
+	handle, ok := driver.Impl().(*Driver).tasks.Get(task.ID)
+	require.True(t, ok)
 
-	_, err := d.Prestart(ctx.ExecCtx, task)
-	if err != nil {
-		t.Fatalf("error in prestart: %v", err)
-	}
-	resp, err := d.Start(ctx.ExecCtx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer resp.Handle.Kill()
+	waitForExist(t, newTestDockerClient(t), handle.container.ID)
+	require.NoError(t, handle.Kill(time.Duration(tu.TestMultiplier()*5)*time.Second, os.Interrupt))
 
-	waitForExist(t, resp.Handle.(*DockerHandle).client, resp.Handle.(*DockerHandle))
-
-	time.Sleep(1 * time.Second)
-	if err := resp.Handle.Signal(syscall.SIGINT); err != nil {
-		t.Fatalf("Signal returned an error: %v", err)
-	}
-
+	waitCh, err := driver.WaitTask(context.Background(), task.ID)
+	require.NoError(t, err)
 	select {
-	case res := <-resp.Handle.WaitCh():
+	case res := <-waitCh:
 		if res.Successful() {
-			t.Fatalf("should err: %v", res)
+			require.Fail(t, "should err: %v", res)
 		}
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
-		t.Fatalf("timeout")
+		require.Fail(t, "timeout")
 	}
 
 	// Check the log file to see it exited because of the signal
-	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LocalDir, "output")
+	outputFile := filepath.Join(task.TaskDir().LocalDir, "output")
 	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
@@ -103,4 +82,17 @@ done
 	if strings.TrimSpace(string(act)) != exp {
 		t.Fatalf("Command outputted %v; want %v", act, exp)
 	}
-}*/
+}
+
+func TestDockerDriver_containerBinds(t *testing.T) {
+	task, cfg, _ := dockerTask(t)
+	driver := dockerDriverHarness(t, nil)
+	cleanup := driver.MkAllocDir(task, false)
+	defer cleanup()
+
+	binds, err := driver.Impl().(*Driver).containerBinds(task, cfg)
+	require.NoError(t, err)
+	require.Contains(t, binds, fmt.Sprintf("%s:/alloc", task.TaskDir().SharedAllocDir))
+	require.Contains(t, binds, fmt.Sprintf("%s:/local", task.TaskDir().LocalDir))
+	require.Contains(t, binds, fmt.Sprintf("%s:/secrets", task.TaskDir().SecretsDir))
+}

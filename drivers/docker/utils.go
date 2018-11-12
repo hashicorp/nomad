@@ -54,7 +54,7 @@ func loadDockerConfig(file string) (*configfile.ConfigFile, error) {
 // parseRepositoryInfo takes a repo and returns the Docker RepositoryInfo. This
 // is useful for interacting with a Docker config object.
 func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
-	name, err := reference.ParseNamed(repo)
+	name, err := reference.ParseNormalizedNamed(repo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
 	}

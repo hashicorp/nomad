@@ -597,7 +597,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	select {
 	case res := <-waitCh:
 		if !res.Successful() {
-			require.Fail(t, "ExitResult should be successful: %v", res)
+			require.Fail(t, fmt.Sprintf("ExitResult should be successful: %v", res))
 		}
 	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
 		require.Fail(t, "timeout")
@@ -648,10 +648,10 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 
 	defer d.DestroyTask(task.ID, true)
 
-	go func() {
+	go func(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 		require.NoError(t, d.StopTask(task.ID, time.Second, "SIGINT"))
-	}()
+	}(t)
 
 	// Attempt to wait
 	waitCh, err := d.WaitTask(context.Background(), task.ID)
@@ -910,7 +910,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
-		Name:      "busybox-demo",
+		Name:      "busybox",
 		Resources: basicResources,
 	}
 	require.NoError(task.EncodeConcreteDriverConfig(&taskCfg))
@@ -922,8 +922,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 
 	_, _, err = d.StartTask(task)
 	require.NoError(err)
-
-	d.WaitUntilStarted(task.ID, 5*time.Second)
+	require.NoError(d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	defer d.DestroyTask(task.ID, true)
 
@@ -934,9 +933,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	require.True(ok)
 
 	_, err = client.InspectContainer(handle.container.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
@@ -1755,7 +1752,6 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 }
 
-/*
 func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
@@ -1802,15 +1798,10 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 		},
 	}
 
-	for i, c := range cases {
+	for _, c := range cases {
 		act, err := authFromDockerConfig(path)(c.Repo)
-		if err != nil {
-			t.Fatalf("Test %d failed: %v", i+1, err)
-		}
-
-		if !reflect.DeepEqual(act, c.AuthConfig) {
-			t.Fatalf("Test %d failed: Unexpected auth config: got %+v; want %+v", i+1, act, c.AuthConfig)
-		}
+		require.NoError(t, err)
+		require.Exactly(t, c.AuthConfig, act)
 	}
 }
 
@@ -1822,38 +1813,32 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task := &structs.Task{
-		Name:   "oom-killed",
-		Driver: "docker",
-		Config: map[string]interface{}{
-			"image":   "busybox",
-			"load":    "busybox.tar",
-			"command": "sh",
-			// Incrementally creates a bigger and bigger variable.
-			"args": []string{"-c", "x=a; while true; do eval x='$x$x'; done"},
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-		Resources: &structs.Resources{
-			CPU:      250,
-			MemoryMB: 10,
-			DiskMB:   20,
-			Networks: []*structs.NetworkResource{},
-		},
+	cfg := &TaskConfig{
+		Image:     "busybox",
+		LoadImage: "busybox.tar",
+		Command:   "sh",
+		Args:      []string{"-c", "x=a; while true; do eval x='$x$x'; done"},
 	}
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "oom-killed",
+		Resources: basicResources,
+	}
+	task.Resources.LinuxResources.MemoryLimitBytes = 4 * 1024 * 1024
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	_, handle, cleanup := dockerSetup(t, task)
+	_, driver, _, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
+	waitCh, err := driver.WaitTask(context.Background(), task.ID)
+	require.NoError(t, err)
 	select {
-	case res := <-handle.WaitCh():
+	case res := <-waitCh:
 		if res.Successful() {
 			t.Fatalf("expected error, but container exited successful")
 		}
 
-		if res.Err.Error() != "OOM Killed" {
+		if !res.OOMKilled {
 			t.Fatalf("not killed by OOM killer: %s", res.Err)
 		}
 
@@ -1872,36 +1857,36 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	brokenConfigs := []interface{}{
-		map[string]interface{}{
-			"host_path": "",
+	brokenConfigs := []DockerDevice{
+		{
+			HostPath: "",
 		},
-		map[string]interface{}{
-			"host_path":          "/dev/sda1",
-			"cgroup_permissions": "rxb",
+		{
+			HostPath:          "/dev/sda1",
+			CgroupPermissions: "rxb",
 		},
 	}
 
 	test_cases := []struct {
-		deviceConfig interface{}
+		deviceConfig []DockerDevice
 		err          error
 	}{
-		{[]interface{}{brokenConfigs[0]}, fmt.Errorf("host path must be set in configuration for devices")},
-		{[]interface{}{brokenConfigs[1]}, fmt.Errorf("invalid cgroup permission string: \"rxb\"")},
+		{brokenConfigs[:1], fmt.Errorf("host path must be set in configuration for devices")},
+		{brokenConfigs[1:], fmt.Errorf("invalid cgroup permission string: \"rxb\"")},
 	}
 
 	for _, tc := range test_cases {
-		task, _, _ := dockerTask(t)
-		task.Config["devices"] = tc.deviceConfig
+		task, cfg, _ := dockerTask(t)
+		cfg.Devices = tc.deviceConfig
+		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+		d := dockerDriverHarness(t, nil)
+		cleanup := d.MkAllocDir(task, true)
+		copyImage(t, task.TaskDir(), "busybox.tar")
+		defer cleanup()
 
-		ctx := testDockerDriverContexts(t, task)
-		driver := NewDockerDriver(ctx.DriverCtx)
-		copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
-		defer ctx.Destroy()
-
-		if _, err := driver.Prestart(ctx.ExecCtx, task); err == nil || err.Error() != tc.err.Error() {
-			t.Fatalf("error expected in prestart, got %v, expected %v", err, tc.err)
-		}
+		_, _, err := d.StartTask(task)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), tc.err.Error())
 	}
 }
 
@@ -1926,26 +1911,24 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 		PathInContainer:   containerPath,
 		CgroupPermissions: perms,
 	}
-	config := map[string]interface{}{
-		"host_path":      hostPath,
-		"container_path": containerPath,
+	config := DockerDevice{
+		HostPath:      hostPath,
+		ContainerPath: containerPath,
 	}
 
-	task, _, _ := dockerTask(t)
-	task.Config["devices"] = []interface{}{config}
+	task, cfg, _ := dockerTask(t)
+	cfg.Devices = []DockerDevice{config}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, handle, cleanup := dockerSetup(t, task)
+	client, driver, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
+	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	waitForExist(t, client, handle)
+	container, err := client.InspectContainer(handle.container.ID)
+	require.NoError(t, err)
 
-	container, err := client.InspectContainer(handle.ContainerID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	assert.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
-	assert.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
+	require.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
+	require.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
 }
 
 func TestDockerDriver_Entrypoint(t *testing.T) {
@@ -1957,25 +1940,24 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 	}
 
 	entrypoint := []string{"/bin/sh", "-c"}
-	task, _, _ := dockerTask(t)
-	task.Config["entrypoint"] = entrypoint
+	task, cfg, _ := dockerTask(t)
+	cfg.Entrypoint = entrypoint
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, handle, cleanup := dockerSetup(t, task)
+	client, driver, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
-	waitForExist(t, client, handle)
+	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.ContainerID())
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	container, err := client.InspectContainer(handle.container.ID)
+	require.NoError(t, err)
 
 	require.Len(t, container.Config.Entrypoint, 2, "Expected one entrypoint")
 	require.Equal(t, entrypoint, container.Config.Entrypoint, "Incorrect entrypoint ")
 }
 
 func TestDockerDriver_Kill(t *testing.T) {
-	assert := assert.New(t)
+	require := require.New(t)
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
@@ -1984,41 +1966,24 @@ func TestDockerDriver_Kill(t *testing.T) {
 	}
 
 	// Tasks started with a signal that is not supported should not error
-	task := &structs.Task{
-		Name:       "nc-demo",
-		Driver:     "docker",
-		KillSignal: "SIGKILL",
-		Config: map[string]interface{}{
-			"load":    "busybox.tar",
-			"image":   "busybox",
-			"command": "/bin/nc",
-			"args":    []string{"-l", "127.0.0.1", "-p", "0"},
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "nc-demo",
 		Resources: basicResources,
 	}
 
-	ctx := testDockerDriverContexts(t, task)
-	defer ctx.Destroy()
-	d := NewDockerDriver(ctx.DriverCtx)
-	copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
-
-	_, err := d.Prestart(ctx.ExecCtx, task)
-	if err != nil {
-		t.Fatalf("error in prestart: %v", err)
+	cfg := &TaskConfig{
+		LoadImage: "busybox.tar",
+		Image:     "busybox",
+		Command:   "/bin/nc",
+		Args:      []string{"-l", "127.0.0.1", "-p", "0"},
 	}
 
-	resp, err := d.Start(ctx.ExecCtx, task)
-	assert.Nil(err)
-	assert.NotNil(resp.Handle)
-
-	handle := resp.Handle.(*DockerHandle)
-	waitForExist(t, client, handle)
-	err = handle.Kill()
-	assert.Nil(err)
+	require.NoError(task.EncodeConcreteDriverConfig(cfg))
+	_, driver, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+	require.NoError(driver.WaitUntilStarted(task.ID, 5*time.Second))
+	require.NoError(handle.Kill(time.Second, os.Interrupt))
 }
 
 func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
@@ -2029,18 +1994,18 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask(t)
-	task.Config["readonly_rootfs"] = true
+	task, cfg, _ := dockerTask(t)
+	cfg.ReadonlyRootfs = true
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, handle, cleanup := dockerSetup(t, task)
+	client, driver, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
+	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	waitForExist(t, client, handle)
+	container, err := client.InspectContainer(handle.container.ID)
+	require.NoError(t, err)
 
-	container, err := client.InspectContainer(handle.ContainerID())
-	assert.Nil(t, err, "Error inspecting container: %v", err)
-
-	assert.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
+	require.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
 }
 
 // fakeDockerClient can be used in places that accept an interface for the
@@ -2068,13 +2033,11 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 	}
 
 	// setup
-	task, _, _ := dockerTask(t)
-	tctx := testDockerDriverContexts(t, task)
-	driver := NewDockerDriver(tctx.DriverCtx).(*DockerDriver)
-	driver.driverConfig = &DockerDriverConfig{ImageName: "test"}
+	_, cfg, _ := dockerTask(t)
+	driver := dockerDriverHarness(t, nil)
 
 	// assert volume error is recoverable
-	_, err := driver.createContainer(fakeDockerClient{}, docker.CreateContainerOptions{})
+	_, err := driver.Impl().(*Driver).createContainer(fakeDockerClient{}, docker.CreateContainerOptions{Config: &docker.Config{}}, cfg)
 	require.True(t, structs.IsRecoverable(err))
 }
 
@@ -2088,25 +2051,9 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	expectedPrefix := "2001:db8:1::242:ac11"
 	expectedAdvertise := true
-	task := &structs.Task{
-		Name:   "nc-demo",
-		Driver: "docker",
-		Config: map[string]interface{}{
-			"image":                  "busybox",
-			"load":                   "busybox.tar",
-			"command":                "/bin/nc",
-			"args":                   []string{"-l", "127.0.0.1", "-p", "0"},
-			"advertise_ipv6_address": expectedAdvertise,
-		},
-		Resources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
-		},
-		LogConfig: &structs.LogConfig{
-			MaxFiles:      10,
-			MaxFileSizeMB: 10,
-		},
-	}
+	task, cfg, _ := dockerTask(t)
+	cfg.AdvertiseIPv6Addr = expectedAdvertise
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client := newTestDockerClient(t)
 
@@ -2119,41 +2066,28 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 		t.Skip("IPv6 not enabled on bridge network, skipping")
 	}
 
-	tctx := testDockerDriverContexts(t, task)
-	driver := NewDockerDriver(tctx.DriverCtx)
-	copyImage(t, tctx.ExecCtx.TaskDir, "busybox.tar")
-	defer tctx.Destroy()
+	driver := dockerDriverHarness(t, nil)
+	cleanup := driver.MkAllocDir(task, true)
+	copyImage(t, task.TaskDir(), "busybox.tar")
+	defer cleanup()
 
-	presp, err := driver.Prestart(tctx.ExecCtx, task)
-	defer driver.Cleanup(tctx.ExecCtx, presp.CreatedResources)
-	if err != nil {
-		t.Fatalf("Error in prestart: %v", err)
+	_, network, err := driver.StartTask(task)
+	defer driver.DestroyTask(task.ID, true)
+	require.NoError(t, err)
+
+	require.Equal(t, expectedAdvertise, network.AutoAdvertise, "Wrong autoadvertise. Expect: %s, got: %s", expectedAdvertise, network.AutoAdvertise)
+
+	if !strings.HasPrefix(network.IP, expectedPrefix) {
+		t.Fatalf("Got IP address %q want ip address with prefix %q", network.IP, expectedPrefix)
 	}
 
-	sresp, err := driver.Start(tctx.ExecCtx, task)
-	if err != nil {
-		t.Fatalf("Error in start: %v", err)
-	}
+	handle, ok := driver.Impl().(*Driver).tasks.Get(task.ID)
+	require.True(t, ok)
 
-	if sresp.Handle == nil {
-		t.Fatalf("handle is nil\nStack\n%s", debug.Stack())
-	}
+	driver.WaitUntilStarted(task.ID, time.Second)
 
-	assert.Equal(t, expectedAdvertise, sresp.Network.AutoAdvertise, "Wrong autoadvertise. Expect: %s, got: %s", expectedAdvertise, sresp.Network.AutoAdvertise)
-
-	if !strings.HasPrefix(sresp.Network.IP, expectedPrefix) {
-		t.Fatalf("Got IP address %q want ip address with prefix %q", sresp.Network.IP, expectedPrefix)
-	}
-
-	defer sresp.Handle.Kill()
-	handle := sresp.Handle.(*DockerHandle)
-
-	waitForExist(t, client, handle)
-
-	container, err := client.InspectContainer(handle.ContainerID())
-	if err != nil {
-		t.Fatalf("Error inspecting container: %v", err)
-	}
+	container, err := client.InspectContainer(handle.container.ID)
+	require.NoError(t, err)
 
 	if !strings.HasPrefix(container.NetworkSettings.GlobalIPv6Address, expectedPrefix) {
 		t.Fatalf("Got GlobalIPv6address %s want GlobalIPv6address with prefix %s", expectedPrefix, container.NetworkSettings.GlobalIPv6Address)
@@ -2206,18 +2140,21 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	task, _, _ := dockerTask(t)
-	task.Config["cpu_hard_limit"] = true
-	task.Config["cpu_cfs_period"] = 1000000
+	task, cfg, _ := dockerTask(t)
+	cfg.CPUHardLimit = true
+	cfg.CPUCFSPeriod = 1000000
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, handle, cleanup := dockerSetup(t, task)
+	client, _, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
-	waitForExist(t, client, handle)
+	waitForExist(t, client, handle.container.ID)
 
-	container, err := client.InspectContainer(handle.ContainerID())
-	assert.Nil(t, err, "Error inspecting container: %v", err)
-}*/
+	container, err := client.InspectContainer(handle.container.ID)
+	require.NoError(t, err)
+
+	require.Equal(t, cfg.CPUCFSPeriod, container.HostConfig.CPUPeriod)
+}
 
 func waitForExist(t *testing.T, client *docker.Client, containerID string) {
 	tu.WaitForResult(func() (bool, error) {

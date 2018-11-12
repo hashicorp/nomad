@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ type mockImageClient struct {
 	idToName  map[string]string
 	removed   map[string]int
 	pullDelay time.Duration
+	lock      sync.Mutex
 }
 
 func newMockImageClient(idToName map[string]string, pullDelay time.Duration) *mockImageClient {
@@ -29,17 +31,23 @@ func newMockImageClient(idToName map[string]string, pullDelay time.Duration) *mo
 
 func (m *mockImageClient) PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration) error {
 	time.Sleep(m.pullDelay)
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.pulled[opts.Repository]++
 	return nil
 }
 
 func (m *mockImageClient) InspectImage(id string) (*docker.Image, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	return &docker.Image{
 		ID: m.idToName[id],
 	}, nil
 }
 
 func (m *mockImageClient) RemoveImage(id string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.removed[id]++
 	return nil
 }
@@ -62,19 +70,23 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 	// Create a coordinator
 	coordinator := NewDockerCoordinator(config)
 
-	id := ""
-	for i := 0; i < 10; i++ {
+	id, _ := coordinator.PullImage(image, nil, uuid.Generate(), nil)
+	for i := 0; i < 9; i++ {
 		go func() {
-			id, _ = coordinator.PullImage(image, nil, uuid.Generate(), nil)
+			coordinator.PullImage(image, nil, uuid.Generate(), nil)
 		}()
 	}
 
 	testutil.WaitForResult(func() (bool, error) {
+		mock.lock.Lock()
+		defer mock.lock.Unlock()
 		p := mock.pulled[image]
 		if p >= 10 {
 			return false, fmt.Errorf("Wrong number of pulls: %d", p)
 		}
 
+		coordinator.imageLock.Lock()
+		defer coordinator.imageLock.Unlock()
 		// Check the reference count
 		if references := coordinator.imageRefCount[id]; len(references) != 10 {
 			return false, fmt.Errorf("Got reference count %d; want %d", len(references), 10)
@@ -143,6 +155,8 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 
 	// Check that only one delete happened
 	testutil.WaitForResult(func() (bool, error) {
+		mock.lock.Lock()
+		defer mock.lock.Unlock()
 		removes := mock.removed[id]
 		return removes == 1, fmt.Errorf("Wrong number of removes: %d", removes)
 	}, func(err error) {
@@ -150,9 +164,11 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 	})
 
 	// Make sure there is no future still
+	coordinator.imageLock.Lock()
 	if _, ok := coordinator.deleteFuture[id]; ok {
 		t.Fatal("Got delete future")
 	}
+	coordinator.imageLock.Unlock()
 }
 
 func TestDockerCoordinator_Remove_Cancel(t *testing.T) {

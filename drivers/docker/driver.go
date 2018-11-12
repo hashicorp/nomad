@@ -561,6 +561,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *struc
 		return nil, nil, fmt.Errorf("Failed to create container configuration for image %q (%q): %v", driverConfig.Image, id, err)
 	}
 
+	startAttempts := 0
+CREATE:
 	container, err := d.createContainer(client, containerCfg, &driverConfig)
 	if err != nil {
 		d.logger.Error("failed to create container", "error", err)
@@ -576,6 +578,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *struc
 		// Start the container
 		if err := d.startContainer(container); err != nil {
 			d.logger.Error("failed to start container", "container_id", container.ID, "error", err)
+			client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:    container.ID,
+				Force: true,
+			})
+			// Some sort of docker race bug, recreating the container usually works
+			if strings.Contains(err.Error(), "OCI runtime create failed: container with id exists:") && startAttempts < 5 {
+				startAttempts++
+				d.logger.Debug("reattempting container create/start sequence", "attempt", startAttempts, "container_id", id)
+				goto CREATE
+			}
 			return nil, nil, nstructs.NewRecoverableError(fmt.Errorf("Failed to start container %s: %s", container.ID, err), nstructs.IsRecoverable(err))
 		}
 
@@ -962,6 +974,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if err != nil {
 		return c, err
 	}
+	logger.Trace("binding volumes", "volumes", binds)
 
 	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
@@ -998,6 +1011,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// multiply the time by the number of cores available
 	// See https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu
 	if driverConfig.CPUHardLimit {
+		numCores := runtime.NumCPU()
+		percentTicks := float64(task.Resources.NomadResources.CPU) / float64(task.Resources.NomadResources.CPU)
 		if driverConfig.CPUCFSPeriod < 0 || driverConfig.CPUCFSPeriod > 1000000 {
 			return c, fmt.Errorf("invalid value for cpu_cfs_period")
 		}
@@ -1005,7 +1020,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			driverConfig.CPUCFSPeriod = task.Resources.LinuxResources.CPUPeriod
 		}
 		hostConfig.CPUPeriod = driverConfig.CPUCFSPeriod
-		hostConfig.CPUQuota = task.Resources.LinuxResources.CPUQuota
+		hostConfig.CPUQuota = int64(percentTicks*float64(driverConfig.CPUCFSPeriod)) * int64(numCores)
 	}
 
 	// Windows does not support MemorySwap/MemorySwappiness #2193
@@ -1081,6 +1096,19 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if len(driverConfig.Devices) > 0 {
 		var devices []docker.Device
 		for _, device := range driverConfig.Devices {
+			if device.HostPath == "" {
+				return c, fmt.Errorf("host path must be set in configuration for devices")
+			}
+			if device.CgroupPermissions != "" {
+				for _, char := range device.CgroupPermissions {
+					ch := string(char)
+					if ch != "r" && ch != "w" && ch != "m" {
+						return c, fmt.Errorf("invalid cgroup permission string: %q", device.CgroupPermissions)
+					}
+				}
+			} else {
+				device.CgroupPermissions = "rwm"
+			}
 			dev := docker.Device{
 				PathOnHost:        device.HostPath,
 				PathInContainer:   device.ContainerPath,

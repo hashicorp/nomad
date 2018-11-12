@@ -5,8 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/nomad/client/testutil"
+	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,7 +44,6 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	require.Equal(t, []byte("https://registry.local:5000"), content)
 }
 
-/*
 func TestDockerDriver_PidsLimit(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
@@ -48,49 +51,33 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("Docker not connected")
 	}
+	require := require.New(t)
 
-	task, _, _ := dockerTask(t)
-	task.Config["pids_limit"] = "1"
-	task.Config["command"] = "/bin/sh"
-	task.Config["args"] = []string{"-c", "sleep 2 & sleep 2"}
+	task, cfg, _ := dockerTask(t)
+	cfg.PidsLimit = 1
+	cfg.Command = "/bin/sh"
+	cfg.Args = []string{"-c", "sleep 2 & sleep 2"}
+	require.NoError(task.EncodeConcreteDriverConfig(cfg))
 
-	ctx := testDockerDriverContexts(t, task)
-	defer ctx.Destroy()
-	d := NewDockerDriver(ctx.DriverCtx)
+	_, driver, _, cleanup := dockerSetup(t, task)
+	defer cleanup()
 
-	// Copy the image into the task's directory
-	copyImage(t, ctx.ExecCtx.TaskDir, "busybox.tar")
-
-	_, err := d.Prestart(ctx.ExecCtx, task)
-	if err != nil {
-		t.Fatalf("error in prestart: %v", err)
-	}
-	resp, err := d.Start(ctx.ExecCtx, task)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer resp.Handle.Kill()
-
-	select {
-	case res := <-resp.Handle.WaitCh():
-		if res.Successful() {
-			t.Fatalf("expected error, but container exited successful")
-		}
-	case <-time.After(time.Duration(tu.TestMultiplier()*5) * time.Second):
-		t.Fatalf("timeout")
-	}
+	driver.WaitUntilStarted(task.ID, time.Duration(tu.TestMultiplier()*5)*time.Second)
 
 	// XXX Logging doesn't work on OSX so just test on Linux
 	// Check that data was written to the directory.
-	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "redis-demo.stderr.0")
-	act, err := ioutil.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("Couldn't read expected output: %v", err)
-	}
-
+	outputFile := filepath.Join(task.TaskDir().LogDir, "redis-demo.stderr.0")
 	exp := "can't fork"
-	if !strings.Contains(string(act), exp) {
-		t.Fatalf("Expected failed fork: %q", act)
-	}
-
-}*/
+	tu.WaitForResult(func() (bool, error) {
+		act, err := ioutil.ReadFile(outputFile)
+		if err != nil {
+			return false, err
+		}
+		if !strings.Contains(string(act), exp) {
+			return false, fmt.Errorf("Expected %q in output %q", exp, string(act))
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+}
