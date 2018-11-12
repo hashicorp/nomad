@@ -516,6 +516,9 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Perform all store updates atomically to ensure a consistent views for store readers.
+	// A partial update may increment the snapshot index, allowing eval brokers to process
+	// evals for jobs whose deregistering didn't get committed yet.
 	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
 			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
@@ -536,6 +539,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 		return err
 	}
 
+	// perform the side effects outside the transactions
 	n.handleUpsertedEvals(req.Evals)
 	return nil
 }

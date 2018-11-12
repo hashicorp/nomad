@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Txn is a transaction against a state store.
+// This can be a read or write transaction.
 type Txn = *memdb.Txn
 
 const (
@@ -885,6 +887,8 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
+// UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
+// but in a transcation.  Useful for when making multiple modifications atomically
 func (s *StateStore) UpsertJobTxn(index uint64, job *structs.Job, txn Txn) error {
 	return s.upsertJobImpl(index, job, false, txn)
 }
@@ -983,6 +987,8 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	return err
 }
 
+// DeleteJobTxn is used to deregister a job, like DeleteJob,
+// but in a transcation.  Useful for when making multiple modifications atomically
 func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
@@ -1170,6 +1176,8 @@ func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.
 	return s.JobByIDTxn(ws, namespace, id, txn)
 }
 
+// JobByIDTxn is used to lookup a job by its ID, like  JobByID. JobByID returns the job version
+// accessable through in the transaction
 func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn) (*structs.Job, error) {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
@@ -1498,6 +1506,8 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 	return err
 }
 
+// DeletePeriodicLaunchTxn is used to delete the periodic launch, like DeletePeriodicLaunch
+// but in a transcation.  Useful for when making multiple modifications atomically
 func (s *StateStore) DeletePeriodicLaunchTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
@@ -1574,6 +1584,8 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	return err
 }
 
+// UpsertEvals is used to upsert a set of evaluations, like UpsertEvals
+// but in a transcation.  Useful for when making multiple modifications atomically
 func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
 	// Do a nested upsert
 	jobs := make(map[structs.NamespacedID]string, len(evals))
@@ -3873,6 +3885,9 @@ func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs
 	return nil
 }
 
+// WithWriteTransaction executes the passed function within a write transaction,
+// and returns its result.  If the invocation returns no error, the transaction
+// is committed; otherwise, it's aborted.
 func (s *StateStore) WithWriteTransaction(fn func(Txn) error) error {
 	tx := s.db.Txn(true)
 	defer tx.Abort()
