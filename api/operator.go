@@ -145,7 +145,7 @@ type PreemptionConfig struct {
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.
 func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfigurationResponse, *QueryMeta, error) {
 	var resp SchedulerConfigurationResponse
-	qm, err := op.c.query("/v1/operator/scheduler/config", &resp, q)
+	qm, err := op.c.query("/v1/operator/scheduler/configuration", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -155,7 +155,7 @@ func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfig
 // SchedulerSetConfiguration is used to set the current Scheduler configuration.
 func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
 	var out SchedulerSetConfigurationResponse
-	wm, err := op.c.write("/v1/operator/scheduler/config", conf, &out, q)
+	wm, err := op.c.write("/v1/operator/scheduler/configuration", conf, &out, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -167,7 +167,7 @@ func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *W
 // true on success or false on failures.
 func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
 	var out SchedulerSetConfigurationResponse
-	wm, err := op.c.write("/v1/operator/scheduler/config?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
+	wm, err := op.c.write("/v1/operator/scheduler/configuration?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
 	if err != nil {
 		return nil, nil, err
 	}
