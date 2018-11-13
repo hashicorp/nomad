@@ -31,6 +31,14 @@ resource "aws_security_group" "primary" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Fabio 
+  ingress {
+    from_port   = 9998
+    to_port     = 9999
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Consul
   ingress {
     from_port   = 8500
