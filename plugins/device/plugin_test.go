@@ -27,7 +27,7 @@ func TestDevicePlugin_PluginInfo(t *testing.T) {
 	const (
 		apiVersion    = "v0.1.0"
 		pluginVersion = "v0.2.1"
-		pluginName    = "mock"
+		pluginName    = "mock_device"
 	)
 
 	knownType := func() (*base.PluginInfoResponse, error) {
@@ -127,6 +127,14 @@ func TestDevicePlugin_SetConfig(t *testing.T) {
 	var receivedData []byte
 	mock := &MockDevicePlugin{
 		MockPlugin: &base.MockPlugin{
+			PluginInfoF: func() (*base.PluginInfoResponse, error) {
+				return &base.PluginInfoResponse{
+					Type:             base.PluginTypeDevice,
+					PluginApiVersion: "v0.0.1",
+					PluginVersion:    "v0.0.1",
+					Name:             "mock_device",
+				}, nil
+			},
 			ConfigSchemaF: func() (*hclspec.Spec, error) {
 				return base.TestSpec, nil
 			},

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -107,7 +106,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	task.Name = "testtask"
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
-		"run_for": 2 * time.Second,
+		"run_for": "2s",
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, "testtask")
 	conf.StateDB = cstate.NewMemDB() // "persist" state between task runners

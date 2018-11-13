@@ -1,7 +1,6 @@
 package java
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -33,7 +32,7 @@ func javaCompatible(t *testing.T) {
 	}
 }
 
-func TestDriver_Fingerprint(t *testing.T) {
+func TestJavaDriver_Fingerprint(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -54,7 +53,7 @@ func TestDriver_Fingerprint(t *testing.T) {
 	}
 }
 
-func TestDriver_Jar_Start_Wait(t *testing.T) {
+func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -73,7 +72,7 @@ func TestDriver_Jar_Start_Wait(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	copyFile("./test-resources/java/demoapp.jar", filepath.Join(task.TaskDir().Dir, "demoapp.jar"), t)
+	copyFile("./test-resources/demoapp.jar", filepath.Join(task.TaskDir().Dir, "demoapp.jar"), t)
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -93,7 +92,7 @@ func TestDriver_Jar_Start_Wait(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-func TestDriver_Jar_Stop_Wait(t *testing.T) {
+func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -105,14 +104,14 @@ func TestDriver_Jar_Stop_Wait(t *testing.T) {
 
 	task := basicTask(t, "demo-app", map[string]interface{}{
 		"jar_path":    "demoapp.jar",
-		"args":        "20",
+		"args":        []string{"20"},
 		"jvm_options": []string{"-Xmx64m", "-Xms32m"},
 	})
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	copyFile("./test-resources/java/demoapp.jar", filepath.Join(task.TaskDir().Dir, "demoapp.jar"), t)
+	copyFile("./test-resources/demoapp.jar", filepath.Join(task.TaskDir().Dir, "demoapp.jar"), t)
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -157,7 +156,7 @@ func TestDriver_Jar_Stop_Wait(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-func TestDriver_Class_Start_Wait(t *testing.T) {
+func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	javaCompatible(t)
 	if !testutil.IsTravis() {
 		t.Parallel()
@@ -168,9 +167,8 @@ func TestDriver_Class_Start_Wait(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := basicTask(t, "demo-app", map[string]interface{}{
-		"class_path": "${NOMAD_TASK_DIR}",
-		"class":      "Hello",
-		"args":       []string{"1"},
+		"class": "Hello",
+		"args":  []string{"1"},
 	})
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -246,6 +244,8 @@ func TestJavaCmdArgs(t *testing.T) {
 }
 
 func basicTask(t *testing.T, name string, taskConfig map[string]interface{}) *drivers.TaskConfig {
+	t.Helper()
+
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: name,
@@ -266,16 +266,15 @@ func basicTask(t *testing.T, name string, taskConfig map[string]interface{}) *dr
 }
 
 func encodeDriverHelper(t *testing.T, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
+	t.Helper()
+
 	evalCtx := &hcl.EvalContext{
 		Functions: shared.GetStdlibFuncs(),
 	}
 	spec, diag := hclspec.Convert(taskConfigSpec)
 	require.False(t, diag.HasErrors())
 	taskConfigCtyVal, diag := shared.ParseHclInterface(taskConfig, spec, evalCtx)
-	if diag.HasErrors() {
-		fmt.Println("conversion error", diag.Error())
-	}
-	require.False(t, diag.HasErrors())
+	require.Empty(t, diag.Errs())
 	err := task.EncodeDriverConfig(taskConfigCtyVal)
 	require.Nil(t, err)
 

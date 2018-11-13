@@ -123,7 +123,9 @@ func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
 	defer cleanup()
 
 	conf.Alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "500ms"
+	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "500ms",
+	}
 
 	waiter := NewAllocWatcher(conf)
 

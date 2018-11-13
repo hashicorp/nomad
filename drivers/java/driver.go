@@ -70,11 +70,11 @@ var (
 		// It's required for either `class` or `jar_path` to be set,
 		// but that's not expressable in hclspec.  Marking both as optional
 		// and setting checking explicitly later
-		"class":     hclspec.NewAttr("class", "string", false),
-		"classpath": hclspec.NewAttr("classpath", "string", false),
-		"jar_path":  hclspec.NewAttr("jar_path", "string", false),
-		"java_opts": hclspec.NewAttr("java_opts", "list(string)", false),
-		"args":      hclspec.NewAttr("args", "list(string)", false),
+		"class":       hclspec.NewAttr("class", "string", false),
+		"class_path":  hclspec.NewAttr("class_path", "string", false),
+		"jar_path":    hclspec.NewAttr("jar_path", "string", false),
+		"jvm_options": hclspec.NewAttr("jvm_options", "list(string)", false),
+		"args":        hclspec.NewAttr("args", "list(string)", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -97,9 +97,9 @@ func init() {
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
 	Class     string   `codec:"class"`
-	ClassPath string   `codec:"classpath"`
+	ClassPath string   `codec:"class_path"`
 	JarPath   string   `codec:"jar_path"`
-	JvmOpts   []string `codec:"java_opts"`
+	JvmOpts   []string `codec:"jvm_options"`
 	Args      []string `codec:"args"` // extra arguments to java executable
 }
 
