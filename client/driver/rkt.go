@@ -671,6 +671,22 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		Cmd:            absPath,
 		Args:           runArgs,
 		ResourceLimits: true,
+		//
+		// Don't re-enable these flags as they would apply to the
+		// rkt CLI invocation rather than ultimate container running task
+		// Commenting them explicitly to protect against future changes
+		// that re-add them
+		//
+		// Resources: &executor.Resources{
+		// 	CPU:      task.Resources.CPU,
+		// 	MemoryMB: task.Resources.MemoryMB,
+		// 	IOPS:     task.Resources.IOPS,
+		// 	DiskMB:   task.Resources.DiskMB,
+		// },
+		// Env:        ctx.TaskEnv.List(),
+		// TaskDir:    ctx.TaskDir.Dir,
+		// StdoutPath: ctx.StdoutFifo,
+		// StderrPath: ctx.StderrFifo,
 	}
 	ps, err := execIntf.Launch(execCmd)
 	if err != nil {

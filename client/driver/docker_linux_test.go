@@ -57,7 +57,11 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	task, _, _ := dockerTask(t)
 	task.Config["pids_limit"] = "1"
 	task.Config["command"] = "/bin/sh"
-	task.Config["args"] = []string{"-c", "sleep 1000"}
+
+	// this starts three processes in container: /bin/sh and two sleep
+	// while a single sleep suffices, our observation is that it's image dependent
+	// (i.e. using a single sleep here in alpine image doesn't trigger PID limit failure)
+	task.Config["args"] = []string{"-c", "sleep 2 & sleep 2"}
 
 	ctx := testDockerDriverContexts(t, task)
 	defer ctx.Destroy()
