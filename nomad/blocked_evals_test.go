@@ -112,7 +112,7 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 	blocked.Block(e)
 	blocked.Block(e2)
 
-	// Verify block did track both
+	// Verify stats such that we are only tracking one
 	bStats := blocked.Stats()
 	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
 		t.Fatalf("bad: %#v", bStats)
@@ -136,11 +136,23 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", out, e2)
 	}
 
+	// Verify stats such that we are only tracking one
+	bStats = blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+
 	// Add an older evaluation and assert it gets cancelled
 	blocked.Block(e4)
 	out = blocked.GetDuplicates(0)
 	if len(out) != 1 || !reflect.DeepEqual(out[0], e4) {
 		t.Fatalf("bad: %#v %#v", out, e4)
+	}
+
+	// Verify stats such that we are only tracking one
+	bStats = blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
 	}
 }
 

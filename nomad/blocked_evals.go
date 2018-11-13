@@ -178,7 +178,12 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	}
 
 	// Handle the new evaluation being for a job we are already tracking.
-	b.processBlockJobDuplicate(eval)
+	if b.processBlockJobDuplicate(eval) {
+		// If process block job duplicate returns true, the new evaluation has
+		// been marked as a duplicate and we have nothing to do, so return
+		// early.
+		return
+	}
 
 	// Check if the eval missed an unblock while it was in the scheduler at an
 	// older index. The scheduler could have been invoked with a snapshot of
@@ -229,8 +234,9 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 // would create unnecessary work for the scheduler as multiple evals for the
 // same job would be run, all producing the same outcome. It is critical to
 // prefer the newer evaluation, since it will contain the most up to date set of
-// class eligibility. This should be called with the lock held.
-func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
+// class eligibility. The return value is set to true, if the passed evaluation
+// is cancelled. This should be called with the lock held.
+func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCancelled bool) {
 	existingID, hasExisting := b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)]
 	if !hasExisting {
 		return
@@ -245,6 +251,7 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
 			dup = existingW.eval
 		} else {
 			dup = eval
+			newCancelled = true
 		}
 	} else {
 		existingW, ok = b.escaped[existingID]
@@ -260,6 +267,7 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
 			dup = existingW.eval
 		} else {
 			dup = eval
+			newCancelled = true
 		}
 	}
 
@@ -270,6 +278,8 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) {
 	case b.duplicateCh <- struct{}{}:
 	default:
 	}
+
+	return
 }
 
 // latestEvalIndex returns the max of the evaluations create and snapshot index
