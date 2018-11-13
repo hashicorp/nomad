@@ -67,10 +67,10 @@ type LxcDriver struct {
 // Start; and containers created from a rootfs clone and started using
 // StartExecute.
 type LxcCommonDriverConfig struct {
-	LogLevel   string   `mapstructure:"log_level"`
-	Verbosity  string   `mapstructure:"verbosity"`
-	UseExecute bool     `mapstructure:"use_execute"`
-	Volumes    []string `mapstructure:"volumes"`
+	LogLevel   string              `mapstructure:"log_level"`
+	Verbosity  string              `mapstructure:"verbosity"`
+	UseExecute bool                `mapstructure:"use_execute"`
+	Volumes    []map[string]string `mapstructure:"volumes"`
 }
 
 // LxcStartDriverConfig is the configuration for containers that will
@@ -235,17 +235,20 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 }
 
 func (d *LxcDriver) validateVolumesConfig(volumes []interface{}) error {
-	for _, volDesc := range volumes {
-		volStr := volDesc.(string)
-		paths := strings.Split(volStr, ":")
-		if len(paths) != 2 {
-			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+	for _, volSpecI := range volumes {
+		volSpec := volSpecI.(map[string]interface{})
+		_, sourcePresent := volSpec["source"]
+		dest, destPresent := volSpec["dest"]
+		if !sourcePresent || !destPresent {
+			return fmt.Errorf("invalid volume bind mount entry: empty src or dest %v", volSpec)
 		}
-		if len(paths[0]) == 0 || len(paths[1]) == 0 {
-			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+
+		if dest.(string)[0] == '/' {
+			return fmt.Errorf("unsupported absolute container mount point: '%s'", dest)
 		}
-		if paths[1][0] == '/' {
-			return fmt.Errorf("unsupported absolute container mount point: '%s'", paths[1])
+		mode, modePresent := volSpec["mode"]
+		if modePresent && mode.(string) != "ro" && mode.(string) != "rw" {
+			return fmt.Errorf("invalid mode in bind vol: '%s'", mode.(string))
 		}
 	}
 	return nil
@@ -598,20 +601,34 @@ func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container,
 
 	volumesEnabled := d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault)
 
-	for _, volDesc := range commonConfig.Volumes {
-		// the format was checked in Validate()
-		paths := strings.Split(volDesc, ":")
+	for _, volSpec := range commonConfig.Volumes {
+		mode, modePresent := volSpec["mode"]
 
-		if filepath.IsAbs(paths[0]) {
+		if !modePresent {
+			mode = "rw"
+		}
+
+		srcPath := volSpec["source"]
+		if filepath.IsAbs(srcPath) {
 			if !volumesEnabled {
 				return fmt.Errorf("absolute bind-mount volume in config but '%v' is false", lxcVolumesConfigOption)
 			}
 		} else {
 			// Relative source paths are treated as relative to alloc dir
-			paths[0] = filepath.Join(ctx.TaskDir.Dir, paths[0])
+			srcPath = filepath.Join(ctx.TaskDir.Dir, srcPath)
 		}
 
-		mounts = append(mounts, fmt.Sprintf("%s %s none rw,bind,create=dir", paths[0], paths[1]))
+		createType := "dir"
+		srcFileInfo, err := os.Stat(srcPath)
+		if err != nil {
+			return fmt.Errorf("couldn't Stat src='%s' in mount directive: %v", srcPath, err)
+		}
+
+		if srcFileInfo.Mode().IsRegular() {
+			createType = "file"
+		}
+
+		mounts = append(mounts, fmt.Sprintf("%s %s none %s,bind,create=%s", srcPath, volSpec["dest"], mode, createType))
 	}
 
 	for _, mnt := range mounts {
