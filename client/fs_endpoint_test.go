@@ -663,7 +663,7 @@ func TestFS_Stream_Follow(t *testing.T) {
 		"run_for":                "20s",
 		"stdout_string":          expectedBase,
 		"stdout_repeat":          repeat,
-		"stdout_repeat_duration": 200 * time.Millisecond,
+		"stdout_repeat_duration": "200ms",
 	}
 
 	// Wait for alloc to be running
@@ -1265,7 +1265,7 @@ func TestFS_Logs_Follow(t *testing.T) {
 		"run_for":                "20s",
 		"stdout_string":          expectedBase,
 		"stdout_repeat":          repeat,
-		"stdout_repeat_duration": 200 * time.Millisecond,
+		"stdout_repeat_duration": "200ms",
 	}
 
 	// Wait for client to be running job

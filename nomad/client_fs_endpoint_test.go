@@ -45,7 +45,7 @@ func TestClientFS_List_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -197,7 +197,7 @@ func TestClientFS_List_Remote(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -314,7 +314,7 @@ func TestClientFS_Stat_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -466,7 +466,7 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -734,7 +734,7 @@ func TestClientFS_Streaming_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":       2 * time.Second,
+			"run_for":       "2s",
 			"stdout_string": expected,
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -868,10 +868,10 @@ func TestClientFS_Streaming_Local_Follow(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":                3 * time.Second,
+			"run_for":                "3s",
 			"stdout_string":          expectedBase,
 			"stdout_repeat":          repeat,
-			"stdout_repeat_duration": 200 * time.Millisecond,
+			"stdout_repeat_duration": "200ms",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -1010,7 +1010,7 @@ func TestClientFS_Streaming_Remote_Server(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":       2 * time.Second,
+			"run_for":       "2s",
 			"stdout_string": expected,
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -1157,7 +1157,7 @@ func TestClientFS_Streaming_Remote_Region(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":       2 * time.Second,
+			"run_for":       "2s",
 			"stdout_string": expected,
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -1556,7 +1556,7 @@ func TestClientFS_Logs_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":       2 * time.Second,
+			"run_for":       "2s",
 			"stdout_string": expected,
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -1691,10 +1691,10 @@ func TestClientFS_Logs_Local_Follow(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":                20 * time.Second,
+			"run_for":                "20s",
 			"stdout_string":          expectedBase,
 			"stdout_repeat":          repeat,
-			"stdout_repeat_duration": 200 * time.Millisecond,
+			"stdout_repeat_duration": "200ms",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -1834,7 +1834,7 @@ func TestClientFS_Logs_Remote_Server(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":       2 * time.Second,
+			"run_for":       "2s",
 			"stdout_string": expected,
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -1982,7 +1982,7 @@ func TestClientFS_Logs_Remote_Region(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":       2 * time.Second,
+			"run_for":       "2s",
 			"stdout_string": expected,
 		},
 		LogConfig: structs.DefaultLogConfig(),

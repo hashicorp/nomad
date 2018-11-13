@@ -3,7 +3,6 @@ package nomad
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
@@ -284,7 +283,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -433,7 +432,7 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -554,7 +553,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -703,7 +702,7 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for": 2 * time.Second,
+			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
