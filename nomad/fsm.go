@@ -522,7 +522,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
 			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
-				n.logger.Printf("[ERR] deregistering job %v failed:%v", jobNS)
+				n.logger.Printf("[ERR] deregistering job %v failed:%v", jobNS, err)
 				return err
 			}
 		}
