@@ -1177,7 +1177,7 @@ func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.
 }
 
 // JobByIDTxn is used to lookup a job by its ID, like  JobByID. JobByID returns the job version
-// accessable through in the transaction
+// accessible through in the transaction
 func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn) (*structs.Job, error) {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
