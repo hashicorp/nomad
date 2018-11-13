@@ -274,22 +274,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("failed to initialize ACL state: %v", err)
 	}
 
-	// Add the stats collector
-	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir)
-	c.hostStatsCollector = statsCollector
-
-	// Add the garbage collector
-	gcConfig := &GCConfig{
-		MaxAllocs:           cfg.GCMaxAllocs,
-		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
-		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
-		Interval:            cfg.GCInterval,
-		ParallelDestroys:    cfg.GCParallelDestroys,
-		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
-	}
-	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
-	go c.garbageCollector.Run()
-
 	// Setup the node
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
@@ -323,6 +307,22 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 	c.devicemanager = devicemanager.New(devConfig)
 	go c.devicemanager.Run()
+
+	// Add the stats collector
+	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
+	c.hostStatsCollector = statsCollector
+
+	// Add the garbage collector
+	gcConfig := &GCConfig{
+		MaxAllocs:           cfg.GCMaxAllocs,
+		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
+		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
+		Interval:            cfg.GCInterval,
+		ParallelDestroys:    cfg.GCParallelDestroys,
+		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
+	}
+	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
+	go c.garbageCollector.Run()
 
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()

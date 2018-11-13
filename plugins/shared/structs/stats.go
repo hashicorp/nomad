@@ -16,23 +16,23 @@ type StatObject struct {
 type StatValue struct {
 	// FloatNumeratorVal exposes a floating point value. If denominator is set
 	// it is assumed to be a fractional value, otherwise it is a scalar.
-	FloatNumeratorVal   *float64
-	FloatDenominatorVal *float64
+	FloatNumeratorVal   *float64 `json:",omitempty"`
+	FloatDenominatorVal *float64 `json:",omitempty"`
 
 	// IntNumeratorVal exposes a int value. If denominator is set it is assumed
 	// to be a fractional value, otherwise it is a scalar.
-	IntNumeratorVal   *int64
-	IntDenominatorVal *int64
+	IntNumeratorVal   *int64 `json:",omitempty"`
+	IntDenominatorVal *int64 `json:",omitempty"`
 
 	// StringVal exposes a string value. These are likely annotations.
-	StringVal *string
+	StringVal *string `json:",omitempty"`
 
 	// BoolVal exposes a boolean statistic.
-	BoolVal *bool
+	BoolVal *bool `json:",omitempty"`
 
 	// Unit gives the unit type: °F, %, MHz, MB, etc.
-	Unit string
+	Unit string `json:",omitempty"`
 
 	// Desc provides a human readable description of the statistic.
-	Desc string
+	Desc string `json:",omitempty"`
 }
