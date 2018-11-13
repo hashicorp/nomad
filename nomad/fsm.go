@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -632,7 +631,7 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 		len(eval.FailedTGAllocs) == 0 {
 		// If we have a successful evaluation for a node, untrack any
 		// blocked evaluation
-		n.blockedEvals.Untrack(eval.JobID)
+		n.blockedEvals.Untrack(eval.JobID, eval.Namespace)
 	}
 }
 
