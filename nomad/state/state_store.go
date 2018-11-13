@@ -13,6 +13,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Txn is a transaction against a state store.
+// This can be a read or write transaction.
+type Txn = *memdb.Txn
+
 const (
 	// NodeRegisterEventReregistered is the message used when the node becomes
 	// reregistered.
@@ -922,6 +926,12 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
+// UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
+// but in a transcation.  Useful for when making multiple modifications atomically
+func (s *StateStore) UpsertJobTxn(index uint64, job *structs.Job, txn Txn) error {
+	return s.upsertJobImpl(index, job, false, txn)
+}
+
 // upsertJobImpl is the implementation for registering a job or updating a job definition
 func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
@@ -1005,6 +1015,16 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.DeleteJobTxn(index, namespace, jobID, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// DeleteJobTxn is used to deregister a job, like DeleteJob,
+// but in a transcation.  Useful for when making multiple modifications atomically
+func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1091,7 +1111,6 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1189,7 +1208,12 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 // version.
 func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
+	return s.JobByIDTxn(ws, namespace, id, txn)
+}
 
+// JobByIDTxn is used to lookup a job by its ID, like  JobByID. JobByID returns the job version
+// accessable through in the transaction
+func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn) (*structs.Job, error) {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1510,6 +1534,16 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.DeletePeriodicLaunchTxn(index, namespace, jobID, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// DeletePeriodicLaunchTxn is used to delete the periodic launch, like DeletePeriodicLaunch
+// but in a transcation.  Useful for when making multiple modifications atomically
+func (s *StateStore) DeletePeriodicLaunchTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1532,7 +1566,6 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1579,6 +1612,16 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.UpsertEvalsTxn(index, evals, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// UpsertEvals is used to upsert a set of evaluations, like UpsertEvals
+// but in a transcation.  Useful for when making multiple modifications atomically
+func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
 	// Do a nested upsert
 	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
@@ -1598,7 +1641,6 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -3899,6 +3941,20 @@ func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerCon
 
 	tx.Commit()
 	return nil
+}
+
+// WithWriteTransaction executes the passed function within a write transaction,
+// and returns its result.  If the invocation returns no error, the transaction
+// is committed; otherwise, it's aborted.
+func (s *StateStore) WithWriteTransaction(fn func(Txn) error) error {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	err := fn(tx)
+	if err == nil {
+		tx.Commit()
+	}
+	return err
 }
 
 // SchedulerCASConfig is used to update the scheduler configuration with a
