@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/shared/structs/proto"
 )
@@ -131,12 +132,12 @@ func ConvertProtoStatValue(in *proto.StatValue) *StatValue {
 	}
 
 	return &StatValue{
-		FloatNumeratorVal:   in.FloatNumeratorVal,
-		FloatDenominatorVal: in.FloatDenominatorVal,
-		IntNumeratorVal:     in.IntNumeratorVal,
-		IntDenominatorVal:   in.IntDenominatorVal,
-		StringVal:           in.StringVal,
-		BoolVal:             in.BoolVal,
+		FloatNumeratorVal:   unwrapDouble(in.FloatNumeratorVal),
+		FloatDenominatorVal: unwrapDouble(in.FloatDenominatorVal),
+		IntNumeratorVal:     unwrapInt64(in.IntNumeratorVal),
+		IntDenominatorVal:   unwrapInt64(in.IntDenominatorVal),
+		StringVal:           unwrapString(in.StringVal),
+		BoolVal:             unwrapBool(in.BoolVal),
 		Unit:                in.Unit,
 		Desc:                in.Desc,
 	}
@@ -171,13 +172,83 @@ func ConvertStructStatValue(in *StatValue) *proto.StatValue {
 	}
 
 	return &proto.StatValue{
-		FloatNumeratorVal:   in.FloatNumeratorVal,
-		FloatDenominatorVal: in.FloatDenominatorVal,
-		IntNumeratorVal:     in.IntNumeratorVal,
-		IntDenominatorVal:   in.IntDenominatorVal,
-		StringVal:           in.StringVal,
-		BoolVal:             in.BoolVal,
+		FloatNumeratorVal:   wrapDouble(in.FloatNumeratorVal),
+		FloatDenominatorVal: wrapDouble(in.FloatDenominatorVal),
+		IntNumeratorVal:     wrapInt64(in.IntNumeratorVal),
+		IntDenominatorVal:   wrapInt64(in.IntDenominatorVal),
+		StringVal:           wrapString(in.StringVal),
+		BoolVal:             wrapBool(in.BoolVal),
 		Unit:                in.Unit,
 		Desc:                in.Desc,
 	}
+}
+
+// Helper functions for proto wrapping
+
+func unwrapDouble(w *wrappers.DoubleValue) *float64 {
+	if w == nil {
+		return nil
+	}
+
+	v := w.Value
+	return &v
+}
+
+func wrapDouble(v *float64) *wrappers.DoubleValue {
+	if v == nil {
+		return nil
+	}
+
+	return &wrappers.DoubleValue{Value: *v}
+}
+
+func unwrapInt64(w *wrappers.Int64Value) *int64 {
+	if w == nil {
+		return nil
+	}
+
+	v := w.Value
+	return &v
+}
+
+func wrapInt64(v *int64) *wrappers.Int64Value {
+	if v == nil {
+		return nil
+	}
+
+	return &wrappers.Int64Value{Value: *v}
+}
+
+func unwrapString(w *wrappers.StringValue) *string {
+	if w == nil {
+		return nil
+	}
+
+	v := w.Value
+	return &v
+}
+
+func wrapString(v *string) *wrappers.StringValue {
+	if v == nil {
+		return nil
+	}
+
+	return &wrappers.StringValue{Value: *v}
+}
+
+func unwrapBool(w *wrappers.BoolValue) *bool {
+	if w == nil {
+		return nil
+	}
+
+	v := w.Value
+	return &v
+}
+
+func wrapBool(v *bool) *wrappers.BoolValue {
+	if v == nil {
+		return nil
+	}
+
+	return &wrappers.BoolValue{Value: *v}
 }

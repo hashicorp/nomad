@@ -73,14 +73,14 @@ var (
 		InstanceStats: map[string]*device.DeviceStats{
 			nvidiaDevice0ID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: 212,
+					IntNumeratorVal: helper.Int64ToPtr(212),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
 			},
 			nvidiaDevice1ID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: 218,
+					IntNumeratorVal: helper.Int64ToPtr(218),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
@@ -95,7 +95,7 @@ var (
 		InstanceStats: map[string]*device.DeviceStats{
 			intelDeviceID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: 220,
+					IntNumeratorVal: helper.Int64ToPtr(220),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
@@ -327,7 +327,7 @@ func TestManager_DeviceStats(t *testing.T) {
 	require.Contains(stat.InstanceStats, nvidiaDevice1ID)
 
 	istat := stat.InstanceStats[nvidiaDevice1ID]
-	require.EqualValues(218, istat.Summary.IntNumeratorVal)
+	require.EqualValues(218, *istat.Summary.IntNumeratorVal)
 }
 
 // Test reserving a particular device

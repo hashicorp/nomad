@@ -472,8 +472,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						IntNumeratorVal:   10,
-						IntDenominatorVal: 20,
+						IntNumeratorVal:   helper.Int64ToPtr(10),
+						IntDenominatorVal: helper.Int64ToPtr(20),
 						Unit:              "MB",
 						Desc:              "Unit test",
 					},
@@ -489,8 +489,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						FloatNumeratorVal:   10.0,
-						FloatDenominatorVal: 20.0,
+						FloatNumeratorVal:   helper.Float64ToPtr(10.0),
+						FloatDenominatorVal: helper.Float64ToPtr(20.0),
 						Unit:                "MB",
 						Desc:                "Unit test",
 					},
@@ -504,7 +504,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						StringVal: "foo",
+						StringVal: helper.StringToPtr("foo"),
 						Unit:      "MB",
 						Desc:      "Unit test",
 					},
@@ -518,7 +518,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						BoolVal: true,
+						BoolVal: helper.BoolToPtr(true),
 						Unit:    "MB",
 						Desc:    "Unit test",
 					},

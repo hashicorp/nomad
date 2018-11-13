@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -337,23 +339,23 @@ func (d *FsDevice) collectStats() (*device.DeviceGroupStats, error) {
 
 		s := &device.DeviceStats{
 			Summary: &structs.StatValue{
-				IntNumeratorVal: f.Size(),
+				IntNumeratorVal: helper.Int64ToPtr(f.Size()),
 				Unit:            "bytes",
 				Desc:            "Filesize in bytes",
 			},
 			Stats: &structs.StatObject{
 				Attributes: map[string]*structs.StatValue{
 					"size": {
-						IntNumeratorVal: f.Size(),
+						IntNumeratorVal: helper.Int64ToPtr(f.Size()),
 						Unit:            "bytes",
 						Desc:            "Filesize in bytes",
 					},
 					"modify_time": {
-						StringVal: f.ModTime().String(),
+						StringVal: helper.StringToPtr(f.ModTime().String()),
 						Desc:      "Last modified",
 					},
 					"mode": {
-						StringVal: f.Mode().String(),
+						StringVal: helper.StringToPtr(f.Mode().String()),
 						Desc:      "File mode",
 					},
 				},

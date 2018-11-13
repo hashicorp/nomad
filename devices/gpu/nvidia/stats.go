@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -134,7 +135,7 @@ func (d *NvidiaDevice) writeStatsToChannel(stats chan<- *device.StatsResponse, t
 }
 
 func newNotAvailableDeviceStats(unit, desc string) *structs.StatValue {
-	return &structs.StatValue{Unit: unit, Desc: desc, StringVal: notAvailable}
+	return &structs.StatValue{Unit: unit, Desc: desc, StringVal: helper.StringToPtr(notAvailable)}
 }
 
 // statsForGroup is a helper function that populates device.DeviceGroupStats
@@ -178,8 +179,8 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		powerUsageStat = &structs.StatValue{
 			Unit:              PowerUsageUnit,
 			Desc:              PowerUsageDesc,
-			IntNumeratorVal:   int64(*statsItem.PowerUsageW),
-			IntDenominatorVal: int64(*statsItem.PowerW),
+			IntNumeratorVal:   helper.Int64ToPtr(int64(*statsItem.PowerUsageW)),
+			IntDenominatorVal: uintToInt64Ptr(statsItem.PowerW),
 		}
 	}
 
@@ -189,7 +190,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		GPUUtilizationStat = &structs.StatValue{
 			Unit:            GPUUtilizationUnit,
 			Desc:            GPUUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.GPUUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.GPUUtilization),
 		}
 	}
 
@@ -199,7 +200,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		memoryUtilizationStat = &structs.StatValue{
 			Unit:            MemoryUtilizationUnit,
 			Desc:            MemoryUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.MemoryUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.MemoryUtilization),
 		}
 	}
 
@@ -209,7 +210,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		encoderUtilizationStat = &structs.StatValue{
 			Unit:            EncoderUtilizationUnit,
 			Desc:            EncoderUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.EncoderUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.EncoderUtilization),
 		}
 	}
 
@@ -219,7 +220,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		decoderUtilizationStat = &structs.StatValue{
 			Unit:            DecoderUtilizationUnit,
 			Desc:            DecoderUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.DecoderUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.DecoderUtilization),
 		}
 	}
 
@@ -229,7 +230,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		temperatureStat = &structs.StatValue{
 			Unit:            TemperatureUnit,
 			Desc:            TemperatureDesc,
-			IntNumeratorVal: int64(*statsItem.TemperatureC),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.TemperatureC),
 		}
 	}
 
@@ -239,8 +240,8 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		memoryStateStat = &structs.StatValue{
 			Unit:              MemoryStateUnit,
 			Desc:              MemoryStateDesc,
-			IntNumeratorVal:   int64(*statsItem.UsedMemoryMiB),
-			IntDenominatorVal: int64(*statsItem.MemoryMiB),
+			IntNumeratorVal:   uint64ToInt64Ptr(statsItem.UsedMemoryMiB),
+			IntDenominatorVal: uint64ToInt64Ptr(statsItem.MemoryMiB),
 		}
 	}
 
@@ -250,8 +251,8 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		BAR1StateStat = &structs.StatValue{
 			Unit:              BAR1StateUnit,
 			Desc:              BAR1StateDesc,
-			IntNumeratorVal:   int64(*statsItem.BAR1UsedMiB),
-			IntDenominatorVal: int64(*statsItem.BAR1MiB),
+			IntNumeratorVal:   uint64ToInt64Ptr(statsItem.BAR1UsedMiB),
+			IntDenominatorVal: uint64ToInt64Ptr(statsItem.BAR1MiB),
 		}
 	}
 
@@ -261,7 +262,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		ECCErrorsL1CacheStat = &structs.StatValue{
 			Unit:            ECCErrorsL1CacheUnit,
 			Desc:            ECCErrorsL1CacheDesc,
-			IntNumeratorVal: int64(*statsItem.ECCErrorsL1Cache),
+			IntNumeratorVal: uint64ToInt64Ptr(statsItem.ECCErrorsL1Cache),
 		}
 	}
 
@@ -271,7 +272,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		ECCErrorsL2CacheStat = &structs.StatValue{
 			Unit:            ECCErrorsL2CacheUnit,
 			Desc:            ECCErrorsL2CacheDesc,
-			IntNumeratorVal: int64(*statsItem.ECCErrorsL2Cache),
+			IntNumeratorVal: uint64ToInt64Ptr(statsItem.ECCErrorsL2Cache),
 		}
 	}
 
@@ -281,7 +282,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		ECCErrorsDeviceStat = &structs.StatValue{
 			Unit:            ECCErrorsDeviceUnit,
 			Desc:            ECCErrorsDeviceDesc,
-			IntNumeratorVal: int64(*statsItem.ECCErrorsDevice),
+			IntNumeratorVal: uint64ToInt64Ptr(statsItem.ECCErrorsDevice),
 		}
 	}
 	return &device.DeviceStats{
@@ -303,4 +304,22 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		},
 		Timestamp: timestamp,
 	}
+}
+
+func uintToInt64Ptr(u *uint) *int64 {
+	if u == nil {
+		return nil
+	}
+
+	v := int64(*u)
+	return &v
+}
+
+func uint64ToInt64Ptr(u *uint64) *int64 {
+	if u == nil {
+		return nil
+	}
+
+	v := int64(*u)
+	return &v
 }
