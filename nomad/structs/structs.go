@@ -6324,13 +6324,15 @@ func (ta *TaskArtifact) validateChecksum() error {
 }
 
 const (
-	ConstraintDistinctProperty = "distinct_property"
-	ConstraintDistinctHosts    = "distinct_hosts"
-	ConstraintRegex            = "regexp"
-	ConstraintVersion          = "version"
-	ConstraintSetContains      = "set_contains"
-	ConstraintSetContainsAll   = "set_contains_all"
-	ConstraintSetContainsAny   = "set_contains_any"
+	ConstraintDistinctProperty  = "distinct_property"
+	ConstraintDistinctHosts     = "distinct_hosts"
+	ConstraintRegex             = "regexp"
+	ConstraintVersion           = "version"
+	ConstraintSetContains       = "set_contains"
+	ConstraintSetContainsAll    = "set_contains_all"
+	ConstraintSetContainsAny    = "set_contains_any"
+	ConstraintAttributeIsSet    = "is_set"
+	ConstraintAttributeIsNotSet = "is_not_set"
 )
 
 // Constraints are used to restrict placement options.
@@ -6400,6 +6402,10 @@ func (c *Constraint) Validate() error {
 			} else if count < 1 {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct Property must have an allowed count of 1 or greater: %d < 1", count))
 			}
+		}
+	case ConstraintAttributeIsSet, ConstraintAttributeIsNotSet:
+		if c.RTarget != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Operator %q does not support an RTarget", c.Operand))
 		}
 	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
 		if c.RTarget == "" {

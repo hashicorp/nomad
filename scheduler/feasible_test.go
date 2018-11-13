@@ -197,13 +197,12 @@ func TestConstraintChecker(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
-		mock.Node(),
 	}
 
 	nodes[0].Attributes["kernel.name"] = "freebsd"
 	nodes[1].Datacenter = "dc2"
-	nodes[2].Attributes["not_present"] = "true"
-	nodes[3].NodeClass = "large"
+	nodes[2].NodeClass = "large"
+	nodes[2].Attributes["foo"] = "bar"
 
 	constraints := []*structs.Constraint{
 		{
@@ -218,13 +217,12 @@ func TestConstraintChecker(t *testing.T) {
 		},
 		{
 			Operand: "!=",
-			LTarget: "${attr.not_present}",
-			RTarget: "true",
+			LTarget: "${node.class}",
+			RTarget: "linux-medium-pci",
 		},
 		{
-			Operand: "is",
-			LTarget: "${node.class}",
-			RTarget: "large",
+			Operand: "is_set",
+			LTarget: "${attr.foo}",
 		},
 	}
 	checker := NewConstraintChecker(ctx, constraints)
@@ -242,10 +240,6 @@ func TestConstraintChecker(t *testing.T) {
 		},
 		{
 			Node:   nodes[2],
-			Result: false,
-		},
-		{
-			Node:   nodes[3],
 			Result: true,
 		},
 	}
@@ -304,6 +298,7 @@ func TestResolveConstraintTarget(t *testing.T) {
 		{
 			target: "${attr.rand}",
 			node:   node,
+			val:    "",
 			result: false,
 		},
 		{
@@ -315,6 +310,7 @@ func TestResolveConstraintTarget(t *testing.T) {
 		{
 			target: "${meta.rand}",
 			node:   node,
+			val:    "",
 			result: false,
 		},
 	}
@@ -363,6 +359,11 @@ func TestCheckConstraint(t *testing.T) {
 			result: false,
 		},
 		{
+			op:   "==",
+			lVal: nil, rVal: nil,
+			result: false,
+		},
+		{
 			op:   "!=",
 			lVal: "foo", rVal: "foo",
 			result: false,
@@ -381,6 +382,11 @@ func TestCheckConstraint(t *testing.T) {
 			op:   "!=",
 			lVal: "foo", rVal: nil,
 			result: true,
+		},
+		{
+			op:   "!=",
+			lVal: nil, rVal: nil,
+			result: false,
 		},
 		{
 			op:   "not",
@@ -427,11 +433,31 @@ func TestCheckConstraint(t *testing.T) {
 			lVal: "foo,bar,baz", rVal: "foo,bam",
 			result: false,
 		},
+		{
+			op:     structs.ConstraintAttributeIsSet,
+			lVal:   "foo",
+			result: true,
+		},
+		{
+			op:     structs.ConstraintAttributeIsSet,
+			lVal:   nil,
+			result: false,
+		},
+		{
+			op:     structs.ConstraintAttributeIsNotSet,
+			lVal:   nil,
+			result: true,
+		},
+		{
+			op:     structs.ConstraintAttributeIsNotSet,
+			lVal:   "foo",
+			result: false,
+		},
 	}
 
 	for _, tc := range cases {
 		_, ctx := testContext(t)
-		if res := checkConstraint(ctx, tc.op, tc.lVal, tc.rVal); res != tc.result {
+		if res := checkConstraint(ctx, tc.op, tc.lVal, tc.rVal, tc.lVal != nil, tc.rVal != nil); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
@@ -2018,6 +2044,12 @@ func TestCheckAttributeConstraint(t *testing.T) {
 			result: true,
 		},
 		{
+			op:     "=",
+			lVal:   nil,
+			rVal:   nil,
+			result: false,
+		},
+		{
 			op:     "is",
 			lVal:   psstructs.NewStringAttribute("foo"),
 			rVal:   psstructs.NewStringAttribute("foo"),
@@ -2034,6 +2066,18 @@ func TestCheckAttributeConstraint(t *testing.T) {
 			lVal:   psstructs.NewStringAttribute("foo"),
 			rVal:   psstructs.NewStringAttribute("foo"),
 			result: false,
+		},
+		{
+			op:     "!=",
+			lVal:   nil,
+			rVal:   psstructs.NewStringAttribute("foo"),
+			result: true,
+		},
+		{
+			op:     "!=",
+			lVal:   psstructs.NewStringAttribute("foo"),
+			rVal:   nil,
+			result: true,
 		},
 		{
 			op:     "!=",
@@ -2089,11 +2133,31 @@ func TestCheckAttributeConstraint(t *testing.T) {
 			rVal:   psstructs.NewStringAttribute("foo,bam"),
 			result: true,
 		},
+		{
+			op:     structs.ConstraintAttributeIsSet,
+			lVal:   psstructs.NewStringAttribute("foo,bar,baz"),
+			result: true,
+		},
+		{
+			op:     structs.ConstraintAttributeIsSet,
+			lVal:   nil,
+			result: false,
+		},
+		{
+			op:     structs.ConstraintAttributeIsNotSet,
+			lVal:   psstructs.NewStringAttribute("foo,bar,baz"),
+			result: false,
+		},
+		{
+			op:     structs.ConstraintAttributeIsNotSet,
+			lVal:   nil,
+			result: true,
+		},
 	}
 
 	for _, tc := range cases {
 		_, ctx := testContext(t)
-		if res := checkAttributeConstraint(ctx, tc.op, tc.lVal, tc.rVal); res != tc.result {
+		if res := checkAttributeConstraint(ctx, tc.op, tc.lVal, tc.rVal, tc.lVal != nil, tc.rVal != nil); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
