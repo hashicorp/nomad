@@ -204,6 +204,10 @@ func (h *HostStatsCollector) collectDiskStats() ([]*DiskStats, error) {
 }
 
 func (h *HostStatsCollector) collectDeviceGroupStats() []*DeviceGroupStats {
+	if h.deviceStatsCollector == nil {
+		return []*DeviceGroupStats{}
+	}
+
 	return h.deviceStatsCollector()
 }
 
