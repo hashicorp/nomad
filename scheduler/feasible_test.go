@@ -202,7 +202,8 @@ func TestConstraintChecker(t *testing.T) {
 
 	nodes[0].Attributes["kernel.name"] = "freebsd"
 	nodes[1].Datacenter = "dc2"
-	nodes[2].NodeClass = "large"
+	nodes[2].Attributes["not_present"] = "true"
+	nodes[3].NodeClass = "large"
 
 	constraints := []*structs.Constraint{
 		{
@@ -214,6 +215,11 @@ func TestConstraintChecker(t *testing.T) {
 			Operand: "is",
 			LTarget: "${attr.kernel.name}",
 			RTarget: "linux",
+		},
+		{
+			Operand: "!=",
+			LTarget: "${attr.not_present}",
+			RTarget: "true",
 		},
 		{
 			Operand: "is",
@@ -236,6 +242,10 @@ func TestConstraintChecker(t *testing.T) {
 		},
 		{
 			Node:   nodes[2],
+			Result: false,
+		},
+		{
+			Node:   nodes[3],
 			Result: true,
 		},
 	}
@@ -343,6 +353,16 @@ func TestCheckConstraint(t *testing.T) {
 			result: true,
 		},
 		{
+			op:   "==",
+			lVal: "foo", rVal: nil,
+			result: false,
+		},
+		{
+			op:   "==",
+			lVal: nil, rVal: "foo",
+			result: false,
+		},
+		{
 			op:   "!=",
 			lVal: "foo", rVal: "foo",
 			result: false,
@@ -350,6 +370,16 @@ func TestCheckConstraint(t *testing.T) {
 		{
 			op:   "!=",
 			lVal: "foo", rVal: "bar",
+			result: true,
+		},
+		{
+			op:   "!=",
+			lVal: nil, rVal: "foo",
+			result: true,
+		},
+		{
+			op:   "!=",
+			lVal: "foo", rVal: nil,
 			result: true,
 		},
 		{
@@ -363,13 +393,28 @@ func TestCheckConstraint(t *testing.T) {
 			result: true,
 		},
 		{
+			op:   structs.ConstraintVersion,
+			lVal: nil, rVal: "~> 1.0",
+			result: false,
+		},
+		{
 			op:   structs.ConstraintRegex,
 			lVal: "foobarbaz", rVal: "[\\w]+",
 			result: true,
 		},
 		{
+			op:   structs.ConstraintRegex,
+			lVal: nil, rVal: "[\\w]+",
+			result: false,
+		},
+		{
 			op:   "<",
 			lVal: "foo", rVal: "bar",
+			result: false,
+		},
+		{
+			op:   "<",
+			lVal: nil, rVal: "bar",
 			result: false,
 		},
 		{

@@ -398,15 +398,14 @@ func (c *ConstraintChecker) Feasible(option *structs.Node) bool {
 }
 
 func (c *ConstraintChecker) meetsConstraint(constraint *structs.Constraint, option *structs.Node) bool {
-	// Resolve the targets
-	lVal, ok := resolveTarget(constraint.LTarget, option)
-	if !ok {
-		return false
-	}
-	rVal, ok := resolveTarget(constraint.RTarget, option)
-	if !ok {
-		return false
-	}
+	// Resolve the targets. Targets that are not present are treated as `nil`.
+	// This is to allow for matching constraints where a target is not present.
+	//
+	// TODO: There may be a case where there is a distinction between not
+	// present and nil, but I'm not aware of it. Perhaps we should plum this to
+	// checkConstraint and add an extra level of validation?
+	lVal, _ := resolveTarget(constraint.LTarget, option)
+	rVal, _ := resolveTarget(constraint.RTarget, option)
 
 	// Check if satisfied
 	return checkConstraint(c.ctx, constraint.Operand, lVal, rVal)
@@ -448,7 +447,8 @@ func resolveTarget(target string, node *structs.Node) (interface{}, bool) {
 	}
 }
 
-// checkConstraint checks if a constraint is satisfied
+// checkConstraint checks if a constraint is satisfied. The lVal and rVal
+// interfaces may be nil.
 func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
