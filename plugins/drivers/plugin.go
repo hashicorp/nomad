@@ -38,9 +38,11 @@ func (p *PluginDriver) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 func (p *PluginDriver) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &driverPluginClient{
 		BasePluginClient: &base.BasePluginClient{
-			Client: baseproto.NewBasePluginClient(c),
+			DoneCtx: ctx,
+			Client:  baseproto.NewBasePluginClient(c),
 		},
-		client: proto.NewDriverClient(c),
-		logger: p.logger,
+		client:  proto.NewDriverClient(c),
+		logger:  p.logger,
+		doneCtx: ctx,
 	}, nil
 }

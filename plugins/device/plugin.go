@@ -31,7 +31,8 @@ func (p *PluginDevice) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker
 		doneCtx: ctx,
 		client:  proto.NewDevicePluginClient(c),
 		BasePluginClient: &base.BasePluginClient{
-			Client: bproto.NewBasePluginClient(c),
+			Client:  bproto.NewBasePluginClient(c),
+			DoneCtx: ctx,
 		},
 	}, nil
 }

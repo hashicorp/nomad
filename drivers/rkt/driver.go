@@ -4,6 +4,7 @@ package rkt
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -36,7 +37,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	rktv1 "github.com/rkt/rkt/api/v1"
-	"golang.org/x/net/context"
 )
 
 const (
