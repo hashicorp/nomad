@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"golang.org/x/net/context"
 )
 
 const (

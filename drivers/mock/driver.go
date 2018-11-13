@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	netctx "golang.org/x/net/context"
 )
 
 const (
@@ -232,7 +231,7 @@ func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (d *Driver) Fingerprint(ctx netctx.Context) (<-chan *drivers.Fingerprint, error) {
+func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
 	go d.handleFingerprint(ctx, ch)
 	return ch, nil
@@ -365,7 +364,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 
 }
 
-func (d *Driver) WaitTask(ctx netctx.Context, taskID string) (<-chan *drivers.ExitResult, error) {
+func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -430,7 +429,7 @@ func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	return nil, nil
 }
 
-func (d *Driver) TaskEvents(ctx netctx.Context) (<-chan *drivers.TaskEvent, error) {
+func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.eventer.TaskEvents(ctx)
 }
 

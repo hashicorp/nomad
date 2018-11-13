@@ -1,12 +1,12 @@
 package eventer
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"golang.org/x/net/context"
 )
 
 var (

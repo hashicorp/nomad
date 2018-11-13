@@ -1,6 +1,7 @@
 package java
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"golang.org/x/net/context"
 )
 
 const (

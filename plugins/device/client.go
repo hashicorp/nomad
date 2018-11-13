@@ -9,9 +9,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device/proto"
-	netctx "golang.org/x/net/context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/hashicorp/nomad/plugins/shared"
 )
 
 // devicePluginClient implements the client side of a remote device plugin, using
@@ -49,27 +47,32 @@ func (d *devicePluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerpri
 // the gRPC stream to a channel. Exits either when context is cancelled or the
 // stream has an error.
 func (d *devicePluginClient) handleFingerprint(
-	ctx netctx.Context,
+	ctx context.Context,
 	stream proto.DevicePlugin_FingerprintClient,
 	out chan *FingerprintResponse) {
 
+	defer close(out)
 	for {
 		resp, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
 				out <- &FingerprintResponse{
-					Error: d.handleStreamErr(err, ctx),
+					Error: shared.HandleStreamErr(err, ctx, d.doneCtx),
 				}
 			}
 
 			// End the stream
-			close(out)
 			return
 		}
 
 		// Send the response
-		out <- &FingerprintResponse{
+		f := &FingerprintResponse{
 			Devices: convertProtoDeviceGroups(resp.GetDeviceGroup()),
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case out <- f:
 		}
 	}
 }
@@ -116,69 +119,32 @@ func (d *devicePluginClient) Stats(ctx context.Context, interval time.Duration) 
 // the gRPC stream to a channel. Exits either when context is cancelled or the
 // stream has an error.
 func (d *devicePluginClient) handleStats(
-	ctx netctx.Context,
+	ctx context.Context,
 	stream proto.DevicePlugin_StatsClient,
 	out chan *StatsResponse) {
 
+	defer close(out)
 	for {
 		resp, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
 				out <- &StatsResponse{
-					Error: d.handleStreamErr(err, ctx),
+					Error: shared.HandleStreamErr(err, ctx, d.doneCtx),
 				}
 			}
 
 			// End the stream
-			close(out)
 			return
 		}
 
 		// Send the response
-		out <- &StatsResponse{
+		s := &StatsResponse{
 			Groups: convertProtoDeviceGroupsStats(resp.GetGroups()),
 		}
-	}
-}
-
-// handleStreamErr is used to handle a non io.EOF error in a stream. It handles
-// detecting if the plugin has shutdown
-func (d *devicePluginClient) handleStreamErr(err error, ctx context.Context) error {
-	if err == nil {
-		return nil
-	}
-
-	// Determine if the error is because the plugin shutdown
-	if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.Unavailable {
-		// Potentially wait a little before returning an error so we can detect
-		// the exit
 		select {
-		case <-d.doneCtx.Done():
-			err = base.ErrPluginShutdown
 		case <-ctx.Done():
-			err = ctx.Err()
-
-			// There is no guarantee that the select will choose the
-			// doneCtx first so we have to double check
-			select {
-			case <-d.doneCtx.Done():
-				err = base.ErrPluginShutdown
-			default:
-			}
-		case <-time.After(3 * time.Second):
-			// Its okay to wait a while since the connection isn't available and
-			// on local host it is likely shutting down. It is not expected for
-			// this to ever reach even close to 3 seconds.
+			return
+		case out <- s:
 		}
-
-		// It is an error we don't know how to handle, so return it
-		return err
 	}
-
-	// Context was cancelled
-	if errStatus := status.FromContextError(ctx.Err()); errStatus.Code() == codes.Canceled {
-		return context.Canceled
-	}
-
-	return err
 }

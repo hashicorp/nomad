@@ -51,7 +51,10 @@ func (p *PluginBase) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error
 }
 
 func (p *PluginBase) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &BasePluginClient{Client: proto.NewBasePluginClient(c)}, nil
+	return &BasePluginClient{
+		Client:  proto.NewBasePluginClient(c),
+		DoneCtx: ctx,
+	}, nil
 }
 
 // MsgpackHandle is a shared handle for encoding/decoding of structs
