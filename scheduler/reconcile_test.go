@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1133,7 +1132,7 @@ func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
+			reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
 			r := reconciler.Compute()
 			require.Len(t, r.stop, 0)
 			// Assert the correct results
