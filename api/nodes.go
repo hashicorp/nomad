@@ -469,6 +469,7 @@ type NodeResources struct {
 	Memory   NodeMemoryResources
 	Disk     NodeDiskResources
 	Networks []*NetworkResource
+	Devices  []*NodeDeviceResource
 }
 
 type NodeCpuResources struct {

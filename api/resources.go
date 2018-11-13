@@ -106,6 +106,68 @@ func (n *NetworkResource) Canonicalize() {
 	}
 }
 
+// NodeDeviceResource captures a set of devices sharing a common
+// vendor/type/device_name tuple.
+type NodeDeviceResource struct {
+
+	// Vendor specifies the vendor of device
+	Vendor string
+
+	// Type specifies the type of the device
+	Type string
+
+	// Name specifies the specific model of the device
+	Name string
+
+	// Instances are list of the devices matching the vendor/type/name
+	Instances []*NodeDevice
+
+	Attributes map[string]*Attribute
+}
+
+// NodeDevice is an instance of a particular device.
+type NodeDevice struct {
+	// ID is the ID of the device.
+	ID string
+
+	// Healthy captures whether the device is healthy.
+	Healthy bool
+
+	// HealthDescription is used to provide a human readable description of why
+	// the device may be unhealthy.
+	HealthDescription string
+
+	// Locality stores HW locality information for the node to optionally be
+	// used when making placement decisions.
+	Locality *NodeDeviceLocality
+}
+
+// Attribute is used to describe the value of an attribute, optionally
+// specifying units
+type Attribute struct {
+	// Float is the float value for the attribute
+	Float *float64
+
+	// Int is the int value for the attribute
+	Int *int64
+
+	// String is the string value for the attribute
+	String *string
+
+	// Bool is the bool value for the attribute
+	Bool *bool
+
+	// Unit is the optional unit for the set int or float value
+	Unit string
+}
+
+// NodeDeviceLocality stores information about the devices hardware locality on
+// the node.
+type NodeDeviceLocality struct {
+	// PciBusID is the PCI Bus ID for the device.
+	PciBusID string
+}
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
