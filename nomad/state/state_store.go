@@ -927,7 +927,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 }
 
 // UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
-// but in a transcation.  Useful for when making multiple modifications atomically
+// but in a transaction.  Useful for when making multiple modifications atomically
 func (s *StateStore) UpsertJobTxn(index uint64, job *structs.Job, txn Txn) error {
 	return s.upsertJobImpl(index, job, false, txn)
 }
@@ -1023,7 +1023,7 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 }
 
 // DeleteJobTxn is used to deregister a job, like DeleteJob,
-// but in a transcation.  Useful for when making multiple modifications atomically
+// but in a transaction.  Useful for when making multiple modifications atomically
 func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
@@ -1542,7 +1542,7 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 }
 
 // DeletePeriodicLaunchTxn is used to delete the periodic launch, like DeletePeriodicLaunch
-// but in a transcation.  Useful for when making multiple modifications atomically
+// but in a transaction.  Useful for when making multiple modifications atomically
 func (s *StateStore) DeletePeriodicLaunchTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
@@ -1620,7 +1620,7 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 }
 
 // UpsertEvals is used to upsert a set of evaluations, like UpsertEvals
-// but in a transcation.  Useful for when making multiple modifications atomically
+// but in a transaction.  Useful for when making multiple modifications atomically
 func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
 	// Do a nested upsert
 	jobs := make(map[structs.NamespacedID]string, len(evals))
