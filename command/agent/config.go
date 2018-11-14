@@ -1229,7 +1229,7 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 		result.Enabled = true
 	}
 	if b.EnforceNode {
-		result.EnforceNode = false
+		result.EnforceNode = true
 	}
 	if b.TokenTTL != 0 {
 		result.TokenTTL = b.TokenTTL

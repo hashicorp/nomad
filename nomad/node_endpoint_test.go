@@ -80,6 +80,71 @@ func TestClientEndpoint_Register(t *testing.T) {
 	})
 }
 
+func TestClientEndpoint_Register_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the node
+	node := mock.Node()
+	node1 := mock.Node()
+	state := s1.fsm.State()
+	if err := state.UpsertNode(1, node); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if err := state.UpsertNode(2, node1); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create the policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid", mock.NodePolicy(acl.PolicyRead))
+
+	// Register without any token and expect it to fail
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("node register succeeded")
+	}
+
+	// Register with a valid token
+	reg.AuthToken = validToken.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Check for the node in the FSM
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("expected node")
+	}
+
+	// Register with an invalid token.
+	reg1 := &structs.NodeRegisterRequest{
+		Node:         node1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	reg1.AuthToken = invalidToken.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg1, &resp); err != nil {
+		t.Fatalf("rpc should not have succeeded")
+	}
+
+	// Try with a root token
+	reg1.AuthToken = root.SecretID
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg1, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+}
+
 // This test asserts that we only track node connections if they are not from
 // forwarded RPCs. This is essential otherwise we will think a Yamux session to
 // a Nomad server is actually the session to the node.
