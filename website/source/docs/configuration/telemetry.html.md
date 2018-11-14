@@ -64,11 +64,15 @@ The following options are available on all telemetry configurations.
   only be added to tagged metrics. Note that this option is used to transition
   monitoring to tagged metrics and will eventually be deprecated.
 
-
 - `disable_tagged_metrics` `(bool: false)` - Specifies if Nomad should not emit
   tagged metrics and only emit metrics compatible with versions below Nomad
   0.7. Note that this option is used to transition monitoring to tagged
   metrics and will eventually be deprecated.
+
+- `filter_default` `(bool: true)` - This controls whether to allow metrics that
+  have not been specified by the filter. Defaults to true, which will allow all
+  metrics when no filters are provided. When set to false with no filters, no
+  metrics will be sent.
 
 - `prefix_filter` `(list: [])` - This is a list of filter rules to apply for
   allowing/blocking metrics by prefix. A leading "<b>+</b>" will enable any
