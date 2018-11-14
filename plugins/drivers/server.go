@@ -13,6 +13,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
+	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	context "golang.org/x/net/context"
 )
 
@@ -102,7 +103,7 @@ func (b *driverPluginServer) StartTask(ctx context.Context, req *proto.StartTask
 	if err != nil {
 		if rec, ok := err.(structs.Recoverable); ok {
 			st := status.New(codes.FailedPrecondition, rec.Error())
-			st, err := st.WithDetails(&proto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
 			if err != nil {
 				// If this error, it will always error
 				panic(err)

@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	// CheckBufSize is the size of the check output result<Paste>
+	// CheckBufSize is the size of the check output result
 	CheckBufSize = 4 * 1024
 )
 

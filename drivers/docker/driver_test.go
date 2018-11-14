@@ -349,7 +349,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 
 	select {
 	case <-waitCh:
-		t.Fatalf("wait channel should not have recieved an exit result")
+		t.Fatalf("wait channel should not have received an exit result")
 	case <-time.After(time.Duration(tu.TestMultiplier()*1) * time.Second):
 	}
 }

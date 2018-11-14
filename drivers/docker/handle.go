@@ -219,6 +219,7 @@ func (h *taskHandle) run() {
 		ExitCode:  exitCode,
 		Signal:    0,
 		OOMKilled: oom,
+		Err:       werr,
 	}
 	close(h.waitCh)
 }
