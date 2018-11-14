@@ -401,6 +401,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.printMemoryStats(hostStats)
 			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
+			c.printDeviceStats(hostStats)
 		}
 	}
 
@@ -582,6 +583,21 @@ func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 		c.Ui.Output(formatKV(diskStatsAttr))
 		if i+1 < l {
 			c.Ui.Output("")
+		}
+	}
+}
+
+func (c *NodeStatusCommand) printDeviceStats(hostStats *api.HostStats) {
+	for _, dg := range hostStats.DeviceStats {
+		for id, dinst := range dg.InstanceStats {
+			qid := deviceQualifiedID(dg.Vendor, dg.Type, dg.Name, id)
+			c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]%s Stats[reset]", qid)))
+
+			attrs := make([]string, 0, len(dinst.Stats.Attributes))
+			for n, stat := range dinst.Stats.Attributes {
+				attrs = append(attrs, fmt.Sprintf("%s|%s", n, stat))
+			}
+			c.Ui.Output(formatKV(attrs))
 		}
 	}
 }
