@@ -125,6 +125,7 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
+			EnforceNode:      false,
 			TokenTTL:         60 * time.Second,
 			PolicyTTL:        60 * time.Second,
 			ReplicationToken: "foo",
