@@ -613,12 +613,15 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 					break
 				}
 				summary := raw.(*structs.JobSummary)
-				job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
-				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to lookup job for summary: %v", err)
-				}
-				if s.config.DisableDispatchedJobSummaryMetrics && job.Dispatched {
-					continue
+				if s.config.DisableDispatchedJobSummaryMetrics {
+					job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
+					if err != nil {
+						s.logger.Printf("[ERR] nomad: failed to lookup job for summary: %v", err)
+						continue
+					}
+					if job.Dispatched {
+						continue
+					}
 				}
 				s.iterateJobSummaryMetrics(summary)
 			}
