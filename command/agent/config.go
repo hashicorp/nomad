@@ -437,6 +437,10 @@ type Telemetry struct {
 	// PrefixFilter allows for filtering out metrics from being collected
 	PrefixFilter []string `mapstructure:"prefix_filter"`
 
+	// FilterDefault controls whether to allow metrics that have not been specified
+	// by the filter
+	FilterDefault *bool `mapstructure:"filter_default"`
+
 	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
 	// publishing Job summary metrics. This is useful in environment that produce
 	// high numbers of single count dispatch jobs as the metrics for each take up
@@ -1352,6 +1356,10 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.PrefixFilter != nil {
 		result.PrefixFilter = b.PrefixFilter
+	}
+
+	if b.FilterDefault != nil {
+		result.FilterDefault = b.FilterDefault
 	}
 
 	if b.DisableDispatchedJobSummaryMetrics {
