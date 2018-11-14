@@ -90,6 +90,15 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "register"}, time.Now())
 
+	if n.srv.config.ACLEnforceNode {
+		// Check noderpc write permissions
+		if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+			return err
+		} else if aclObj != nil && !aclObj.AllowNodeRPCWrite() {
+			return structs.ErrPermissionDenied
+		}
+	}
+
 	// Validate the arguments
 	if args.Node == nil {
 		return fmt.Errorf("missing node for client registration")
@@ -371,6 +380,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 		return err
 	}
+
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
 
 	// Verify the arguments
