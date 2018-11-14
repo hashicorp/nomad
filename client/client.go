@@ -649,6 +649,11 @@ func (c *Client) secretNodeID() string {
 	return c.config.Node.SecretID
 }
 
+// AuthToken returns the ACL token for client RPC authentication
+func (c *Client) AuthToken() string {
+	return c.config.Node.Token
+}
+
 // RPCMajorVersion returns the structs.ApiMajorVersion supported by the
 // client.
 func (c *Client) RPCMajorVersion() int {

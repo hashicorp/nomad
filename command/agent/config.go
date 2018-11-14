@@ -174,6 +174,9 @@ type ClientConfig struct {
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
 
+	// The SecretID of an ACL token to use to authenticate RPC requests
+	Token string `mapstructure:"token"`
+
 	// Options is used for configuration of nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//
@@ -292,6 +295,9 @@ type ACLConfig struct {
 
 	// Enabled controls if we are enforce ACL on nodes
 	EnforceNode bool `hcl:"enforce_node"`
+
+	// Node HCL token
+	Token string `hcl:"token" json:"-"`
 
 	// TokenTTL controls how long we cache ACL tokens. This controls
 	// how stale they can be when we are enforcing policies. Defaults
@@ -1353,6 +1359,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
+	}
+	if b.Token != "" {
+		result.Token = b.Token
 	}
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
