@@ -98,6 +98,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
+	flags.StringVar(&cmdConfig.Client.Token, "token", "", "")
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
@@ -1227,6 +1228,9 @@ Client Options:
   -node-class
     Mark this node as a member of a node-class. This can be used to label
     similar node types.
+
+  -token
+    The SecretID of an ACL token to use to authenticate RPC requests with server
 
   -meta
     User specified metadata to associated with the node. Each instance of -meta

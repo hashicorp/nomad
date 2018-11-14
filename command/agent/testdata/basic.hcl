@@ -127,6 +127,7 @@ server {
 acl {
   enabled           = true
 	enforce_node      = true
+	token             = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
   token_ttl         = "60s"
   policy_ttl        = "60s"
   replication_token = "foobar"
