@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -663,6 +664,38 @@ type StatValue struct {
 
 	// Desc provides a human readable description of the statistic.
 	Desc string `json:",omitempty"`
+}
+
+func (v *StatValue) String() string {
+	switch {
+	case v.BoolVal != nil:
+		return strconv.FormatBool(*v.BoolVal)
+	case v.StringVal != nil:
+		return *v.StringVal
+	case v.FloatNumeratorVal != nil:
+		str := strconv.FormatFloat(*v.FloatNumeratorVal, 'f', -1, 64)
+		if v.FloatDenominatorVal != nil {
+			str += " / " + strconv.FormatFloat(*v.FloatDenominatorVal, 'f', -1, 64)
+		}
+
+		if v.Unit != "" {
+			str += " " + v.Unit
+		}
+		return str
+	case v.IntNumeratorVal != nil:
+
+		str := strconv.FormatInt(*v.IntNumeratorVal, 10)
+		if v.IntDenominatorVal != nil {
+			str += " / " + strconv.FormatInt(*v.IntDenominatorVal, 10)
+		}
+
+		if v.Unit != "" {
+			str += " " + v.Unit
+		}
+		return str
+	default:
+		return "<unknown>"
+	}
 }
 
 // NodeListStub is a subset of information returned during
