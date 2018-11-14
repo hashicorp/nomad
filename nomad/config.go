@@ -274,6 +274,10 @@ type Config struct {
 	// key/value/tag format, or simply a key/value format
 	DisableTaggedMetrics bool
 
+	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
+	// publishing Job summary metrics
+	DisableDispatchedJobSummaryMetrics bool
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
 	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
