@@ -23,6 +23,7 @@ import (
 var _ interfaces.RunnerPrerunHook = (*allocHealthWatcherHook)(nil)
 var _ interfaces.RunnerUpdateHook = (*allocHealthWatcherHook)(nil)
 var _ interfaces.RunnerDestroyHook = (*allocHealthWatcherHook)(nil)
+var _ interfaces.ShutdownHook = (*allocHealthWatcherHook)(nil)
 
 // allocHealth is emitted to a chan whenever SetHealth is called
 type allocHealth struct {

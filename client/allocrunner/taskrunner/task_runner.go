@@ -67,13 +67,16 @@ type TaskRunner struct {
 	stateUpdater interfaces.TaskStateHandler
 
 	// state captures the state of the task for updating the allocation
-	state     *structs.TaskState
-	stateLock sync.Mutex
+	// Must acquire stateLock to access.
+	state *structs.TaskState
 
 	// localState captures the node-local state of the task for when the
-	// Nomad agent restarts
-	localState     *state.LocalState
-	localStateLock sync.RWMutex
+	// Nomad agent restarts.
+	// Must acquire stateLock to access.
+	localState *state.LocalState
+
+	// stateLock must be acquired when accessing state or localState.
+	stateLock sync.RWMutex
 
 	// stateDB is for persisting localState and taskState
 	stateDB cstate.StateDB
@@ -498,7 +501,7 @@ func (tr *TaskRunner) runDriver() error {
 		return fmt.Errorf("driver start failed: %v", err)
 	}
 
-	tr.localStateLock.Lock()
+	tr.stateLock.Lock()
 	tr.localState.TaskHandle = handle
 	tr.localState.DriverNetwork = net
 	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState); err != nil {
@@ -508,7 +511,7 @@ func (tr *TaskRunner) runDriver() error {
 		tr.logger.Warn("error persisting local task state; may be unable to restore after a Nomad restart",
 			"error", err, "task_id", handle.Config.ID)
 	}
-	tr.localStateLock.Unlock()
+	tr.stateLock.Unlock()
 
 	tr.setDriverHandle(NewDriverHandle(tr.driver, taskConfig.ID, tr.Task(), net))
 
@@ -612,8 +615,8 @@ func (tr *TaskRunner) killTask(handle *DriverHandle) error {
 
 // persistLocalState persists local state to disk synchronously.
 func (tr *TaskRunner) persistLocalState() error {
-	tr.localStateLock.Lock()
-	defer tr.localStateLock.Unlock()
+	tr.stateLock.RLock()
+	defer tr.stateLock.RUnlock()
 
 	return tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState)
 }
@@ -673,7 +676,12 @@ func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstruct
 	}
 
 	if err := tr.driver.RecoverTask(taskHandle); err != nil {
-		tr.logger.Error("error recovering task; destroying and restarting",
+		if tr.TaskState().State != structs.TaskStateRunning {
+			// RecoverTask should fail if the Task wasn't running
+			return
+		}
+
+		tr.logger.Error("error recovering task; cleaning up",
 			"error", err, "task_id", taskHandle.Config.ID)
 
 		// Try to cleanup any existing task state in the plugin before restarting
@@ -846,8 +854,21 @@ func (tr *TaskRunner) WaitCh() <-chan struct{} {
 // This method is safe for calling concurrently with Run() and does not modify
 // the passed in allocation.
 func (tr *TaskRunner) Update(update *structs.Allocation) {
+	task := update.LookupTask(tr.taskName)
+	if task == nil {
+		// This should not happen and likely indicates a bug in the
+		// server or client.
+		tr.logger.Error("allocation update is missing task; killing",
+			"group", update.TaskGroup)
+		te := structs.NewTaskEvent(structs.TaskKilled).
+			SetKillReason("update missing task").
+			SetFailsTask()
+		tr.Kill(context.Background(), te)
+		return
+	}
+
 	// Update tr.alloc
-	tr.setAlloc(update)
+	tr.setAlloc(update, task)
 
 	// Trigger update hooks if not terminal
 	if !update.TerminalStatus() {
@@ -866,6 +887,21 @@ func (tr *TaskRunner) triggerUpdateHooks() {
 	default:
 		// already an update hook pending
 	}
+}
+
+// Shutdown TaskRunner gracefully without affecting the state of the task.
+// Shutdown blocks until the main Run loop exits.
+func (tr *TaskRunner) Shutdown() {
+	tr.logger.Trace("shutting down")
+	tr.ctxCancel()
+
+	<-tr.WaitCh()
+
+	// Run shutdown hooks to cleanup
+	tr.shutdownHooks()
+
+	// Persist once more
+	tr.persistLocalState()
 }
 
 // LatestResourceUsage returns the last resource utilization datapoint

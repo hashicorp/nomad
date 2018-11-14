@@ -241,3 +241,27 @@ func (ar *allocRunner) destroy() error {
 
 	return nil
 }
+
+// shutdownHooks calls graceful shutdown hooks for when the agent is exiting.
+func (ar *allocRunner) shutdownHooks() {
+	for _, hook := range ar.runnerHooks {
+		sh, ok := hook.(interfaces.ShutdownHook)
+		if !ok {
+			continue
+		}
+
+		name := sh.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running shutdown hook", "name", name, "start", start)
+		}
+
+		sh.Shutdown()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished shutdown hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}

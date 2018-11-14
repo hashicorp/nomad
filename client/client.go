@@ -106,6 +106,7 @@ type AllocRunner interface {
 	Alloc() *structs.Allocation
 	AllocState() *arstate.State
 	Destroy()
+	Shutdown()
 	GetAllocDir() *allocdir.AllocDir
 	IsDestroyed() bool
 	IsMigrating() bool
@@ -186,9 +187,18 @@ type Client struct {
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
 
-	shutdown     bool
-	shutdownCh   chan struct{}
+	// shutdown is true when the Client has been shutdown. Must hold
+	// shutdownLock to access.
+	shutdown bool
+
+	// shutdownCh is closed to signal the Client is shutting down.
+	shutdownCh chan struct{}
+
 	shutdownLock sync.Mutex
+
+	// shutdownGroup are goroutines that exit when shutdownCh is closed.
+	// Shutdown() blocks on Wait() after closing shutdownCh.
+	shutdownGroup group
 
 	// vaultClient is used to interact with Vault for token and secret renewals
 	vaultClient vaultclient.VaultClient
@@ -332,7 +342,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Setup Consul discovery if enabled
 	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
-		go c.consulDiscovery()
+		c.shutdownGroup.Go(c.consulDiscovery)
 		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
 			c.triggerDiscoveryCh <- struct{}{}
@@ -359,19 +369,21 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	// Register and then start heartbeating to the servers.
-	go c.registerAndHeartbeat()
+	c.shutdownGroup.Go(c.registerAndHeartbeat)
 
 	// Begin periodic snapshotting of state.
-	go c.periodicSnapshot()
+	c.shutdownGroup.Go(c.periodicSnapshot)
 
 	// Begin syncing allocations to the server
-	go c.allocSync()
+	c.shutdownGroup.Go(c.allocSync)
 
-	// Start the client!
+	// Start the client! Don't use the shutdownGroup as run handles
+	// shutdowns manually to prevent updates from being applied during
+	// shutdown.
 	go c.run()
 
 	// Start collecting stats
-	go c.emitStats()
+	c.shutdownGroup.Go(c.emitStats)
 
 	c.logger.Info("started client", "node_id", c.NodeID())
 	return c, nil
@@ -533,20 +545,14 @@ func (c *Client) RPCMinorVersion() int {
 
 // Shutdown is used to tear down the client
 func (c *Client) Shutdown() error {
-	c.logger.Info("shutting down")
 	c.shutdownLock.Lock()
 	defer c.shutdownLock.Unlock()
 
 	if c.shutdown {
+		c.logger.Info("already shutdown")
 		return nil
 	}
-
-	// Defer closing the database
-	defer func() {
-		if err := c.stateDB.Close(); err != nil {
-			c.logger.Error("error closing state database on shutdown", "error", err)
-		}
-	}()
+	c.logger.Info("shutting down")
 
 	// Shutdown the device manager
 	c.devicemanager.Shutdown()
@@ -559,20 +565,39 @@ func (c *Client) Shutdown() error {
 	// Stop Garbage collector
 	c.garbageCollector.Stop()
 
-	// Destroy all the running allocations.
 	if c.config.DevMode {
+		// In DevMode destroy all the running allocations.
 		for _, ar := range c.getAllocRunners() {
 			ar.Destroy()
 		}
 		for _, ar := range c.getAllocRunners() {
 			<-ar.WaitCh()
 		}
+	} else {
+		// In normal mode call shutdown
+		wg := sync.WaitGroup{}
+		for _, ar := range c.getAllocRunners() {
+			wg.Add(1)
+			go func(ar AllocRunner) {
+				ar.Shutdown()
+				wg.Done()
+			}(ar)
+		}
+		wg.Wait()
 	}
 
 	c.shutdown = true
 	close(c.shutdownCh)
+
+	// Must close connection pool to unblock alloc watcher
 	c.connPool.Shutdown()
-	return nil
+
+	// Wait for goroutines to stop
+	c.shutdownGroup.Wait()
+
+	// One final save state
+	c.saveState()
+	return c.stateDB.Close()
 }
 
 // Stats is used to return statistics for debugging and insight
@@ -829,7 +854,7 @@ func (c *Client) restoreState() error {
 	// All allocs restored successfully, run them!
 	c.allocLock.Lock()
 	for _, ar := range c.allocs {
-		ar.Run()
+		go ar.Run()
 	}
 	c.allocLock.Unlock()
 
@@ -1194,10 +1219,10 @@ func (c *Client) registerAndHeartbeat() {
 	c.retryRegisterNode()
 
 	// Start watching changes for node changes
-	go c.watchNodeUpdates()
+	c.shutdownGroup.Go(c.watchNodeUpdates)
 
 	// Start watching for emitting node events
-	go c.watchNodeEvents()
+	c.shutdownGroup.Go(c.watchNodeEvents)
 
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
@@ -1311,7 +1336,7 @@ func (c *Client) periodicSnapshot() {
 	}
 }
 
-// run is a long lived goroutine used to run the client
+// run is a long lived goroutine used to run the client. Shutdown() stops it first
 func (c *Client) run() {
 	// Watch for changes in allocations
 	allocUpdates := make(chan *allocUpdates, 8)
@@ -1320,7 +1345,17 @@ func (c *Client) run() {
 	for {
 		select {
 		case update := <-allocUpdates:
+			// Don't apply updates while shutting down.
+			c.shutdownLock.Lock()
+			if c.shutdown {
+				c.shutdownLock.Unlock()
+				return
+			}
+
+			// Apply updates inside lock to prevent a concurrent
+			// shutdown.
 			c.runAllocs(update)
+			c.shutdownLock.Unlock()
 
 		case <-c.shutdownCh:
 			return
@@ -1785,6 +1820,7 @@ OUTER:
 			pulled:        pulledAllocs,
 			migrateTokens: resp.MigrateTokens,
 		}
+
 		select {
 		case updates <- update:
 		case <-c.shutdownCh:
@@ -1974,7 +2010,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
 
-	ar.Run()
+	go ar.Run()
 	return nil
 }
 
@@ -2560,4 +2596,22 @@ func (c *Client) allAllocs() map[string]*structs.Allocation {
 		allocs[a.ID] = a
 	}
 	return allocs
+}
+
+// group wraps a func() in a goroutine and provides a way to block until it
+// exits. Inspired by https://godoc.org/golang.org/x/sync/errgroup
+type group struct {
+	wg sync.WaitGroup
+}
+
+func (g *group) Go(f func()) {
+	g.wg.Add(1)
+	go func() {
+		defer g.wg.Done()
+		f()
+	}()
+}
+
+func (g *group) Wait() {
+	g.wg.Wait()
 }

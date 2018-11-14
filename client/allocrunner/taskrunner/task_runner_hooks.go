@@ -101,11 +101,11 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		var origHookState *state.HookState
-		tr.localStateLock.RLock()
+		tr.stateLock.RLock()
 		if tr.localState.Hooks != nil {
 			origHookState = tr.localState.Hooks[name]
 		}
-		tr.localStateLock.RUnlock()
+		tr.stateLock.RUnlock()
 		if origHookState != nil && origHookState.PrestartDone {
 			tr.logger.Trace("skipping done prestart hook", "name", pre.Name())
 			continue
@@ -135,9 +135,9 @@ func (tr *TaskRunner) prestart() error {
 
 			// Store and persist local state if the hook state has changed
 			if !hookState.Equal(origHookState) {
-				tr.localStateLock.Lock()
+				tr.stateLock.Lock()
 				tr.localState.Hooks[name] = hookState
-				tr.localStateLock.Unlock()
+				tr.stateLock.Unlock()
 
 				if err := tr.persistLocalState(); err != nil {
 					return err
@@ -360,12 +360,12 @@ func (tr *TaskRunner) killing() {
 	}
 
 	for _, hook := range tr.runnerHooks {
-		upd, ok := hook.(interfaces.TaskKillHook)
+		killHook, ok := hook.(interfaces.TaskKillHook)
 		if !ok {
 			continue
 		}
 
-		name := upd.Name()
+		name := killHook.Name()
 
 		// Time the update hook
 		var start time.Time
@@ -374,10 +374,10 @@ func (tr *TaskRunner) killing() {
 			tr.logger.Trace("running kill hook", "name", name, "start", start)
 		}
 
-		// Run the update hook
+		// Run the kill hook
 		req := interfaces.TaskKillRequest{}
 		var resp interfaces.TaskKillResponse
-		if err := upd.Killing(context.Background(), &req, &resp); err != nil {
+		if err := killHook.Killing(context.Background(), &req, &resp); err != nil {
 			tr.logger.Error("kill hook failed", "name", name, "error", err)
 		}
 
@@ -386,6 +386,33 @@ func (tr *TaskRunner) killing() {
 		if tr.logger.IsTrace() {
 			end := time.Now()
 			tr.logger.Trace("finished kill hook", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}
+
+// shutdownHooks is called when the TaskRunner is gracefully shutdown but the
+// task is not being stopped or garbage collected.
+func (tr *TaskRunner) shutdownHooks() {
+	for _, hook := range tr.runnerHooks {
+		sh, ok := hook.(interfaces.ShutdownHook)
+		if !ok {
+			continue
+		}
+
+		name := sh.Name()
+
+		// Time the update hook
+		var start time.Time
+		if tr.logger.IsTrace() {
+			start = time.Now()
+			tr.logger.Trace("running shutdown hook", "name", name, "start", start)
+		}
+
+		sh.Shutdown()
+
+		if tr.logger.IsTrace() {
+			end := time.Now()
+			tr.logger.Trace("finished shutdown hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 }

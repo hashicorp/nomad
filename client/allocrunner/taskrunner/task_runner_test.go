@@ -127,8 +127,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	})
 
 	// Cause TR to exit without shutting down task
-	origTR.ctxCancel()
-	<-origTR.WaitCh()
+	origTR.Shutdown()
 
 	// Start a new TaskRunner and make sure it does not rerun the task
 	newTR, err := NewTaskRunner(conf)

@@ -188,6 +188,11 @@ func (h *allocHealthWatcherHook) Destroy() error {
 	return nil
 }
 
+func (h *allocHealthWatcherHook) Shutdown() {
+	// Same as Destroy
+	h.Destroy()
+}
+
 // watchHealth watches alloc health until it is set, the alloc is stopped, or
 // the context is canceled. watchHealth will be canceled and restarted on
 // Updates so calls are serialized with a lock.

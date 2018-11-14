@@ -10,10 +10,16 @@ func (tr *TaskRunner) Alloc() *structs.Allocation {
 	return tr.alloc
 }
 
-func (tr *TaskRunner) setAlloc(updated *structs.Allocation) {
+// setAlloc and task on TaskRunner
+func (tr *TaskRunner) setAlloc(updated *structs.Allocation, task *structs.Task) {
 	tr.allocLock.Lock()
+	defer tr.allocLock.Unlock()
+
+	tr.taskLock.Lock()
+	defer tr.taskLock.Unlock()
+
 	tr.alloc = updated
-	tr.allocLock.Unlock()
+	tr.task = task
 }
 
 // IsLeader returns true if this task is the leader of its task group.
