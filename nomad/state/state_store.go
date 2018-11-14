@@ -3022,10 +3022,9 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 
 		// Create a job summary for the job
 		summary := &structs.JobSummary{
-			JobID:      job.ID,
-			Namespace:  job.Namespace,
-			Summary:    make(map[string]structs.TaskGroupSummary),
-			Dispatched: job.Dispatched,
+			JobID:     job.ID,
+			Namespace: job.Namespace,
+			Summary:   make(map[string]structs.TaskGroupSummary),
 		}
 		for _, tg := range job.TaskGroups {
 			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
@@ -3322,7 +3321,6 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 			Summary:     make(map[string]structs.TaskGroupSummary),
 			Children:    new(structs.JobChildrenSummary),
 			CreateIndex: index,
-			Dispatched:  job.Dispatched,
 		}
 		hasSummaryChanged = true
 	}

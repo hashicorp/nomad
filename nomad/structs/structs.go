@@ -2482,9 +2482,6 @@ type JobSummary struct {
 	// Children contains a summary for the children of this job.
 	Children *JobChildrenSummary
 
-	// Dispatched is true if this job is dispatched from a parameterized job
-	Dispatched bool
-
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
