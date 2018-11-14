@@ -60,6 +60,7 @@ type Policy struct {
 	HostVolumes []*HostVolumePolicy `hcl:"host_volume,expand"`
 	Agent       *AgentPolicy        `hcl:"agent"`
 	Node        *NodePolicy         `hcl:"node"`
+	NodeRPC    *NodeRPCPolicy       `hcl:"noderpc"`
 	Operator    *OperatorPolicy     `hcl:"operator"`
 	Quota       *QuotaPolicy        `hcl:"quota"`
 	Raw         string              `hcl:"-"`
@@ -72,6 +73,7 @@ func (p *Policy) IsEmpty() bool {
 		len(p.HostVolumes) == 0 &&
 		p.Agent == nil &&
 		p.Node == nil &&
+		p.NodeRPC == nil &&
 		p.Operator == nil &&
 		p.Quota == nil
 }
@@ -95,6 +97,10 @@ type AgentPolicy struct {
 }
 
 type NodePolicy struct {
+	Policy string
+}
+
+type NodeRPCPolicy struct {
 	Policy string
 }
 
@@ -252,6 +258,10 @@ func Parse(rules string) (*Policy, error) {
 
 	if p.Node != nil && !isPolicyValid(p.Node.Policy) {
 		return nil, fmt.Errorf("Invalid node policy: %#v", p.Node)
+	}
+
+	if p.NodeRPC != nil && !isPolicyValid(p.NodeRPC.Policy) {
+		return nil, fmt.Errorf("Invalid nodeRPC policy: %#v", p.Node)
 	}
 
 	if p.Operator != nil && !isPolicyValid(p.Operator.Policy) {

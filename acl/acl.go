@@ -59,6 +59,7 @@ type ACL struct {
 	wildcardHostVolumes *iradix.Tree
 
 	agent    string
+	nodeRPC  string
 	node     string
 	operator string
 	quota    string
@@ -186,6 +187,9 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		}
 		if policy.Node != nil {
 			acl.node = maxPrivilege(acl.node, policy.Node.Policy)
+		}
+		if policy.NodeRPC != nil {
+			acl.nodeRPC = maxPrivilege(acl.nodeRPC, policy.NodeRPC.Policy)
 		}
 		if policy.Operator != nil {
 			acl.operator = maxPrivilege(acl.operator, policy.Operator.Policy)
@@ -419,6 +423,32 @@ func (a *ACL) AllowNodeWrite() bool {
 	case a.management:
 		return true
 	case a.node == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowNodeRead checks if read operations are allowed for a node
+func (a *ACL) AllowNodeRPCRead() bool {
+	switch {
+	case a.management:
+		return true
+	case a.nodeRPC == PolicyWrite:
+		return true
+	case a.nodeRPC == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowNodeWrite checks if write operations are allowed for a node
+func (a *ACL) AllowNodeRPCWrite() bool {
+	switch {
+	case a.management:
+		return true
+	case a.nodeRPC == PolicyWrite:
 		return true
 	default:
 		return false
