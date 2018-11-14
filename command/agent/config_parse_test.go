@@ -125,6 +125,7 @@ var basicConfig = &Config{
 	ACL: &ACLConfig{
 		Enabled:          true,
 		EnforceNode:      true,
+		Token:            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 		TokenTTL:         60 * time.Second,
 		TokenTTLHCL:      "60s",
 		PolicyTTL:        60 * time.Second,
