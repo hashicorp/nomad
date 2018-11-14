@@ -217,6 +217,8 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusBrokerID:                   "1",
 			CirconusBrokerSelectTag:            "dc:dc2",
 			PrefixFilter:                       []string{"prefix1", "prefix2"},
+			DisableDispatchedJobSummaryMetrics: true,
+			FilterDefault:                      helper.BoolToPtr(false),
 		},
 		Client: &ClientConfig{
 			Enabled:   true,
@@ -1056,4 +1058,27 @@ func TestTelemetry_PrefixFilters(t *testing.T) {
 			require.Equal(c.expErr, err != nil)
 		})
 	}
+}
+
+func TestTelemetry_Parse(t *testing.T) {
+	require := require.New(t)
+	dir, err := ioutil.TempDir("", "nomad")
+	require.NoError(err)
+	defer os.RemoveAll(dir)
+
+	file1 := filepath.Join(dir, "config1.hcl")
+	err = ioutil.WriteFile(file1, []byte(`telemetry{
+		prefix_filter = ["+nomad.raft"]
+		filter_default = false
+		disable_dispatched_job_summary_metrics = true
+	}`), 0600)
+	require.NoError(err)
+
+	// Works on config dir
+	config, err := LoadConfig(dir)
+	require.NoError(err)
+
+	require.False(*config.Telemetry.FilterDefault)
+	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
+	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
 }
