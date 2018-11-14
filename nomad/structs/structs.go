@@ -1449,6 +1449,7 @@ type Node struct {
 
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
+	// COMPAT(0.10): Remove in 0.10
 	Resources *Resources
 
 	// Reserved is the set of resources that are reserved,
@@ -2256,14 +2257,23 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	}
 
 	// Check the devices
-	if len(n.Devices) != len(o.Devices) {
+	if !DevicesEquals(n.Devices, o.Devices) {
 		return false
 	}
-	idMap := make(map[DeviceIdTuple]*NodeDeviceResource, len(n.Devices))
-	for _, d := range n.Devices {
+
+	return true
+}
+
+// DevicesEquals returns true if the two device arrays are equal
+func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
+	if len(d1) != len(d2) {
+		return false
+	}
+	idMap := make(map[DeviceIdTuple]*NodeDeviceResource, len(d1))
+	for _, d := range d1 {
 		idMap[*d.ID()] = d
 	}
-	for _, otherD := range o.Devices {
+	for _, otherD := range d2 {
 		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equals(otherD) {
 			return false
 		}

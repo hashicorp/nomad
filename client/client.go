@@ -41,7 +41,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/kr/pretty"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -296,12 +295,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Setup the device manager
 	devConfig := &devicemanager.Config{
-		Logger:       c.logger,
-		Loader:       c.configCopy.PluginSingletonLoader,
-		PluginConfig: c.configCopy.NomadPluginConfig(),
-		Updater: func(devs []*structs.NodeDeviceResource) {
-			c.logger.Debug("Device Updater called", "count", len(devs), "devices", hclog.Fmt("% #v", pretty.Formatter(devs)))
-		},
+		Logger:        c.logger,
+		Loader:        c.configCopy.PluginSingletonLoader,
+		PluginConfig:  c.configCopy.NomadPluginConfig(),
+		Updater:       c.updateNodeFromDevices,
 		StatsInterval: c.configCopy.StatsCollectionInterval,
 		State:         c.stateDB,
 	}
@@ -1132,6 +1129,23 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 	}
 
 	return c.configCopy.Node
+}
+
+// updateNodeFromFingerprint updates the node with the result of
+// fingerprinting the node from the diff that was created
+func (c *Client) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	// Not updating node.Resources: the field is deprecated and includes
+	// dispatched task resources and not appropriate for expressing
+	// node available device resources
+	if !structs.DevicesEquals(c.config.Node.NodeResources.Devices, devices) {
+		c.logger.Debug("new devices detected", "devices", len(devices))
+
+		c.config.Node.NodeResources.Devices = devices
+		c.updateNodeLocked()
+	}
 }
 
 // resourcesAreEqual is a temporary function to compare whether resources are

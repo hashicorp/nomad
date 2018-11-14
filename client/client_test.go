@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -997,4 +998,90 @@ func TestClient_ServerList(t *testing.T) {
 	if len(s) != 0 {
 		t.Fatalf("expected 2 servers but received: %+q", s)
 	}
+}
+
+func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
+	t.Parallel()
+	client, cleanup := TestClient(t, func(c *config.Config) {})
+	defer cleanup()
+
+	client.updateNodeFromFingerprint(&cstructs.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+		},
+	})
+
+	client.updateNodeFromFingerprint(&cstructs.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Memory: structs.NodeMemoryResources{MemoryMB: 1024},
+		},
+	})
+
+	client.updateNodeFromDevices([]*structs.NodeDeviceResource{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+		},
+	})
+
+	// initial check
+	expectedResources := &structs.NodeResources{
+		// computed through test client initialization
+		Networks: client.configCopy.Node.NodeResources.Networks,
+		Disk:     client.configCopy.Node.NodeResources.Disk,
+
+		// injected
+		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Memory: structs.NodeMemoryResources{MemoryMB: 1024},
+		Devices: []*structs.NodeDeviceResource{
+			{
+				Vendor: "vendor",
+				Type:   "type",
+			},
+		},
+	}
+
+	assert.EqualValues(t, expectedResources, client.configCopy.Node.NodeResources)
+
+	// overrides of values
+
+	client.updateNodeFromFingerprint(&cstructs.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Memory: structs.NodeMemoryResources{MemoryMB: 2048},
+		},
+	})
+
+	client.updateNodeFromDevices([]*structs.NodeDeviceResource{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+		},
+	})
+
+	expectedResources2 := &structs.NodeResources{
+		// computed through test client initialization
+		Networks: client.configCopy.Node.NodeResources.Networks,
+		Disk:     client.configCopy.Node.NodeResources.Disk,
+
+		// injected
+		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Memory: structs.NodeMemoryResources{MemoryMB: 2048},
+		Devices: []*structs.NodeDeviceResource{
+			{
+				Vendor: "vendor",
+				Type:   "type",
+			},
+			{
+				Vendor: "vendor2",
+				Type:   "type2",
+			},
+		},
+	}
+
+	assert.EqualValues(t, expectedResources2, client.configCopy.Node.NodeResources)
+
 }
