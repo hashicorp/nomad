@@ -401,7 +401,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.printMemoryStats(hostStats)
 			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
-			c.printDeviceStats(hostStats)
+			if len(hostStats.DeviceStats) > 0 {
+				c.Ui.Output(c.Colorize().Color("\n[bold]Device Stats[reset]"))
+				c.printDeviceStats(hostStats)
+			}
 		}
 	}
 
@@ -588,12 +591,17 @@ func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 }
 
 func (c *NodeStatusCommand) printDeviceStats(hostStats *api.HostStats) {
+	isFirst := true
 	for _, dg := range hostStats.DeviceStats {
 		for id, dinst := range dg.InstanceStats {
-			qid := deviceQualifiedID(dg.Vendor, dg.Type, dg.Name, id)
-			c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]%s Stats[reset]", qid)))
+			if !isFirst {
+				c.Ui.Output("\n")
+			}
+			isFirst = false
 
-			attrs := make([]string, 0, len(dinst.Stats.Attributes))
+			qid := deviceQualifiedID(dg.Vendor, dg.Type, dg.Name, id)
+			attrs := make([]string, 1, len(dinst.Stats.Attributes)+1)
+			attrs[0] = fmt.Sprintf("Device|%s", qid)
 			for n, stat := range dinst.Stats.Attributes {
 				attrs = append(attrs, fmt.Sprintf("%s|%s", n, stat))
 			}
