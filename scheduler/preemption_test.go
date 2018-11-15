@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -162,6 +163,8 @@ func TestPreemption(t *testing.T) {
 	// Create some persistent alloc ids to use in test cases
 	allocIDs := []string{uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate()}
 
+	deviceIDs := []string{"dev1", "dev2", "dev3", "dev4"}
+
 	defaultNodeResources := &structs.NodeResources{
 		Cpu: structs.NodeCpuResources{
 			CpuShares: 4000,
@@ -177,6 +180,55 @@ func TestPreemption(t *testing.T) {
 				Device: "eth0",
 				CIDR:   "192.168.0.100/32",
 				MBits:  1000,
+			},
+		},
+		Devices: []*structs.NodeDeviceResource{
+			{
+				Type:   "gpu",
+				Vendor: "nvidia",
+				Name:   "1080ti",
+				Attributes: map[string]*psstructs.Attribute{
+					"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
+					"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
+					"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
+					"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
+				},
+				Instances: []*structs.NodeDevice{
+					{
+						ID:      deviceIDs[0],
+						Healthy: true,
+					},
+					{
+						ID:      deviceIDs[1],
+						Healthy: true,
+					},
+					{
+						ID:      deviceIDs[2],
+						Healthy: true,
+					},
+					{
+						ID:      deviceIDs[3],
+						Healthy: true,
+					},
+				},
+			},
+			{
+				Type:   "fpga",
+				Vendor: "intel",
+				Name:   "F100",
+				Attributes: map[string]*psstructs.Attribute{
+					"memory": psstructs.NewIntAttribute(4, psstructs.UnitGiB),
+				},
+				Instances: []*structs.NodeDevice{
+					{
+						ID:      "fpga1",
+						Healthy: true,
+					},
+					{
+						ID:      "fpga2",
+						Healthy: false,
+					},
+				},
 			},
 		},
 	}
@@ -827,6 +879,128 @@ func TestPreemption(t *testing.T) {
 				allocIDs[1]: {},
 			},
 		},
+		{
+			desc: "Preemption with one device instance per alloc",
+			// Add allocations that use two device instances
+			currentAllocations: []*structs.Allocation{
+				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0]},
+				}),
+				createAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[1]},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "nvidia/gpu/1080ti",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[0]: {},
+				allocIDs[1]: {},
+			},
+		},
+		{
+			desc: "Preemption multiple devices used",
+			currentAllocations: []*structs.Allocation{
+				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
+				}),
+				createAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "gpu",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[0]: {},
+			},
+		},
+		{
+			desc: "Device preemption not possible due to more instances needed than available",
+			currentAllocations: []*structs.Allocation{
+				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
+				}),
+				createAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "gpu",
+						Count: 6,
+					},
+				},
+			},
+		},
 		// This test case exercises the code path for a final filtering step that tries to
 		// minimize the number of preemptible allocations
 		{
@@ -946,6 +1120,10 @@ func TestPreemption(t *testing.T) {
 
 // helper method to create allocations with given jobs and resources
 func createAlloc(id string, job *structs.Job, resource *structs.Resources) *structs.Allocation {
+	return createAllocWithDevice(id, job, resource, nil)
+}
+
+func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource) *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:    id,
 		Job:   job,
@@ -959,6 +1137,23 @@ func createAlloc(id string, job *structs.Job, resource *structs.Resources) *stru
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusRunning,
 		TaskGroup:     "web",
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": &structs.AllocatedTaskResources{
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: int64(resource.CPU),
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: int64(resource.MemoryMB),
+					},
+					Networks: resource.Networks,
+				},
+			},
+		},
+	}
+
+	if allocatedDevices != nil {
+		alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{allocatedDevices}
 	}
 	return alloc
 }

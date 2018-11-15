@@ -211,7 +211,7 @@ OUTER:
 		var allocsToPreempt []*structs.Allocation
 
 		// Initialize preemptor with node
-		preemptor := NewPreemptor(iter.priority)
+		preemptor := NewPreemptor(iter.priority, iter.ctx)
 		preemptor.SetNode(option.Node)
 
 		// Count the number of existing preemptions
@@ -285,8 +285,36 @@ OUTER:
 			for _, req := range task.Resources.Devices {
 				offer, sumAffinities, err := devAllocator.AssignDevice(req)
 				if offer == nil {
-					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
-					continue OUTER
+					// If eviction is not enabled, mark this node as exhausted and continue
+					if !iter.evict {
+						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
+						continue OUTER
+					}
+
+					// Attempt preemption
+					preemptor.SetCandidates(proposed)
+					devicePreemptions := preemptor.PreemptForDevice(req, devAllocator)
+
+					if devicePreemptions == nil {
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unable to meet device resource need after attempting preemption:%v", req))
+						netIdx.Release()
+						continue OUTER
+					}
+					allocsToPreempt = append(allocsToPreempt, devicePreemptions...)
+
+					// First subtract out preempted allocations
+					proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
+
+					// Reset the device allocator with new set of proposed allocs
+					devAllocator := newDeviceAllocator(iter.ctx, option.Node)
+					devAllocator.AddAllocs(proposed)
+
+					// Try offer again
+					offer, sumAffinities, err = devAllocator.AssignDevice(req)
+					if offer == nil {
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unexpected error, unable to create device offer after preempting:%v", err))
+						continue OUTER
+					}
 				}
 
 				// Store the resource

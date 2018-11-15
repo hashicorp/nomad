@@ -113,9 +113,12 @@ type Preemptor struct {
 
 	// currentAllocs is the candidate set used to find preemptible allocations
 	currentAllocs []*structs.Allocation
+
+	// ctx is the context from the scheduler stack
+	ctx Context
 }
 
-func NewPreemptor(jobPriority int) *Preemptor {
+func NewPreemptor(jobPriority int, ctx Context) *Preemptor {
 	return &Preemptor{
 		currentPreemptions: make(map[structs.NamespacedID]map[string]int),
 		jobPriority:        jobPriority,
@@ -433,6 +436,52 @@ OUTER:
 	}
 	filteredBestAllocs := p.filterSuperset(allocsToPreempt, nodeRemainingResources, resourcesNeeded, preemptionResourceFactory)
 	return filteredBestAllocs
+}
+
+// PreemptForDevice tries to find allocations to preempt to meet devices needed
+// This is called once per task when assigning devices to the task
+func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *deviceAllocator) []*structs.Allocation {
+	// First group allocations by priority
+	allocsByPriority := filterAndGroupPreemptibleAllocs(p.jobPriority, p.currentAllocs)
+	neededCount := ask.Count
+	preemptedCount := 0
+	var preemptedAllocs []*structs.Allocation
+
+	for _, grpAllocs := range allocsByPriority {
+		for _, alloc := range grpAllocs.allocs {
+			for _, tr := range alloc.AllocatedResources.Tasks {
+				if len(tr.Devices) > 0 {
+					// Go through each assigned device group
+					for _, device := range tr.Devices {
+						devID := device.ID()
+
+						// Look up the device instance from the device allocator
+						devInst := devAlloc.Devices[*devID]
+
+						if devInst == nil {
+							continue
+						}
+
+						// Check if the device matches the ask
+						if !nodeDeviceMatches(p.ctx, devInst.Device, ask) {
+							continue
+						}
+
+						// Add to preemption list because this device matches
+						preemptedCount += len(device.DeviceIDs)
+						preemptedAllocs = append(preemptedAllocs, alloc)
+
+						// Check if we met needed count
+						if preemptedCount+devInst.FreeCount() >= int(neededCount) {
+							return preemptedAllocs
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // basicResourceDistance computes a distance using a coordinate system. It compares resource fields like CPU/Memory and Disk.
