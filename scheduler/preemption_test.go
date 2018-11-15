@@ -1139,7 +1139,7 @@ func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resour
 		TaskGroup:     "web",
 		AllocatedResources: &structs.AllocatedResources{
 			Tasks: map[string]*structs.AllocatedTaskResources{
-				"web": &structs.AllocatedTaskResources{
+				"web": {
 					Cpu: structs.AllocatedCpuResources{
 						CpuShares: int64(resource.CPU),
 					},
