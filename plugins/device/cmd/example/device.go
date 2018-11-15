@@ -9,10 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/kr/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -335,24 +338,24 @@ func (d *FsDevice) collectStats() (*device.DeviceGroupStats, error) {
 		}
 
 		s := &device.DeviceStats{
-			Summary: &device.StatValue{
-				IntNumeratorVal: f.Size(),
+			Summary: &structs.StatValue{
+				IntNumeratorVal: helper.Int64ToPtr(f.Size()),
 				Unit:            "bytes",
 				Desc:            "Filesize in bytes",
 			},
-			Stats: &device.StatObject{
-				Attributes: map[string]*device.StatValue{
+			Stats: &structs.StatObject{
+				Attributes: map[string]*structs.StatValue{
 					"size": {
-						IntNumeratorVal: f.Size(),
+						IntNumeratorVal: helper.Int64ToPtr(f.Size()),
 						Unit:            "bytes",
 						Desc:            "Filesize in bytes",
 					},
 					"modify_time": {
-						StringVal: f.ModTime().String(),
+						StringVal: helper.StringToPtr(f.ModTime().String()),
 						Desc:      "Last modified",
 					},
 					"mode": {
-						StringVal: f.Mode().String(),
+						StringVal: helper.StringToPtr(f.Mode().String()),
 						Desc:      "File mode",
 					},
 				},

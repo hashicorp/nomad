@@ -72,15 +72,15 @@ var (
 		Name:   "1080ti",
 		InstanceStats: map[string]*device.DeviceStats{
 			nvidiaDevice0ID: {
-				Summary: &device.StatValue{
-					IntNumeratorVal: 212,
+				Summary: &psstructs.StatValue{
+					IntNumeratorVal: helper.Int64ToPtr(212),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
 			},
 			nvidiaDevice1ID: {
-				Summary: &device.StatValue{
-					IntNumeratorVal: 218,
+				Summary: &psstructs.StatValue{
+					IntNumeratorVal: helper.Int64ToPtr(218),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
@@ -94,8 +94,8 @@ var (
 		Name:   "640GT",
 		InstanceStats: map[string]*device.DeviceStats{
 			intelDeviceID: {
-				Summary: &device.StatValue{
-					IntNumeratorVal: 220,
+				Summary: &psstructs.StatValue{
+					IntNumeratorVal: helper.Int64ToPtr(220),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
@@ -327,7 +327,7 @@ func TestManager_DeviceStats(t *testing.T) {
 	require.Contains(stat.InstanceStats, nvidiaDevice1ID)
 
 	istat := stat.InstanceStats[nvidiaDevice1ID]
-	require.EqualValues(218, istat.Summary.IntNumeratorVal)
+	require.EqualValues(218, *istat.Summary.IntNumeratorVal)
 }
 
 // Test reserving a particular device

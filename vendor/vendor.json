@@ -138,6 +138,7 @@
 		{"path":"github.com/golang/protobuf/ptypes/duration","checksumSHA1":"ZIF0rnVzNLluFPqUebtJrVonMr4=","revision":"b4deda0973fb4c70b50d226b1af49f3da59f5265","revisionTime":"2018-04-30T18:52:41Z","version":"v1","versionExact":"v1.1.0"},
 		{"path":"github.com/golang/protobuf/ptypes/empty","checksumSHA1":"7Az4Zl9T11I+xOfjgs/3/YMJ24I=","revision":"b4deda0973fb4c70b50d226b1af49f3da59f5265","revisionTime":"2018-04-30T18:52:41Z"},
 		{"path":"github.com/golang/protobuf/ptypes/timestamp","checksumSHA1":"1FJvuT0UllZaaS43kmPlx8oNiCs=","revision":"b4deda0973fb4c70b50d226b1af49f3da59f5265","revisionTime":"2018-04-30T18:52:41Z","version":"v1","versionExact":"v1.1.0"},
+		{"path":"github.com/golang/protobuf/ptypes/wrappers","checksumSHA1":"fs7UwFcU+SkJKA3eHcdhGsO4jrI=","revision":"b4deda0973fb4c70b50d226b1af49f3da59f5265","revisionTime":"2018-04-30T18:52:41Z","version":"v1.1.0","versionExact":"v1.1.0"},
 		{"path":"github.com/golang/snappy","checksumSHA1":"W+E/2xXcE1GmJ0Qb784ald0Fn6I=","revision":"d9eb7a3d35ec988b8585d4a0068e462c27d28380","revisionTime":"2016-05-29T05:00:41Z"},
 		{"path":"github.com/google/go-cmp/cmp","checksumSHA1":"+suAHHPBmbdZf/HusugaL4/H+NE=","revision":"d5735f74713c51f7450a43d0a98d41ce2c1db3cb","revisionTime":"2017-09-01T21:42:48Z"},
 		{"path":"github.com/google/go-cmp/cmp/cmpopts","checksumSHA1":"VmBLfV9TChrjNu8Z96wZkYie1aI=","revision":"d5735f74713c51f7450a43d0a98d41ce2c1db3cb","revisionTime":"2017-09-01T21:42:48Z"},
