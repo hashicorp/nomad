@@ -390,6 +390,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.Ui.Output(formatList(hostResources))
 		}
 
+		if err == nil && len(node.NodeResources.Devices) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Device Resource Utilization[reset]"))
+			c.Ui.Output(formatList(getDeviceResources(hostStats, node)))
+		}
 		if hostStats != nil && c.stats {
 			c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
 			c.printCpuStats(hostStats)
@@ -397,6 +401,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.printMemoryStats(hostStats)
 			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
+			if len(hostStats.DeviceStats) > 0 {
+				c.Ui.Output(c.Colorize().Color("\n[bold]Device Stats[reset]"))
+				c.printDeviceStats(hostStats)
+			}
 		}
 	}
 
@@ -582,6 +590,25 @@ func (c *NodeStatusCommand) printDiskStats(hostStats *api.HostStats) {
 	}
 }
 
+func (c *NodeStatusCommand) printDeviceStats(hostStats *api.HostStats) {
+	isFirst := true
+	for _, dg := range hostStats.DeviceStats {
+		for id, dinst := range dg.InstanceStats {
+			if !isFirst {
+				c.Ui.Output("\n")
+			}
+			isFirst = false
+
+			qid := deviceQualifiedID(dg.Vendor, dg.Type, dg.Name, id)
+			attrs := make([]string, 1, len(dinst.Stats.Attributes)+1)
+			attrs[0] = fmt.Sprintf("Device|%s", qid)
+			formatDeviceStats(dinst.Stats, "", &attrs)
+
+			c.Ui.Output(formatKV(attrs))
+		}
+	}
+}
+
 // getRunningAllocs returns a slice of allocation id's running on the node
 func getRunningAllocs(client *api.Client, nodeID string) ([]*api.Allocation, error) {
 	var allocs []*api.Allocation
@@ -715,6 +742,26 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 		)
 	}
 	return resources, nil
+}
+
+// getDeviceResources returns a list of devices and their statistics summary
+func getDeviceResources(hostStats *api.HostStats, node *api.Node) []string {
+	statsSummaryMap := buildDeviceStatsSummaryMap(hostStats)
+
+	devices := []string{}
+	for _, dg := range node.NodeResources.Devices {
+		for _, inst := range dg.Instances {
+			id := deviceQualifiedID(dg.Vendor, dg.Type, dg.Name, inst.ID)
+			statStr := ""
+			if stats, ok := statsSummaryMap[id]; ok && stats != nil {
+				statStr = stats.String()
+			}
+
+			devices = append(devices, fmt.Sprintf("%v|%v", id, statStr))
+		}
+	}
+
+	return devices
 }
 
 // formatNodeStubList is used to return a table format of a list of node stubs.
