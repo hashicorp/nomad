@@ -201,3 +201,52 @@ func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
 
 	assert.Equal(t, expected, formattedDevices)
 }
+
+func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
+	hostDeviceStats := []*api.DeviceGroupStats{
+		{
+			Vendor: "vendor1",
+			Type:   "type1",
+			Name:   "name1",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat1"),
+					},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(2),
+					},
+				},
+			},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat3"),
+					},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(4),
+					},
+				},
+			},
+		},
+	}
+
+	formattedDevices := getDeviceResources(hostDeviceStats)
+	sort.Strings(formattedDevices)
+	expected := []string{
+		"vendor1/type1/name1[id1]|stat1",
+		"vendor1/type1/name1[id2]|2",
+		"vendor2/type2[id1]|stat3",
+		"vendor2/type2[id2]|4",
+	}
+
+	assert.Equal(t, expected, formattedDevices)
+}

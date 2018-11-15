@@ -488,6 +488,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
 		}
 	}
+
 	var resourcesOutput []string
 	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")
 	firstAddr := ""
@@ -498,6 +499,8 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	// Display the rolled up stats. If possible prefer the live statistics
 	cpuUsage := strconv.Itoa(*resource.CPU)
 	memUsage := humanize.IBytes(uint64(*resource.MemoryMB * bytesPerMegabyte))
+	var deviceStats []*api.DeviceGroupStats
+
 	if stats != nil {
 		if ru, ok := stats.Tasks[task]; ok && ru != nil && ru.ResourceUsage != nil {
 			if cs := ru.ResourceUsage.CpuStats; cs != nil {
@@ -506,6 +509,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
 				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
 			}
+			deviceStats = ru.ResourceUsage.DeviceStats
 		}
 	}
 	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
@@ -518,6 +522,11 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
 	}
 	c.Ui.Output(formatListWithSpaces(resourcesOutput))
+
+	if len(deviceStats) > 0 {
+		c.Ui.Output("")
+		c.Ui.Output(formatList(getDeviceResources(deviceStats)))
+	}
 
 	if stats != nil {
 		if ru, ok := stats.Tasks[task]; ok && ru != nil && displayStats && ru.ResourceUsage != nil {
@@ -532,6 +541,8 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsage *api.ResourceUsage) {
 	memoryStats := resourceUsage.MemoryStats
 	cpuStats := resourceUsage.CpuStats
+	deviceStats := resourceUsage.DeviceStats
+
 	if memoryStats != nil && len(memoryStats.Measured) > 0 {
 		c.Ui.Output("Memory Stats")
 
@@ -592,6 +603,12 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 		out[0] = strings.Join(cpuStats.Measured, "|")
 		out[1] = strings.Join(measuredStats, "|")
 		c.Ui.Output(formatList(out))
+	}
+
+	if len(deviceStats) > 0 {
+		c.Ui.Output("Device Stats")
+
+		printDeviceStats(c.Ui, deviceStats)
 	}
 }
 

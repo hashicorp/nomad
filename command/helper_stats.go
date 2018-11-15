@@ -46,7 +46,8 @@ func formatDeviceStats(stat *api.StatObject, keyPrefix string, result *[]string)
 	}
 }
 
-// getDeviceResources returns a list of devices and their statistics summary
+// getDeviceResourcesForNode returns a list of devices and their statistics summary
+// and tracks devices without statistics
 func getDeviceResourcesForNode(deviceGroupStats []*api.DeviceGroupStats, node *api.Node) []string {
 	statsSummaryMap := buildDeviceStatsSummaryMap(deviceGroupStats)
 
@@ -64,6 +65,18 @@ func getDeviceResourcesForNode(deviceGroupStats []*api.DeviceGroupStats, node *a
 	}
 
 	return devices
+}
+
+// getDeviceResources returns alist of devices and their statistics summary
+func getDeviceResources(deviceGroupStats []*api.DeviceGroupStats) []string {
+	statsSummaryMap := buildDeviceStatsSummaryMap(deviceGroupStats)
+
+	result := make([]string, 0, len(statsSummaryMap))
+	for id, stats := range statsSummaryMap {
+		result = append(result, id+"|"+stats.String())
+	}
+
+	return result
 }
 
 func printDeviceStats(ui cli.Ui, deviceGroupStats []*api.DeviceGroupStats) {
