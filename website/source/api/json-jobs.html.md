@@ -725,6 +725,9 @@ The `Constraint` object supports the following keys:
 
 ### Affinity
 
+Affinities allow operators to express placement preferences. More details on how they work
+are described in [affinities](/docs/job-specification/affinity.html)
+
 The `Affinity` object supports the following keys:
 
 - `LTarget` - Specifies the attribute to examine for the

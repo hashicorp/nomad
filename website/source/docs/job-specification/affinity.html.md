@@ -229,7 +229,7 @@ affinity {
 Operators can run `nomad alloc status -verbose` to get more detailed information on various
 factors, including affinities that affect the final placement.
 
-#### Example Placement Metadata ####
+#### Example Placement Metadata
 The following is a snippet from the CLI output of `nomad alloc status -verbose <alloc-id>` showing scoring metadata.
 
 ```
