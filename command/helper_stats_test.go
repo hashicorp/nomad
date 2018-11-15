@@ -87,13 +87,13 @@ func TestFormatDeviceStats(t *testing.T) {
 			"k0": statValue("v0"),
 		},
 		Nested: map[string]*api.StatObject{
-			"nested1": &api.StatObject{
+			"nested1": {
 				Attributes: map[string]*api.StatValue{
 					"k1_0": statValue("v1_0"),
 					"k1_1": statValue("v1_1"),
 				},
 				Nested: map[string]*api.StatObject{
-					"nested1_1": &api.StatObject{
+					"nested1_1": {
 						Attributes: map[string]*api.StatValue{
 							"k11_0": statValue("v11_0"),
 							"k11_1": statValue("v11_1"),
@@ -101,7 +101,7 @@ func TestFormatDeviceStats(t *testing.T) {
 					},
 				},
 			},
-			"nested2": &api.StatObject{
+			"nested2": {
 				Attributes: map[string]*api.StatValue{
 					"k2": statValue("v2"),
 				},
