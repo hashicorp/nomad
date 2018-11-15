@@ -2,14 +2,12 @@ package command
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -277,79 +275,4 @@ func TestNodeStatusCommand_FormatDrain(t *testing.T) {
 
 	node.DrainStrategy.IgnoreSystemJobs = true
 	assert.Equal("true; 1970-01-01T00:00:01Z deadline; ignoring system jobs", formatDrain(node))
-}
-
-func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
-	hostStats := &api.HostStats{
-		DeviceStats: []*api.DeviceGroupStats{
-			{
-				Vendor: "vendor1",
-				Type:   "type1",
-				Name:   "name1",
-				InstanceStats: map[string]*api.DeviceStats{
-					"id1": {
-						Summary: &api.StatValue{
-							StringVal: helper.StringToPtr("stat1"),
-						},
-					},
-					"id2": {
-						Summary: &api.StatValue{
-							IntNumeratorVal: helper.Int64ToPtr(2),
-						},
-					},
-				},
-			},
-			{
-				Vendor: "vendor2",
-				Type:   "type2",
-				InstanceStats: map[string]*api.DeviceStats{
-					"id1": {
-						Summary: &api.StatValue{
-							StringVal: helper.StringToPtr("stat3"),
-						},
-					},
-					"id2": {
-						Summary: &api.StatValue{
-							IntNumeratorVal: helper.Int64ToPtr(4),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	node := &api.Node{
-		NodeResources: &api.NodeResources{
-			Devices: []*api.NodeDeviceResource{
-				{
-					Vendor: "vendor2",
-					Type:   "type2",
-					Instances: []*api.NodeDevice{
-						{ID: "id1"},
-						{ID: "id2"},
-					},
-				},
-				{
-					Vendor: "vendor1",
-					Type:   "type1",
-					Name:   "name1",
-					Instances: []*api.NodeDevice{
-						{ID: "id1"},
-						{ID: "id2"},
-					},
-				},
-			},
-		},
-	}
-
-	formattedDevices := getDeviceResources(hostStats, node)
-	sort.Strings(formattedDevices)
-	expected := []string{
-		"vendor1/type1/name1[id1]|stat1",
-		"vendor1/type1/name1[id2]|2",
-		"vendor2/type2[id1]|stat3",
-		"vendor2/type2[id2]|4",
-	}
-
-	assert.Equal(t, expected, formattedDevices)
 }
