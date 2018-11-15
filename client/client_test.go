@@ -5,8 +5,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
@@ -20,6 +23,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/device"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
@@ -1084,4 +1089,100 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 
 	assert.EqualValues(t, expectedResources2, client.configCopy.Node.NodeResources)
 
+}
+
+func TestClient_computeAllocatedDeviceStats(t *testing.T) {
+	logger := testlog.HCLogger(t)
+	c := &Client{logger: logger}
+
+	newDeviceStats := func(strValue string) *device.DeviceStats {
+		return &device.DeviceStats{
+			Summary: &psstructs.StatValue{
+				StringVal: &strValue,
+			},
+		}
+	}
+
+	allocatedDevices := []*structs.AllocatedDeviceResource{
+		{
+			Vendor:    "vendor",
+			Type:      "type",
+			Name:      "name",
+			DeviceIDs: []string{"d2", "d3", "notfoundid"},
+		},
+		{
+			Vendor:    "vendor2",
+			Type:      "type2",
+			Name:      "name2",
+			DeviceIDs: []string{"a2"},
+		},
+		{
+			Vendor:    "vendor_notfound",
+			Type:      "type_notfound",
+			Name:      "name_notfound",
+			DeviceIDs: []string{"d3"},
+		},
+	}
+
+	hostDeviceGroupStats := []*device.DeviceGroupStats{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+			Name:   "name",
+			InstanceStats: map[string]*device.DeviceStats{
+				"unallocated": newDeviceStats("unallocated"),
+				"d2":          newDeviceStats("d2"),
+				"d3":          newDeviceStats("d3"),
+			},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			Name:   "name2",
+			InstanceStats: map[string]*device.DeviceStats{
+				"a2": newDeviceStats("a2"),
+			},
+		},
+		{
+			Vendor: "vendor_unused",
+			Type:   "type_unused",
+			Name:   "name_unused",
+			InstanceStats: map[string]*device.DeviceStats{
+				"unallocated_unused": newDeviceStats("unallocated_unused"),
+			},
+		},
+	}
+
+	// test some edge conditions
+	assert.Empty(t, c.computeAllocatedDeviceGroupStats(nil, nil))
+	assert.Empty(t, c.computeAllocatedDeviceGroupStats(nil, hostDeviceGroupStats))
+	assert.Empty(t, c.computeAllocatedDeviceGroupStats(allocatedDevices, nil))
+
+	// actual test
+	result := c.computeAllocatedDeviceGroupStats(allocatedDevices, hostDeviceGroupStats)
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Vendor < result[j].Vendor
+	})
+
+	expected := []*device.DeviceGroupStats{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+			Name:   "name",
+			InstanceStats: map[string]*device.DeviceStats{
+				"d2": newDeviceStats("d2"),
+				"d3": newDeviceStats("d3"),
+			},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			Name:   "name2",
+			InstanceStats: map[string]*device.DeviceStats{
+				"a2": newDeviceStats("a2"),
+			},
+		},
+	}
+
+	require.EqualValues(t, expected, result)
 }

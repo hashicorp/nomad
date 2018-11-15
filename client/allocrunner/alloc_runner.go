@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
@@ -90,6 +91,9 @@ type allocRunner struct {
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
+	// deviceStatsReporter is used to lookup resource usage for alloc devices
+	deviceStatsReporter cinterfaces.DeviceStatsReporter
+
 	// allocBroadcaster sends client allocation updates to all listeners
 	allocBroadcaster *cstructs.AllocBroadcaster
 
@@ -123,6 +127,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		stateUpdater:             config.StateUpdater,
 		taskStateUpdatedCh:       make(chan struct{}, 1),
 		taskStateUpdateHandlerCh: make(chan struct{}),
+		deviceStatsReporter:      config.DeviceStatsReporter,
 		allocBroadcaster:         cstructs.NewAllocBroadcaster(),
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		pluginSingletonLoader:    config.PluginSingletonLoader,
@@ -159,6 +164,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Consul:                ar.consulClient,
 			Vault:                 ar.vaultClient,
 			PluginSingletonLoader: ar.pluginSingletonLoader,
+			DeviceStatsReporter:   ar.deviceStatsReporter,
 		}
 
 		// Create, but do not Run, the task runner
@@ -698,6 +704,7 @@ func (ar *allocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResou
 		ResourceUsage: &cstructs.ResourceUsage{
 			MemoryStats: &cstructs.MemoryStats{},
 			CpuStats:    &cstructs.CpuStats{},
+			DeviceStats: []*device.DeviceGroupStats{},
 		},
 	}
 

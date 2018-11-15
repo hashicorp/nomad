@@ -35,6 +35,9 @@ type Config struct {
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.AllocStateHandler
 
+	// deviceStatsReporter is used to lookup resource usage for alloc devices
+	DeviceStatsReporter interfaces.DeviceStatsReporter
+
 	// PrevAllocWatcher handles waiting on previous allocations and
 	// migrating their ephemeral disk when necessary.
 	PrevAllocWatcher allocwatcher.PrevAllocWatcher

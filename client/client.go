@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/plugins/device"
+
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -633,6 +635,62 @@ func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
 }
 
+func (c *Client) LatestDeviceResourceStats(devices []*structs.AllocatedDeviceResource) []*device.DeviceGroupStats {
+	return c.computeAllocatedDeviceGroupStats(devices, c.LatestHostStats().DeviceStats)
+}
+
+func (c *Client) computeAllocatedDeviceGroupStats(devices []*structs.AllocatedDeviceResource, hostDeviceGroupStats []*device.DeviceGroupStats) []*device.DeviceGroupStats {
+	// basic optimization for the usual case
+	if len(devices) == 0 || len(hostDeviceGroupStats) == 0 {
+		return nil
+	}
+
+	// Build an index of allocated devices
+	adIdx := map[structs.DeviceIdTuple][]string{}
+
+	total := 0
+	for _, ds := range devices {
+		adIdx[*ds.ID()] = ds.DeviceIDs
+		total += len(ds.DeviceIDs)
+	}
+
+	// Collect allocated device stats from host stats
+	result := make([]*device.DeviceGroupStats, 0, len(adIdx))
+
+	for _, dg := range hostDeviceGroupStats {
+		k := structs.DeviceIdTuple{
+			Vendor: dg.Vendor,
+			Type:   dg.Type,
+			Name:   dg.Name,
+		}
+
+		allocatedDeviceIDs, ok := adIdx[k]
+		if !ok {
+			continue
+		}
+
+		rdgStats := &device.DeviceGroupStats{
+			Vendor:        dg.Vendor,
+			Type:          dg.Type,
+			Name:          dg.Name,
+			InstanceStats: map[string]*device.DeviceStats{},
+		}
+
+		for _, adID := range allocatedDeviceIDs {
+			deviceStats, ok := dg.InstanceStats[adID]
+			if !ok || deviceStats == nil {
+				c.logger.Warn("device not found in stats", "device_id", adID, "device_group_id", k)
+				continue
+			}
+
+			rdgStats.InstanceStats[adID] = deviceStats
+		}
+		result = append(result, rdgStats)
+	}
+
+	return result
+}
+
 // ValidateMigrateToken verifies that a token is for a specific client and
 // allocation, and has been created by a trusted party that has privileged
 // knowledge of the client's secret identifier
@@ -790,6 +848,7 @@ func (c *Client) restoreState() error {
 			ClientConfig:          c.config,
 			StateDB:               c.stateDB,
 			StateUpdater:          c,
+			DeviceStatsReporter:   c,
 			Consul:                c.consulService,
 			Vault:                 c.vaultClient,
 			PrevAllocWatcher:      prevAllocWatcher,
@@ -1960,6 +2019,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		Consul:                c.consulService,
 		Vault:                 c.vaultClient,
 		StateUpdater:          c,
+		DeviceStatsReporter:   c,
 		PrevAllocWatcher:      prevAllocWatcher,
 		PluginLoader:          c.config.PluginLoader,
 		PluginSingletonLoader: c.config.PluginSingletonLoader,
