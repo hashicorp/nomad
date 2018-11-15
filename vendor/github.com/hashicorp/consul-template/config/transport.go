@@ -56,7 +56,7 @@ type TransportConfig struct {
 	// host.
 	MaxIdleConnsPerHost *int `mapstructure:"max_idle_conns_per_host"`
 
-	// TLSHandshakeTimeout is the amout of time to wait to complete the TLS
+	// TLSHandshakeTimeout is the amount of time to wait to complete the TLS
 	// handshake.
 	TLSHandshakeTimeout *time.Duration `mapstructure:"tls_handshake_timeout"`
 }

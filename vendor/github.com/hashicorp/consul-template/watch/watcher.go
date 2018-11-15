@@ -35,7 +35,7 @@ type Watcher struct {
 	maxStale time.Duration
 
 	// once signals if this watcher should tell views to retrieve data exactly
-	// one time intead of polling infinitely.
+	// one time instead of polling infinitely.
 	once bool
 
 	// retryFuncs specifies the different ways to retry based on the upstream.
@@ -116,7 +116,7 @@ func (w *Watcher) ErrCh() <-chan error {
 	return w.errCh
 }
 
-// Add adds the given dependency to the list of monitored depedencies
+// Add adds the given dependency to the list of monitored dependencies
 // and start the associated view. If the dependency already exists, no action is
 // taken.
 //
@@ -176,7 +176,7 @@ func (w *Watcher) Watching(d dep.Dependency) bool {
 }
 
 // ForceWatching is used to force setting the internal state of watching
-// a depedency. This is only used for unit testing purposes.
+// a dependency. This is only used for unit testing purposes.
 func (w *Watcher) ForceWatching(d dep.Dependency, enabled bool) {
 	w.Lock()
 	defer w.Unlock()

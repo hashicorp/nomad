@@ -146,7 +146,7 @@ func (v *View) poll(viewCh chan<- *View, errCh chan<- error) {
 		case <-successCh:
 			// We successfully received a non-error response from the server. This
 			// does not mean we have data (that's dataCh's job), but rather this
-			// just resets the counter indicating we communciated successfully. For
+			// just resets the counter indicating we communicated successfully. For
 			// example, Consul make have an outage, but when it returns, the view
 			// is unchanged. We have to reset the counter retries, but not update the
 			// actual template.
