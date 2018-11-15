@@ -71,6 +71,13 @@ TRY:
 		return nil
 	}
 
+	// If shutting down, exit without logging the error
+	select {
+	case <-c.shutdownCh:
+		return nil
+	default:
+	}
+
 	// Move off to another server, and see if we can retry.
 	c.rpcLogger.Error("error performing RPC to server", "error", rpcErr, "rpc", method, "server", server.Addr)
 	c.servers.NotifyFailedServer(server)
