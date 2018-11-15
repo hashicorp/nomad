@@ -1,6 +1,7 @@
 package command
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -72,4 +73,59 @@ func TestBuildDeviceStatsSummaryMap(t *testing.T) {
 	}
 
 	require.EqualValues(t, expected, buildDeviceStatsSummaryMap(hostStats))
+}
+
+func TestFormatDeviceStats(t *testing.T) {
+	statValue := func(v string) *api.StatValue {
+		return &api.StatValue{
+			StringVal: helper.StringToPtr(v),
+		}
+	}
+
+	stat := &api.StatObject{
+		Attributes: map[string]*api.StatValue{
+			"k0": statValue("v0"),
+		},
+		Nested: map[string]*api.StatObject{
+			"nested1": &api.StatObject{
+				Attributes: map[string]*api.StatValue{
+					"k1_0": statValue("v1_0"),
+					"k1_1": statValue("v1_1"),
+				},
+				Nested: map[string]*api.StatObject{
+					"nested1_1": &api.StatObject{
+						Attributes: map[string]*api.StatValue{
+							"k11_0": statValue("v11_0"),
+							"k11_1": statValue("v11_1"),
+						},
+					},
+				},
+			},
+			"nested2": &api.StatObject{
+				Attributes: map[string]*api.StatValue{
+					"k2": statValue("v2"),
+				},
+			},
+		},
+	}
+
+	result := []string{"preseedkey|pressededvalue"}
+	formatDeviceStats(stat, "", &result)
+
+	// check array is appended only
+	require.Equal(t, "preseedkey|pressededvalue", result[0])
+
+	// check rest of values
+	sort.Strings(result)
+	expected := []string{
+		"k0|v0",
+		"nested1.k1_0|v1_0",
+		"nested1.k1_1|v1_1",
+		"nested1.nested1_1.k11_0|v11_0",
+		"nested1.nested1_1.k11_1|v11_1",
+		"nested2.k2|v2",
+		"preseedkey|pressededvalue",
+	}
+
+	require.Equal(t, expected, result)
 }

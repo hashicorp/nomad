@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/nomad/api"
 )
 
@@ -27,4 +29,18 @@ func buildDeviceStatsSummaryMap(host *api.HostStats) map[string]*api.StatValue {
 	}
 
 	return r
+}
+
+func formatDeviceStats(stat *api.StatObject, keyPrefix string, result *[]string) {
+	if keyPrefix != "" {
+		keyPrefix = keyPrefix + "."
+	}
+
+	for n, stat := range stat.Attributes {
+		*result = append(*result, fmt.Sprintf("%s%s|%s", keyPrefix, n, stat))
+	}
+
+	for k, o := range stat.Nested {
+		formatDeviceStats(o, keyPrefix+k, result)
+	}
 }

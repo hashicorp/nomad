@@ -602,9 +602,8 @@ func (c *NodeStatusCommand) printDeviceStats(hostStats *api.HostStats) {
 			qid := deviceQualifiedID(dg.Vendor, dg.Type, dg.Name, id)
 			attrs := make([]string, 1, len(dinst.Stats.Attributes)+1)
 			attrs[0] = fmt.Sprintf("Device|%s", qid)
-			for n, stat := range dinst.Stats.Attributes {
-				attrs = append(attrs, fmt.Sprintf("%s|%s", n, stat))
-			}
+			formatDeviceStats(dinst.Stats, "", &attrs)
+
 			c.Ui.Output(formatKV(attrs))
 		}
 	}
