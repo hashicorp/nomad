@@ -398,21 +398,16 @@ func (c *ConstraintChecker) Feasible(option *structs.Node) bool {
 }
 
 func (c *ConstraintChecker) meetsConstraint(constraint *structs.Constraint, option *structs.Node) bool {
-	// Resolve the targets
-	lVal, ok := resolveTarget(constraint.LTarget, option)
-	if !ok {
-		return false
-	}
-	rVal, ok := resolveTarget(constraint.RTarget, option)
-	if !ok {
-		return false
-	}
+	// Resolve the targets. Targets that are not present are treated as `nil`.
+	// This is to allow for matching constraints where a target is not present.
+	lVal, lOk := resolveTarget(constraint.LTarget, option)
+	rVal, rOk := resolveTarget(constraint.RTarget, option)
 
 	// Check if satisfied
-	return checkConstraint(c.ctx, constraint.Operand, lVal, rVal)
+	return checkConstraint(c.ctx, constraint.Operand, lVal, rVal, lOk, rOk)
 }
 
-// resolveTarget is used to resolve the LTarget and RTarget of a Constraint
+// resolveTarget is used to resolve the LTarget and RTarget of a Constraint.
 func resolveTarget(target string, node *structs.Node) (interface{}, bool) {
 	// If no prefix, this must be a literal value
 	if !strings.HasPrefix(target, "${") {
@@ -448,8 +443,9 @@ func resolveTarget(target string, node *structs.Node) (interface{}, bool) {
 	}
 }
 
-// checkConstraint checks if a constraint is satisfied
-func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
+// checkConstraint checks if a constraint is satisfied. The lVal and rVal
+// interfaces may be nil.
+func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -460,32 +456,36 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}) bool {
 
 	switch operand {
 	case "=", "==", "is":
-		return reflect.DeepEqual(lVal, rVal)
+		return lFound && rFound && reflect.DeepEqual(lVal, rVal)
 	case "!=", "not":
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
-		return checkLexicalOrder(operand, lVal, rVal)
+		return lFound && rFound && checkLexicalOrder(operand, lVal, rVal)
+	case structs.ConstraintAttributeIsSet:
+		return lFound
+	case structs.ConstraintAttributeIsNotSet:
+		return !lFound
 	case structs.ConstraintVersion:
-		return checkVersionMatch(ctx, lVal, rVal)
+		return lFound && rFound && checkVersionMatch(ctx, lVal, rVal)
 	case structs.ConstraintRegex:
-		return checkRegexpMatch(ctx, lVal, rVal)
+		return lFound && rFound && checkRegexpMatch(ctx, lVal, rVal)
 	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
-		return checkSetContainsAll(ctx, lVal, rVal)
+		return lFound && rFound && checkSetContainsAll(ctx, lVal, rVal)
 	case structs.ConstraintSetContainsAny:
-		return checkSetContainsAny(lVal, rVal)
+		return lFound && rFound && checkSetContainsAny(lVal, rVal)
 	default:
 		return false
 	}
 }
 
 // checkAffinity checks if a specific affinity is satisfied
-func checkAffinity(ctx Context, operand string, lVal, rVal interface{}) bool {
-	return checkConstraint(ctx, operand, lVal, rVal)
+func checkAffinity(ctx Context, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
+	return checkConstraint(ctx, operand, lVal, rVal, lFound, rFound)
 }
 
 // checkAttributeAffinity checks if an affinity is satisfied
-func checkAttributeAffinity(ctx Context, operand string, lVal, rVal *psstructs.Attribute) bool {
-	return checkAttributeConstraint(ctx, operand, lVal, rVal)
+func checkAttributeAffinity(ctx Context, operand string, lVal, rVal *psstructs.Attribute, lFound, rFound bool) bool {
+	return checkAttributeConstraint(ctx, operand, lVal, rVal, lFound, rFound)
 }
 
 // checkLexicalOrder is used to check for lexical ordering
@@ -931,17 +931,11 @@ func nodeDeviceMatches(ctx Context, d *structs.NodeDeviceResource, req *structs.
 
 	for _, c := range req.Constraints {
 		// Resolve the targets
-		lVal, ok := resolveDeviceTarget(c.LTarget, d)
-		if !ok {
-			return false
-		}
-		rVal, ok := resolveDeviceTarget(c.RTarget, d)
-		if !ok {
-			return false
-		}
+		lVal, lOk := resolveDeviceTarget(c.LTarget, d)
+		rVal, rOk := resolveDeviceTarget(c.RTarget, d)
 
 		// Check if satisfied
-		if !checkAttributeConstraint(ctx, c.Operand, lVal, rVal) {
+		if !checkAttributeConstraint(ctx, c.Operand, lVal, rVal, lOk, rOk) {
 			return false
 		}
 	}
@@ -979,8 +973,9 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 	}
 }
 
-// checkAttributeConstraint checks if a constraint is satisfied
-func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs.Attribute) bool {
+// checkAttributeConstraint checks if a constraint is satisfied. nil equality
+// comparisons are considered to be false.
+func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs.Attribute, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -990,15 +985,36 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 	}
 
 	switch operand {
-	case "<", "<=", ">", ">=", "=", "==", "is", "!=", "not":
+	case "!=", "not":
+		// Neither value was provided, nil != nil == false
+		if !(lFound || rFound) {
+			return false
+		}
+
+		// Only 1 value was provided, therefore nil != some == true
+		if lFound != rFound {
+			return true
+		}
+
+		// Both values were provided, so actually compare them
+		v, ok := lVal.Compare(rVal)
+		if !ok {
+			return false
+		}
+
+		return v != 0
+
+	case "<", "<=", ">", ">=", "=", "==", "is":
+		if !(lFound && rFound) {
+			return false
+		}
+
 		v, ok := lVal.Compare(rVal)
 		if !ok {
 			return false
 		}
 
 		switch operand {
-		case "not", "!=":
-			return v != 0
 		case "is", "==", "=":
 			return v == 0
 		case "<":
@@ -1014,8 +1030,16 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 
 	case structs.ConstraintVersion:
+		if !(lFound && rFound) {
+			return false
+		}
+
 		return checkAttributeVersionMatch(ctx, lVal, rVal)
 	case structs.ConstraintRegex:
+		if !(lFound && rFound) {
+			return false
+		}
+
 		ls, ok := lVal.GetString()
 		rs, ok2 := rVal.GetString()
 		if !ok || !ok2 {
@@ -1023,6 +1047,10 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 		return checkRegexpMatch(ctx, ls, rs)
 	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
+		if !(lFound && rFound) {
+			return false
+		}
+
 		ls, ok := lVal.GetString()
 		rs, ok2 := rVal.GetString()
 		if !ok || !ok2 {
@@ -1031,6 +1059,10 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 
 		return checkSetContainsAll(ctx, ls, rs)
 	case structs.ConstraintSetContainsAny:
+		if !(lFound && rFound) {
+			return false
+		}
+
 		ls, ok := lVal.GetString()
 		rs, ok2 := rVal.GetString()
 		if !ok || !ok2 {
@@ -1038,6 +1070,10 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 
 		return checkSetContainsAny(ls, rs)
+	case structs.ConstraintAttributeIsSet:
+		return lFound
+	case structs.ConstraintAttributeIsNotSet:
+		return !lFound
 	default:
 		return false
 	}

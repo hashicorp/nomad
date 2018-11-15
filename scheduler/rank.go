@@ -564,17 +564,11 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 func matchesAffinity(ctx Context, affinity *structs.Affinity, option *structs.Node) bool {
 	//TODO(preetha): Add a step here that filters based on computed node class for potential speedup
 	// Resolve the targets
-	lVal, ok := resolveTarget(affinity.LTarget, option)
-	if !ok {
-		return false
-	}
-	rVal, ok := resolveTarget(affinity.RTarget, option)
-	if !ok {
-		return false
-	}
+	lVal, lOk := resolveTarget(affinity.LTarget, option)
+	rVal, rOk := resolveTarget(affinity.RTarget, option)
 
 	// Check if satisfied
-	return checkAffinity(ctx, affinity.Operand, lVal, rVal)
+	return checkAffinity(ctx, affinity.Operand, lVal, rVal, lOk, rOk)
 }
 
 // ScoreNormalizationIterator is used to combine scores from various prior
