@@ -812,6 +812,18 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		metricsConf.EnableHostname = true
 	}
 
+	allowedPrefixes, blockedPrefixes, err := telConfig.PrefixFilters()
+	if err != nil {
+		return inm, err
+	}
+
+	metricsConf.AllowedPrefixes = allowedPrefixes
+	metricsConf.BlockedPrefixes = blockedPrefixes
+
+	if telConfig.FilterDefault != nil {
+		metricsConf.FilterDefault = *telConfig.FilterDefault
+	}
+
 	// Configure the statsite sink
 	var fanout metrics.FanoutSink
 	if telConfig.StatsiteAddr != "" {
@@ -895,6 +907,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		metricsConf.EnableHostname = false
 		metrics.NewGlobal(metricsConf, inm)
 	}
+
 	return inm, nil
 }
 
