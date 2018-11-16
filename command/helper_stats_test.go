@@ -1,11 +1,11 @@
 package command
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,38 +19,36 @@ func TestDeviceQualifiedID(t *testing.T) {
 }
 
 func TestBuildDeviceStatsSummaryMap(t *testing.T) {
-	hostStats := &api.HostStats{
-		DeviceStats: []*api.DeviceGroupStats{
-			{
-				Vendor: "vendor1",
-				Type:   "type1",
-				Name:   "name1",
-				InstanceStats: map[string]*api.DeviceStats{
-					"id1": {
-						Summary: &api.StatValue{
-							StringVal: helper.StringToPtr("stat1"),
-						},
+	hostDeviceStats := []*api.DeviceGroupStats{
+		{
+			Vendor: "vendor1",
+			Type:   "type1",
+			Name:   "name1",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat1"),
 					},
-					"id2": {
-						Summary: &api.StatValue{
-							IntNumeratorVal: helper.Int64ToPtr(2),
-						},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(2),
 					},
 				},
 			},
-			{
-				Vendor: "vendor2",
-				Type:   "type2",
-				InstanceStats: map[string]*api.DeviceStats{
-					"id1": {
-						Summary: &api.StatValue{
-							StringVal: helper.StringToPtr("stat3"),
-						},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat3"),
 					},
-					"id2": {
-						Summary: &api.StatValue{
-							IntNumeratorVal: helper.Int64ToPtr(4),
-						},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(4),
 					},
 				},
 			},
@@ -72,7 +70,7 @@ func TestBuildDeviceStatsSummaryMap(t *testing.T) {
 		},
 	}
 
-	require.EqualValues(t, expected, buildDeviceStatsSummaryMap(hostStats))
+	require.EqualValues(t, expected, buildDeviceStatsSummaryMap(hostDeviceStats))
 }
 
 func TestFormatDeviceStats(t *testing.T) {
@@ -84,6 +82,7 @@ func TestFormatDeviceStats(t *testing.T) {
 
 	stat := &api.StatObject{
 		Attributes: map[string]*api.StatValue{
+			"a0": statValue("va0"),
 			"k0": statValue("v0"),
 		},
 		Nested: map[string]*api.StatObject{
@@ -109,23 +108,142 @@ func TestFormatDeviceStats(t *testing.T) {
 		},
 	}
 
-	result := []string{"preseedkey|pressededvalue"}
-	formatDeviceStats(stat, "", &result)
+	result := formatDeviceStats("TestDeviceID", stat)
 
-	// check array is appended only
-	require.Equal(t, "preseedkey|pressededvalue", result[0])
+	// check that device id always appears first
+	require.Equal(t, "Device|TestDeviceID", result[0])
 
 	// check rest of values
-	sort.Strings(result)
 	expected := []string{
+		"Device|TestDeviceID",
+		"a0|va0",
 		"k0|v0",
 		"nested1.k1_0|v1_0",
 		"nested1.k1_1|v1_1",
 		"nested1.nested1_1.k11_0|v11_0",
 		"nested1.nested1_1.k11_1|v11_1",
 		"nested2.k2|v2",
-		"preseedkey|pressededvalue",
 	}
 
 	require.Equal(t, expected, result)
+}
+
+func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
+	hostDeviceStats := []*api.DeviceGroupStats{
+		{
+			Vendor: "vendor1",
+			Type:   "type1",
+			Name:   "name1",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat1"),
+					},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(2),
+					},
+				},
+			},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat3"),
+					},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(4),
+					},
+				},
+			},
+		},
+	}
+
+	node := &api.Node{
+		NodeResources: &api.NodeResources{
+			Devices: []*api.NodeDeviceResource{
+				{
+					Vendor: "vendor2",
+					Type:   "type2",
+					Instances: []*api.NodeDevice{
+						{ID: "id1"},
+						{ID: "id2"},
+					},
+				},
+				{
+					Vendor: "vendor1",
+					Type:   "type1",
+					Name:   "name1",
+					Instances: []*api.NodeDevice{
+						{ID: "id1"},
+						{ID: "id2"},
+					},
+				},
+			},
+		},
+	}
+
+	formattedDevices := getDeviceResourcesForNode(hostDeviceStats, node)
+	expected := []string{
+		"vendor1/type1/name1[id1]|stat1",
+		"vendor1/type1/name1[id2]|2",
+		"vendor2/type2[id1]|stat3",
+		"vendor2/type2[id2]|4",
+	}
+
+	assert.Equal(t, expected, formattedDevices)
+}
+
+func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
+	hostDeviceStats := []*api.DeviceGroupStats{
+		{
+			Vendor: "vendor1",
+			Type:   "type1",
+			Name:   "name1",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat1"),
+					},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(2),
+					},
+				},
+			},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			InstanceStats: map[string]*api.DeviceStats{
+				"id1": {
+					Summary: &api.StatValue{
+						StringVal: helper.StringToPtr("stat3"),
+					},
+				},
+				"id2": {
+					Summary: &api.StatValue{
+						IntNumeratorVal: helper.Int64ToPtr(4),
+					},
+				},
+			},
+		},
+	}
+
+	formattedDevices := getDeviceResources(hostDeviceStats)
+	expected := []string{
+		"vendor1/type1/name1[id1]|stat1",
+		"vendor1/type1/name1[id2]|2",
+		"vendor2/type2[id1]|stat3",
+		"vendor2/type2[id2]|4",
+	}
+
+	assert.Equal(t, expected, formattedDevices)
 }
