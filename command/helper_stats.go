@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
@@ -32,7 +33,16 @@ func buildDeviceStatsSummaryMap(deviceGroupStats []*api.DeviceGroupStats) map[st
 	return r
 }
 
-func formatDeviceStats(stat *api.StatObject, keyPrefix string, result *[]string) {
+func formatDeviceStats(qid string, stat *api.StatObject) []string {
+	attrs := []string{fmt.Sprintf("Device|%s", qid)}
+	formatDeviceStatsImpl(stat, "", &attrs)
+
+	sort.Strings(attrs[1:])
+
+	return attrs
+}
+
+func formatDeviceStatsImpl(stat *api.StatObject, keyPrefix string, result *[]string) {
 	if keyPrefix != "" {
 		keyPrefix = keyPrefix + "."
 	}
@@ -42,7 +52,7 @@ func formatDeviceStats(stat *api.StatObject, keyPrefix string, result *[]string)
 	}
 
 	for k, o := range stat.Nested {
-		formatDeviceStats(o, keyPrefix+k, result)
+		formatDeviceStatsImpl(o, keyPrefix+k, result)
 	}
 }
 
@@ -64,6 +74,8 @@ func getDeviceResourcesForNode(deviceGroupStats []*api.DeviceGroupStats, node *a
 		}
 	}
 
+	sort.Strings(devices)
+
 	return devices
 }
 
@@ -75,6 +87,8 @@ func getDeviceResources(deviceGroupStats []*api.DeviceGroupStats) []string {
 	for id, stats := range statsSummaryMap {
 		result = append(result, id+"|"+stats.String())
 	}
+
+	sort.Strings(result)
 
 	return result
 }
@@ -89,9 +103,7 @@ func printDeviceStats(ui cli.Ui, deviceGroupStats []*api.DeviceGroupStats) {
 			isFirst = false
 
 			qid := deviceQualifiedID(dg.Vendor, dg.Type, dg.Name, id)
-			attrs := make([]string, 1, len(dinst.Stats.Attributes)+1)
-			attrs[0] = fmt.Sprintf("Device|%s", qid)
-			formatDeviceStats(dinst.Stats, "", &attrs)
+			attrs := formatDeviceStats(qid, dinst.Stats)
 
 			ui.Output(formatKV(attrs))
 		}

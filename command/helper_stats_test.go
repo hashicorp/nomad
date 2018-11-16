@@ -1,7 +1,6 @@
 package command
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -83,6 +82,7 @@ func TestFormatDeviceStats(t *testing.T) {
 
 	stat := &api.StatObject{
 		Attributes: map[string]*api.StatValue{
+			"a0": statValue("va0"),
 			"k0": statValue("v0"),
 		},
 		Nested: map[string]*api.StatObject{
@@ -108,22 +108,21 @@ func TestFormatDeviceStats(t *testing.T) {
 		},
 	}
 
-	result := []string{"preseedkey|pressededvalue"}
-	formatDeviceStats(stat, "", &result)
+	result := formatDeviceStats("TestDeviceID", stat)
 
-	// check array is appended only
-	require.Equal(t, "preseedkey|pressededvalue", result[0])
+	// check that device id always appears first
+	require.Equal(t, "Device|TestDeviceID", result[0])
 
 	// check rest of values
-	sort.Strings(result)
 	expected := []string{
+		"Device|TestDeviceID",
+		"a0|va0",
 		"k0|v0",
 		"nested1.k1_0|v1_0",
 		"nested1.k1_1|v1_1",
 		"nested1.nested1_1.k11_0|v11_0",
 		"nested1.nested1_1.k11_1|v11_1",
 		"nested2.k2|v2",
-		"preseedkey|pressededvalue",
 	}
 
 	require.Equal(t, expected, result)
@@ -191,7 +190,6 @@ func TestNodeStatusCommand_GetDeviceResourcesForNode(t *testing.T) {
 	}
 
 	formattedDevices := getDeviceResourcesForNode(hostDeviceStats, node)
-	sort.Strings(formattedDevices)
 	expected := []string{
 		"vendor1/type1/name1[id1]|stat1",
 		"vendor1/type1/name1[id2]|2",
@@ -240,7 +238,6 @@ func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
 	}
 
 	formattedDevices := getDeviceResources(hostDeviceStats)
-	sort.Strings(formattedDevices)
 	expected := []string{
 		"vendor1/type1/name1[id1]|stat1",
 		"vendor1/type1/name1[id2]|2",
