@@ -3,13 +3,46 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
+
+// hookResources captures the resources for the task provided by hooks.
+type hookResources struct {
+	Devices []*drivers.DeviceConfig
+	Mounts  []*drivers.MountConfig
+	sync.RWMutex
+}
+
+func (h *hookResources) setDevices(d []*drivers.DeviceConfig) {
+	h.Lock()
+	h.Devices = d
+	h.Unlock()
+}
+
+func (h *hookResources) getDevices() []*drivers.DeviceConfig {
+	h.RLock()
+	defer h.RUnlock()
+	return h.Devices
+}
+
+func (h *hookResources) setMounts(m []*drivers.MountConfig) {
+	h.Lock()
+	h.Mounts = m
+	h.Unlock()
+}
+
+func (h *hookResources) getMounts() []*drivers.MountConfig {
+	h.RLock()
+	defer h.RUnlock()
+	return h.Mounts
+}
 
 // initHooks intializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
@@ -17,6 +50,9 @@ func (tr *TaskRunner) initHooks() {
 	task := tr.Task()
 
 	tr.logmonHookConfig = newLogMonHookConfig(task.Name, tr.taskDir.LogDir)
+
+	// Add the hook resources
+	tr.hookResources = &hookResources{}
 
 	// Create the task directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
@@ -27,6 +63,7 @@ func (tr *TaskRunner) initHooks() {
 		newDispatchHook(tr.Alloc(), hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
+		newDeviceHook(tr.devicemanager, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook
@@ -95,9 +132,10 @@ func (tr *TaskRunner) prestart() error {
 		name := pre.Name()
 		// Build the request
 		req := interfaces.TaskPrestartRequest{
-			Task:    tr.Task(),
-			TaskDir: tr.taskDir,
-			TaskEnv: tr.envBuilder.Build(),
+			Task:          tr.Task(),
+			TaskDir:       tr.taskDir,
+			TaskEnv:       tr.envBuilder.Build(),
+			TaskResources: tr.taskResources,
 		}
 
 		var origHookState *state.HookState
@@ -106,9 +144,15 @@ func (tr *TaskRunner) prestart() error {
 			origHookState = tr.localState.Hooks[name]
 		}
 		tr.stateLock.RUnlock()
-		if origHookState != nil && origHookState.PrestartDone {
-			tr.logger.Trace("skipping done prestart hook", "name", pre.Name())
-			continue
+
+		if origHookState != nil {
+			if origHookState.PrestartDone {
+				tr.logger.Trace("skipping done prestart hook", "name", pre.Name())
+				continue
+			}
+
+			// Give the hook it's old data
+			req.HookData = origHookState.Data
 		}
 
 		req.VaultToken = tr.getVaultToken()
@@ -148,6 +192,14 @@ func (tr *TaskRunner) prestart() error {
 		// Store the environment variables returned by the hook
 		if len(resp.Env) != 0 {
 			tr.envBuilder.SetGenericEnv(resp.Env)
+		}
+
+		// Store the resources
+		if len(resp.Devices) != 0 {
+			tr.hookResources.setDevices(resp.Devices)
+		}
+		if len(resp.Mounts) != 0 {
+			tr.hookResources.setMounts(resp.Mounts)
 		}
 
 		if tr.logger.IsTrace() {

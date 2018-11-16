@@ -273,7 +273,7 @@ func BatchJob() *structs.Job {
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "worker",
+				Name:  "web",
 				Count: 10,
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
@@ -292,7 +292,7 @@ func BatchJob() *structs.Job {
 				},
 				Tasks: []*structs.Task{
 					{
-						Name:   "worker",
+						Name:   "web",
 						Driver: "mock_driver",
 						Config: map[string]interface{}{
 							"run_for": "500ms",
@@ -508,7 +508,7 @@ func BatchAlloc() *structs.Allocation {
 		EvalID:    uuid.Generate(),
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
-		TaskGroup: "worker",
+		TaskGroup: "web",
 
 		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{

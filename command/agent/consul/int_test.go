@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -157,6 +158,7 @@ func TestConsul_Integration(t *testing.T) {
 		StateDB:               state.NoopDB{},
 		StateUpdater:          logUpdate,
 		PluginSingletonLoader: singleton.NewSingletonLoader(logger, pluginLoader),
+		DeviceManager:         devicemanager.NoopMockManager(),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

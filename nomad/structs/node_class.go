@@ -42,7 +42,7 @@ func (n *Node) ComputeClass() error {
 // included in the computed node class.
 func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 	switch field {
-	case "Datacenter", "Attributes", "Meta", "NodeClass":
+	case "Datacenter", "Attributes", "Meta", "NodeClass", "NodeResources":
 		return true, nil
 	default:
 		return false, nil
@@ -59,6 +59,44 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 
 	switch field {
 	case "Meta", "Attributes":
+		return !IsUniqueNamespace(key), nil
+	default:
+		return false, fmt.Errorf("unexpected map field: %v", field)
+	}
+}
+
+// HashInclude is used to blacklist uniquely identifying node fields from being
+// included in the computed node class.
+func (n NodeResources) HashInclude(field string, v interface{}) (bool, error) {
+	switch field {
+	case "Devices":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// HashInclude is used to blacklist uniquely identifying node fields from being
+// included in the computed node class.
+func (n NodeDeviceResource) HashInclude(field string, v interface{}) (bool, error) {
+	switch field {
+	case "Vendor", "Type", "Name", "Attributes":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// HashIncludeMap is used to blacklist uniquely identifying node map keys from being
+// included in the computed node class.
+func (n NodeDeviceResource) HashIncludeMap(field string, k, v interface{}) (bool, error) {
+	key, ok := k.(string)
+	if !ok {
+		return false, fmt.Errorf("map key %v not a string", k)
+	}
+
+	switch field {
+	case "Attributes":
 		return !IsUniqueNamespace(key), nil
 	default:
 		return false, fmt.Errorf("unexpected map field: %v", field)
