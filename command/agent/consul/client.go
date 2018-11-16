@@ -566,6 +566,10 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			Tags:    service.Tags,
 			Address: host,
 			Port:    port,
+			// This enables the consul UI to show that Nomad registered this service
+			Meta: map[string]string{
+				"external-source": "nomad",
+			},
 		}
 		ops.regServices = append(ops.regServices, serviceReg)
 
@@ -660,6 +664,10 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Tags:    tags,
 		Address: ip,
 		Port:    port,
+		// This enables the consul UI to show that Nomad registered this service
+		Meta: map[string]string{
+			"external-source": "nomad",
+		},
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
