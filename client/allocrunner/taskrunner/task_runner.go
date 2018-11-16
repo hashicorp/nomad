@@ -886,7 +886,7 @@ func (tr *TaskRunner) LatestResourceUsage() *cstructs.TaskResourceUsage {
 
 	// Look up device statistics lazily when fetched, as currently we do not emit any stats for them yet
 	if ru != nil && tr.deviceStatsReporter != nil {
-		deviceResources := tr.Alloc().AllocatedResources.Tasks[tr.Task().Name].Devices
+		deviceResources := tr.Alloc().AllocatedResources.Tasks[tr.taskName].Devices
 		ru.ResourceUsage.DeviceStats = tr.deviceStatsReporter.LatestDeviceResourceStats(deviceResources)
 	}
 	return ru

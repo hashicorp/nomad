@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
@@ -1184,5 +1182,5 @@ func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 		},
 	}
 
-	require.EqualValues(t, expected, result)
+	assert.EqualValues(t, expected, result)
 }
