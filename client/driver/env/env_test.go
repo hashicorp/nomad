@@ -356,6 +356,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"taskEnvKey":        "taskEnvVal",
 		"nested.task.key":   "x",
 		"invalid...taskkey": "y",
+		".a":                "a",
+		"b.":                "b",
+		".":                 "c",
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
 		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
@@ -365,9 +368,12 @@ func TestEnvironment_AllValues(t *testing.T) {
 	require.NoError(t, err)
 
 	// Assert the keys we couldn't nest were reported
-	require.Len(t, errs, 2)
+	require.Len(t, errs, 5)
 	require.Contains(t, errs, "invalid...taskkey")
 	require.Contains(t, errs, "meta.invalid...metakey")
+	require.Contains(t, errs, ".a")
+	require.Contains(t, errs, "b.")
+	require.Contains(t, errs, ".")
 
 	exp := map[string]string{
 		// Node
@@ -432,6 +438,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		`env["NOMAD_ADDR_http"]`:   "127.0.0.1:80",
 		`env["nested.task.key"]`:   "x",
 		`env["invalid...taskkey"]`: "y",
+		`env[".a"]`:                "a",
+		`env["b."]`:                "b",
+		`env["."]`:                 "c",
 	}
 
 	evalCtx := &hcl.EvalContext{
