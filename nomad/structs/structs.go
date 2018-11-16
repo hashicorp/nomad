@@ -6196,6 +6196,11 @@ func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	return e
 }
 
+func (e *TaskEvent) SetOOMKilled(oom bool) *TaskEvent {
+	e.Details["oom_killed"] = strconv.FormatBool(oom)
+	return e
+}
+
 // TaskArtifact is an artifact to download before running the task.
 type TaskArtifact struct {
 	// GetterSource is the source to download an artifact using go-getter

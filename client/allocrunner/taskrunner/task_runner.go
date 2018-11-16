@@ -369,6 +369,9 @@ MAIN:
 				select {
 				case result = <-resultCh:
 					// WaitCh returned a result
+					if result != nil {
+						tr.handleTaskExitResult(result)
+					}
 				case <-tr.ctx.Done():
 					// TaskRunner was told to exit immediately
 					return
@@ -410,6 +413,7 @@ MAIN:
 		event := structs.NewTaskEvent(structs.TaskTerminated).
 			SetExitCode(result.ExitCode).
 			SetSignal(result.Signal).
+			SetOOMKilled(result.OOMKilled).
 			SetExitMessage(result.Err)
 		tr.UpdateState(structs.TaskStateDead, event)
 	}
@@ -420,6 +424,20 @@ MAIN:
 	}
 
 	tr.logger.Debug("task run loop exiting")
+}
+
+func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) {
+	event := structs.NewTaskEvent(structs.TaskTerminated).
+		SetExitCode(result.ExitCode).
+		SetSignal(result.Signal).
+		SetOOMKilled(result.OOMKilled).
+		SetExitMessage(result.Err)
+
+	tr.EmitEvent(event)
+
+	if !tr.clientConfig.DisableTaggedMetrics {
+		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
+	}
 }
 
 // handleUpdates runs update hooks when triggerUpdateCh is ticked and exits
