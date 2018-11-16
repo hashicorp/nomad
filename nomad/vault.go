@@ -491,6 +491,7 @@ func (v *vaultClient) renewalLoop() {
 				break
 			}
 
+			metrics.IncrCounter([]string{"nomad", "vault", "renew_failed"}, 1)
 			v.logger.Warn("got error or bad auth, so backing off", "error", err)
 			backoff = nextBackoff(backoff, currentExpiration)
 			if backoff < 0 {
@@ -554,6 +555,9 @@ func nextBackoff(backoff float64, expiry time.Time) float64 {
 // renew attempts to renew our Vault token. If the renewal fails, an error is
 // returned. This method updates the lastRenewed time
 func (v *vaultClient) renew() error {
+	// Track how long the request takes
+	defer metrics.MeasureSince([]string{"nomad", "vault", "renew"}, time.Now())
+
 	// Attempt to renew the token
 	secret, err := v.auth.RenewSelf(v.tokenData.CreationTTL)
 	if err != nil {
