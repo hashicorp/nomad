@@ -194,7 +194,7 @@ retrieve credentials to access the database. A job running in our Nomad cluster
 will only be allowed to use the `access-tables` policy.
 
 If you would like to allow all policies to be used by any job in the Nomad
-cluster except for the ones you specifically prohbit, then use the
+cluster except for the ones you specifically prohibit, then use the
 `disallowed_policies` key instead and simply list the policies that should not
 be granted. If you take this approach, be sure to include `nomad-server` in the
 disallowed policies group. An example of this is shown below:
@@ -230,7 +230,7 @@ $ vault token create -policy nomad-server -period 72h -orphan
 ```
 The `-orphan` flag is included when generating the Nomad server token above to prevent revocation of the token when its parent expires. Vault typically creates tokens with a parent-child relationship. When an ancestor token is revoked, all of its descendant tokens and their associated leases are revoked as well.
 
-If everyting works, you should see output similar to the following:
+If everything works, you should see output similar to the following:
 
 ```shell
 Key                  Value
