@@ -221,7 +221,7 @@ You should see the following output:
 Success! Data written to: auth/token/roles/nomad-cluster
 ```
 
-### Step 6: Generate the Token Role Based Token for the Nomad Server
+### Step 6: Generate the Token for the Nomad Server
 
 Run the following command to create a token for your Nomad server:
 
@@ -245,8 +245,7 @@ policies             ["default" "nomad-server"]
 ```
 ### Step 7: Edit the Nomad Server Configuration to Enable Vault Integration
 
-At this point, you are ready edit the [vault stanza][vault-stanza] in the Nomad
-Server's configuration file called located at `/etc/nomad.d/nomad.hcl`. Provide the token you generated in the previous step in the `vault` stanza of
+At this point, you are ready to edit the [vault stanza][vault-stanza] in the Nomad Server's configuration file located at `/etc/nomad.d/nomad.hcl`. Provide the token you generated in the previous step in the `vault` stanza of
 your Nomad server configuration. The token can also be provided as an
 environment variable called `VAULT_TOKEN`. Be sure to specify the
 `nomad-cluster-role` in the [create_from_role][create-from-role] option. After
@@ -392,7 +391,10 @@ it:
 }
 ```
 The information above allows Vault to connect to our database and create users
-with certain privileges. We will specify the `accessdb` role soon. Please note that it is very common to give Vault the root credentials and let Vault manage the auditing and lifecycle of generated credentials.
+with certain privileges. We will specify the `accessdb` role soon. In a
+production setting, it is recommended to give Vault credentials with enough
+privileges to generate database credentials dynamically and and manage their
+lifecycle.
 
 Run the the following command to configure the connection between the database
 secrets engine and our database:
