@@ -787,7 +787,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// See https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/resource_management_guide/sec-cpu
 	if driverConfig.CPUHardLimit {
 		numCores := runtime.NumCPU()
-		percentTicks := float64(task.Resources.NomadResources.CPU) / float64(task.Resources.NomadResources.CPU)
 		if driverConfig.CPUCFSPeriod < 0 || driverConfig.CPUCFSPeriod > 1000000 {
 			return c, fmt.Errorf("invalid value for cpu_cfs_period")
 		}
@@ -795,7 +794,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			driverConfig.CPUCFSPeriod = task.Resources.LinuxResources.CPUPeriod
 		}
 		hostConfig.CPUPeriod = driverConfig.CPUCFSPeriod
-		hostConfig.CPUQuota = int64(percentTicks*float64(driverConfig.CPUCFSPeriod)) * int64(numCores)
+		hostConfig.CPUQuota = int64(task.Resources.LinuxResources.PercentTicks*float64(driverConfig.CPUCFSPeriod)) * int64(numCores)
 	}
 
 	// Windows does not support MemorySwap/MemorySwappiness #2193

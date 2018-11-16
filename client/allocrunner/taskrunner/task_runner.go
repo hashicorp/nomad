@@ -659,8 +659,8 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: int64(tr.Task().Resources.MemoryMB) * 1024 * 1024,
 				CPUShares:        int64(tr.Task().Resources.CPU),
+				PercentTicks:     float64(tr.task.Resources.CPU) / float64(tr.clientConfig.Node.Resources.CPU),
 			},
-			NodeResources: tr.clientConfig.Node.Resources,
 		},
 		Env:        tr.envBuilder.Build().Map(),
 		User:       tr.task.User,

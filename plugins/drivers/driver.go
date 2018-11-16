@@ -178,7 +178,6 @@ func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
 type Resources struct {
 	NomadResources *structs.Resources
 	LinuxResources *LinuxResources
-	NodeResources  *structs.Resources
 }
 
 func (r *Resources) Copy() *Resources {
@@ -192,9 +191,6 @@ func (r *Resources) Copy() *Resources {
 	if r.LinuxResources != nil {
 		res.LinuxResources = r.LinuxResources.Copy()
 	}
-	if r.NodeResources != nil {
-		res.NodeResources = r.NodeResources.Copy()
-	}
 	return res
 }
 
@@ -206,6 +202,14 @@ type LinuxResources struct {
 	OOMScoreAdj      int64
 	CpusetCPUs       string
 	CpusetMems       string
+
+	// PrecentTicks is used to calculate the CPUQuota, currently the docker
+	// driver exposes cpu period and quota through the driver configuration
+	// and thus the calculation for CPUQuota cannot be done on the client.
+	// This is a capatability and should only be used by docker until the docker
+	// specific options are deprecated in favor of exposes CPUPeriod and
+	// CPUQuota at the task resource stanza.
+	PercentTicks float64
 }
 
 func (r *LinuxResources) Copy() *LinuxResources {

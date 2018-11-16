@@ -133,15 +133,7 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 			OOMScoreAdj:      pb.LinuxResources.OomScoreAdj,
 			CpusetCPUs:       pb.LinuxResources.CpusetCpus,
 			CpusetMems:       pb.LinuxResources.CpusetMems,
-		}
-	}
-
-	if pb.NodeResources != nil {
-		r.NodeResources = &structs.Resources{
-			CPU:      int(pb.NodeResources.Cpu),
-			MemoryMB: int(pb.NodeResources.Memory),
-			IOPS:     int(pb.NodeResources.Iops),
-			DiskMB:   int(pb.NodeResources.Disk),
+			PercentTicks:     pb.LinuxResources.PercentTicks,
 		}
 	}
 
@@ -194,15 +186,7 @@ func resourcesToProto(r *Resources) *proto.Resources {
 			OomScoreAdj:      r.LinuxResources.OOMScoreAdj,
 			CpusetCpus:       r.LinuxResources.CpusetCPUs,
 			CpusetMems:       r.LinuxResources.CpusetMems,
-		}
-	}
-
-	if r.NodeResources != nil {
-		pb.NodeResources = &proto.RawResources{
-			Cpu:    int64(r.NodeResources.CPU),
-			Memory: int64(r.NodeResources.MemoryMB),
-			Iops:   int64(r.NodeResources.IOPS),
-			Disk:   int64(r.NodeResources.DiskMB),
+			PercentTicks:     r.LinuxResources.PercentTicks,
 		}
 	}
 
