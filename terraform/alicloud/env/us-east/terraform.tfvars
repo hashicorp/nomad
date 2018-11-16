@@ -1,0 +1,6 @@
+region            = "us-east-1"
+image_id          = "ubuntu_16_0402_64_20G_alibase_20180409.vhd"
+instance_type     = "ecs.n4.large"
+server_count      = "3"
+client_count      = "4"
+zone              = "us-east-1a"

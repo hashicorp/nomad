@@ -27,6 +27,7 @@ Azure CLI.
 
 - Follow the steps [here](aws/README.md) to provision a cluster on AWS.
 - Follow the steps [here](azure/README.md) to provision a cluster on Azure.
+- Follow the steps [here](alicloud/README.md) to provision a cluster on Alicloud.
 
 Continue with the steps below after a cluster has been provisioned.
 

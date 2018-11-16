@@ -27,8 +27,8 @@ NOMADDIR=/opt/nomad
 HADOOP_VERSION=2.7.6
 
 # Dependencies
-sudo apt-get install -y software-properties-common
 sudo apt-get update
+sudo apt-get install -y software-properties-common
 sudo apt-get install -y unzip tree redis-tools jq curl tmux
 
 # Numpy (for Spark)

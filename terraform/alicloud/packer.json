@@ -1,0 +1,40 @@
+{
+  "variables": {
+    "access_key": "{{env `TF_VAR_access_key`}}",
+    "secret_key": "{{env `TF_VAR_secret_key`}}"
+  },
+  "builders": [{
+    "type": "alicloud-ecs",
+    "access_key":"{{user `access_key`}}",
+    "secret_key":"{{user `secret_key`}}",
+    "region":"us-east-1",
+    "image_name":"hashistack-{{timestamp}}",
+    "source_image":"ubuntu_16_0402_64_20G_alibase_20180409.vhd",
+    "ssh_username":"root",
+    "instance_type":"ecs.n4.large",
+    "io_optimized":"true",
+    "image_force_delete":"true"
+  }],
+  "provisioners":  [
+  {
+    "type": "shell",
+    "inline": [
+      "sudo mkdir /ops",
+      "sudo chmod 777 /ops"
+    ]
+  },
+  {
+    "type": "file",
+    "source": "../shared",
+    "destination": "/ops"
+  },
+  {
+    "type": "file",
+    "source": "../examples",
+    "destination": "/ops"
+  },
+  {
+    "type": "shell",
+    "script": "../shared/scripts/setup.sh"
+  }]
+}
