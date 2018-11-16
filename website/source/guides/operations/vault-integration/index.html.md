@@ -485,17 +485,171 @@ Success! Uploaded policy: access-tables
 
 ### Step 14: Deploy Your Job with the Appropriate Policy and Templating
 
+Now we are ready to deploy our web application and give it the necessary policy
+and configuration to communicate with our database. Create a file called
+`web-app.nomad` and save the following content in it.
+
+```hcl
+job "nomad-vault-demo" {
+  datacenters = ["dc1"]
+
+  group "demo" {
+    task "server" {
+
+      vault {
+        policies = ["access-tables"]
+      }
+
+      driver = "docker"
+      config {
+        image = "hashicorp/nomad-vault-demo:latest"
+        port_map {
+          http = 8080
+        }
+
+        volumes = [
+          "secrets/config.json:/etc/demo/config.json"
+        ]
+      }
+
+      template {
+        data = <<EOF
+{{ with secret "database/creds/accessdb" }}
+  {
+    "host": "database.service.consul",
+    "port": 5432,
+    "username": "{{ .Data.username }}",
+    "password": "{{ .Data.password }}",
+    "db": "postgres"
+  }
+{{ end }}
+EOF
+        destination = "secrets/config.json"
+      }
+
+      resources {
+        network {
+          port "http" {}
+        }
+      }
+
+      service {
+        name = "nomad-vault-demo"
+        port = "http"
+
+        tags = [
+          "urlprefix-/",
+        ]
+
+        check {
+          type     = "tcp"
+          interval = "2s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+There are a few key points to note here:
+
+- We have specified the `access-tables` policy in the [vault][vault-jobspec]
+  stanza of this job. The Nomad client will receive a token with this policy
+attached. Recall from the previous step that this policy will allow our
+application to read from the `database/creds/accessdb` endpoint in Vault and retrieve credentials.
+- We are using the [template][template] stanza's [vault
+  integration][nomad-template-vault] to populate the JSON configuration file
+that our application needs. The underlying tool being used is [Consul
+Template][consul-template]. You can use Consul Template's documentation to learn
+more about the [syntax][consul-temp-syntax] needed to interact with Vault.
+Please note that although we have defined the template [inline][inline], we can use the template stanza [in conjunction with the artifact stanza][remote-template] to download an input template from a remote source such as an S3 bucket.
+- Finally, note that that [destination][destination] of our template is the
+  [secrets/][secrets-task-directory] task directory. This ensures the data is
+not accessible with a command like [nomad alloc fs][nomad-alloc-fs] or
+filesystem APIs.
+
+Use the following command to run the job:
+
+```shell
+$ nomad run web-app.nomad 
+```
+
+### Step 14: Confirm the Application is Accessing the Database
+
+At this point, you can visit your application at the path `/names` to confirm
+the appropriate data is being accessed from the database and displayed to you.
+There are several ways to do this.
+
+- Use the `dig` command to query the SRV record of your service and obtain the
+  port it is using. Then `curl` your service at the appropriate port and and
+`names` path.
+
+```shell
+$ dig +short SRV nomad-vault-demo.service.consul
+1 1 30478 ip-172-31-58-230.node.dc1.consul.
+```
+```shell
+$ curl nomad-vault-demo.service.consul:30478/names
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1> Welcome! </h1>
+<h2> If everything worked correctly, you should be able to see a list of names below </h2>
+
+<hr>
+
+
+<h4> John Doe </h4>
+
+<h4> Peter Parker </h4>
+
+<h4> Clifford Roosevelt </h4>
+
+<h4> Bruce Wayne </h4>
+
+<h4> Steven Clark </h4>
+
+<h4> Mary Jane </h4>
+
+
+</body>
+<html>
+```
+- You can also deploy [fabio][fabio] and visit any Nomad client at its public IP
+  address using a fixed port. The details of this method are beyond the scope of
+this guide, but you can refer to the [Load Balancing with Fabio][fabio-lb] guide
+for more information on this topic. Alternatively, you could use the `nomad`
+[alloc status][alloc-status] command along with the AWS console to determine the
+public IP and port your service is running (remember to open the port in your
+AWS security group if you choose this method).
+
+[![Web Service][web-service]][web-service]
+
+[alloc-status]: /docs/commands/alloc/status.html
+[consul-template]: https://github.com/hashicorp/consul-template
+[consul-temp-syntax]: https://github.com/hashicorp/consul-template#secret
 [create-from-role]: /docs/configuration/vault.html#create_from_role
 [creation-statements]: https://www.vaultproject.io/api/secret/databases/index.html#creation_statements
+[destination]: /docs/job-specification/template.html#destination
+[fabio]: https://github.com/fabiolb/fabio
+[fabio-job]: /guides/load-balancing/fabio.html#step-1-create-a-job-for-fabio
+[fabio-lb]: /guides/load-balancing/fabio.html
+[inline]: /docs/job-specification/template.html#inline-template
 [login]: https://www.vaultproject.io/docs/commands/login.html
+[nomad-alloc-fs]: /docs/commands/alloc/fs.html
 [nomad-template-vault]: /docs/job-specification/template.html#vault-integration
 [policy]: https://www.vaultproject.io/docs/concepts/policies.html
 [postgresql]: https://www.postgresql.org/about/
+[remote-template]: /docs/job-specification/template.html#remote-template
 [repo]: https://github.com/hashicorp/nomad/blob/master/terraform/aws/README.md
 [seal]: https://www.vaultproject.io/docs/concepts/seal.html
-[secrets-task-directory]: /docs/runtime/environment.html#task-directories
+[secrets-task-directory]: /docs/runtime/environment.html#secrets-
 [step-5]: /guides/vault-integration.html#step-5-create-a-token-role
+[template]: /docs/job-specification/template.html
 [token]: https://www.vaultproject.io/docs/concepts/tokens.html
 [vault]: https://www.vaultproject.io/
 [vault-integration]: /docs/vault-integration/index.html
+[vault-jobspec]: /docs/job-specification/vault.html
 [vault-stanza]: /docs/configuration/vault.html
+[web-service]: /assets/images/nomad-demo-app.png
