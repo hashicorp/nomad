@@ -75,7 +75,7 @@ with Vault as well.
   should be set when starting the task.
 
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
-  the task requires. The Nomad client will generate a Vault token that is
+  the task requires. The Nomad client will retrieve a Vault token that is
   limited to those policies.
 
 ## `vault` Examples
