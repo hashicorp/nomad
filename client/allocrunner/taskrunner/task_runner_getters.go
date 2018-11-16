@@ -53,16 +53,15 @@ func (tr *TaskRunner) setVaultToken(token string) {
 	tr.envBuilder.SetVaultToken(token, tr.task.Vault.Env)
 }
 
-// getDriverHandle returns a driver handle and its result proxy. Use the
-// result proxy instead of the handle's WaitCh.
+// getDriverHandle returns a driver handle.
 func (tr *TaskRunner) getDriverHandle() *DriverHandle {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	return tr.handle
 }
 
-// setDriverHanlde sets the driver handle, creates a new result proxy, and
-// updates the driver network in the task's environment.
+// setDriverHandle sets the driver handle and updates the driver network in the
+// task's environment.
 func (tr *TaskRunner) setDriverHandle(handle *DriverHandle) {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
