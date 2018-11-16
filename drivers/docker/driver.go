@@ -28,32 +28,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
-const (
-	// NoSuchContainerError is returned by the docker daemon if the container
-	// does not exist.
-	NoSuchContainerError = "No such container"
-
-	// pluginName is the name of the plugin
-	pluginName = "docker"
-
-	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
-	fingerprintPeriod = 30 * time.Second
-
-	// dockerTimeout is the length of time a request can be outstanding before
-	// it is timed out.
-	dockerTimeout = 5 * time.Minute
-
-	// dockerBasicCaps is comma-separated list of Linux capabilities that are
-	// allowed by docker by default, as documented in
-	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
-	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
-		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
-
-	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
-	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
-	dockerAuthHelperPrefix = "docker-credential-"
-)
-
 var (
 	// createClientsLock is a lock that protects reading/writing global client
 	// variables
@@ -89,8 +63,14 @@ type Driver struct {
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
 
-	config       *DriverConfig
+	// config contains the runtime configuration for the driver set by the
+	// SetConfig RPC
+	config *DriverConfig
+
+	// clientConfig contains a driver specific subset of the Nomad client
+	// configuration
 	clientConfig *base.ClientDriverConfig
+
 	// ctx is the context for the driver. It is passed to other subsystems to
 	// coordinate shutdown
 	ctx context.Context
@@ -156,89 +136,6 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
-}
-
-func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
-	ch := make(chan *drivers.Fingerprint)
-	go d.handleFingerprint(ctx, ch)
-	return ch, nil
-}
-
-func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
-	defer close(ch)
-	ticker := time.NewTimer(0)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-d.ctx.Done():
-			return
-		case <-ticker.C:
-			ticker.Reset(fingerprintPeriod)
-			ch <- d.buildFingerprint()
-		}
-	}
-}
-
-func (d *Driver) buildFingerprint() *drivers.Fingerprint {
-	fp := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
-		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
-	}
-	client, _, err := d.dockerClients()
-	if err != nil {
-		d.logger.Info("failed to initialize client", "error", err)
-		return &drivers.Fingerprint{
-			Health:            drivers.HealthStateUndetected,
-			HealthDescription: "ready",
-		}
-	}
-
-	env, err := client.Version()
-	if err != nil {
-		d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
-		return &drivers.Fingerprint{
-			Health:            drivers.HealthStateUnhealthy,
-			HealthDescription: "failed to connect to docker daemon",
-		}
-	}
-
-	fp.Attributes["driver.docker"] = "1"
-	fp.Attributes["driver.docker.version"] = env.Get("Version")
-	if d.config.AllowPrivileged {
-		fp.Attributes["driver.docker.privileged.enabled"] = "1"
-	}
-
-	if d.config.VolumesEnabled {
-		fp.Attributes["driver.docker.volumes.enabled"] = "1"
-	}
-
-	if nets, err := client.ListNetworks(); err != nil {
-		d.logger.Warn("error discovering bridge IP", "error", err)
-	} else {
-		for _, n := range nets {
-			if n.Name != "bridge" {
-				continue
-			}
-
-			if len(n.IPAM.Config) == 0 {
-				d.logger.Warn("no IPAM config for bridge network")
-				break
-			}
-
-			if n.IPAM.Config[0].Gateway != "" {
-				fp.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
-			} else {
-				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
-				// See https://github.com/moby/moby/issues/32648
-				d.logger.Debug("bridge_ip could not be discovered")
-			}
-			break
-		}
-	}
-
-	return fp
 }
 
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
@@ -1171,8 +1068,6 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return drivers.ErrTaskNotFound
 	}
 
-	defer h.dloggerPluginClient.Kill()
-
 	c, err := h.client.InspectContainer(h.container.ID)
 	if err != nil {
 		return fmt.Errorf("failed to inspect container state: %v", err)
@@ -1181,6 +1076,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return fmt.Errorf("must call StopTask for the given task before Destroy or set force to true")
 	}
 
+	defer h.dloggerPluginClient.Kill()
 	if err := h.client.StopContainer(h.container.ID, 0); err != nil {
 		h.logger.Warn("failed to stop container during destroy", "error", err)
 	}

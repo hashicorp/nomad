@@ -13,6 +13,32 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
+const (
+	// NoSuchContainerError is returned by the docker daemon if the container
+	// does not exist.
+	NoSuchContainerError = "No such container"
+
+	// pluginName is the name of the plugin
+	pluginName = "docker"
+
+	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
+	fingerprintPeriod = 30 * time.Second
+
+	// dockerTimeout is the length of time a request can be outstanding before
+	// it is timed out.
+	dockerTimeout = 5 * time.Minute
+
+	// dockerBasicCaps is comma-separated list of Linux capabilities that are
+	// allowed by docker by default, as documented in
+	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
+	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
+		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
+
+	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
+	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
+	dockerAuthHelperPrefix = "docker-credential-"
+)
+
 func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf := map[string]interface{}{}
 	if v, ok := opts["docker.endpoint"]; ok {

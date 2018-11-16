@@ -42,9 +42,11 @@ type taskHandle struct {
 }
 
 type taskHandleState struct {
+	// ReattachConfig for the docker logger plugin
 	ReattachConfig *utils.ReattachConfig
-	ContainerID    string
-	DriverNetwork  *structs.DriverNetwork
+
+	ContainerID   string
+	DriverNetwork *structs.DriverNetwork
 }
 
 func (h *taskHandle) buildState() *taskHandleState {
