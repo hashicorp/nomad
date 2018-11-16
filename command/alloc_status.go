@@ -606,6 +606,7 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 	}
 
 	if len(deviceStats) > 0 {
+		c.Ui.Output("")
 		c.Ui.Output("Device Stats")
 
 		printDeviceStats(c.Ui, deviceStats)

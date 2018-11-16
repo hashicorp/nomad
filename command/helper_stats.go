@@ -84,7 +84,7 @@ func printDeviceStats(ui cli.Ui, deviceGroupStats []*api.DeviceGroupStats) {
 	for _, dg := range deviceGroupStats {
 		for id, dinst := range dg.InstanceStats {
 			if !isFirst {
-				ui.Output("\n")
+				ui.Output("")
 			}
 			isFirst = false
 
