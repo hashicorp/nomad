@@ -465,7 +465,7 @@ func (tr *TaskRunner) runDriver() error {
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()
 	if err != nil {
-		return err
+		return fmt.Errorf("error building environment variables: %v", err)
 	}
 
 	// Handle per-key errors
