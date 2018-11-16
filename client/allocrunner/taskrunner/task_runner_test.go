@@ -175,14 +175,12 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 
 	// Use interpolation from both node attributes and meta vars
 	task.Config = map[string]interface{}{
-		"run_for":       time.Millisecond,
+		"run_for":       "1ms",
 		"stdout_string": `${node.region} ${NOMAD_META_foo} ${NOMAD_META_common_user}`,
 	}
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
-
-	fmt.Println(conf.ClientConfig.Node)
 
 	// Run the first TaskRunner
 	tr, err := NewTaskRunner(conf)
