@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/hcl2/gohcl"
+	"github.com/hashicorp/hcl2/hcl"
+	"github.com/hashicorp/hcl2/hcl/hclsyntax"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -316,6 +319,148 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 	sort.Strings(act)
 	sort.Strings(exp)
 	require.Equal(t, exp, act)
+}
+
+func TestEnvironment_AllValues(t *testing.T) {
+	t.Parallel()
+
+	n := mock.Node()
+	n.Meta = map[string]string{
+		"metaKey":           "metaVal",
+		"nested.meta.key":   "a",
+		"invalid...metakey": "b",
+	}
+	a := mock.Alloc()
+	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
+		Device:        "eth0",
+		IP:            "127.0.0.1",
+		ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
+		MBits:         50,
+		DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
+	}
+	a.AllocatedResources.Tasks["ssh"] = &structs.AllocatedTaskResources{
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				IP:     "192.168.0.100",
+				MBits:  50,
+				ReservedPorts: []structs.Port{
+					{Label: "ssh", Value: 22},
+					{Label: "other", Value: 1234},
+				},
+			},
+		},
+	}
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Env = map[string]string{
+		"taskEnvKey":        "taskEnvVal",
+		"nested.task.key":   "x",
+		"invalid...taskkey": "y",
+		".a":                "a",
+		"b.":                "b",
+		".":                 "c",
+	}
+	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
+		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
+	)
+
+	values, errs, err := env.Build().AllValues()
+	require.NoError(t, err)
+
+	// Assert the keys we couldn't nest were reported
+	require.Len(t, errs, 5)
+	require.Contains(t, errs, "invalid...taskkey")
+	require.Contains(t, errs, "meta.invalid...metakey")
+	require.Contains(t, errs, ".a")
+	require.Contains(t, errs, "b.")
+	require.Contains(t, errs, ".")
+
+	exp := map[string]string{
+		// Node
+		"node.unique.id":          n.ID,
+		"node.region":             "global",
+		"node.datacenter":         n.Datacenter,
+		"node.unique.name":        n.Name,
+		"node.class":              n.NodeClass,
+		"meta.metaKey":            "metaVal",
+		"attr.arch":               "x86",
+		"attr.driver.exec":        "1",
+		"attr.driver.mock_driver": "1",
+		"attr.kernel.name":        "linux",
+		"attr.nomad.version":      "0.5.0",
+
+		// 0.9 style meta and attr
+		"node.meta.metaKey":            "metaVal",
+		"node.attr.arch":               "x86",
+		"node.attr.driver.exec":        "1",
+		"node.attr.driver.mock_driver": "1",
+		"node.attr.kernel.name":        "linux",
+		"node.attr.nomad.version":      "0.5.0",
+
+		// Env
+		"taskEnvKey":                    "taskEnvVal",
+		"NOMAD_ADDR_http":               "127.0.0.1:80",
+		"NOMAD_PORT_http":               "80",
+		"NOMAD_IP_http":                 "127.0.0.1",
+		"NOMAD_ADDR_https":              "127.0.0.1:8080",
+		"NOMAD_PORT_https":              "443",
+		"NOMAD_IP_https":                "127.0.0.1",
+		"NOMAD_HOST_PORT_http":          "80",
+		"NOMAD_HOST_PORT_https":         "8080",
+		"NOMAD_TASK_NAME":               "web",
+		"NOMAD_GROUP_NAME":              "web",
+		"NOMAD_ADDR_ssh_other":          "192.168.0.100:1234",
+		"NOMAD_ADDR_ssh_ssh":            "192.168.0.100:22",
+		"NOMAD_IP_ssh_other":            "192.168.0.100",
+		"NOMAD_IP_ssh_ssh":              "192.168.0.100",
+		"NOMAD_PORT_ssh_other":          "1234",
+		"NOMAD_PORT_ssh_ssh":            "22",
+		"NOMAD_CPU_LIMIT":               "500",
+		"NOMAD_DC":                      "dc1",
+		"NOMAD_REGION":                  "global",
+		"NOMAD_MEMORY_LIMIT":            "256",
+		"NOMAD_META_ELB_CHECK_INTERVAL": "30s",
+		"NOMAD_META_ELB_CHECK_MIN":      "3",
+		"NOMAD_META_ELB_CHECK_TYPE":     "http",
+		"NOMAD_META_FOO":                "bar",
+		"NOMAD_META_OWNER":              "armon",
+		"NOMAD_META_elb_check_interval": "30s",
+		"NOMAD_META_elb_check_min":      "3",
+		"NOMAD_META_elb_check_type":     "http",
+		"NOMAD_META_foo":                "bar",
+		"NOMAD_META_owner":              "armon",
+		"NOMAD_JOB_NAME":                "my-job",
+		"NOMAD_ALLOC_ID":                a.ID,
+		"NOMAD_ALLOC_INDEX":             "0",
+
+		// 0.9 style env map
+		`env["taskEnvKey"]`:        "taskEnvVal",
+		`env["NOMAD_ADDR_http"]`:   "127.0.0.1:80",
+		`env["nested.task.key"]`:   "x",
+		`env["invalid...taskkey"]`: "y",
+		`env[".a"]`:                "a",
+		`env["b."]`:                "b",
+		`env["."]`:                 "c",
+	}
+
+	evalCtx := &hcl.EvalContext{
+		Variables: values,
+	}
+
+	for k, expectedVal := range exp {
+		t.Run(k, func(t *testing.T) {
+			// Parse HCL containing the test key
+			hclStr := fmt.Sprintf(`"${%s}"`, k)
+			expr, diag := hclsyntax.ParseExpression([]byte(hclStr), "test.hcl", hcl.Pos{})
+			require.Empty(t, diag)
+
+			// Decode with the TaskEnv values
+			out := ""
+			diag = gohcl.DecodeExpression(expr, evalCtx, &out)
+			require.Empty(t, diag)
+			require.Equal(t, out, expectedVal)
+		})
+	}
 }
 
 func TestEnvironment_VaultToken(t *testing.T) {
