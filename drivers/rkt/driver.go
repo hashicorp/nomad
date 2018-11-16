@@ -446,17 +446,17 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	sanitizedName := strings.Replace(cfg.Name, "_", "-", -1)
 
 	// Mount /alloc
-	allocVolName := fmt.Sprintf("%s-%s-alloc", cfg.ID, sanitizedName)
+	allocVolName := fmt.Sprintf("%s-%s-alloc", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, cfg.TaskDir().SharedAllocDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, "/alloc"))
 
 	// Mount /local
-	localVolName := fmt.Sprintf("%s-%s-local", cfg.ID, sanitizedName)
+	localVolName := fmt.Sprintf("%s-%s-local", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, cfg.TaskDir().LocalDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, "/local"))
 
 	// Mount /secrets
-	secretsVolName := fmt.Sprintf("%s-%s-secrets", cfg.ID, sanitizedName)
+	secretsVolName := fmt.Sprintf("%s-%s-secrets", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, cfg.TaskDir().SecretsDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, "/secrets"))
 
@@ -481,7 +481,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 			} else if len(parts) != 2 {
 				return nil, nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
-			volName := fmt.Sprintf("%s-%s-%d", cfg.ID, sanitizedName, i)
+			volName := fmt.Sprintf("%s-%s-%d", cfg.AllocID, sanitizedName, i)
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%s", volName, parts[0], readOnly))
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
 		}

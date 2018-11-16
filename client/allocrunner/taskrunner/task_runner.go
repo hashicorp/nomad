@@ -688,6 +688,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		AllocDir:   tr.taskDir.AllocDir,
 		StdoutPath: tr.logmonHookConfig.stdoutFifo,
 		StderrPath: tr.logmonHookConfig.stderrFifo,
+		AllocID:    tr.allocID,
 	}
 }
 
