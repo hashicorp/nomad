@@ -525,6 +525,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 
 	if len(deviceStats) > 0 {
 		c.Ui.Output("")
+		c.Ui.Output("Device Stats")
 		c.Ui.Output(formatList(getDeviceResources(deviceStats)))
 	}
 
