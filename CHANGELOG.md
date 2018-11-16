@@ -10,6 +10,8 @@ IMPROVEMENTS:
  according to different node attributes [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * core: Added support for spreading allocations across a specific attribute. Operators can specify spread
    target percentages across failure domains such as datacenter or rack [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
+ * client: Added service metadata tag that enables the Consul UI to show a Nomad 
+ icon for services registered by Nomad [[GH-4889](https://github.com/hashicorp/nomad/issues/4889)]
  * client: Refactor client to support plugins and improve state handling [[GH-4792](https://github.com/hashicorp/nomad/pull/4792)]
  * client: Extend timeout to 60 seconds for Windows CPU fingerprinting [[GH-4441](https://github.com/hashicorp/nomad/pull/4441)]
  * driver/docker: Add support for specifying `cpu_cfs_period` in the Docker driver [[GH-4462](https://github.com/hashicorp/nomad/issues/4462)]
