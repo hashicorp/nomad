@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -14,14 +15,14 @@ import (
 func TestAllocBroadcaster_SendRecv(t *testing.T) {
 	t.Parallel()
 
-	b := NewAllocBroadcaster()
+	b := NewAllocBroadcaster(testlog.HCLogger(t))
 	defer b.Close()
 
 	// Create a listener and assert it blocks until an update
 	l := b.Listen()
 	defer l.Close()
 	select {
-	case <-l.Ch:
+	case <-l.Ch():
 		t.Fatalf("unexpected initial alloc")
 	case <-time.After(10 * time.Millisecond):
 		// Ok! Ch is empty until a Send
@@ -31,7 +32,7 @@ func TestAllocBroadcaster_SendRecv(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.AllocModifyIndex = 10
 	require.NoError(t, b.Send(alloc.Copy()))
-	recvd := <-l.Ch
+	recvd := <-l.Ch()
 	require.Equal(t, alloc.AllocModifyIndex, recvd.AllocModifyIndex)
 
 	// Send two now copies and assert only the last was received
@@ -40,7 +41,7 @@ func TestAllocBroadcaster_SendRecv(t *testing.T) {
 	alloc.AllocModifyIndex = 40
 	require.NoError(t, b.Send(alloc.Copy()))
 
-	recvd = <-l.Ch
+	recvd = <-l.Ch()
 	require.Equal(t, alloc.AllocModifyIndex, recvd.AllocModifyIndex)
 }
 
@@ -49,7 +50,7 @@ func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
-	b := NewAllocBroadcaster()
+	b := NewAllocBroadcaster(testlog.HCLogger(t))
 	defer b.Close()
 
 	l1 := b.Listen()
@@ -62,12 +63,12 @@ func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
 
 	// Subsequent listens should block until a subsequent send
 	go func() {
-		<-l1.Ch
+		<-l1.Ch()
 		done <- 1
 	}()
 
 	go func() {
-		<-l2.Ch
+		<-l2.Ch()
 		done <- 1
 	}()
 
@@ -89,7 +90,7 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
-	b := NewAllocBroadcaster()
+	b := NewAllocBroadcaster(testlog.HCLogger(t))
 	defer b.Close()
 
 	errs := make(chan error, 10)
@@ -102,7 +103,7 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 		go func(index uint64, listener *AllocListener) {
 			defer listener.Close()
 			for {
-				a, ok := <-listener.Ch
+				a, ok := <-listener.Ch()
 				if !ok {
 					return
 				}
@@ -145,17 +146,41 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 	// All Listeners should be closed
 	for _, l := range listeners {
 		select {
-		case _, ok := <-l.Ch:
+		case _, ok := <-l.Ch():
 			if ok {
 				// This check can beat the goroutine above to
 				// recv'ing the final update. Listener must be
 				// closed on next recv.
-				if _, ok := <-l.Ch; ok {
+				if _, ok := <-l.Ch(); ok {
 					t.Fatalf("expected listener to be closed")
 				}
 			}
 		default:
 			t.Fatalf("expected listener to be closed; not blocking")
 		}
+	}
+}
+
+// TestAllocBroadcaster_PrimeListener asserts that newly created listeners are
+// primed with the last sent alloc.
+func TestAllocBroadcaster_PrimeListener(t *testing.T) {
+	t.Parallel()
+
+	b := NewAllocBroadcaster(testlog.HCLogger(t))
+	defer b.Close()
+
+	alloc := mock.Alloc()
+
+	// Send an update before creating a listener
+	require.NoError(t, b.Send(alloc))
+
+	// Create a listener and assert it immediately receives an update
+	l := b.Listen()
+	defer l.Close()
+	select {
+	case recv := <-l.Ch():
+		require.Equal(t, alloc, recv)
+	case <-time.After(10 * time.Millisecond):
+		t.Fatalf("expected to recieve initial value")
 	}
 }

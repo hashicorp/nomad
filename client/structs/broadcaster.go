@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -22,26 +23,48 @@ var ErrAllocBroadcasterClosed = errors.New("alloc broadcaster closed")
 // allocation update. However this ensures Sends never block and listeners only
 // receive the latest allocation update -- never a stale version.
 type AllocBroadcaster struct {
-	m         sync.Mutex
-	listeners map[int]chan *structs.Allocation // lazy init
-	nextId    int
-	closed    bool
+	mu sync.Mutex
+
+	// listeners is a map of unique ids to listener chans. laziliy
+	// initialized on first listen
+	listeners map[int]chan *structs.Allocation
+
+	// nextId is the next id to assign in listener map
+	nextId int
+
+	// closed is true if broadcsater is closed
+	closed bool
+
+	// last alloc sent to prime new listeners
+	last *structs.Allocation
+
+	logger hclog.Logger
 }
 
 // NewAllocBroadcaster returns a new AllocBroadcaster.
-func NewAllocBroadcaster() *AllocBroadcaster {
-	return &AllocBroadcaster{}
+func NewAllocBroadcaster(l hclog.Logger) *AllocBroadcaster {
+	return &AllocBroadcaster{
+		logger: l,
+	}
 }
 
 // Send broadcasts an allocation update. Any pending updates are replaced with
 // this version of the allocation to prevent blocking on slow receivers.
 // Returns ErrAllocBroadcasterClosed if called after broadcaster is closed.
 func (b *AllocBroadcaster) Send(v *structs.Allocation) error {
-	b.m.Lock()
-	defer b.m.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.closed {
 		return ErrAllocBroadcasterClosed
 	}
+
+	b.logger.Trace("sending updated alloc",
+		"client_status", v.ClientStatus,
+		"desired_status", v.DesiredStatus,
+	)
+
+	// Store last sent alloc for future listeners
+	b.last = v
 
 	// Send alloc to already created listeners
 	for _, l := range b.listeners {
@@ -60,8 +83,8 @@ func (b *AllocBroadcaster) Send(v *structs.Allocation) error {
 // updates. Pending updates are still received by listeners. Safe to call
 // concurrently and more than once.
 func (b *AllocBroadcaster) Close() {
-	b.m.Lock()
-	defer b.m.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.closed {
 		return
 	}
@@ -78,8 +101,8 @@ func (b *AllocBroadcaster) Close() {
 
 // stop an individual listener
 func (b *AllocBroadcaster) stop(id int) {
-	b.m.Lock()
-	defer b.m.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
 	// If broadcaster has been closed there's nothing more to do.
 	if b.closed {
@@ -97,10 +120,11 @@ func (b *AllocBroadcaster) stop(id int) {
 	delete(b.listeners, id)
 }
 
-// Listen returns a Listener for the broadcast channel.
+// Listen returns a Listener for the broadcast channel. New listeners receive
+// the last sent alloc update.
 func (b *AllocBroadcaster) Listen() *AllocListener {
-	b.m.Lock()
-	defer b.m.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.listeners == nil {
 		b.listeners = make(map[int]chan *structs.Allocation)
 	}
@@ -116,6 +140,11 @@ func (b *AllocBroadcaster) Listen() *AllocListener {
 		close(ch)
 	}
 
+	// Send last update if there was one
+	if b.last != nil {
+		ch <- b.last
+	}
+
 	b.listeners[b.nextId] = ch
 
 	return &AllocListener{ch, b, b.nextId}
@@ -124,10 +153,14 @@ func (b *AllocBroadcaster) Listen() *AllocListener {
 // AllocListener implements a listening endpoint for an allocation broadcast
 // channel.
 type AllocListener struct {
-	// Ch receives the broadcast messages.
-	Ch <-chan *structs.Allocation
+	// ch receives the broadcast messages.
+	ch <-chan *structs.Allocation
 	b  *AllocBroadcaster
 	id int
+}
+
+func (l *AllocListener) Ch() <-chan *structs.Allocation {
+	return l.ch
 }
 
 // Close closes the Listener, disabling the receival of further messages. Safe

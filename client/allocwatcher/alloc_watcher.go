@@ -190,11 +190,13 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 
 	defer p.prevListener.Close()
 
+	//TODO Check p.aloc.Terminated() here
+
 	// Block until previous alloc exits
 	p.logger.Debug("waiting for previous alloc to terminate")
 	for {
 		select {
-		case prevAlloc, ok := <-p.prevListener.Ch:
+		case prevAlloc, ok := <-p.prevListener.Ch():
 			if !ok || prevAlloc.Terminated() {
 				return nil
 			}
