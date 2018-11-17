@@ -476,17 +476,11 @@ Create a job for our web server and name it `webserver.nomad`
 job "webserver" {
   datacenters = ["dc1"]
 
-  group "echo" {
+  group "webserver" {
     task "server" {
-      driver = "exec"
+      driver = "docker"
       config {
-        command = "/local/demo"
-      }
-
-      artifact {
-        source = "https://s3-us-west-2.amazonaws.com/hashicorp-education/demo-binaries/prometheus-instrumentation"
-        destination = "local/demo"
-        mode = "file"
+        image = "hashicorp/demo-prometheus-instrumentation:latest"
       }
 
       resources {
