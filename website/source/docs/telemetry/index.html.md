@@ -1,7 +1,7 @@
 ---
-layout: "guides"
+layout: "docs"
 page_title: "Telemetry"
-sidebar_current: "guides-operations-monitoring-telemetry"
+sidebar_current: "docs-telemetry"
 description: |-
   Learn about the telemetry data available in Nomad.
 ---
