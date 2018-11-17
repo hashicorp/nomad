@@ -503,7 +503,6 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 	// Examine matching allocs by device
 	for deviceIDTuple, allocsGrp := range deviceToAllocs {
-
 		// First group and sort allocations using this device by priority
 		allocsByPriority := filterAndGroupPreemptibleAllocs(p.jobPriority, allocsGrp.allocs)
 
@@ -515,7 +514,6 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 		for _, grpAllocs := range allocsByPriority {
 			for _, alloc := range grpAllocs.allocs {
-
 				// Look up the device instance from the device allocator
 				devInst := devAlloc.Devices[deviceIDTuple]
 
@@ -527,7 +525,6 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 				if preemptedCount+devInst.FreeCount() >= int(neededCount) {
 					return preemptedAllocs
 				}
-
 			}
 		}
 	}
