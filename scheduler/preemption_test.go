@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"strconv"
+
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -163,7 +165,10 @@ func TestPreemption(t *testing.T) {
 	// Create some persistent alloc ids to use in test cases
 	allocIDs := []string{uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate()}
 
-	deviceIDs := []string{"dev1", "dev2", "dev3", "dev4"}
+	var deviceIDs []string
+	for i := 0; i < 10; i++ {
+		deviceIDs = append(deviceIDs, "dev"+strconv.Itoa(i))
+	}
 
 	defaultNodeResources := &structs.NodeResources{
 		Cpu: structs.NodeCpuResources{
@@ -208,6 +213,35 @@ func TestPreemption(t *testing.T) {
 					},
 					{
 						ID:      deviceIDs[3],
+						Healthy: true,
+					},
+				},
+			},
+			{
+				Type:   "gpu",
+				Vendor: "nvidia",
+				Name:   "2080ti",
+				Attributes: map[string]*psstructs.Attribute{
+					"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
+					"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
+					"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
+					"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
+				},
+				Instances: []*structs.NodeDevice{
+					{
+						ID:      deviceIDs[4],
+						Healthy: true,
+					},
+					{
+						ID:      deviceIDs[5],
+						Healthy: true,
+					},
+					{
+						ID:      deviceIDs[6],
+						Healthy: true,
+					},
+					{
+						ID:      deviceIDs[7],
 						Healthy: true,
 					},
 				},
@@ -954,13 +988,88 @@ func TestPreemption(t *testing.T) {
 				DiskMB:   4 * 1024,
 				Devices: []*structs.RequestedDevice{
 					{
-						Name:  "gpu",
+						Name:  "nvidia/gpu/1080ti",
 						Count: 4,
 					},
 				},
 			},
 			preemptedAllocIDs: map[string]struct{}{
 				allocIDs[0]: {},
+			},
+		},
+		{
+			// This test cases creates allocations across two GPUs
+			// Both GPUs are eligible for the task, but only allocs sharing the
+			// same device should be chosen for preemption
+			desc: "Preemption with allocs across multiple devices that match",
+			currentAllocations: []*structs.Allocation{
+				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
+				}),
+				createAllocWithDevice(allocIDs[1], highPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 100,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[2]},
+				}),
+				createAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
+				}),
+				createAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
+					CPU:      100,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
+				}),
+				createAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "gpu",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[2]: {},
+				allocIDs[3]: {},
 			},
 		},
 		{

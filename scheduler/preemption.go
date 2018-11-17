@@ -123,6 +123,7 @@ func NewPreemptor(jobPriority int, ctx Context) *Preemptor {
 		currentPreemptions: make(map[structs.NamespacedID]map[string]int),
 		jobPriority:        jobPriority,
 		allocDetails:       make(map[string]*allocInfo),
+		ctx:                ctx,
 	}
 }
 
@@ -438,45 +439,95 @@ OUTER:
 	return filteredBestAllocs
 }
 
+// allocDeviceGroup represents a group of allocs that share a device
+type allocDeviceGroup struct {
+	allocs []*structs.Allocation
+
+	// deviceInstances tracks the number of instances used per alloc
+	deviceInstances map[string]int
+}
+
+func newAllocDeviceGroup() *allocDeviceGroup {
+	return &allocDeviceGroup{
+		deviceInstances: make(map[string]int),
+	}
+}
+
 // PreemptForDevice tries to find allocations to preempt to meet devices needed
 // This is called once per task when assigning devices to the task
 func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *deviceAllocator) []*structs.Allocation {
-	// First group allocations by priority
-	allocsByPriority := filterAndGroupPreemptibleAllocs(p.jobPriority, p.currentAllocs)
-	neededCount := ask.Count
-	preemptedCount := 0
-	var preemptedAllocs []*structs.Allocation
 
-	for _, grpAllocs := range allocsByPriority {
-		for _, alloc := range grpAllocs.allocs {
-			for _, tr := range alloc.AllocatedResources.Tasks {
-				if len(tr.Devices) > 0 {
-					// Go through each assigned device group
-					for _, device := range tr.Devices {
-						devID := device.ID()
+	// Group allocations by device, tracking the number of
+	// instances used in each device by alloc id
+	deviceToAllocs := make(map[structs.DeviceIdTuple]*allocDeviceGroup)
+	for _, alloc := range p.currentAllocs {
+		for _, tr := range alloc.AllocatedResources.Tasks {
+			// Ignore allocs that don't use devices
+			if len(tr.Devices) == 0 {
+				continue
+			}
 
-						// Look up the device instance from the device allocator
-						devInst := devAlloc.Devices[*devID]
+			// Go through each assigned device group
+			for _, device := range tr.Devices {
+				devID := device.ID()
 
-						if devInst == nil {
-							continue
-						}
+				// Look up the device instance from the device allocator
+				deviceIdTuple := *devID
+				devInst := devAlloc.Devices[deviceIdTuple]
 
-						// Check if the device matches the ask
-						if !nodeDeviceMatches(p.ctx, devInst.Device, ask) {
-							continue
-						}
-
-						// Add to preemption list because this device matches
-						preemptedCount += len(device.DeviceIDs)
-						preemptedAllocs = append(preemptedAllocs, alloc)
-
-						// Check if we met needed count
-						if preemptedCount+devInst.FreeCount() >= int(neededCount) {
-							return preemptedAllocs
-						}
-					}
+				if devInst == nil {
+					continue
 				}
+
+				// Ignore if the device doesn't match the ask
+				if !nodeDeviceMatches(p.ctx, devInst.Device, ask) {
+					continue
+				}
+
+				// Store both the alloc and the number of instances used
+				// in our tracking map
+				allocDeviceGrp := deviceToAllocs[deviceIdTuple]
+				if allocDeviceGrp == nil {
+					allocDeviceGrp = newAllocDeviceGroup()
+					deviceToAllocs[deviceIdTuple] = allocDeviceGrp
+				}
+				allocDeviceGrp.allocs = append(allocDeviceGrp.allocs, alloc)
+				devCount := allocDeviceGrp.deviceInstances[alloc.ID]
+				devCount += len(device.DeviceIDs)
+				allocDeviceGrp.deviceInstances[alloc.ID] = devCount
+			}
+		}
+	}
+
+	neededCount := ask.Count
+
+	// Examine matching allocs by device
+	for deviceIDTuple, allocsGrp := range deviceToAllocs {
+
+		// First group and sort allocations using this device by priority
+		allocsByPriority := filterAndGroupPreemptibleAllocs(p.jobPriority, allocsGrp.allocs)
+
+		// Reset preempted count for this device
+		preemptedCount := 0
+
+		// Initialize slice of preempted allocations
+		var preemptedAllocs []*structs.Allocation
+
+		for _, grpAllocs := range allocsByPriority {
+			for _, alloc := range grpAllocs.allocs {
+
+				// Look up the device instance from the device allocator
+				devInst := devAlloc.Devices[deviceIDTuple]
+
+				// Add to preemption list because this device matches
+				preemptedCount += allocsGrp.deviceInstances[alloc.ID]
+				preemptedAllocs = append(preemptedAllocs, alloc)
+
+				// Check if we met needed count
+				if preemptedCount+devInst.FreeCount() >= int(neededCount) {
+					return preemptedAllocs
+				}
+
 			}
 		}
 	}
