@@ -254,6 +254,9 @@ type ACLConfig struct {
 	// Enabled controls if we are enforce and manage ACLs
 	Enabled bool `hcl:"enabled"`
 
+	// Enabled controls if we are enforce ACL on nodes
+	EnforceNode bool `hcl:"enforce_node"`
+
 	// TokenTTL controls how long we cache ACL tokens. This controls
 	// how stale they can be when we are enforcing policies. Defaults
 	// to "30s". Reducing this impacts performance by forcing more
@@ -706,9 +709,10 @@ func DefaultConfig() *Config {
 			},
 		},
 		ACL: &ACLConfig{
-			Enabled:   false,
-			TokenTTL:  30 * time.Second,
-			PolicyTTL: 30 * time.Second,
+			Enabled:     false,
+			EnforceNode: false,
+			TokenTTL:    30 * time.Second,
+			PolicyTTL:   30 * time.Second,
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
@@ -1086,6 +1090,9 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 
 	if b.Enabled {
 		result.Enabled = true
+	}
+	if b.EnforceNode {
+		result.EnforceNode = false
 	}
 	if b.TokenTTL != 0 {
 		result.TokenTTL = b.TokenTTL

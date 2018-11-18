@@ -2,6 +2,7 @@
   "acl": [
     {
       "enabled": true,
+      "enforce_node": true,
       "policy_ttl": "60s",
       "replication_token": "foobar",
       "token_ttl": "60s"

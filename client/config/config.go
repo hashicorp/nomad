@@ -188,6 +188,9 @@ type Config struct {
 	// ACLEnabled controls if ACL enforcement and management is enabled.
 	ACLEnabled bool
 
+	// ACLEnforceNode controls if ACL enforcement on node rpc is enabled.
+	ACLEnforceNode bool
+
 	// ACLTokenTTL is how long we cache token values for
 	ACLTokenTTL time.Duration
 

@@ -70,6 +70,9 @@ func TestAgent_ServerConfig(t *testing.T) {
 	if !out.ACLEnabled {
 		t.Fatalf("ACL not enabled")
 	}
+	if out.ACLEnforceNode {
+		t.Fatalf("ACLEnforceNode should be disabled by default")
+	}
 
 	// Assert addresses weren't changed
 	if addr := conf.AdvertiseAddrs.RPC; addr != "127.0.0.1:4001" {

@@ -192,6 +192,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.ACL.Enabled {
 		conf.ACLEnabled = true
 	}
+	if agentConfig.ACL.EnforceNode {
+		conf.ACLEnforceNode = true
+	}
 	if agentConfig.ACL.ReplicationToken != "" {
 		conf.ReplicationToken = agentConfig.ACL.ReplicationToken
 	}
@@ -528,6 +531,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	// Setup the ACLs
 	conf.ACLEnabled = agentConfig.ACL.Enabled
+	conf.ACLEnforceNode = agentConfig.ACL.EnforceNode
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
 	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
 
