@@ -9,28 +9,28 @@ jobs:
     steps:
       - checkout:
           path: ~/project
+      - run: bundle -v
+      # # restores gem cache
+      # - restore_cache:
+      #     key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
 
-      # restores gem cache
-      - restore_cache:
-          key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
+      # - run:
+      #     name: install gems
+      #     command: bundle check || bundle install --path vendor/bundle --retry=3
 
-      - run:
-          name: install gems
-          command: bundle check || bundle install --path vendor/bundle --retry=3
+      # # saves gem cache if we have changed the Gemfile
+      # - save_cache:
+      #     key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
+      #     paths:
+      #       - ~/project/website/vendor/bundle
 
-      # saves gem cache if we have changed the Gemfile
-      - save_cache:
-          key: static-site-gems-v1-{{ checksum "Gemfile.lock" }}
-          paths:
-            - ~/project/website/vendor/bundle
+      # - run:
+      #     name: middleman build
+      #     command: bundle exec middleman build
 
-      - run:
-          name: middleman build
-          command: bundle exec middleman build
-
-      - run:
-          name: website deploy
-          command: ./scripts/deploy.sh
+      # - run:
+      #     name: website deploy
+      #     command: ./scripts/deploy.sh
 
 workflows:
   version: 2
@@ -40,4 +40,4 @@ workflows:
           context: static-sites
           filters:
             branches:
-              only: stable-website
+              only: circleci-stable-website
