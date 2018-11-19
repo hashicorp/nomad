@@ -44,6 +44,8 @@ export default create({
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
+    gotoJobs: clickable('[data-test-error-jobs-link]'),
+    gotoClients: clickable('[data-test-error-clients-link]'),
   },
 
   namespaceSwitcher: {
