@@ -16,7 +16,7 @@ display data from a table to the user.
 
 ## Reference Material
 
-- [Vault Integration][vault-integration]
+- [Vault Integration Docs Page][vault-integration]
 - [Nomad Template Stanza Integration with Vault][nomad-template-vault]
 - [Secrets Task Directory][secrets-task-directory]
 
@@ -100,7 +100,7 @@ connection to your database.
 ```shell
 $ vault login <your initial root token>
 ```
-If your login is successful, you will see output similar to that of below:
+If your login is successful, you will see output similar to what is shown below:
 
 ```shell
 Success! You are now authenticated. The token information displayed below
@@ -112,7 +112,7 @@ again. Future Vault requests will automatically use this token.
 
 To use the Vault integration, you must provide a Vault token to your Nomad
 servers. Although you can provide your root token to easily get started, the
-recommended approach is to use a token [role][vault-integration] based token.
+recommended approach is to use a token [role][role] based token.
 This first requires writing a policy that you will attach to the token you
 provide to your Nomad servers. By using this approach, you can limit the set of [policies][policy] that tasks managed by Nomad can access.
 
@@ -391,12 +391,12 @@ it:
 }
 ```
 The information above allows Vault to connect to our database and create users
-with certain privileges. We will specify the `accessdb` role soon. In a
+with specific privileges. We will specify the `accessdb` role soon. In a
 production setting, it is recommended to give Vault credentials with enough
 privileges to generate database credentials dynamically and and manage their
 lifecycle.
 
-Run the the following command to configure the connection between the database
+Run the following command to configure the connection between the database
 secrets engine and our database:
 
 ```shell
@@ -644,7 +644,8 @@ AWS security group if you choose this method).
 [policy]: https://www.vaultproject.io/docs/concepts/policies.html
 [postgresql]: https://www.postgresql.org/about/
 [remote-template]: /docs/job-specification/template.html#remote-template
-[repo]: https://github.com/hashicorp/nomad/blob/master/terraform/aws/README.md
+[repo]: https://github.com/hashicorp/nomad/tree/master/terraform
+[role]: https://www.vaultproject.io/docs/auth/token.html
 [seal]: https://www.vaultproject.io/docs/concepts/seal.html
 [secrets-task-directory]: /docs/runtime/environment.html#secrets-
 [step-5]: /guides/vault-integration.html#step-5-create-a-token-role
