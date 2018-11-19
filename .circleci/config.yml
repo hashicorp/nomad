@@ -24,9 +24,9 @@ jobs:
           paths:
             - ~/project/website/vendor/bundle
 
-      # - run:
-      #     name: middleman build
-      #     command: bundle exec middleman build
+      - run:
+          name: middleman build
+          command: bundle exec middleman build
 
       # - run:
       #     name: website deploy
