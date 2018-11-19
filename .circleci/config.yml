@@ -28,9 +28,9 @@ jobs:
           name: middleman build
           command: bundle exec middleman build
 
-      # - run:
-      #     name: website deploy
-      #     command: ./scripts/deploy.sh
+      - run:
+          name: website deploy
+          command: ./scripts/deploy.sh
 
 workflows:
   version: 2
