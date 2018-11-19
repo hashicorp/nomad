@@ -683,9 +683,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	hostConfig := &docker.HostConfig{
-		// Convert MB to bytes. This is an absolute value.
 		Memory: task.Resources.LinuxResources.MemoryLimitBytes,
-		// Convert Mhz to shares. This is a relative value.
 		CPUShares: task.Resources.LinuxResources.CPUShares,
 
 		// Binds are used to mount a host volume into the container. We mount a

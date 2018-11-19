@@ -70,7 +70,7 @@ type dockerCoordinatorConfig struct {
 	// logger is the logger the coordinator should use
 	logger hclog.Logger
 
-	// cleanup marks whether images should be deleting when the reference count
+	// cleanup marks whether images should be deleted when the reference count
 	// is zero
 	cleanup bool
 
