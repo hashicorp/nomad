@@ -13,13 +13,6 @@ import (
 )
 
 var (
-	// createCoordinator allows us to only create a single coordinator
-	createCoordinator sync.Once
-
-	// globalCoordinator is the shared coordinator and should only be retrieved
-	// using the GetDockerCoordinator() method.
-	globalCoordinator *dockerCoordinator
-
 	// imageNotFoundMatcher is a regex expression that matches the image not
 	// found error Docker returns.
 	imageNotFoundMatcher = regexp.MustCompile(`Error: image .+ not found`)
@@ -129,15 +122,6 @@ func NewDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 		imageRefCount:           make(map[string]map[string]struct{}),
 		deleteFuture:            make(map[string]context.CancelFunc),
 	}
-}
-
-// GetDockerCoordinator returns the shared dockerCoordinator instance
-func GetDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
-	createCoordinator.Do(func() {
-		globalCoordinator = NewDockerCoordinator(config)
-	})
-
-	return globalCoordinator
 }
 
 // PullImage is used to pull an image. It returns the pulled imaged ID or an

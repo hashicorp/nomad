@@ -24,7 +24,7 @@ import (
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -82,6 +82,9 @@ type Driver struct {
 	// tasks is the in memory datastore mapping taskIDs to taskHandles
 	tasks *taskStore
 
+	// coordinator is what tracks multiple image pulls against the same docker image
+	coordinator *dockerCoordinator
+
 	// logger will log to the plugin output which is usually an 'executor.out'
 	// file located in the root of the TaskDir
 	logger hclog.Logger
@@ -127,6 +130,20 @@ func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	if cfg != nil {
 		d.clientConfig = cfg.Driver
 	}
+
+	dockerClient, _, err := d.dockerClients()
+	if err != nil {
+		return fmt.Errorf("failed to get docker client: %v", err)
+	}
+	coordinatorConfig := &dockerCoordinatorConfig{
+		client:      dockerClient,
+		cleanup:     d.config.ImageGC,
+		logger:      d.logger,
+		removeDelay: d.config.imageGCDelayDuration,
+	}
+
+	d.coordinator = NewDockerCoordinator(coordinatorConfig)
+
 	return nil
 }
 
@@ -158,7 +175,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
 	}
 
-	reattach, err := utils.ReattachConfigToGoPlugin(handleState.ReattachConfig)
+	reattach, err := shared.ReattachConfigToGoPlugin(handleState.ReattachConfig)
 	if err != nil {
 		return err
 	}
@@ -269,6 +286,7 @@ CREATE:
 
 	dlogger, pluginClient, err := docklog.LaunchDockerLogger(d.logger)
 	if err != nil {
+		pluginClient.Kill()
 		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
 		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
 		return nil, nil, fmt.Errorf("failed to launch docker logger plugin: %v", err)
@@ -315,9 +333,11 @@ CREATE:
 	}
 
 	if err := handle.SetDriverState(h.buildState()); err != nil {
-		d.logger.Error("unable to encode container state into handle", "error", err)
-		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
+		d.logger.Error("error encoding container occurred after startup, terminating container", "container_id", container.ID, "error", err)
+		dlogger.Stop()
+		pluginClient.Kill()
 		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
+		return nil, nil, err
 	}
 
 	d.tasks.Set(cfg.ID, h)
@@ -1174,7 +1194,8 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 		return nil, fmt.Errorf("cmd is required, but was empty")
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
 	return h.Exec(ctx, cmd[0], cmd[1:])
 }
