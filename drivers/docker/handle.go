@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	metrics "github.com/armon/go-metrics"
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -18,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"golang.org/x/net/context"
 )
 
@@ -43,7 +42,7 @@ type taskHandle struct {
 
 type taskHandleState struct {
 	// ReattachConfig for the docker logger plugin
-	ReattachConfig *utils.ReattachConfig
+	ReattachConfig *shared.ReattachConfig
 
 	ContainerID   string
 	DriverNetwork *structs.DriverNetwork
@@ -51,7 +50,7 @@ type taskHandleState struct {
 
 func (h *taskHandle) buildState() *taskHandleState {
 	return &taskHandleState{
-		ReattachConfig: utils.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
+		ReattachConfig: shared.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
 		ContainerID:    h.container.ID,
 		DriverNetwork:  h.net,
 	}
@@ -176,21 +175,6 @@ func (h *taskHandle) run() {
 	} else if container.State.OOMKilled {
 		oom = true
 		werr = fmt.Errorf("OOM Killed")
-		labels := []metrics.Label{
-			{
-				Name:  "job",
-				Value: h.task.JobName,
-			},
-			{
-				Name:  "task_group",
-				Value: h.task.TaskGroupName,
-			},
-			{
-				Name:  "task",
-				Value: h.task.Name,
-			},
-		}
-		metrics.IncrCounterWithLabels([]string{"driver", "docker", "oom"}, 1, labels)
 	}
 
 	close(h.doneCh)
