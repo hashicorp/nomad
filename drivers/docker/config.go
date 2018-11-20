@@ -437,7 +437,7 @@ func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 		removeDelay: d.config.GC.imageDelayDuration,
 	}
 
-	d.coordinator = NewDockerCoordinator(coordinatorConfig)
+	d.coordinator = newDockerCoordinator(coordinatorConfig)
 
 	return nil
 }

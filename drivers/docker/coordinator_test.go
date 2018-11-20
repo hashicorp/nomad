@@ -68,7 +68,7 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 	}
 
 	// Create a coordinator
-	coordinator := NewDockerCoordinator(config)
+	coordinator := newDockerCoordinator(config)
 
 	id, _ := coordinator.PullImage(image, nil, uuid.Generate(), nil)
 	for i := 0; i < 9; i++ {
@@ -119,7 +119,7 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 	}
 
 	// Create a coordinator
-	coordinator := NewDockerCoordinator(config)
+	coordinator := newDockerCoordinator(config)
 
 	id := ""
 	callerIDs := make([]string, 10, 10)
@@ -186,7 +186,7 @@ func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
 	}
 
 	// Create a coordinator
-	coordinator := NewDockerCoordinator(config)
+	coordinator := newDockerCoordinator(config)
 	callerID := uuid.Generate()
 
 	// Pull image
@@ -234,7 +234,7 @@ func TestDockerCoordinator_No_Cleanup(t *testing.T) {
 	}
 
 	// Create a coordinator
-	coordinator := NewDockerCoordinator(config)
+	coordinator := newDockerCoordinator(config)
 	callerID := uuid.Generate()
 
 	// Pull image

@@ -15,7 +15,6 @@ import (
 const PluginName = "docker_logger"
 
 // LaunchDockerLogger launches an instance of DockerLogger
-// TODO: Integrate with base plugin loader
 func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, error) {
 	logger = logger.Named(PluginName)
 	bin, err := discover.NomadExecutable()

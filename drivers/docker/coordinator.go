@@ -109,8 +109,8 @@ type dockerCoordinator struct {
 	deleteFuture map[string]context.CancelFunc
 }
 
-// NewDockerCoordinator returns a new Docker coordinator
-func NewDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
+// newDockerCoordinator returns a new Docker coordinator
+func newDockerCoordinator(config *dockerCoordinatorConfig) *dockerCoordinator {
 	if config.client == nil {
 		return nil
 	}
