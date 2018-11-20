@@ -119,12 +119,12 @@ func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	}
 
 	d.config = &config
-	if len(d.config.ImageGCDelay) > 0 {
-		dur, err := time.ParseDuration(d.config.ImageGCDelay)
+	if len(d.config.GC.ImageDelay) > 0 {
+		dur, err := time.ParseDuration(d.config.GC.ImageDelay)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'image_gc_delay' duration: %v", err)
+			return fmt.Errorf("failed to parse 'image_delay' duration: %v", err)
 		}
-		d.config.imageGCDelayDuration = dur
+		d.config.GC.imageDelayDuration = dur
 	}
 
 	if cfg != nil {
@@ -137,9 +137,9 @@ func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	}
 	coordinatorConfig := &dockerCoordinatorConfig{
 		client:      dockerClient,
-		cleanup:     d.config.ImageGC,
+		cleanup:     d.config.GC.Image,
 		logger:      d.logger,
-		removeDelay: d.config.imageGCDelayDuration,
+		removeDelay: d.config.GC.imageDelayDuration,
 	}
 
 	d.coordinator = NewDockerCoordinator(coordinatorConfig)
@@ -195,7 +195,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		container:             container,
 		doneCh:                make(chan bool),
 		waitCh:                make(chan struct{}),
-		removeContainerOnExit: d.config.ContainerGC,
+		removeContainerOnExit: d.config.GC.Container,
 		net:                   handleState.DriverNetwork,
 	}
 
@@ -328,7 +328,7 @@ CREATE:
 		container:             container,
 		doneCh:                make(chan bool),
 		waitCh:                make(chan struct{}),
-		removeContainerOnExit: d.config.ContainerGC,
+		removeContainerOnExit: d.config.GC.Container,
 		net:                   net,
 	}
 
@@ -478,26 +478,13 @@ START:
 	return recoverableErrTimeouts(startErr)
 }
 
-// getDockerCoordinator returns the docker coordinator and the caller ID to use when
-// interacting with the coordinator
-func (d *Driver) getDockerCoordinator(client *docker.Client, task *drivers.TaskConfig) (*dockerCoordinator, string) {
-	config := &dockerCoordinatorConfig{
-		client:      client,
-		cleanup:     d.config.ImageGC,
-		logger:      d.logger,
-		removeDelay: d.config.imageGCDelayDuration,
-	}
-
-	return GetDockerCoordinator(config), fmt.Sprintf("%s-%s", task.ID, task.Name)
-}
-
 // createImage creates a docker image either by pulling it from a registry or by
 // loading it from the file system
 func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *docker.Client) (string, error) {
 	image := driverConfig.Image
 	repo, tag := parseDockerImage(image)
 
-	coordinator, callerID := d.getDockerCoordinator(client, task)
+	callerID := fmt.Sprintf("%s-%s", task.ID, task.Name)
 
 	// We're going to check whether the image is already downloaded. If the tag
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
@@ -507,7 +494,7 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	} else if tag != "latest" {
 		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
 			// Image exists so just increment its reference count
-			coordinator.IncrementImageReference(dockerImage.ID, image, callerID)
+			d.coordinator.IncrementImageReference(dockerImage.ID, image, callerID)
 			return dockerImage.ID, nil
 		}
 	}

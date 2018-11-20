@@ -44,12 +44,18 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	if v, ok := opts["docker.endpoint"]; ok {
 		conf["endpoint"] = v
 	}
+
+	// dockerd auth
+	authConf := map[string]interface{}{}
 	if v, ok := opts["docker.auth.config"]; ok {
-		conf["auth_config"] = v
+		authConf["auth_config"] = v
 	}
 	if v, ok := opts["docker.auth.helper"]; ok {
-		conf["auth_helper"] = v
+		authConf["auth_helper"] = v
 	}
+	conf["auth"] = authConf
+
+	// dockerd tls
 	if _, ok := opts["docker.tls.cert"]; ok {
 		conf["tls"] = map[string]interface{}{
 			"cert": opts["docker.tls.cert"],
@@ -57,26 +63,36 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 			"ca":   opts["docker.tls.ca"],
 		}
 	}
+
+	// garbage collection
+	gcConf := map[string]interface{}{}
+	if v, err := strconv.ParseBool(opts["docker.cleanup.image"]); err == nil {
+		gcConf["image"] = v
+	}
 	if v, ok := opts["docker.cleanup.image.delay"]; ok {
-		conf["image_gc_delay"] = v
+		gcConf["image_delay"] = v
+	}
+	if v, err := strconv.ParseBool(opts["docker.cleanup.container"]); err == nil {
+		gcConf["container"] = v
+	}
+	conf["gc"] = gcConf
+
+	// volume options
+	if v, err := strconv.ParseBool(opts["docker.volumes.enabled"]); err == nil {
+		conf["volumes_enabled"] = v
 	}
 	if v, ok := opts["docker.volumes.selinuxlabel"]; ok {
 		conf["volumes_selinuxlabel"] = v
 	}
+
+	// capabilities
 	if v, ok := opts["docker.caps.whitelist"]; ok {
 		conf["allow_caps"] = strings.Split(v, ",")
 	}
-	if v, err := strconv.ParseBool(opts["docker.cleanup.image"]); err == nil {
-		conf["image_gc"] = v
-	}
-	if v, err := strconv.ParseBool(opts["docker.volumes.enabled"]); err == nil {
-		conf["volumes_enabled"] = v
-	}
+
+	// privileged containers
 	if v, err := strconv.ParseBool(opts["docker.privileged.enabled"]); err == nil {
 		conf["allow_privileged"] = v
-	}
-	if v, err := strconv.ParseBool(opts["docker.cleanup.container"]); err == nil {
-		conf["container_gc"] = v
 	}
 	return conf, nil
 }
@@ -106,19 +122,27 @@ var (
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"endpoint":    hclspec.NewAttr("endpoint", "string", false),
-		"auth_config": hclspec.NewAttr("auth_config", "string", false),
-		"auth_helper": hclspec.NewAttr("auth_helper", "string", false),
+		"endpoint": hclspec.NewAttr("endpoint", "string", false),
+		"auth": hclspec.NewBlock("auth", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"config": hclspec.NewAttr("config", "string", false),
+			"helper": hclspec.NewAttr("helper", "string", false),
+		})),
 		"tls": hclspec.NewBlock("tls", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"cert": hclspec.NewAttr("cert", "string", false),
 			"key":  hclspec.NewAttr("key", "string", false),
 			"ca":   hclspec.NewAttr("ca", "string", false),
 		})),
-		"image_gc": hclspec.NewDefault(
-			hclspec.NewAttr("image_gc", "bool", false),
-			hclspec.NewLiteral("true"),
-		),
-		"image_gc_delay": hclspec.NewAttr("image_gc_delay", "string", false),
+		"gc": hclspec.NewBlock("gc", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"image": hclspec.NewDefault(
+				hclspec.NewAttr("image", "bool", false),
+				hclspec.NewLiteral("true"),
+			),
+			"image_delay": hclspec.NewAttr("image_delay", "string", false),
+			"container": hclspec.NewDefault(
+				hclspec.NewAttr("container", "bool", false),
+				hclspec.NewLiteral("true"),
+			),
+		})),
 		"volumes_enabled": hclspec.NewDefault(
 			hclspec.NewAttr("volumes_enabled", "bool", false),
 			hclspec.NewLiteral("true"),
@@ -128,10 +152,6 @@ var (
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","NET_RAW","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
-		),
-		"container_gc": hclspec.NewDefault(
-			hclspec.NewAttr("container_gc", "bool", false),
-			hclspec.NewLiteral("true"),
 		),
 	})
 
@@ -169,20 +189,23 @@ var (
 		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
 		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
 		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
-		"labels":             hclspec.NewAttr("labels", "map(string)", false),
+		"labels":             hclspec.NewBlockAttrs("labels", "string", false),
 		"load":               hclspec.NewAttr("load", "string", false),
-		"logging":            hclspec.NewAttr("logging", "map(string)", false),
-		"mac_address":        hclspec.NewAttr("mac_address", "map(string)", false),
+		"logging": hclspec.NewBlockSet("logging", hclspec.NewObject(map[string]*hclspec.Spec{
+			"type":   hclspec.NewAttr("type", "string", false),
+			"config": hclspec.NewBlockAttrs("config", "string", false),
+		})),
+		"mac_address": hclspec.NewAttr("mac_address", "string", false),
 		"mounts": hclspec.NewBlockSet("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
 			"target":   hclspec.NewAttr("target", "string", false),
 			"source":   hclspec.NewAttr("source", "string", false),
 			"readonly": hclspec.NewAttr("readonly", "bool", false),
 			"volume_options": hclspec.NewBlockSet("volume_options", hclspec.NewObject(map[string]*hclspec.Spec{
 				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
-				"labels":  hclspec.NewAttr("labels", "map(string)", false),
+				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
 				"driver_config": hclspec.NewBlockSet("driver_config", hclspec.NewObject(map[string]*hclspec.Spec{
 					"name":    hclspec.NewAttr("name", "string", false),
-					"options": hclspec.NewAttr("name", "map(string)", false),
+					"options": hclspec.NewBlockAttrs("name", "string", false),
 				})),
 			})),
 		})),
@@ -190,14 +213,14 @@ var (
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
-		"port_map":        hclspec.NewAttr("port_map", "map(number)", false),
+		"port_map":        hclspec.NewBlockAttrs("port_map", "number", false),
 		"privileged":      hclspec.NewAttr("privileged", "bool", false),
 		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
 		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
 		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
-		"sysctl":          hclspec.NewAttr("sysctl", "map(string)", false),
+		"sysctl":          hclspec.NewBlockAttrs("sysctl", "string", false),
 		"tty":             hclspec.NewAttr("tty", "bool", false),
-		"ulimit":          hclspec.NewAttr("ulimit", "map(string)", false),
+		"ulimit":          hclspec.NewBlockAttrs("ulimit", "string", false),
 		"uts_mode":        hclspec.NewAttr("uts_mode", "string", false),
 		"userns_mode":     hclspec.NewAttr("userns_mode", "string", false),
 		"volumes":         hclspec.NewAttr("volumes", "list(string)", false),
@@ -299,22 +322,30 @@ type DockerVolumeDriverConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint             string        `codec:"endpoint"`
-	AuthConfig           string        `codec:"auth_config"`
-	AuthHelper           string        `codec:"auth_helper"`
-	TLS                  TLSConfig     `codec:"tls"`
-	ImageGC              bool          `codec:"image_gc"`
-	ImageGCDelay         string        `codec:"image_gc_delay"`
-	imageGCDelayDuration time.Duration `codec:"-"`
-	VolumesEnabled       bool          `codec:"volumes_enabled"`
-	VolumesSelinuxLabel  string        `codec:"volumes_selinuxlabel"`
-	AllowPrivileged      bool          `codec:"allow_privileged"`
-	AllowCaps            []string      `codec:"allow_caps"`
-	ContainerGC          bool          `codec:"container_gc"`
+	Endpoint            string     `codec:"endpoint"`
+	AuthConfig          AuthConfig `codec:"auth"`
+	TLS                 TLSConfig  `codec:"tls"`
+	GC                  GCConfig   `codec:"gc"`
+	VolumesEnabled      bool       `codec:"volumes_enabled"`
+	VolumesSelinuxLabel string     `codec:"volumes_selinuxlabel"`
+	AllowPrivileged     bool       `codec:"allow_privileged"`
+	AllowCaps           []string   `codec:"allow_caps"`
+}
+
+type AuthConfig struct {
+	Config string `codec:"config"`
+	Helper string `codec:"helper"`
 }
 
 type TLSConfig struct {
 	Cert string `codec:"cert"`
 	Key  string `codec:"key"`
 	CA   string `codec:"ca"`
+}
+
+type GCConfig struct {
+	Image              bool          `codec:"image"`
+	ImageDelay         string        `codec:"image_delay"`
+	imageDelayDuration time.Duration `codec:"-"`
+	Container          bool          `codec:"container"`
 }
