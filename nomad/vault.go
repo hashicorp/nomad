@@ -207,6 +207,11 @@ type vaultClient struct {
 	// running indicates whether the vault client is started.
 	running bool
 
+	// renewLoopActive indicates whether the renewal goroutine is running
+	// It should be accessed and updated atomically
+	// used for testing purposes only
+	renewLoopActive int32
+
 	// childTTL is the TTL for child tokens.
 	childTTL string
 
@@ -458,9 +463,16 @@ OUTER:
 	v.l.Unlock()
 }
 
+func (v *vaultClient) isRenewLoopActive() bool {
+	return atomic.LoadInt32(&v.renewLoopActive) == 1
+}
+
 // renewalLoop runs the renew loop. This should only be called if we are given a
 // non-root token.
 func (v *vaultClient) renewalLoop() {
+	atomic.StoreInt32(&v.renewLoopActive, 1)
+	defer atomic.StoreInt32(&v.renewLoopActive, 0)
+
 	// Create the renewal timer and set initial duration to zero so it fires
 	// immediately
 	authRenewTimer := time.NewTimer(0)
@@ -475,7 +487,7 @@ func (v *vaultClient) renewalLoop() {
 			return
 		case <-authRenewTimer.C:
 			// Renew the token and determine the new expiration
-			err := v.renew()
+			recoverable, err := v.renew()
 			currentExpiration := v.currentExpiration
 
 			// Successfully renewed
@@ -492,7 +504,12 @@ func (v *vaultClient) renewalLoop() {
 			}
 
 			metrics.IncrCounter([]string{"nomad", "vault", "renew_failed"}, 1)
-			v.logger.Warn("got error or bad auth, so backing off", "error", err)
+			v.logger.Warn("got error or bad auth, so backing off", "error", err, "recoverable", recoverable)
+
+			if !recoverable {
+				return
+			}
+
 			backoff = nextBackoff(backoff, currentExpiration)
 			if backoff < 0 {
 				// We have failed to renew the token past its expiration. Stop
@@ -518,6 +535,8 @@ func (v *vaultClient) renewalLoop() {
 //
 // It should increase the amount of backoff each time, with the following rules:
 //
+// * If token expired already despite earlier renewal attempts,
+//   back off for 1 minute + jitter
 // * If we have an existing authentication that is going to expire,
 // never back off more than half of the amount of time remaining
 // until expiration (with 5s floor)
@@ -527,8 +546,10 @@ func (v *vaultClient) renewalLoop() {
 // at the same time
 func nextBackoff(backoff float64, expiry time.Time) float64 {
 	maxBackoff := time.Until(expiry) / 2
+
 	if maxBackoff < 0 {
-		return -1
+		// expiry passed
+		return 60 * (1.0 + rand.Float64())
 	}
 
 	switch {
@@ -553,15 +574,19 @@ func nextBackoff(backoff float64, expiry time.Time) float64 {
 }
 
 // renew attempts to renew our Vault token. If the renewal fails, an error is
-// returned. This method updates the currentExpiration time
-func (v *vaultClient) renew() error {
+// returned.  The boolean indicates whether it's safe to attempt to renew again.
+// This method updates the currentExpiration time
+func (v *vaultClient) renew() (bool, error) {
 	// Track how long the request takes
 	defer metrics.MeasureSince([]string{"nomad", "vault", "renew"}, time.Now())
 
 	// Attempt to renew the token
 	secret, err := v.auth.RenewSelf(v.tokenData.CreationTTL)
 	if err != nil {
-		return fmt.Errorf("failed to renew the vault token: %v", err)
+
+		// Check if there is a permission denied
+		recoverable := !structs.VaultUnrecoverableError.MatchString(err.Error())
+		return recoverable, fmt.Errorf("failed to renew the vault token: %v", err)
 	}
 	if secret == nil {
 		// It's possible for RenewSelf to return (nil, nil) if the
@@ -569,17 +594,18 @@ func (v *vaultClient) renew() error {
 		return fmt.Errorf("renewal failed: empty response from vault")
 	}
 
+	// these treated as transient errors, where can keep renewing
 	auth := secret.Auth
 	if auth == nil {
-		return fmt.Errorf("renewal successful but not auth information returned")
+		return true, fmt.Errorf("renewal successful but not auth information returned")
 	} else if auth.LeaseDuration == 0 {
-		return fmt.Errorf("renewal successful but no lease duration returned")
+		return true, fmt.Errorf("renewal successful but no lease duration returned")
 	}
 
 	v.currentExpiration = time.Now().Add(time.Duration(auth.LeaseDuration) * time.Second)
 
 	v.logger.Debug("successfully renewed server token")
-	return nil
+	return true, nil
 }
 
 // getWrappingFn returns an appropriate wrapping function for Nomad Servers
