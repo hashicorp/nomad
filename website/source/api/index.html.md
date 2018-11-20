@@ -59,7 +59,8 @@ There are five primary nouns in Nomad:
 
 Jobs are submitted by users and represent a _desired state_. A job is a
 declarative description of tasks to run which are bounded by constraints and
-require resources. Nodes are the servers in the clusters that tasks can be
+require resources. Jobs can also have affinities which are used to express placement
+preferences. Nodes are the servers in the clusters that tasks can be
 scheduled on. The mapping of tasks in a job to nodes is done using allocations.
 An allocation is used to declare that a set of tasks in a job should be run on a
 particular node. Scheduling is the process of determining the appropriate
