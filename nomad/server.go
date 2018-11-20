@@ -1433,6 +1433,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
 		"runtime": stats.RuntimeStats(),
+		"vault":   s.vault.Stats(),
 	}
 
 	return stats
