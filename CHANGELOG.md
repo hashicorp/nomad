@@ -4,7 +4,7 @@ BUG FIXES:
 * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
 * core: Fixed bug where some successfully completed jobs get re-run after job garbage collection [[GH-4861](https://github.com/hashicorp/nomad/pull/4861)]
 * core: Fixed bug that affects garbage collection of batch jobs that are purged and resubmitted with the same id [[GH-4839](https://github.com/hashicorp/nomad/pull/4839)]
-* core: Fixed issue with handling duplicated blocked evaluations [GH-4867](https://github.com/hashicorp/nomad/pull/4867)
+* core: Fixed issue with handling duplicated blocked evaluations [[GH-4867](https://github.com/hashicorp/nomad/pull/4867)]
 
 ## 0.8.6 (September 26, 2018)
 
