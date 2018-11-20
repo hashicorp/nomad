@@ -227,6 +227,19 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
+* `storage_opt` - (Optional) A key-value map of storage options set to the containers on start.
+  This overrides the [host dockerd configuration](https://docs.docker.com/engine/reference/commandline/dockerd/#options-per-storage-driver).
+  For example:
+
+
+    ```hcl
+    config {
+      storage_opt = {
+        size = "40G"
+      }
+    }
+    ```
+
 * `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
   repository. The default value is `true`. **Deprecated as of 0.5.3**
 
