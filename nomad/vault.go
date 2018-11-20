@@ -210,7 +210,7 @@ type vaultClient struct {
 	// childTTL is the TTL for child tokens.
 	childTTL string
 
-	// currentExpiration is the time the current tokean lease expires
+	// currentExpiration is the time the current token lease expires
 	currentExpiration time.Time
 
 	tomb   *tomb.Tomb
