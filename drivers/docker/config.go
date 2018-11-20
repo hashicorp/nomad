@@ -48,10 +48,10 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	// dockerd auth
 	authConf := map[string]interface{}{}
 	if v, ok := opts["docker.auth.config"]; ok {
-		authConf["auth_config"] = v
+		authConf["config"] = v
 	}
 	if v, ok := opts["docker.auth.helper"]; ok {
-		authConf["auth_helper"] = v
+		authConf["helper"] = v
 	}
 	conf["auth"] = authConf
 
@@ -78,12 +78,14 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf["gc"] = gcConf
 
 	// volume options
+	volConf := map[string]interface{}{}
 	if v, err := strconv.ParseBool(opts["docker.volumes.enabled"]); err == nil {
-		conf["volumes_enabled"] = v
+		volConf["enabled"] = v
 	}
 	if v, ok := opts["docker.volumes.selinuxlabel"]; ok {
-		conf["volumes_selinuxlabel"] = v
+		volConf["selinuxlabel"] = v
 	}
+	conf["volumes"] = volConf
 
 	// capabilities
 	if v, ok := opts["docker.caps.whitelist"]; ok {
@@ -121,6 +123,31 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
+	// and is used to parse the contents of the 'plugin "docker" {...}' block.
+	// Example:
+	//	plugin "docker" {
+	//		endpoint = "unix:///var/run/docker.sock"
+	//		auth {
+	//			config = "/etc/docker-auth.json"
+	//			helper = "docker-credential-aws"
+	//		}
+	//		tls {
+	//			cert = "/etc/nomad/nomad.pub"
+	//			key = "/etc/nomad/nomad.pem"
+	//			ca = "/etc/nomad/nomad.cert"
+	//		}
+	//		gc {
+	//			image = true
+	//			image_delay = "5m"
+	//			container = false
+	//		}
+	//		volumes {
+	//			enabled = true
+	//			selinuxlabel = "z"
+	//		}
+	//		allow_privileged = false
+	//		allow_caps = ["CHOWN", "NET_RAW" ... ]
+	//	}
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"endpoint": hclspec.NewAttr("endpoint", "string", false),
 		"auth": hclspec.NewBlock("auth", false, hclspec.NewObject(map[string]*hclspec.Spec{
@@ -143,12 +170,14 @@ var (
 				hclspec.NewLiteral("true"),
 			),
 		})),
-		"volumes_enabled": hclspec.NewDefault(
-			hclspec.NewAttr("volumes_enabled", "bool", false),
-			hclspec.NewLiteral("true"),
-		),
-		"volumes_selinuxlabel": hclspec.NewAttr("volumes_selinuxlabel", "string", false),
-		"allow_privileged":     hclspec.NewAttr("allow_privileged", "bool", false),
+		"volumes": hclspec.NewBlock("volumes", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"enabled": hclspec.NewDefault(
+				hclspec.NewAttr("enabled", "bool", false),
+				hclspec.NewLiteral("true"),
+			),
+			"selinuxlabel": hclspec.NewAttr("selinuxlabel", "string", false),
+		})),
+		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","NET_RAW","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
@@ -322,14 +351,13 @@ type DockerVolumeDriverConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint            string     `codec:"endpoint"`
-	AuthConfig          AuthConfig `codec:"auth"`
-	TLS                 TLSConfig  `codec:"tls"`
-	GC                  GCConfig   `codec:"gc"`
-	VolumesEnabled      bool       `codec:"volumes_enabled"`
-	VolumesSelinuxLabel string     `codec:"volumes_selinuxlabel"`
-	AllowPrivileged     bool       `codec:"allow_privileged"`
-	AllowCaps           []string   `codec:"allow_caps"`
+	Endpoint        string       `codec:"endpoint"`
+	Auth            AuthConfig   `codec:"auth"`
+	TLS             TLSConfig    `codec:"tls"`
+	GC              GCConfig     `codec:"gc"`
+	Volumes         VolumeConfig `codec:"volumes"`
+	AllowPrivileged bool         `codec:"allow_privileged"`
+	AllowCaps       []string     `codec:"allow_caps"`
 }
 
 type AuthConfig struct {
@@ -348,4 +376,9 @@ type GCConfig struct {
 	ImageDelay         string        `codec:"image_delay"`
 	imageDelayDuration time.Duration `codec:"-"`
 	Container          bool          `codec:"container"`
+}
+
+type VolumeConfig struct {
+	Enabled      bool   `codec:"enabled"`
+	SelinuxLabel string `codec:"selinuxlabel"`
 }

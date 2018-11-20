@@ -531,9 +531,8 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 			"image": dockerImageRef(repo, tag),
 		},
 	})
-	coordinator, callerID := d.getDockerCoordinator(client, task)
 
-	return coordinator.PullImage(driverConfig.Image, authOptions, callerID, d.emitEventFunc(task))
+	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task))
 }
 
 func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {
@@ -555,8 +554,8 @@ type authBackend func(string) (*docker.AuthConfiguration, error)
 func (d *Driver) resolveRegistryAuthentication(driverConfig *TaskConfig, repo string) (*docker.AuthConfiguration, error) {
 	return firstValidAuth(repo, []authBackend{
 		authFromTaskConfig(driverConfig),
-		authFromDockerConfig(d.config.AuthConfig),
-		authFromHelper(d.config.AuthHelper),
+		authFromDockerConfig(d.config.Auth.Config),
+		authFromHelper(d.config.Auth.Helper),
 	})
 }
 
@@ -581,8 +580,7 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		return "", recoverableErrTimeouts(err)
 	}
 
-	coordinator, callerID := d.getDockerCoordinator(client, task)
-	coordinator.IncrementImageReference(dockerImage.ID, driverConfig.Image, callerID)
+	d.coordinator.IncrementImageReference(dockerImage.ID, driverConfig.Image, task.ID)
 	return dockerImage.ID, nil
 }
 
@@ -593,7 +591,7 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[env.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	if !d.config.VolumesEnabled && driverConfig.VolumeDriver != "" {
+	if !d.config.Volumes.Enabled && driverConfig.VolumeDriver != "" {
 		return nil, fmt.Errorf("'volumes_enabled' is false; cannot use volume driver %q", driverConfig.VolumeDriver)
 	}
 
@@ -608,7 +606,7 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 
 		// Absolute paths aren't always supported
 		if filepath.IsAbs(parts[0]) {
-			if !d.config.VolumesEnabled {
+			if !d.config.Volumes.Enabled {
 				// Disallow mounting arbitrary absolute paths
 				return nil, fmt.Errorf("'volumes_enabled' is false; cannot mount host paths: %+q", userbind)
 			}
@@ -627,7 +625,7 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 		binds = append(binds, strings.Join(parts, ":"))
 	}
 
-	if selinuxLabel := d.config.VolumesSelinuxLabel; selinuxLabel != "" {
+	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
 		// Apply SELinux Label to each volume
 		for i := range binds {
 			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
@@ -670,7 +668,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	hostConfig := &docker.HostConfig{
-		Memory: task.Resources.LinuxResources.MemoryLimitBytes,
+		Memory:    task.Resources.LinuxResources.MemoryLimitBytes,
 		CPUShares: task.Resources.LinuxResources.CPUShares,
 
 		// Binds are used to mount a host volume into the container. We mount a
@@ -1103,12 +1101,11 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 // doesn't exist or is still in use. Requires the global client to already be
 // initialized.
 func (d *Driver) cleanupImage(handle *taskHandle) error {
-	if !d.config.ImageGC {
+	if !d.config.GC.Image {
 		return nil
 	}
 
-	coordinator, callerID := d.getDockerCoordinator(client, handle.task)
-	coordinator.RemoveImage(handle.container.Image, callerID)
+	d.coordinator.RemoveImage(handle.container.Image, handle.task.ID)
 
 	return nil
 }
