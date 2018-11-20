@@ -192,7 +192,8 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		dloggerPluginClient:   dloggerPluginClient,
 		logger:                d.logger.With("container_id", container.ID),
 		task:                  handle.Config,
-		container:             container,
+		containerID:           container.ID,
+		containerImage:        container.Image,
 		doneCh:                make(chan bool),
 		waitCh:                make(chan struct{}),
 		removeContainerOnExit: d.config.GC.Container,
@@ -325,7 +326,8 @@ CREATE:
 		dloggerPluginClient:   pluginClient,
 		logger:                d.logger.With("container_id", container.ID),
 		task:                  cfg,
-		container:             container,
+		containerID:           container.ID,
+		containerImage:        container.Image,
 		doneCh:                make(chan bool),
 		waitCh:                make(chan struct{}),
 		removeContainerOnExit: d.config.GC.Container,
@@ -1071,7 +1073,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return drivers.ErrTaskNotFound
 	}
 
-	c, err := h.client.InspectContainer(h.container.ID)
+	c, err := h.client.InspectContainer(h.containerID)
 	if err != nil {
 		return fmt.Errorf("failed to inspect container state: %v", err)
 	}
@@ -1080,7 +1082,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	defer h.dloggerPluginClient.Kill()
-	if err := h.client.StopContainer(h.container.ID, 0); err != nil {
+	if err := h.client.StopContainer(h.containerID, 0); err != nil {
 		h.logger.Warn("failed to stop container during destroy", "error", err)
 	}
 
@@ -1105,7 +1107,7 @@ func (d *Driver) cleanupImage(handle *taskHandle) error {
 		return nil
 	}
 
-	d.coordinator.RemoveImage(handle.container.Image, handle.task.ID)
+	d.coordinator.RemoveImage(handle.containerImage, handle.task.ID)
 
 	return nil
 }
@@ -1116,23 +1118,27 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
+	container, err := client.InspectContainer(h.containerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect container %q: %v", h.containerID, err)
+	}
 	status := &drivers.TaskStatus{
 		ID:          h.task.ID,
 		Name:        h.task.Name,
-		StartedAt:   h.container.State.StartedAt,
-		CompletedAt: h.container.State.FinishedAt,
+		StartedAt:   container.State.StartedAt,
+		CompletedAt: container.State.FinishedAt,
 		DriverAttributes: map[string]string{
-			"container_id": h.container.ID,
+			"container_id": container.ID,
 		},
 		NetworkOverride: h.net,
 		ExitResult:      h.exitResult,
 	}
 
 	status.State = drivers.TaskStateUnknown
-	if h.container.State.Running {
+	if container.State.Running {
 		status.State = drivers.TaskStateRunning
 	}
-	if h.container.State.Dead {
+	if container.State.Dead {
 		status.State = drivers.TaskStateExited
 	}
 

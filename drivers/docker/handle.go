@@ -28,7 +28,8 @@ type taskHandle struct {
 	dlogger               docklog.DockerLogger
 	dloggerPluginClient   *plugin.Client
 	task                  *drivers.TaskConfig
-	container             *docker.Container
+	containerID           string
+	containerImage        string
 	resourceUsageLock     sync.RWMutex
 	resourceUsage         *structs.TaskResourceUsage
 	doneCh                chan bool
@@ -51,7 +52,7 @@ type taskHandleState struct {
 func (h *taskHandle) buildState() *taskHandleState {
 	return &taskHandleState{
 		ReattachConfig: shared.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
-		ContainerID:    h.container.ID,
+		ContainerID:    h.containerID,
 		DriverNetwork:  h.net,
 	}
 }
@@ -66,7 +67,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 		AttachStderr: true,
 		Tty:          false,
 		Cmd:          fullCmd,
-		Container:    h.container.ID,
+		Container:    h.containerID,
 		Context:      ctx,
 	}
 	exec, err := h.client.CreateExec(createExecOpts)
@@ -111,7 +112,7 @@ func (h *taskHandle) Signal(s os.Signal) error {
 
 	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{
-		ID:     h.container.ID,
+		ID:     h.containerID,
 		Signal: dockerSignal,
 	}
 	return h.client.KillContainer(opts)
@@ -133,7 +134,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	}
 
 	// Stop the container
-	err := h.client.StopContainer(h.container.ID, 0)
+	err := h.client.StopContainer(h.containerID, 0)
 	if err != nil {
 
 		// Container has already been removed.
@@ -142,7 +143,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 			return nil
 		}
 		h.logger.Error("failed to stop container", "error", err)
-		return fmt.Errorf("Failed to stop container %s: %s", h.container.ID, err)
+		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
 	h.logger.Info("stopped container")
 	return nil
@@ -159,7 +160,7 @@ func (h *taskHandle) Stats() (*structs.TaskResourceUsage, error) {
 }
 
 func (h *taskHandle) run() {
-	exitCode, werr := h.waitClient.WaitContainer(h.container.ID)
+	exitCode, werr := h.waitClient.WaitContainer(h.containerID)
 	if werr != nil {
 		h.logger.Error("failed to wait for container; already terminated")
 	}
@@ -168,7 +169,7 @@ func (h *taskHandle) run() {
 		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
-	container, ierr := h.waitClient.InspectContainer(h.container.ID)
+	container, ierr := h.waitClient.InspectContainer(h.containerID)
 	oom := false
 	if ierr != nil {
 		h.logger.Error("failed to inspect container", "error", ierr)
@@ -183,7 +184,7 @@ func (h *taskHandle) run() {
 
 	// Stop the container just incase the docker daemon's wait returned
 	// incorrectly
-	if err := h.client.StopContainer(h.container.ID, 0); err != nil {
+	if err := h.client.StopContainer(h.containerID, 0); err != nil {
 		_, noSuchContainer := err.(*docker.NoSuchContainer)
 		_, containerNotRunning := err.(*docker.ContainerNotRunning)
 		if !containerNotRunning && !noSuchContainer {
@@ -193,7 +194,7 @@ func (h *taskHandle) run() {
 
 	// Remove the container
 	if h.removeContainerOnExit == true {
-		if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.container.ID, RemoveVolumes: true, Force: true}); err != nil {
+		if err := h.client.RemoveContainer(docker.RemoveContainerOptions{ID: h.containerID, RemoveVolumes: true, Force: true}); err != nil {
 			h.logger.Error("error removing container", "error", err)
 		}
 	} else {
@@ -214,7 +215,7 @@ func (h *taskHandle) run() {
 func (h *taskHandle) collectStats() {
 
 	statsCh := make(chan *docker.Stats)
-	statsOpts := docker.StatsOptions{ID: h.container.ID, Done: h.doneCh, Stats: statsCh, Stream: true}
+	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneCh, Stats: statsCh, Stream: true}
 	go func() {
 		//TODO handle Stats error
 		if err := h.waitClient.Stats(statsOpts); err != nil {

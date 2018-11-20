@@ -59,7 +59,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		fp.Attributes["driver.docker.privileged.enabled"] = "1"
 	}
 
-	if d.config.VolumesEnabled {
+	if d.config.Volumes.Enabled {
 		fp.Attributes["driver.docker.volumes.enabled"] = "1"
 	}
 
