@@ -612,9 +612,9 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 				continue
 			}
 			ws := memdb.NewWatchSet()
-			iter, err := state.JobSummaries(ws)
+			iter, err := state.Jobs(ws)
 			if err != nil {
-				s.logger.Error("failed to get job summaries", "error", err)
+				s.logger.Error("failed to get jobs", "error", err)
 				continue
 			}
 
@@ -623,19 +623,36 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 				if raw == nil {
 					break
 				}
-				summary := raw.(*structs.JobSummary)
+				job := raw.(*structs.Job)
+				labels := []metrics.Label{
+					{
+						Name:  "job",
+						Value: job.ID,
+					},
+					{
+						Name:  "type",
+						Value: job.Type,
+					},
+					{
+						Name:  "name",
+						Value: job.Name,
+					},
+				}
+				summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+				if err != nil {
+					s.logger.Error("failed to get job summary", "error", err)
+					continue
+				}
+				metrics.SetGaugeWithLabels([]string{"nomad", "job_status"}, float32(1.0), append(labels, metrics.Label{
+					Name:  "status",
+					Value: job.Status,
+				}))
 				for name, tgSummary := range summary.Summary {
 					if !s.config.DisableTaggedMetrics {
-						labels := []metrics.Label{
-							{
-								Name:  "job",
-								Value: summary.JobID,
-							},
-							{
-								Name:  "task_group",
-								Value: name,
-							},
-						}
+						labels = append(labels, metrics.Label{
+							Name:  "task_group",
+							Value: name,
+						})
 
 						if strings.Contains(summary.JobID, "/dispatch-") {
 							jobInfo := strings.Split(summary.JobID, "/dispatch-")
