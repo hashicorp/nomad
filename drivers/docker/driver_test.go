@@ -139,7 +139,9 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *drivers.Driv
 	harness := drivers.NewDriverHarness(t, NewDockerDriver(logger))
 	if cfg == nil {
 		cfg = map[string]interface{}{
-			"image_gc_delay": "1s",
+			"gc": map[string]interface{}{
+				"image_delay": "1s",
+			},
 		}
 	}
 	plugLoader, err := loader.NewPluginLoader(&loader.PluginLoaderConfig{
@@ -1546,8 +1548,12 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	}
 
 	cfg := map[string]interface{}{
-		"volumes_enabled": false,
-		"image_gc":        false,
+		"volumes": map[string]interface{}{
+			"enabled": false,
+		},
+		"gc": map[string]interface{}{
+			"image": false,
+		},
 	}
 
 	{
@@ -1710,9 +1716,6 @@ func TestDockerDriver_Mounts(t *testing.T) {
 
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 func TestDockerDriver_Cleanup(t *testing.T) {
-	if !tu.IsTravis() {
-		t.Parallel()
-	}
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("Docker not connected")
 	}

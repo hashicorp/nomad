@@ -151,16 +151,24 @@ var (
 	//	}
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"endpoint": hclspec.NewAttr("endpoint", "string", false),
+
+		// docker daemon auth option for image registry
 		"auth": hclspec.NewBlock("auth", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"config": hclspec.NewAttr("config", "string", false),
 			"helper": hclspec.NewAttr("helper", "string", false),
 		})),
+
+		// client tls options
 		"tls": hclspec.NewBlock("tls", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"cert": hclspec.NewAttr("cert", "string", false),
 			"key":  hclspec.NewAttr("key", "string", false),
 			"ca":   hclspec.NewAttr("ca", "string", false),
 		})),
-		"gc": hclspec.NewBlock("gc", false, hclspec.NewObject(map[string]*hclspec.Spec{
+
+		// garbage collection options
+		// default needed for both if the gc {...} block is not set and
+		// if the default fields are missing
+		"gc": hclspec.NewDefault(hclspec.NewBlock("gc", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"image": hclspec.NewDefault(
 				hclspec.NewAttr("image", "bool", false),
 				hclspec.NewLiteral("true"),
@@ -170,14 +178,21 @@ var (
 				hclspec.NewAttr("container", "bool", false),
 				hclspec.NewLiteral("true"),
 			),
-		})),
-		"volumes": hclspec.NewBlock("volumes", false, hclspec.NewObject(map[string]*hclspec.Spec{
+		})), hclspec.NewLiteral(`{
+			image = true
+			container = true
+		}`)),
+
+		// docker volume options
+		// defaulted needed for both if the volumes {...} block is not set and
+		// if the default fields are missing
+		"volumes": hclspec.NewDefault(hclspec.NewBlock("volumes", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"enabled": hclspec.NewDefault(
 				hclspec.NewAttr("enabled", "bool", false),
 				hclspec.NewLiteral("true"),
 			),
 			"selinuxlabel": hclspec.NewAttr("selinuxlabel", "string", false),
-		})),
+		})), hclspec.NewLiteral("{ enabled = true }")),
 		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),

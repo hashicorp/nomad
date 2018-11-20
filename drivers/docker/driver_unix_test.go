@@ -57,7 +57,7 @@ done
 	handle, ok := driver.Impl().(*Driver).tasks.Get(task.ID)
 	require.True(t, ok)
 
-	waitForExist(t, newTestDockerClient(t), handle.container.ID)
+	waitForExist(t, newTestDockerClient(t), handle.containerID)
 	require.NoError(t, handle.Kill(time.Duration(tu.TestMultiplier()*5)*time.Second, os.Interrupt))
 
 	waitCh, err := driver.WaitTask(context.Background(), task.ID)
