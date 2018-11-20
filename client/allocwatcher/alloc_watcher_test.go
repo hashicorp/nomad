@@ -71,6 +71,7 @@ func newConfig(t *testing.T) (Config, func()) {
 	alloc.PreviousAllocation = prevAR.Alloc().ID
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
 	alloc.Job.TaskGroups[0].EphemeralDisk.Migrate = true
+	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 
 	config := Config{
 		Alloc:          alloc,
@@ -114,15 +115,14 @@ func TestPrevAlloc_Noop(t *testing.T) {
 	<-done
 }
 
-// TestPrevAlloc_LocalPrevAlloc asserts that when a previous alloc runner is
-// set a localPrevAlloc will block on it.
-func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
+// TestPrevAlloc_LocalPrevAlloc_Block asserts that when a previous alloc runner
+// is set a localPrevAlloc will block on it.
+func TestPrevAlloc_LocalPrevAlloc_Block(t *testing.T) {
 	t.Parallel()
 	conf, cleanup := newConfig(t)
 
 	defer cleanup()
 
-	conf.Alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "500ms",
 	}
@@ -180,6 +180,25 @@ func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("error: %v", err)
 	})
+}
+
+// TestPrevAlloc_LocalPrevAlloc_Terminated asserts that when a previous alloc
+// runner has already terminated the watcher does not block on the broadcaster.
+func TestPrevAlloc_LocalPrevAlloc_Terminated(t *testing.T) {
+	t.Parallel()
+	conf, cleanup := newConfig(t)
+	defer cleanup()
+
+	conf.PreviousRunner.Alloc().ClientStatus = structs.AllocClientStatusComplete
+
+	waiter := NewAllocWatcher(conf)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	// Since prev alloc is terminal, Wait should exit immediately with no
+	// context error
+	require.NoError(t, waiter.Wait(ctx))
 }
 
 // TestPrevAlloc_StreamAllocDir_Ok asserts that streaming a tar to an alloc dir

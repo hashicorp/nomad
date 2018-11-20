@@ -190,7 +190,12 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 
 	defer p.prevListener.Close()
 
-	//TODO Check p.aloc.Terminated() here
+	// Don't bother blocking for updates from the previous alloc if it has
+	// already terminated.
+	if p.prevStatus.Terminated() {
+		p.logger.Trace("previous allocation already terminated")
+		return nil
+	}
 
 	// Block until previous alloc exits
 	p.logger.Debug("waiting for previous alloc to terminate")
