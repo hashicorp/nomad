@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -15,6 +12,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	context "golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type driverPluginServer struct {

@@ -871,7 +871,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	handle, ok := dockerDriver.tasks.Get(task.ID)
 	require.True(t, ok)
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -932,7 +932,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	handle, ok := dockerDriver.tasks.Get(task.ID)
 	require.True(ok)
 
-	_, err = client.InspectContainer(handle.container.ID)
+	_, err = client.InspectContainer(handle.containerID)
 	require.NoError(err)
 }
 
@@ -952,7 +952,7 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 	defer cleanup()
 	d.WaitUntilStarted(task.ID, 5*time.Second)
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	assert.Nil(t, err, "unexpected error: %v", err)
 
 	want := "16384"
@@ -1038,7 +1038,7 @@ func TestDockerDriver_Labels(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1066,7 +1066,7 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	_, err := client.InspectContainer(handle.container.ID)
+	_, err := client.InspectContainer(handle.containerID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1091,7 +1091,7 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 	require.Equal(t, localDigest, container.Image)
 }
@@ -1112,7 +1112,7 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1223,7 +1223,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 
 			d.WaitUntilStarted(task.ID, 5*time.Second)
 
-			container, err := client.InspectContainer(handle.container.ID)
+			container, err := client.InspectContainer(handle.containerID)
 			require.NoError(t, err)
 
 			require.Exactly(t, tc.CapAdd, container.HostConfig.CapAdd)
@@ -1251,7 +1251,7 @@ func TestDockerDriver_DNS(t *testing.T) {
 
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	require.Exactly(t, cfg.DNSServers, container.HostConfig.DNS)
@@ -1275,7 +1275,7 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	require.Equal(t, cfg.MacAddress, container.NetworkSettings.MacAddress)
@@ -1297,7 +1297,7 @@ func TestDockerWorkDir(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	require.Equal(t, cfg.WorkDir, container.Config.WorkingDir)
@@ -1328,7 +1328,7 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	// Verify that the correct ports are EXPOSED
@@ -1373,7 +1373,7 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	// Verify that the correct ports are EXPOSED
@@ -1452,7 +1452,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 		time.Sleep(3 * time.Second)
 
 		// Ensure that the container isn't present
-		_, err := client.InspectContainer(handle.container.ID)
+		_, err := client.InspectContainer(handle.containerID)
 		if err == nil {
 			t.Fatalf("expected to not get container")
 		}
@@ -1924,7 +1924,7 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	require.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
@@ -1949,7 +1949,7 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 
 	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	require.Len(t, container.Config.Entrypoint, 2, "Expected one entrypoint")
@@ -2002,7 +2002,7 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 	defer cleanup()
 	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	require.True(t, container.HostConfig.ReadonlyRootfs, "ReadonlyRootfs option not set")
@@ -2086,7 +2086,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	driver.WaitUntilStarted(task.ID, time.Second)
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	if !strings.HasPrefix(container.NetworkSettings.GlobalIPv6Address, expectedPrefix) {
@@ -2148,9 +2148,9 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 	client, _, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
-	waitForExist(t, client, handle.container.ID)
+	waitForExist(t, client, handle.containerID)
 
-	container, err := client.InspectContainer(handle.container.ID)
+	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)
 
 	require.Equal(t, cfg.CPUCFSPeriod, container.HostConfig.CPUPeriod)
