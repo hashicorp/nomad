@@ -135,14 +135,14 @@ func (b *AllocBroadcaster) Listen() *AllocListener {
 
 	ch := make(chan *structs.Allocation, listenerCap)
 
-	// Broadcaster is already closed, close this listener
-	if b.closed {
-		close(ch)
-	}
-
 	// Send last update if there was one
 	if b.last != nil {
 		ch <- b.last
+	}
+
+	// Broadcaster is already closed, close this listener
+	if b.closed {
+		close(ch)
 	}
 
 	b.listeners[b.nextId] = ch
