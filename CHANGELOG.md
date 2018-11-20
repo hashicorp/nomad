@@ -24,6 +24,7 @@ IMPROVEMENTS:
  * vendor: Removed library obsoleted by go 1.8 [[GH-4469](https://github.com/hashicorp/nomad/issues/4469)]
 
 BUG FIXES:
+ * core: Fixed bug in Vault token renewal that could panic on a malformed Vault response [[GH-4904](https://github.com/hashicorp/nomad/issues/4904)]
  * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
  * core: Fixed bug where some successfully completed jobs get re-run after job garbage collection [[GH-4861](https://github.com/hashicorp/nomad/pull/4861)]
  * core: Fix an issue where artifact checksums containing interpolated variables failed validation [[GH-4810](https://github.com/hashicorp/nomad/pull/4819)]
