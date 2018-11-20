@@ -547,6 +547,11 @@ func (v *vaultClient) renew() error {
 	if err != nil {
 		return err
 	}
+	if secret == nil {
+		// It's possible for RenewSelf to return (nil, nil) if the
+		// response body from Vault is empty.
+		return fmt.Errorf("renewal failed: empty response from vault")
+	}
 
 	auth := secret.Auth
 	if auth == nil {
