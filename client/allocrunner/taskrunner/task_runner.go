@@ -668,20 +668,23 @@ func (tr *TaskRunner) persistLocalState() error {
 // buildTaskConfig builds a drivers.TaskConfig with an unique ID for the task.
 // The ID is consistently built from the alloc ID, task name and restart attempt.
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
+	task := tr.Task()
+	alloc := tr.Alloc()
 
 	return &drivers.TaskConfig{
-		ID:   fmt.Sprintf("%s/%s/%d", tr.allocID, tr.taskName, tr.restartTracker.GetCount()),
-		Name: tr.task.Name,
+		ID:      fmt.Sprintf("%s/%s/%d", alloc.ID, task.Name, tr.restartTracker.GetCount()),
+		Name:    task.Name,
+		JobName: alloc.Job.Name,
 		Resources: &drivers.Resources{
-			NomadResources: tr.task.Resources,
+			NomadResources: task.Resources,
 			LinuxResources: &drivers.LinuxResources{
-				MemoryLimitBytes: int64(tr.Task().Resources.MemoryMB) * 1024 * 1024,
-				CPUShares:        int64(tr.Task().Resources.CPU),
-				PercentTicks:     float64(tr.task.Resources.CPU) / float64(tr.clientConfig.Node.Resources.CPU),
+				MemoryLimitBytes: int64(task.Resources.MemoryMB) * 1024 * 1024,
+				CPUShares:        int64(task.Resources.CPU),
+				PercentTicks:     float64(task.Resources.CPU) / float64(tr.clientConfig.Node.Resources.CPU),
 			},
 		},
 		Env:        tr.envBuilder.Build().Map(),
-		User:       tr.task.User,
+		User:       task.User,
 		AllocDir:   tr.taskDir.AllocDir,
 		StdoutPath: tr.logmonHookConfig.stdoutFifo,
 		StderrPath: tr.logmonHookConfig.stderrFifo,
