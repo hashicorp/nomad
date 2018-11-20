@@ -583,15 +583,15 @@ func (v *vaultClient) renew() (bool, error) {
 	// Attempt to renew the token
 	secret, err := v.auth.RenewSelf(v.tokenData.CreationTTL)
 	if err != nil {
-
 		// Check if there is a permission denied
 		recoverable := !structs.VaultUnrecoverableError.MatchString(err.Error())
 		return recoverable, fmt.Errorf("failed to renew the vault token: %v", err)
 	}
+
 	if secret == nil {
 		// It's possible for RenewSelf to return (nil, nil) if the
 		// response body from Vault is empty.
-		return fmt.Errorf("renewal failed: empty response from vault")
+		return true, fmt.Errorf("renewal failed: empty response from vault")
 	}
 
 	// these treated as transient errors, where can keep renewing
