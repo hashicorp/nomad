@@ -1707,6 +1707,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 		}
 		return nil
 	})
+	assert.NoError(t, err)
 
 	assert.True(t, watchFired(ws))
 
