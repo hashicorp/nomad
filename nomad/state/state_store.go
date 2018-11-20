@@ -1091,6 +1091,9 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 		return err
 	}
 
+	// Put them into a slice so there are no safety concerns while actually
+	// performing the deletes
+	jobs := []*structs.Job{}
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -1103,7 +1106,12 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 			continue
 		}
 
-		if _, err = txn.DeleteAll("job_version", "id", j.Namespace, j.ID, j.Version); err != nil {
+		jobs = append(jobs, j)
+	}
+
+	// Do the deletes
+	for _, j := range jobs {
+		if err := txn.Delete("job_version", j); err != nil {
 			return fmt.Errorf("deleting job versions failed: %v", err)
 		}
 	}
