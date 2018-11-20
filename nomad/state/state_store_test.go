@@ -1667,29 +1667,34 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 	const testJobCount = 10
 	const jobVersionCount = 4
 
+	stateIndex := uint64(1000)
+
 	jobs := make([]*structs.Job, testJobCount)
 	for i := 0; i < testJobCount; i++ {
+		stateIndex++
 		job := mock.BatchJob()
 
-		err := state.UpsertJob(uint64(100+i), job)
+		err := state.UpsertJob(stateIndex, job)
 		require.NoError(t, err)
 
 		jobs[i] = job
 
-		// create some versions
+		// Create some versions
 		for vi := 1; vi < jobVersionCount; vi++ {
+			stateIndex++
+
 			job := job.Copy()
 			job.TaskGroups[0].Tasks[0].Env = map[string]string{
 				"Version": fmt.Sprintf("%d", vi),
 			}
 
-			require.NoError(t, state.UpsertJob(uint64(100+i+vi*10), job))
+			require.NoError(t, state.UpsertJob(stateIndex, job))
 		}
 	}
 
 	ws := memdb.NewWatchSet()
 
-	// sanity check that jobs are present in DB
+	// Sanity check that jobs are present in DB
 	job, err := state.JobByID(ws, jobs[0].Namespace, jobs[0].ID)
 	require.NoError(t, err)
 	require.Equal(t, jobs[0].ID, job.ID)
@@ -1698,7 +1703,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, jobVersionCount, len(jobVersions))
 
-	// actually delete
+	// Actually delete
 	const deletionIndex = uint64(10001)
 	err = state.WithWriteTransaction(func(txn Txn) error {
 		for i, job := range jobs {
