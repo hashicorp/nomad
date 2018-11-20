@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -381,4 +382,55 @@ type GCConfig struct {
 type VolumeConfig struct {
 	Enabled      bool   `codec:"enabled"`
 	SelinuxLabel string `codec:"selinuxlabel"`
+}
+
+func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
+	return pluginInfo, nil
+}
+
+func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
+	return configSpec, nil
+}
+
+func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
+	var config DriverConfig
+	if err := base.MsgPackDecode(data, &config); err != nil {
+		return err
+	}
+
+	d.config = &config
+	if len(d.config.GC.ImageDelay) > 0 {
+		dur, err := time.ParseDuration(d.config.GC.ImageDelay)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'image_delay' duration: %v", err)
+		}
+		d.config.GC.imageDelayDuration = dur
+	}
+
+	if cfg != nil {
+		d.clientConfig = cfg.Driver
+	}
+
+	dockerClient, _, err := d.dockerClients()
+	if err != nil {
+		return fmt.Errorf("failed to get docker client: %v", err)
+	}
+	coordinatorConfig := &dockerCoordinatorConfig{
+		client:      dockerClient,
+		cleanup:     d.config.GC.Image,
+		logger:      d.logger,
+		removeDelay: d.config.GC.imageDelayDuration,
+	}
+
+	d.coordinator = NewDockerCoordinator(coordinatorConfig)
+
+	return nil
+}
+
+func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
+	return taskConfigSpec, nil
+}
+
+func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
+	return capabilities, nil
 }
