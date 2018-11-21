@@ -156,7 +156,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *structs.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
-		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
+		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
 
 	var driverConfig TaskConfig
@@ -191,7 +191,7 @@ CREATE:
 	container, err := d.createContainer(client, containerCfg, &driverConfig)
 	if err != nil {
 		d.logger.Error("failed to create container", "error", err)
-		return nil, nil, nstructs.NewRecoverableError(fmt.Errorf("failed to create container: %v", err), nstructs.IsRecoverable(err))
+		return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to create container: %v", err), err)
 	}
 
 	d.logger.Info("created container", "container_id", container.ID)
@@ -213,7 +213,7 @@ CREATE:
 				d.logger.Debug("reattempting container create/start sequence", "attempt", startAttempts, "container_id", id)
 				goto CREATE
 			}
-			return nil, nil, nstructs.NewRecoverableError(fmt.Errorf("Failed to start container %s: %s", container.ID, err), nstructs.IsRecoverable(err))
+			return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("Failed to start container %s: %s", container.ID, err), err)
 		}
 
 		// InspectContainer to get all of the container metadata as
