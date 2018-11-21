@@ -626,6 +626,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
 
+		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
 		PidsLimit: driverConfig.PidsLimit,

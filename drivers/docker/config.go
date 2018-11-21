@@ -263,6 +263,7 @@ var (
 		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
 		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
 		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
+		"storage_opt":     hclspec.NewBlockAttrs("storage_opt", "string", false),
 		"sysctl":          hclspec.NewBlockAttrs("sysctl", "string", false),
 		"tty":             hclspec.NewAttr("tty", "bool", false),
 		"ulimit":          hclspec.NewBlockAttrs("ulimit", "string", false),
@@ -319,6 +320,7 @@ type TaskConfig struct {
 	ReadonlyRootfs    bool              `codec:"readonly_rootfs"`
 	SecurityOpt       []string          `codec:"security_opt"`
 	ShmSize           int64             `codec:"shm_size"`
+	StorageOpt        map[string]string `codec:"storage_opt"`
 	Sysctl            map[string]string `codec:"sysctl"`
 	TTY               bool              `codec:"tty"`
 	Ulimit            map[string]string `codec:"ulimit"`

@@ -1122,6 +1122,25 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 	require.Exactly(t, cfg.SecurityOpt, container.HostConfig.SecurityOpt)
 }
 
+func TestDockerDriver_CreateContainerConfig(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, _ := dockerTask(t)
+	opt := map[string]string{"size": "120G"}
+
+	cfg.StorageOpt = opt
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+	require.EqualValues(t, opt, c.HostConfig.StorageOpt)
+}
+
 func TestDockerDriver_Capabilities(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
