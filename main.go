@@ -58,6 +58,7 @@ var (
 		"job",
 		"node",
 		"agent",
+		"fmt",
 	}
 )
 
