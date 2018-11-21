@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -187,7 +188,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	}
 
 	fp := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: "healthy",
 	}
@@ -212,7 +213,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fp
 	}
 
-	fp.Attributes["driver.exec"] = "1"
+	fp.Attributes["driver.exec"] = pstructs.NewBoolAttribute(true)
 	return fp
 }
 

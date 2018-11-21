@@ -6,6 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
+import "github.com/hashicorp/nomad/plugins/shared/structs/proto/attribute.proto";
 
 // Driver service defines RPCs used to communicate with a nomad runtime driver.
 // Some rpcs may not be implemented by the driver based on it's capabilities.
@@ -97,7 +98,7 @@ message FingerprintResponse {
 
     // Attributes are key/value pairs that annotate the nomad client and can be
     // used in scheduling contraints and affinities.
-    map<string, string> attributes = 1;
+    map<string, hashicorp.nomad.plugins.shared.structs.Attribute> attributes = 1;
 
     enum HealthState {
         UNDETECTED = 0;

@@ -47,7 +47,8 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	select {
 	case fp := <-fpCh:
 		require.Equal(t, drivers.HealthStateHealthy, fp.Health)
-		require.Equal(t, "1", fp.Attributes["driver.java"])
+		detected, _ := fp.Attributes["driver.java"].GetBool()
+		require.True(t, detected)
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail(t, "timeout receiving fingerprint")
 	}

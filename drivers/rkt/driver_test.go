@@ -671,8 +671,7 @@ func TestRktDriver_Exec(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		res, err := d.ExecTask(task.ID, []string{"/etcd", "--cgdfgdfg"}, time.Second)
 		require.False(res.ExitResult.Successful())
-		fmt.Println(err)
-		fmt.Println(res.ExitResult.ExitCode)
+		require.Nil(err)
 		raw := res.Stdout
 		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {

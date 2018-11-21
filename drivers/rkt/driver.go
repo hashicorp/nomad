@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	rktv1 "github.com/rkt/rkt/api/v1"
 )
 
@@ -262,7 +263,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: "ready",
 	}
@@ -302,11 +303,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fingerprint
 	}
 
-	fingerprint.Attributes["driver.rkt"] = "1"
-	fingerprint.Attributes["driver.rkt.version"] = rktMatches[1]
-	fingerprint.Attributes["driver.rkt.appc.version"] = appcMatches[1]
+	fingerprint.Attributes["driver.rkt"] = pstructs.NewBoolAttribute(true)
+	fingerprint.Attributes["driver.rkt.version"] = pstructs.NewStringAttribute(rktMatches[1])
+	fingerprint.Attributes["driver.rkt.appc.version"] = pstructs.NewStringAttribute(appcMatches[1])
 	if d.config.VolumesEnabled {
-		fingerprint.Attributes["driver.rkt.volumes.enabled"] = "1"
+		fingerprint.Attributes["driver.rkt.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	return fingerprint

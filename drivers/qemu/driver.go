@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -206,7 +207,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: "ready",
 	}
@@ -234,8 +235,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fingerprint
 	}
 	currentQemuVersion := matches[1]
-	fingerprint.Attributes[driverAttr] = "1"
-	fingerprint.Attributes[driverVersionAttr] = currentQemuVersion
+	fingerprint.Attributes[driverAttr] = pstructs.NewBoolAttribute(true)
+	fingerprint.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(currentQemuVersion)
 	return fingerprint
 }
 
@@ -610,7 +611,7 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (string, error) {
 	var longPathSupport bool
 	currentQemuVer := fingerPrint.Attributes[driverVersionAttr]
-	currentQemuSemver := semver.New(currentQemuVer)
+	currentQemuSemver := semver.New(currentQemuVer.GoString())
 	if currentQemuSemver.LessThan(*qemuVersionLongSocketPathFix) {
 		longPathSupport = false
 		d.logger.Debug("long socket paths are not available in this version of QEMU", "version", currentQemuVer)
