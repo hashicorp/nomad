@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"github.com/hashicorp/nomad/drivers/docker"
 	"github.com/hashicorp/nomad/drivers/exec"
 	"github.com/hashicorp/nomad/drivers/java"
 	"github.com/hashicorp/nomad/drivers/qemu"
@@ -15,4 +16,5 @@ func init() {
 	Register(exec.PluginID, exec.PluginConfig)
 	Register(qemu.PluginID, qemu.PluginConfig)
 	Register(java.PluginID, java.PluginConfig)
+	RegisterDeferredConfig(docker.PluginID, docker.PluginConfig, docker.PluginLoader)
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 )
@@ -207,6 +208,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"deployment status": func() (cli.Command, error) {
 			return &DeploymentStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+		docklog.PluginName: func() (cli.Command, error) {
+			return &DockerLoggerPluginCommand{
 				Meta: meta,
 			}, nil
 		},

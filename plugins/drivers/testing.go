@@ -12,11 +12,15 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/logmon"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
@@ -29,8 +33,12 @@ type DriverHarness struct {
 	t      testing.T
 	lm     logmon.LogMon
 	logger hclog.Logger
+	impl   DriverPlugin
 }
 
+func (d *DriverHarness) Impl() DriverPlugin {
+	return d.impl
+}
 func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
 	logger := testlog.HCLogger(t).Named("driver_harness")
 	client, server := plugin.TestPluginGRPCConn(t,
@@ -56,6 +64,7 @@ func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
 		DriverPlugin: dClient,
 		logger:       logger,
 		t:            t,
+		impl:         d,
 	}
 
 	raw, err = client.Dispense("logmon")
@@ -95,6 +104,25 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 		entries = config.DefaultChrootEnv
 	}
 	require.NoError(h.t, taskDir.Build(false, entries, fsi))
+
+	task := &structs.Task{
+		Name:      t.Name,
+		Env:       t.Env,
+		Resources: t.Resources.NomadResources,
+	}
+	taskBuilder := env.NewBuilder(mock.Node(), mock.Alloc(), task, "global")
+	utils.SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
+
+	taskEnv := taskBuilder.Build()
+	if t.Env == nil {
+		t.Env = taskEnv.All()
+	} else {
+		for k, v := range taskEnv.All() {
+			if _, ok := t.Env[k]; !ok {
+				t.Env[k] = v
+			}
+		}
+	}
 
 	//logmon
 	if enableLogs {

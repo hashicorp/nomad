@@ -17,6 +17,11 @@ import (
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
+const (
+	// CheckBufSize is the size of the check output result
+	CheckBufSize = 4 * 1024
+)
+
 // DriverPlugin is the interface with drivers will implement. It is also
 // implemented by a plugin client which proxies the calls to go-plugin. See
 // the proto/driver.proto file for detailed information about each RPC and
@@ -98,6 +103,8 @@ type Capabilities struct {
 
 type TaskConfig struct {
 	ID              string
+	JobName         string
+	TaskGroupName   string
 	Name            string
 	Env             map[string]string
 	Resources       *Resources
@@ -157,6 +164,17 @@ func (tc *TaskConfig) EncodeDriverConfig(val cty.Value) error {
 	return nil
 }
 
+func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
+	data := []byte{}
+	err := base.MsgPackEncode(&data, t)
+	if err != nil {
+		return err
+	}
+
+	tc.rawDriverConfig = data
+	return nil
+}
+
 type Resources struct {
 	NomadResources *structs.Resources
 	LinuxResources *LinuxResources
@@ -184,6 +202,14 @@ type LinuxResources struct {
 	OOMScoreAdj      int64
 	CpusetCPUs       string
 	CpusetMems       string
+
+	// PrecentTicks is used to calculate the CPUQuota, currently the docker
+	// driver exposes cpu period and quota through the driver configuration
+	// and thus the calculation for CPUQuota cannot be done on the client.
+	// This is a capatability and should only be used by docker until the docker
+	// specific options are deprecated in favor of exposes CPUPeriod and
+	// CPUQuota at the task resource stanza.
+	PercentTicks float64
 }
 
 func (r *LinuxResources) Copy() *LinuxResources {
@@ -221,6 +247,12 @@ type ExitResult struct {
 
 func (r *ExitResult) Successful() bool {
 	return r.ExitCode == 0 && r.Signal == 0 && r.Err == nil
+}
+
+func (r *ExitResult) Copy() *ExitResult {
+	res := new(ExitResult)
+	*res = *r
+	return res
 }
 
 type TaskStatus struct {

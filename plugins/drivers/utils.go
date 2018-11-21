@@ -51,6 +51,8 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 	}
 	return &TaskConfig{
 		ID:              pb.Id,
+		JobName:         pb.JobName,
+		TaskGroupName:   pb.TaskGroupName,
 		Name:            pb.Name,
 		Env:             pb.Env,
 		rawDriverConfig: pb.MsgpackDriverConfig,
@@ -70,6 +72,8 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 	}
 	pb := &proto.TaskConfig{
 		Id:                  cfg.ID,
+		JobName:             cfg.JobName,
+		TaskGroupName:       cfg.TaskGroupName,
 		Name:                cfg.Name,
 		Env:                 cfg.Env,
 		Resources:           resourcesToProto(cfg.Resources),
@@ -129,6 +133,7 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 			OOMScoreAdj:      pb.LinuxResources.OomScoreAdj,
 			CpusetCPUs:       pb.LinuxResources.CpusetCpus,
 			CpusetMems:       pb.LinuxResources.CpusetMems,
+			PercentTicks:     pb.LinuxResources.PercentTicks,
 		}
 	}
 
@@ -181,6 +186,7 @@ func resourcesToProto(r *Resources) *proto.Resources {
 			OomScoreAdj:      r.LinuxResources.OOMScoreAdj,
 			CpusetCpus:       r.LinuxResources.CpusetCPUs,
 			CpusetMems:       r.LinuxResources.CpusetMems,
+			PercentTicks:     r.LinuxResources.PercentTicks,
 		}
 	}
 
@@ -207,6 +213,9 @@ func taskHandleToProto(handle *TaskHandle) *proto.TaskHandle {
 }
 
 func exitResultToProto(result *ExitResult) *proto.ExitResult {
+	if result == nil {
+		return &proto.ExitResult{}
+	}
 	return &proto.ExitResult{
 		ExitCode:  int32(result.ExitCode),
 		Signal:    int32(result.Signal),

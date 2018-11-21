@@ -15,7 +15,8 @@ func TestEventer(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	e := NewEventer(ctx, testlog.HCLogger(t))
 
 	events := []*drivers.TaskEvent{
@@ -33,7 +34,8 @@ func TestEventer(t *testing.T) {
 		},
 	}
 
-	ctx1, _ := context.WithCancel(context.Background())
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	defer cancel1()
 	consumer1, err := e.TaskEvents(ctx1)
 	require.NoError(err)
 	ctx2 := (context.Background())
