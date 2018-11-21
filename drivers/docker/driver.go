@@ -83,8 +83,7 @@ type Driver struct {
 	// coordinator is what tracks multiple image pulls against the same docker image
 	coordinator *dockerCoordinator
 
-	// logger will log to the plugin output which is usually an 'executor.out'
-	// file located in the root of the TaskDir
+	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
@@ -990,7 +989,7 @@ func (d *Driver) handleWait(ctx context.Context, ch chan *drivers.ExitResult, h 
 	defer close(ch)
 	select {
 	case <-h.waitCh:
-		ch <- h.exitResult
+		ch <- h.ExitResult()
 	case <-ctx.Done():
 		ch <- &drivers.ExitResult{
 			Err: ctx.Err(),
@@ -1080,7 +1079,7 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 			"container_id": container.ID,
 		},
 		NetworkOverride: h.net,
-		ExitResult:      h.exitResult,
+		ExitResult:      h.ExitResult(),
 	}
 
 	status.State = drivers.TaskStateUnknown

@@ -38,7 +38,14 @@ type taskHandle struct {
 	net                   *structs.DriverNetwork
 	imageID               string
 
-	exitResult *drivers.ExitResult
+	exitResult     *drivers.ExitResult
+	exitResultLock sync.Mutex
+}
+
+func (h *taskHandle) ExitResult() *drivers.ExitResult {
+	h.exitResultLock.Lock()
+	defer h.exitResultLock.Unlock()
+	return h.exitResult.Copy()
 }
 
 type taskHandleState struct {
@@ -202,12 +209,14 @@ func (h *taskHandle) run() {
 	}
 
 	// Set the result
+	h.exitResultLock.Lock()
 	h.exitResult = &drivers.ExitResult{
 		ExitCode:  exitCode,
 		Signal:    0,
 		OOMKilled: oom,
 		Err:       werr,
 	}
+	h.exitResultLock.Unlock()
 	close(h.waitCh)
 }
 

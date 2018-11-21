@@ -249,6 +249,12 @@ func (r *ExitResult) Successful() bool {
 	return r.ExitCode == 0 && r.Signal == 0 && r.Err == nil
 }
 
+func (r *ExitResult) Copy() *ExitResult {
+	res := new(ExitResult)
+	*res = *r
+	return res
+}
+
 type TaskStatus struct {
 	ID               string
 	Name             string
