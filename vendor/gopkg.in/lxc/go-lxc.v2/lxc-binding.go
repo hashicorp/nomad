@@ -11,10 +11,16 @@ package lxc
 // #include <lxc/lxccontainer.h>
 // #include <lxc/version.h>
 // #include "lxc-binding.h"
+// #ifndef LXC_DEVEL
+// #define LXC_DEVEL 0
+// #endif
 import "C"
 
 import (
+	"fmt"
 	"runtime"
+	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -54,12 +60,22 @@ func Release(c *Container) bool {
 	// http://golang.org/pkg/runtime/#SetFinalizer
 	runtime.SetFinalizer(c, nil)
 
+	// Go is bad at refcounting sometimes
+	c.mu.Lock()
+
 	return C.lxc_container_put(c.container) == 1
 }
 
 // Version returns the LXC version.
 func Version() string {
-	return C.GoString(C.lxc_get_version())
+	version := C.GoString(C.lxc_get_version())
+
+	// New liblxc versions append "-devel" when LXC_DEVEL is set.
+	if strings.HasSuffix(version, "-devel") {
+		return fmt.Sprintf("%s (devel)", version[:(len(version)-len("-devel"))])
+	}
+
+	return version
 }
 
 // GlobalConfigItem returns the value of the given global config key.
@@ -108,12 +124,12 @@ func ContainerNames(lxcpath ...string) []string {
 
 // Containers returns the defined and active containers on the system. Only
 // containers that could retrieved successfully are returned.
-func Containers(lxcpath ...string) []Container {
-	var containers []Container
+func Containers(lxcpath ...string) []*Container {
+	var containers []*Container
 
 	for _, v := range ContainerNames(lxcpath...) {
 		if container, err := NewContainer(v, lxcpath...); err == nil {
-			containers = append(containers, *container)
+			containers = append(containers, container)
 		}
 	}
 
@@ -143,12 +159,12 @@ func DefinedContainerNames(lxcpath ...string) []string {
 
 // DefinedContainers returns the defined containers on the system.  Only
 // containers that could retrieved successfully are returned.
-func DefinedContainers(lxcpath ...string) []Container {
-	var containers []Container
+func DefinedContainers(lxcpath ...string) []*Container {
+	var containers []*Container
 
 	for _, v := range DefinedContainerNames(lxcpath...) {
 		if container, err := NewContainer(v, lxcpath...); err == nil {
-			containers = append(containers, *container)
+			containers = append(containers, container)
 		}
 	}
 
@@ -178,18 +194,19 @@ func ActiveContainerNames(lxcpath ...string) []string {
 
 // ActiveContainers returns the active containers on the system. Only
 // containers that could retrieved successfully are returned.
-func ActiveContainers(lxcpath ...string) []Container {
-	var containers []Container
+func ActiveContainers(lxcpath ...string) []*Container {
+	var containers []*Container
 
 	for _, v := range ActiveContainerNames(lxcpath...) {
 		if container, err := NewContainer(v, lxcpath...); err == nil {
-			containers = append(containers, *container)
+			containers = append(containers, container)
 		}
 	}
 
 	return containers
 }
 
+// VersionNumber returns the LXC version.
 func VersionNumber() (major int, minor int) {
 	major = C.LXC_VERSION_MAJOR
 	minor = C.LXC_VERSION_MINOR
@@ -197,7 +214,12 @@ func VersionNumber() (major int, minor int) {
 	return
 }
 
+// VersionAtLeast returns true when the tested version >= current version.
 func VersionAtLeast(major int, minor int, micro int) bool {
+	if C.LXC_DEVEL == 1 {
+		return true
+	}
+
 	if major > C.LXC_VERSION_MAJOR {
 		return false
 	}
@@ -214,4 +236,91 @@ func VersionAtLeast(major int, minor int, micro int) bool {
 	}
 
 	return true
+}
+
+// IsSupportedConfigItem returns true if the key belongs to a supported config item.
+func IsSupportedConfigItem(key string) bool {
+	configItem := C.CString(key)
+	defer C.free(unsafe.Pointer(configItem))
+	return bool(C.go_lxc_config_item_is_supported(configItem))
+}
+
+// runtimeLiblxcVersionAtLeast checks if the system's liblxc matches the
+// provided version requirement
+func runtimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
+	version := Version()
+	version = strings.Replace(version, " (devel)", "-devel", 1)
+	parts := strings.Split(version, ".")
+	partsLen := len(parts)
+	if partsLen == 0 {
+		return false
+	}
+
+	develParts := strings.Split(parts[partsLen-1], "-")
+	if len(develParts) == 2 && develParts[1] == "devel" {
+		return true
+	}
+
+	maj := -1
+	min := -1
+	mic := -1
+
+	for i, v := range parts {
+		if i > 2 {
+			break
+		}
+
+		num, err := strconv.Atoi(v)
+		if err != nil {
+			return false
+		}
+
+		switch i {
+		case 0:
+			maj = num
+		case 1:
+			min = num
+		case 2:
+			mic = num
+		}
+	}
+
+	/* Major version is greater. */
+	if maj > major {
+		return true
+	}
+
+	if maj < major {
+		return false
+	}
+
+	/* Minor number is greater.*/
+	if min > minor {
+		return true
+	}
+
+	if min < minor {
+		return false
+	}
+
+	/* Patch number is greater. */
+	if mic > micro {
+		return true
+	}
+
+	if mic < micro {
+		return false
+	}
+
+	return true
+}
+
+// HasApiExtension returns true if the extension is supported.
+func HasApiExtension(extension string) bool {
+	if runtimeLiblxcVersionAtLeast(3, 1, 0) {
+		apiExtension := C.CString(extension)
+		defer C.free(unsafe.Pointer(apiExtension))
+		return bool(C.go_lxc_has_api_extension(apiExtension))
+	}
+	return false
 }
