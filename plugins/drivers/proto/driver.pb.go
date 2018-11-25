@@ -1740,7 +1740,7 @@ type LinuxResources struct {
 	CpusetCpus string `protobuf:"bytes,6,opt,name=cpuset_cpus,json=cpusetCpus,proto3" json:"cpuset_cpus,omitempty"`
 	// CpusetMems constrains the allowed set of memory nodes. Default: "" (not specified)
 	CpusetMems string `protobuf:"bytes,7,opt,name=cpuset_mems,json=cpusetMems,proto3" json:"cpuset_mems,omitempty"`
-	// PercentTicks is a compatability option for docker and should not be used
+	// PercentTicks is a compatibility option for docker and should not be used
 	PercentTicks         float64  `protobuf:"fixed64,8,opt,name=PercentTicks,proto3" json:"PercentTicks,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

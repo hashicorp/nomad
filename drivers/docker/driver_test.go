@@ -148,7 +148,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *drivers.Driv
 		Logger:    logger,
 		PluginDir: "./plugins",
 		InternalPlugins: map[loader.PluginID]*loader.InternalPluginConfig{
-			PluginID: &loader.InternalPluginConfig{
+			PluginID: {
 				Config: cfg,
 				Factory: func(hclog.Logger) interface{} {
 					return harness
@@ -985,13 +985,13 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 
 func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 	brokenConfigs := []map[string]string{
-		map[string]string{
+		{
 			"nofile": "",
 		},
-		map[string]string{
+		{
 			"nofile": "abc:1234",
 		},
-		map[string]string{
+		{
 			"nofile": "1234:abc",
 		},
 	}

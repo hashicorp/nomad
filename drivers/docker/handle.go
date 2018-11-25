@@ -36,7 +36,6 @@ type taskHandle struct {
 	waitCh                chan struct{}
 	removeContainerOnExit bool
 	net                   *structs.DriverNetwork
-	imageID               string
 
 	exitResult     *drivers.ExitResult
 	exitResultLock sync.Mutex
