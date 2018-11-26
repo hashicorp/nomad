@@ -303,6 +303,8 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
+// Run the TaskRunner. Starts the user's task or reattaches to a restored task.
+// Run closes WaitCh when it exits. Should be started in a goroutine.
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult

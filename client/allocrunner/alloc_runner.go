@@ -176,7 +176,8 @@ func (ar *allocRunner) WaitCh() <-chan struct{} {
 	return ar.waitCh
 }
 
-// Run is the main goroutine that executes all the tasks.
+// Run the AllocRunner. Starts tasks if the alloc is non-terminal and closes
+// WaitCh when it exits. Should be started in a goroutine.
 func (ar *allocRunner) Run() {
 	// Close the wait channel on return
 	defer close(ar.waitCh)
