@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
@@ -31,7 +32,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: "healthy",
 	}
@@ -53,14 +54,14 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 	}
 
-	fp.Attributes["driver.docker"] = "1"
-	fp.Attributes["driver.docker.version"] = env.Get("Version")
+	fp.Attributes["driver.docker"] = pstructs.NewBoolAttribute(true)
+	fp.Attributes["driver.docker.version"] = pstructs.NewStringAttribute(env.Get("Version"))
 	if d.config.AllowPrivileged {
-		fp.Attributes["driver.docker.privileged.enabled"] = "1"
+		fp.Attributes["driver.docker.privileged.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	if d.config.Volumes.Enabled {
-		fp.Attributes["driver.docker.volumes.enabled"] = "1"
+		fp.Attributes["driver.docker.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	if nets, err := client.ListNetworks(); err != nil {
@@ -77,7 +78,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			}
 
 			if n.IPAM.Config[0].Gateway != "" {
-				fp.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+				fp.Attributes["driver.docker.bridge_ip"] = pstructs.NewStringAttribute(n.IPAM.Config[0].Gateway)
 			} else {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
