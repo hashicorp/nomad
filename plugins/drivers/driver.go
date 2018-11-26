@@ -250,6 +250,9 @@ func (r *ExitResult) Successful() bool {
 }
 
 func (r *ExitResult) Copy() *ExitResult {
+	if r == nil {
+		return nil
+	}
 	res := new(ExitResult)
 	*res = *r
 	return res
