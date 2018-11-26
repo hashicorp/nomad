@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -242,10 +243,17 @@ var (
 		})),
 		"mac_address": hclspec.NewAttr("mac_address", "string", false),
 		"mounts": hclspec.NewBlockSet("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
+			"type": hclspec.NewDefault(
+				hclspec.NewAttr("type", "string", false),
+				hclspec.NewLiteral("\"volume\""),
+			),
 			"target":   hclspec.NewAttr("target", "string", false),
 			"source":   hclspec.NewAttr("source", "string", false),
 			"readonly": hclspec.NewAttr("readonly", "bool", false),
-			"volume_options": hclspec.NewBlockSet("volume_options", hclspec.NewObject(map[string]*hclspec.Spec{
+			"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"propagation": hclspec.NewAttr("propagation", "string", false),
+			})),
+			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
 				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
 				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
 				"driver_config": hclspec.NewBlockSet("driver_config", hclspec.NewObject(map[string]*hclspec.Spec{
@@ -350,10 +358,47 @@ type DockerLogging struct {
 }
 
 type DockerMount struct {
+	Type          string              `codec:"type"`
 	Target        string              `codec:"target"`
 	Source        string              `codec:"source"`
 	ReadOnly      bool                `codec:"readonly"`
+	BindOptions   DockerBindOptions   `codec:"bind_options"`
 	VolumeOptions DockerVolumeOptions `codec:"volume_options"`
+}
+
+func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
+	if m.Type == "" {
+		// for backward compatbility, as type is optional
+		m.Type = "volume"
+	}
+
+	hm := docker.HostMount{
+		Target:   m.Target,
+		Source:   m.Source,
+		Type:     m.Type,
+		ReadOnly: m.ReadOnly,
+	}
+
+	switch m.Type {
+	case "volume":
+		vo := m.VolumeOptions
+		hm.VolumeOptions = &docker.VolumeOptions{
+			NoCopy: vo.NoCopy,
+			Labels: vo.Labels,
+			DriverConfig: docker.VolumeDriverConfig{
+				Name:    vo.DriverConfig.Name,
+				Options: vo.DriverConfig.Options,
+			},
+		}
+	case "bind":
+		hm.BindOptions = &docker.BindOptions{
+			Propagation: m.BindOptions.Propagation,
+		}
+	default:
+		return hm, fmt.Errorf(`invalid mount type, must be "bind" or "volume": %q`, m.Type)
+	}
+
+	return hm, nil
 }
 
 type DockerVolumeOptions struct {
@@ -362,7 +407,11 @@ type DockerVolumeOptions struct {
 	DriverConfig DockerVolumeDriverConfig `codec:"driver_config"`
 }
 
-// VolumeDriverConfig holds a map of volume driver specific options
+type DockerBindOptions struct {
+	Propagation string `codec:"propagation"`
+}
+
+// DockerVolumeDriverConfig holds a map of volume driver specific options
 type DockerVolumeDriverConfig struct {
 	Name    string            `codec:"name"`
 	Options map[string]string `codec:"options"`
