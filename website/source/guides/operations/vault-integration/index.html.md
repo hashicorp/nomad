@@ -576,7 +576,7 @@ Use the following command to run the job:
 $ nomad run web-app.nomad 
 ```
 
-### Step 14: Confirm the Application is Accessing the Database
+### Step 15: Confirm the Application is Accessing the Database
 
 At this point, you can visit your application at the path `/names` to confirm
 the appropriate data is being accessed from the database and displayed to you.
