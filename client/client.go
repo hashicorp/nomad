@@ -575,15 +575,11 @@ func (c *Client) Shutdown() error {
 		}
 	} else {
 		// In normal mode call shutdown
-		wg := sync.WaitGroup{}
+		arGroup := group{}
 		for _, ar := range c.getAllocRunners() {
-			wg.Add(1)
-			go func(ar AllocRunner) {
-				ar.Shutdown()
-				wg.Done()
-			}(ar)
+			arGroup.Go(ar.Shutdown)
 		}
-		wg.Wait()
+		arGroup.Wait()
 	}
 
 	c.shutdown = true
