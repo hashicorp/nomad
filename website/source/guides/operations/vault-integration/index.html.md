@@ -583,8 +583,7 @@ the appropriate data is being accessed from the database and displayed to you.
 There are several ways to do this.
 
 - Use the `dig` command to query the SRV record of your service and obtain the
-  port it is using. Then `curl` your service at the appropriate port and and
-`names` path.
+  port it is using. Then `curl` your service at the appropriate port and `names` path.
 
 ```shell
 $ dig +short SRV nomad-vault-demo.service.consul
