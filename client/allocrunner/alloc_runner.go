@@ -213,8 +213,8 @@ func (ar *allocRunner) Run() {
 		goto POST
 	}
 
-	// Run the runners and block until they exit
-	<-ar.runTasks()
+	// Run the runners (blocks until they exit)
+	ar.runTasks()
 
 POST:
 	// Run the postrun hooks
@@ -249,23 +249,15 @@ func (ar *allocRunner) shouldRun() bool {
 	return true
 }
 
-// runTasks is used to run the task runners.
-func (ar *allocRunner) runTasks() <-chan struct{} {
+// runTasks is used to run the task runners and block until they exit.
+func (ar *allocRunner) runTasks() {
 	for _, task := range ar.tasks {
 		go task.Run()
 	}
 
-	// Return a combined WaitCh that is closed when all task runners have
-	// exited.
-	waitCh := make(chan struct{})
-	go func() {
-		defer close(waitCh)
-		for _, task := range ar.tasks {
-			<-task.WaitCh()
-		}
-	}()
-
-	return waitCh
+	for _, task := range ar.tasks {
+		<-task.WaitCh()
+	}
 }
 
 // Alloc returns the current allocation being run by this runner as sent by the
