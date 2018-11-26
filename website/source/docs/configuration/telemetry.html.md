@@ -31,7 +31,7 @@ telemetry {
 
 This section of the documentation only covers the configuration options for
 `telemetry` stanza. To understand the architecture and metrics themselves,
-please see the [Telemetry guide](/guides/operations/monitoring/telemetry.html).
+please see the [Telemetry guide](/docs/telemetry/index.html).
 
 ## `telemetry` Parameters
 
