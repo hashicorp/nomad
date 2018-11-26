@@ -253,6 +253,10 @@ var (
 			"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
 				"propagation": hclspec.NewAttr("propagation", "string", false),
 			})),
+			"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"size": hclspec.NewAttr("size", "number", false),
+				"mode": hclspec.NewAttr("mode", "number", false),
+			})),
 			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
 				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
 				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
@@ -364,6 +368,7 @@ type DockerMount struct {
 	ReadOnly      bool                `codec:"readonly"`
 	BindOptions   DockerBindOptions   `codec:"bind_options"`
 	VolumeOptions DockerVolumeOptions `codec:"volume_options"`
+	TmpfsOptions  DockerTmpfsOptions  `codec:"tmpfs_options"`
 }
 
 func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
@@ -394,8 +399,16 @@ func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
 		hm.BindOptions = &docker.BindOptions{
 			Propagation: m.BindOptions.Propagation,
 		}
+	case "tmpfs":
+		if m.Source != "" {
+			return hm, fmt.Errorf(`invalid source, must be "" for tmpfs`)
+		}
+		hm.TempfsOptions = &docker.TempfsOptions{
+			SizeBytes: m.TmpfsOptions.SizeBytes,
+			Mode:      m.TmpfsOptions.Mode,
+		}
 	default:
-		return hm, fmt.Errorf(`invalid mount type, must be "bind" or "volume": %q`, m.Type)
+		return hm, fmt.Errorf(`invalid mount type, must be "bind", "volume", "tmpfs": %q`, m.Type)
 	}
 
 	return hm, nil
@@ -409,6 +422,11 @@ type DockerVolumeOptions struct {
 
 type DockerBindOptions struct {
 	Propagation string `codec:"propagation"`
+}
+
+type DockerTmpfsOptions struct {
+	SizeBytes int64 `codec:"size"`
+	Mode      int   `codec:"mode"`
 }
 
 // DockerVolumeDriverConfig holds a map of volume driver specific options

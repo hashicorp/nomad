@@ -1824,6 +1824,30 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:            "basic tmpfs",
+			requiresVolumes: false,
+			passedMounts: []DockerMount{
+				{
+					Type:   "tmpfs",
+					Target: "/nomad",
+					TmpfsOptions: DockerTmpfsOptions{
+						SizeBytes: 321,
+						Mode:      0666,
+					},
+				},
+			},
+			expectedMounts: []docker.HostMount{
+				{
+					Type:   "tmpfs",
+					Target: "/nomad",
+					TempfsOptions: &docker.TempfsOptions{
+						SizeBytes: 321,
+						Mode:      0666,
+					},
+				},
+			},
+		},
 	}
 
 	t.Run("with volumes enabled", func(t *testing.T) {
