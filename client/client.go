@@ -1215,10 +1215,10 @@ func (c *Client) registerAndHeartbeat() {
 	c.retryRegisterNode()
 
 	// Start watching changes for node changes
-	c.shutdownGroup.Go(c.watchNodeUpdates)
+	go c.watchNodeUpdates()
 
 	// Start watching for emitting node events
-	c.shutdownGroup.Go(c.watchNodeEvents)
+	go c.watchNodeEvents()
 
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
@@ -2600,6 +2600,7 @@ type group struct {
 	wg sync.WaitGroup
 }
 
+// Go starts f in a goroutine and must be called before Wait.
 func (g *group) Go(f func()) {
 	g.wg.Add(1)
 	go func() {
@@ -2608,6 +2609,8 @@ func (g *group) Go(f func()) {
 	}()
 }
 
+// Wait for all goroutines to exit. Must be called after all calls to Go
+// complete.
 func (g *group) Wait() {
 	g.wg.Wait()
 }
