@@ -293,12 +293,14 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `mounts` - (Optional) A list of
   [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-or-volumes)
-  to be mounted into the container. Only volume type mounts are supported.
+  to be mounted into the container. Volume, bind, and tmpfs type mounts are supported.
 
     ```hcl
     config {
       mounts = [
+        # sample volume mount
         {
+          type = "volume"
           target = "/path/in/container"
           source = "name-of-volume"
           readonly = false
@@ -313,6 +315,25 @@ The `docker` driver supports the following configuration in the job spec.  Only
                 foo = "bar"
               }
             }
+          }
+        },
+        # sample bind mount
+        {
+          type = "bind"
+          target = "/path/in/container"
+          source = "/path/in/host"
+          readonly = false
+          bind_options {
+            propagation = "xxxx"
+          }
+        },
+        # sample tmpfs mount
+        {
+          type = "tmpfs"
+          target = "/path/in/container"
+          readonly = false
+          tmpfs_options {
+            size = 100000 # size in bytes
           }
         }
       ]
