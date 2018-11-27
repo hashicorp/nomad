@@ -330,6 +330,13 @@ func (n *Node) UpdateMetadata(args *structs.NodePatchMetadataRequest, reply *str
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_metadata"}, time.Now())
 
+	// Check node write permissions
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client metadata update")
@@ -373,6 +380,13 @@ func (n *Node) ReplaceMetadata(args *structs.NodeReplaceMetadataRequest, reply *
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "replace_metadata"}, time.Now())
+
+	// Check node write permissions
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Verify the arguments
 	if args.NodeID == "" {
