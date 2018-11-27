@@ -106,9 +106,11 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 	require.NoError(h.t, taskDir.Build(false, entries, fsi))
 
 	task := &structs.Task{
-		Name:      t.Name,
-		Env:       t.Env,
-		Resources: t.Resources.NomadResources,
+		Name: t.Name,
+		Env:  t.Env,
+	}
+	if t.Resources != nil {
+		task.Resources = t.Resources.NomadResources
 	}
 	taskBuilder := env.NewBuilder(mock.Node(), mock.Alloc(), task, "global")
 	utils.SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
