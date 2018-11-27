@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,9 @@ func (s *HTTPServer) NodeSpecificRequest(resp http.ResponseWriter, req *http.Req
 	case strings.HasSuffix(path, "/purge"):
 		nodeName := strings.TrimSuffix(path, "/purge")
 		return s.nodePurge(resp, req, nodeName)
+	case strings.HasSuffix(path, "/metadata"):
+		nodeName := strings.TrimSuffix(path, "/metadata")
+		return s.nodeUpdateMetadata(resp, req, nodeName)
 	default:
 		return s.nodeQuery(resp, req, path)
 	}
@@ -214,4 +218,86 @@ func (s *HTTPServer) nodePurge(resp http.ResponseWriter, req *http.Request, node
 	}
 	setIndex(resp, out.Index)
 	return out, nil
+}
+
+type nodePatchMetadataRequestBody struct {
+	Upserts map[string]string
+	Deletes []string
+}
+
+func (s *HTTPServer) nodePartialUpdateMetadata(resp http.ResponseWriter, req *http.Request, nodeID string) (interface{}, error) {
+	var body nodePatchMetadataRequestBody
+	if err := decodeBody(req, &body); err != nil {
+		return nil, CodedError(422, ErrUnprocessibleBody)
+	}
+
+	args := structs.NodePatchMetadataRequest{
+		NodeID:  nodeID,
+		Upserts: body.Upserts,
+		Deletes: body.Deletes,
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.NodeMetadataUpdateResponse
+	if err := s.agent.RPC("Node.UpdateMetadata", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+
+	return out, nil
+}
+
+type nodeReplaceMetadataRequestBody struct {
+	Metadata map[string]string
+}
+
+func (s *HTTPServer) nodeReplaceMetadata(resp http.ResponseWriter, req *http.Request, nodeID string) (interface{}, error) {
+	var body nodeReplaceMetadataRequestBody
+	if err := decodeBody(req, &body); err != nil {
+		return nil, CodedError(422, ErrUnprocessibleBody)
+	}
+
+	args := structs.NodeReplaceMetadataRequest{
+		NodeID:   nodeID,
+		Metadata: body.Metadata,
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	// Check for cas value
+	params := req.URL.Query()
+	if _, ok := params["cas"]; ok {
+		casVal, err := strconv.ParseUint(params.Get("cas"), 10, 64)
+		if err != nil {
+			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing cas value: %v", err))
+		}
+		args.ModifyIndex = casVal
+		args.CAS = true
+	}
+
+	var out structs.NodeMetadataUpdateResponse
+	if err := s.agent.RPC("Node.ReplaceMetadata", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+
+	return out, nil
+}
+
+func (s *HTTPServer) nodeUpdateMetadata(resp http.ResponseWriter, req *http.Request, nodeID string) (interface{}, error) {
+	switch req.Method {
+	case "PUT":
+		// PUT requests perform a wholesale replacement of the node metadata. This
+		// may optionally be protected with a `cas` parameter to allow clients to
+		// manually perform conflict resolution on updates.
+		out, err := s.nodeReplaceMetadata(resp, req, nodeID)
+		return out, err
+	case "PATCH":
+		// Patch requests perform partial changes on the meta. This is to allow for
+		// concurrency in common use cases without clients having to implement
+		// conflict resolution logic.
+		out, err := s.nodePartialUpdateMetadata(resp, req, nodeID)
+		return out, err
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
 }

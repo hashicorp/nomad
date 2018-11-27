@@ -26,6 +26,9 @@ const (
 	// ErrInvalidMethod is used if the HTTP method is not supported
 	ErrInvalidMethod = "Invalid method"
 
+	// ErrUnprocessibleBody is used if the HTTP body could not be decoded.
+	ErrUnprocessibleBody = "Unprocessible body"
+
 	// ErrEntOnly is the error returned if accessing an enterprise only
 	// endpoint
 	ErrEntOnly = "Nomad Enterprise only endpoint"

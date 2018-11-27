@@ -3,6 +3,7 @@ package agent
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -477,19 +478,114 @@ func TestHTTP_NodePurge(t *testing.T) {
 	})
 }
 
+func registerMockNode(t *testing.T, s *TestAgent) *structs.Node {
+	t.Helper()
+
+	// Create the node
+	node := mock.Node()
+	args := structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.NodeUpdateResponse
+	if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+		return nil
+	}
+
+	return node
+}
+
+func TestHTTP_NodeUpdateMetadata(t *testing.T) {
+	t.Parallel()
+}
+
+func TestHTTP_NodeUpdateMetadata_PUT(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		node := registerMockNode(t, s)
+
+		// Make the HTTP request to replace metadata
+		body := strings.NewReader(`{"Metadata": {"foo": "bar"}}`)
+		req, err := http.NewRequest("PUT", "/v1/node/"+node.ID+"/metadata", body)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		resp := httptest.NewRecorder()
+
+		// Make the request
+		_, err = s.Server.NodeSpecificRequest(resp, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if resp.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Ensure that the updated metadata is present
+		args1 := structs.NodeSpecificRequest{
+			NodeID:       node.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp1 structs.SingleNodeResponse
+		if err := s.Agent.RPC("Node.GetNode", &args1, &resp1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if len(resp1.Node.Meta) != 1 {
+			t.Fatalf("node metadata has too many keys: %#v", resp1.Node.Meta)
+		}
+		if resp1.Node.Meta["foo"] != "bar" {
+			t.Fatalf("node metadata not updated: %#v", resp1.Node)
+		}
+
+	})
+}
+
+func TestHTTP_NodeUpdateMetadata_PATCH(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		node := registerMockNode(t, s)
+
+		// Make the HTTP request to update metadata
+		body := strings.NewReader(`{"Upserts": {"foo": "bar"}}`)
+		req, err := http.NewRequest("PATCH", "/v1/node/"+node.ID+"/metadata", body)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		_, err = s.Server.NodeSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+
+		// Ensure that the updated metadata is present
+		args1 := structs.NodeSpecificRequest{
+			NodeID:       node.ID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp1 structs.SingleNodeResponse
+		if err := s.Agent.RPC("Node.GetNode", &args1, &resp1); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if resp1.Node.Meta["foo"] != "bar" {
+			t.Fatalf("node metadata not updated: %#v", resp1.Node)
+		}
+	})
+}
+
 func TestHTTP_NodeQuery(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
-		// Create the job
-		node := mock.Node()
-		args := structs.NodeRegisterRequest{
-			Node:         node,
-			WriteRequest: structs.WriteRequest{Region: "global"},
-		}
-		var resp structs.NodeUpdateResponse
-		if err := s.Agent.RPC("Node.Register", &args, &resp); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		node := registerMockNode(t, s)
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/node/"+node.ID, nil)
