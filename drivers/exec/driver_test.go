@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -41,7 +43,7 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 	}
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
 	require.NoError(err)
@@ -60,7 +62,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
 	require.NoError(err)
@@ -79,7 +81,7 @@ func TestExecDriver_StartWait(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
@@ -111,7 +113,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
@@ -173,7 +175,7 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
@@ -242,7 +244,7 @@ func TestExecDriver_Stats(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
@@ -275,7 +277,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
@@ -323,7 +325,7 @@ func TestExecDriver_User(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
@@ -356,7 +358,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",

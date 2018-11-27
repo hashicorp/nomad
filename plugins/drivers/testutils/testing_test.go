@@ -1,4 +1,4 @@
-package drivers
+package testutils
 
 import (
 	"bytes"
@@ -9,10 +9,28 @@ import (
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 )
+
+var _ drivers.DriverPlugin = (*MockDriver)(nil)
+
+// Very simple test to ensure the test harness works as expected
+func TestDriverHarness(t *testing.T) {
+	handle := &drivers.TaskHandle{Config: &drivers.TaskConfig{Name: "mock"}}
+	d := &MockDriver{
+		StartTaskF: func(task *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+			return handle, nil, nil
+		},
+	}
+	harness := NewDriverHarness(t, d)
+	defer harness.Kill()
+	actual, _, err := harness.StartTask(&drivers.TaskConfig{})
+	require.NoError(t, err)
+	require.Equal(t, handle.Config.Name, actual.Config.Name)
+}
 
 type testDriverState struct {
 	Pid int
@@ -23,23 +41,23 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	fingerprints := []*Fingerprint{
+	fingerprints := []*drivers.Fingerprint{
 		{
 			Attributes:        map[string]*pstructs.Attribute{"foo": pstructs.NewStringAttribute("bar")},
-			Health:            HealthStateUnhealthy,
+			Health:            drivers.HealthStateUnhealthy,
 			HealthDescription: "starting up",
 		},
 		{
 			Attributes:        map[string]*pstructs.Attribute{"foo": pstructs.NewStringAttribute("bar")},
-			Health:            HealthStateHealthy,
+			Health:            drivers.HealthStateHealthy,
 			HealthDescription: "running",
 		},
 	}
 
 	var complete bool
 	impl := &MockDriver{
-		FingerprintF: func(ctx context.Context) (<-chan *Fingerprint, error) {
-			ch := make(chan *Fingerprint)
+		FingerprintF: func(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+			ch := make(chan *drivers.Fingerprint)
 			go func() {
 				defer close(ch)
 				ch <- fingerprints[0]
@@ -92,7 +110,7 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 
 	// mock the RecoverTask driver call
 	impl := &MockDriver{
-		RecoverTaskF: func(h *TaskHandle) error {
+		RecoverTaskF: func(h *drivers.TaskHandle) error {
 			var actual testDriverState
 			require.NoError(h.GetDriverState(&actual))
 			require.Equal(state, actual)
@@ -103,7 +121,7 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 	harness := NewDriverHarness(t, impl)
 	defer harness.Kill()
 
-	handle := &TaskHandle{
+	handle := &drivers.TaskHandle{
 		DriverState: buf.Bytes(),
 	}
 	err := harness.RecoverTask(handle)
@@ -114,16 +132,16 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	cfg := &TaskConfig{
+	cfg := &drivers.TaskConfig{
 		ID: "foo",
 	}
 	state := &testDriverState{Pid: 1, Log: "log"}
-	var handle *TaskHandle
+	var handle *drivers.TaskHandle
 	impl := &MockDriver{
-		StartTaskF: func(c *TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error) {
-			handle = NewTaskHandle("test")
+		StartTaskF: func(c *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+			handle = drivers.NewTaskHandle("test")
 			handle.Config = c
-			handle.State = TaskStateRunning
+			handle.State = drivers.TaskStateRunning
 			handle.SetDriverState(state)
 			return handle, nil, nil
 		},
@@ -146,13 +164,13 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	result := &ExitResult{ExitCode: 1, Signal: 9}
+	result := &drivers.ExitResult{ExitCode: 1, Signal: 9}
 
 	signalTask := make(chan struct{})
 
 	impl := &MockDriver{
-		WaitTaskF: func(_ context.Context, id string) (<-chan *ExitResult, error) {
-			ch := make(chan *ExitResult)
+		WaitTaskF: func(_ context.Context, id string) (<-chan *drivers.ExitResult, error) {
+			ch := make(chan *drivers.ExitResult)
 			go func() {
 				<-signalTask
 				ch <- result
@@ -185,7 +203,7 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 	require := require.New(t)
 
 	now := time.Now().UTC().Truncate(time.Millisecond)
-	events := []*TaskEvent{
+	events := []*drivers.TaskEvent{
 		{
 			TaskID:      "abc",
 			Timestamp:   now,
@@ -213,8 +231,8 @@ func TestBaseDriver_TaskEvents(t *testing.T) {
 	}
 
 	impl := &MockDriver{
-		TaskEventsF: func(ctx context.Context) (<-chan *TaskEvent, error) {
-			ch := make(chan *TaskEvent)
+		TaskEventsF: func(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
+			ch := make(chan *drivers.TaskEvent)
 			go func() {
 				defer close(ch)
 				for _, event := range events {
