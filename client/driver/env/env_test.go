@@ -14,6 +14,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -508,6 +509,42 @@ func TestEnvironment_Envvars(t *testing.T) {
 		if v != actV {
 			t.Fatalf("expected %s=%q but found %q", k, v, actV)
 		}
+	}
+}
+
+// TestEnvironment_HookVars asserts hook env vars are LWW and deletes of later
+// writes allow earlier hook's values to be visible.
+func TestEnvironment_HookVars(t *testing.T) {
+	n := mock.Node()
+	a := mock.Alloc()
+	builder := NewBuilder(n, a, a.Job.TaskGroups[0].Tasks[0], "global")
+
+	// Add vars from two hooks and assert the second one wins on
+	// conflicting keys.
+	builder.SetHookEnv("hookA", map[string]string{
+		"foo": "bar",
+		"baz": "quux",
+	})
+	builder.SetHookEnv("hookB", map[string]string{
+		"foo":   "123",
+		"hookB": "wins",
+	})
+
+	{
+		out := builder.Build().All()
+		assert.Equal(t, "123", out["foo"])
+		assert.Equal(t, "quux", out["baz"])
+		assert.Equal(t, "wins", out["hookB"])
+	}
+
+	// Asserting overwriting hook vars allows the first hooks original
+	// value to be used.
+	builder.SetHookEnv("hookB", nil)
+	{
+		out := builder.Build().All()
+		assert.Equal(t, "bar", out["foo"])
+		assert.Equal(t, "quux", out["baz"])
+		assert.NotContains(t, out, "hookB")
 	}
 }
 

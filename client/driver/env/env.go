@@ -297,23 +297,31 @@ type Builder struct {
 	// and affect network env vars.
 	networks []*structs.NetworkResource
 
+	// hookEnvs are env vars set by hooks and stored by hook name to
+	// support adding/removing vars from multiple hooks (eg HookA adds A:1,
+	// HookB adds A:2, HookA removes A, A should equal 2)
+	hookEnvs map[string]map[string]string
+
+	// hookNames is a slice of hooks in hookEnvs to apply hookEnvs in the
+	// order the hooks are run.
+	hookNames []string
+
 	mu *sync.RWMutex
 }
 
 // NewBuilder creates a new task environment builder.
 func NewBuilder(node *structs.Node, alloc *structs.Allocation, task *structs.Task, region string) *Builder {
-	b := &Builder{
-		region: region,
-		mu:     &sync.RWMutex{},
-	}
+	b := NewEmptyBuilder()
+	b.region = region
 	return b.setTask(task).setAlloc(alloc).setNode(node)
 }
 
 // NewEmptyBuilder creates a new environment builder.
 func NewEmptyBuilder() *Builder {
 	return &Builder{
-		mu:      &sync.RWMutex{},
-		envvars: make(map[string]string),
+		mu:       &sync.RWMutex{},
+		hookEnvs: map[string]map[string]string{},
+		envvars:  make(map[string]string),
 	}
 }
 
@@ -406,7 +414,14 @@ func (b *Builder) Build() *TaskEnv {
 		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
 	}
 
-	// Copy template env vars third as they override task env vars
+	// Copy hook env vars in the order the hooks were run
+	for _, h := range b.hookNames {
+		for k, v := range b.hookEnvs[h] {
+			envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+		}
+	}
+
+	// Copy template env vars as they override task env vars
 	for k, v := range b.templateEnv {
 		envMap[k] = v
 	}
@@ -428,12 +443,17 @@ func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Bui
 	return b.setTask(task).setAlloc(alloc)
 }
 
-func (b *Builder) SetGenericEnv(envs map[string]string) *Builder {
+// SetHookEnv sets environment variables from a hook. Variables are
+// Last-Write-Wins, so if a hook writes a variable that's also written by a
+// later hook, the later hooks value always gets used.
+func (b *Builder) SetHookEnv(hook string, envs map[string]string) *Builder {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	for k, v := range envs {
-		b.envvars[k] = v
+
+	if _, exists := b.hookEnvs[hook]; !exists {
+		b.hookNames = append(b.hookNames, hook)
 	}
+	b.hookEnvs[hook] = envs
 
 	return b
 }

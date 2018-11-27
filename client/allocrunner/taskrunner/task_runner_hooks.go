@@ -130,6 +130,7 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		name := pre.Name()
+
 		// Build the request
 		req := interfaces.TaskPrestartRequest{
 			Task:          tr.Task(),
@@ -148,6 +149,8 @@ func (tr *TaskRunner) prestart() error {
 		if origHookState != nil {
 			if origHookState.PrestartDone {
 				tr.logger.Trace("skipping done prestart hook", "name", pre.Name())
+				// Always set env vars from hooks
+				tr.envBuilder.SetHookEnv(name, origHookState.Env)
 				continue
 			}
 
@@ -175,6 +178,7 @@ func (tr *TaskRunner) prestart() error {
 			hookState := &state.HookState{
 				Data:         resp.HookData,
 				PrestartDone: resp.Done,
+				Env:          resp.Env,
 			}
 
 			// Store and persist local state if the hook state has changed
@@ -190,9 +194,7 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Store the environment variables returned by the hook
-		if len(resp.Env) != 0 {
-			tr.envBuilder.SetGenericEnv(resp.Env)
-		}
+		tr.envBuilder.SetHookEnv(name, resp.Env)
 
 		// Store the resources
 		if len(resp.Devices) != 0 {

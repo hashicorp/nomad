@@ -63,7 +63,13 @@ type HookState struct {
 	// Prestart is true if the hook has run Prestart successfully and does
 	// not need to run again
 	PrestartDone bool
-	Data         map[string]string
+
+	// Data allows hooks to persist arbitrary state.
+	Data map[string]string
+
+	// Environment variables set by the hook that will continue to be set
+	// even if PrestartDone=true.
+	Env map[string]string
 }
 
 func (h *HookState) Copy() *HookState {
