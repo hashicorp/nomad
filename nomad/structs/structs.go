@@ -1010,6 +1010,13 @@ type NodeUpdateResponse struct {
 	QueryMeta
 }
 
+// NodeMetadataUpdateResponse is used to respond to a node metadata update
+type NodeMetadataUpdateResponse struct {
+	NodeModifyIndex uint64
+	Updated         bool
+	WriteMeta
+}
+
 // NodeDrainUpdateResponse is used to respond to a node drain update
 type NodeDrainUpdateResponse struct {
 	NodeModifyIndex uint64

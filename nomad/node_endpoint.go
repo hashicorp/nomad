@@ -322,6 +322,102 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	return nil
 }
 
+// UpdateMetadata is used to dynamically update client metadata. If there are no
+// requested changes, or the node does not exist, an error will be returned.
+func (n *Node) UpdateMetadata(args *structs.NodePatchMetadataRequest, reply *structs.NodeMetadataUpdateResponse) error {
+	if done, err := n.srv.forward("Node.UpdateMetadata", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "update_metadata"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for client metadata update")
+	}
+	if len(args.Upserts) == 0 && len(args.Deletes) == 0 {
+		return errors.New("no upserts or deletions found in request for client metadata update")
+	}
+
+	// Look for the node
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return errNodeNotFound
+	}
+
+	// Commit this update via Raft
+	_, index, err := n.srv.raftApply(structs.NodePatchMetadataRequestType, args)
+	if err != nil {
+		n.logger.Error("node metadata update failed", "error", err)
+		return err
+	}
+	reply.Updated = true
+	reply.NodeModifyIndex = index
+	reply.Index = index
+	n.srv.peerLock.RLock()
+	defer n.srv.peerLock.RUnlock()
+	return nil
+}
+
+// ReplaceMetadata is used to dynamically replace client metadata
+func (n *Node) ReplaceMetadata(args *structs.NodeReplaceMetadataRequest, reply *structs.NodeMetadataUpdateResponse) error {
+	if done, err := n.srv.forward("Node.ReplaceMetadata", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client", "replace_metadata"}, time.Now())
+
+	// Verify the arguments
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID for client metadata update")
+	}
+
+	// Look for the node
+	snap, err := n.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	node, err := snap.NodeByID(ws, args.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return errNodeNotFound
+	}
+
+	// Commit this update via Raft
+	resp, index, err := n.srv.raftApply(structs.NodeReplaceMetadataRequestType, args)
+	if err != nil {
+		n.logger.Error("node metadata replace failed", "error", err)
+		return err
+	}
+
+	switch rv := resp.(type) {
+	case error:
+		return rv
+	case bool:
+		reply.Updated = rv
+	default:
+		n.logger.Error("CRITICAL: Unexpected response from raft")
+		return fmt.Errorf("Unexpected response from raft")
+	}
+
+	reply.NodeModifyIndex = index
+	reply.Index = index
+	n.srv.peerLock.RLock()
+	defer n.srv.peerLock.RUnlock()
+	return nil
+}
+
 // UpdateStatus is used to update the status of a client node
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
 	if done, err := n.srv.forward("Node.UpdateStatus", args, args, reply); done {

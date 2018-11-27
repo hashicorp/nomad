@@ -372,6 +372,97 @@ func TestClientEndpoint_Deregister_Vault(t *testing.T) {
 	}
 }
 
+func registerMockNodeRPC(t *testing.T, s *Server) *structs.Node {
+	t.Helper()
+
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	codec := rpcClient(t, s)
+	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+		return nil
+	}
+
+	return node
+}
+
+func TestClientEndpoint_UpdateMetadata(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	node := registerMockNodeRPC(t, s1)
+
+	// Update the metadata
+	dereg := &structs.NodePatchMetadataRequest{
+		NodeID:       node.ID,
+		Upserts:      map[string]string{"foo": "bar", "version": "12"},
+		Deletes:      []string{"pci-dss", "database"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.NodeMetadataUpdateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.UpdateMetadata", dereg, &resp)
+	require.NoError(err, "Expected RPC Call to complete successfully")
+	require.NotEqual(resp.Index, 0, "Expected response to include new index")
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.NoError(err, "Expected no error when looking up node")
+	require.NotNil(out, "Expected to find node")
+	require.Equal(out.ModifyIndex, resp.Index, "Expected updated indexes to match")
+
+	require.Equal(out.Meta, map[string]string{"foo": "bar", "version": "12"})
+
+	require.Nil(codec.Close())
+}
+
+func TestClientEndpoint_ReplaceMetadata(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	node := registerMockNodeRPC(t, s1)
+
+	// Update the metadata
+	dereg := &structs.NodeReplaceMetadataRequest{
+		NodeID:       node.ID,
+		Metadata:     map[string]string{"bar": "foo"},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.NodeMetadataUpdateResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.ReplaceMetadata", dereg, &resp)
+	require.NoError(err, "Expected RPC Call to complete successfully")
+	require.NotEqual(resp.Index, 0, "Expected response to include new index")
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.NodeByID(ws, node.ID)
+	require.NoError(err, "Expected no error when looking up node")
+	require.NotNil(out, "Expected to find node")
+	require.Equal(out.ModifyIndex, resp.Index, "Expected updated indexes to match")
+
+	require.Equal(out.Meta, map[string]string{"bar": "foo"})
+
+	require.Nil(codec.Close())
+}
+
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
