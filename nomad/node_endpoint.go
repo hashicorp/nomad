@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -47,6 +48,8 @@ const (
 	// reregistered by the heartbeat.
 	NodeHeartbeatEventReregistered = "Node reregistered by heartbeat"
 )
+
+var errNodeNotFound = errors.New("node not found")
 
 // Node endpoint is used for client interactions
 type Node struct {
@@ -276,7 +279,7 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 		return err
 	}
 	if node == nil {
-		return fmt.Errorf("node not found")
+		return errNodeNotFound
 	}
 
 	// Commit this update via Raft
@@ -354,7 +357,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		return err
 	}
 	if node == nil {
-		return fmt.Errorf("node not found")
+		return errNodeNotFound
 	}
 
 	// We have a valid node connection, so add the mapping to cache the
@@ -481,7 +484,7 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return err
 	}
 	if node == nil {
-		return fmt.Errorf("node not found")
+		return errNodeNotFound
 	}
 
 	// COMPAT: Remove in 0.9. Attempt to upgrade the request if it is of the old
@@ -576,7 +579,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 		return err
 	}
 	if node == nil {
-		return fmt.Errorf("node not found")
+		return errNodeNotFound
 	}
 
 	if node.DrainStrategy != nil && args.Eligibility == structs.NodeSchedulingEligible {
@@ -659,7 +662,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 		return err
 	}
 	if node == nil {
-		return fmt.Errorf("node not found")
+		return errNodeNotFound
 	}
 
 	// Create the evaluation
