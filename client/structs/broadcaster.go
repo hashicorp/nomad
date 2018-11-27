@@ -25,7 +25,7 @@ var ErrAllocBroadcasterClosed = errors.New("alloc broadcaster closed")
 type AllocBroadcaster struct {
 	mu sync.Mutex
 
-	// listeners is a map of unique ids to listener chans. laziliy
+	// listeners is a map of unique ids to listener chans. lazily
 	// initialized on first listen
 	listeners map[int]chan *structs.Allocation
 
