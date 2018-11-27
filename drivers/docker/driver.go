@@ -178,7 +178,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *struc
 		return nil, nil, err
 	}
 
-	containerCfg, err := d.createContainerConfig(cfg, &driverConfig, id)
+	containerCfg, err := d.createContainerConfig(cfg, &driverConfig, driverConfig.Image)
 	if err != nil {
 		d.logger.Error("failed to create container configuration", "image_name", driverConfig.Image,
 			"image_id", id, "error", err)
