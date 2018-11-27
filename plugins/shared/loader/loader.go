@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/plugins"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -218,6 +219,8 @@ func getPluginMap(pluginType string) map[string]plugin.Plugin {
 	switch pluginType {
 	case base.PluginTypeDevice:
 		pmap[base.PluginTypeDevice] = &device.PluginDevice{}
+	case base.PluginTypeDriver:
+		pmap[base.PluginTypeDriver] = &drivers.PluginDriver{}
 	}
 
 	return pmap
