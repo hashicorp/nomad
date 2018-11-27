@@ -472,7 +472,7 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 				devID := device.ID()
 
 				// Look up the device instance from the device allocator
-				deviceIdTuple := *devID
+				deviceIdTuple := *device.ID()
 				devInst := devAlloc.Devices[deviceIdTuple]
 
 				if devInst == nil {
