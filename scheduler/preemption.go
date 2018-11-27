@@ -494,7 +494,7 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 				allocDeviceGrp.allocs = append(allocDeviceGrp.allocs, alloc)
 				devCount := allocDeviceGrp.deviceInstances[alloc.ID]
 				devCount += len(device.DeviceIDs)
-				allocDeviceGrp.deviceInstances[alloc.ID] = devCount
+				allocDeviceGrp.deviceInstances[alloc.ID] += len(device.DeviceIDs)
 			}
 		}
 	}
