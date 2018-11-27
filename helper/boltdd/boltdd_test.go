@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/boltdb/bolt"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,25 @@ func TestDB_Open(t *testing.T) {
 	defer cleanup()
 
 	require.Equal(0, db.BoltDB().Stats().TxStats.Write)
+}
+
+func TestDB_Close(t *testing.T) {
+	t.Parallel()
+
+	db, cleanup := setupBoltDB(t)
+	defer cleanup()
+
+	db.Close()
+
+	require.Equal(t, db.Update(func(tx *Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("foo"))
+		return err
+	}), bolt.ErrDatabaseNotOpen)
+
+	require.Equal(t, db.Update(func(tx *Tx) error {
+		_, err := tx.CreateBucket([]byte("foo"))
+		return err
+	}), bolt.ErrDatabaseNotOpen)
 }
 
 func TestBucket_Create(t *testing.T) {

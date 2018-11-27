@@ -162,6 +162,10 @@ func (h *vaultHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, r
 	return nil
 }
 
+func (h *vaultHook) Shutdown() {
+	h.cancel()
+}
+
 // run should be called in a go-routine and manages the derivation, renewal and
 // handling of errors with the Vault token. The optional parameter allows
 // setting the initial Vault token. This is useful when the Vault token is

@@ -124,7 +124,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
-	ar.Run()
+	go ar.Run()
 
 	// Wait for all tasks to be killed
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -214,7 +214,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
-	ar.Run()
+	go ar.Run()
 
 	// Wait for tasks to start
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -308,7 +308,6 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
-	defer ar.Destroy()
 
 	// Mimic Nomad exiting before the leader stopping is able to stop other tasks.
 	ar.tasks["leader"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled))

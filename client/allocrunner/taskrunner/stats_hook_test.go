@@ -15,6 +15,7 @@ import (
 // Statically assert the stats hook implements the expected interfaces
 var _ interfaces.TaskPoststartHook = (*statsHook)(nil)
 var _ interfaces.TaskExitedHook = (*statsHook)(nil)
+var _ interfaces.ShutdownHook = (*statsHook)(nil)
 
 type mockStatsUpdater struct {
 	// Ch is sent task resource usage updates if not nil
