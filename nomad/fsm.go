@@ -193,6 +193,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeregisterNode(buf[1:], log.Index)
 	case structs.NodeUpdateStatusRequestType:
 		return n.applyStatusUpdate(buf[1:], log.Index)
+	case structs.NodePatchMetadataRequestType:
+		return n.applyMetadataUpdate(buf[1:], log.Index)
+	case structs.NodeReplaceMetadataRequestType:
+		return n.applyMetadataReplace(buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
 		return n.applyDrainUpdate(buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
@@ -329,6 +333,44 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	}
 
 	return nil
+}
+
+func (n *nomadFSM) applyMetadataUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_metadata_update"}, time.Now())
+	var req structs.NodePatchMetadataRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateNodeMetadata(index, req.NodeID, req.Upserts, req.Deletes, req.NodeEvent); err != nil {
+		n.logger.Error("UpdateNodeMetadata failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyMetadataReplace(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_metadata_replace"}, time.Now())
+	var req structs.NodeReplaceMetadataRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if req.CAS {
+		upd, err := n.state.NodeCASMetadata(index, req.ModifyIndex, req.NodeID, req.Metadata, req.NodeEvent)
+		if err != nil {
+			return err
+		}
+		return upd
+	}
+
+	if err := n.state.SetNodeMetadata(index, req.NodeID, req.Metadata, req.NodeEvent); err != nil {
+		n.logger.Error("SetNodeMetadata failed", "error", err)
+		return err
+	}
+
+	return true
 }
 
 func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {

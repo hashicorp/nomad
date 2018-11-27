@@ -682,6 +682,144 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, event
 	return nil
 }
 
+// UpdateNodeMetadata is used to update the metadata for a node
+func (s *StateStore) UpdateNodeMetadata(index uint64, nodeID string, upserts map[string]string, deletes []string, event *structs.NodeEvent) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+	}
+
+	if copyNode.Meta == nil {
+		copyNode.Meta = make(map[string]string)
+	}
+
+	// Update the metadata in the copy
+	for k, v := range upserts {
+		if _, ok := copyNode.Meta[k]; ok {
+			s.logger.Info("overwiting metadata value for key:", k)
+		}
+		copyNode.Meta[k] = v
+	}
+	for _, k := range deletes {
+		delete(copyNode.Meta, k)
+	}
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// NodeCASMetadata used to update the node metadata configuration with a
+// given Raft index. If the CAS index specified is not equal to the last observed index
+// for the node, then the call returns an error.
+func (s *StateStore) NodeCASMetadata(idx, cidx uint64, nodeID string, metadata map[string]string, event *structs.NodeEvent) (bool, error) {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Check for the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return false, fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return false, fmt.Errorf("node not found")
+	}
+
+	// If the existing index does not match the provided CAS
+	// index arg, then we shouldn't update anything and can safely
+	// return early here.
+	e := existing.(*structs.Node)
+	if e.ModifyIndex != cidx {
+		return false, nil
+	}
+
+	if err := s.setNodeMetadataTXN(txn, idx, nodeID, metadata, event); err != nil {
+		return false, err
+	}
+
+	txn.Commit()
+	return true, nil
+}
+
+func (s *StateStore) SetNodeMetadata(idx uint64, nodeID string, metadata map[string]string, event *structs.NodeEvent) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	err := s.setNodeMetadataTXN(txn, idx, nodeID, metadata, event)
+	if err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) setNodeMetadataTXN(txn *memdb.Txn, idx uint64, nodeID string, metadata map[string]string, event *structs.NodeEvent) error {
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(idx, copyNode, []*structs.NodeEvent{event})
+	}
+
+	if existingNode.Meta != nil {
+		for k, nv := range metadata {
+			if ev, ok := copyNode.Meta[k]; ok && ev != nv {
+				s.logger.Info("overwriting metadata value for key:", k)
+			}
+		}
+	}
+
+	copyNode.Meta = metadata
+
+	copyNode.ModifyIndex = idx
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", idx}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
 // BatchUpdateNodeDrain is used to update the drain of a node set of nodes
 func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
 	txn := s.db.Txn(true)

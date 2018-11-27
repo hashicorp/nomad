@@ -54,6 +54,8 @@ const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
 	NodeUpdateStatusRequestType
+	NodePatchMetadataRequestType
+	NodeReplaceMetadataRequestType
 	NodeUpdateDrainRequestType
 	JobRegisterRequestType
 	JobDeregisterRequestType
@@ -345,6 +347,36 @@ type NodeServerInfo struct {
 type NodeUpdateStatusRequest struct {
 	NodeID    string
 	Status    string
+	NodeEvent *NodeEvent
+	WriteRequest
+}
+
+// NodePatchMetadataRequest is used for adding or removing metadata keys for
+// a given client node.
+type NodePatchMetadataRequest struct {
+	NodeID string
+
+	// Upserts is a mapping of new or updated metadata keys to their values
+	Upserts map[string]string
+
+	// Deletes is a slice of metadata keys that should be removed.
+	Deletes []string
+
+	NodeEvent *NodeEvent
+	WriteRequest
+}
+
+// NodeReplaceMetadataRequest is used for doing a wholesale replacement of
+// metadata on a client node.
+type NodeReplaceMetadataRequest struct {
+	NodeID   string
+	Metadata map[string]string
+
+	// ModifyIndex stores the modify indexes of this configuration.
+	ModifyIndex uint64
+	// CAS controls whether to use check-and-set semantics for this request.
+	CAS bool
+
 	NodeEvent *NodeEvent
 	WriteRequest
 }

@@ -305,6 +305,120 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	})
 }
 
+func TestFSM_UpdateNodeMetadata(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	fsm := testFSM(t)
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.NoError(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	req2 := structs.NodePatchMetadataRequest{
+		NodeID:  node.ID,
+		Upserts: map[string]string{"foo": "value"},
+		Deletes: []string{"pci-dss"},
+	}
+	buf, err = structs.Encode(structs.NodePatchMetadataRequestType, req2)
+	require.NoError(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	require.Nil(resp)
+
+	// Verify the status is ready.
+	ws := memdb.NewWatchSet()
+	node, err = fsm.State().NodeByID(ws, req.Node.ID)
+	require.NoError(err)
+	require.Equal(node.Meta, map[string]string{"foo": "value", "version": "5.6", "database": "mysql"})
+}
+
+func TestFSM_ReplaceNodeMetadata(t *testing.T) {
+	t.Parallel()
+
+	t.Run("with CAS", func(t *testing.T) {
+		t.Parallel()
+
+		require := require.New(t)
+		fsm := testFSM(t)
+		node := registerMockNodeFSM(t, fsm)
+
+		// Get the newly registered node
+		ws := memdb.NewWatchSet()
+		node, err := fsm.State().NodeByID(ws, node.ID)
+		require.NoError(err)
+
+		// Request a metadata update with a correct index
+		req := structs.NodeReplaceMetadataRequest{
+			NodeID:      node.ID,
+			Metadata:    map[string]string{"foo": "value"},
+			CAS:         true,
+			ModifyIndex: node.ModifyIndex,
+		}
+		buf, err := structs.Encode(structs.NodeReplaceMetadataRequestType, req)
+		require.NoError(err)
+
+		resp := fsm.Apply(makeLog(buf))
+		// Expect update to be accepted
+		require.Equal(resp, true)
+
+		// Verify the metadata is updated.
+		ws = memdb.NewWatchSet()
+		node, err = fsm.State().NodeByID(ws, node.ID)
+		require.NoError(err)
+		require.Equal(node.Meta, map[string]string{"foo": "value"})
+
+		// Request a metadata update with an out of date metadata index
+		req = structs.NodeReplaceMetadataRequest{
+			NodeID:      node.ID,
+			Metadata:    map[string]string{"foo": "another_value"},
+			CAS:         true,
+			ModifyIndex: node.ModifyIndex - 1,
+		}
+		buf, err = structs.Encode(structs.NodeReplaceMetadataRequestType, req)
+		require.NoError(err)
+
+		resp = fsm.Apply(makeLog(buf))
+		// Expect update to be rejected
+		require.Equal(resp, false)
+
+		// Verify the metadata is _not_ updated.
+		ws = memdb.NewWatchSet()
+		node, err = fsm.State().NodeByID(ws, node.ID)
+		require.NoError(err)
+		require.Equal(node.Meta, map[string]string{"foo": "value"})
+	})
+
+	t.Run("without CAS", func(t *testing.T) {
+		t.Parallel()
+
+		require := require.New(t)
+		fsm := testFSM(t)
+		node := registerMockNodeFSM(t, fsm)
+
+		req := structs.NodeReplaceMetadataRequest{
+			NodeID:   node.ID,
+			Metadata: map[string]string{"foo": "value"},
+		}
+		buf, err := structs.Encode(structs.NodeReplaceMetadataRequestType, req)
+		require.NoError(err)
+
+		resp := fsm.Apply(makeLog(buf))
+		require.Equal(resp, true)
+
+		// Verify the metadata is updated.
+		ws := memdb.NewWatchSet()
+		node, err = fsm.State().NodeByID(ws, node.ID)
+		require.NoError(err)
+		require.Equal(node.Meta, map[string]string{"foo": "value"})
+	})
+}
+
 func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -2937,4 +3051,21 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	require.Nil(err)
 	// Verify that preemption is still enabled
 	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
+}
+
+func registerMockNodeFSM(t *testing.T, fsm *nomadFSM) *structs.Node {
+	t.Helper()
+
+	node := mock.Node()
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	_ = fsm.Apply(makeLog(buf))
+
+	return node
 }
