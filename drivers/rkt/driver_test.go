@@ -87,6 +87,7 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -179,6 +180,7 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -233,6 +235,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -287,6 +290,7 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -337,6 +341,7 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -436,6 +441,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "rkttest_alpine",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -506,6 +512,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "redis",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -558,6 +565,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		User: "nobody",
 		Name: "rkttest_alpine",
 		Resources: &drivers.Resources{
@@ -617,6 +625,7 @@ func TestRktDriver_Exec(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
@@ -687,6 +696,7 @@ func TestRktDriver_Stats(t *testing.T) {
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
+		AllocID: uuid.Generate(),
 		Name: "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
