@@ -755,6 +755,91 @@ $ curl \
 
 ```
 
+## Set Metadata
+
+This endpoint replaces the metadata of the node. Updating metadata will not
+trigger new evaluations of existing allocations on the node.
+
+| Method  | Path                         | Produces                   |
+| ------- | ---------------------------- | -------------------------- |
+| `PUT` | `/v1/node/:node_id/metadata` | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required       |
+| ---------------- | ------------------ |
+| `NO`             | `node:write`       |
+
+### Parameters
+
+- `:node_id` `(string: <required>)`- Specifies the UUID of the node. This must
+  be the full UUID, not the short 8-character one. This is specified as part of
+  the path.
+
+- `Metadata` `(object: <required>)` - A map of string key, values that the node
+  metadata should be set to. This is provided as part of the body.
+
+- `cas` `(int: <optional>)` - If provided, the update will be applied with a
+   a Check-And-Set operation. The update will only happen if the given index
+   matches the `ModifyIndex` of the Node when the update is being applied. The
+   `Updated` parameter in the response will be `false` if the update could not
+   be applied.
+
+### Sample Request
+
+```bash
+curl -X PUT localhost:4646/v1/node/e7205a5c-345c-8066-a095-6cb77092f0aa/metadata \
+  -d '{"Metadata": {"key":"value"}}' | jq
+{
+  "Index": 24,
+  "NodeModifyIndex": 24,
+  "Updated": true
+}
+```
+
+## Update Metadata
+
+This endpoint replaces the metadata of the node. Updating metadata will not
+trigger new evaluations of existing allocations on the node.
+
+| Method  | Path                         | Produces                   |
+| ------- | ---------------------------- | -------------------------- |
+| `PATCH` | `/v1/node/:node_id/metadata` | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required       |
+| ---------------- | ------------------ |
+| `NO`             | `node:write`       |
+
+### Parameters
+
+- `:node_id` `(string: <required>)`- Specifies the UUID of the node. This must
+  be the full UUID, not the short 8-character one. This is specified as part of
+  the path.
+
+- `Upserts` `(object: <optional>)` - A map of string key, values that the node
+  metadata should have inserted or updated. This is provided as part of the body.
+
+- `Deletes` `(array: <optional>)` - An array of string keys that the node
+  metadata should have removed. This is provided as part of the body.
+
+### Sample Request
+
+```bash
+curl -X PUT localhost:4646/v1/node/e7205a5c-345c-8066-a095-6cb77092f0aa/metadata \
+  -d '{"Upserts": {"key":"value"}, "Deletes": ["some-other-key"]}' | jq
+{
+  "Index": 25,
+  "NodeModifyIndex": 25,
+  "Updated": true
+}
+```
+
 ## Drain Node
 
 This endpoint toggles the drain mode of the node. When draining is enabled, no
