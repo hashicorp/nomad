@@ -140,7 +140,8 @@ func (b *AllocBroadcaster) Listen() *AllocListener {
 		ch <- b.last
 	}
 
-	// Broadcaster is already closed, close this listener
+	// Broadcaster is already closed, close this listener. Must be done
+	// after the last update was sent.
 	if b.closed {
 		close(ch)
 	}
