@@ -338,7 +338,7 @@ message TaskConfig {
     // JobName is the name of the job of which this task is part of
     string job_name = 13;
 
-    // Id of the associated allocation
+    // AllocId is the ID of the associated allocation
     string alloc_id = 14;
 }
 
