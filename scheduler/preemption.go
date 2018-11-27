@@ -439,16 +439,16 @@ OUTER:
 	return filteredBestAllocs
 }
 
-// allocDeviceGroup represents a group of allocs that share a device
-type allocDeviceGroup struct {
+// deviceGroupAllocs represents a group of allocs that share a device
+type deviceGroupAllocs struct {
 	allocs []*structs.Allocation
 
 	// deviceInstances tracks the number of instances used per alloc
 	deviceInstances map[string]int
 }
 
-func newAllocDeviceGroup() *allocDeviceGroup {
-	return &allocDeviceGroup{
+func newAllocDeviceGroup() *deviceGroupAllocs {
+	return &deviceGroupAllocs{
 		deviceInstances: make(map[string]int),
 	}
 }
@@ -459,7 +459,7 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 	// Group allocations by device, tracking the number of
 	// instances used in each device by alloc id
-	deviceToAllocs := make(map[structs.DeviceIdTuple]*allocDeviceGroup)
+	deviceToAllocs := make(map[structs.DeviceIdTuple]*deviceGroupAllocs)
 	for _, alloc := range p.currentAllocs {
 		for _, tr := range alloc.AllocatedResources.Tasks {
 			// Ignore allocs that don't use devices
@@ -469,8 +469,6 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 			// Go through each assigned device group
 			for _, device := range tr.Devices {
-				devID := device.ID()
-
 				// Look up the device instance from the device allocator
 				deviceIdTuple := *device.ID()
 				devInst := devAlloc.Devices[deviceIdTuple]
