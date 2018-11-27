@@ -7,7 +7,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 )
 
-// PluginGroup is a utility struct to manage a collectivly orchestrate a
+// PluginGroup is a utility struct to manage a collectively orchestrate a
 // set of PluginManagers
 type PluginGroup struct {
 	// managers is the set of managers managed, access is synced by mLock
@@ -30,7 +30,7 @@ func New(logger log.Logger) *PluginGroup {
 	}
 }
 
-// RegisterAndRun registers the manager and starts it in a seperate goroutine
+// RegisterAndRun registers the manager and starts it in a separate goroutine
 func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	m.mLock.Lock()
 	if m.shutdown {
