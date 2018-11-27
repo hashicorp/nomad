@@ -480,7 +480,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	case structs.TaskRestarting:
 		tr.logger.Info("restarting task", "reason", reason, "delay", when)
 		tr.UpdateState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskRestarting).SetRestartDelay(when).SetRestartReason(reason))
-		return true, 0
+		return true, when
 	default:
 		tr.logger.Error("restart tracker returned unknown state", "state", state)
 		return true, when
