@@ -86,7 +86,7 @@ vault {
 
 - `token` `(string: "")` - Specifies the parent Vault token to use to derive child tokens for jobs
   requesting tokens.
-  Visit the [Vault Integration Guide](/guides/operations/vault-integration/index.html)
+  Visit the [Vault Integration Guide](/docs/vault-integration/index.html)
   to see how to generate an appropriate token in Vault.
 
     !> It is **strongly discouraged** to place the token as a configuration
@@ -150,4 +150,4 @@ token needs to be given to the servers without having to restart them. A reload
 can be accomplished by sending the process a `SIGHUP` signal.
 
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"
-[nomad-vault]: /guides/operations/vault-integration/index.html "Nomad Vault Integration"
+[nomad-vault]: /docs/vault-integration/index.html "Nomad Vault Integration"
