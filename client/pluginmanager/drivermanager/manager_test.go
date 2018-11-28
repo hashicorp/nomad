@@ -53,7 +53,7 @@ func mockDriver(fpChan chan *drivers.Fingerprint, evChan chan *drivers.TaskEvent
 
 func mockCatalog(drivers map[string]drivers.DriverPlugin) *loader.MockCatalog {
 	cat := map[string][]*base.PluginInfoResponse{
-		base.PluginTypeDriver: []*base.PluginInfoResponse{},
+		base.PluginTypeDriver: {},
 	}
 	for d := range drivers {
 		cat[base.PluginTypeDriver] = append(cat[base.PluginTypeDriver], &base.PluginInfoResponse{
@@ -189,7 +189,7 @@ func TestManager_Run_AllowedDrivers(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
-	mgr.allowedDrivers = map[string]struct{}{"foo": struct{}{}}
+	mgr.allowedDrivers = map[string]struct{}{"foo": {}}
 	go mgr.Run()
 	select {
 	case fpChan <- &drivers.Fingerprint{Health: drivers.HealthStateHealthy}:
@@ -209,7 +209,7 @@ func TestManager_Run_BlockedDrivers(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
-	mgr.blockedDrivers = map[string]struct{}{"mock": struct{}{}}
+	mgr.blockedDrivers = map[string]struct{}{"mock": {}}
 	go mgr.Run()
 	select {
 	case fpChan <- &drivers.Fingerprint{Health: drivers.HealthStateHealthy}:
@@ -245,15 +245,15 @@ func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
 		Updater:      noopUpdater,
 		State:        state.NoopDB{},
 		AllowedDrivers: map[string]struct{}{
-			"mock2": struct{}{},
-			"mock3": struct{}{},
-			"mock4": struct{}{},
-			"foo":   struct{}{},
+			"mock2": {},
+			"mock3": {},
+			"mock4": {},
+			"foo":   {},
 		},
 		BlockedDrivers: map[string]struct{}{
-			"mock2": struct{}{},
-			"mock4": struct{}{},
-			"bar":   struct{}{},
+			"mock2": {},
+			"mock4": {},
+			"bar":   {},
 		},
 	}
 	mgr := New(cfg)

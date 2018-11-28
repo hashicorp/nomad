@@ -296,7 +296,7 @@ func (i *instanceManager) fingerprint() {
 				if fp.Err == nil {
 					i.handleFingerprint(fp)
 				} else {
-					i.logger.Warn("recieved fingerprint error from driver", "error", fp.Err)
+					i.logger.Warn("received fingerprint error from driver", "error", fp.Err)
 					i.handleFingerprintError()
 				}
 				continue
@@ -328,7 +328,7 @@ func (i *instanceManager) fingerprint() {
 	}
 }
 
-// handleFingerprintError is called when an error occured while fingerprinting
+// handleFingerprintError is called when an error occurred while fingerprinting
 // and will set the driver to unhealthy
 func (i *instanceManager) handleFingerprintError() {
 	di := &structs.DriverInfo{
@@ -387,7 +387,7 @@ func (i *instanceManager) dispenseTaskEventsCh() (<-chan *drivers.TaskEvent, con
 	return eventsCh, cancel, nil
 }
 
-// handleEvents is the main loop that recieves task events from the driver
+// handleEvents is the main loop that receives task events from the driver
 func (i *instanceManager) handleEvents() {
 	eventsCh, cancel, err := i.dispenseTaskEventsCh()
 	if err != nil {
@@ -410,7 +410,7 @@ func (i *instanceManager) handleEvents() {
 			// if the channel is closed attempt to open a new one
 			newEventsChan, newCancel, err := i.dispenseTaskEventsCh()
 			if err != nil {
-				i.logger.Warn("failed to recieve task events, retrying", "error", err, "retry", retry)
+				i.logger.Warn("failed to receive task events, retrying", "error", err, "retry", retry)
 
 				// Calculate the new backoff
 				backoff = (1 << (2 * uint64(retry))) * driverFPBackoffBaseline

@@ -12,16 +12,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
-const (
-	// driverFPBackoffBaseline is the baseline time for exponential backoff while
-	// fingerprinting a driver.
-	driverFPBackoffBaseline = 5 * time.Second
-
-	// driverFPBackoffLimit is the limit of the exponential backoff for fingerprinting
-	// a driver.
-	driverFPBackoffLimit = 2 * time.Minute
-)
-
 // FingerprintManager runs a client fingerprinters on a continuous basis, and
 // updates the client when the node has changed
 type FingerprintManager struct {

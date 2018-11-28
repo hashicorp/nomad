@@ -8,7 +8,7 @@ import (
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
-	driverstate "github.com/hashicorp/nomad/client/drivermanager/state"
+	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"

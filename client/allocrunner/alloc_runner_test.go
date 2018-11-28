@@ -9,12 +9,11 @@ import (
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -56,19 +55,18 @@ func (m *MockStateUpdater) Reset() {
 // testAllocRunnerConfig returns a new allocrunner.Config with mocks and noop
 // versions of dependencies along with a cleanup func.
 func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, func()) {
-	pluginLoader := catalog.TestPluginLoader(t)
 	clientConf, cleanup := config.TestClientConfig(t)
 	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
-		Alloc:                 alloc.Copy(),
-		Logger:                clientConf.Logger,
-		ClientConfig:          clientConf,
-		StateDB:               state.NoopDB{},
-		Consul:                consulapi.NewMockConsulServiceClient(t, clientConf.Logger),
-		Vault:                 vaultclient.NewMockVaultClient(),
-		StateUpdater:          &MockStateUpdater{},
-		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
-		PluginSingletonLoader: singleton.NewSingletonLoader(clientConf.Logger, pluginLoader),
+		Alloc:            alloc.Copy(),
+		Logger:           clientConf.Logger,
+		ClientConfig:     clientConf,
+		StateDB:          state.NoopDB{},
+		Consul:           consulapi.NewMockConsulServiceClient(t, clientConf.Logger),
+		Vault:            vaultclient.NewMockVaultClient(),
+		StateUpdater:     &MockStateUpdater{},
+		PrevAllocWatcher: allocwatcher.NoopPrevAlloc{},
+		DriverManager:    drivermanager.TestDriverManager(t),
 	}
 	return conf, cleanup
 }

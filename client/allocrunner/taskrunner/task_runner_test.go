@@ -10,14 +10,13 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +43,6 @@ func (m *MockTaskStateUpdater) TaskStateUpdated() {
 // plus a cleanup func.
 func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName string) (*Config, func()) {
 	logger := testlog.HCLogger(t)
-	pluginLoader := catalog.TestPluginLoader(t)
 	clientConf, cleanup := config.TestClientConfig(t)
 
 	// Find the task
@@ -82,16 +80,16 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 
 	conf := &Config{
-		Alloc:                 alloc,
-		ClientConfig:          clientConf,
-		Consul:                consulapi.NewMockConsulServiceClient(t, logger),
-		Task:                  thisTask,
-		TaskDir:               taskDir,
-		Logger:                clientConf.Logger,
-		Vault:                 vaultclient.NewMockVaultClient(),
-		StateDB:               cstate.NoopDB{},
-		StateUpdater:          NewMockTaskStateUpdater(),
-		PluginSingletonLoader: singleton.NewSingletonLoader(logger, pluginLoader),
+		Alloc:         alloc,
+		ClientConfig:  clientConf,
+		Consul:        consulapi.NewMockConsulServiceClient(t, logger),
+		Task:          thisTask,
+		TaskDir:       taskDir,
+		Logger:        clientConf.Logger,
+		Vault:         vaultclient.NewMockVaultClient(),
+		StateDB:       cstate.NoopDB{},
+		StateUpdater:  NewMockTaskStateUpdater(),
+		DriverManager: drivermanager.TestDriverManager(t),
 	}
 	return conf, trCleanup
 }
@@ -194,14 +192,9 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	}
 
 	// Get the mock driver plugin
-	driverPlugin, err := conf.PluginSingletonLoader.Dispense(
-		mockdriver.PluginID.Name,
-		mockdriver.PluginID.PluginType,
-		nil,
-		conf.Logger,
-	)
+	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
 	require.NoError(err)
-	mockDriver := driverPlugin.Plugin().(*mockdriver.Driver)
+	mockDriver := driverPlugin.(*mockdriver.Driver)
 
 	// Assert its config has been properly interpolated
 	driverCfg, mockCfg := mockDriver.GetTaskConfig()
