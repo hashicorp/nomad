@@ -181,7 +181,7 @@ func TestAllocBroadcaster_PrimeListener(t *testing.T) {
 	case recv := <-l.Ch():
 		require.Equal(t, alloc, recv)
 	case <-time.After(10 * time.Millisecond):
-		t.Fatalf("expected to recieve initial value")
+		t.Fatalf("expected to receive initial value")
 	}
 }
 
@@ -207,7 +207,7 @@ func TestAllocBroadcaster_Closed(t *testing.T) {
 	case recv := <-l.Ch():
 		require.Equal(t, alloc, recv)
 	case <-time.After(10 * time.Millisecond):
-		t.Fatalf("expected to recieve initial value")
+		t.Fatalf("expected to receive initial value")
 	}
 
 	// Ch should now be closed.
