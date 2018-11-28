@@ -187,3 +187,14 @@ func keysToVal(line string) (string, uint64, error) {
 	val, err := strconv.ParseUint(tokens[1], 10, 64)
 	return key, val, err
 }
+
+// shutdown shuts down the container, with `timeout` grace period
+// before killing the container with SIGKILL.
+func (h *taskHandle) shutdown(timeout time.Duration) error {
+	err := h.container.Shutdown(timeout)
+	if err == nil {
+		return nil
+	}
+
+	return h.container.Stop()
+}

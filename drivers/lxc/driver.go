@@ -113,9 +113,7 @@ var (
 	}
 )
 
-// Driver is a privileged version of the exec driver. It provides no
-// resource isolation and just fork/execs. The Exec driver should be preferred
-// and this should only be used when explicitly needed.
+// Driver is a driver for running LXC containers
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
@@ -144,7 +142,7 @@ type Driver struct {
 
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
-	// Enabled is set to true to enable the raw_exec driver
+	// Enabled is set to true to enable the lxc driver
 	Enabled bool `codec:"enabled"`
 
 	AllowVolumes bool `codec:"volumes"`
@@ -422,6 +420,16 @@ func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.E
 func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 
+	//
+	// Wait for process completion by polling status from handler.
+	// We cannot use the following alternatives:
+	//   * Process.Wait() requires LXC container processes to be children
+	//     of self process; but LXC runs container in separate PID hierarchy
+	//     owned by PID 1.
+	//   * lxc.Container.Wait() holds a write lock on container and prevents
+	//     any other calls, including stats.
+	//
+	// Going with simplest approach of polling for handler to mark exit.
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
@@ -446,10 +454,8 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		return drivers.ErrTaskNotFound
 	}
 
-	if err := handle.container.Shutdown(timeout); err != nil {
-		if err := handle.container.Stop(); err != nil {
-			return fmt.Errorf("executor Shutdown failed: %v", err)
-		}
+	if err := handle.shutdown(timeout); err != nil {
+		return fmt.Errorf("executor Shutdown failed: %v", err)
 	}
 
 	return nil
@@ -466,7 +472,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	if handle.IsRunning() {
-		if err := handle.container.Shutdown(0); err != nil {
+		// grace period is chosen arbitrary here
+		if err := handle.shutdown(1 * time.Minute); err != nil {
 			handle.logger.Error("failed to destroy executor", "err", err)
 		}
 	}
@@ -502,9 +509,5 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 }
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
-	if len(cmd) == 0 {
-		return nil, fmt.Errorf("error cmd must have atleast one value")
-	}
-
 	return nil, fmt.Errorf("LXC driver does not support exec")
 }

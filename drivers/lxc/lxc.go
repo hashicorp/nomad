@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	lxc "gopkg.in/lxc/go-lxc.v2"
 )
@@ -50,7 +49,7 @@ func (d *Driver) lxcPath() string {
 func (d *Driver) initializeContainer(cfg *drivers.TaskConfig, taskConfig TaskConfig) (*lxc.Container, error) {
 	lxcPath := d.lxcPath()
 
-	containerName := fmt.Sprintf("%s-%s", cfg.Name, uuid.Generate())
+	containerName := fmt.Sprintf("%s-%s", cfg.Name, cfg.AllocID)
 	c, err := lxc.NewContainer(containerName, lxcPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize container: %v", err)
@@ -167,6 +166,5 @@ func waitTillStopped(c *lxc.Container) (bool, error) {
 		}
 
 		time.Sleep(containerMonitorIntv)
-
 	}
 }
