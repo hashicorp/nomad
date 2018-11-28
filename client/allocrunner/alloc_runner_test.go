@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -69,6 +70,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		StateUpdater:          &MockStateUpdater{},
 		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
 		PluginSingletonLoader: singleton.NewSingletonLoader(clientConf.Logger, pluginLoader),
+		DeviceManager:         devicemanager.NoopMockManager(),
 	}
 	return conf, cleanup
 }

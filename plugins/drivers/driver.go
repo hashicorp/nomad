@@ -108,8 +108,8 @@ type TaskConfig struct {
 	Name            string
 	Env             map[string]string
 	Resources       *Resources
-	Devices         []DeviceConfig
-	Mounts          []MountConfig
+	Devices         []*DeviceConfig
+	Mounts          []*MountConfig
 	User            string
 	AllocDir        string
 	rawDriverConfig []byte

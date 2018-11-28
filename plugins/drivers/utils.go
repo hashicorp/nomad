@@ -57,8 +57,8 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		Env:             pb.Env,
 		rawDriverConfig: pb.MsgpackDriverConfig,
 		Resources:       resourcesFromProto(pb.Resources),
-		Devices:         []DeviceConfig{}, //TODO
-		Mounts:          []MountConfig{},  //TODO
+		Devices:         devicesFromProto(pb.Devices),
+		Mounts:          mountsFromProto(pb.Mounts),
 		User:            pb.User,
 		AllocDir:        pb.AllocDir,
 		StdoutPath:      pb.StdoutPath,
@@ -78,8 +78,8 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		Name:                cfg.Name,
 		Env:                 cfg.Env,
 		Resources:           resourcesToProto(cfg.Resources),
-		Mounts:              []*proto.Mount{},
-		Devices:             []*proto.Device{},
+		Devices:             devicesToProto(cfg.Devices),
+		Mounts:              mountsToProto(cfg.Mounts),
 		User:                cfg.User,
 		AllocDir:            cfg.AllocDir,
 		MsgpackDriverConfig: cfg.rawDriverConfig,
@@ -193,6 +193,106 @@ func resourcesToProto(r *Resources) *proto.Resources {
 	}
 
 	return &pb
+}
+
+func devicesFromProto(devices []*proto.Device) []*DeviceConfig {
+	if devices == nil {
+		return nil
+	}
+
+	out := make([]*DeviceConfig, len(devices))
+	for i, d := range devices {
+		out[i] = deviceFromProto(d)
+	}
+
+	return out
+}
+
+func deviceFromProto(device *proto.Device) *DeviceConfig {
+	if device == nil {
+		return nil
+	}
+
+	return &DeviceConfig{
+		TaskPath:    device.TaskPath,
+		HostPath:    device.HostPath,
+		Permissions: device.CgroupPermissions,
+	}
+}
+
+func mountsFromProto(mounts []*proto.Mount) []*MountConfig {
+	if mounts == nil {
+		return nil
+	}
+
+	out := make([]*MountConfig, len(mounts))
+	for i, m := range mounts {
+		out[i] = mountFromProto(m)
+	}
+
+	return out
+}
+
+func mountFromProto(mount *proto.Mount) *MountConfig {
+	if mount == nil {
+		return nil
+	}
+
+	return &MountConfig{
+		TaskPath: mount.TaskPath,
+		HostPath: mount.HostPath,
+		Readonly: mount.Readonly,
+	}
+}
+
+func devicesToProto(devices []*DeviceConfig) []*proto.Device {
+	if devices == nil {
+		return nil
+	}
+
+	out := make([]*proto.Device, len(devices))
+	for i, d := range devices {
+		out[i] = deviceToProto(d)
+	}
+
+	return out
+}
+
+func deviceToProto(device *DeviceConfig) *proto.Device {
+	if device == nil {
+		return nil
+	}
+
+	return &proto.Device{
+		TaskPath:          device.TaskPath,
+		HostPath:          device.HostPath,
+		CgroupPermissions: device.Permissions,
+	}
+}
+
+func mountsToProto(mounts []*MountConfig) []*proto.Mount {
+	if mounts == nil {
+		return nil
+	}
+
+	out := make([]*proto.Mount, len(mounts))
+	for i, m := range mounts {
+		out[i] = mountToProto(m)
+	}
+
+	return out
+}
+
+func mountToProto(mount *MountConfig) *proto.Mount {
+	if mount == nil {
+		return nil
+	}
+
+	return &proto.Mount{
+		TaskPath: mount.TaskPath,
+		HostPath: mount.HostPath,
+		Readonly: mount.Readonly,
+	}
 }
 
 func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {

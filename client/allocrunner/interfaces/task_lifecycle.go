@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 /*
@@ -47,6 +48,9 @@ type TaskPrestartRequest struct {
 	// Task is the task to run
 	Task *structs.Task
 
+	// TaskResources is the resources assigned to the task
+	TaskResources *structs.AllocatedTaskResources
+
 	// Vault token may optionally be set if a Vault token is available
 	VaultToken string
 
@@ -60,6 +64,12 @@ type TaskPrestartRequest struct {
 type TaskPrestartResponse struct {
 	// Env is the environment variables to set for the task
 	Env map[string]string
+
+	// Mounts is the set of host volumes to mount into the task
+	Mounts []*drivers.MountConfig
+
+	// Devices are the set of devices to mount into the task
+	Devices []*drivers.DeviceConfig
 
 	// HookData allows the hook to emit data to be passed in the next time it is
 	// run

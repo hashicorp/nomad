@@ -2385,6 +2385,14 @@ type DeviceIdTuple struct {
 	Name   string
 }
 
+func (d *DeviceIdTuple) String() string {
+	if d == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/%s/%s", d.Vendor, d.Type, d.Name)
+}
+
 // Matches returns if this Device ID is a superset of the passed ID.
 func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
 	if other == nil {
