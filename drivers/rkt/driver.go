@@ -488,6 +488,21 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		}
 	}
 
+	// Mount task volumes, always do
+	for i, vol := range cfg.Mounts {
+		volName := fmt.Sprintf("%s-%s-taskmounts-%d", cfg.AllocID, sanitizedName, i)
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%v", volName, vol.HostPath, vol.Readonly))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, vol.TaskPath))
+	}
+
+	// Mount task devices, always do
+	for i, vol := range cfg.Devices {
+		volName := fmt.Sprintf("%s-%s-taskdevices-%d", cfg.AllocID, sanitizedName, i)
+		readOnly := !strings.Contains(vol.Permissions, "w")
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%v", volName, vol.HostPath, readOnly))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, vol.TaskPath))
+	}
+
 	// Inject environment variables
 	for k, v := range cfg.Env {
 		prepareArgs = append(prepareArgs, fmt.Sprintf("--set-env=%s=%s", k, v))

@@ -502,6 +502,89 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
+// Verifies mounting a task mount from the host machine and writing
+// some data to it from inside the container
+func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
+	ctestutil.RktCompatible(t)
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+
+	require := require.New(t)
+	d := NewRktDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	// mounts through task config should be enabled regardless
+	config := &Config{VolumesEnabled: false}
+
+	var data []byte
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	require.NoError(harness.SetConfig(data, nil))
+
+	tmpvol, err := ioutil.TempDir("", "nomadtest_rktdriver_volumes")
+	require.NoError(err)
+	defer os.RemoveAll(tmpvol)
+
+	task := &drivers.TaskConfig{
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "rkttest_alpine",
+		Resources: &drivers.Resources{
+			NomadResources: &structs.Resources{
+				MemoryMB: 128,
+				CPU:      100,
+			},
+			LinuxResources: &drivers.LinuxResources{
+				MemoryLimitBytes: 134217728,
+				CPUShares:        100,
+			},
+		},
+		Mounts: []*drivers.MountConfig{
+			{HostPath: tmpvol, TaskPath: "/foo", Readonly: false},
+		},
+	}
+	exp := []byte{'w', 'i', 'n'}
+	file := "output.txt"
+	hostpath := filepath.Join(tmpvol, file)
+
+	taskConfig := map[string]interface{}{
+		"image":   "docker://redis:3.2-alpine",
+		"command": "/bin/sh",
+		"args": []string{
+			"-c",
+			fmt.Sprintf("echo -n %s > /foo/%s", string(exp), file),
+		},
+		"net": []string{"none"},
+	}
+
+	encodeDriverHelper(require, task, taskConfig)
+	testtask.SetTaskConfigEnv(task)
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	_, _, err = harness.StartTask(task)
+	require.NoError(err)
+
+	// Task should terminate quickly
+	waitCh, err := harness.WaitTask(context.Background(), task.ID)
+	require.NoError(err)
+
+	select {
+	case res := <-waitCh:
+		require.NoError(res.Err)
+		require.True(res.Successful(), fmt.Sprintf("exit code %v", res.ExitCode))
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		require.Fail("WaitTask timeout")
+	}
+
+	// Check that data was written to the shared alloc directory.
+	act, err := ioutil.ReadFile(hostpath)
+	require.NoError(err)
+	require.Exactly(exp, act)
+	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
 // Verifies port mapping
 func TestRktDriver_PortMapping(t *testing.T) {
 	ctestutil.RktCompatible(t)
