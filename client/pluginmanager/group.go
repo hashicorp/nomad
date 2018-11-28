@@ -53,7 +53,6 @@ func (m *PluginGroup) Shutdown() {
 	m.mLock.Lock()
 	defer m.mLock.Unlock()
 	for i := len(m.managers) - 1; i >= 0; i-- {
-		fmt.Println(i)
 		m.logger.Info("shutting down plugin manager", "plugin-type", m.managers[i].PluginType())
 		m.managers[i].Shutdown()
 	}
