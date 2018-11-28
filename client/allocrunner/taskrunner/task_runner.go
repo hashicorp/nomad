@@ -21,15 +21,14 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/driver/env"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 const (
@@ -168,9 +167,9 @@ type TaskRunner struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	deviceStatsReporter cinterfaces.DeviceStatsReporter
 
-	// PluginSingletonLoader is a plugin loader that will returns singleton
-	// instances of the plugins.
-	pluginSingletonLoader loader.PluginCatalog
+	// driverManager is used to dispense driver plugins and register event
+	// handlers
+	driverManager drivermanager.Manager
 }
 
 type Config struct {
@@ -193,9 +192,9 @@ type Config struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	DeviceStatsReporter cinterfaces.DeviceStatsReporter
 
-	// PluginSingletonLoader is a plugin loader that will returns singleton
-	// instances of the plugins.
-	PluginSingletonLoader loader.PluginCatalog
+	// DriverManager is used to dispense driver plugins and register event
+	// handlers
+	DriverManager drivermanager.Manager
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -220,28 +219,28 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                 config.Alloc,
-		allocID:               config.Alloc.ID,
-		clientConfig:          config.ClientConfig,
-		task:                  config.Task,
-		taskDir:               config.TaskDir,
-		taskName:              config.Task.Name,
-		taskLeader:            config.Task.Leader,
-		envBuilder:            envBuilder,
-		consulClient:          config.Consul,
-		vaultClient:           config.Vault,
-		state:                 tstate,
-		localState:            state.NewLocalState(),
-		stateDB:               config.StateDB,
-		stateUpdater:          config.StateUpdater,
-		deviceStatsReporter:   config.DeviceStatsReporter,
-		killCtx:               killCtx,
-		killCtxCancel:         killCancel,
-		ctx:                   trCtx,
-		ctxCancel:             trCancel,
-		triggerUpdateCh:       make(chan struct{}, triggerUpdateChCap),
-		waitCh:                make(chan struct{}),
-		pluginSingletonLoader: config.PluginSingletonLoader,
+		alloc:               config.Alloc,
+		allocID:             config.Alloc.ID,
+		clientConfig:        config.ClientConfig,
+		task:                config.Task,
+		taskDir:             config.TaskDir,
+		taskName:            config.Task.Name,
+		taskLeader:          config.Task.Leader,
+		envBuilder:          envBuilder,
+		consulClient:        config.Consul,
+		vaultClient:         config.Vault,
+		state:               tstate,
+		localState:          state.NewLocalState(),
+		stateDB:             config.StateDB,
+		stateUpdater:        config.StateUpdater,
+		deviceStatsReporter: config.DeviceStatsReporter,
+		killCtx:             killCtx,
+		killCtxCancel:       killCancel,
+		ctx:                 trCtx,
+		ctxCancel:           trCancel,
+		triggerUpdateCh:     make(chan struct{}, triggerUpdateChCap),
+		waitCh:              make(chan struct{}),
+		driverManager:       config.DriverManager,
 	}
 
 	// Create the logger based on the allocation ID
@@ -544,6 +543,8 @@ func (tr *TaskRunner) runDriver() error {
 		return nil
 	}
 
+	tr.driverManager.RegisterEventHandler(tr.Task().Driver, taskConfig.ID, tr.handleTaskEvent)
+
 	// Start the job if there's no existing handle (or if RecoverTask failed)
 	handle, net, err := tr.driver.StartTask(taskConfig)
 	if err != nil {
@@ -567,6 +568,15 @@ func (tr *TaskRunner) runDriver() error {
 	// Emit an event that we started
 	tr.UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 	return nil
+}
+
+func (tr *TaskRunner) handleTaskEvent(ev *drivers.TaskEvent) {
+	tr.EmitEvent(&structs.TaskEvent{
+		Type:          structs.TaskDriverMessage,
+		Time:          ev.Timestamp.UnixNano(),
+		Details:       ev.Annotations,
+		DriverMessage: ev.Message,
+	})
 }
 
 // initDriver creates the driver for the task
@@ -602,17 +612,10 @@ func (tr *TaskRunner) runDriver() error {
 
 // initDriver retrives the DriverPlugin from the plugin loader for this task
 func (tr *TaskRunner) initDriver() error {
-	plugin, err := tr.pluginSingletonLoader.Dispense(tr.Task().Driver, base.PluginTypeDriver, tr.clientConfig.NomadPluginConfig(), tr.logger)
+	driver, err := tr.driverManager.Dispense(tr.Task().Driver)
 	if err != nil {
 		return err
 	}
-
-	// XXX need to be able to reattach to running drivers
-	driver, ok := plugin.Plugin().(drivers.DriverPlugin)
-	if !ok {
-		return fmt.Errorf("plugin loaded for driver %s does not implement DriverPlugin interface", tr.task.Driver)
-	}
-
 	tr.driver = driver
 
 	schema, err := tr.driver.TaskConfigSchema()

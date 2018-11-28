@@ -6,10 +6,10 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 // Config holds the configuration for creating an allocation runner.
@@ -42,10 +42,6 @@ type Config struct {
 	// migrating their ephemeral disk when necessary.
 	PrevAllocWatcher allocwatcher.PrevAllocWatcher
 
-	// PluginLoader is used to load plugins.
-	PluginLoader loader.PluginCatalog
-
-	// PluginSingletonLoader is a plugin loader that will returns singleton
-	// instances of the plugins.
-	PluginSingletonLoader loader.PluginCatalog
+	// DriverManager handles dispensing of driver plugins
+	DriverManager drivermanager.Manager
 }

@@ -20,12 +20,6 @@ import (
 
 // Manaager is the interface used to manage device plugins
 type Manager interface {
-	// Run starts the device manager
-	Run()
-
-	// Shutdown shutsdown the manager and all launched plugins
-	Shutdown()
-
 	// Reserve is used to reserve a set of devices
 	Reserve(d *structs.AllocatedDeviceResource) (*device.ContainerReservation, error)
 
@@ -126,6 +120,8 @@ func New(c *Config) *manager {
 		fingerprintResCh: make(chan struct{}, 1),
 	}
 }
+
+func (*manager) PluginType() string { return base.PluginTypeDevice }
 
 // Run starts thed device manager. The manager will shutdown any previously
 // launched plugin and then begin fingerprinting and stats collection on all new

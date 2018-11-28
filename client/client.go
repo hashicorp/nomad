@@ -27,6 +27,8 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/pluginmanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
@@ -216,8 +218,14 @@ type Client struct {
 	endpoints     rpcEndpoints
 	streamingRpcs *structs.StreamingRpcRegistry
 
+	// pluginManagers is the set of PluginManagers registered by the client
+	pluginManagers *pluginmanager.PluginGroup
+
 	// devicemanger is responsible for managing device plugins.
 	devicemanager devicemanager.Manager
+
+	// drivermanager is responsible for managing driver plugins
+	drivermanager drivermanager.Manager
 
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
@@ -295,14 +303,34 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
-	fingerprintManager := NewFingerprintManager(c.configCopy.PluginSingletonLoader, c.GetConfig, c.configCopy.Node,
-		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromDriver,
-		c.logger)
+	fingerprintManager := NewFingerprintManager(
+		c.configCopy.PluginSingletonLoader, c.GetConfig, c.configCopy.Node,
+		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
+
+	c.pluginManagers = pluginmanager.New(c.logger)
 
 	// Fingerprint the node and scan for drivers
 	if err := fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
+
+	// Build the white/blacklists of drivers.
+	allowlistDrivers := cfg.ReadStringListToMap("driver.whitelist")
+	blocklistDrivers := cfg.ReadStringListToMap("driver.blacklist")
+
+	// Setup the driver manager
+	driverConfig := &drivermanager.Config{
+		Logger:         c.logger,
+		Loader:         c.configCopy.PluginSingletonLoader,
+		PluginConfig:   c.configCopy.NomadPluginConfig(),
+		Updater:        c.updateNodeFromDriver,
+		State:          c.stateDB,
+		AllowedDrivers: allowlistDrivers,
+		BlockedDrivers: blocklistDrivers,
+	}
+	drvManager := drivermanager.New(driverConfig)
+	c.drivermanager = drvManager
+	c.pluginManagers.RegisterAndRun(drvManager)
 
 	// Setup the device manager
 	devConfig := &devicemanager.Config{
@@ -313,8 +341,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		StatsInterval: c.configCopy.StatsCollectionInterval,
 		State:         c.stateDB,
 	}
-	c.devicemanager = devicemanager.New(devConfig)
-	go c.devicemanager.Run()
+	devManager := devicemanager.New(devConfig)
+	c.devicemanager = devManager
+	c.pluginManagers.RegisterAndRun(devManager)
 
 	// Add the stats collector
 	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
@@ -555,8 +584,8 @@ func (c *Client) Shutdown() error {
 	}
 	c.logger.Info("shutting down")
 
-	// Shutdown the device manager
-	c.devicemanager.Shutdown()
+	// Shutdown the plugin managers
+	c.pluginManagers.Shutdown()
 
 	// Stop renewing tokens and secrets
 	if c.vaultClient != nil {
@@ -863,17 +892,16 @@ func (c *Client) restoreState() error {
 
 		c.configLock.RLock()
 		arConf := &allocrunner.Config{
-			Alloc:                 alloc,
-			Logger:                c.logger,
-			ClientConfig:          c.config,
-			StateDB:               c.stateDB,
-			StateUpdater:          c,
-			DeviceStatsReporter:   c,
-			Consul:                c.consulService,
-			Vault:                 c.vaultClient,
-			PrevAllocWatcher:      prevAllocWatcher,
-			PluginLoader:          c.config.PluginLoader,
-			PluginSingletonLoader: c.config.PluginSingletonLoader,
+			Alloc:               alloc,
+			Logger:              c.logger,
+			ClientConfig:        c.config,
+			StateDB:             c.stateDB,
+			StateUpdater:        c,
+			DeviceStatsReporter: c,
+			Consul:              c.consulService,
+			Vault:               c.vaultClient,
+			PrevAllocWatcher:    prevAllocWatcher,
+			DriverManager:       c.drivermanager,
 		}
 		c.configLock.RUnlock()
 
@@ -2043,17 +2071,16 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// we don't have to do a copy.
 	c.configLock.RLock()
 	arConf := &allocrunner.Config{
-		Alloc:                 alloc,
-		Logger:                c.logger,
-		ClientConfig:          c.config,
-		StateDB:               c.stateDB,
-		Consul:                c.consulService,
-		Vault:                 c.vaultClient,
-		StateUpdater:          c,
-		DeviceStatsReporter:   c,
-		PrevAllocWatcher:      prevAllocWatcher,
-		PluginLoader:          c.config.PluginLoader,
-		PluginSingletonLoader: c.config.PluginSingletonLoader,
+		Alloc:               alloc,
+		Logger:              c.logger,
+		ClientConfig:        c.config,
+		StateDB:             c.stateDB,
+		Consul:              c.consulService,
+		Vault:               c.vaultClient,
+		StateUpdater:        c,
+		DeviceStatsReporter: c,
+		PrevAllocWatcher:    prevAllocWatcher,
+		DriverManager:       c.drivermanager,
 	}
 	c.configLock.RUnlock()
 
