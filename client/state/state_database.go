@@ -6,6 +6,7 @@ import (
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -22,6 +23,9 @@ allocations/ (bucket)
 
 devicemanager/
 |--> plugin-state -> *dmstate.PluginState
+
+drivermanager/
+|--> plugin-state -> *driverstate.PluginState
 */
 
 var (
@@ -45,9 +49,13 @@ var (
 	// data
 	devManagerBucket = []byte("devicemanager")
 
-	// devManagerPluginStateKey is the key serialized device manager
-	// plugin state is stored at
-	devManagerPluginStateKey = []byte("plugin_state")
+	// driverManagerBucket is the bucket name container all driver manager
+	// related data
+	driverManagerBucket = []byte("drivermanager")
+
+	// managerPluginStateKey is the key by which plugin manager plugin state is
+	// stored at
+	managerPluginStateKey = []byte("plugin_state")
 )
 
 // NewStateDBFunc creates a StateDB given a state directory.
@@ -377,7 +385,7 @@ func (s *BoltStateDB) PutDevicePluginState(ps *dmstate.PluginState) error {
 			return err
 		}
 
-		return devBkt.Put(devManagerPluginStateKey, ps)
+		return devBkt.Put(managerPluginStateKey, ps)
 	})
 }
 
@@ -395,9 +403,56 @@ func (s *BoltStateDB) GetDevicePluginState() (*dmstate.PluginState, error) {
 
 		// Restore Plugin State if it exists
 		ps = &dmstate.PluginState{}
-		if err := devBkt.Get(devManagerPluginStateKey, ps); err != nil {
+		if err := devBkt.Get(managerPluginStateKey, ps); err != nil {
 			if !boltdd.IsErrNotFound(err) {
 				return fmt.Errorf("failed to read device manager plugin state: %v", err)
+			}
+
+			// Key not found, reset ps to nil
+			ps = nil
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ps, nil
+}
+
+// PutDriverPluginState stores the driver manager's plugin state or returns an
+// error.
+func (s *BoltStateDB) PutDriverPluginState(ps *driverstate.PluginState) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		// Retrieve the root driver manager bucket
+		driverBkt, err := tx.CreateBucketIfNotExists(driverManagerBucket)
+		if err != nil {
+			return err
+		}
+
+		return driverBkt.Put(managerPluginStateKey, ps)
+	})
+}
+
+// GetDriverPluginState stores the driver manager's plugin state or returns an
+// error.
+func (s *BoltStateDB) GetDriverPluginState() (*driverstate.PluginState, error) {
+	var ps *driverstate.PluginState
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		driverBkt := tx.Bucket(driverManagerBucket)
+		if driverBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		// Restore Plugin State if it exists
+		ps = &driverstate.PluginState{}
+		if err := driverBkt.Get(managerPluginStateKey, ps); err != nil {
+			if !boltdd.IsErrNotFound(err) {
+				return fmt.Errorf("failed to read driver manager plugin state: %v", err)
 			}
 
 			// Key not found, reset ps to nil

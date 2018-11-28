@@ -17,13 +17,13 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 // allocRunner is used to run all the tasks in a given allocation
@@ -131,13 +131,13 @@ type allocRunner struct {
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
 	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
-	// pluginSingletonLoader is a plugin loader that will returns singleton
-	// instances of the plugins.
-	pluginSingletonLoader loader.PluginCatalog
-
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
+
+	// driverManager is responsible for dispensing driver plugins and registering
+	// event handlers
+	driverManager drivermanager.Manager
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -167,8 +167,8 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
-		pluginSingletonLoader:    config.PluginSingletonLoader,
 		devicemanager:            config.DeviceManager,
+		driverManager:            config.DriverManager,
 	}
 
 	// Create the logger based on the allocation ID
@@ -195,18 +195,18 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		config := &taskrunner.Config{
-			Alloc:                 ar.alloc,
-			ClientConfig:          ar.clientConfig,
-			Task:                  task,
-			TaskDir:               ar.allocDir.NewTaskDir(task.Name),
-			Logger:                ar.logger,
-			StateDB:               ar.stateDB,
-			StateUpdater:          ar,
-			Consul:                ar.consulClient,
-			Vault:                 ar.vaultClient,
-			PluginSingletonLoader: ar.pluginSingletonLoader,
-			DeviceStatsReporter:   ar.deviceStatsReporter,
-			DeviceManager:         ar.devicemanager,
+			Alloc:               ar.alloc,
+			ClientConfig:        ar.clientConfig,
+			Task:                task,
+			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
+			Logger:              ar.logger,
+			StateDB:             ar.stateDB,
+			StateUpdater:        ar,
+			Consul:              ar.consulClient,
+			Vault:               ar.vaultClient,
+			DeviceStatsReporter: ar.deviceStatsReporter,
+			DeviceManager:       ar.devicemanager,
+			DriverManager:       ar.driverManager,
 		}
 
 		// Create, but do not Run, the task runner

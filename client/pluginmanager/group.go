@@ -3,8 +3,15 @@ package pluginmanager
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
+)
+
+var (
+	// DefaultManagerReadyTimeout is the default amount of time we will wait
+	// for a plugin mananger to be ready before logging it and moving on.
+	DefaultManagerReadyTimeout = time.Second * 5
 )
 
 // PluginGroup is a utility struct to manage a collectively orchestrate a
@@ -33,11 +40,12 @@ func New(logger log.Logger) *PluginGroup {
 // RegisterAndRun registers the manager and starts it in a separate goroutine
 func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	m.mLock.Lock()
+	defer m.mLock.Unlock()
 	if m.shutdown {
+		m.mLock.Unlock()
 		return fmt.Errorf("plugin group already shutdown")
 	}
 	m.managers = append(m.managers, manager)
-	m.mLock.Unlock()
 
 	go func() {
 		m.logger.Info("starting plugin manager", "plugin-type", manager.PluginType())
@@ -45,6 +53,38 @@ func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 		m.logger.Info("plugin manager finished", "plugin-type", manager.PluginType())
 	}()
 	return nil
+}
+
+// Ready returns a channel which will be closed once all plugin manangers are ready.
+// A timeout for waiting on each manager is given
+func (m *PluginGroup) Ready(timeout time.Duration) (<-chan struct{}, error) {
+	m.mLock.Lock()
+	defer m.mLock.Unlock()
+	if m.shutdown {
+		return nil, fmt.Errorf("plugin group already shutdown")
+	}
+
+	var wg sync.WaitGroup
+	for i := range m.managers {
+		manager := m.managers[i]
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case <-manager.Ready():
+			case <-time.After(timeout):
+				m.logger.Warn("timeout waiting for plugin manager to be ready",
+					"plugin-type", manager.PluginType())
+			}
+		}()
+	}
+
+	ret := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(ret)
+	}()
+	return ret, nil
 }
 
 // Shutdown shutsdown all registered PluginManagers in reverse order of how

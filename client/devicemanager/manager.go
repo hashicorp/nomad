@@ -18,14 +18,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
-// Manaager is the interface used to manage device plugins
+// Manager is the interface used to manage device plugins
 type Manager interface {
-	// Run starts the device manager
-	Run()
-
-	// Shutdown shutsdown the manager and all launched plugins
-	Shutdown()
-
 	// Reserve is used to reserve a set of devices
 	Reserve(d *structs.AllocatedDeviceResource) (*device.ContainerReservation, error)
 
@@ -127,6 +121,9 @@ func New(c *Config) *manager {
 	}
 }
 
+// PluginType identifies this manager to the plugin manager and satisfies the PluginManager interface.
+func (*manager) PluginType() string { return base.PluginTypeDevice }
+
 // Run starts thed device manager. The manager will shutdown any previously
 // launched plugin and then begin fingerprinting and stats collection on all new
 // device plugins.
@@ -160,16 +157,6 @@ func (m *manager) Run() {
 			StatsInterval:    m.statsInterval,
 		})
 	}
-
-	// XXX we should eventually remove this and have it be done in the client
-	// Give all the fingerprinters a chance to run at least once before we
-	// update the node. This prevents initial fingerprinting from causing too
-	// many server side updates.
-	ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
-	for _, i := range m.instances {
-		i.WaitForFirstFingerprint(ctx)
-	}
-	cancel()
 
 	// Now start the fingerprint handler
 	for {
@@ -205,6 +192,19 @@ func (m *manager) Shutdown() {
 	for _, i := range m.instances {
 		i.cleanup()
 	}
+}
+
+func (m *manager) Ready() <-chan struct{} {
+	ret := make(chan struct{})
+	go func() {
+		ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
+		for _, i := range m.instances {
+			i.WaitForFirstFingerprint(ctx)
+		}
+		cancel()
+		close(ret)
+	}()
+	return ret
 }
 
 // Reserve reserves the given allocated device. If the device is unknown, an
