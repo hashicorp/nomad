@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-	executorv0 "github.com/hashicorp/nomad/client/driver/executorv0"
+	executorv0 "github.com/hashicorp/nomad/drivers/shared/executorv0"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
