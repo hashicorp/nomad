@@ -179,7 +179,7 @@ func (m *manager) Run() {
 			UpdateNodeFromDriver: m.updater,
 		})
 
-		ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(m.ctx, 1*time.Second)
 		instance.WaitForFirstFingerprint(ctx)
 		if instance.lastHealthState != drivers.HealthStateUndetected {
 			availDrivers = append(availDrivers, id.Name)
