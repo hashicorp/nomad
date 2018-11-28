@@ -30,7 +30,9 @@ func (*deviceHook) Name() string {
 }
 
 func (h *deviceHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	if len(req.TaskResources.Devices) == 0 {
+	//TODO Can the nil check be removed once the TODO in NewTaskRunner
+	//     where this is set is addressed?
+	if req.TaskResources == nil || len(req.TaskResources.Devices) == 0 {
 		resp.Done = true
 		return nil
 	}
