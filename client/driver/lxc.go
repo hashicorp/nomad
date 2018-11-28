@@ -517,8 +517,11 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 		return nil, fmt.Errorf("unable to set final parsed command to \"%s\"", parsedArgs), removeLVCleanup
 	}
 
-	if err := c.SaveConfigFile(finalConfigFilePath); err != nil {
-		return nil, fmt.Errorf("unable to write final config file to \"%s\"", finalConfigFilePath), removeLVCleanup
+	savedConfigFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%v-lxc.config", task.Name))
+	for _, fp := range []string{finalConfigFilePath, savedConfigFile} {
+		if err := c.SaveConfigFile(fp); err != nil {
+			return nil, fmt.Errorf("unable to write final config file to \"%s\"", fp), removeLVCleanup
+		}
 	}
 
 	if err := c.StartExecute(parsedArgs); err != nil {
