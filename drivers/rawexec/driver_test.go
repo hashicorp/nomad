@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -108,7 +109,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 				Enabled: true,
 			},
 			Expected: drivers.Fingerprint{
-				Attributes:        map[string]string{"driver.raw_exec": "1"},
+				Attributes:        map[string]*pstructs.Attribute{"driver.raw_exec": pstructs.NewBoolAttribute(true)},
 				Health:            drivers.HealthStateHealthy,
 				HealthDescription: "ready",
 			},

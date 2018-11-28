@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
@@ -73,7 +74,7 @@ var (
 )
 
 type Fingerprint struct {
-	Attributes        map[string]string
+	Attributes        map[string]*pstructs.Attribute
 	Health            HealthState
 	HealthDescription string
 

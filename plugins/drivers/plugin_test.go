@@ -9,6 +9,7 @@ import (
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
 	"github.com/ugorji/go/codec"
 )
@@ -24,12 +25,12 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 
 	fingerprints := []*Fingerprint{
 		{
-			Attributes:        map[string]string{"foo": "bar"},
+			Attributes:        map[string]*pstructs.Attribute{"foo": pstructs.NewStringAttribute("bar")},
 			Health:            HealthStateUnhealthy,
 			HealthDescription: "starting up",
 		},
 		{
-			Attributes:        map[string]string{"foo": "bar"},
+			Attributes:        map[string]*pstructs.Attribute{"foo": pstructs.NewStringAttribute("bar")},
 			Health:            HealthStateHealthy,
 			HealthDescription: "running",
 		},

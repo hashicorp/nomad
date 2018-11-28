@@ -10,6 +10,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
+	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	context "golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -76,7 +77,7 @@ func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv prot
 				return nil
 			}
 			resp := &proto.FingerprintResponse{
-				Attributes:        f.Attributes,
+				Attributes:        dstructs.ConvertStructAttributeMap(f.Attributes),
 				Health:            healthStateToProto(f.Health),
 				HealthDescription: f.HealthDescription,
 			}

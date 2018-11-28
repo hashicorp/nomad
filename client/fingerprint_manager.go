@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -321,7 +322,7 @@ func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fing
 // struct and updates the Node with it
 func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, driverName string) {
 	di := &structs.DriverInfo{
-		Attributes:        fp.Attributes,
+		Attributes:        stringify(fp.Attributes),
 		Detected:          fp.Health != drivers.HealthStateUndetected,
 		Healthy:           fp.Health == drivers.HealthStateHealthy,
 		HealthDescription: fp.HealthDescription,
@@ -330,6 +331,13 @@ func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, 
 	if n := fm.updateNodeFromDriver(driverName, di); n != nil {
 		fm.setNode(n)
 	}
+}
+func stringify(attributes map[string]*pstructs.Attribute) map[string]string {
+	ret := make(map[string]string, len(attributes))
+	for key, attribute := range attributes {
+		ret[key] = attribute.GoString()
+	}
+	return ret
 }
 
 // dispenseDriverFingerprint dispenses a driver plugin for the given driver name

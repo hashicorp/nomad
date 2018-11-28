@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -226,11 +227,11 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan<- *drivers.Finge
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	var health drivers.HealthState
 	var desc string
-	attrs := map[string]string{}
+	attrs := map[string]*pstructs.Attribute{}
 	if d.config.Enabled {
 		health = drivers.HealthStateHealthy
 		desc = "ready"
-		attrs["driver.raw_exec"] = "1"
+		attrs["driver.raw_exec"] = pstructs.NewBoolAttribute(true)
 	} else {
 		health = drivers.HealthStateUndetected
 		desc = "disabled"

@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -195,7 +196,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: "healthy",
 	}
@@ -232,10 +233,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fp
 	}
 
-	fp.Attributes[driverAttr] = "1"
-	fp.Attributes[driverVersionAttr] = version
-	fp.Attributes["driver.java.runtime"] = runtime
-	fp.Attributes["driver.java.vm"] = vm
+	fp.Attributes[driverAttr] = pstructs.NewBoolAttribute(true)
+	fp.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(version)
+	fp.Attributes["driver.java.runtime"] = pstructs.NewStringAttribute(runtime)
+	fp.Attributes["driver.java.vm"] = pstructs.NewStringAttribute(vm)
 
 	return fp
 }
