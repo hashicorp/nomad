@@ -3,7 +3,6 @@ package driver
 import (
 	"context"
 	"crypto/md5"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -30,10 +29,6 @@ var (
 		"qemu":     NewQemuDriver,
 		"rkt":      NewRktDriver,
 	}
-
-	// DriverStatsNotImplemented is the error to be returned if a driver doesn't
-	// implement stats.
-	DriverStatsNotImplemented = errors.New("stats not implemented for driver")
 )
 
 // NewDriver is used to instantiate and return a new driver
