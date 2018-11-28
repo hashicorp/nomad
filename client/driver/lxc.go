@@ -153,18 +153,20 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 		return err
 	}
 
-	volumes, _ := fd.GetOk("volumes")
-	for _, volDesc := range volumes.([]interface{}) {
-		volStr := volDesc.(string)
-		paths := strings.Split(volStr, ":")
-		if len(paths) != 2 {
-			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
-		}
-		if len(paths[0]) == 0 || len(paths[1]) == 0 {
-			return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
-		}
-		if paths[1][0] == '/' {
-			return fmt.Errorf("unsupported absolute container mount point: '%s'", paths[1])
+	volumes, ok := fd.GetOk("volumes")
+	if ok {
+		for _, volDesc := range volumes.([]interface{}) {
+			volStr := volDesc.(string)
+			paths := strings.Split(volStr, ":")
+			if len(paths) != 2 {
+				return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+			}
+			if len(paths[0]) == 0 || len(paths[1]) == 0 {
+				return fmt.Errorf("invalid volume bind mount entry: '%s'", volStr)
+			}
+			if paths[1][0] == '/' {
+				return fmt.Errorf("unsupported absolute container mount point: '%s'", paths[1])
+			}
 		}
 	}
 
@@ -371,7 +373,7 @@ func (d *LxcDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error
 	containers := lxc.Containers(pid.LxcPath)
 	for _, c := range containers {
 		if c.Name() == pid.ContainerName {
-			container = &c
+			container = c
 			break
 		}
 	}
