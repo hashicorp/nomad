@@ -23,8 +23,8 @@ import (
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 
 	"github.com/hashicorp/consul-template/signals"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	dstructs "github.com/hashicorp/nomad/drivers/shared/structs"
 )
 
 const (
@@ -310,7 +310,7 @@ func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
-// error. Output is truncated to client/driver/structs.CheckBufSize
+// error. Output is truncated to drivers/shared/structs.CheckBufSize
 func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.SysProcAttr,
 	name string, args []string) ([]byte, int, error) {
 	cmd := exec.CommandContext(ctx, name, args...)

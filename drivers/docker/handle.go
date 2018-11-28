@@ -13,8 +13,9 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
+	dstructs "github.com/hashicorp/nomad/drivers/shared/structs"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
@@ -31,11 +32,11 @@ type taskHandle struct {
 	containerID           string
 	containerImage        string
 	resourceUsageLock     sync.RWMutex
-	resourceUsage         *structs.TaskResourceUsage
+	resourceUsage         *cstructs.TaskResourceUsage
 	doneCh                chan bool
 	waitCh                chan struct{}
 	removeContainerOnExit bool
-	net                   *structs.DriverNetwork
+	net                   *cstructs.DriverNetwork
 
 	exitResult     *drivers.ExitResult
 	exitResultLock sync.Mutex
@@ -52,7 +53,7 @@ type taskHandleState struct {
 	ReattachConfig *shared.ReattachConfig
 
 	ContainerID   string
-	DriverNetwork *structs.DriverNetwork
+	DriverNetwork *cstructs.DriverNetwork
 }
 
 func (h *taskHandle) buildState() *taskHandleState {
@@ -82,8 +83,8 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	}
 
 	execResult := &drivers.ExecTaskResult{ExitResult: &drivers.ExitResult{}}
-	stdout, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
-	stderr, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
+	stdout, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
+	stderr, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
 	startOpts := docker.StartExecOptions{
 		Detach:       false,
 		Tty:          false,
@@ -155,7 +156,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	return nil
 }
 
-func (h *taskHandle) Stats() (*structs.TaskResourceUsage, error) {
+func (h *taskHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	h.resourceUsageLock.RLock()
 	defer h.resourceUsageLock.RUnlock()
 	var err error
@@ -235,7 +236,7 @@ func (h *taskHandle) collectStats() {
 		select {
 		case s := <-statsCh:
 			if s != nil {
-				ms := &structs.MemoryStats{
+				ms := &cstructs.MemoryStats{
 					RSS:      s.MemoryStats.Stats.Rss,
 					Cache:    s.MemoryStats.Stats.Cache,
 					Swap:     s.MemoryStats.Stats.Swap,
@@ -243,7 +244,7 @@ func (h *taskHandle) collectStats() {
 					Measured: DockerMeasuredMemStats,
 				}
 
-				cs := &structs.CpuStats{
+				cs := &cstructs.CpuStats{
 					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
 					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
 					Measured:         DockerMeasuredCpuStats,
@@ -262,8 +263,8 @@ func (h *taskHandle) collectStats() {
 				cs.TotalTicks = (cs.Percent / 100) * stats.TotalTicksAvailable() / float64(numCores)
 
 				h.resourceUsageLock.Lock()
-				h.resourceUsage = &structs.TaskResourceUsage{
-					ResourceUsage: &structs.ResourceUsage{
+				h.resourceUsage = &cstructs.TaskResourceUsage{
+					ResourceUsage: &cstructs.ResourceUsage{
 						MemoryStats: ms,
 						CpuStats:    cs,
 					},
