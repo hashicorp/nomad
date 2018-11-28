@@ -71,10 +71,6 @@ func (h *deviceHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 }
 
 func convertMount(in *device.Mount) *drivers.MountConfig {
-	if in == nil {
-		return nil
-	}
-
 	return &drivers.MountConfig{
 		TaskPath: in.TaskPath,
 		HostPath: in.HostPath,
@@ -83,10 +79,6 @@ func convertMount(in *device.Mount) *drivers.MountConfig {
 }
 
 func convertDevice(in *device.DeviceSpec) *drivers.DeviceConfig {
-	if in == nil {
-		return nil
-	}
-
 	return &drivers.DeviceConfig{
 		TaskPath:    in.TaskPath,
 		HostPath:    in.HostPath,
