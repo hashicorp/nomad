@@ -40,8 +40,8 @@ func TestLXCDriver_Fingerprint(t *testing.T) {
 	select {
 	case finger := <-fingerCh:
 		require.Equal(drivers.HealthStateHealthy, finger.Health)
-		require.Equal("1", finger.Attributes["driver.lxc"])
-		require.NotEmpty(finger.Attributes["driver.lxc.version"])
+		require.True(finger.Attributes["driver.lxc"].GetBool())
+		require.NotEmpty(finger.Attributes["driver.lxc.version"].GetString())
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
 	}

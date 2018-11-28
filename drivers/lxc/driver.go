@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"gopkg.in/lxc/go-lxc.v2"
 )
 
 const (
@@ -252,22 +252,22 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan<- *drivers.Finge
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	var health drivers.HealthState
 	var desc string
-	attrs := map[string]string{}
+	attrs := map[string]*pstructs.Attribute{}
 
 	lxcVersion := lxc.Version()
 
 	if d.config.Enabled && lxcVersion != "" {
 		health = drivers.HealthStateHealthy
 		desc = "ready"
-		attrs["driver.lxc"] = "1"
-		attrs["driver.lxc.version"] = lxcVersion
+		attrs["driver.lxc"] = pstructs.NewBoolAttribute(true)
+		attrs["driver.lxc.version"] = pstructs.NewStringAttribute(lxcVersion)
 	} else {
 		health = drivers.HealthStateUndetected
 		desc = "disabled"
 	}
 
 	if d.config.AllowVolumes {
-		attrs["driver.lxc.volumes.enabled"] = "1"
+		attrs["driver.lxc.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	return &drivers.Fingerprint{
