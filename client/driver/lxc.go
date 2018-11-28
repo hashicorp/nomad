@@ -477,52 +477,56 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 		c.Name(),
 	}
 
-	newConfigFilePath := filepath.Join(d.lxcPath, c.Name(), "config")
-	newConfigFile, err := os.Create(newConfigFilePath)
+	initialConfigFilePath := filepath.Join(d.lxcPath, c.Name(), "config.initial")
+	finalConfigFilePath := filepath.Join(d.lxcPath, c.Name(), "config")
+	initialConfigFile, err := os.Create(initialConfigFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new config file '%s': %v", newConfigFilePath, err), removeLVCleanup
-	}
-	defer newConfigFile.Close()
-	removeConfigCleanup := func() error {
-		if err := removeLVCleanup(); err != nil {
-			return err
-		}
-		return os.Remove(newConfigFilePath)
+		return nil, fmt.Errorf("unable to create new config file '%s': %v", initialConfigFilePath, err), removeLVCleanup
 	}
 
-	if err := os.Chmod(newConfigFilePath, 0777); err != nil {
-		return nil, fmt.Errorf("unable to change permissions on config file"), removeConfigCleanup
+	if err := os.Chmod(initialConfigFilePath, 0777); err != nil {
+		return nil, fmt.Errorf("unable to change permissions on config file"), removeLVCleanup
 	}
 
 	tmpl, err := template.ParseFiles(executeConfig.BaseConfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse config template in '%v': %v",
-			executeConfig.BaseConfigPath, err), removeConfigCleanup
+			executeConfig.BaseConfigPath, err), removeLVCleanup
 	}
 
-	if err := tmpl.Execute(newConfigFile, configTemplate); err != nil {
-		return nil, fmt.Errorf("Error executing config file template: %v", err), removeConfigCleanup
+	if err := tmpl.Execute(initialConfigFile, configTemplate); err != nil {
+		initialConfigFile.Close()
+		return nil, fmt.Errorf("Error executing config file template: %v", err), removeLVCleanup
 	}
+	initialConfigFile.Close()
 
-	d.logger.Printf("[INFO] %s config path is %s", c.Name(), newConfigFilePath)
-	if err := c.LoadConfigFile(newConfigFilePath); err != nil {
-		return nil, fmt.Errorf("unable to read config file for container: %v", err), removeConfigCleanup
+	d.logger.Printf("[INFO] %s initial config path is %s, final config path is %s", c.Name(), initialConfigFilePath, finalConfigFilePath)
+	if err := c.LoadConfigFile(initialConfigFilePath); err != nil {
+		return nil, fmt.Errorf("unable to read config file for container: %v", err), removeLVCleanup
 	}
 
 	if err := d.setCommonContainerConfig(ctx, c, commonConfig); err != nil {
-		return nil, err, removeConfigCleanup
+		return nil, err, removeLVCleanup
 	}
 
 	// Replace any env vars in Cmd with value from Nomad env:
 	parsedArgs := ctx.TaskEnv.ParseAndReplace(executeConfig.CmdArgs)
 	d.logger.Printf("[INFO] env vars substituted in command \"%s\" - new command is \"%s\"", executeConfig.CmdArgs, parsedArgs)
 
-	if err := c.StartExecute(parsedArgs); err != nil {
-		return nil, fmt.Errorf("unable to execute with args '%v': %v", parsedArgs, err), removeConfigCleanup
+	if err := c.SetConfigItem("lxc.execute.cmd", strings.Join(parsedArgs, " ")); err != nil {
+		return nil, fmt.Errorf("unable to set final parsed command to \"%s\"", parsedArgs), removeLVCleanup
 	}
 
-	stopAndRemoveConfigCleanup := func() error {
-		removeConfigCleanup()
+	if err := c.SaveConfigFile(finalConfigFilePath); err != nil {
+		return nil, fmt.Errorf("unable to write final config file to \"%s\"", finalConfigFilePath), removeLVCleanup
+	}
+
+	if err := c.StartExecute(parsedArgs); err != nil {
+		return nil, fmt.Errorf("unable to execute with args '%v': %v", parsedArgs, err), removeLVCleanup
+	}
+
+	stopAndRemoveLVCleanup := func() error {
+		removeLVCleanup()
 		if err := c.Stop(); err != nil {
 			return err
 		}
@@ -530,7 +534,7 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 	}
 
 	if err := setLimitsOnContainer(c, task); err != nil {
-		return nil, err, stopAndRemoveConfigCleanup
+		return nil, err, stopAndRemoveLVCleanup
 	}
 
 	h := lxcDriverHandle{
