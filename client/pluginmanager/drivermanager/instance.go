@@ -397,6 +397,7 @@ func (i *instanceManager) handleEvents() {
 	var backoff time.Duration
 	var retry int
 	for {
+		time.Sleep(backoff)
 		select {
 		case <-i.ctx.Done():
 			cancel()
