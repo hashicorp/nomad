@@ -13,7 +13,7 @@ import (
 
 	ctestutil "github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"

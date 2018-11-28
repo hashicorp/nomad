@@ -8,9 +8,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// TestaddNestedKey_Ok asserts test cases that succeed when passed to
+// TestAddNestedKey_Ok asserts test cases that succeed when passed to
 // addNestedKey.
-func TestaddNestedKey_Ok(t *testing.T) {
+func TestAddNestedKey_Ok(t *testing.T) {
 	cases := []struct {
 		// M will be initialized if unset
 		M map[string]interface{}
@@ -142,9 +142,9 @@ func TestaddNestedKey_Ok(t *testing.T) {
 	}
 }
 
-// TestaddNestedKey_Bad asserts test cases return an error when passed to
+// TestAddNestedKey_Bad asserts test cases return an error when passed to
 // addNestedKey.
-func TestaddNestedKey_Bad(t *testing.T) {
+func TestAddNestedKey_Bad(t *testing.T) {
 	cases := []struct {
 		// M will be initialized if unset
 		M func() map[string]interface{}

@@ -11,8 +11,8 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
