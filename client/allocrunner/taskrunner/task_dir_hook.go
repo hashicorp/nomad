@@ -2,11 +2,14 @@ package taskrunner
 
 import (
 	"context"
+	"strings"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -45,7 +48,30 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 
 	// Update the environment variables based on the built task directory
-	driver.SetEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
+	setEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
 	resp.Done = true
 	return nil
+}
+
+// setEnvvars sets path and host env vars depending on the FS isolation used.
+func setEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
+	// Set driver-specific environment variables
+	switch fsi {
+	case cstructs.FSIsolationNone:
+		// Use host paths
+		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
+		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
+		envBuilder.SetSecretsDir(taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
+		envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	}
+
+	// Set the host environment variables for non-image based drivers
+	if fsi != cstructs.FSIsolationImage {
+		filter := strings.Split(conf.ReadDefault("env.blacklist", cconfig.DefaultEnvBlacklist), ",")
+		envBuilder.SetHostEnvvars(filter)
+	}
 }

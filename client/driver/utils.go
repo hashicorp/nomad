@@ -14,11 +14,8 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -177,29 +174,6 @@ func getExecutorUser(task *structs.Task) string {
 		return dstructs.DefaultUnprivilegedUser
 	}
 	return task.User
-}
-
-// SetEnvvars sets path and host env vars depending on the FS isolation used.
-func SetEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
-	// Set driver-specific environment variables
-	switch fsi {
-	case cstructs.FSIsolationNone:
-		// Use host paths
-		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
-		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
-		envBuilder.SetSecretsDir(taskDir.SecretsDir)
-	default:
-		// filesystem isolation; use container paths
-		envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
-		envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
-		envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
-	}
-
-	// Set the host environment variables for non-image based drivers
-	if fsi != cstructs.FSIsolationImage {
-		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
-		envBuilder.SetHostEnvvars(filter)
-	}
 }
 
 // getTaskKillSignal looks up the signal specified for the task if it has been
