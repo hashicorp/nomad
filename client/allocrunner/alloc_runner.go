@@ -128,13 +128,15 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		taskStateUpdatedCh:       make(chan struct{}, 1),
 		taskStateUpdateHandlerCh: make(chan struct{}),
 		deviceStatsReporter:      config.DeviceStatsReporter,
-		allocBroadcaster:         cstructs.NewAllocBroadcaster(),
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		pluginSingletonLoader:    config.PluginSingletonLoader,
 	}
 
 	// Create the logger based on the allocation ID
 	ar.logger = config.Logger.Named("alloc_runner").With("alloc_id", alloc.ID)
+
+	// Create alloc broadcaster
+	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
