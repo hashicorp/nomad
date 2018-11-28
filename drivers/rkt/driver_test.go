@@ -86,9 +86,9 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "etcd",
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -179,9 +179,9 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "etcd",
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -234,9 +234,9 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "etcd",
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -289,9 +289,9 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "etcd",
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -340,9 +340,9 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "etcd",
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -440,9 +440,9 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	require.NoError(harness.SetConfig(data, nil))
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "rkttest_alpine",
+		Name:    "rkttest_alpine",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -511,9 +511,9 @@ func TestRktDriver_PortMapping(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "redis",
+		Name:    "redis",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -564,10 +564,10 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		User: "nobody",
-		Name: "rkttest_alpine",
+		User:    "nobody",
+		Name:    "rkttest_alpine",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -624,9 +624,9 @@ func TestRktDriver_Exec(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "etcd",
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -695,9 +695,9 @@ func TestRktDriver_Stats(t *testing.T) {
 	harness := drivers.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
+		ID:      uuid.Generate(),
 		AllocID: uuid.Generate(),
-		Name: "etcd",
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
