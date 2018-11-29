@@ -33,11 +33,11 @@ func New(logger log.Logger) *PluginGroup {
 // RegisterAndRun registers the manager and starts it in a separate goroutine
 func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	m.mLock.Lock()
+	defer m.mLock.Unlock()
 	if m.shutdown {
 		return fmt.Errorf("plugin group already shutdown")
 	}
 	m.managers = append(m.managers, manager)
-	m.mLock.Unlock()
 
 	go func() {
 		m.logger.Info("starting plugin manager", "plugin-type", manager.PluginType())
