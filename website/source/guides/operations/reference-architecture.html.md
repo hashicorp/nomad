@@ -26,7 +26,7 @@ This document describes deploying a Nomad cluster in combination with, or with a
 
 ## <a name="ra"></a>Reference Architecture
 
-A Nomad cluster typically comprises three or five servers (but no more than seven) and a number of client agents. Nomad differs slightly from Consul in that it divides infrastruture into regions which are served by one Nomad server cluster, but can manage multiple datacenters or availability zones. For example, a _US Region_ can include datacenters _us-east-1_ and _us-west-2_.
+A Nomad cluster typically comprises three or five servers (but no more than seven) and a number of client agents. Nomad differs slightly from Consul in that it divides infrastructure into regions which are served by one Nomad server cluster, but can manage multiple datacenters or availability zones. For example, a _US Region_ can include datacenters _us-east-1_ and _us-west-2_.
 
 In a Nomad multi-region architecture, communication happens via [WAN gossip](/docs/internals/gossip.html). Additionally, Nomad can integrate easily with Consul to provide features such as automatic clustering, service discovery, and dynamic configurations. Thus we recommend you use Consul in your Nomad deployment to simplify the deployment.
 
