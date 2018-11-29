@@ -588,24 +588,15 @@ func (v *vaultClient) getWrappingFn() func(operation, path string) string {
 // it in the client. If the token is not valid for Nomads purposes an error is
 // returned.
 func (v *vaultClient) parseSelfToken() error {
-	// Get the initial lease duration
-	auth := v.client.Auth().Token()
-	var self *vapi.Secret
-
 	// Try looking up the token using the self endpoint
-	secret, err := auth.LookupSelf()
+	secret, err := v.lookupSelf()
 	if err != nil {
-		// Try looking up our token directly
-		self, err = auth.Lookup(v.client.Token())
-		if err != nil {
-			return fmt.Errorf("failed to lookup Vault periodic token: %v", err)
-		}
+		return err
 	}
-	self = secret
 
 	// Read and parse the fields
 	var data tokenData
-	if err := mapstructure.WeakDecode(self.Data, &data); err != nil {
+	if err := mapstructure.WeakDecode(secret.Data, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault token's data block: %v", err)
 	}
 
@@ -682,6 +673,29 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// lookupSelf is a helper function that looks up latest self lease info.
+func (v *vaultClient) lookupSelf() (*vapi.Secret, error) {
+	// Get the initial lease duration
+	auth := v.client.Auth().Token()
+
+	secret, err := auth.LookupSelf()
+	if err == nil && secret != nil && secret.Data != nil {
+		return secret, nil
+	}
+
+	// Try looking up our token directly, even when we get an empty response,
+	// in case of an unexpected event - a true failure would occur in this lookup again
+	secret, err = auth.Lookup(v.client.Token())
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("failed to lookup Vault periodic token: %v", err)
+	case secret == nil || secret.Data == nil:
+		return nil, fmt.Errorf("failed to lookup Vault periodic token: got empty response")
+	default:
+		return secret, nil
+	}
 }
 
 // getRole returns the role name to be used when creating tokens
