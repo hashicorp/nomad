@@ -117,9 +117,9 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 
 	taskEnv := taskBuilder.Build()
 	if t.Env == nil {
-		t.Env = taskEnv.All()
+		t.Env = taskEnv.Map()
 	} else {
-		for k, v := range taskEnv.All() {
+		for k, v := range taskEnv.Map() {
 			if _, ok := t.Env[k]; !ok {
 				t.Env[k] = v
 			}
