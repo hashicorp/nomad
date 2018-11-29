@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -175,7 +176,7 @@ type execId struct {
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
 	UserPid        int
-	PluginConfig   *PluginReattachConfig
+	PluginConfig   *executorplugin.PluginReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -222,7 +223,7 @@ func (h *execHandle) ID() string {
 		Version:        h.version,
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
-		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:   executorplugin.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
 	}
 

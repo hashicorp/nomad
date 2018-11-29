@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -307,7 +308,7 @@ type javaId struct {
 	Version        string
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
-	PluginConfig   *PluginReattachConfig
+	PluginConfig   *executorplugin.PluginReattachConfig
 	TaskDir        string
 	UserPid        int
 	ShutdownSignal string
@@ -359,7 +360,7 @@ func (h *javaHandle) ID() string {
 		Version:        h.version,
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
-		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:   executorplugin.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
 		TaskDir:        h.taskDir,
 		ShutdownSignal: h.shutdownSignal,

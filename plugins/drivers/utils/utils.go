@@ -12,7 +12,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/env"
@@ -79,8 +79,8 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 	config := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", string(c)),
 	}
-	config.HandshakeConfig = driver.HandshakeConfig
-	config.Plugins = driver.GetPluginMap(w, level, executorConfig.FSIsolation)
+	config.HandshakeConfig = executorplugin.HandshakeConfig
+	config.Plugins = executorplugin.GetPluginMap(w, level, executorConfig.FSIsolation)
 
 	if driverConfig != nil {
 		config.MaxPort = driverConfig.ClientMaxPort
@@ -112,11 +112,11 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 
 // CreateExecutorWithConfig launches a plugin with a given plugin config
 func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
-	config.HandshakeConfig = driver.HandshakeConfig
+	config.HandshakeConfig = executorplugin.HandshakeConfig
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
-	config.Plugins = driver.GetPluginMap(w, hclog.Debug, false)
+	config.Plugins = executorplugin.GetPluginMap(w, hclog.Debug, false)
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
@@ -128,7 +128,7 @@ func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
-	executorPlugin, ok := raw.(*driver.ExecutorRPC)
+	executorPlugin, ok := raw.(*executorplugin.ExecutorRPC)
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}

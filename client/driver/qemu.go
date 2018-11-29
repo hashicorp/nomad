@@ -17,6 +17,7 @@ import (
 
 	"github.com/coreos/go-semver/semver"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -372,7 +373,7 @@ type qemuId struct {
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
 	UserPid        int
-	PluginConfig   *PluginReattachConfig
+	PluginConfig   *executorplugin.PluginReattachConfig
 	ShutdownSignal string
 }
 
@@ -421,7 +422,7 @@ func (h *qemuHandle) ID() string {
 		Version:        h.version,
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
-		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:   executorplugin.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
 		ShutdownSignal: h.shutdownSignal,
 	}

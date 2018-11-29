@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/discover"
@@ -45,8 +46,8 @@ func createExecutor(w io.Writer, clientConfig *config.Config,
 	config := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", string(c)),
 	}
-	config.HandshakeConfig = HandshakeConfig
-	config.Plugins = GetPluginMap(w, hclog.LevelFromString(clientConfig.LogLevel), executorConfig.FSIsolation)
+	config.HandshakeConfig = executorplugin.HandshakeConfig
+	config.Plugins = executorplugin.GetPluginMap(w, hclog.LevelFromString(clientConfig.LogLevel), executorConfig.FSIsolation)
 	config.MaxPort = clientConfig.ClientMaxPort
 	config.MinPort = clientConfig.ClientMinPort
 
@@ -71,11 +72,11 @@ func createExecutor(w io.Writer, clientConfig *config.Config,
 }
 
 func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
-	config.HandshakeConfig = HandshakeConfig
+	config.HandshakeConfig = executorplugin.HandshakeConfig
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
-	config.Plugins = GetPluginMap(w, hclog.Debug, false)
+	config.Plugins = executorplugin.GetPluginMap(w, hclog.Debug, false)
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
@@ -87,7 +88,7 @@ func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
-	executorPlugin, ok := raw.(*ExecutorRPC)
+	executorPlugin, ok := raw.(*executorplugin.ExecutorRPC)
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}

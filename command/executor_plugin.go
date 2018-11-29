@@ -8,7 +8,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 )
 
@@ -43,8 +43,8 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 		return 1
 	}
 	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: driver.HandshakeConfig,
-		Plugins: driver.GetPluginMap(
+		HandshakeConfig: executorplugin.HandshakeConfig,
+		Plugins: executorplugin.GetPluginMap(
 			stdo,
 			hclog.LevelFromString(executorConfig.LogLevel),
 			executorConfig.FSIsolation,
