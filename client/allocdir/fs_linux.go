@@ -31,12 +31,47 @@ func linkDir(src, dst string) error {
 // hardlinking directories. If the dir is already unmounted no error is
 // returned.
 func unlinkDir(dir string) error {
-	if err := unix.Unmount(dir, 0); err != nil {
-		if err != unix.EINVAL {
+	return unmount(dir)
+}
+
+// bindMount mounts src to dst with support for read only mounting.
+// Assumes that filepath.Dir(dst) exists already
+func bindMount(src, dst string, readOnly bool) error {
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		// check if destination is available and create a corresponding type if it is not present
+		stats, err := os.Stat(src)
+		if err != nil {
 			return err
 		}
+
+		if stats.IsDir() {
+			if err := os.Mkdir(dst, 0777); err != nil {
+				return err
+			}
+		} else {
+			if _, err := os.Create(dst); err != nil {
+				return err
+			}
+
+		}
+	}
+
+	err := unix.Mount(src, dst, "", unix.MS_BIND, "")
+	if err != nil || !readOnly {
+		return err
+	}
+
+	// mount yet again for read-only flag
+	return unix.Mount("", dst, "", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
+}
+
+// unmount a bind mount.  If the target is already unmounted, no error is returned
+func unmount(path string) error {
+	if err := unix.Unmount(path, 0); err != nil && err != unix.EINVAL {
+		return err
 	}
 	return nil
+
 }
 
 // createSecretDir creates the secrets dir folder at the given path using a

@@ -64,3 +64,13 @@ func unmountSpecialDirs(taskDir string) error {
 func getOwner(os.FileInfo) (int, int) {
 	return idUnsupported, idUnsupported
 }
+
+// bindMount does nothing currently
+func bindMount(src, dst string, readOnly bool) error {
+	return nil
+}
+
+// unmount does nothing currently
+func unmount(path string) error {
+	return nil
+}

@@ -64,6 +64,7 @@ func (tr *TaskRunner) initHooks() {
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
+		newDeviceMountHook(tr, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook

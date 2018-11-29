@@ -25,3 +25,14 @@ func createSecretDir(dir string) error {
 func removeSecretDir(dir string) error {
 	return os.RemoveAll(dir)
 }
+
+// bindMount mounts src to dst with support for read only mounting.
+// Assumes that filepath.Dir(dst) exists already
+func bindMount(src, dst string, readOnly bool) error {
+	return syscall.Link(src, dst)
+}
+
+// unmount a bind mount.  If the target is already unmounted, no error is returned
+func unmount(path string) error {
+	return syscall.Unlink(path)
+}
