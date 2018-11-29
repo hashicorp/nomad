@@ -761,24 +761,13 @@ func (h *lxcDriverHandle) Exec(ctx context.Context, cmd string, args []string) (
 }
 
 func (h *lxcDriverHandle) Kill() error {
-	name := h.container.Name()
-
-	h.logger.Printf("[INFO] driver.lxc: shutting down container %q", name)
-
 	if h.container.Running() {
-		if err := h.container.Shutdown(h.killTimeout); err != nil {
-			h.logger.Printf("[INFO] driver.lxc: shutting down container %q failed: %v", name, err)
-
-			if err := h.container.Stop(); err != nil {
-				h.logger.Printf("[WARN] driver.lxc: error stopping container %q: %v", name, err)
-				return fmt.Errorf("could not stop container: %v", err)
-			}
+		name := h.container.Name()
+		if err := h.container.Stop(); err != nil {
+			h.logger.Printf("[WARN] driver.lxc: error stopping container %q: %v", name, err)
+			return fmt.Errorf("could not stop container: %v", err)
 		}
-	}
-
-	if err := h.container.Destroy(); err != nil {
-		h.logger.Printf("[WARN] driver.lxc: error destroying container %q: %v.", name, err)
-		return fmt.Errorf("could not destroy container")
+		h.logger.Printf("[INFO] driver.lxc: stopped running container %q", name)
 	}
 
 	close(h.doneCh)
@@ -886,17 +875,25 @@ func (h *lxcDriverHandle) run() {
 			process, err := os.FindProcess(h.initPid)
 			if err != nil {
 				h.waitCh <- &dstructs.WaitResult{Err: err}
-				return
+				goto DESTROY
 			}
 			if err := process.Signal(syscall.Signal(0)); err != nil {
 				h.waitCh <- &dstructs.WaitResult{}
-				return
+				goto DESTROY
 			}
 			timer.Reset(containerMonitorIntv)
 		case <-h.doneCh:
 			h.waitCh <- &dstructs.WaitResult{}
-			return
+			goto DESTROY
 		}
+	}
+
+DESTROY:
+	name := h.container.Name()
+	if err := h.container.Destroy(); err != nil {
+		h.logger.Printf("[ERR] driver.lxc: error destroying container %q: %v.", name, err)
+	} else {
+		h.logger.Printf("[INFO] driver.lxc: successfully destroyed container %q.", name)
 	}
 }
 
