@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -25,15 +24,15 @@ func linkDir(src, dst string) error {
 		return err
 	}
 
-	return syscall.Mount(src, dst, "", syscall.MS_BIND, "")
+	return unix.Mount(src, dst, "", unix.MS_BIND, "")
 }
 
 // unlinkDir unmounts a bind mounted directory as Linux doesn't support
 // hardlinking directories. If the dir is already unmounted no error is
 // returned.
 func unlinkDir(dir string) error {
-	if err := syscall.Unmount(dir, 0); err != nil {
-		if err != syscall.EINVAL {
+	if err := unix.Unmount(dir, 0); err != nil {
+		if err != unix.EINVAL {
 			return err
 		}
 	}
@@ -56,9 +55,9 @@ func createSecretDir(dir string) error {
 		}
 
 		var flags uintptr
-		flags = syscall.MS_NOEXEC
+		flags = unix.MS_NOEXEC
 		options := fmt.Sprintf("size=%dm", secretDirTmpfsSize)
-		if err := syscall.Mount("tmpfs", dir, "tmpfs", flags, options); err != nil {
+		if err := unix.Mount("tmpfs", dir, "tmpfs", flags, options); err != nil {
 			return os.NewSyscallError("mount", err)
 		}
 
@@ -80,7 +79,7 @@ func removeSecretDir(dir string) error {
 	if unix.Geteuid() == 0 {
 		if err := unlinkDir(dir); err != nil {
 			// Ignore invalid path errors
-			if err != syscall.ENOENT {
+			if err != unix.ENOENT {
 				return os.NewSyscallError("unmount", err)
 			}
 		}
