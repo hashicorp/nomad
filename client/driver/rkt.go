@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -114,7 +115,7 @@ type rktHandle struct {
 // disk
 type rktPID struct {
 	UUID           string
-	PluginConfig   *PluginReattachConfig
+	PluginConfig   *pexecutor.PluginReattachConfig
 	ExecutorPid    int
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
@@ -625,7 +626,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	}
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%s-executor.out", task.Name))
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: d.config.LogLevel,
 	}
@@ -787,7 +788,7 @@ func (h *rktHandle) ID() string {
 	// Return a handle to the PID
 	pid := &rktPID{
 		UUID:           h.uuid,
-		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:   pexecutor.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
 		ExecutorPid:    h.executorPid,

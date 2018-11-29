@@ -12,12 +12,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -110,7 +110,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	}
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:     pluginLogFile,
 		LogLevel:    d.config.LogLevel,
 		FSIsolation: true,
@@ -176,7 +176,7 @@ type execId struct {
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
 	UserPid        int
-	PluginConfig   *executorplugin.PluginReattachConfig
+	PluginConfig   *pexecutor.PluginReattachConfig
 }
 
 func (d *ExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -223,7 +223,7 @@ func (h *execHandle) ID() string {
 		Version:        h.version,
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
-		PluginConfig:   executorplugin.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:   pexecutor.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
 	}
 

@@ -1,4 +1,4 @@
-package executorplugin
+package executor
 
 import (
 	"io"
@@ -7,6 +7,20 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
+
+// ExecutorConfig is the config that Nomad passes to the executor
+type ExecutorConfig struct {
+
+	// LogFile is the file to which Executor logs
+	LogFile string
+
+	// LogLevel is the level of the logs to putout
+	LogLevel string
+
+	// FSIsolation if set will use an executor implementation that support
+	// filesystem isolation
+	FSIsolation bool
+}
 
 var HandshakeConfig = plugin.HandshakeConfig{
 	ProtocolVersion:  1,

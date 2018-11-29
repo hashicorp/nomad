@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -27,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
 )
 
 const (
@@ -239,7 +239,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	}
 
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:     pluginLogFile,
 		LogLevel:    d.config.LogLevel,
 		FSIsolation: true,
@@ -308,7 +308,7 @@ type javaId struct {
 	Version        string
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
-	PluginConfig   *executorplugin.PluginReattachConfig
+	PluginConfig   *pexecutor.PluginReattachConfig
 	TaskDir        string
 	UserPid        int
 	ShutdownSignal string
@@ -360,7 +360,7 @@ func (h *javaHandle) ID() string {
 		Version:        h.version,
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
-		PluginConfig:   executorplugin.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:   pexecutor.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
 		TaskDir:        h.taskDir,
 		ShutdownSignal: h.shutdownSignal,

@@ -17,13 +17,13 @@ import (
 
 	"github.com/coreos/go-semver/semver"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/driver/executor_plugin"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/fields"
 	"github.com/hashicorp/nomad/nomad/structs"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -312,7 +312,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 
 	d.logger.Printf("[DEBUG] driver.qemu: starting QemuVM command: %q", strings.Join(args, " "))
 	pluginLogFile := filepath.Join(ctx.TaskDir.Dir, "executor.out")
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: d.config.LogLevel,
 	}
@@ -373,7 +373,7 @@ type qemuId struct {
 	KillTimeout    time.Duration
 	MaxKillTimeout time.Duration
 	UserPid        int
-	PluginConfig   *executorplugin.PluginReattachConfig
+	PluginConfig   *pexecutor.PluginReattachConfig
 	ShutdownSignal string
 }
 
@@ -422,7 +422,7 @@ func (h *qemuHandle) ID() string {
 		Version:        h.version,
 		KillTimeout:    h.killTimeout,
 		MaxKillTimeout: h.maxKillTimeout,
-		PluginConfig:   executorplugin.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
+		PluginConfig:   pexecutor.NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
 		ShutdownSignal: h.shutdownSignal,
 	}

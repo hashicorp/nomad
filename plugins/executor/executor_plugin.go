@@ -1,4 +1,4 @@
-package executorplugin
+package executor
 
 import (
 	"encoding/gob"
