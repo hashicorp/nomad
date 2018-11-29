@@ -1702,6 +1702,29 @@ func TestDockerDriver_Stats(t *testing.T) {
 	}
 }
 
+// setEnvvars sets path and host env vars depending on the FS isolation used.
+func setEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+	// Set driver-specific environment variables
+	switch fsi {
+	case cstructs.FSIsolationNone:
+		// Use host paths
+		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
+		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
+		envBuilder.SetSecretsDir(taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
+		envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	}
+
+	// Set the host environment variables for non-image based drivers
+	if fsi != cstructs.FSIsolationImage {
+		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+		envBuilder.SetHostEnvvars(filter)
+	}
+}
+
 func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*structs.Task, Driver, *ExecContext, string, func()) {
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("Docker not connected")
@@ -1753,7 +1776,7 @@ func setupDockerVolumes(t *testing.T, cfg *config.Config, hostpath string) (*str
 
 	// Setup execCtx
 	envBuilder := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
-	SetEnvvars(envBuilder, driver.FSIsolation(), taskDir, cfg)
+	setEnvvars(envBuilder, driver.FSIsolation(), taskDir, cfg)
 	execCtx := NewExecContext(taskDir, envBuilder.Build())
 
 	// Setup cleanup function

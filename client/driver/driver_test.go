@@ -150,7 +150,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 		return nil
 	}
 	eb := env.NewBuilder(cfg.Node, alloc, task, cfg.Region)
-	SetEnvvars(eb, tmpdrv.FSIsolation(), td, cfg)
+	setEnvvars(eb, tmpdrv.FSIsolation(), td, cfg)
 	execCtx := NewExecContext(td, eb.Build())
 
 	logger := testlog.Logger(t)
@@ -234,7 +234,7 @@ func setupTaskEnv(t *testing.T, driver string) (*allocdir.TaskDir, map[string]st
 	if err != nil {
 		t.Fatalf("unable to create driver %q: %v", driver, err)
 	}
-	SetEnvvars(eb, tmpDriver.FSIsolation(), taskDir, conf)
+	setEnvvars(eb, tmpDriver.FSIsolation(), taskDir, conf)
 	exp := map[string]string{
 		"NOMAD_CPU_LIMIT":               "1000",
 		"NOMAD_MEMORY_LIMIT":            "500",
