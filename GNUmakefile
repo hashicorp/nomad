@@ -277,7 +277,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=900s \
-		github.com/hashicorp/nomad/e2e/vault/
+		github.com/hashicorp/nomad/e2e/vault/ \
 		-integration
 
 .PHONY: clean
