@@ -305,7 +305,7 @@ func (i *instanceManager) fingerprint() {
 			// if the channel is closed attempt to open a new one
 			newFpChan, newCancel, err := i.dispenseFingerprintCh()
 			if err != nil {
-				i.logger.Warn("failed to fingerprint driver, retrying in 30s", "error", err, "retry", retry)
+				i.logger.Warn("error fingerprinting driver", "error", err, "retry", retry)
 				i.handleFingerprintError()
 
 				// Calculate the new backoff
@@ -368,7 +368,7 @@ func (i *instanceManager) handleFingerprint(fp *drivers.Fingerprint) {
 	}
 }
 
-// dispenseTaskEventsCh dispenses a driver plugin and makes an TaskEvents RPC.
+// dispenseTaskEventsCh dispenses a driver plugin and makes a TaskEvents RPC.
 // The TaskEvent chan and cancel func for the RPC is return. The cancel func must
 // be called by the caller to properly cleanup the context
 func (i *instanceManager) dispenseTaskEventsCh() (<-chan *drivers.TaskEvent, context.CancelFunc, error) {

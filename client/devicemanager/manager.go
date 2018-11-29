@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
-// Manaager is the interface used to manage device plugins
+// Manager is the interface used to manage device plugins
 type Manager interface {
 	// Reserve is used to reserve a set of devices
 	Reserve(d *structs.AllocatedDeviceResource) (*device.ContainerReservation, error)
@@ -121,6 +121,7 @@ func New(c *Config) *manager {
 	}
 }
 
+// PluginType identifies this manager to the plugin manager and satisfies the PluginManager interface.
 func (*manager) PluginType() string { return base.PluginTypeDevice }
 
 // Run starts thed device manager. The manager will shutdown any previously
