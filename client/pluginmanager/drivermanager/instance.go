@@ -92,8 +92,8 @@ type instanceManager struct {
 	// updateNodeFromDriver is the callback used to update the node from fingerprinting
 	updateNodeFromDriver UpdateNodeDriverInfoFn
 
-	// handlers is the map of taskID to handler funcs
-	handlers     map[string][]EventHandler
+	// handlers is the map of taskID to handler func
+	handlers     map[string]EventHandler
 	handlersLock sync.RWMutex
 
 	// firstFingerprintCh is used to trigger that we have successfully
@@ -102,7 +102,8 @@ type instanceManager struct {
 	hasFingerprinted   bool
 
 	// lastHealthState is the last known health fingerprinted by the manager
-	lastHealthState drivers.HealthState
+	lastHealthState   drivers.HealthState
+	lastHealthStateMu sync.Mutex
 }
 
 // newInstanceManager returns a new driver instance manager. It is expected that
@@ -121,7 +122,7 @@ func newInstanceManager(c *instanceManagerConfig) *instanceManager {
 		pluginConfig:         c.PluginConfig,
 		id:                   c.ID,
 		updateNodeFromDriver: c.UpdateNodeFromDriver,
-		handlers:             map[string][]EventHandler{},
+		handlers:             map[string]EventHandler{},
 		firstFingerprintCh:   make(chan struct{}),
 	}
 
@@ -144,11 +145,7 @@ func (i *instanceManager) WaitForFirstFingerprint(ctx context.Context) {
 func (i *instanceManager) registerEventHandler(taskID string, handler EventHandler) {
 	i.handlersLock.Lock()
 	defer i.handlersLock.Unlock()
-	if handlers, ok := i.handlers[taskID]; ok {
-		i.handlers[taskID] = append(handlers, handler)
-	} else {
-		i.handlers[taskID] = []EventHandler{handler}
-	}
+	i.handlers[taskID] = handler
 }
 
 // deregisterEventHandler removed the handlers registered for the given taskID
@@ -236,7 +233,9 @@ func (i *instanceManager) dispense() (plugin drivers.DriverPlugin, err error) {
 
 	// Store the reattach config
 	if c, ok := pluginInstance.ReattachConfig(); ok {
-		i.storeReattach(c)
+		if err := i.storeReattach(c); err != nil {
+			i.logger.Error("error storing driver plugin reattach config", "error", err)
+		}
 	}
 
 	return driver, nil
@@ -251,7 +250,9 @@ func (i *instanceManager) cleanup() {
 
 	if i.plugin != nil && !i.plugin.Exited() {
 		i.plugin.Kill()
-		i.storeReattach(nil)
+		if err := i.storeReattach(nil); err != nil {
+			i.logger.Warn("error clearing plugin reattach config from state store", "error", err)
+		}
 	}
 }
 
@@ -286,7 +287,15 @@ func (i *instanceManager) fingerprint() {
 	var backoff time.Duration
 	var retry int
 	for {
-		time.Sleep(backoff)
+		if backoff > 0 {
+			select {
+			case <-time.After(backoff):
+			case <-i.ctx.Done():
+				cancel()
+				return
+			}
+		}
+
 		select {
 		case <-i.ctx.Done():
 			cancel()
@@ -351,21 +360,27 @@ func (i *instanceManager) handleFingerprint(fp *drivers.Fingerprint) {
 	i.updateNodeFromDriver(i.id.Name, di)
 
 	// log detected/undetected state changes after the initial fingerprint
+	i.lastHealthStateMu.Lock()
 	if i.hasFingerprinted {
 		if i.lastHealthState != fp.Health {
 			i.logger.Info("driver health state has changed", "previous", i.lastHealthState, "current", fp.Health, "description", fp.HealthDescription)
 		}
 	}
 	i.lastHealthState = fp.Health
+	i.lastHealthStateMu.Unlock()
 
 	// if this is the first fingerprint, mark that we have received it
 	if !i.hasFingerprinted {
-		if i.logger.IsTrace() {
-			i.logger.Trace("initial driver fingerprint", "fingerprint", fp)
-		}
+		i.logger.Trace("initial driver fingerprint", "fingerprint", fp)
 		close(i.firstFingerprintCh)
 		i.hasFingerprinted = true
 	}
+}
+
+func (i *instanceManager) getLastHealth() drivers.HealthState {
+	i.lastHealthStateMu.Lock()
+	defer i.lastHealthStateMu.Unlock()
+	return i.lastHealthState
 }
 
 // dispenseTaskEventsCh dispenses a driver plugin and makes a TaskEvents RPC.
@@ -397,7 +412,15 @@ func (i *instanceManager) handleEvents() {
 	var backoff time.Duration
 	var retry int
 	for {
-		time.Sleep(backoff)
+		if backoff > 0 {
+			select {
+			case <-time.After(backoff):
+			case <-i.ctx.Done():
+				cancel()
+				return
+			}
+		}
+
 		select {
 		case <-i.ctx.Done():
 			cancel()
@@ -428,7 +451,6 @@ func (i *instanceManager) handleEvents() {
 			// Reset backoff
 			backoff = 0
 			retry = 0
-
 		}
 	}
 }
@@ -437,7 +459,11 @@ func (i *instanceManager) handleEvents() {
 func (i *instanceManager) handleEvent(ev *drivers.TaskEvent) {
 	i.handlersLock.RLock()
 	defer i.handlersLock.RUnlock()
-	for _, handler := range i.handlers[ev.TaskID] {
+	if handler, ok := i.handlers[ev.TaskID]; ok {
+		i.logger.Trace("task event received", "event", ev)
 		handler(ev)
+		return
 	}
+
+	i.logger.Warn("no handler registered for event", "event", ev)
 }

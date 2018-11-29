@@ -97,8 +97,9 @@ type manager struct {
 	// updater is used to update the node when device information changes
 	updater UpdateNodeDriverInfoFn
 
-	// instances is the list of managed devices
-	instances map[string]*instanceManager
+	// instances is the list of managed devices, access is serialized by instanceMu
+	instances   map[string]*instanceManager
+	instancesMu sync.Mutex
 
 	// reattachConfigs stores the plugin reattach configs
 	reattachConfigs    map[loader.PluginID]*shared.ReattachConfig
@@ -160,11 +161,9 @@ func (m *manager) Run() {
 		}
 
 		storeFn := func(c *plugin.ReattachConfig) error {
-			id := id
 			return m.storePluginReattachConfig(id, c)
 		}
 		fetchFn := func() (*plugin.ReattachConfig, bool) {
-			id := id
 			return m.fetchPluginReattachConfig(id)
 		}
 
@@ -184,7 +183,9 @@ func (m *manager) Run() {
 		if instance.lastHealthState != drivers.HealthStateUndetected {
 			availDrivers = append(availDrivers, id.Name)
 		}
+		m.instancesMu.Lock()
 		m.instances[id.Name] = instance
+		m.instancesMu.Unlock()
 		cancel()
 	}
 
@@ -193,15 +194,17 @@ func (m *manager) Run() {
 		m.logger.Debug("drivers skipped due to allow/block list", "skipped_drivers", skippedDrivers)
 	}
 
-	select {
-	case <-m.ctx.Done():
-	}
+	// wait for shutdown
+	<-m.ctx.Done()
 }
 
 // Shutdown cleans up all the plugins
 func (m *manager) Shutdown() {
 	// Cancel the context to stop any requests
 	m.cancel()
+
+	m.instancesMu.Lock()
+	defer m.instancesMu.Unlock()
 
 	// Go through and shut everything down
 	for _, i := range m.instances {
@@ -270,14 +273,20 @@ func (m *manager) fetchPluginReattachConfig(id loader.PluginID) (*plugin.Reattac
 }
 
 func (m *manager) RegisterEventHandler(driver, taskID string, handler EventHandler) {
+	m.instancesMu.Lock()
 	m.instances[driver].registerEventHandler(taskID, handler)
+	m.instancesMu.Unlock()
 }
 
 func (m *manager) DeregisterEventHandler(driver, taskID string) {
+	m.instancesMu.Lock()
 	m.instances[driver].deregisterEventHandler(taskID)
+	m.instancesMu.Unlock()
 }
 
 func (m *manager) Dispense(d string) (drivers.DriverPlugin, error) {
+	m.instancesMu.Lock()
+	defer m.instancesMu.Unlock()
 	if instance, ok := m.instances[d]; ok {
 		return instance.dispense()
 	}

@@ -107,6 +107,8 @@ func TestMananger_FingerPrint(t *testing.T) {
 	defer mgr.Shutdown()
 	fpChan <- &drivers.Fingerprint{Health: drivers.HealthStateHealthy}
 	testutil.WaitForResult(func() (bool, error) {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
 		if len(mgr.instances) != 1 {
 			return false, fmt.Errorf("mananger should have registered an instance")
 		}
@@ -116,7 +118,9 @@ func TestMananger_FingerPrint(t *testing.T) {
 	})
 
 	testutil.WaitForResult(func() (bool, error) {
-		if mgr.instances["mock"].lastHealthState != drivers.HealthStateHealthy {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
+		if mgr.instances["mock"].getLastHealth() != drivers.HealthStateHealthy {
 			return false, fmt.Errorf("mock instance should be healthy")
 		}
 		return true, nil
@@ -128,7 +132,9 @@ func TestMananger_FingerPrint(t *testing.T) {
 		Health: drivers.HealthStateUnhealthy,
 	}
 	testutil.WaitForResult(func() (bool, error) {
-		if mgr.instances["mock"].lastHealthState == drivers.HealthStateHealthy {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
+		if mgr.instances["mock"].getLastHealth() == drivers.HealthStateHealthy {
 			return false, fmt.Errorf("mock instance should be unhealthy")
 		}
 		return true, nil
@@ -140,7 +146,9 @@ func TestMananger_FingerPrint(t *testing.T) {
 		Health: drivers.HealthStateUndetected,
 	}
 	testutil.WaitForResult(func() (bool, error) {
-		if mgr.instances["mock"].lastHealthState != drivers.HealthStateUndetected {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
+		if mgr.instances["mock"].getLastHealth() != drivers.HealthStateUndetected {
 			return false, fmt.Errorf("mock instance should be undetected")
 		}
 		return true, nil
@@ -165,6 +173,8 @@ func TestMananger_TaskEvents(t *testing.T) {
 	defer mgr.Shutdown()
 	fpChan <- &drivers.Fingerprint{Health: drivers.HealthStateHealthy}
 	testutil.WaitForResult(func() (bool, error) {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
 		if len(mgr.instances) != 1 {
 			return false, fmt.Errorf("mananger should have registered 1 instance")
 		}
@@ -196,6 +206,8 @@ func TestManager_Run_AllowedDrivers(t *testing.T) {
 	default:
 	}
 	testutil.AssertUntil(200*time.Millisecond, func() (bool, error) {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
 		if len(mgr.instances) > 0 {
 			return false, fmt.Errorf("mananger should have no registered instances")
 		}
@@ -216,6 +228,8 @@ func TestManager_Run_BlockedDrivers(t *testing.T) {
 	default:
 	}
 	testutil.AssertUntil(200*time.Millisecond, func() (bool, error) {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
 		if len(mgr.instances) > 0 {
 			return false, fmt.Errorf("mananger should have no registered instances")
 		}
@@ -269,6 +283,8 @@ func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
 	}
 
 	testutil.AssertUntil(200*time.Millisecond, func() (bool, error) {
+		mgr.instancesMu.Lock()
+		defer mgr.instancesMu.Unlock()
 		if len(mgr.instances) > 1 {
 			return false, fmt.Errorf("mananger should have 1 registered instances")
 		}
@@ -277,6 +293,8 @@ func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
 		require.NoError(err, "instances: %v", mgr.instances)
 	})
 	require.Len(mgr.instances, 1)
+	mgr.instancesMu.Lock()
 	_, ok := mgr.instances["mock3"]
+	mgr.instancesMu.Unlock()
 	require.True(ok)
 }
