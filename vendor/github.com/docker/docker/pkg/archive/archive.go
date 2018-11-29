@@ -52,7 +52,7 @@ type (
 		NoLchown         bool
 		UIDMaps          []idtools.IDMap
 		GIDMaps          []idtools.IDMap
-		ChownOpts        *idtools.IDPair
+		ChownOpts        *idtools.Identity
 		IncludeSourceDir bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
@@ -72,13 +72,13 @@ type (
 // this package with a pluggable Untar function. Also, to facilitate the passing of specific id
 // mappings for untar, an Archiver can be created with maps which will then be passed to Untar operations.
 type Archiver struct {
-	Untar         func(io.Reader, string, *TarOptions) error
-	IDMappingsVar *idtools.IDMappings
+	Untar     func(io.Reader, string, *TarOptions) error
+	IDMapping *idtools.IdentityMapping
 }
 
-// NewDefaultArchiver returns a new Archiver without any IDMappings
+// NewDefaultArchiver returns a new Archiver without any IdentityMapping
 func NewDefaultArchiver() *Archiver {
-	return &Archiver{Untar: Untar, IDMappingsVar: &idtools.IDMappings{}}
+	return &Archiver{Untar: Untar, IDMapping: &idtools.IdentityMapping{}}
 }
 
 // breakoutError is used to differentiate errors related to breaking out
@@ -367,11 +367,7 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	hdr.AccessTime = time.Time{}
 	hdr.ChangeTime = time.Time{}
 	hdr.Mode = fillGo18FileTypeBits(int64(chmodTarEntry(os.FileMode(hdr.Mode))), fi)
-	name, err = canonicalTarName(name, fi.IsDir())
-	if err != nil {
-		return nil, fmt.Errorf("tar: cannot canonicalize path: %v", err)
-	}
-	hdr.Name = name
+	hdr.Name = canonicalTarName(name, fi.IsDir())
 	if err := setHeaderForSpecialDevice(hdr, name, fi.Sys()); err != nil {
 		return nil, err
 	}
@@ -424,9 +420,9 @@ type tarAppender struct {
 	Buffer    *bufio.Writer
 
 	// for hardlink mapping
-	SeenFiles  map[uint64]string
-	IDMappings *idtools.IDMappings
-	ChownOpts  *idtools.IDPair
+	SeenFiles       map[uint64]string
+	IdentityMapping *idtools.IdentityMapping
+	ChownOpts       *idtools.Identity
 
 	// For packing and unpacking whiteout files in the
 	// non standard format. The whiteout files defined
@@ -435,29 +431,26 @@ type tarAppender struct {
 	WhiteoutConverter tarWhiteoutConverter
 }
 
-func newTarAppender(idMapping *idtools.IDMappings, writer io.Writer, chownOpts *idtools.IDPair) *tarAppender {
+func newTarAppender(idMapping *idtools.IdentityMapping, writer io.Writer, chownOpts *idtools.Identity) *tarAppender {
 	return &tarAppender{
-		SeenFiles:  make(map[uint64]string),
-		TarWriter:  tar.NewWriter(writer),
-		Buffer:     pools.BufioWriter32KPool.Get(nil),
-		IDMappings: idMapping,
-		ChownOpts:  chownOpts,
+		SeenFiles:       make(map[uint64]string),
+		TarWriter:       tar.NewWriter(writer),
+		Buffer:          pools.BufioWriter32KPool.Get(nil),
+		IdentityMapping: idMapping,
+		ChownOpts:       chownOpts,
 	}
 }
 
 // canonicalTarName provides a platform-independent and consistent posix-style
 //path for files and directories to be archived regardless of the platform.
-func canonicalTarName(name string, isDir bool) (string, error) {
-	name, err := CanonicalTarNameForPath(name)
-	if err != nil {
-		return "", err
-	}
+func canonicalTarName(name string, isDir bool) string {
+	name = CanonicalTarNameForPath(name)
 
 	// suffix with '/' for directories
 	if isDir && !strings.HasSuffix(name, "/") {
 		name += "/"
 	}
-	return name, nil
+	return name
 }
 
 // addTarFile adds to the tar archive a file from `path` as `name`
@@ -509,14 +502,12 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	//handle re-mapping container ID mappings back to host ID mappings before
 	//writing tar headers/files. We skip whiteout files because they were written
 	//by the kernel and already have proper ownership relative to the host
-	if !isOverlayWhiteout &&
-		!strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) &&
-		!ta.IDMappings.Empty() {
+	if !isOverlayWhiteout && !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && !ta.IdentityMapping.Empty() {
 		fileIDPair, err := getFileUIDGID(fi.Sys())
 		if err != nil {
 			return err
 		}
-		hdr.Uid, hdr.Gid, err = ta.IDMappings.ToContainer(fileIDPair)
+		hdr.Uid, hdr.Gid, err = ta.IdentityMapping.ToContainer(fileIDPair)
 		if err != nil {
 			return err
 		}
@@ -579,7 +570,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.Identity, inUserns bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -659,7 +650,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	// Lchown is not supported on Windows.
 	if Lchown && runtime.GOOS != "windows" {
 		if chownOpts == nil {
-			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
+			chownOpts = &idtools.Identity{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			return err
@@ -669,11 +660,13 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	var errors []string
 	for key, value := range hdr.Xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
-			if err == syscall.ENOTSUP {
+			if err == syscall.ENOTSUP || err == syscall.EPERM {
 				// We ignore errors here because not all graphdrivers support
 				// xattrs *cough* old versions of AUFS *cough*. However only
 				// ENOTSUP should be emitted in that case, otherwise we still
 				// bail.
+				// EPERM occurs if modifying xattrs is not allowed. This can
+				// happen when running in userns with restrictions (ChromeOS).
 				errors = append(errors, err.Error())
 				continue
 			}
@@ -908,8 +901,8 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
-	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
-	rootIDs := idMappings.RootPair()
+	idMapping := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
+	rootIDs := idMapping.RootPair()
 	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
 
 	// Iterate through the files in the archive.
@@ -988,7 +981,7 @@ loop:
 		}
 		trBuf.Reset(tr)
 
-		if err := remapIDs(idMappings, hdr); err != nil {
+		if err := remapIDs(idMapping, hdr); err != nil {
 			return err
 		}
 
@@ -1075,8 +1068,8 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 	}
 	defer archive.Close()
 	options := &TarOptions{
-		UIDMaps: archiver.IDMappingsVar.UIDs(),
-		GIDMaps: archiver.IDMappingsVar.GIDs(),
+		UIDMaps: archiver.IDMapping.UIDs(),
+		GIDMaps: archiver.IDMapping.GIDs(),
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1089,8 +1082,8 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 	}
 	defer archive.Close()
 	options := &TarOptions{
-		UIDMaps: archiver.IDMappingsVar.UIDs(),
-		GIDMaps: archiver.IDMappingsVar.GIDs(),
+		UIDMaps: archiver.IDMapping.UIDs(),
+		GIDMaps: archiver.IDMapping.GIDs(),
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1111,7 +1104,7 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// if this Archiver is set up with ID mapping we need to create
 	// the new destination directory with the remapped root UID/GID pair
 	// as owner
-	rootIDs := archiver.IDMappingsVar.RootPair()
+	rootIDs := archiver.IDMapping.RootPair()
 	// Create dst, copy src's content into it
 	logrus.Debugf("Creating dest directory: %s", dst)
 	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
@@ -1171,7 +1164,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			hdr.Name = filepath.Base(dst)
 			hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
-			if err := remapIDs(archiver.IDMappingsVar, hdr); err != nil {
+			if err := remapIDs(archiver.IDMapping, hdr); err != nil {
 				return err
 			}
 
@@ -1199,13 +1192,13 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	return err
 }
 
-// IDMappings returns the IDMappings of the archiver.
-func (archiver *Archiver) IDMappings() *idtools.IDMappings {
-	return archiver.IDMappingsVar
+// IdentityMapping returns the IdentityMapping of the archiver.
+func (archiver *Archiver) IdentityMapping() *idtools.IdentityMapping {
+	return archiver.IDMapping
 }
 
-func remapIDs(idMappings *idtools.IDMappings, hdr *tar.Header) error {
-	ids, err := idMappings.ToHost(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+func remapIDs(idMapping *idtools.IdentityMapping, hdr *tar.Header) error {
+	ids, err := idMapping.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return err
 }
