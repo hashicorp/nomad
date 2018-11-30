@@ -143,9 +143,6 @@
 /docs/service-discovery                       /guides/operations/consul-integration/index.html
 /docs/service-discovery/                      /guides/operations/consul-integration/index.html
 /docs/service-discovery/index.html            /guides/operations/consul-integration/index.html
-/docs/vault-integration                       /guides/operations/vault-integration/index.html
-/docs/vault-integration/                      /guides/operations/vault-integration/index.html
-/docs/vault-integration/index.html            /guides/operations/vault-integration/index.html
 
 # API
 /docs/http/index.html                   /api/index.html
