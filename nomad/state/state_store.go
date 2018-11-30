@@ -712,7 +712,7 @@ func (s *StateStore) UpdateNodeMetadata(index uint64, nodeID string, upserts map
 	// Update the metadata in the copy
 	for k, v := range upserts {
 		if _, ok := copyNode.Meta[k]; ok {
-			s.logger.Info("overwiting metadata value for key:", k)
+			s.logger.Info("overwriting node metadata", "node", nodeID, "key", k)
 		}
 		copyNode.Meta[k] = v
 	}
