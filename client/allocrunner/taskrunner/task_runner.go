@@ -530,6 +530,9 @@ func (tr *TaskRunner) runDriver() error {
 	//TODO mounts and devices
 	//XXX Evaluate and encode driver config
 
+	// Register an event handler with the diver mananger to emit task events
+	tr.driverManager.RegisterEventHandler(tr.Task().Driver, taskConfig.ID, tr.handleTaskEvent)
+
 	// If there's already a task handle (eg from a Restore) there's nothing
 	// to do except update state.
 	if tr.getDriverHandle() != nil {
@@ -542,8 +545,6 @@ func (tr *TaskRunner) runDriver() error {
 		}
 		return nil
 	}
-
-	tr.driverManager.RegisterEventHandler(tr.Task().Driver, taskConfig.ID, tr.handleTaskEvent)
 
 	// Start the job if there's no existing handle (or if RecoverTask failed)
 	handle, net, err := tr.driver.StartTask(taskConfig)
