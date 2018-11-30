@@ -265,10 +265,10 @@ func (d *FsDevice) Reserve(deviceIDs []string) (*device.ContainerReservation, er
 		}
 
 		// Add a mount
-		resp.Devices = append(resp.Devices, &device.DeviceSpec{
-			TaskPath:    fmt.Sprintf("/dev/%s", id),
-			HostPath:    filepath.Join(d.deviceDir, id),
-			CgroupPerms: "rw",
+		resp.Mounts = append(resp.Mounts, &device.Mount{
+			TaskPath: fmt.Sprintf("/tmp/device-mounts/%s", id),
+			HostPath: filepath.Join(d.deviceDir, id),
+			ReadOnly: false,
 		})
 	}
 
