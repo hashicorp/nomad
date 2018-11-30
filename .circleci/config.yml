@@ -1,5 +1,27 @@
-version: 2
+version: 2.1
+
+executors:
+  go:
+    working_directory: /go/src/github.com/hashicorp/nomad
+    environment:
+      GOPATH: /go
+    docker:
+      - image: golang:1.11
+
 jobs:
+  build:
+    executor: go
+    steps:
+      - checkout
+      - run: make bootstrap
+      - run: make check
+      - run: make dev
+  test:
+    executor: go
+    steps:
+      - checkout
+      - run: make deps
+      - run: make travis
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
@@ -34,6 +56,10 @@ jobs:
 
 workflows:
   version: 2
+  dev:
+    jobs:
+      - build
+      - test
   website:
     jobs:
       - build-website:
