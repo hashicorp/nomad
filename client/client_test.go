@@ -12,7 +12,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -170,8 +169,8 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			driver.ShutdownPeriodicAfter:    "true",
-			driver.ShutdownPeriodicDuration: "1",
+			"test.shutdown_periodic_after":    "true",
+			"test.shutdown_periodic_duration": "1",
 		}
 	})
 	defer cleanup()

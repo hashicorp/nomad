@@ -21,8 +21,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -1695,7 +1695,7 @@ func TestTaskRunner_interpolateServices(t *testing.T) {
 		},
 	}
 
-	env := &env.TaskEnv{
+	env := &taskenv.TaskEnv{
 		EnvMap: map[string]string{
 			"name":         "name",
 			"portlabel":    "portlabel",

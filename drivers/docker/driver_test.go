@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/consul/lib/freeport"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -572,7 +572,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 		Args: []string{
 			"-c",
 			fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`,
-				string(exp), env.AllocDir, file),
+				string(exp), taskenv.AllocDir, file),
 		},
 	}
 	task := &drivers.TaskConfig{

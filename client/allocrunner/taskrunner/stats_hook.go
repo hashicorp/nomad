@@ -8,7 +8,6 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -95,7 +94,7 @@ func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, sto
 			ru, err := handle.Stats()
 			if err != nil {
 				// Check if the driver doesn't implement stats
-				if err.Error() == driver.DriverStatsNotImplemented.Error() {
+				if err.Error() == cstructs.DriverStatsNotImplemented.Error() {
 					h.logger.Debug("driver does not support stats")
 					return
 				}

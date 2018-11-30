@@ -18,11 +18,6 @@ import (
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
-const (
-	// CheckBufSize is the size of the check output result
-	CheckBufSize = 4 * 1024
-)
-
 // DriverPlugin is the interface with drivers will implement. It is also
 // implemented by a plugin client which proxies the calls to go-plugin. See
 // the proto/driver.proto file for detailed information about each RPC and

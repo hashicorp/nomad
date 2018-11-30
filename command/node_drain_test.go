@@ -59,8 +59,7 @@ func TestNodeDrainCommand_Detach(t *testing.T) {
 						Name:   "mock_task",
 						Driver: "mock_driver",
 						Config: map[string]interface{}{
-							"run_for":    "10m",
-							"exit_after": "10m",
+							"run_for": "10m",
 						},
 					},
 				},

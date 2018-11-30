@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
@@ -160,7 +159,7 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 	ds := &mockDriverStats{
-		err: driver.DriverStatsNotImplemented,
+		err: cstructs.DriverStatsNotImplemented,
 	}
 
 	poststartReq := &interfaces.TaskPoststartRequest{DriverStats: ds}

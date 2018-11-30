@@ -5,8 +5,8 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -58,7 +58,7 @@ type TaskPrestartRequest struct {
 	TaskDir *allocdir.TaskDir
 
 	// TaskEnv is the task's environment
-	TaskEnv *env.TaskEnv
+	TaskEnv *taskenv.TaskEnv
 }
 
 type TaskPrestartResponse struct {
@@ -99,7 +99,7 @@ type TaskPoststartRequest struct {
 	DriverNetwork *cstructs.DriverNetwork
 
 	// TaskEnv is the task's environment
-	TaskEnv *env.TaskEnv
+	TaskEnv *taskenv.TaskEnv
 
 	// Stats collector
 	DriverStats DriverStats
@@ -141,7 +141,7 @@ type TaskUpdateRequest struct {
 	Alloc *structs.Allocation
 
 	// TaskEnv is the task's environment
-	TaskEnv *env.TaskEnv
+	TaskEnv *taskenv.TaskEnv
 }
 type TaskUpdateResponse struct{}
 

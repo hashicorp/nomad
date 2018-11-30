@@ -12,9 +12,9 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/logmon"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -112,7 +112,7 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 	if t.Resources != nil {
 		task.Resources = t.Resources.NomadResources
 	}
-	taskBuilder := env.NewBuilder(mock.Node(), mock.Alloc(), task, "global")
+	taskBuilder := taskenv.NewBuilder(mock.Node(), mock.Alloc(), task, "global")
 	utils.SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
 
 	taskEnv := taskBuilder.Build()
