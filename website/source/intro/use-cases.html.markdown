@@ -21,7 +21,7 @@ application deployment and management. This transition requires new tooling
 to automate placement, perform job updates, enable self-service for developers, 
 and to handle failures automatically. Nomad supports a [first-class Docker workflow](/docs/drivers/docker.html) 
 and integrates seamlessly with [Consul](/guides/operations/consul-integration/index.html) 
-and [Vault](/guides/operations/vault-integration/index.html) to enable a complete solution 
+and [Vault](/docs/vault-integration/index.html) to enable a complete solution 
 while maximizing operational flexibility. Nomad is easy to use, can scale to 
 thousands of nodes in a single cluster, and can easily deploy across private data 
 centers and multiple clouds.
