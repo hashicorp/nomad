@@ -78,7 +78,7 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 	config := &plugin.ClientConfig{
 		Cmd: exec.Command(bin, "executor", string(c)),
 	}
-	config.HandshakeConfig = pexecutor.HandshakeConfig
+	config.HandshakeConfig = base.Handshake
 	config.Plugins = pexecutor.GetPluginMap(w, level, executorConfig.FSIsolation)
 
 	if driverConfig != nil {
@@ -111,7 +111,7 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 
 // CreateExecutorWithConfig launches a plugin with a given plugin config
 func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
-	config.HandshakeConfig = pexecutor.HandshakeConfig
+	config.HandshakeConfig = base.Handshake
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.

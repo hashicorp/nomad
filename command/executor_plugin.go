@@ -8,6 +8,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/executor"
 )
 
@@ -42,7 +43,7 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 		return 1
 	}
 	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: executor.HandshakeConfig,
+		HandshakeConfig: base.Handshake,
 		Plugins: executor.GetPluginMap(
 			stdo,
 			hclog.LevelFromString(executorConfig.LogLevel),
