@@ -29,11 +29,13 @@ func testSetup(t *testing.T) (chan *drivers.Fingerprint, chan *drivers.TaskEvent
 	drv := mockDriver(fpChan, evChan)
 	cat := mockCatalog(map[string]drivers.DriverPlugin{"mock": drv})
 	cfg := &Config{
-		Logger:       testlog.HCLogger(t),
-		Loader:       cat,
-		PluginConfig: nil,
-		Updater:      noopUpdater,
-		State:        state.NoopDB{},
+		Logger:         testlog.HCLogger(t),
+		Loader:         cat,
+		PluginConfig:   &base.ClientAgentConfig{},
+		Updater:        noopUpdater,
+		State:          state.NoopDB{},
+		AllowedDrivers: make(map[string]struct{}),
+		BlockedDrivers: make(map[string]struct{}),
 	}
 
 	mgr := New(cfg)
@@ -94,7 +96,7 @@ func mockTaskEvent(taskID string) *drivers.TaskEvent {
 
 func noopUpdater(string, *structs.DriverInfo) *structs.Node { return nil }
 
-func TestMananger_FingerPrint(t *testing.T) {
+func TestMananger_Fingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
@@ -201,6 +203,7 @@ func TestManager_Run_AllowedDrivers(t *testing.T) {
 	fpChan, _, mgr := testSetup(t)
 	mgr.allowedDrivers = map[string]struct{}{"foo": {}}
 	go mgr.Run()
+	defer mgr.Shutdown()
 	select {
 	case fpChan <- &drivers.Fingerprint{Health: drivers.HealthStateHealthy}:
 	default:
@@ -223,6 +226,7 @@ func TestManager_Run_BlockedDrivers(t *testing.T) {
 	fpChan, _, mgr := testSetup(t)
 	mgr.blockedDrivers = map[string]struct{}{"mock": {}}
 	go mgr.Run()
+	defer mgr.Shutdown()
 	select {
 	case fpChan <- &drivers.Fingerprint{Health: drivers.HealthStateHealthy}:
 	default:
@@ -273,6 +277,7 @@ func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
 	mgr := New(cfg)
 
 	go mgr.Run()
+	defer mgr.Shutdown()
 	for _, d := range names {
 		go func(drv string) {
 			select {
