@@ -11,8 +11,8 @@ import (
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -41,7 +41,7 @@ type serviceHook struct {
 	canary     bool
 	services   []*structs.Service
 	networks   structs.Networks
-	taskEnv    *env.TaskEnv
+	taskEnv    *taskenv.TaskEnv
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -184,7 +184,7 @@ func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {
 
 // interpolateServices returns an interpolated copy of services and checks with
 // values from the task's environment.
-func interpolateServices(taskEnv *env.TaskEnv, services []*structs.Service) []*structs.Service {
+func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) []*structs.Service {
 	interpolated := make([]*structs.Service, len(services))
 
 	for i, origService := range services {

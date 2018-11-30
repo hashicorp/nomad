@@ -22,9 +22,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1695,7 +1695,7 @@ func TestTaskRunner_interpolateServices(t *testing.T) {
 		},
 	}
 
-	env := &env.TaskEnv{
+	env := &taskenv.TaskEnv{
 		EnvMap: map[string]string{
 			"name":         "name",
 			"portlabel":    "portlabel",

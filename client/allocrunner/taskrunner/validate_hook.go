@@ -8,7 +8,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/drivers/shared/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -39,7 +39,7 @@ func (h *validateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return nil
 }
 
-func validateTask(task *structs.Task, taskEnv *env.TaskEnv, conf *config.Config) error {
+func validateTask(task *structs.Task, taskEnv *taskenv.TaskEnv, conf *config.Config) error {
 	var mErr multierror.Error
 
 	// Validate the user

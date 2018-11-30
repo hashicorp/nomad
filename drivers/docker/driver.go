@@ -17,8 +17,8 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
-	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -536,9 +536,9 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 
 func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
 
-	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[env.AllocDir])
-	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[env.TaskLocalDir])
-	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[env.SecretsDir])
+	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
+	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
+	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
 	if !d.config.Volumes.Enabled && driverConfig.VolumeDriver != "" {

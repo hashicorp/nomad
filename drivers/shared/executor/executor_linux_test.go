@@ -13,8 +13,8 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	tu "github.com/hashicorp/nomad/testutil"
@@ -50,7 +50,7 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
+	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
 	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {

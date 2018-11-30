@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cconfig "github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/shared/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -54,7 +54,7 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 }
 
 // setEnvvars sets path and host env vars depending on the FS isolation used.
-func setEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
+func setEnvvars(envBuilder *taskenv.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
 	// Set driver-specific environment variables
 	switch fsi {
 	case cstructs.FSIsolationNone:

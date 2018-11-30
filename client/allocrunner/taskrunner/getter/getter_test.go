@@ -11,12 +11,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/drivers/shared/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// fakeReplacer is a noop version of env.TaskEnv.ReplaceEnv
+// fakeReplacer is a noop version of taskenv.TaskEnv.ReplaceEnv
 type fakeReplacer struct{}
 
 func (fakeReplacer) ReplaceEnv(s string) string {
@@ -101,7 +101,7 @@ func TestGetGetterUrl_Interpolation(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Meta = map[string]string{"artifact": url}
-	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
+	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
 	act, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {

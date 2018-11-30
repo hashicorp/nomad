@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/shared/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -32,7 +32,7 @@ const (
 )
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
-func SetEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+func SetEnvvars(envBuilder *taskenv.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
 	// Set driver-specific environment variables
 	switch fsi {
 	case cstructs.FSIsolationNone:

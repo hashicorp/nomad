@@ -26,7 +26,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/shared/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -353,7 +353,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	// The taskConfig's environment is set via --set-env flags in Start, but the rkt
 	// command itself needs an environment with PATH set to find iptables.
 	// TODO (preetha) need to figure out how to read env.blacklist
-	eb := env.NewEmptyBuilder()
+	eb := taskenv.NewEmptyBuilder()
 	filter := strings.Split(config.DefaultEnvBlacklist, ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
@@ -636,7 +636,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	// command itself needs an environment with PATH set to find iptables.
 
 	// TODO (preetha) need to figure out how to pass env.blacklist from client config
-	eb := env.NewEmptyBuilder()
+	eb := taskenv.NewEmptyBuilder()
 	filter := strings.Split(config.DefaultEnvBlacklist, ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 

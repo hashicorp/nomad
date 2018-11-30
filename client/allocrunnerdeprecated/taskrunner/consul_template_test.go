@@ -14,7 +14,7 @@ import (
 
 	ctestutil "github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/drivers/shared/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -108,7 +108,7 @@ type testHarness struct {
 	manager    *TaskTemplateManager
 	mockHooks  *MockTaskHooks
 	templates  []*structs.Template
-	envBuilder *env.Builder
+	envBuilder *taskenv.Builder
 	node       *structs.Node
 	config     *config.Config
 	vaultToken string
@@ -134,7 +134,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Name = TestTaskName
-	harness.envBuilder = env.NewBuilder(harness.node, a, task, region)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, region)
 
 	// Make a tempdir
 	d, err := ioutil.TempDir("", "ct_test")
@@ -210,7 +210,7 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 	clientConfig := &config.Config{Region: "global"}
 	taskDir := "foo"
 	a := mock.Alloc()
-	envBuilder := env.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
+	envBuilder := taskenv.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
 
 	cases := []struct {
 		name        string
@@ -1254,7 +1254,7 @@ func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
 				VaultGrace:   100 * time.Second,
 			},
 		},
-		EnvBuilder: env.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		EnvBuilder: taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
 
 	ctmplMapping, err := parseTemplateConfigs(config)

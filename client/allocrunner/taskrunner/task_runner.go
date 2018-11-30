@@ -23,8 +23,8 @@ import (
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/drivers/shared/env"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -133,7 +133,7 @@ type TaskRunner struct {
 	taskDir *allocdir.TaskDir
 
 	// envBuilder is used to build the task's environment
-	envBuilder *env.Builder
+	envBuilder *taskenv.Builder
 
 	// restartTracker is used to decide if the task should be restarted.
 	restartTracker *restarts.RestartTracker
@@ -219,7 +219,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	killCtx, killCancel := context.WithCancel(context.Background())
 
 	// Initialize the environment builder
-	envBuilder := env.NewBuilder(
+	envBuilder := taskenv.NewBuilder(
 		config.ClientConfig.Node,
 		config.Alloc,
 		config.Task,

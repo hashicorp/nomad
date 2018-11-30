@@ -1,4 +1,4 @@
-package env
+package taskenv
 
 import (
 	"fmt"
@@ -613,7 +613,7 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta": "tgmetaval"}
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Name = "orig"
-	task.Env = map[string]string{"taskenv": "taskenvval"}
+	task.Env = map[string]string{"env": "envval"}
 	task.Meta = map[string]string{"taskmeta": "taskmetaval"}
 	builder := NewBuilder(mock.Node(), a, task, "global")
 
@@ -624,8 +624,8 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 	if origMap["NOMAD_META_taskmeta"] != "taskmetaval" {
 		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", origMap["NOMAD_META_taskmeta"])
 	}
-	if origMap["taskenv"] != "taskenvval" {
-		t.Errorf("Expected taskenv=taskenvva but found %q", origMap["taskenv"])
+	if origMap["env"] != "envval" {
+		t.Errorf("Expected env=envva but found %q", origMap["env"])
 	}
 	if origMap["NOMAD_META_tgmeta"] != "tgmetaval" {
 		t.Errorf("Expected NOMAD_META_tgmeta=tgmetaval but found %q", origMap["NOMAD_META_tgmeta"])
@@ -633,7 +633,7 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 
 	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta2": "tgmetaval2"}
 	task.Name = "new"
-	task.Env = map[string]string{"taskenv2": "taskenvval2"}
+	task.Env = map[string]string{"env2": "envval2"}
 	task.Meta = map[string]string{"taskmeta2": "taskmetaval2"}
 
 	newMap := builder.UpdateTask(a, task).Build().Map()
@@ -643,8 +643,8 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 	if newMap["NOMAD_META_taskmeta2"] != "taskmetaval2" {
 		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", newMap["NOMAD_META_taskmeta2"])
 	}
-	if newMap["taskenv2"] != "taskenvval2" {
-		t.Errorf("Expected taskenv=taskenvva but found %q", newMap["taskenv2"])
+	if newMap["env2"] != "envval2" {
+		t.Errorf("Expected env=envva but found %q", newMap["env2"])
 	}
 	if newMap["NOMAD_META_tgmeta2"] != "tgmetaval2" {
 		t.Errorf("Expected NOMAD_META_tgmeta=tgmetaval but found %q", newMap["NOMAD_META_tgmeta2"])

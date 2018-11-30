@@ -34,7 +34,7 @@ import (
 
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/shared/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 )
 
 const (
@@ -107,7 +107,7 @@ type TaskRunner struct {
 	taskDir *allocdir.TaskDir
 
 	// envBuilder is used to build the task's environment
-	envBuilder *env.Builder
+	envBuilder *taskenv.Builder
 
 	// driverNet is the network information returned by the driver
 	driverNet     *cstructs.DriverNetwork
@@ -248,7 +248,7 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 	restartTracker := restarts.NewRestartTracker(tg.RestartPolicy, alloc.Job.Type)
 
 	// Initialize the environment builder
-	envBuilder := env.NewBuilder(config.Node, alloc, task, config.Region)
+	envBuilder := taskenv.NewBuilder(config.Node, alloc, task, config.Region)
 
 	tc := &TaskRunner{
 		config:           config,
@@ -1514,7 +1514,7 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 
 // interpolateServices interpolates tags in a service and checks with values from the
 // task's environment.
-func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task {
+func interpolateServices(taskEnv *taskenv.TaskEnv, task *structs.Task) *structs.Task {
 	taskCopy := task.Copy()
 	for _, service := range taskCopy.Services {
 		for _, check := range service.Checks {

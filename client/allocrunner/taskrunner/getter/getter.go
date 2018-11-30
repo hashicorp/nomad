@@ -27,7 +27,7 @@ const (
 )
 
 // EnvReplacer is an interface which can interpolate environment variables and
-// is usually satisfied by env.TaskEnv.
+// is usually satisfied by taskenv.TaskEnv.
 type EnvReplacer interface {
 	ReplaceEnv(string) string
 }
