@@ -627,7 +627,7 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 				if s.config.DisableDispatchedJobSummaryMetrics {
 					job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
 					if err != nil {
-						s.logger.Printf("[ERR] nomad: failed to lookup job for summary: %v", err)
+						s.logger.Error("error getting job for summary", "error", err)
 						continue
 					}
 					if job.Dispatched {

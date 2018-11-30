@@ -448,8 +448,8 @@ type Telemetry struct {
 	// by the filter
 	FilterDefault *bool `mapstructure:"filter_default"`
 
-	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
-	// publishing Job summary metrics. This is useful in environment that produce
+	// DisableDispatchedJobSummaryMetrics allows ignoring dispatched jobs when
+	// publishing Job summary metrics. This is useful in environments that produce
 	// high numbers of single count dispatch jobs as the metrics for each take up
 	// a small memory overhead.
 	DisableDispatchedJobSummaryMetrics bool `mapstructure:"disable_dispatched_job_summary_metrics"`
