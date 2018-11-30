@@ -6,7 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -39,6 +40,9 @@ type TaskDir struct {
 	// SecretsDir is the path to secrets/ directory on the host
 	// <task_dir>/secrets/
 	SecretsDir string
+
+	// taskMounts is a record of all mounts that need freeing at destruction time
+	taskMounts []string
 
 	logger hclog.Logger
 }
@@ -169,11 +173,28 @@ func (t *TaskDir) Mount(source, dest string, readonly bool) error {
 		return fmt.Errorf("failed to create destination directory %v: %v", dest, err)
 	}
 
-	return bindMount(source, filepath.Join(t.Dir, dest), readonly)
+	// bindMount is not necessarily an atomic operation, so recording mount
+	// even in failure.  Unmounting a failed mount doesn't hurt.
+	t.taskMounts = append(t.taskMounts, dest)
+
+	err := bindMount(source, filepath.Join(t.Dir, dest), readonly)
+	return err
 }
 
 func (t *TaskDir) Unmount(path string) error {
 	return unmount(filepath.Join(t.Dir, path))
+}
+
+func (t *TaskDir) unmountTaskMounts() error {
+	var merr multierror.Error
+
+	for _, m := range t.taskMounts {
+		if err := t.Unmount(m); err != nil {
+			merr.Errors = append(merr.Errors, fmt.Errorf("failed to unmount %v: %v", m, err))
+		}
+	}
+
+	return merr.ErrorOrNil()
 }
 
 func (t *TaskDir) embedDirs(entries map[string]string) error {

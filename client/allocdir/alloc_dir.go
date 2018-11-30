@@ -312,6 +312,11 @@ func (d *AllocDir) UnmountAll() error {
 		if err := dir.unmountSpecialDirs(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
+
+		// Unmount any task specific mounts
+		if err := dir.unmountTaskMounts(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
 	}
 
 	return mErr.ErrorOrNil()
