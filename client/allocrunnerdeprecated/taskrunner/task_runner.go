@@ -1601,7 +1601,7 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 
 			if err != nil {
 				// Check if the driver doesn't implement stats
-				if err.Error() == dstructs.DriverStatsNotImplemented.Error() {
+				if err.Error() == cstructs.DriverStatsNotImplemented.Error() {
 					r.logger.Printf("[DEBUG] client: driver for task %q in allocation %q doesn't support stats", r.task.Name, r.alloc.ID)
 					return
 				}

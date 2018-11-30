@@ -15,7 +15,6 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
-	dstructs "github.com/hashicorp/nomad/drivers/shared/structs"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
@@ -83,8 +82,8 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	}
 
 	execResult := &drivers.ExecTaskResult{ExitResult: &drivers.ExitResult{}}
-	stdout, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
-	stderr, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
+	stdout, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	stderr, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
 	startOpts := docker.StartExecOptions{
 		Detach:       false,
 		Tty:          false,

@@ -19,7 +19,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	dstructs "github.com/hashicorp/nomad/drivers/shared/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -403,7 +402,7 @@ func (l *LibcontainerExecutor) Signal(s os.Signal) error {
 func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
 	combined := append([]string{cmd}, args...)
 	// Capture output
-	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
+	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
 
 	process := &libcontainer.Process{
 		Args:   combined,

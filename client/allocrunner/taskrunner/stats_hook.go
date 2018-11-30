@@ -9,7 +9,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	dstructs "github.com/hashicorp/nomad/drivers/shared/structs"
 )
 
 // StatsUpdater is the interface required by the StatsHook to update stats.
@@ -95,7 +94,7 @@ func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, sto
 			ru, err := handle.Stats()
 			if err != nil {
 				// Check if the driver doesn't implement stats
-				if err.Error() == dstructs.DriverStatsNotImplemented.Error() {
+				if err.Error() == cstructs.DriverStatsNotImplemented.Error() {
 					h.logger.Debug("driver does not support stats")
 					return
 				}

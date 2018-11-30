@@ -24,7 +24,6 @@ import (
 
 	"github.com/hashicorp/consul-template/signals"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	dstructs "github.com/hashicorp/nomad/drivers/shared/structs"
 )
 
 const (
@@ -321,7 +320,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 	cmd.Env = env
 
 	// Capture output
-	buf, _ := circbuf.NewBuffer(int64(dstructs.CheckBufSize))
+	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
 	cmd.Stdout = buf
 	cmd.Stderr = buf
 
