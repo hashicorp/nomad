@@ -324,7 +324,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
           source = "/path/in/host"
           readonly = false
           bind_options {
-            propagation = "xxxx"
+            propagation = "rshared"
           }
         },
         # sample tmpfs mount
