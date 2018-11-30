@@ -624,64 +624,78 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 					break
 				}
 				summary := raw.(*structs.JobSummary)
-				for name, tgSummary := range summary.Summary {
-					if !s.config.DisableTaggedMetrics {
-						labels := []metrics.Label{
-							{
-								Name:  "job",
-								Value: summary.JobID,
-							},
-							{
-								Name:  "task_group",
-								Value: name,
-							},
-						}
-
-						if strings.Contains(summary.JobID, "/dispatch-") {
-							jobInfo := strings.Split(summary.JobID, "/dispatch-")
-							labels = append(labels, metrics.Label{
-								Name:  "parent_id",
-								Value: jobInfo[0],
-							}, metrics.Label{
-								Name:  "dispatch_id",
-								Value: jobInfo[1],
-							})
-						}
-
-						if strings.Contains(summary.JobID, "/periodic-") {
-							jobInfo := strings.Split(summary.JobID, "/periodic-")
-							labels = append(labels, metrics.Label{
-								Name:  "parent_id",
-								Value: jobInfo[0],
-							}, metrics.Label{
-								Name:  "periodic_id",
-								Value: jobInfo[1],
-							})
-						}
-
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
-							float32(tgSummary.Queued), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
-							float32(tgSummary.Complete), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
-							float32(tgSummary.Failed), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
-							float32(tgSummary.Running), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
-							float32(tgSummary.Starting), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
-							float32(tgSummary.Lost), labels)
+				if s.config.DisableDispatchedJobSummaryMetrics {
+					job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
+					if err != nil {
+						s.logger.Error("error getting job for summary", "error", err)
+						continue
 					}
-					if s.config.BackwardsCompatibleMetrics {
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+					if job.Dispatched {
+						continue
 					}
 				}
+				s.iterateJobSummaryMetrics(summary)
 			}
+		}
+	}
+}
+
+func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
+	for name, tgSummary := range summary.Summary {
+		if !s.config.DisableTaggedMetrics {
+			labels := []metrics.Label{
+				{
+					Name:  "job",
+					Value: summary.JobID,
+				},
+				{
+					Name:  "task_group",
+					Value: name,
+				},
+			}
+
+			if strings.Contains(summary.JobID, "/dispatch-") {
+				jobInfo := strings.Split(summary.JobID, "/dispatch-")
+				labels = append(labels, metrics.Label{
+					Name:  "parent_id",
+					Value: jobInfo[0],
+				}, metrics.Label{
+					Name:  "dispatch_id",
+					Value: jobInfo[1],
+				})
+			}
+
+			if strings.Contains(summary.JobID, "/periodic-") {
+				jobInfo := strings.Split(summary.JobID, "/periodic-")
+				labels = append(labels, metrics.Label{
+					Name:  "parent_id",
+					Value: jobInfo[0],
+				}, metrics.Label{
+					Name:  "periodic_id",
+					Value: jobInfo[1],
+				})
+			}
+
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+				float32(tgSummary.Queued), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+				float32(tgSummary.Complete), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+				float32(tgSummary.Failed), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+				float32(tgSummary.Running), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+				float32(tgSummary.Starting), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+				float32(tgSummary.Lost), labels)
+		}
+		if s.config.BackwardsCompatibleMetrics {
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
 		}
 	}
 }

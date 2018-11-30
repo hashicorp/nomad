@@ -734,6 +734,9 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"circonus_broker_select_tag",
 		"disable_tagged_metrics",
 		"backwards_compatible_metrics",
+		"prefix_filter",
+		"filter_default",
+		"disable_dispatched_job_summary_metrics",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
