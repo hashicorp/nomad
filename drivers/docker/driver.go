@@ -745,23 +745,22 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// Setup mounts
 	for _, m := range driverConfig.Mounts {
-		hm := docker.HostMount{
-			Target:   m.Target,
-			Source:   m.Source,
-			Type:     "volume", // Only type supported
-			ReadOnly: m.ReadOnly,
-		}
-		vo := m.VolumeOptions
-		hm.VolumeOptions = &docker.VolumeOptions{
-			NoCopy: vo.NoCopy,
+		hm, err := m.toDockerHostMount()
+		if err != nil {
+			return c, err
 		}
 
-		dc := vo.DriverConfig
-		hm.VolumeOptions.DriverConfig = docker.VolumeDriverConfig{
-			Name: dc.Name,
+		if hm.Type == "bind" {
+			if filepath.IsAbs(filepath.Clean(hm.Source)) {
+				if !d.config.Volumes.Enabled {
+					return c, fmt.Errorf("volumes are not enabled; cannot mount host path: %q", hm.Source)
+				}
+			} else {
+				// Relative paths are always allowed as they mount within a container, and treated as relative to task dir
+				hm.Source = filepath.Join(task.TaskDir().Dir, hm.Source)
+			}
 		}
-		hm.VolumeOptions.DriverConfig.Options = dc.Options
-		hm.VolumeOptions.Labels = vo.Labels
+
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 

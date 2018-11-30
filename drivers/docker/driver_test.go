@@ -1733,6 +1733,173 @@ func TestDockerDriver_Mounts(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_MountsSerialization(t *testing.T) {
+	t.Parallel()
+
+	allocDir := "/tmp/nomad/alloc-dir"
+
+	cases := []struct {
+		name            string
+		requiresVolumes bool
+		passedMounts    []DockerMount
+		expectedMounts  []docker.HostMount
+	}{
+		{
+			name: "basic volume",
+			passedMounts: []DockerMount{
+				{
+					Target:   "/nomad",
+					ReadOnly: true,
+					Source:   "test",
+				},
+			},
+			expectedMounts: []docker.HostMount{
+				{
+					Type:          "volume",
+					Target:        "/nomad",
+					Source:        "test",
+					ReadOnly:      true,
+					VolumeOptions: &docker.VolumeOptions{},
+				},
+			},
+		},
+		{
+			name: "basic bind",
+			passedMounts: []DockerMount{
+				{
+					Type:   "bind",
+					Target: "/nomad",
+					Source: "test",
+				},
+			},
+			expectedMounts: []docker.HostMount{
+				{
+					Type:        "bind",
+					Target:      "/nomad",
+					Source:      "/tmp/nomad/alloc-dir/demo/test",
+					BindOptions: &docker.BindOptions{},
+				},
+			},
+		},
+		{
+			name:            "basic absolute bind",
+			requiresVolumes: true,
+			passedMounts: []DockerMount{
+				{
+					Type:   "bind",
+					Target: "/nomad",
+					Source: "/tmp/test",
+				},
+			},
+			expectedMounts: []docker.HostMount{
+				{
+					Type:        "bind",
+					Target:      "/nomad",
+					Source:      "/tmp/test",
+					BindOptions: &docker.BindOptions{},
+				},
+			},
+		},
+		{
+
+			// FIXME: This needs to be true but we have a bug with security implications.
+			// The relative paths check should restrict access to alloc-dir  subtree
+			// documenting existing behavior in test here and need to follow up in another commit
+			requiresVolumes: false,
+
+			name: "bind relative outside",
+			passedMounts: []DockerMount{
+				{
+					Type:   "bind",
+					Target: "/nomad",
+					Source: "../../test",
+				},
+			},
+			expectedMounts: []docker.HostMount{
+				{
+					Type:        "bind",
+					Target:      "/nomad",
+					Source:      "/tmp/nomad/test",
+					BindOptions: &docker.BindOptions{},
+				},
+			},
+		},
+		{
+			name:            "basic tmpfs",
+			requiresVolumes: false,
+			passedMounts: []DockerMount{
+				{
+					Type:   "tmpfs",
+					Target: "/nomad",
+					TmpfsOptions: DockerTmpfsOptions{
+						SizeBytes: 321,
+						Mode:      0666,
+					},
+				},
+			},
+			expectedMounts: []docker.HostMount{
+				{
+					Type:   "tmpfs",
+					Target: "/nomad",
+					TempfsOptions: &docker.TempfsOptions{
+						SizeBytes: 321,
+						Mode:      0666,
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("with volumes enabled", func(t *testing.T) {
+		dh := dockerDriverHarness(t, nil)
+		driver := dh.Impl().(*Driver)
+		driver.config.Volumes.Enabled = true
+
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				task, cfg, _ := dockerTask(t)
+				cfg.Mounts = c.passedMounts
+
+				task.AllocDir = allocDir
+				task.Name = "demo"
+
+				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+				require.NoError(t, err)
+				require.EqualValues(t, c.expectedMounts, cc.HostConfig.Mounts)
+			})
+		}
+	})
+
+	t.Run("with volumes disabled", func(t *testing.T) {
+		dh := dockerDriverHarness(t, nil)
+		driver := dh.Impl().(*Driver)
+		driver.config.Volumes.Enabled = false
+
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				task, cfg, _ := dockerTask(t)
+				cfg.Mounts = c.passedMounts
+
+				task.AllocDir = allocDir
+				task.Name = "demo"
+
+				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+				if c.requiresVolumes {
+					require.Error(t, err, "volumes are not enabled")
+				} else {
+					require.NoError(t, err)
+					require.EqualValues(t, c.expectedMounts, cc.HostConfig.Mounts)
+				}
+			})
+		}
+	})
+
+}
+
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 func TestDockerDriver_Cleanup(t *testing.T) {
 	if !testutil.DockerIsConnected(t) {
