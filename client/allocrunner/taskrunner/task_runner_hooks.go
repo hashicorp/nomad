@@ -65,6 +65,7 @@ func (tr *TaskRunner) initHooks() {
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
 		newDeviceMountHook(tr, hookLogger),
+		newNvidiaHook(tr, hookLogger),
 	}
 
 	// If Vault is enabled, add the hook
