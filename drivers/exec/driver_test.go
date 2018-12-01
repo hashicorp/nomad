@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 func TestMain(m *testing.M) {
@@ -137,7 +138,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		result := <-ch
-		require.Equal(2, result.Signal)
+		require.Equal(int(unix.SIGINT), result.Signal)
 	}()
 
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
@@ -160,7 +161,71 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 		status, err := harness.InspectTask(task.ID)
 		require.NoError(err)
 		require.Equal(drivers.TaskStateExited, status.State)
-	case <-time.After(1 * time.Second):
+	case <-time.After(10 * time.Second):
+		require.Fail("timeout waiting for task to shutdown")
+	}
+
+	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
+func TestExecDriver_StartWaitStopKill(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := drivers.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "test",
+	}
+
+	taskConfig := map[string]interface{}{
+		"command": "/bin/bash",
+		"args":    []string{"-c", "echo hi; sleep 600"},
+	}
+	encodeDriverHelper(require, task, taskConfig)
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		result := <-ch
+
+		// /bin/bash typically ignores INT, so it will be killed eventually
+		require.Equal(int(unix.SIGKILL), result.Signal)
+	}()
+
+	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := harness.StopTask(task.ID, 2*time.Second, "SIGINT")
+		require.NoError(err)
+	}()
+
+	waitCh := make(chan struct{})
+	go func() {
+		defer close(waitCh)
+		wg.Wait()
+	}()
+
+	select {
+	case <-waitCh:
+		status, err := harness.InspectTask(task.ID)
+		require.NoError(err)
+		require.Equal(drivers.TaskStateExited, status.State)
+	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
 
