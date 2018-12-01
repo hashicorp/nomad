@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,7 +20,7 @@ func NewCPUFingerprint(logger log.Logger) Fingerprint {
 	return f
 }
 
-func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
 	setResourcesCPU := func(totalCompute int) {
 		// COMPAT(0.10): Remove in 0.10

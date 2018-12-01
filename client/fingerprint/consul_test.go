@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
@@ -29,8 +28,8 @@ func TestConsulFingerprint(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
-	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: conf, Node: node}
+	var response FingerprintResponse
 	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
@@ -185,8 +184,8 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
-	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: conf, Node: node}
+	var response FingerprintResponse
 	err := fp.Fingerprint(request, &response)
 	assert.Nil(err)
 

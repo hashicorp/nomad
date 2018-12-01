@@ -5,7 +5,6 @@ import (
 
 	"github.com/hashicorp/consul-template/signals"
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // SignalFingerprint is used to fingerprint the available signals
@@ -20,7 +19,7 @@ func NewSignalFingerprint(logger log.Logger) Fingerprint {
 	return f
 }
 
-func (f *SignalFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *SignalFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	// Build the list of available signals
 	sigs := make([]string, 0, len(signals.SignalLookup))
 	for signal := range signals.SignalLookup {

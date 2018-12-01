@@ -13,7 +13,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/helper/useragent"
@@ -137,7 +136,7 @@ func checkError(err error, logger log.Logger, desc string) error {
 	return err
 }
 
-func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
 
 	// Check if we should tighten the timeout

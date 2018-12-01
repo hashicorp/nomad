@@ -12,7 +12,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1007,13 +1007,13 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 	client, cleanup := TestClient(t, func(c *config.Config) {})
 	defer cleanup()
 
-	client.updateNodeFromFingerprint(&cstructs.FingerprintResponse{
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{CpuShares: 123},
 		},
 	})
 
-	client.updateNodeFromFingerprint(&cstructs.FingerprintResponse{
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Memory: structs.NodeMemoryResources{MemoryMB: 1024},
 		},
@@ -1047,7 +1047,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 
 	// overrides of values
 
-	client.updateNodeFromFingerprint(&cstructs.FingerprintResponse{
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Memory: structs.NodeMemoryResources{MemoryMB: 2048},
 		},

@@ -4,7 +4,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -46,7 +45,7 @@ func NewCGroupFingerprint(logger log.Logger) Fingerprint {
 
 // clearCGroupAttributes clears any node attributes related to cgroups that might
 // have been set in a previous fingerprint run.
-func (f *CGroupFingerprint) clearCGroupAttributes(r *cstructs.FingerprintResponse) {
+func (f *CGroupFingerprint) clearCGroupAttributes(r *FingerprintResponse) {
 	r.RemoveAttribute("unique.cgroup.mountpoint")
 }
 

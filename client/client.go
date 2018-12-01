@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
@@ -1084,7 +1085,7 @@ func (c *Client) setupNode() error {
 
 // updateNodeFromFingerprint updates the node with the result of
 // fingerprinting the node from the diff that was created
-func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) *structs.Node {
+func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResponse) *structs.Node {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
