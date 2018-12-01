@@ -497,6 +497,12 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 			Data:        "mode=755",
 		},
 		{
+			Source:      "proc",
+			Destination: "/proc",
+			Device:      "proc",
+			Flags:       defaultMountFlags,
+		},
+		{
 			Source:      "devpts",
 			Destination: "/dev/pts",
 			Device:      "devpts",
