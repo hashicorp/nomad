@@ -247,7 +247,7 @@ func (l *LibcontainerExecutor) wait() {
 			ps = exitErr.ProcessState
 		} else {
 			l.logger.Error("failed to call wait on user process", "error", err)
-			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+			l.exitState = &ProcessState{Pid: 0, ExitCode: -2, Time: time.Now()}
 			return
 		}
 	}
@@ -319,10 +319,10 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		case <-l.userProcExited:
 			return nil
 		case <-time.After(grace):
-			return l.container.Signal(os.Kill, false)
+			return l.container.Signal(os.Kill, true)
 		}
 	} else {
-		return l.container.Signal(os.Kill, false)
+		return l.container.Signal(os.Kill, true)
 	}
 }
 
