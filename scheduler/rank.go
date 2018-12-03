@@ -251,7 +251,7 @@ OUTER:
 
 					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
-						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unable to meet network resource %v after preemption", ask))
+						iter.ctx.Logger().Named("binpack").Error("preemption not possible ", "network_resource", ask)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -268,7 +268,7 @@ OUTER:
 
 					offer, err = netIdx.AssignNetwork(ask)
 					if offer == nil {
-						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unexpected error, unable to create offer after preempting:%v", err))
+						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create network offer after considering preemption", "error", err)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -296,7 +296,7 @@ OUTER:
 					devicePreemptions := preemptor.PreemptForDevice(req, devAllocator)
 
 					if devicePreemptions == nil {
-						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unable to meet device resource need after attempting preemption:%v", req))
+						iter.ctx.Logger().Named("binpack").Error("preemption not possible", "requested_device", req)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -312,7 +312,7 @@ OUTER:
 					// Try offer again
 					offer, sumAffinities, err = devAllocator.AssignDevice(req)
 					if offer == nil {
-						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unexpected error, unable to create device offer after preempting:%v", err))
+						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create device offer after considering preemption", "error", err)
 						continue OUTER
 					}
 				}

@@ -454,7 +454,7 @@ func newAllocDeviceGroup() *deviceGroupAllocs {
 }
 
 // PreemptForDevice tries to find allocations to preempt to meet devices needed
-// This is called once per task when assigning devices to the task
+// This is called once per device request when assigning devices to the task
 func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *deviceAllocator) []*structs.Allocation {
 
 	// Group allocations by device, tracking the number of
@@ -473,6 +473,7 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 				deviceIdTuple := *device.ID()
 				devInst := devAlloc.Devices[deviceIdTuple]
 
+				// devInst can be nil if the device is no longer healthy
 				if devInst == nil {
 					continue
 				}
@@ -490,8 +491,6 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 					deviceToAllocs[deviceIdTuple] = allocDeviceGrp
 				}
 				allocDeviceGrp.allocs = append(allocDeviceGrp.allocs, alloc)
-				devCount := allocDeviceGrp.deviceInstances[alloc.ID]
-				devCount += len(device.DeviceIDs)
 				allocDeviceGrp.deviceInstances[alloc.ID] += len(device.DeviceIDs)
 			}
 		}
