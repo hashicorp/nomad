@@ -168,9 +168,11 @@ type DockerLoggingOpts struct {
 }
 
 type DockerMount struct {
+	Type          string                 `mapstructure:"type"`
 	Target        string                 `mapstructure:"target"`
 	Source        string                 `mapstructure:"source"`
 	ReadOnly      bool                   `mapstructure:"readonly"`
+	BindOptions   []*DockerBindOptions   `mapstructure:"bind_options"`
 	VolumeOptions []*DockerVolumeOptions `mapstructure:"volume_options"`
 }
 
@@ -178,6 +180,10 @@ type DockerDevice struct {
 	HostPath          string `mapstructure:"host_path"`
 	ContainerPath     string `mapstructure:"container_path"`
 	CgroupPermissions string `mapstructure:"cgroup_permissions"`
+}
+
+type DockerBindOptions struct {
+	Propagation string `mapstructure:"propagation"`
 }
 
 type DockerVolumeOptions struct {
@@ -390,8 +396,29 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
 		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
 
+		if m.Type == "" {
+			// default to `volume` type for backwards compatibility
+			m.Type = "volume"
+		}
+
+		if m.Type != "bind" && m.Type != "volume" {
+			return nil, fmt.Errorf(`Docker mount type must be "bind" or "volume"`)
+		}
+
+		if m.Type == "bind" && len(m.VolumeOptions) > 0 {
+			return nil, fmt.Errorf(`volume_options invalid on "bind" mount type`)
+		}
+
+		if m.Type == "volume" && len(m.BindOptions) > 0 {
+			return nil, fmt.Errorf(`bind_options invalid on "volume" mount type`)
+		}
+
+		if len(m.BindOptions) > 1 {
+			return nil, fmt.Errorf("only one bind_options stanza allowed")
+		}
+
 		if len(m.VolumeOptions) > 1 {
-			return nil, fmt.Errorf("Only one volume_options stanza allowed")
+			return nil, fmt.Errorf("only one volume_options stanza allowed")
 		}
 
 		if len(m.VolumeOptions) == 1 {
@@ -1342,26 +1369,51 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		hm := docker.HostMount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Type:     "volume", // Only type supported
+			Type:     m.Type,
 			ReadOnly: m.ReadOnly,
 		}
-		if len(m.VolumeOptions) == 1 {
-			vo := m.VolumeOptions[0]
-			hm.VolumeOptions = &docker.VolumeOptions{
-				NoCopy: vo.NoCopy,
+
+		if hm.Type == "bind" {
+			volumesEnabled := d.config.ReadBoolDefault(dockerVolumesConfigOption, dockerVolumesConfigDefault)
+			hm.Source = filepath.Clean(hm.Source)
+
+			if filepath.IsAbs(hm.Source) {
+				d.logger.Println("[DEBUG] driver.docker: Job contains an absolute path.")
+				if !volumesEnabled {
+					// Disallow mounting arbitrary absolute paths
+					return c, fmt.Errorf("%s is false; cannot bind mount host paths: %+q", dockerVolumesConfigOption, m.Source)
+				}
+			} else {
+				// Expand path relative to alloc dir
+				hm.Source = filepath.Join(ctx.TaskDir.Dir, m.Source)
+				d.logger.Printf("[DEBUG] driver.docker: Job contains a relative path; expanding to %v", hm.Source)
 			}
 
-			if len(vo.DriverConfig) == 1 {
-				dc := vo.DriverConfig[0]
-				hm.VolumeOptions.DriverConfig = docker.VolumeDriverConfig{
-					Name: dc.Name,
-				}
-				if len(dc.Options) == 1 {
-					hm.VolumeOptions.DriverConfig.Options = dc.Options[0]
+			if len(m.BindOptions) == 1 {
+				bo := m.BindOptions[0]
+				hm.BindOptions = &docker.BindOptions{
+					Propagation: bo.Propagation,
 				}
 			}
-			if len(vo.Labels) == 1 {
-				hm.VolumeOptions.Labels = vo.Labels[0]
+		} else {
+			if len(m.VolumeOptions) == 1 {
+				vo := m.VolumeOptions[0]
+				hm.VolumeOptions = &docker.VolumeOptions{
+					NoCopy: vo.NoCopy,
+				}
+
+				if len(vo.DriverConfig) == 1 {
+					dc := vo.DriverConfig[0]
+					hm.VolumeOptions.DriverConfig = docker.VolumeDriverConfig{
+						Name: dc.Name,
+					}
+					if len(dc.Options) == 1 {
+						hm.VolumeOptions.DriverConfig.Options = dc.Options[0]
+					}
+				}
+				if len(vo.Labels) == 1 {
+					hm.VolumeOptions.Labels = vo.Labels[0]
+				}
 			}
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
