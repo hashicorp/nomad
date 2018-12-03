@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/consul/lib/freeport"
 	hclog "github.com/hashicorp/go-hclog"
@@ -112,7 +114,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 //
 // If there is a problem during setup this function will abort or skip the test
 // and indicate the reason.
-func dockerSetup(t *testing.T, task *drivers.TaskConfig) (*docker.Client, *drivers.DriverHarness, *taskHandle, func()) {
+func dockerSetup(t *testing.T, task *drivers.TaskConfig) (*docker.Client, *dtestutil.DriverHarness, *taskHandle, func()) {
 	client := newTestDockerClient(t)
 	driver := dockerDriverHarness(t, nil)
 	cleanup := driver.MkAllocDir(task, true)
@@ -134,9 +136,9 @@ func dockerSetup(t *testing.T, task *drivers.TaskConfig) (*docker.Client, *drive
 
 // dockerDriverHarness wires up everything needed to launch a task with a docker driver.
 // A driver plugin interface and cleanup function is returned
-func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *drivers.DriverHarness {
+func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.DriverHarness {
 	logger := testlog.HCLogger(t)
-	harness := drivers.NewDriverHarness(t, NewDockerDriver(logger))
+	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(logger))
 	if cfg == nil {
 		cfg = map[string]interface{}{
 			"gc": map[string]interface{}{
@@ -160,7 +162,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *drivers.Driv
 	require.NoError(t, err)
 	instance, err := plugLoader.Dispense(pluginName, base.PluginTypeDriver, nil, logger)
 	require.NoError(t, err)
-	driver, ok := instance.Plugin().(*drivers.DriverHarness)
+	driver, ok := instance.Plugin().(*dtestutil.DriverHarness)
 	if !ok {
 		t.Fatal("plugin instance is not a driver... wat?")
 	}
@@ -196,8 +198,8 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &fingerprint.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response fingerprint.FingerprintResponse
 	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -249,8 +251,8 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 	conf.Node = mock.Node()
 	dd := NewDockerDriver(NewDriverContext("", "", "", "", conf, conf.Node, testlog.Logger(t), nil))
 
-	request := &cstructs.FingerprintRequest{Config: conf, Node: conf.Node}
-	var response cstructs.FingerprintResponse
+	request := &fingerprint.FingerprintRequest{Config: conf, Node: conf.Node}
+	var response fingerprint.FingerprintResponse
 
 	err = dd.Fingerprint(request, &response)
 	if err != nil {
@@ -1525,7 +1527,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 	}
 }
 
-func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath string) (*drivers.TaskConfig, *drivers.DriverHarness, *TaskConfig, string, func()) {
+func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath string) (*drivers.TaskConfig, *dtestutil.DriverHarness, *TaskConfig, string, func()) {
 	if !testutil.DockerIsConnected(t) {
 		t.Skip("Docker not connected")
 	}

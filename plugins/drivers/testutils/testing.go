@@ -1,4 +1,4 @@
-package drivers
+package testutils
 
 import (
 	"context"
@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/mitchellh/go-testing-interface"
@@ -27,28 +28,28 @@ import (
 )
 
 type DriverHarness struct {
-	DriverPlugin
+	drivers.DriverPlugin
 	client *plugin.GRPCClient
 	server *plugin.GRPCServer
 	t      testing.T
 	lm     logmon.LogMon
 	logger hclog.Logger
-	impl   DriverPlugin
+	impl   drivers.DriverPlugin
 }
 
-func (d *DriverHarness) Impl() DriverPlugin {
+func (d *DriverHarness) Impl() drivers.DriverPlugin {
 	return d.impl
 }
-func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
+func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	logger := testlog.HCLogger(t).Named("driver_harness")
+
+	pd := drivers.NewDriverPlugin(d, logger).(*drivers.PluginDriver)
+
 	client, server := plugin.TestPluginGRPCConn(t,
 		map[string]plugin.Plugin{
-			base.PluginTypeDriver: &PluginDriver{
-				impl:   d,
-				logger: logger.Named("driver_plugin"),
-			},
-			base.PluginTypeBase: &base.PluginBase{Impl: d},
-			"logmon":            logmon.NewPlugin(logmon.NewLogMon(logger.Named("logmon"))),
+			base.PluginTypeDriver: pd,
+			base.PluginTypeBase:   &base.PluginBase{Impl: d},
+			"logmon":              logmon.NewPlugin(logmon.NewLogMon(logger.Named("logmon"))),
 		},
 	)
 
@@ -57,7 +58,7 @@ func NewDriverHarness(t testing.T, d DriverPlugin) *DriverHarness {
 		t.Fatalf("err dispensing plugin: %v", err)
 	}
 
-	dClient := raw.(DriverPlugin)
+	dClient := raw.(drivers.DriverPlugin)
 	h := &DriverHarness{
 		client:       client,
 		server:       server,
@@ -86,7 +87,7 @@ func (h *DriverHarness) Kill() {
 // to the LogDir of the task
 // A cleanup func is returned and should be defered so as to not leak dirs
 // between tests.
-func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
+func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func() {
 	dir, err := ioutil.TempDir("", "nomad_driver_harness-")
 	require.NoError(h.t, err)
 	t.AllocDir = dir
@@ -165,13 +166,13 @@ func (h *DriverHarness) MkAllocDir(t *TaskConfig, enableLogs bool) func() {
 // state or the timeout is reached
 func (h *DriverHarness) WaitUntilStarted(taskID string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	var lastState TaskState
+	var lastState drivers.TaskState
 	for {
 		status, err := h.InspectTask(taskID)
 		if err != nil {
 			return err
 		}
-		if status.State == TaskStateRunning {
+		if status.State == drivers.TaskStateRunning {
 			return nil
 		}
 		lastState = status.State
@@ -188,30 +189,30 @@ func (h *DriverHarness) WaitUntilStarted(taskID string, timeout time.Duration) e
 type MockDriver struct {
 	base.MockPlugin
 	TaskConfigSchemaF func() (*hclspec.Spec, error)
-	FingerprintF      func(context.Context) (<-chan *Fingerprint, error)
-	CapabilitiesF     func() (*Capabilities, error)
-	RecoverTaskF      func(*TaskHandle) error
-	StartTaskF        func(*TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error)
-	WaitTaskF         func(context.Context, string) (<-chan *ExitResult, error)
+	FingerprintF      func(context.Context) (<-chan *drivers.Fingerprint, error)
+	CapabilitiesF     func() (*drivers.Capabilities, error)
+	RecoverTaskF      func(*drivers.TaskHandle) error
+	StartTaskF        func(*drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error)
+	WaitTaskF         func(context.Context, string) (<-chan *drivers.ExitResult, error)
 	StopTaskF         func(string, time.Duration, string) error
 	DestroyTaskF      func(string, bool) error
-	InspectTaskF      func(string) (*TaskStatus, error)
+	InspectTaskF      func(string) (*drivers.TaskStatus, error)
 	TaskStatsF        func(string) (*cstructs.TaskResourceUsage, error)
-	TaskEventsF       func(context.Context) (<-chan *TaskEvent, error)
+	TaskEventsF       func(context.Context) (<-chan *drivers.TaskEvent, error)
 	SignalTaskF       func(string, string) error
-	ExecTaskF         func(string, []string, time.Duration) (*ExecTaskResult, error)
+	ExecTaskF         func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
 }
 
 func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskConfigSchemaF() }
-func (d *MockDriver) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
+func (d *MockDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	return d.FingerprintF(ctx)
 }
-func (d *MockDriver) Capabilities() (*Capabilities, error) { return d.CapabilitiesF() }
-func (d *MockDriver) RecoverTask(h *TaskHandle) error      { return d.RecoverTaskF(h) }
-func (d *MockDriver) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *MockDriver) Capabilities() (*drivers.Capabilities, error) { return d.CapabilitiesF() }
+func (d *MockDriver) RecoverTask(h *drivers.TaskHandle) error      { return d.RecoverTaskF(h) }
+func (d *MockDriver) StartTask(c *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
 	return d.StartTaskF(c)
 }
-func (d *MockDriver) WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error) {
+func (d *MockDriver) WaitTask(ctx context.Context, id string) (<-chan *drivers.ExitResult, error) {
 	return d.WaitTaskF(ctx, id)
 }
 func (d *MockDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
@@ -220,16 +221,18 @@ func (d *MockDriver) StopTask(taskID string, timeout time.Duration, signal strin
 func (d *MockDriver) DestroyTask(taskID string, force bool) error {
 	return d.DestroyTaskF(taskID, force)
 }
-func (d *MockDriver) InspectTask(taskID string) (*TaskStatus, error) { return d.InspectTaskF(taskID) }
+func (d *MockDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
+	return d.InspectTaskF(taskID)
+}
 func (d *MockDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	return d.TaskStats(taskID)
 }
-func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
+func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.TaskEventsF(ctx)
 }
 func (d *MockDriver) SignalTask(taskID string, signal string) error {
 	return d.SignalTask(taskID, signal)
 }
-func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error) {
+func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	return d.ExecTaskF(taskID, cmd, timeout)
 }

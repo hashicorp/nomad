@@ -7,7 +7,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -28,7 +27,7 @@ func NewVaultFingerprint(logger log.Logger) Fingerprint {
 	return &VaultFingerprint{logger: logger.Named("vault"), lastState: vaultUnavailable}
 }
 
-func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	config := req.Config
 
 	if config.VaultConfig == nil || !config.VaultConfig.IsEnabled() {
@@ -82,7 +81,7 @@ func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (f *VaultFingerprint) clearVaultAttributes(r *cstructs.FingerprintResponse) {
+func (f *VaultFingerprint) clearVaultAttributes(r *FingerprintResponse) {
 	r.RemoveAttribute("vault.accessible")
 	r.RemoveAttribute("vault.version")
 	r.RemoveAttribute("vault.cluster_id")

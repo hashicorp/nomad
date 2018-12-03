@@ -107,7 +107,7 @@ type HealthCheck interface {
 type Fingerprint interface {
 	// Fingerprint is used to update properties of the Node,
 	// and returns a diff of updated node attributes and a potential error.
-	Fingerprint(*cstructs.FingerprintRequest, *cstructs.FingerprintResponse) error
+	Fingerprint(*FingerprintRequest, *FingerprintResponse) error
 
 	// Periodic is a mechanism for the fingerprinter to indicate that it should
 	// be run periodically. The return value is a boolean indicating if it

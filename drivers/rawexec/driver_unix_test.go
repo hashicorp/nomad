@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +30,7 @@ func TestRawExecDriver_User(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -61,7 +62,7 @@ func TestRawExecDriver_Signal(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),

@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -53,7 +55,7 @@ func TestRktDriver_SetConfig(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	// Enable Volumes
 	config := &Config{
@@ -83,7 +85,7 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -176,7 +178,7 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -231,7 +233,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -286,7 +288,7 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -337,7 +339,7 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -430,7 +432,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	// enable volumes
 	config := &Config{VolumesEnabled: true}
@@ -508,7 +510,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -561,7 +563,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -621,7 +623,7 @@ func TestRktDriver_Exec(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -691,7 +693,7 @@ func TestRktDriver_Stats(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),

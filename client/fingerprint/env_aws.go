@@ -11,7 +11,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -64,7 +63,7 @@ func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
 	return f
 }
 
-func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, response *cstructs.FingerprintResponse) error {
+func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
 	cfg := request.Config
 
 	// Check if we should tighten the timeout

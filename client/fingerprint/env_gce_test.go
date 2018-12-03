@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -22,8 +21,8 @@ func TestGCEFingerprint_nonGCE(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -93,8 +92,8 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	os.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
 	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
