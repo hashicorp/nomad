@@ -148,16 +148,8 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 func (t *TaskDir) buildChroot(chrootCreated bool, entries map[string]string) error {
 	if !chrootCreated {
 		// Link/copy chroot entries
-		if err := t.embedDirs(entries); err != nil {
-			return err
-		}
+		return t.embedDirs(entries)
 	}
-
-	// Mount special dirs
-	if err := t.mountSpecialDirs(); err != nil {
-		return err
-	}
-
 	return nil
 }
 

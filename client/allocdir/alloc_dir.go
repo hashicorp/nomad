@@ -307,11 +307,6 @@ func (d *AllocDir) UnmountAll() error {
 					fmt.Errorf("failed to remove the secret dir %q: %v", dir.SecretsDir, err))
 			}
 		}
-
-		// Unmount dev/ and proc/ have been mounted.
-		if err := dir.unmountSpecialDirs(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
 	}
 
 	return mErr.ErrorOrNil()
