@@ -652,7 +652,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
 			DiskMB:   cfg.Resources.NomadResources.DiskMB,
 		},
-		Env:        cfg.EnvList(),
+		Env:        rktEnv.List(),
 		TaskDir:    cfg.TaskDir().Dir,
 		StdoutPath: cfg.StdoutPath,
 		StderrPath: cfg.StderrPath,
