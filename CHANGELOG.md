@@ -9,7 +9,8 @@ BUG FIXES:
 * core: Fixed bug where some successfully completed jobs get re-run after job garbage collection [[GH-4861](https://github.com/hashicorp/nomad/pull/4861)]
 * core: Fixed bug that affects garbage collection of batch jobs that are purged and resubmitted with the same id [[GH-4839](https://github.com/hashicorp/nomad/pull/4839)]
 * core: Fixed issue with handling duplicated blocked evaluations [[GH-4867](https://github.com/hashicorp/nomad/pull/4867)]
-* core: Fixed panic when Vault secret response is nil [[GH-4904](https://github.com/hashicorp/nomad/pull/4904)] 
+* core: Fixed panic when Vault secret response is nil [[GH-4904](https://github.com/hashicorp/nomad/pull/4904), [GH-4937](https://github.com/hashicorp/nomad/pull/4937)]
+
 ## 0.8.6 (September 26, 2018)
 
 IMPROVEMENTS:
