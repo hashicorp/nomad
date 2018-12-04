@@ -97,7 +97,6 @@ func (s *scriptCheck) run() *scriptHandle {
 			switch err {
 			case context.Canceled:
 				// check removed during execution; exit
-				cancel()
 				return
 			case context.DeadlineExceeded:
 				metrics.IncrCounter([]string{"client", "consul", "script_timeouts"}, 1)
@@ -111,9 +110,6 @@ func (s *scriptCheck) run() *scriptHandle {
 				// failures
 				s.logger.Warn("check timed out", "timeout", s.check.Timeout)
 			}
-
-			// cleanup context
-			cancel()
 
 			state := api.HealthCritical
 			switch code {
