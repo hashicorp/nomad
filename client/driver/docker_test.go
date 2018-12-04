@@ -2130,7 +2130,7 @@ func setupDockerBindMount(t *testing.T, cfg *config.Config, hostpath string) (*s
 	}
 
 	// Build alloc and task directory structure
-	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(cfg.AllocDir, uuid.Generate()))
+	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(cfg.AllocDir, uuid.Generate()))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("failed to build alloc dir: %v", err)
 	}
@@ -2143,11 +2143,11 @@ func setupDockerBindMount(t *testing.T, cfg *config.Config, hostpath string) (*s
 
 	// Setup driver
 	alloc := mock.Alloc()
-	logger := testlog.Logger(t)
+	logger := testLogger()
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
-	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, testlog.Logger(t), emitter)
+	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, testLogger(), emitter)
 	driver := NewDockerDriver(driverCtx)
 
 	// Setup execCtx
