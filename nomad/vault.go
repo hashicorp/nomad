@@ -145,7 +145,7 @@ type VaultStats struct {
 	// TokenTTL is the time-to-live duration for the current token
 	TokenTTL time.Duration
 
-	// TokenExpiry Time is the recoreded expiry time of the current token
+	// TokenExpiry is the recorded expiry time of the current token
 	TokenExpiry time.Time
 }
 
@@ -216,7 +216,8 @@ type vaultClient struct {
 	childTTL string
 
 	// currentExpiration is the time the current token lease expires
-	currentExpiration time.Time
+	currentExpiration     time.Time
+	currentExpirationLock sync.Mutex
 
 	tomb   *tomb.Tomb
 	logger log.Logger
@@ -488,7 +489,9 @@ func (v *vaultClient) renewalLoop() {
 		case <-authRenewTimer.C:
 			// Renew the token and determine the new expiration
 			recoverable, err := v.renew()
+			v.currentExpirationLock.Lock()
 			currentExpiration := v.currentExpiration
+			v.currentExpirationLock.Unlock()
 
 			// Successfully renewed
 			if err == nil {
@@ -602,7 +605,7 @@ func (v *vaultClient) renew() (bool, error) {
 		return true, fmt.Errorf("renewal successful but no lease duration returned")
 	}
 
-	v.currentExpiration = time.Now().Add(time.Duration(auth.LeaseDuration) * time.Second)
+	v.extendExpiration(auth.LeaseDuration)
 
 	v.logger.Debug("successfully renewed server token")
 	return true, nil
@@ -650,7 +653,7 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 	data.Root = root
 	v.tokenData = &data
-	v.currentExpiration = time.Now().Add(time.Duration(data.TTL) * time.Second)
+	v.extendExpiration(data.TTL)
 
 	// The criteria that must be met for the token to be valid are as follows:
 	// 1) If token is non-root or is but has a creation ttl
@@ -1274,7 +1277,10 @@ func (v *vaultClient) stats() *VaultStats {
 	stats.TrackedForRevoke = len(v.revoking)
 	v.revLock.Unlock()
 
+	v.currentExpirationLock.Lock()
 	stats.TokenExpiry = v.currentExpiration
+	v.currentExpirationLock.Unlock()
+
 	if !stats.TokenExpiry.IsZero() {
 		stats.TokenTTL = time.Until(stats.TokenExpiry)
 	}
@@ -1295,4 +1301,11 @@ func (v *vaultClient) EmitStats(period time.Duration, stopCh chan struct{}) {
 			return
 		}
 	}
+}
+
+// extendExpiration sets the current auth token expiration record to ttLSeconds seconds from now
+func (v *vaultClient) extendExpiration(ttlSeconds int) {
+	v.currentExpirationLock.Lock()
+	v.currentExpiration = time.Now().Add(time.Duration(ttlSeconds) * time.Second)
+	v.currentExpirationLock.Unlock()
 }
