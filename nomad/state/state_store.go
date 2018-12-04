@@ -3573,11 +3573,17 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		// Decrementing the count of the bin of the last state
 		switch existingAlloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
-			tgSummary.Running -= 1
+			if tgSummary.Running > 0 {
+				tgSummary.Running -= 1
+			}
 		case structs.AllocClientStatusPending:
-			tgSummary.Starting -= 1
+			if tgSummary.Starting > 0 {
+				tgSummary.Starting -= 1
+			}
 		case structs.AllocClientStatusLost:
-			tgSummary.Lost -= 1
+			if tgSummary.Lost > 0 {
+				tgSummary.Lost -= 1
+			}
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
 			s.logger.Error("invalid old client status for allocatio",
