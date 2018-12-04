@@ -3,6 +3,7 @@
 IMPROVEMENTS:
 * core: Added `filter_default`, `prefix_filter` and `disable_dispatched_job_summary_metrics`
   client options to improve metric filtering [[GH-4878](https://github.com/hashicorp/nomad/issues/4878)]
+* driver/docker: Support `bind` mount type in order to allow Windows users to mount absolute paths [[GH-4958](https://github.com/hashicorp/nomad/issues/4958)]
 
 BUG FIXES:
 * core: Fixed bug in reconciler where allocs already stopped were being unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
