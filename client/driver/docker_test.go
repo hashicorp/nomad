@@ -2166,7 +2166,9 @@ func setupDockerBindMount(t *testing.T, cfg *config.Config, hostpath string) (*s
 }
 
 func TestDockerDriver_BindMount_VolumesDisabled(t *testing.T) {
-	if !tu.IsTravis() {
+	if tu.IsTravis() {
+		t.Skip("Need to upgrade to Ubuntu 16.04+")
+	} else {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
@@ -2228,7 +2230,9 @@ func TestDockerDriver_BindMount_VolumesDisabled(t *testing.T) {
 }
 
 func TestDockerDriver_BindMount_VolumesEnabled(t *testing.T) {
-	if !tu.IsTravis() {
+	if tu.IsTravis() {
+		t.Skip("Need to upgrade to Ubuntu 16.04+")
+	} else {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
