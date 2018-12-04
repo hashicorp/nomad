@@ -718,12 +718,20 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
+	// Setup devices
 	for _, device := range driverConfig.Devices {
 		dd, err := device.toDockerDevice()
 		if err != nil {
 			return c, err
 		}
 		hostConfig.Devices = append(hostConfig.Devices, dd)
+	}
+	for _, device := range task.Devices {
+		hostConfig.Devices = append(hostConfig.Devices, docker.Device{
+			PathOnHost:        device.HostPath,
+			PathInContainer:   device.TaskPath,
+			CgroupPermissions: device.Permissions,
+		})
 	}
 
 	// Setup mounts
@@ -745,6 +753,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+	}
+	for _, m := range task.Mounts {
+		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+			Type:     "bind",
+			Target:   m.TaskPath,
+			Source:   m.HostPath,
+			ReadOnly: m.Readonly,
+		})
 	}
 
 	// set DNS search domains and extra hosts
