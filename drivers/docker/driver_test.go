@@ -433,6 +433,11 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	defer cleanup()
 	copyImage(t, task.TaskDir(), "busybox.tar")
 
+	client := newTestDockerClient(t)
+	imageID, err := d.Impl().(*Driver).loadImage(task, &taskCfg, client)
+	require.NoError(t, err)
+	require.NotEmpty(t, imageID)
+
 	// Create a container of the same name but don't start it. This mimics
 	// the case of dockerd getting restarted and stopping containers while
 	// Nomad is watching them.
@@ -444,12 +449,11 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 		},
 	}
 
-	client := newTestDockerClient(t)
 	if _, err := client.CreateContainer(opts); err != nil {
 		t.Fatalf("error creating initial container: %v", err)
 	}
 
-	_, _, err := d.StartTask(task)
+	_, _, err = d.StartTask(task)
 	require.NoError(t, err)
 
 	defer d.DestroyTask(task.ID, true)
