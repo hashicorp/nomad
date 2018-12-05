@@ -14,16 +14,15 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
-
-	"github.com/hashicorp/consul-template/signals"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
+	libcontainerconfigs "github.com/opencontainers/runc/libcontainer/configs"
 )
 
 const (
@@ -86,6 +85,12 @@ type Resources struct {
 	IOPS     int
 }
 
+// Mount specifies the way a host path is to be mounted inside executor rootfs
+type Mount = libcontainerconfigs.Mount
+
+// Device specifies a linux device to be available in a executor
+type Device = libcontainerconfigs.Device
+
 // ExecCommand holds the user command, args, and other isolation related
 // settings.
 type ExecCommand struct {
@@ -123,6 +128,12 @@ type ExecCommand struct {
 	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
 	// Using the cgroup does allow more precise cleanup of processes.
 	BasicProcessCgroup bool
+
+	// Mounts are the host paths to be be made available inside rootfs
+	Mounts []*Mount
+
+	// Devices are the the device nodes to be created in isolation environment
+	Devices []*Device
 }
 
 type nopCloser struct {

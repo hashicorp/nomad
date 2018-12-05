@@ -15,6 +15,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	executils "github.com/hashicorp/nomad/drivers/shared/executor/utils"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -298,16 +299,23 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
+	execDevices, err := executils.ToExecDevices(cfg.Devices)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to prepare devices: %v", err)
+	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:            driverConfig.Command,
 		Args:           driverConfig.Args,
 		Env:            cfg.EnvList(),
 		User:           cfg.User,
 		ResourceLimits: true,
-		Resources:      toExecResources(cfg.Resources),
+		Resources:      executils.ToExecResources(cfg.Resources),
 		TaskDir:        cfg.TaskDir().Dir,
 		StdoutPath:     cfg.StdoutPath,
 		StderrPath:     cfg.StderrPath,
+		Mounts:         executils.ToExecMounts(cfg.Mounts),
+		Devices:        execDevices,
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -343,19 +351,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	d.tasks.Set(cfg.ID, h)
 	go h.run()
 	return handle, nil, nil
-}
-
-func toExecResources(resources *drivers.Resources) *executor.Resources {
-	if resources == nil || resources.NomadResources == nil {
-		return nil
-	}
-
-	return &executor.Resources{
-		CPU:      resources.NomadResources.CPU,
-		MemoryMB: resources.NomadResources.MemoryMB,
-		DiskMB:   resources.NomadResources.DiskMB,
-	}
-
 }
 
 func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {

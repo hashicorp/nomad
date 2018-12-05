@@ -488,6 +488,10 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 	}
 
 	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	if len(command.Devices) > 0 {
+		cfg.Devices = append(cfg.Devices, command.Devices...)
+	}
+
 	cfg.Mounts = []*lconfigs.Mount{
 		{
 			Source:      "tmpfs",
@@ -528,6 +532,9 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 			Device:      "sysfs",
 			Flags:       defaultMountFlags | syscall.MS_RDONLY,
 		},
+	}
+	if len(command.Mounts) > 0 {
+		cfg.Mounts = append(cfg.Mounts, command.Mounts...)
 	}
 }
 
