@@ -510,8 +510,8 @@ writing new file in rw succeeded`, strings.TrimSpace(string(stdout)))
 
 	stderr, err := ioutil.ReadFile(task.StderrPath)
 	require.NoError(err)
-	require.Equal(`touch: cannot touch '/tmp/task-path-ro/testfile': Read-only file system
-touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`, strings.TrimSpace(string(stderr)))
+	require.Regexp(`touch: cannot touch .*/tmp/task-path-ro/testfile.*: Read-only file system`, string(stderr))
+	require.Regexp(`touch: cannot touch .*/tmp/task-path-ro/testfile-from-ro.*: Read-only file system`, string(stderr))
 
 	// testing exit code last so we can inspect output first
 	require.Zero(result.ExitCode)
