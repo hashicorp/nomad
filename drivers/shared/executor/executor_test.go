@@ -2,6 +2,7 @@ package executor
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -110,7 +111,7 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 			ps, err := executor.Launch(execCmd)
 			require.NoError(err)
 			require.NotZero(ps.Pid)
-			ps, _ = executor.Wait()
+			ps, _ = executor.Wait(context.Background())
 			require.NotZero(ps.ExitCode, "expected exit code to be non zero")
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 		})
@@ -134,7 +135,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 
-			ps, err = executor.Wait()
+			ps, err = executor.Wait(context.Background())
 			require.NoError(err)
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
@@ -181,7 +182,7 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 				require.NoError(err)
 			}()
 
-			ps, err = executor.Wait()
+			ps, err = executor.Wait(context.Background())
 			require.NoError(err)
 			require.Equal(ps.Signal, int(syscall.SIGKILL))
 		})

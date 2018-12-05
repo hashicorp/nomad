@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -96,7 +97,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	require.NoError(err)
 	require.NotZero(ps.Pid)
 
-	state, err := executor.Wait()
+	state, err := executor.Wait(context.Background())
 	require.NoError(err)
 	require.Zero(state.ExitCode)
 
@@ -113,7 +114,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		actualMemLim := strings.TrimSpace(string(data))
 		require.Equal(actualMemLim, expectedMemLim)
 		require.NoError(executor.Shutdown("", 0))
-		executor.Wait()
+		executor.Wait(context.Background())
 
 		// Check if Nomad has actually removed the cgroups
 		tu.WaitForResult(func() (bool, error) {
@@ -176,7 +177,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	require.NotZero(ps.Pid)
 	time.Sleep(500 * time.Millisecond)
 	require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
-	executor.Wait()
+	executor.Wait(context.Background())
 
 	outWriter, _ := execCmd.GetWriters()
 	output := outWriter.(*bufferCloser).String()
