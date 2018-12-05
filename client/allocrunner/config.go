@@ -43,6 +43,9 @@ type Config struct {
 	// migrating their ephemeral disk when necessary.
 	PrevAllocWatcher allocwatcher.PrevAllocWatcher
 
+	// PreemptedAllocWatcher allows waiting for preempted allocations to exit
+	PreemptedAllocWatcher allocwatcher.PrevAllocWatcher
+
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
 

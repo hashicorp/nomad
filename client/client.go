@@ -2040,6 +2040,28 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	}
 	prevAllocWatcher := allocwatcher.NewAllocWatcher(watcherConfig)
 
+	var preemptedAllocWatchers []allocwatcher.PrevAllocWatcher
+	for _, palloc := range alloc.PreemptedAllocations {
+		cfg := allocwatcher.Config{
+			Alloc:          alloc,
+			PreviousRunner: c.allocs[palloc],
+			RPC:            c,
+			Config:         c.configCopy,
+			Logger:         c.logger,
+		}
+		w := allocwatcher.NewAllocWatcher(cfg)
+		preemptedAllocWatchers = append(preemptedAllocWatchers, w)
+	}
+
+	var preemptedAllocWatcher allocwatcher.PrevAllocWatcher = allocwatcher.NoopPrevAlloc{}
+	if len(preemptedAllocWatchers) > 0 {
+		var err error
+		preemptedAllocWatcher, err = allocwatcher.NewGroupAllocWatcher(preemptedAllocWatchers...)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
 	// we don't have to do a copy.
@@ -2054,6 +2076,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		StateUpdater:          c,
 		DeviceStatsReporter:   c,
 		PrevAllocWatcher:      prevAllocWatcher,
+		PreemptedAllocWatcher: preemptedAllocWatcher,
 		PluginLoader:          c.config.PluginLoader,
 		PluginSingletonLoader: c.config.PluginSingletonLoader,
 		DeviceManager:         c.devicemanager,

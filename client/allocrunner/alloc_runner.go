@@ -102,6 +102,9 @@ type allocRunner struct {
 	// and if necessary migrate its alloc dir.
 	prevAllocWatcher allocwatcher.PrevAllocWatcher
 
+	// preemptedAllocWatcher allows waiting for preempted allocations to exit
+	preemptedAllocWatcher allocwatcher.PrevAllocWatcher
+
 	// pluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
 	pluginSingletonLoader loader.PluginCatalog
@@ -134,6 +137,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		taskStateUpdateHandlerCh: make(chan struct{}),
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
+		preemptedAllocWatcher:    config.PreemptedAllocWatcher,
 		pluginSingletonLoader:    config.PluginSingletonLoader,
 		devicemanager:            config.DeviceManager,
 	}
@@ -668,7 +672,7 @@ func (ar *allocRunner) IsDestroyed() bool {
 //
 // This method is safe for calling concurrently with Run().
 func (ar *allocRunner) IsWaiting() bool {
-	return ar.prevAllocWatcher.IsWaiting()
+	return ar.preemptedAllocWatcher.IsWaiting() || ar.prevAllocWatcher.IsWaiting()
 }
 
 // Shutdown AllocRunner gracefully. Blocks while shutting down all TaskRunners.
