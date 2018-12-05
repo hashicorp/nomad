@@ -182,7 +182,7 @@ func TestMananger_TaskEvents(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err, "instances: %v", mgr.instances)
+		require.NoError(err)
 	})
 
 	event1 := mockTaskEvent("abc1")
@@ -216,7 +216,7 @@ func TestManager_Run_AllowedDrivers(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err, "instances: %v", mgr.instances)
+		require.NoError(err)
 	})
 }
 
@@ -239,7 +239,7 @@ func TestManager_Run_BlockedDrivers(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err, "instances: %v", mgr.instances)
+		require.NoError(err)
 	})
 }
 
@@ -291,14 +291,14 @@ func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
 		mgr.instancesMu.Lock()
 		defer mgr.instancesMu.Unlock()
 		if len(mgr.instances) > 1 {
-			return false, fmt.Errorf("mananger should have 1 registered instances")
+			return false, fmt.Errorf("mananger should have 1 registered instance")
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err, "instances: %v", mgr.instances)
+		require.NoError(err)
 	})
-	require.Len(mgr.instances, 1)
 	mgr.instancesMu.Lock()
+	require.Len(mgr.instances, 1)
 	_, ok := mgr.instances["mock3"]
 	mgr.instancesMu.Unlock()
 	require.True(ok)

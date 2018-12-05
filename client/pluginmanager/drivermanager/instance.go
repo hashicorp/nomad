@@ -377,6 +377,7 @@ func (i *instanceManager) handleFingerprint(fp *drivers.Fingerprint) {
 	}
 }
 
+// getLastHealth returns the most recent HealthState from fingerprinting
 func (i *instanceManager) getLastHealth() drivers.HealthState {
 	i.lastHealthStateMu.Lock()
 	defer i.lastHealthStateMu.Unlock()
