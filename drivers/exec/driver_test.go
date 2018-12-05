@@ -120,7 +120,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 	taskConfig := map[string]interface{}{
 		"command": "/bin/sleep",
-		"args":    []string{"5"},
+		"args":    []string{"600"},
 	}
 	encodeDriverHelper(require, task, taskConfig)
 
@@ -133,37 +133,34 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.Equal(int(unix.SIGINT), result.Signal)
-	}()
-
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		err := harness.StopTask(task.ID, 2*time.Second, "SIGINT")
-		require.NoError(err)
-	}()
-
-	waitCh := make(chan struct{})
-	go func() {
-		defer close(waitCh)
-		wg.Wait()
+		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
 	}()
 
 	select {
-	case <-waitCh:
-		status, err := harness.InspectTask(task.ID)
-		require.NoError(err)
-		require.Equal(drivers.TaskStateExited, status.State)
+	case result := <-ch:
+		require.Equal(int(unix.SIGINT), result.Signal)
 	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
+
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := harness.InspectTask(task.ID)
+		if err != nil {
+			return false, fmt.Errorf("inspecting task failed: %v", err)
+		}
+		if status.State != drivers.TaskStateExited {
+			return false, fmt.Errorf("task hasn't exited yet; status: %v", status.State)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
@@ -191,43 +188,39 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
+	defer harness.DestroyTask(task.ID, true)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		result := <-ch
-
-		// /bin/bash typically ignores INT, so it will be killed eventually
-		require.Equal(int(unix.SIGKILL), result.Signal)
-	}()
-
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		err := harness.StopTask(task.ID, 2*time.Second, "SIGINT")
-		require.NoError(err)
-	}()
-
-	waitCh := make(chan struct{})
-	go func() {
-		defer close(waitCh)
-		wg.Wait()
+		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
 	}()
 
 	select {
-	case <-waitCh:
-		status, err := harness.InspectTask(task.ID)
-		require.NoError(err)
-		require.Equal(drivers.TaskStateExited, status.State)
+	case result := <-ch:
+		require.False(result.Successful())
 	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
+
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := harness.InspectTask(task.ID)
+		if err != nil {
+			return false, fmt.Errorf("inspecting task failed: %v", err)
+		}
+		if status.State != drivers.TaskStateExited {
+			return false, fmt.Errorf("task hasn't exited yet; status: %v", status.State)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
