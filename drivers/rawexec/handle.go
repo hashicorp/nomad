@@ -1,18 +1,19 @@
 package rawexec
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type taskHandle struct {
-	exec         executor.Executor
+	exec         structs.Executor
 	pid          int
 	pluginClient *plugin.Client
 	logger       hclog.Logger
@@ -58,7 +59,7 @@ func (h *taskHandle) run() {
 	h.stateLock.Unlock()
 
 	// Block until process exits
-	ps, err := h.exec.Wait()
+	ps, err := h.exec.Wait(context.Background())
 
 	h.stateLock.Lock()
 	defer h.stateLock.Unlock()

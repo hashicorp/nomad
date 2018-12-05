@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
-	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -298,7 +298,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
-	execCmd := &executor.ExecCommand{
+	execCmd := &structs.ExecCommand{
 		Cmd:            driverConfig.Command,
 		Args:           driverConfig.Args,
 		Env:            cfg.EnvList(),
@@ -345,12 +345,12 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	return handle, nil, nil
 }
 
-func toExecResources(resources *drivers.Resources) *executor.Resources {
+func toExecResources(resources *drivers.Resources) *structs.Resources {
 	if resources == nil || resources.NomadResources == nil {
 		return nil
 	}
 
-	return &executor.Resources{
+	return &structs.Resources{
 		CPU:      resources.NomadResources.CPU,
 		MemoryMB: resources.NomadResources.MemoryMB,
 		DiskMB:   resources.NomadResources.DiskMB,
@@ -373,7 +373,7 @@ func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.E
 func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
-	ps, err := handle.exec.Wait()
+	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
 		result = &drivers.ExitResult{
 			Err: fmt.Errorf("executor: error waiting on process: %v", err),

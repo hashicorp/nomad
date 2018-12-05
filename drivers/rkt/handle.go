@@ -3,6 +3,7 @@
 package rkt
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"time"
@@ -10,12 +11,12 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type taskHandle struct {
-	exec         executor.Executor
+	exec         structs.Executor
 	env          *taskenv.TaskEnv
 	uuid         string
 	pid          int
@@ -62,7 +63,7 @@ func (h *taskHandle) run() {
 	}
 	h.stateLock.Unlock()
 
-	ps, err := h.exec.Wait()
+	ps, err := h.exec.Wait(context.Background())
 	h.stateLock.Lock()
 	defer h.stateLock.Unlock()
 
