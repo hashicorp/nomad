@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	tu "github.com/hashicorp/nomad/testutil"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -22,8 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var executorFactories = map[string]func(hclog.Logger) Executor{}
-var universalFactory = func(l hclog.Logger) Executor {
+var executorFactories = map[string]func(hclog.Logger) structs.Executor{}
+var universalFactory = func(l hclog.Logger) structs.Executor {
 	return NewExecutor(l)
 }
 
@@ -34,7 +35,7 @@ func init() {
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommand(t *testing.T) (*structs.ExecCommand, *allocdir.AllocDir) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
@@ -48,10 +49,10 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
-	cmd := &ExecCommand{
+	cmd := &structs.ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &Resources{
+		Resources: &structs.Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
 			IOPS:     task.Resources.IOPS,
@@ -68,9 +69,8 @@ type bufferCloser struct {
 
 func (_ *bufferCloser) Close() error { return nil }
 
-func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
-	cmd.stdout = &stdout
-	cmd.stderr = &stderr
+func configureTLogging(cmd *structs.ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
+	cmd.SetWriters(&stdout, &stderr)
 	return
 }
 
@@ -140,7 +140,8 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 
 			expected := "hello world"
 			tu.WaitForResult(func() (bool, error) {
-				output := execCmd.stdout.(*bufferCloser).String()
+				outWriter, _ := execCmd.GetWriters()
+				output := outWriter.(*bufferCloser).String()
 				act := strings.TrimSpace(string(output))
 				if expected != act {
 					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
@@ -207,7 +208,8 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
-			output := execCmd.stdout.(*bufferCloser).String()
+			outWriter, _ := execCmd.GetWriters()
+			output := outWriter.(*bufferCloser).String()
 			expected := ""
 			act := strings.TrimSpace(string(output))
 			if act != expected {

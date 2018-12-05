@@ -19,6 +19,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -61,7 +62,7 @@ func init() {
 // LibcontainerExecutor implements an Executor with the runc/libcontainer api
 type LibcontainerExecutor struct {
 	id      string
-	command *ExecCommand
+	command *structs.ExecCommand
 
 	logger hclog.Logger
 
@@ -73,10 +74,10 @@ type LibcontainerExecutor struct {
 	container      libcontainer.Container
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
-	exitState      *ProcessState
+	exitState      *structs.ProcessState
 }
 
-func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger) structs.Executor {
 	logger = logger.Named("isolated_executor")
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
@@ -92,7 +93,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
-func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
+func (l *LibcontainerExecutor) Launch(command *structs.ExecCommand) (*structs.ProcessState, error) {
 	l.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 	// Find the nomad executable to launch the executor process with
 	bin, err := discover.NomadExecutable()
@@ -101,7 +102,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	if command.Resources == nil {
-		command.Resources = &Resources{}
+		command.Resources = &structs.Resources{}
 	}
 
 	l.command = command
@@ -206,7 +207,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	go l.pidCollector.collectPids(l.userProcExited, l.getAllPids)
 	go l.wait()
 
-	return &ProcessState{
+	return &structs.ProcessState{
 		Pid:      pid,
 		ExitCode: -1,
 		Time:     time.Now(),
@@ -231,9 +232,13 @@ func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
-func (l *LibcontainerExecutor) Wait() (*ProcessState, error) {
-	<-l.userProcExited
-	return l.exitState, nil
+func (l *LibcontainerExecutor) Wait(ctx context.Context) (*structs.ProcessState, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-l.userProcExited:
+		return l.exitState, nil
+	}
 }
 
 func (l *LibcontainerExecutor) wait() {
@@ -247,7 +252,7 @@ func (l *LibcontainerExecutor) wait() {
 			ps = exitErr.ProcessState
 		} else {
 			l.logger.Error("failed to call wait on user process", "error", err)
-			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+			l.exitState = &structs.ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
 			return
 		}
 	}
@@ -265,7 +270,7 @@ func (l *LibcontainerExecutor) wait() {
 		}
 	}
 
-	l.exitState = &ProcessState{
+	l.exitState = &structs.ProcessState{
 		Pid:      ps.Pid(),
 		ExitCode: exitCode,
 		Signal:   signal,
@@ -327,13 +332,13 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 }
 
 // UpdateResources updates the resource isolation with new values to be enforced
-func (l *LibcontainerExecutor) UpdateResources(resources *Resources) error {
+func (l *LibcontainerExecutor) UpdateResources(resources *structs.Resources) error {
 	return nil
 }
 
 // Version returns the api version of the executor
-func (l *LibcontainerExecutor) Version() (*ExecutorVersion, error) {
-	return &ExecutorVersion{Version: ExecutorVersionLatest}, nil
+func (l *LibcontainerExecutor) Version() (*structs.ExecutorVersion, error) {
+	return &structs.ExecutorVersion{Version: ExecutorVersionLatest}, nil
 }
 
 // Stats returns the resource statistics for processes managed by the executor
@@ -453,7 +458,7 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 	ch <- &waitResult{ps, err}
 }
 
-func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
+func configureCapabilities(cfg *lconfigs.Config, command *structs.ExecCommand) {
 	// TODO: allow better control of these
 	cfg.Capabilities = &lconfigs.Capabilities{
 		Bounding:    allCaps,
@@ -465,7 +470,7 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
 
 }
 
-func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
+func configureIsolation(cfg *lconfigs.Config, command *structs.ExecCommand) {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	// set the new root directory for the container
@@ -531,7 +536,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 	}
 }
 
-func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+func configureCgroups(cfg *lconfigs.Config, command *structs.ExecCommand) error {
 
 	// If resources are not limited then manually create cgroups needed
 	if !command.ResourceLimits {
@@ -597,7 +602,7 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 	return nil
 }
 
-func newLibcontainerConfig(command *ExecCommand) *lconfigs.Config {
+func newLibcontainerConfig(command *structs.ExecCommand) *lconfigs.Config {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{

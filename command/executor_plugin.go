@@ -49,6 +49,7 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 			hclog.LevelFromString(executorConfig.LogLevel),
 			executorConfig.FSIsolation,
 		),
+		GRPCServer: plugin.DefaultGRPCServer,
 	})
 	return 0
 }

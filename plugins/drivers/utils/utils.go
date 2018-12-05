@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/drivers/shared/executor"
+	estructs "github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -64,7 +64,7 @@ func CgroupsMounted(node *structs.Node) bool {
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
 func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDriverConfig,
-	executorConfig *pexecutor.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
+	executorConfig *pexecutor.ExecutorConfig) (estructs.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
 	if err != nil {
@@ -80,6 +80,7 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 	}
 	config.HandshakeConfig = base.Handshake
 	config.Plugins = pexecutor.GetPluginMap(w, level, executorConfig.FSIsolation)
+	config.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}
 
 	if driverConfig != nil {
 		config.MaxPort = driverConfig.ClientMaxPort
@@ -105,17 +106,20 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
-	executorPlugin := raw.(executor.Executor)
+	executorPlugin := raw.(estructs.Executor)
 	return executorPlugin, executorClient, nil
 }
 
 // CreateExecutorWithConfig launches a plugin with a given plugin config
-func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
+func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (estructs.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = base.Handshake
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
+	// TODO: Use versioned plugin map to support backwards compatability with
+	// existing pre-0.9 executors
 	config.Plugins = pexecutor.GetPluginMap(w, hclog.Debug, false)
+	config.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
@@ -127,7 +131,7 @@ func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
-	executorPlugin, ok := raw.(*pexecutor.ExecutorRPC)
+	executorPlugin, ok := raw.(estructs.Executor)
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}

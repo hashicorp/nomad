@@ -15,6 +15,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	tu "github.com/hashicorp/nomad/testutil"
@@ -25,7 +26,7 @@ func init() {
 	executorFactories["LibcontainerExecutor"] = libcontainerFactory
 }
 
-func libcontainerFactory(l hclog.Logger) Executor {
+func libcontainerFactory(l hclog.Logger) structs.Executor {
 	return NewExecutorWithIsolation(l)
 }
 
@@ -33,7 +34,7 @@ func libcontainerFactory(l hclog.Logger) Executor {
 // chroot. Use testExecutorContext if you don't need a chroot.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommandWithChroot(t *testing.T) (*structs.ExecCommand, *allocdir.AllocDir) {
 	chrootEnv := map[string]string{
 		"/etc/ld.so.cache":  "/etc/ld.so.cache",
 		"/etc/ld.so.conf":   "/etc/ld.so.conf",
@@ -61,10 +62,10 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
-	cmd := &ExecCommand{
+	cmd := &structs.ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &Resources{
+		Resources: &structs.Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
 			IOPS:     task.Resources.IOPS,
@@ -143,7 +144,8 @@ ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
 	tu.WaitForResult(func() (bool, error) {
-		output := execCmd.stdout.(*bufferCloser).String()
+		outWriter, _ := execCmd.GetWriters()
+		output := outWriter.(*bufferCloser).String()
 		act := strings.TrimSpace(string(output))
 		if act != expected {
 			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
@@ -176,9 +178,10 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 	executor.Wait()
 
-	output := execCmd.stdout.(*bufferCloser).String()
+	outWriter, _ := execCmd.GetWriters()
+	output := outWriter.(*bufferCloser).String()
 	require.NotZero(len(output))
 	time.Sleep(2 * time.Second)
-	output1 := execCmd.stdout.(*bufferCloser).String()
+	output1 := outWriter.(*bufferCloser).String()
 	require.Equal(len(output), len(output1))
 }

@@ -2,9 +2,12 @@
 
 package executor
 
-import hclog "github.com/hashicorp/go-hclog"
+import (
+	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+)
 
-func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger) structs.Executor {
 	logger = logger.Named("executor")
 	logger.Error("isolation executor is not supported on this platform, using default")
 	return NewExecutor(logger)

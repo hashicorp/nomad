@@ -373,7 +373,7 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 	}, nil
 }
 
-func taskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
+func TaskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
 	timestamp, err := ptypes.TimestampProto(time.Unix(0, stats.Timestamp))
 	if err != nil {
 		return nil, err
@@ -391,7 +391,7 @@ func taskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, erro
 	}, nil
 }
 
-func taskStatsFromProto(pb *proto.TaskStats) (*cstructs.TaskResourceUsage, error) {
+func TaskStatsFromProto(pb *proto.TaskStats) (*cstructs.TaskResourceUsage, error) {
 	timestamp, err := ptypes.Timestamp(pb.Timestamp)
 	if err != nil {
 		return nil, err
