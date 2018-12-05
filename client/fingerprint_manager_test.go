@@ -119,5 +119,5 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 	require.NotEqual(node.Attributes["cpu.frequency"], "")
 	require.NotEqual(node.Attributes["cpu.arch"], "")
 	require.NotContains(node.Attributes, "memory.totalbytes")
-	require.NotContains(node.Attributes, "nomad.version")
+	require.NotContains(node.Attributes, "nomad.revision")
 }
