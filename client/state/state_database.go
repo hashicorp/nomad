@@ -14,18 +14,18 @@ import (
 /*
 The client has a boltDB backed state store. The schema as of 0.9 looks as follows:
 
-allocations/ (bucket)
-|--> <alloc-id>/ (bucket)
-    |--> alloc -> *structs.Allocation
-    |--> alloc_runner persisted objects (k/v)
-	|--> <task-name>/ (bucket)
-        |--> task_runner persisted objects (k/v)
+allocations/
+|--> <alloc-id>/
+   |--> alloc -> allocEntry{*structs.Allocation}
+   |--> task-<name>/
+      |--> local_state -> *trstate.LocalState # Local-only state
+      |--> task_state  -> *structs.TaskState  # Sync'd to servers
 
 devicemanager/
-|--> plugin-state -> *dmstate.PluginState
+|--> plugin_state -> *dmstate.PluginState
 
 drivermanager/
-|--> plugin-state -> *driverstate.PluginState
+|--> plugin_state -> *dmstate.PluginState
 */
 
 var (
@@ -33,15 +33,11 @@ var (
 	// data
 	allocationsBucketName = []byte("allocations")
 
-	// allocKey is the key serialized Allocations are stored under
+	// allocKey is the key Allocations are stored under encapsulated in
+	// allocEntry structs.
 	allocKey = []byte("alloc")
 
-	// taskRunnerStateAllKey holds all the task runners state. At the moment
-	// there is no need to split it
-	//XXX Old key - going to need to migrate
-	//taskRunnerStateAllKey = []byte("simple-all")
-
-	// allocations -> $allocid -> $taskname -> the keys below
+	// allocations -> $allocid -> task-$taskname -> the keys below
 	taskLocalStateKey = []byte("local_state")
 	taskStateKey      = []byte("task_state")
 
@@ -57,6 +53,11 @@ var (
 	// stored at
 	managerPluginStateKey = []byte("plugin_state")
 )
+
+// taskBucketName returns the bucket name for the given task name.
+func taskBucketName(taskName string) []byte {
+	return []byte("task-" + taskName)
+}
 
 // NewStateDBFunc creates a StateDB given a state directory.
 type NewStateDBFunc func(stateDir string) (StateDB, error)
@@ -202,7 +203,7 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 			return nil
 		}
 
-		taskBkt := allocBkt.Bucket([]byte(taskName))
+		taskBkt := allocBkt.Bucket(taskBucketName(taskName))
 		if taskBkt == nil {
 			// No state for task, return
 			return nil
@@ -284,7 +285,7 @@ func (s *BoltStateDB) DeleteTaskBucket(allocID, taskName string) error {
 		}
 
 		// Check if the bucket exists
-		key := []byte(taskName)
+		key := taskBucketName(taskName)
 		return alloc.DeleteBucket(key)
 	})
 }
@@ -359,7 +360,7 @@ func getTaskBucket(tx *boltdd.Tx, allocID, taskName string) (*boltdd.Bucket, err
 
 	// Retrieve the specific task bucket
 	w := tx.Writable()
-	key := []byte(taskName)
+	key := taskBucketName(taskName)
 	task := alloc.Bucket(key)
 	if task == nil {
 		if !w {
