@@ -2,11 +2,9 @@ package allocwatcher
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/allocdir"
 )
 
 type groupPrevAllocWatcher struct {
@@ -20,17 +18,10 @@ type groupPrevAllocWatcher struct {
 	waitingLock sync.RWMutex
 }
 
-func NewGroupAllocWatcher(watchers ...PrevAllocWatcher) (PrevAllocWatcher, error) {
-	for _, watcher := range watchers {
-		_, ok := watcher.(*localPrevAlloc)
-		if !ok {
-			return nil, errors.New("PrevAllocWatchers must all be local watchers")
-		}
-	}
-
+func NewGroupAllocWatcher(watchers ...PrevAllocWatcher) PrevAllocWatcher {
 	return &groupPrevAllocWatcher{
 		prevAllocs: watchers,
-	}, nil
+	}
 }
 
 // Wait on the previous allocs to become terminal, exit, or, return due to
@@ -76,17 +67,9 @@ func (g *groupPrevAllocWatcher) Wait(ctx context.Context) error {
 	return merr.ErrorOrNil()
 }
 
-func (g *groupPrevAllocWatcher) Migrate(ctx context.Context, dest *allocdir.AllocDir) error {
-	return errors.New("Migration unimplemented for a groupPrevAllocWatcher")
-}
-
 func (g *groupPrevAllocWatcher) IsWaiting() bool {
 	g.waitingLock.RLock()
 	defer g.waitingLock.RUnlock()
 
 	return g.waiting
-}
-
-func (g *groupPrevAllocWatcher) IsMigrating() bool {
-	return false
 }

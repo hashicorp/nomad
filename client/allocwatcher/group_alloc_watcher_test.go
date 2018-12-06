@@ -22,7 +22,7 @@ func TestPrevAlloc_GroupPrevAllocWatcher_Block(t *testing.T) {
 		"run_for": "500ms",
 	}
 
-	waiter := NewAllocWatcher(conf)
+	waiter, _ := NewAllocWatcher(conf)
 
 	groupWaiter := &groupPrevAllocWatcher{prevAllocs: []PrevAllocWatcher{waiter}}
 
@@ -70,10 +70,7 @@ func TestPrevAlloc_GroupPrevAllocWatcher_Block(t *testing.T) {
 	require.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		if groupWaiter.IsWaiting() {
-			return false, fmt.Errorf("did not expect watcher to be waiting")
-		}
-		return !groupWaiter.IsMigrating(), fmt.Errorf("did not expect watcher to be migrating")
+		return !groupWaiter.IsWaiting(), fmt.Errorf("did not expect watcher to be waiting")
 	}, func(err error) {
 		t.Fatalf("error: %v", err)
 	})
@@ -96,8 +93,8 @@ func TestPrevAlloc_GroupPrevAllocWatcher_BlockMulti(t *testing.T) {
 		"run_for": "500ms",
 	}
 
-	waiter1 := NewAllocWatcher(conf1)
-	waiter2 := NewAllocWatcher(conf2)
+	waiter1, _ := NewAllocWatcher(conf1)
+	waiter2, _ := NewAllocWatcher(conf2)
 
 	groupWaiter := &groupPrevAllocWatcher{
 		prevAllocs: []PrevAllocWatcher{
@@ -147,10 +144,7 @@ func TestPrevAlloc_GroupPrevAllocWatcher_BlockMulti(t *testing.T) {
 	terminalBroadcastFn(conf2)
 
 	testutil.WaitForResult(func() (bool, error) {
-		if groupWaiter.IsWaiting() {
-			return false, fmt.Errorf("did not expect watcher to be waiting")
-		}
-		return !groupWaiter.IsMigrating(), fmt.Errorf("did not expect watcher to be migrating")
+		return !groupWaiter.IsWaiting(), fmt.Errorf("did not expect watcher to be waiting")
 	}, func(err error) {
 		t.Fatalf("error: %v", err)
 	})

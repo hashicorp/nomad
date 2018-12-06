@@ -77,8 +77,8 @@ func (ar *allocRunner) initRunnerHooks() {
 	// directory path exists for other hooks.
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newPreemptionHook(hookLogger, ar.preemptedAllocWatcher),
-		newDiskMigrationHook(hookLogger, ar.prevAllocWatcher, ar.allocDir),
+		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
+		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
 	}
 }

@@ -2028,39 +2028,27 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		return err
 	}
 
+	// Collect any preempted allocations to pass into the previous alloc watcher
+	var preemptedAllocs map[string]allocwatcher.AllocRunnerMeta
+	if len(alloc.PreemptedAllocations) > 0 {
+		preemptedAllocs = make(map[string]allocwatcher.AllocRunnerMeta)
+		for _, palloc := range alloc.PreemptedAllocations {
+			preemptedAllocs[palloc] = c.allocs[palloc]
+		}
+	}
+
 	// Since only the Client has access to other AllocRunners and the RPC
 	// client, create the previous allocation watcher here.
 	watcherConfig := allocwatcher.Config{
-		Alloc:          alloc,
-		PreviousRunner: c.allocs[alloc.PreviousAllocation],
-		RPC:            c,
-		Config:         c.configCopy,
-		MigrateToken:   migrateToken,
-		Logger:         c.logger,
+		Alloc:            alloc,
+		PreviousRunner:   c.allocs[alloc.PreviousAllocation],
+		PreemptedRunners: preemptedAllocs,
+		RPC:              c,
+		Config:           c.configCopy,
+		MigrateToken:     migrateToken,
+		Logger:           c.logger,
 	}
-	prevAllocWatcher := allocwatcher.NewAllocWatcher(watcherConfig)
-
-	var preemptedAllocWatchers []allocwatcher.PrevAllocWatcher
-	for _, palloc := range alloc.PreemptedAllocations {
-		cfg := allocwatcher.Config{
-			Alloc:          alloc,
-			PreviousRunner: c.allocs[palloc],
-			RPC:            c,
-			Config:         c.configCopy,
-			Logger:         c.logger,
-		}
-		w := allocwatcher.NewAllocWatcher(cfg)
-		preemptedAllocWatchers = append(preemptedAllocWatchers, w)
-	}
-
-	var preemptedAllocWatcher allocwatcher.PrevAllocWatcher = allocwatcher.NoopPrevAlloc{}
-	if len(preemptedAllocWatchers) > 0 {
-		var err error
-		preemptedAllocWatcher, err = allocwatcher.NewGroupAllocWatcher(preemptedAllocWatchers...)
-		if err != nil {
-			return err
-		}
-	}
+	prevAllocWatcher, prevAllocMigrator := allocwatcher.NewAllocWatcher(watcherConfig)
 
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
@@ -2076,7 +2064,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		StateUpdater:          c,
 		DeviceStatsReporter:   c,
 		PrevAllocWatcher:      prevAllocWatcher,
-		PreemptedAllocWatcher: preemptedAllocWatcher,
+		PrevAllocMigrator:     prevAllocMigrator,
 		PluginLoader:          c.config.PluginLoader,
 		PluginSingletonLoader: c.config.PluginSingletonLoader,
 		DeviceManager:         c.devicemanager,

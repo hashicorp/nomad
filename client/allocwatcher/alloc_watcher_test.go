@@ -97,20 +97,20 @@ func TestPrevAlloc_Noop(t *testing.T) {
 
 	conf.Alloc.PreviousAllocation = ""
 
-	watcher := NewAllocWatcher(conf)
+	watcher, migrator := NewAllocWatcher(conf)
 	require.NotNil(t, watcher)
-	_, ok := watcher.(NoopPrevAlloc)
-	require.True(t, ok, "expected watcher to be NoopPrevAlloc")
+	_, ok := migrator.(NoopPrevAlloc)
+	require.True(t, ok, "expected migrator to be NoopPrevAlloc")
 
 	done := make(chan int, 2)
 	go func() {
 		watcher.Wait(context.Background())
 		done <- 1
-		watcher.Migrate(context.Background(), nil)
+		migrator.Migrate(context.Background(), nil)
 		done <- 1
 	}()
 	require.False(t, watcher.IsWaiting())
-	require.False(t, watcher.IsMigrating())
+	require.False(t, migrator.IsMigrating())
 	<-done
 	<-done
 }
@@ -127,7 +127,7 @@ func TestPrevAlloc_LocalPrevAlloc_Block(t *testing.T) {
 		"run_for": "500ms",
 	}
 
-	waiter := NewAllocWatcher(conf)
+	_, waiter := NewAllocWatcher(conf)
 
 	// Wait in a goroutine with a context to make sure it exits at the right time
 	ctx, cancel := context.WithCancel(context.Background())
@@ -191,7 +191,7 @@ func TestPrevAlloc_LocalPrevAlloc_Terminated(t *testing.T) {
 
 	conf.PreviousRunner.Alloc().ClientStatus = structs.AllocClientStatusComplete
 
-	waiter := NewAllocWatcher(conf)
+	waiter, _ := NewAllocWatcher(conf)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

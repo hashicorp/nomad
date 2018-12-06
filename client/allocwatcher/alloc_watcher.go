@@ -47,20 +47,26 @@ type AllocRunnerMeta interface {
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to
-// terminate and migrate its data whether or not the previous allocation is
-// local or remote.
+// terminate whether or not the previous allocation is local or remote.
+// See `PrevAllocMigrator` for migrating workloads.
 type PrevAllocWatcher interface {
 	// Wait for previous alloc to terminate
 	Wait(context.Context) error
 
-	// Migrate data from previous alloc
-	Migrate(ctx context.Context, dest *allocdir.AllocDir) error
-
 	// IsWaiting returns true if a concurrent caller is blocked in Wait
 	IsWaiting() bool
+}
+
+// PrevAllocMigrator allows AllocRunners to migrate a previous allocation
+// whether or not the previous allocation is local or remote.
+type PrevAllocMigrator interface {
+	PrevAllocWatcher
 
 	// IsMigrating returns true if a concurrent caller is in Migrate
 	IsMigrating() bool
+
+	// Migrate data from previous alloc
+	Migrate(ctx context.Context, dest *allocdir.AllocDir) error
 }
 
 type Config struct {
@@ -68,9 +74,12 @@ type Config struct {
 	// previous allocation stopping.
 	Alloc *structs.Allocation
 
-	// PreviousRunner is non-nil iff All has a PreviousAllocation and it is
+	// PreviousRunner is non-nil if Alloc has a PreviousAllocation and it is
 	// running locally.
 	PreviousRunner AllocRunnerMeta
+
+	// PreemptedRunners is non-nil if Alloc has one or more PreemptedAllocations.
+	PreemptedRunners map[string]AllocRunnerMeta
 
 	// RPC allows the alloc watcher to monitor remote allocations.
 	RPC RPCer
@@ -85,31 +94,30 @@ type Config struct {
 	Logger hclog.Logger
 }
 
-// NewAllocWatcher creates a PrevAllocWatcher appropriate for whether this
-// alloc's previous allocation was local or remote. If this alloc has no
-// previous alloc then a noop implementation is returned.
-func NewAllocWatcher(c Config) PrevAllocWatcher {
-	if c.Alloc.PreviousAllocation == "" {
-		// No previous allocation, use noop transitioner
-		return NoopPrevAlloc{}
-	}
-
+func newWatcherForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string, m AllocRunnerMeta) PrevAllocMigrator {
 	logger := c.Logger.Named("alloc_watcher")
 	logger = logger.With("alloc_id", c.Alloc.ID)
-	logger = logger.With("previous_alloc", c.Alloc.PreviousAllocation)
+	logger = logger.With("previous_alloc", watchedAllocID)
 
-	tg := c.Alloc.Job.LookupTaskGroup(c.Alloc.TaskGroup)
+	var tasks []*structs.Task
+	var sticky bool
+	var migrate bool
+	if tg != nil {
+		tasks = tg.Tasks
+		sticky = tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky
+		migrate = tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate
+	}
 
-	if c.PreviousRunner != nil {
-		// Previous allocation is local, use local transitioner
+	if m != nil {
+		// Local Allocation because there's no meta
 		return &localPrevAlloc{
 			allocID:      c.Alloc.ID,
-			prevAllocID:  c.Alloc.PreviousAllocation,
-			tasks:        tg.Tasks,
-			sticky:       tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky,
-			prevAllocDir: c.PreviousRunner.GetAllocDir(),
-			prevListener: c.PreviousRunner.Listener(),
-			prevStatus:   c.PreviousRunner.Alloc(),
+			prevAllocID:  watchedAllocID,
+			tasks:        tasks,
+			sticky:       sticky,
+			prevAllocDir: m.GetAllocDir(),
+			prevListener: m.Listener(),
+			prevStatus:   m.Alloc(),
 			logger:       logger,
 		}
 	}
@@ -117,13 +125,48 @@ func NewAllocWatcher(c Config) PrevAllocWatcher {
 	return &remotePrevAlloc{
 		allocID:      c.Alloc.ID,
 		prevAllocID:  c.Alloc.PreviousAllocation,
-		tasks:        tg.Tasks,
+		tasks:        tasks,
 		config:       c.Config,
-		migrate:      tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate,
+		migrate:      migrate,
 		rpc:          c.RPC,
 		migrateToken: c.MigrateToken,
 		logger:       logger,
 	}
+}
+
+// NewAllocWatcher creates a PrevAllocWatcher appropriate for whether this
+// alloc's previous allocation was local or remote. If this alloc has no
+// previous alloc then a noop implementation is returned.
+func NewAllocWatcher(c Config) (PrevAllocWatcher, PrevAllocMigrator) {
+	if c.Alloc.PreviousAllocation == "" && c.PreemptedRunners == nil {
+		return NoopPrevAlloc{}, NoopPrevAlloc{}
+	}
+
+	var prevAllocWatchers []PrevAllocWatcher
+	var prevAllocMigrator PrevAllocMigrator = NoopPrevAlloc{}
+
+	// We have a previous allocation, add its listener to the watchers, and
+	// use a migrator.
+	if c.Alloc.PreviousAllocation != "" {
+		tg := c.Alloc.Job.LookupTaskGroup(c.Alloc.TaskGroup)
+		w := newWatcherForAlloc(c, tg, c.Alloc.PreviousAllocation, c.PreviousRunner)
+		prevAllocWatchers = append(prevAllocWatchers, w)
+		prevAllocMigrator = w
+	}
+
+	// We are preempting allocations, add their listeners to the watchers.
+	if c.PreemptedRunners != nil {
+		for aid, r := range c.PreemptedRunners {
+			w := newWatcherForAlloc(c, nil, aid, r)
+			prevAllocWatchers = append(prevAllocWatchers, w)
+		}
+	}
+
+	groupWatcher := &groupPrevAllocWatcher{
+		prevAllocs: prevAllocWatchers,
+	}
+
+	return groupWatcher, prevAllocMigrator
 }
 
 // localPrevAlloc is a prevAllocWatcher for previous allocations on the same
