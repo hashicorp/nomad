@@ -447,9 +447,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -541,9 +542,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -634,9 +636,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -727,9 +730,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -821,9 +825,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -915,9 +920,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1009,9 +1015,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1103,9 +1110,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:      TemperatureUnit,
-					Desc:      TemperatureDesc,
-					StringVal: helper.StringToPtr(notAvailable),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1197,9 +1205,9 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:      MemoryStateUnit,
+					Desc:      MemoryStateDesc,
+					StringVal: helper.StringToPtr(notAvailable),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1290,9 +1298,9 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:      MemoryStateUnit,
+					Desc:      MemoryStateDesc,
+					StringVal: helper.StringToPtr(notAvailable),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1383,9 +1391,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1476,9 +1485,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1569,9 +1579,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1663,9 +1674,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1757,9 +1769,10 @@ func TestStatsForItem(t *testing.T) {
 			},
 			ExpectedResult: &device.DeviceStats{
 				Summary: &structs.StatValue{
-					Unit:            TemperatureUnit,
-					Desc:            TemperatureDesc,
-					IntNumeratorVal: helper.Int64ToPtr(1),
+					Unit:              MemoryStateUnit,
+					Desc:              MemoryStateDesc,
+					IntNumeratorVal:   helper.Int64ToPtr(1),
+					IntDenominatorVal: helper.Int64ToPtr(1),
 				},
 				Stats: &structs.StatObject{
 					Attributes: map[string]*structs.StatValue{
@@ -1913,9 +1926,10 @@ func TestStatsForGroup(t *testing.T) {
 				InstanceStats: map[string]*device.DeviceStats{
 					"UUID1": {
 						Summary: &structs.StatValue{
-							Unit:            TemperatureUnit,
-							Desc:            TemperatureDesc,
-							IntNumeratorVal: helper.Int64ToPtr(1),
+							Unit:              MemoryStateUnit,
+							Desc:              MemoryStateDesc,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						Stats: &structs.StatObject{
 							Attributes: map[string]*structs.StatValue{
@@ -1983,9 +1997,10 @@ func TestStatsForGroup(t *testing.T) {
 					},
 					"UUID2": {
 						Summary: &structs.StatValue{
-							Unit:            TemperatureUnit,
-							Desc:            TemperatureDesc,
-							IntNumeratorVal: helper.Int64ToPtr(2),
+							Unit:              MemoryStateUnit,
+							Desc:              MemoryStateDesc,
+							IntNumeratorVal:   helper.Int64ToPtr(2),
+							IntDenominatorVal: helper.Int64ToPtr(2),
 						},
 						Stats: &structs.StatObject{
 							Attributes: map[string]*structs.StatValue{
@@ -2053,9 +2068,10 @@ func TestStatsForGroup(t *testing.T) {
 					},
 					"UUID3": {
 						Summary: &structs.StatValue{
-							Unit:            TemperatureUnit,
-							Desc:            TemperatureDesc,
-							IntNumeratorVal: helper.Int64ToPtr(3),
+							Unit:              MemoryStateUnit,
+							Desc:              MemoryStateDesc,
+							IntNumeratorVal:   helper.Int64ToPtr(3),
+							IntDenominatorVal: helper.Int64ToPtr(3),
 						},
 						Stats: &structs.StatObject{
 							Attributes: map[string]*structs.StatValue{
@@ -2234,9 +2250,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(1),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(1),
+									IntDenominatorVal: helper.Int64ToPtr(1),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
@@ -2311,9 +2328,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID2": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(2),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(2),
+									IntDenominatorVal: helper.Int64ToPtr(2),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
@@ -2388,9 +2406,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID3": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(3),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(3),
+									IntDenominatorVal: helper.Int64ToPtr(3),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
@@ -2545,9 +2564,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(1),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(1),
+									IntDenominatorVal: helper.Int64ToPtr(1),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
@@ -2622,9 +2642,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID3": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(3),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(3),
+									IntDenominatorVal: helper.Int64ToPtr(3),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
@@ -2692,9 +2713,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 							},
 							"UUID2": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(2),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(2),
+									IntDenominatorVal: helper.Int64ToPtr(2),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
@@ -2848,9 +2870,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(1),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(1),
+									IntDenominatorVal: helper.Int64ToPtr(1),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
@@ -2925,9 +2948,10 @@ func TestWriteStatsToChannel(t *testing.T) {
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID2": {
 								Summary: &structs.StatValue{
-									Unit:            TemperatureUnit,
-									Desc:            TemperatureDesc,
-									IntNumeratorVal: helper.Int64ToPtr(2),
+									Unit:              MemoryStateUnit,
+									Desc:              MemoryStateDesc,
+									IntNumeratorVal:   helper.Int64ToPtr(2),
+									IntDenominatorVal: helper.Int64ToPtr(2),
 								},
 								Stats: &structs.StatObject{
 									Attributes: map[string]*structs.StatValue{
