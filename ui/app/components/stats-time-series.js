@@ -51,9 +51,17 @@ export default LineChart.extend({
   }),
 
   yScale: computed('data.[]', 'yProp', 'xAxisOffset', function() {
+    const yProp = this.get('yProp');
+    const yValues = (this.get('data') || []).mapBy(yProp);
+
+    let [low, high] = [0, 1];
+    if (yValues.compact().length) {
+      [low, high] = d3Array.extent(yValues);
+    }
+
     return d3Scale
       .scaleLinear()
       .rangeRound([this.get('xAxisOffset'), 10])
-      .domain([0, 1]);
+      .domain([Math.min(0, low), Math.max(1, high)]);
   }),
 });
