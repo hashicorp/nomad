@@ -8,9 +8,14 @@ type Resources struct {
 	CPU      *int
 	MemoryMB *int `mapstructure:"memory"`
 	DiskMB   *int `mapstructure:"disk"`
-	IOPS     *int
 	Networks []*NetworkResource
 	Devices  []*RequestedDevice
+
+	// COMPAT(0.10)
+	// XXX Deprecated. Please do not use. The field will be removed in Nomad
+	// 0.10 and is only being kept to allow any references to be removed before
+	// then.
+	IOPS *int
 }
 
 // Canonicalize will supply missing values in the cases
@@ -22,9 +27,6 @@ func (r *Resources) Canonicalize() {
 	}
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
-	}
-	if r.IOPS == nil {
-		r.IOPS = defaultResources.IOPS
 	}
 	for _, n := range r.Networks {
 		n.Canonicalize()
@@ -42,7 +44,6 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      helper.IntToPtr(100),
 		MemoryMB: helper.IntToPtr(300),
-		IOPS:     helper.IntToPtr(0),
 	}
 }
 
@@ -55,7 +56,6 @@ func MinResources() *Resources {
 	return &Resources{
 		CPU:      helper.IntToPtr(20),
 		MemoryMB: helper.IntToPtr(10),
-		IOPS:     helper.IntToPtr(0),
 	}
 }
 
@@ -72,9 +72,6 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if other.DiskMB != nil {
 		r.DiskMB = other.DiskMB
-	}
-	if other.IOPS != nil {
-		r.IOPS = other.IOPS
 	}
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks

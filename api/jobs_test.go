@@ -412,7 +412,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Resources: &Resources{
 									CPU:      helper.IntToPtr(500),
 									MemoryMB: helper.IntToPtr(256),
-									IOPS:     helper.IntToPtr(0),
 									Networks: []*NetworkResource{
 										{
 											MBits: helper.IntToPtr(10),

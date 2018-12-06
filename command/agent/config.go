@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-sockaddr/template"
-
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
@@ -573,7 +572,6 @@ type Resources struct {
 	CPU           int    `mapstructure:"cpu"`
 	MemoryMB      int    `mapstructure:"memory"`
 	DiskMB        int    `mapstructure:"disk"`
-	IOPS          int    `mapstructure:"iops"`
 	ReservedPorts string `mapstructure:"reserved_ports"`
 }
 
@@ -1393,9 +1391,6 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if b.DiskMB != 0 {
 		result.DiskMB = b.DiskMB
-	}
-	if b.IOPS != 0 {
-		result.IOPS = b.IOPS
 	}
 	if b.ReservedPorts != "" {
 		result.ReservedPorts = b.ReservedPorts

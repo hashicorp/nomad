@@ -26,7 +26,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
-
 	"github.com/syndtr/gocapability/capability"
 )
 
@@ -555,14 +554,6 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	// Set the relative CPU shares for this cgroup.
 	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.CPU)
 
-	if command.Resources.IOPS != 0 {
-		// Validate it is in an acceptable range.
-		if command.Resources.IOPS < 10 || command.Resources.IOPS > 1000 {
-			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", command.Resources.IOPS)
-		}
-
-		cfg.Cgroups.Resources.BlkioWeight = uint16(command.Resources.IOPS)
-	}
 	return nil
 }
 

@@ -53,8 +53,8 @@ Modified             = 39s ago
 
 Task "test" is "dead"
 Task Resources
-CPU      Memory   Disk     IOPS  Addresses
-100 MHz  300 MiB  300 MiB  0     p1: 127.0.0.1:28422
+CPU      Memory   Disk     Addresses
+100 MHz  300 MiB  300 MiB  p1: 127.0.0.1:28422
 
 Task Events:
 Started At     = 2018-04-12T22:50:32Z

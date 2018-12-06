@@ -28,7 +28,6 @@ func Node() *structs.Node {
 			CPU:      4000,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
-			IOPS:     150,
 		},
 		Reserved: &structs.Resources{
 			CPU:      100,

@@ -853,7 +853,6 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	out := &structs.Resources{
 		CPU:      *in.CPU,
 		MemoryMB: *in.MemoryMB,
-		IOPS:     *in.IOPS,
 	}
 
 	if l := len(in.Networks); l != 0 {

@@ -800,7 +800,6 @@ func TestTask_Validate(t *testing.T) {
 		Resources: &Resources{
 			CPU:      100,
 			MemoryMB: 100,
-			IOPS:     10,
 		},
 		LogConfig: DefaultLogConfig(),
 	}
@@ -874,7 +873,6 @@ func TestTask_Validate_Services(t *testing.T) {
 		Resources: &Resources{
 			CPU:      100,
 			MemoryMB: 100,
-			IOPS:     10,
 		},
 		Services: []*Service{s1, s2},
 	}
@@ -1752,13 +1750,11 @@ func TestResource_Superset(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
-		IOPS:     100,
 	}
 	r2 := &Resources{
 		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
-		IOPS:     50,
 	}
 
 	if s, _ := r1.Superset(r1); !s {
@@ -1780,7 +1776,6 @@ func TestResource_Add(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
-		IOPS:     100,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
@@ -1793,7 +1788,6 @@ func TestResource_Add(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
-		IOPS:     50,
 		Networks: []*NetworkResource{
 			{
 				IP:            "10.0.0.1",
@@ -1812,7 +1806,6 @@ func TestResource_Add(t *testing.T) {
 		CPU:      3000,
 		MemoryMB: 3072,
 		DiskMB:   15000,
-		IOPS:     150,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
@@ -3973,7 +3966,6 @@ func TestNode_Copy(t *testing.T) {
 			CPU:      4000,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
-			IOPS:     150,
 			Networks: []*NetworkResource{
 				{
 					Device: "eth0",

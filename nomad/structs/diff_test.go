@@ -3178,7 +3178,6 @@ func TestTaskDiff(t *testing.T) {
 					CPU:      100,
 					MemoryMB: 100,
 					DiskMB:   100,
-					IOPS:     100,
 				},
 			},
 			New: &Task{
@@ -3186,7 +3185,6 @@ func TestTaskDiff(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 200,
 					DiskMB:   200,
-					IOPS:     200,
 				},
 			},
 			Expected: &TaskDiff{
@@ -3205,12 +3203,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeEdited,
 								Name: "DiskMB",
-								Old:  "100",
-								New:  "200",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "IOPS",
 								Old:  "100",
 								New:  "200",
 							},
@@ -3233,7 +3225,6 @@ func TestTaskDiff(t *testing.T) {
 					CPU:      100,
 					MemoryMB: 100,
 					DiskMB:   100,
-					IOPS:     100,
 				},
 			},
 			New: &Task{
@@ -3241,7 +3232,6 @@ func TestTaskDiff(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 100,
 					DiskMB:   200,
-					IOPS:     100,
 				},
 			},
 			Expected: &TaskDiff{
@@ -3262,12 +3252,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "DiskMB",
 								Old:  "100",
 								New:  "200",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "IOPS",
-								Old:  "100",
-								New:  "100",
 							},
 							{
 								Type: DiffTypeNone,
@@ -3534,7 +3518,6 @@ func TestTaskDiff(t *testing.T) {
 					CPU:      100,
 					MemoryMB: 100,
 					DiskMB:   100,
-					IOPS:     100,
 					Devices: []*RequestedDevice{
 						{
 							Name:  "foo",
@@ -3556,7 +3539,6 @@ func TestTaskDiff(t *testing.T) {
 					CPU:      100,
 					MemoryMB: 100,
 					DiskMB:   100,
-					IOPS:     100,
 					Devices: []*RequestedDevice{
 						{
 							Name:  "foo",
@@ -3589,12 +3571,6 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "DiskMB",
-								Old:  "100",
-								New:  "100",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "IOPS",
 								Old:  "100",
 								New:  "100",
 							},

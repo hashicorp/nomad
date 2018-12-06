@@ -201,7 +201,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      3200,
 					MemoryMB: 7256,
 					DiskMB:   4 * 1024,
-					IOPS:     150,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -234,7 +233,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      3200,
 					MemoryMB: 7256,
 					DiskMB:   4 * 1024,
-					IOPS:     150,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -250,7 +248,6 @@ func TestPreemption(t *testing.T) {
 				CPU:      4000,
 				MemoryMB: 8192,
 				DiskMB:   4 * 1024,
-				IOPS:     300,
 				Networks: []*structs.NetworkResource{
 					{
 						Device:        "eth0",
@@ -268,7 +265,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -281,7 +277,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -326,7 +321,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -339,7 +333,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth1",
@@ -358,7 +351,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -488,7 +480,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      2800,
 					MemoryMB: 2256,
 					DiskMB:   40 * 1024,
-					IOPS:     100,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -501,7 +492,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -608,7 +598,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     150,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -621,7 +610,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -640,7 +628,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -683,7 +670,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -696,7 +682,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -715,7 +700,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -757,7 +741,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -770,7 +753,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     10,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -783,7 +765,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     10,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -813,7 +794,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
-					IOPS:     10,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",
@@ -836,7 +816,6 @@ func TestPreemption(t *testing.T) {
 					CPU:      1800,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
-					IOPS:     50,
 					Networks: []*structs.NetworkResource{
 						{
 							Device: "eth0",

@@ -45,8 +45,8 @@ Client Status = running
 
 Task "server" is "running"
 Task Resources
-CPU        Memory          Disk     IOPS  Addresses
-75/100 MHz  784 KiB/10 MiB  300 MiB  0     http: 10.1.1.196:5678
+CPU        Memory          Disk      Addresses
+75/100 MHz  784 KiB/10 MiB  300 MiB  http: 10.1.1.196:5678
 
 Memory Stats
 Cache   Max Usage  RSS      Swap

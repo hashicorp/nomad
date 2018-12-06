@@ -14,16 +14,14 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
-
-	"github.com/hashicorp/consul-template/signals"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
 const (
@@ -83,7 +81,6 @@ type Resources struct {
 	CPU      int
 	MemoryMB int
 	DiskMB   int
-	IOPS     int
 }
 
 // ExecCommand holds the user command, args, and other isolation related
