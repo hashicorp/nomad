@@ -1,14 +1,18 @@
 package client
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocrunner"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -344,50 +348,140 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 // TestAllocGarbageCollector_MakeRoomFor_MaxAllocs asserts that when making room for new
 // allocs, terminal allocs are GC'd until old_allocs + new_allocs <= limit
 func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
-	t.Parallel()
-	logger := testlog.HCLogger(t)
-	statsCollector := &MockStatsCollector{}
-	conf := gcConfig()
-	conf.MaxAllocs = 3
-	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
+	const maxAllocs = 6
+	require := require.New(t)
 
-	ar1, cleanup1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
-	defer cleanup1()
-	ar2, cleanup2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
-	defer cleanup2()
-	ar3, cleanup3 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
-	defer cleanup3()
+	server, serverAddr := testServer(t, nil)
+	defer server.Shutdown()
+	testutil.WaitForLeader(t, server.RPC)
 
-	go ar1.Run()
-	go ar2.Run()
-	go ar3.Run()
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.GCMaxAllocs = maxAllocs
+		c.GCDiskUsageThreshold = 100
+		c.GCInodeUsageThreshold = 100
+		c.GCParallelDestroys = 1
+		c.GCInterval = time.Hour
+		c.RPCHandler = server
+		c.Servers = []string{serverAddr}
+		c.ConsulConfig.ClientAutoJoin = new(bool)
+	})
+	defer cleanup()
+	waitTilNodeReady(client, t)
 
-	exitAllocRunner(ar1)
-
-	gc.MarkForCollection(ar1.Alloc().ID, ar1)
-	gc.MarkForCollection(ar2.Alloc().ID, ar2)
-	gc.MarkForCollection(ar3.Alloc().ID, ar3)
-
-	{
-		alloc := mock.Alloc()
-		err := gc.MakeRoomFor([]*structs.Allocation{alloc})
-		require.NoError(t, err)
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "30s",
 	}
 
-	// We GC a single alloc runner.
-	require.Equal(t, true, ar1.IsDestroyed())
-	require.Equal(t, false, ar2.IsDestroyed())
-
-	{
-		alloc := mock.Alloc()
-		err := gc.MakeRoomFor([]*structs.Allocation{alloc})
-		require.NoError(t, err)
+	index := uint64(98)
+	nextIndex := func() uint64 {
+		index++
+		return index
 	}
 
-	// We GC a second alloc runner.
-	require.Equal(t, true, ar1.IsDestroyed())
-	require.Equal(t, true, ar2.IsDestroyed())
-	require.Equal(t, false, ar3.IsDestroyed())
+	upsertJobFn := func(server *nomad.Server, j *structs.Job) {
+		state := server.State()
+		require.NoError(state.UpsertJob(nextIndex(), j))
+		require.NoError(state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
+	}
+
+	// Insert the Job
+	upsertJobFn(server, job)
+
+	upsertAllocFn := func(server *nomad.Server, a *structs.Allocation) {
+		state := server.State()
+		require.NoError(state.UpsertAllocs(nextIndex(), []*structs.Allocation{a}))
+	}
+
+	upsertNewAllocFn := func(server *nomad.Server, j *structs.Job) *structs.Allocation {
+		alloc := mock.Alloc()
+		alloc.Job = j
+		alloc.JobID = j.ID
+		alloc.NodeID = client.NodeID()
+
+		upsertAllocFn(server, alloc)
+
+		return alloc.Copy()
+	}
+
+	var allocations []*structs.Allocation
+
+	// Fill the node with allocations
+	for i := 0; i < maxAllocs; i++ {
+		allocations = append(allocations, upsertNewAllocFn(server, job))
+	}
+
+	// Wait until the allocations are ready
+	testutil.WaitForResult(func() (bool, error) {
+		ar := len(client.getAllocRunners())
+
+		return ar == maxAllocs, fmt.Errorf("Expected %d allocs, got %d", maxAllocs, ar)
+	}, func(err error) {
+		t.Fatalf("Allocs did not start: %v", err)
+	})
+
+	// Mark the first three as terminal
+	for i := 0; i < 3; i++ {
+		allocations[i].DesiredStatus = structs.AllocDesiredStatusStop
+		upsertAllocFn(server, allocations[i].Copy())
+	}
+
+	// Wait until the allocations are stopped
+	testutil.WaitForResult(func() (bool, error) {
+		ar := client.getAllocRunners()
+		stopped := 0
+		for _, r := range ar {
+			if r.Alloc().TerminalStatus() {
+				stopped++
+			}
+		}
+
+		return stopped == 3, fmt.Errorf("Expected %d terminal allocs, got %d", 3, stopped)
+	}, func(err error) {
+		t.Fatalf("Allocs did not terminate: %v", err)
+	})
+
+	// Upsert a new allocation
+	// This does not get appended to `allocations` as we do not use them again.
+	upsertNewAllocFn(server, job)
+
+	// A single allocation should be GC'd
+	testutil.WaitForResult(func() (bool, error) {
+		ar := client.getAllocRunners()
+		destroyed := 0
+		for _, r := range ar {
+			if r.IsDestroyed() {
+				destroyed++
+			}
+		}
+
+		return destroyed == 1, fmt.Errorf("Expected %d gc'd ars, got %d", 1, destroyed)
+	}, func(err error) {
+		t.Fatalf("Allocs did not get GC'd: %v", err)
+	})
+
+	// Upsert a new allocation
+	// This does not get appended to `allocations` as we do not use them again.
+	upsertNewAllocFn(server, job)
+
+	// 2 allocations should be GC'd
+	testutil.WaitForResult(func() (bool, error) {
+		ar := client.getAllocRunners()
+		destroyed := 0
+		for _, r := range ar {
+			if r.IsDestroyed() {
+				destroyed++
+			}
+		}
+
+		return destroyed == 2, fmt.Errorf("Expected %d gc'd ars, got %d", 2, destroyed)
+	}, func(err error) {
+		t.Fatalf("Allocs did not get GC'd: %v", err)
+	})
+
+	require.Len(client.getAllocRunners(), 8)
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
