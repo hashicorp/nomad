@@ -718,29 +718,20 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
-	if len(driverConfig.Devices) > 0 {
-		var devices []docker.Device
-		for _, device := range driverConfig.Devices {
-			if device.HostPath == "" {
-				return c, fmt.Errorf("host path must be set in configuration for devices")
-			}
-			if device.CgroupPermissions != "" {
-				for _, char := range device.CgroupPermissions {
-					ch := string(char)
-					if ch != "r" && ch != "w" && ch != "m" {
-						return c, fmt.Errorf("invalid cgroup permission string: %q", device.CgroupPermissions)
-					}
-				}
-			} else {
-				device.CgroupPermissions = "rwm"
-			}
-			dev := docker.Device{
-				PathOnHost:        device.HostPath,
-				PathInContainer:   device.ContainerPath,
-				CgroupPermissions: device.CgroupPermissions}
-			devices = append(devices, dev)
+	// Setup devices
+	for _, device := range driverConfig.Devices {
+		dd, err := device.toDockerDevice()
+		if err != nil {
+			return c, err
 		}
-		hostConfig.Devices = devices
+		hostConfig.Devices = append(hostConfig.Devices, dd)
+	}
+	for _, device := range task.Devices {
+		hostConfig.Devices = append(hostConfig.Devices, docker.Device{
+			PathOnHost:        device.HostPath,
+			PathInContainer:   device.TaskPath,
+			CgroupPermissions: device.Permissions,
+		})
 	}
 
 	// Setup mounts
@@ -762,6 +753,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+	}
+	for _, m := range task.Mounts {
+		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+			Type:     "bind",
+			Target:   m.TaskPath,
+			Source:   m.HostPath,
+			ReadOnly: m.Readonly,
+		})
 	}
 
 	// set DNS search domains and extra hosts

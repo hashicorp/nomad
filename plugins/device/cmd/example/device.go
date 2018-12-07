@@ -256,6 +256,11 @@ func (d *FsDevice) Reserve(deviceIDs []string) (*device.ContainerReservation, er
 		return nil, status.New(codes.InvalidArgument, "no device ids given").Err()
 	}
 
+	deviceDir, err := filepath.Abs(d.deviceDir)
+	if err != nil {
+		return nil, status.Newf(codes.Internal, "failed to load device dir abs path").Err()
+	}
+
 	resp := &device.ContainerReservation{}
 
 	for _, id := range deviceIDs {
@@ -265,10 +270,10 @@ func (d *FsDevice) Reserve(deviceIDs []string) (*device.ContainerReservation, er
 		}
 
 		// Add a mount
-		resp.Devices = append(resp.Devices, &device.DeviceSpec{
-			TaskPath:    fmt.Sprintf("/dev/%s", id),
-			HostPath:    filepath.Join(d.deviceDir, id),
-			CgroupPerms: "rw",
+		resp.Mounts = append(resp.Mounts, &device.Mount{
+			TaskPath: fmt.Sprintf("/tmp/task-mounts/%s", id),
+			HostPath: filepath.Join(deviceDir, id),
+			ReadOnly: false,
 		})
 	}
 

@@ -188,3 +188,15 @@ func authIsEmpty(auth *docker.AuthConfiguration) bool {
 		auth.Email == "" &&
 		auth.ServerAddress == ""
 }
+
+func validateCgroupPermission(s string) bool {
+	for _, c := range s {
+		switch c {
+		case 'r', 'w', 'm':
+		default:
+			return false
+		}
+	}
+
+	return true
+}

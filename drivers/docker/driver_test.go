@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -1906,6 +1907,95 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 		}
 	})
 
+}
+
+// TestDockerDriver_CreateContainerConfig_MountsCombined asserts that
+// devices and mounts set by device managers/plugins are honored
+// and present in docker.CreateContainerOptions, and that it is appended
+// to any devices/mounts a user sets in the task config.
+func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, _ := dockerTask(t)
+
+	task.Devices = []*drivers.DeviceConfig{
+		{
+			HostPath:    "/dev/fuse",
+			TaskPath:    "/container/dev/task-fuse",
+			Permissions: "rw",
+		},
+	}
+	task.Mounts = []*drivers.MountConfig{
+		{
+			HostPath: "/tmp/task-mount",
+			TaskPath: "/container/tmp/task-mount",
+			Readonly: true,
+		},
+	}
+
+	cfg.Devices = []DockerDevice{
+		{
+			HostPath:          "/dev/stdout",
+			ContainerPath:     "/container/dev/cfg-stdout",
+			CgroupPermissions: "rwm",
+		},
+	}
+	cfg.Mounts = []DockerMount{
+		{
+			Type:     "bind",
+			Source:   "/tmp/cfg-mount",
+			Target:   "/container/tmp/cfg-mount",
+			ReadOnly: false,
+		},
+	}
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	expectedMounts := []docker.HostMount{
+		{
+			Type:        "bind",
+			Source:      "/tmp/cfg-mount",
+			Target:      "/container/tmp/cfg-mount",
+			ReadOnly:    false,
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:     "bind",
+			Source:   "/tmp/task-mount",
+			Target:   "/container/tmp/task-mount",
+			ReadOnly: true,
+		},
+	}
+	foundMounts := c.HostConfig.Mounts
+	sort.Slice(foundMounts, func(i, j int) bool {
+		return foundMounts[i].Target < foundMounts[j].Target
+	})
+	require.EqualValues(t, expectedMounts, foundMounts)
+
+	expectedDevices := []docker.Device{
+		{
+			PathOnHost:        "/dev/stdout",
+			PathInContainer:   "/container/dev/cfg-stdout",
+			CgroupPermissions: "rwm",
+		},
+		{
+			PathOnHost:        "/dev/fuse",
+			PathInContainer:   "/container/dev/task-fuse",
+			CgroupPermissions: "rw",
+		},
+	}
+
+	foundDevices := c.HostConfig.Devices
+	sort.Slice(foundDevices, func(i, j int) bool {
+		return foundDevices[i].PathInContainer < foundDevices[j].PathInContainer
+	})
+	require.EqualValues(t, expectedDevices, foundDevices)
 }
 
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
