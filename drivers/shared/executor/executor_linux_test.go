@@ -16,7 +16,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	tu "github.com/hashicorp/nomad/testutil"
@@ -27,7 +26,7 @@ func init() {
 	executorFactories["LibcontainerExecutor"] = libcontainerFactory
 }
 
-func libcontainerFactory(l hclog.Logger) structs.Executor {
+func libcontainerFactory(l hclog.Logger) Executor {
 	return NewExecutorWithIsolation(l)
 }
 
@@ -35,7 +34,7 @@ func libcontainerFactory(l hclog.Logger) structs.Executor {
 // chroot. Use testExecutorContext if you don't need a chroot.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommandWithChroot(t *testing.T) (*structs.ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	chrootEnv := map[string]string{
 		"/etc/ld.so.cache":  "/etc/ld.so.cache",
 		"/etc/ld.so.conf":   "/etc/ld.so.conf",
@@ -63,10 +62,10 @@ func testExecutorCommandWithChroot(t *testing.T) (*structs.ExecCommand, *allocdi
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
-	cmd := &structs.ExecCommand{
+	cmd := &ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &structs.Resources{
+		Resources: &Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
 			IOPS:     task.Resources.IOPS,

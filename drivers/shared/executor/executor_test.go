@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	tu "github.com/hashicorp/nomad/testutil"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -24,8 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var executorFactories = map[string]func(hclog.Logger) structs.Executor{}
-var universalFactory = func(l hclog.Logger) structs.Executor {
+var executorFactories = map[string]func(hclog.Logger) Executor{}
+var universalFactory = func(l hclog.Logger) Executor {
 	return NewExecutor(l)
 }
 
@@ -36,7 +35,7 @@ func init() {
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommand(t *testing.T) (*structs.ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
@@ -50,10 +49,10 @@ func testExecutorCommand(t *testing.T) (*structs.ExecCommand, *allocdir.AllocDir
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
-	cmd := &structs.ExecCommand{
+	cmd := &ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &structs.Resources{
+		Resources: &Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
 			IOPS:     task.Resources.IOPS,
@@ -70,7 +69,7 @@ type bufferCloser struct {
 
 func (_ *bufferCloser) Close() error { return nil }
 
-func configureTLogging(cmd *structs.ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
+func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
 	cmd.SetWriters(&stdout, &stderr)
 	return
 }

@@ -28,7 +28,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -643,11 +643,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	// Enable ResourceLimits to place the executor in a parent cgroup of
 	// the rkt container. This allows stats collection via the executor to
 	// work just like it does for exec.
-	execCmd := &structs.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           runArgs,
 		ResourceLimits: true,
-		Resources: &structs.Resources{
+		Resources: &executor.Resources{
 			CPU:      int(cfg.Resources.LinuxResources.CPUShares),
 			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
 			DiskMB:   cfg.Resources.NomadResources.DiskMB,

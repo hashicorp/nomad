@@ -15,7 +15,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -327,7 +327,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	// will cause an error.
 	useCgroups := !d.config.NoCgroups && runtime.GOOS == "linux" && syscall.Geteuid() == 0
 
-	execCmd := &structs.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:                driverConfig.Command,
 		Args:               driverConfig.Args,
 		Env:                cfg.EnvList(),

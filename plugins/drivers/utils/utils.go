@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	estructs "github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -64,7 +64,7 @@ func CgroupsMounted(node *structs.Node) bool {
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
 func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDriverConfig,
-	executorConfig *pexecutor.ExecutorConfig) (estructs.Executor, *plugin.Client, error) {
+	executorConfig *pexecutor.ExecutorConfig) (executor.Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
 	if err != nil {
@@ -106,12 +106,12 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
-	executorPlugin := raw.(estructs.Executor)
+	executorPlugin := raw.(executor.Executor)
 	return executorPlugin, executorClient, nil
 }
 
 // CreateExecutorWithConfig launches a plugin with a given plugin config
-func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (estructs.Executor, *plugin.Client, error) {
+func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executor.Executor, *plugin.Client, error) {
 	config.HandshakeConfig = base.Handshake
 
 	// Setting this to DEBUG since the log level at the executor server process
@@ -131,7 +131,7 @@ func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (estruct
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
-	executorPlugin, ok := raw.(estructs.Executor)
+	executorPlugin, ok := raw.(executor.Executor)
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}

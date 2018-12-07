@@ -6,19 +6,19 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/executor/proto"
 	"golang.org/x/net/context"
 )
 
 type grpcExecutorServer struct {
-	impl    structs.Executor
+	impl    executor.Executor
 	doneCtx context.Context
 }
 
 func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchRequest) (*proto.LaunchResponse, error) {
-	ps, err := s.impl.Launch(&structs.ExecCommand{
+	ps, err := s.impl.Launch(&executor.ExecCommand{
 		Cmd:                req.Cmd,
 		Args:               req.Args,
 		Resources:          resourcesFromProto(req.Resources),

@@ -3,6 +3,8 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,8 +18,8 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -39,14 +41,178 @@ var (
 	ExecutorBasicMeasuredCpuStats = []string{"System Mode", "User Mode", "Percent"}
 )
 
+// Executor is the interface which allows a driver to launch and supervise
+// a process
+type Executor interface {
+	// Launch a user process configured by the given ExecCommand
+	Launch(launchCmd *ExecCommand) (*ProcessState, error)
+
+	// Wait blocks until the process exits or an error occures
+	Wait(ctx context.Context) (*ProcessState, error)
+
+	// Shutdown will shutdown the executor by stopping the user process,
+	// cleaning up and resources created by the executor. The shutdown sequence
+	// will first send the given signal to the process. This defaults to "SIGINT"
+	// if not specified. The executor will then wait for the process to exit
+	// before cleaning up other resources. If the executor waits longer than the
+	// given grace period, the process is forcefully killed.
+	//
+	// To force kill the user process, gracePeriod can be set to 0.
+	Shutdown(signal string, gracePeriod time.Duration) error
+
+	// UpdateResources updates any resource isolation enforcement with new
+	// constraints if supported.
+	UpdateResources(*Resources) error
+
+	// Version returns the executor API version
+	Version() (*ExecutorVersion, error)
+
+	// Stats fetchs process usage stats for the executor and each pid if available
+	Stats() (*cstructs.TaskResourceUsage, error)
+
+	// Signal sends the given signal to the user process
+	Signal(os.Signal) error
+
+	// Exec executes the given command and args inside the executor context
+	// and returns the output and exit code.
+	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
+}
+
+// Resources describes the resource isolation required
+type Resources struct {
+	CPU      int
+	MemoryMB int
+	DiskMB   int
+	IOPS     int
+}
+
+// ExecCommand holds the user command, args, and other isolation related
+// settings.
+type ExecCommand struct {
+	// Cmd is the command that the user wants to run.
+	Cmd string
+
+	// Args is the args of the command that the user wants to run.
+	Args []string
+
+	// Resources defined by the task
+	Resources *Resources
+
+	// StdoutPath is the path the process stdout should be written to
+	StdoutPath string
+	stdout     io.WriteCloser
+
+	// StderrPath is the path the process stderr should be written to
+	StderrPath string
+	stderr     io.WriteCloser
+
+	// Env is the list of KEY=val pairs of environment variables to be set
+	Env []string
+
+	// User is the user which the executor uses to run the command.
+	User string
+
+	// TaskDir is the directory path on the host where for the task
+	TaskDir string
+
+	// ResourceLimits determines whether resource limits are enforced by the
+	// executor.
+	ResourceLimits bool
+
+	// Cgroup marks whether we put the process in a cgroup. Setting this field
+	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
+	// Using the cgroup does allow more precise cleanup of processes.
+	BasicProcessCgroup bool
+}
+
+// SetWriters sets the writer for the process stdout and stderr. This should
+// not be used if writing to a file path such as a fifo file. SetStdoutWriter
+// is mainly used for unit testing purposes.
+func (c *ExecCommand) SetWriters(out io.WriteCloser, err io.WriteCloser) {
+	c.stdout = out
+	c.stderr = err
+}
+
+// GetWriters returns the unexported io.WriteCloser for the stdout and stderr
+// handles. This is mainly used for unit testing purposes.
+func (c *ExecCommand) GetWriters() (stdout io.WriteCloser, stderr io.WriteCloser) {
+	return c.stdout, c.stderr
+}
+
+type nopCloser struct {
+	io.Writer
+}
+
+func (nopCloser) Close() error { return nil }
+
+// Stdout returns a writer for the configured file descriptor
+func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
+	if c.stdout == nil {
+		if c.StdoutPath != "" {
+			f, err := fifo.Open(c.StdoutPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create stdout: %v", err)
+			}
+			c.stdout = f
+		} else {
+			c.stdout = nopCloser{ioutil.Discard}
+		}
+	}
+	return c.stdout, nil
+}
+
+// Stderr returns a writer for the configured file descriptor
+func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
+	if c.stderr == nil {
+		if c.StderrPath != "" {
+			f, err := fifo.Open(c.StderrPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create stderr: %v", err)
+			}
+			c.stderr = f
+		} else {
+			c.stderr = nopCloser{ioutil.Discard}
+		}
+	}
+	return c.stderr, nil
+}
+
+func (c *ExecCommand) Close() {
+	stdout, err := c.Stdout()
+	if err == nil {
+		stdout.Close()
+	}
+	stderr, err := c.Stderr()
+	if err == nil {
+		stderr.Close()
+	}
+}
+
+// ProcessState holds information about the state of a user process.
+type ProcessState struct {
+	Pid      int
+	ExitCode int
+	Signal   int
+	Time     time.Time
+}
+
+// ExecutorVersion is the version of the executor
+type ExecutorVersion struct {
+	Version string
+}
+
+func (v *ExecutorVersion) GoString() string {
+	return v.Version
+}
+
 // UniversalExecutor is an implementation of the Executor which launches and
 // supervises processes. In addition to process supervision it provides resource
 // and file system isolation
 type UniversalExecutor struct {
 	childCmd   exec.Cmd
-	commandCfg *structs.ExecCommand
+	commandCfg *ExecCommand
 
-	exitState     *structs.ProcessState
+	exitState     *ProcessState
 	processExited chan interface{}
 
 	// resConCtx is used to track and cleanup additional resources created by
@@ -62,7 +228,7 @@ type UniversalExecutor struct {
 }
 
 // NewExecutor returns an Executor
-func NewExecutor(logger hclog.Logger) structs.Executor {
+func NewExecutor(logger hclog.Logger) Executor {
 	logger = logger.Named("executor")
 	if err := shelpers.Init(); err != nil {
 		logger.Error("unable to initialize stats", "error", err)
@@ -78,13 +244,13 @@ func NewExecutor(logger hclog.Logger) structs.Executor {
 }
 
 // Version returns the api version of the executor
-func (e *UniversalExecutor) Version() (*structs.ExecutorVersion, error) {
-	return &structs.ExecutorVersion{Version: ExecutorVersionLatest}, nil
+func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
+	return &ExecutorVersion{Version: ExecutorVersionLatest}, nil
 }
 
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
-func (e *UniversalExecutor) Launch(command *structs.ExecCommand) (*structs.ProcessState, error) {
+func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	e.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	e.commandCfg = command
@@ -146,7 +312,7 @@ func (e *UniversalExecutor) Launch(command *structs.ExecCommand) (*structs.Proce
 
 	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
-	return &structs.ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
+	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
 
 // Exec a command inside a container for exec and java drivers.
@@ -194,7 +360,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
-func (e *UniversalExecutor) Wait(ctx context.Context) (*structs.ProcessState, error) {
+func (e *UniversalExecutor) Wait(ctx context.Context) (*ProcessState, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -203,7 +369,7 @@ func (e *UniversalExecutor) Wait(ctx context.Context) (*structs.ProcessState, er
 	}
 }
 
-func (e *UniversalExecutor) UpdateResources(resources *structs.Resources) error {
+func (e *UniversalExecutor) UpdateResources(resources *Resources) error {
 	return nil
 }
 
@@ -212,7 +378,7 @@ func (e *UniversalExecutor) wait() {
 	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
 	if err == nil {
-		e.exitState = &structs.ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
+		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
 		return
 	}
 
@@ -240,7 +406,7 @@ func (e *UniversalExecutor) wait() {
 		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
 	}
 
-	e.exitState = &structs.ProcessState{Pid: pid, ExitCode: exitCode, Signal: signal, Time: time.Now()}
+	e.exitState = &ProcessState{Pid: pid, ExitCode: exitCode, Signal: signal, Time: time.Now()}
 }
 
 var (

@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -424,7 +424,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, err
 	}
 
-	execCmd := &structs.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:        args[0],
 		Args:       args[1:],
 		Env:        cfg.EnvList(),

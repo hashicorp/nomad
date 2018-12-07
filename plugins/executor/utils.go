@@ -2,11 +2,11 @@ package executor
 
 import (
 	"github.com/golang/protobuf/ptypes"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/executor/proto"
 )
 
-func processStateToProto(ps *structs.ProcessState) (*proto.ProcessState, error) {
+func processStateToProto(ps *executor.ProcessState) (*proto.ProcessState, error) {
 	timestamp, err := ptypes.TimestampProto(ps.Time)
 	if err != nil {
 		return nil, err
@@ -21,13 +21,13 @@ func processStateToProto(ps *structs.ProcessState) (*proto.ProcessState, error) 
 	return pb, nil
 }
 
-func processStateFromProto(pb *proto.ProcessState) (*structs.ProcessState, error) {
+func processStateFromProto(pb *proto.ProcessState) (*executor.ProcessState, error) {
 	timestamp, err := ptypes.Timestamp(pb.Time)
 	if err != nil {
 		return nil, err
 	}
 
-	return &structs.ProcessState{
+	return &executor.ProcessState{
 		Pid:      int(pb.Pid),
 		ExitCode: int(pb.ExitCode),
 		Signal:   int(pb.Signal),
@@ -35,7 +35,7 @@ func processStateFromProto(pb *proto.ProcessState) (*structs.ProcessState, error
 	}, nil
 }
 
-func resourcesToProto(r *structs.Resources) *proto.Resources {
+func resourcesToProto(r *executor.Resources) *proto.Resources {
 	if r == nil {
 		return &proto.Resources{}
 	}
@@ -48,12 +48,12 @@ func resourcesToProto(r *structs.Resources) *proto.Resources {
 	}
 }
 
-func resourcesFromProto(pb *proto.Resources) *structs.Resources {
+func resourcesFromProto(pb *proto.Resources) *executor.Resources {
 	if pb == nil {
-		return &structs.Resources{}
+		return &executor.Resources{}
 	}
 
-	return &structs.Resources{
+	return &executor.Resources{
 		CPU:      int(pb.Cpu),
 		MemoryMB: int(pb.MemoryMB),
 		DiskMB:   int(pb.DiskMB),

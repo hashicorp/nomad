@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -330,13 +330,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
-	execCmd := &structs.ExecCommand{
+	execCmd := &executor.ExecCommand{
 		Cmd:            absPath,
 		Args:           args,
 		Env:            cfg.EnvList(),
 		User:           cfg.User,
 		ResourceLimits: true,
-		Resources: &structs.Resources{
+		Resources: &executor.Resources{
 			CPU:      cfg.Resources.NomadResources.CPU,
 			MemoryMB: cfg.Resources.NomadResources.MemoryMB,
 			DiskMB:   cfg.Resources.NomadResources.DiskMB,

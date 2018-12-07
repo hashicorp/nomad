@@ -11,12 +11,12 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type taskHandle struct {
-	exec         structs.Executor
+	exec         executor.Executor
 	env          *taskenv.TaskEnv
 	uuid         string
 	pid          int

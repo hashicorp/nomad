@@ -8,12 +8,12 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/drivers/shared/executor/structs"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type taskHandle struct {
-	exec         structs.Executor
+	exec         executor.Executor
 	pid          int
 	pluginClient *plugin.Client
 	logger       hclog.Logger
