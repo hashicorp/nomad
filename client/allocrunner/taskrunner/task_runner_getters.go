@@ -81,6 +81,7 @@ func (tr *TaskRunner) clearDriverHandle() {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	if tr.handle != nil {
+		tr.driverManager.DeregisterEventHandler(tr.Task().Driver, tr.handle.ID())
 		tr.driver.DestroyTask(tr.handle.ID(), true)
 	}
 	tr.handle = nil
