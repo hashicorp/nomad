@@ -9,6 +9,7 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
@@ -19,7 +20,7 @@ func setupBoltDB(t *testing.T) (*BoltStateDB, func()) {
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(t, err)
 
-	db, err := NewBoltStateDB(dir)
+	db, err := NewBoltStateDB(testlog.HCLogger(t), dir)
 	if err != nil {
 		if err := os.RemoveAll(dir); err != nil {
 			t.Logf("error removing boltdb dir: %v", err)
@@ -240,5 +241,15 @@ func TestStateDB_DriverManager(t *testing.T) {
 		require.NoError(err)
 		require.NotNil(ps)
 		require.Equal(state, ps)
+	})
+}
+
+// TestStateDB_Upgrade asserts calling Upgrade on new databases always
+// succeeds.
+func TestStateDB_Upgrade(t *testing.T) {
+	t.Parallel()
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		require.NoError(t, db.Upgrade())
 	})
 }

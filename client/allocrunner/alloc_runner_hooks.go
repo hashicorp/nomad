@@ -16,6 +16,13 @@ type allocHealthSetter struct {
 	ar *allocRunner
 }
 
+// HasHealth returns true if a deployment status is already set.
+func (a *allocHealthSetter) HasHealth() bool {
+	a.ar.stateLock.Lock()
+	defer a.ar.stateLock.Unlock()
+	return a.ar.state.DeploymentStatus.HasHealth()
+}
+
 // ClearHealth allows the health watcher hook to clear the alloc's deployment
 // health if the deployment id changes. It does not update the server as the
 // status is only cleared when already receiving an update from the server.
@@ -24,6 +31,7 @@ type allocHealthSetter struct {
 func (a *allocHealthSetter) ClearHealth() {
 	a.ar.stateLock.Lock()
 	a.ar.state.ClearDeploymentStatus()
+	a.ar.persistDeploymentStatus(nil)
 	a.ar.stateLock.Unlock()
 }
 
@@ -37,6 +45,7 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	// ModifyIndex as they're only mutated by the server.
 	a.ar.stateLock.Lock()
 	a.ar.state.SetDeploymentStatus(time.Now(), healthy)
+	a.ar.persistDeploymentStatus(a.ar.state.DeploymentStatus)
 	a.ar.stateLock.Unlock()
 
 	// If deployment is unhealthy emit task events explaining why

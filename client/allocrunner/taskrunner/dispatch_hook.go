@@ -28,6 +28,8 @@ func newDispatchHook(alloc *structs.Allocation, logger hclog.Logger) *dispatchHo
 }
 
 func (*dispatchHook) Name() string {
+	// Copied in client/state when upgrading from <0.9 schemas, so if you
+	// change it here you also must change it there.
 	return "dispatch_payload"
 }
 

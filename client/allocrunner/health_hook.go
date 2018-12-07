@@ -16,6 +16,9 @@ import (
 
 // healthMutator is able to set/clear alloc health.
 type healthSetter interface {
+	// HasHealth returns true if health is already set.
+	HasHealth() bool
+
 	// Set health via the mutator
 	SetHealth(healthy, isDeploy bool, taskEvents map[string]*structs.TaskEvent)
 
@@ -100,7 +103,7 @@ func (h *allocHealthWatcherHook) Name() string {
 // Not threadsafe so the caller should lock since Updates occur concurrently.
 func (h *allocHealthWatcherHook) init() error {
 	// No need to watch health as it's already set
-	if h.alloc.DeploymentStatus.HasHealth() {
+	if h.healthSetter.HasHealth() {
 		return nil
 	}
 

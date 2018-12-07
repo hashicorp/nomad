@@ -39,6 +39,9 @@ website/npm-debug.log
 # Test file
 exit-code
 
+# Don't commit uncompressed state test files
+client/state/testdata/*.db
+
 ui/.sass-cache
 ui/static/base.css
 
