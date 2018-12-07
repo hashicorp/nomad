@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/plugins/drivers"
 
 	"github.com/hashicorp/consul-template/signals"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -62,7 +63,7 @@ type Executor interface {
 
 	// UpdateResources updates any resource isolation enforcement with new
 	// constraints if supported.
-	UpdateResources(*Resources) error
+	UpdateResources(*drivers.Resources) error
 
 	// Version returns the executor API version
 	Version() (*ExecutorVersion, error)
@@ -78,14 +79,6 @@ type Executor interface {
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 }
 
-// Resources describes the resource isolation required
-type Resources struct {
-	CPU      int
-	MemoryMB int
-	DiskMB   int
-	IOPS     int
-}
-
 // ExecCommand holds the user command, args, and other isolation related
 // settings.
 type ExecCommand struct {
@@ -96,7 +89,7 @@ type ExecCommand struct {
 	Args []string
 
 	// Resources defined by the task
-	Resources *Resources
+	Resources *drivers.Resources
 
 	// StdoutPath is the path the process stdout should be written to
 	StdoutPath string
@@ -369,7 +362,7 @@ func (e *UniversalExecutor) Wait(ctx context.Context) (*ProcessState, error) {
 	}
 }
 
-func (e *UniversalExecutor) UpdateResources(resources *Resources) error {
+func (e *UniversalExecutor) UpdateResources(resources *drivers.Resources) error {
 	return nil
 }
 

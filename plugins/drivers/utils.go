@@ -56,7 +56,7 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		Name:            pb.Name,
 		Env:             pb.Env,
 		rawDriverConfig: pb.MsgpackDriverConfig,
-		Resources:       resourcesFromProto(pb.Resources),
+		Resources:       ResourcesFromProto(pb.Resources),
 		Devices:         devicesFromProto(pb.Devices),
 		Mounts:          mountsFromProto(pb.Mounts),
 		User:            pb.User,
@@ -77,7 +77,7 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		TaskGroupName:       cfg.TaskGroupName,
 		Name:                cfg.Name,
 		Env:                 cfg.Env,
-		Resources:           resourcesToProto(cfg.Resources),
+		Resources:           ResourcesToProto(cfg.Resources),
 		Devices:             devicesToProto(cfg.Devices),
 		Mounts:              mountsToProto(cfg.Mounts),
 		User:                cfg.User,
@@ -90,7 +90,7 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 	return pb
 }
 
-func resourcesFromProto(pb *proto.Resources) *Resources {
+func ResourcesFromProto(pb *proto.Resources) *Resources {
 	var r Resources
 	if pb == nil {
 		return &r
@@ -142,7 +142,7 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 	return &r
 }
 
-func resourcesToProto(r *Resources) *proto.Resources {
+func ResourcesToProto(r *Resources) *proto.Resources {
 	if r == nil {
 		return nil
 	}

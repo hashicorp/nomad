@@ -129,29 +129,3 @@ func processStateFromProto(pb *proto.ProcessState) (*ProcessState, error) {
 		Time:     timestamp,
 	}, nil
 }
-
-func resourcesToProto(r *Resources) *proto.Resources {
-	if r == nil {
-		return &proto.Resources{}
-	}
-
-	return &proto.Resources{
-		Cpu:      int32(r.CPU),
-		MemoryMB: int32(r.MemoryMB),
-		DiskMB:   int32(r.DiskMB),
-		Iops:     int32(r.IOPS),
-	}
-}
-
-func resourcesFromProto(pb *proto.Resources) *Resources {
-	if pb == nil {
-		return &Resources{}
-	}
-
-	return &Resources{
-		CPU:      int(pb.Cpu),
-		MemoryMB: int(pb.MemoryMB),
-		DiskMB:   int(pb.DiskMB),
-		IOPS:     int(pb.Iops),
-	}
-}

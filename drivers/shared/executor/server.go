@@ -20,7 +20,7 @@ func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchReques
 	ps, err := s.impl.Launch(&ExecCommand{
 		Cmd:                req.Cmd,
 		Args:               req.Args,
-		Resources:          resourcesFromProto(req.Resources),
+		Resources:          drivers.ResourcesFromProto(req.Resources),
 		StdoutPath:         req.StdoutPath,
 		StderrPath:         req.StderrPath,
 		Env:                req.Env,
@@ -69,7 +69,7 @@ func (s *grpcExecutorServer) Shutdown(ctx context.Context, req *proto.ShutdownRe
 }
 
 func (s *grpcExecutorServer) UpdateResources(ctx context.Context, req *proto.UpdateResourcesRequest) (*proto.UpdateResourcesResponse, error) {
-	if err := s.impl.UpdateResources(resourcesFromProto(req.Resources)); err != nil {
+	if err := s.impl.UpdateResources(drivers.ResourcesFromProto(req.Resources)); err != nil {
 		return nil, err
 	}
 

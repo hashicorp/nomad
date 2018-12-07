@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
@@ -101,7 +102,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	if command.Resources == nil {
-		command.Resources = &Resources{}
+		command.Resources = &drivers.Resources{}
 	}
 
 	l.command = command
@@ -331,7 +332,7 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 }
 
 // UpdateResources updates the resource isolation with new values to be enforced
-func (l *LibcontainerExecutor) UpdateResources(resources *Resources) error {
+func (l *LibcontainerExecutor) UpdateResources(resources *drivers.Resources) error {
 	return nil
 }
 
@@ -544,29 +545,21 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 
 	id := uuid.Generate()
 	cfg.Cgroups.Path = filepath.Join(defaultCgroupParent, id)
-	if command.Resources.MemoryMB > 0 {
+	if command.Resources.NomadResources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = int64(command.Resources.MemoryMB * 1024 * 1024)
+		cfg.Cgroups.Resources.Memory = int64(command.Resources.NomadResources.MemoryMB * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
-		var memSwappiness uint64 = 0
+		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
 	}
 
-	if command.Resources.CPU < 2 {
-		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", command.Resources.CPU)
+	if command.Resources.NomadResources.CPU < 2 {
+		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", command.Resources.NomadResources.CPU)
 	}
 
 	// Set the relative CPU shares for this cgroup.
-	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.CPU)
+	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.NomadResources.CPU)
 
-	if command.Resources.IOPS != 0 {
-		// Validate it is in an acceptable range.
-		if command.Resources.IOPS < 10 || command.Resources.IOPS > 1000 {
-			return fmt.Errorf("resources.IOPS must be between 10 and 1000: %d", command.Resources.IOPS)
-		}
-
-		cfg.Cgroups.Resources.BlkioWeight = uint16(command.Resources.IOPS)
-	}
 	return nil
 }
 

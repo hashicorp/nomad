@@ -19,7 +19,7 @@ service Executor {
 message LaunchRequest {
     string cmd = 1;
     repeated string args = 2;
-    Resources resources = 3;
+    hashicorp.nomad.plugins.drivers.proto.Resources resources = 3;
     string stdout_path = 4;
     string stderr_path = 5;
     repeated string env = 6;
@@ -47,7 +47,7 @@ message ShutdownRequest {
 message ShutdownResponse {}
 
 message UpdateResourcesRequest{
-    Resources resources = 1;
+    hashicorp.nomad.plugins.drivers.proto.Resources resources = 1;
 }
 
 message UpdateResourcesResponse {}
@@ -79,13 +79,6 @@ message ExecRequest {
 message ExecResponse {
     bytes output = 1;
     int32 exit_code = 2;
-}
-
-message Resources {
-    int32 cpu = 1;
-    int32 memoryMB = 2;
-    int32 diskMB = 3;
-    int32 iops = 4;
 }
 
 message ProcessState {

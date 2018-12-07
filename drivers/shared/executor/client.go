@@ -26,7 +26,7 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 	req := &proto.LaunchRequest{
 		Cmd:                cmd.Cmd,
 		Args:               cmd.Args,
-		Resources:          resourcesToProto(cmd.Resources),
+		Resources:          drivers.ResourcesToProto(cmd.Resources),
 		StdoutPath:         cmd.StdoutPath,
 		StderrPath:         cmd.StderrPath,
 		Env:                cmd.Env,
@@ -77,9 +77,9 @@ func (c *grpcExecutorClient) Shutdown(signal string, gracePeriod time.Duration) 
 	return nil
 }
 
-func (c *grpcExecutorClient) UpdateResources(r *Resources) error {
+func (c *grpcExecutorClient) UpdateResources(r *drivers.Resources) error {
 	ctx := context.Background()
-	req := &proto.UpdateResourcesRequest{Resources: resourcesToProto(r)}
+	req := &proto.UpdateResourcesRequest{Resources: drivers.ResourcesToProto(r)}
 	if _, err := c.client.UpdateResources(ctx, req); err != nil {
 		return err
 	}
