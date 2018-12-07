@@ -853,6 +853,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	out := &structs.Resources{
 		CPU:      *in.CPU,
 		MemoryMB: *in.MemoryMB,
+		IOPS:     *in.IOPS, // COMPAT(0.10): Only being used to issue warnings
 	}
 
 	if l := len(in.Networks); l != 0 {

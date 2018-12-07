@@ -1698,6 +1698,7 @@ type Resources struct {
 	CPU      int
 	MemoryMB int
 	DiskMB   int
+	IOPS     int // COMPAT(0.10): Only being used to issue warnings
 	Networks Networks
 	Devices  []*RequestedDevice
 }
@@ -4663,6 +4664,13 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		}
 	}
 
+	for _, t := range tg.Tasks {
+		if err := t.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", t.Name))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -5503,6 +5511,17 @@ func validateServices(t *Task) error {
 	}
 
 	// Ensure address mode is valid
+	return mErr.ErrorOrNil()
+}
+
+func (t *Task) Warnings() error {
+	var mErr multierror.Error
+
+	// Validate the resources
+	if t.Resources != nil && t.Resources.IOPS != 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
