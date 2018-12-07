@@ -100,24 +100,20 @@ func (r *rpcHandler) listen(ctx context.Context) {
 				return
 			}
 
-			select {
-			case <-ctx.Done():
-				return
-			default:
+			if tempDelay == 0 {
+				tempDelay = 5 * time.Millisecond
+			} else {
+				tempDelay *= 2
 			}
-
+			maxDelay := 5 * time.Second
 			if ne, ok := err.(net.Error); ok && ne.Temporary() {
-				if tempDelay == 0 {
-					tempDelay = 5 * time.Millisecond
-				} else {
-					tempDelay *= 2
-				}
-				if max := 1 * time.Second; tempDelay > max {
-					tempDelay = max
-				}
-				r.logger.Error("failed to accept RPC conn", "error", err, "delay", tempDelay)
-				time.Sleep(tempDelay)
+				maxDelay = 1 * time.Second
 			}
+			if tempDelay > maxDelay {
+				tempDelay = maxDelay
+			}
+			r.logger.Error("failed to accept RPC conn", "error", err, "delay", tempDelay)
+			time.Sleep(tempDelay)
 			continue
 		}
 		tempDelay = 0
