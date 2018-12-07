@@ -84,6 +84,7 @@ type RPCContext struct {
 // listen is used to listen for incoming RPC connections
 func (r *rpcHandler) listen(ctx context.Context) {
 	defer close(r.listenerCh)
+	var tempDelay time.Duration
 	for {
 		select {
 		case <-ctx.Done():
@@ -105,9 +106,21 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			default:
 			}
 
-			r.logger.Error("failed to accept RPC conn", "error", err)
+			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+				if tempDelay == 0 {
+					tempDelay = 5 * time.Millisecond
+				} else {
+					tempDelay *= 2
+				}
+				if max := 1 * time.Second; tempDelay > max {
+					tempDelay = max
+				}
+				r.logger.Error("failed to accept RPC conn", "error", err, "delay", tempDelay)
+				time.Sleep(tempDelay)
+			}
 			continue
 		}
+		tempDelay = 0
 
 		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
