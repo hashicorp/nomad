@@ -618,6 +618,12 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 		return false
 	}
 
+	// If the allocation is still running on the client we can not garbage
+	// collect it.
+	if a.ClientStatus == structs.AllocClientStatusRunning {
+		return false
+	}
+
 	// If the job is deleted, stopped or dead all allocs can be removed
 	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
 		return true
