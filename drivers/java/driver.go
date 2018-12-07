@@ -334,14 +334,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		Env:            cfg.EnvList(),
 		User:           cfg.User,
 		ResourceLimits: true,
-		Resources: &executor.Resources{
-			CPU:      cfg.Resources.NomadResources.CPU,
-			MemoryMB: cfg.Resources.NomadResources.MemoryMB,
-			DiskMB:   cfg.Resources.NomadResources.DiskMB,
-		},
-		TaskDir:    cfg.TaskDir().Dir,
-		StdoutPath: cfg.StdoutPath,
-		StderrPath: cfg.StderrPath,
+		Resources:      cfg.Resources,
+		TaskDir:        cfg.TaskDir().Dir,
+		StdoutPath:     cfg.StdoutPath,
+		StderrPath:     cfg.StderrPath,
 	}
 
 	ps, err := exec.Launch(execCmd)

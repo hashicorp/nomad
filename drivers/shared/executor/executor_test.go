@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -52,11 +53,8 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	cmd := &ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &Resources{
-			CPU:      task.Resources.CPU,
-			MemoryMB: task.Resources.MemoryMB,
-			IOPS:     task.Resources.IOPS,
-			DiskMB:   task.Resources.DiskMB,
+		Resources: &drivers.Resources{
+			NomadResources: task.Resources,
 		},
 	}
 	configureTLogging(cmd)

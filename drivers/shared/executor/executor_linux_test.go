@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -65,11 +66,8 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 	cmd := &ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &Resources{
-			CPU:      task.Resources.CPU,
-			MemoryMB: task.Resources.MemoryMB,
-			IOPS:     task.Resources.IOPS,
-			DiskMB:   task.Resources.DiskMB,
+		Resources: &drivers.Resources{
+			NomadResources: task.Resources,
 		},
 	}
 	configureTLogging(cmd)
@@ -109,7 +107,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		data, err := ioutil.ReadFile(memLimits)
 		require.NoError(err)
 
-		expectedMemLim := strconv.Itoa(execCmd.Resources.MemoryMB * 1024 * 1024)
+		expectedMemLim := strconv.Itoa(execCmd.Resources.NomadResources.MemoryMB * 1024 * 1024)
 		actualMemLim := strings.TrimSpace(string(data))
 		require.Equal(actualMemLim, expectedMemLim)
 		require.NoError(executor.Shutdown("", 0))

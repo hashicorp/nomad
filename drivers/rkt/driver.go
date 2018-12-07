@@ -645,15 +645,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		Cmd:            absPath,
 		Args:           runArgs,
 		ResourceLimits: true,
-		Resources: &executor.Resources{
-			CPU:      int(cfg.Resources.LinuxResources.CPUShares),
-			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
-			DiskMB:   cfg.Resources.NomadResources.DiskMB,
-		},
-		Env:        cfg.EnvList(),
-		TaskDir:    cfg.TaskDir().Dir,
-		StdoutPath: cfg.StdoutPath,
-		StderrPath: cfg.StderrPath,
+		Resources:      cfg.Resources,
+		Env:            cfg.EnvList(),
+		TaskDir:        cfg.TaskDir().Dir,
+		StdoutPath:     cfg.StdoutPath,
+		StderrPath:     cfg.StderrPath,
 	}
 	ps, err := execImpl.Launch(execCmd)
 	if err != nil {
