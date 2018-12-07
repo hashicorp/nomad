@@ -8,12 +8,11 @@ import (
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/executor/proto"
 )
 
-var _ executor.Executor = (*grpcExecutorClient)(nil)
+var _ Executor = (*grpcExecutorClient)(nil)
 
 type grpcExecutorClient struct {
 	client proto.ExecutorClient
@@ -22,7 +21,7 @@ type grpcExecutorClient struct {
 	doneCtx context.Context
 }
 
-func (c *grpcExecutorClient) Launch(cmd *executor.ExecCommand) (*executor.ProcessState, error) {
+func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 	ctx := context.Background()
 	req := &proto.LaunchRequest{
 		Cmd:                cmd.Cmd,
@@ -48,7 +47,7 @@ func (c *grpcExecutorClient) Launch(cmd *executor.ExecCommand) (*executor.Proces
 	return ps, nil
 }
 
-func (c *grpcExecutorClient) Wait(ctx context.Context) (*executor.ProcessState, error) {
+func (c *grpcExecutorClient) Wait(ctx context.Context) (*ProcessState, error) {
 	// Join the passed context and the shutdown context
 	ctx, _ = joincontext.Join(ctx, c.doneCtx)
 
@@ -78,7 +77,7 @@ func (c *grpcExecutorClient) Shutdown(signal string, gracePeriod time.Duration) 
 	return nil
 }
 
-func (c *grpcExecutorClient) UpdateResources(r *executor.Resources) error {
+func (c *grpcExecutorClient) UpdateResources(r *Resources) error {
 	ctx := context.Background()
 	req := &proto.UpdateResourcesRequest{Resources: resourcesToProto(r)}
 	if _, err := c.client.UpdateResources(ctx, req); err != nil {
@@ -88,13 +87,13 @@ func (c *grpcExecutorClient) UpdateResources(r *executor.Resources) error {
 	return nil
 }
 
-func (c *grpcExecutorClient) Version() (*executor.ExecutorVersion, error) {
+func (c *grpcExecutorClient) Version() (*ExecutorVersion, error) {
 	ctx := context.Background()
 	resp, err := c.client.Version(ctx, &proto.VersionRequest{})
 	if err != nil {
 		return nil, err
 	}
-	return &executor.ExecutorVersion{Version: resp.Version}, nil
+	return &ExecutorVersion{Version: resp.Version}, nil
 }
 
 func (c *grpcExecutorClient) Stats() (*cstructs.TaskResourceUsage, error) {
