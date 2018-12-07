@@ -267,21 +267,35 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		}
 	}
 
+	var availableForAllocations uint64
+	requiredForAllocations := uint64(totalResource.DiskMB * MB)
+
 	// If the host has enough free space to accommodate the new allocations then
 	// we don't need to garbage collect terminated allocations
-	if hostStats := a.statsCollector.Stats(); hostStats != nil {
-		var availableForAllocations uint64
+	hostStats := a.statsCollector.Stats()
+	if hostStats == nil {
+		a.logger.Warn("Failed to collect host stats during garbage collection")
+		// If we cannot gather statistics, then try to clear the whole amount
+		// of disk, or until there are no more GCable Allocations.
+		availableForAllocations = 0
+	} else {
 		if hostStats.AllocDirStats.Available < uint64(a.config.ReservedDiskMB*MB) {
 			availableForAllocations = 0
 		} else {
 			availableForAllocations = hostStats.AllocDirStats.Available - uint64(a.config.ReservedDiskMB*MB)
 		}
-		if uint64(totalResource.DiskMB*MB) < availableForAllocations {
-			return nil
-		}
 	}
 
-	var diskCleared int64
+	if requiredForAllocations < availableForAllocations {
+		return nil
+	}
+
+	// Negative integer cases are handled by the above comparison check.
+	diskClearingTarget := uint64(requiredForAllocations - availableForAllocations)
+
+	a.logger.Debug("Attempting to free space for allocations", "target_bytes", diskClearingTarget, "required_bytes", requiredForAllocations)
+
+	var diskCleared uint64
 	for {
 		select {
 		case <-a.shutdownCh:
@@ -289,25 +303,8 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		default:
 		}
 
-		// Collect host stats and see if we still need to remove older
-		// allocations
-		var allocDirStats *stats.DiskStats
-		if err := a.statsCollector.Collect(); err == nil {
-			if hostStats := a.statsCollector.Stats(); hostStats != nil {
-				allocDirStats = hostStats.AllocDirStats
-			}
-		}
-
-		if allocDirStats != nil {
-			if allocDirStats.Available >= uint64(totalResource.DiskMB*MB) {
-				break
-			}
-		} else {
-			// Falling back to a simpler model to know if we have enough disk
-			// space if stats collection fails
-			if diskCleared >= totalResource.DiskMB {
-				break
-			}
+		if diskCleared >= diskClearingTarget {
+			break
 		}
 
 		gcAlloc := a.allocRunners.Pop()
@@ -319,17 +316,17 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		alloc := ar.Alloc()
 
 		// COMPAT(0.11): Remove in 0.11
-		var allocDiskMB int64
+		var allocDiskMB uint64
 		if alloc.AllocatedResources != nil {
-			allocDiskMB = alloc.AllocatedResources.Shared.DiskMB
+			allocDiskMB = uint64(alloc.AllocatedResources.Shared.DiskMB)
 		} else {
-			allocDiskMB = int64(alloc.Resources.DiskMB)
+			allocDiskMB = uint64(alloc.Resources.DiskMB)
 		}
 
 		// Destroy the alloc runner and wait until it exits
 		a.destroyAllocRunner(gcAlloc.allocID, ar, fmt.Sprintf("freeing %d MB for new allocations", allocDiskMB))
 
-		diskCleared += allocDiskMB
+		diskCleared += (allocDiskMB * MB)
 	}
 	return nil
 }
