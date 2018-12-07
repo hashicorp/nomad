@@ -377,6 +377,7 @@ MAIN:
 		// Run the task
 		if err := tr.runDriver(); err != nil {
 			tr.logger.Error("running driver failed", "error", err)
+			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
 		}
@@ -399,9 +400,7 @@ MAIN:
 				select {
 				case result = <-resultCh:
 					// WaitCh returned a result
-					if result != nil {
-						tr.handleTaskExitResult(result)
-					}
+					tr.handleTaskExitResult(result)
 				case <-tr.ctx.Done():
 					// TaskRunner was told to exit immediately
 					return
@@ -437,16 +436,8 @@ MAIN:
 		}
 	}
 
-	// If task terminated, update server. All other exit conditions (eg
-	// killed or out of restarts) will perform their own server updates.
-	if result != nil {
-		event := structs.NewTaskEvent(structs.TaskTerminated).
-			SetExitCode(result.ExitCode).
-			SetSignal(result.Signal).
-			SetOOMKilled(result.OOMKilled).
-			SetExitMessage(result.Err)
-		tr.UpdateState(structs.TaskStateDead, event)
-	}
+	// Mark the task as dead
+	tr.UpdateState(structs.TaskStateDead, nil)
 
 	// Run the stop hooks
 	if err := tr.stop(); err != nil {
@@ -457,6 +448,10 @@ MAIN:
 }
 
 func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) {
+	if result == nil {
+		return
+	}
+
 	event := structs.NewTaskEvent(structs.TaskTerminated).
 		SetExitCode(result.ExitCode).
 		SetSignal(result.Signal).
@@ -465,7 +460,7 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) {
 
 	tr.EmitEvent(event)
 
-	if !tr.clientConfig.DisableTaggedMetrics {
+	if result.OOMKilled && !tr.clientConfig.DisableTaggedMetrics {
 		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
 	}
 }
@@ -794,10 +789,12 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
 
-	tr.logger.Trace("setting task state", "state", state, "event", event.Type)
+	if event != nil {
+		tr.logger.Trace("setting task state", "state", state, "event", event.Type)
 
-	// Append the event
-	tr.appendEvent(event)
+		// Append the event
+		tr.appendEvent(event)
+	}
 
 	// Update the state
 	if err := tr.updateStateImpl(state); err != nil {

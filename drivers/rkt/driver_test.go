@@ -459,9 +459,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
 	tmpvol, err := ioutil.TempDir("", "nomadtest_rktdriver_volumes")
-	if err != nil {
-		t.Fatalf("error creating temporary dir: %v", err)
-	}
+	require.NoError(err)
 	defer os.RemoveAll(tmpvol)
 	hostpath := filepath.Join(tmpvol, file)
 
@@ -602,13 +600,16 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	expected := []byte("\nnobody   nogroup  /bin/sleep 9000\n")
 	testutil.WaitForResult(func() (bool, error) {
 		res, err := d.ExecTask(task.ID, []string{"ps", "-o", "user,group,args"}, time.Second)
-		require.NoError(err)
-		require.Zero(res.ExitResult.ExitCode)
-		require.True(res.ExitResult.Successful())
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if !res.ExitResult.Successful() {
+			return false, fmt.Errorf("ps failed: %#v %#v", res.ExitResult, res)
+		}
 		raw := res.Stdout
 		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		require.NoError(err)
 	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
@@ -660,24 +661,32 @@ func TestRktDriver_Exec(t *testing.T) {
 	expected := []byte("etcd version")
 	testutil.WaitForResult(func() (bool, error) {
 		res, err := d.ExecTask(task.ID, []string{"/etcd", "--version"}, time.Second)
-		require.NoError(err)
-		require.True(res.ExitResult.Successful())
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if !res.ExitResult.Successful() {
+			return false, fmt.Errorf("/etcd --version failed: %#v %#v", res.ExitResult, res)
+		}
 		raw := res.Stdout
 		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		require.NoError(err)
 	})
 
 	// Run command that should fail
 	expected = []byte("flag provided but not defined")
 	testutil.WaitForResult(func() (bool, error) {
 		res, err := d.ExecTask(task.ID, []string{"/etcd", "--cgdfgdfg"}, time.Second)
-		require.False(res.ExitResult.Successful())
-		require.Nil(err)
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if res.ExitResult.Successful() {
+			return false, fmt.Errorf("/etcd --cgdfgdfg unexpected succeeded: %#v %#v", res.ExitResult, res)
+		}
 		raw := res.Stdout
 		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		require.NoError(err)
 	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))

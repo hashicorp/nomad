@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/testutil"
@@ -33,7 +34,7 @@ func TestLXCDriver_Fingerprint(t *testing.T) {
 
 	d := NewLXCDriver(testlog.HCLogger(t)).(*Driver)
 	d.config.Enabled = true
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
 	require.NoError(err)
@@ -55,7 +56,7 @@ func TestLXCDriver_FingerprintNotEnabled(t *testing.T) {
 
 	d := NewLXCDriver(testlog.HCLogger(t)).(*Driver)
 	d.config.Enabled = false
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
 	require.NoError(err)
@@ -96,7 +97,7 @@ func TestLXCDriver_Start_Wait(t *testing.T) {
 	d.config.Enabled = true
 	d.config.AllowVolumes = true
 
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
@@ -190,7 +191,7 @@ func TestLXCDriver_Start_Stop(t *testing.T) {
 	d.config.Enabled = true
 	d.config.AllowVolumes = true
 
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",

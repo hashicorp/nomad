@@ -433,6 +433,11 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	defer cleanup()
 	copyImage(t, task.TaskDir(), "busybox.tar")
 
+	client := newTestDockerClient(t)
+	imageID, err := d.Impl().(*Driver).loadImage(task, &taskCfg, client)
+	require.NoError(t, err)
+	require.NotEmpty(t, imageID)
+
 	// Create a container of the same name but don't start it. This mimics
 	// the case of dockerd getting restarted and stopping containers while
 	// Nomad is watching them.
@@ -444,12 +449,11 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 		},
 	}
 
-	client := newTestDockerClient(t)
 	if _, err := client.CreateContainer(opts); err != nil {
 		t.Fatalf("error creating initial container: %v", err)
 	}
 
-	_, _, err := d.StartTask(task)
+	_, _, err = d.StartTask(task)
 	require.NoError(t, err)
 
 	defer d.DestroyTask(task.ID, true)
@@ -1089,6 +1093,8 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	cfg.Image = "library/busybox@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
 	localDigest := "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7"
 	cfg.ForcePull = true
+	cfg.Command = "/bin/sleep"
+	cfg.Args = []string{"100"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, d, handle, cleanup := dockerSetup(t, task)
@@ -1908,15 +1914,19 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	imageName := "hello-world:latest"
+	// using a small image and an specific point release to avoid accidental conflicts with other tasks
+	imageName := "busybox:1.27.1"
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "cleanup_test",
 		Resources: basicResources,
 	}
 	cfg := &TaskConfig{
-		Image: imageName,
+		Image:   imageName,
+		Command: "/bin/sleep",
+		Args:    []string{"100"},
 	}
+
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, driver, handle, cleanup := dockerSetup(t, task)
@@ -2133,6 +2143,9 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 	entrypoint := []string{"/bin/sh", "-c"}
 	task, cfg, _ := dockerTask(t)
 	cfg.Entrypoint = entrypoint
+	cfg.Command = "/bin/sleep 100"
+	cfg.Args = []string{}
+
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, driver, handle, cleanup := dockerSetup(t, task)
@@ -2275,7 +2288,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 	handle, ok := driver.Impl().(*Driver).tasks.Get(task.ID)
 	require.True(t, ok)
 
-	driver.WaitUntilStarted(task.ID, time.Second)
+	require.NoError(t, driver.WaitUntilStarted(task.ID, time.Second))
 
 	container, err := client.InspectContainer(handle.containerID)
 	require.NoError(t, err)

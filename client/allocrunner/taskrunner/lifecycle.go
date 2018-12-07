@@ -112,9 +112,6 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	case <-ctx.Done():
 	}
 
-	// Store that the task has been destroyed and any associated error.
-	tr.UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled).SetKillError(killErr))
-
 	if killErr != nil {
 		return killErr
 	} else if err := ctx.Err(); err != nil {

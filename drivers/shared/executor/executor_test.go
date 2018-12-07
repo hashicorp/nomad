@@ -77,7 +77,6 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 	invalid := "/bin/foobar"
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
-			t.Parallel()
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = invalid
@@ -96,7 +95,6 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
-			t.Parallel()
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/date"
@@ -119,7 +117,6 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
-			t.Parallel()
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/echo"
@@ -156,7 +153,6 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
-			t.Parallel()
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/sleep"
@@ -190,7 +186,6 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
-			t.Parallel()
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/sleep"

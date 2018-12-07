@@ -11,26 +11,36 @@ const ts = (offset, resolution = 'm') =>
     .toDate();
 
 const wideData = [
-  { timestamp: ts(20), value: 0.5 },
-  { timestamp: ts(18), value: 0.5 },
-  { timestamp: ts(16), value: 0.4 },
-  { timestamp: ts(14), value: 0.3 },
-  { timestamp: ts(12), value: 0.9 },
-  { timestamp: ts(10), value: 0.3 },
-  { timestamp: ts(8), value: 0.3 },
-  { timestamp: ts(6), value: 0.4 },
-  { timestamp: ts(4), value: 0.5 },
-  { timestamp: ts(2), value: 0.6 },
-  { timestamp: ts(0), value: 0.6 },
+  { timestamp: ts(20), percent: 0.5 },
+  { timestamp: ts(18), percent: 0.5 },
+  { timestamp: ts(16), percent: 0.4 },
+  { timestamp: ts(14), percent: 0.3 },
+  { timestamp: ts(12), percent: 0.9 },
+  { timestamp: ts(10), percent: 0.3 },
+  { timestamp: ts(8), percent: 0.3 },
+  { timestamp: ts(6), percent: 0.4 },
+  { timestamp: ts(4), percent: 0.5 },
+  { timestamp: ts(2), percent: 0.6 },
+  { timestamp: ts(0), percent: 0.6 },
 ];
 
 const narrowData = [
-  { timestamp: ts(20, 's'), value: 0.5 },
-  { timestamp: ts(18, 's'), value: 0.5 },
-  { timestamp: ts(16, 's'), value: 0.4 },
-  { timestamp: ts(14, 's'), value: 0.3 },
-  { timestamp: ts(12, 's'), value: 0.9 },
-  { timestamp: ts(10, 's'), value: 0.3 },
+  { timestamp: ts(20, 's'), percent: 0.5 },
+  { timestamp: ts(18, 's'), percent: 0.5 },
+  { timestamp: ts(16, 's'), percent: 0.4 },
+  { timestamp: ts(14, 's'), percent: 0.3 },
+  { timestamp: ts(12, 's'), percent: 0.9 },
+  { timestamp: ts(10, 's'), percent: 0.3 },
+];
+
+const unboundedData = [
+  { timestamp: ts(20, 's'), percent: -0.5 },
+  { timestamp: ts(18, 's'), percent: 1.5 },
+];
+
+const nullData = [
+  { timestamp: ts(20, 's'), percent: null },
+  { timestamp: ts(18, 's'), percent: null },
 ];
 
 test('xFormat is time-formatted for hours, minutes, and seconds', function(assert) {
@@ -52,7 +62,7 @@ test('yFormat is percent-formatted', function(assert) {
   chart.set('data', wideData);
 
   wideData.forEach(datum => {
-    assert.equal(chart.yFormat()(datum.value), d3Format.format('.1~%')(datum.value));
+    assert.equal(chart.yFormat()(datum.percent), d3Format.format('.1~%')(datum.percent));
   });
 });
 
@@ -82,13 +92,13 @@ test('x scale domain is greater than five minutes when the domain of the data is
   );
 });
 
-test('y scale domain is always 0 to 1 (0 to 100%)', function(assert) {
+test('y scale domain is typically 0 to 1 (0 to 100%)', function(assert) {
   const chart = this.subject();
 
   chart.set('data', wideData);
 
   assert.deepEqual(
-    [Math.min(...wideData.mapBy('value')), Math.max(...wideData.mapBy('value'))],
+    [Math.min(...wideData.mapBy('percent')), Math.max(...wideData.mapBy('percent'))],
     [0.3, 0.9],
     'The bounds of the value prop of the dataset is narrower than 0 - 1'
   );
@@ -98,4 +108,40 @@ test('y scale domain is always 0 to 1 (0 to 100%)', function(assert) {
     [0, 1],
     'The bounds of the yScale are still 0 and 1'
   );
+});
+
+test('the extent of the y domain overrides the default 0 to 1 domain when there are values beyond these bounds', function(assert) {
+  const chart = this.subject();
+
+  chart.set('data', unboundedData);
+
+  assert.deepEqual(
+    chart.get('yScale').domain(),
+    [-0.5, 1.5],
+    'The bounds of the yScale match the bounds of the unbounded data'
+  );
+
+  chart.set('data', [unboundedData[0]]);
+
+  assert.deepEqual(
+    chart.get('yScale').domain(),
+    [-0.5, 1],
+    'The upper bound is still the default 1, but the lower bound is overridden due to the unbounded low value'
+  );
+
+  chart.set('data', [unboundedData[1]]);
+
+  assert.deepEqual(
+    chart.get('yScale').domain(),
+    [0, 1.5],
+    'The lower bound is still the default 0, but the upper bound is overridden due to the unbounded high value'
+  );
+});
+
+test('when there are only empty frames in the data array, the default y domain is used', function(assert) {
+  const chart = this.subject();
+
+  chart.set('data', nullData);
+
+  assert.deepEqual(chart.get('yScale').domain(), [0, 1], 'The bounds are 0 and 1');
 });
