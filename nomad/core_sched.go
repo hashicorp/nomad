@@ -7,7 +7,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -620,6 +619,12 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
 	// Not in a terminal status and old enough
 	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+		return false
+	}
+
+	// If the allocation is still running on the client we can not garbage
+	// collect it.
+	if a.ClientStatus == structs.AllocClientStatusRunning {
 		return false
 	}
 
