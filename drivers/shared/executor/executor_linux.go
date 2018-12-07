@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -102,7 +103,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	if command.Resources == nil {
-		command.Resources = &drivers.Resources{}
+		command.Resources = &drivers.Resources{
+			NomadResources: &structs.Resources{},
+		}
 	}
 
 	l.command = command
@@ -127,7 +130,12 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	// A container groups processes under the same isolation enforcement
-	container, err := factory.Create(l.id, newLibcontainerConfig(command))
+	containerCfg, err := newLibcontainerConfig(command)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
+	}
+
+	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
 	}
@@ -458,7 +466,7 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 	ch <- &waitResult{ps, err}
 }
 
-func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
+func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
 	// TODO: allow better control of these
 	cfg.Capabilities = &lconfigs.Capabilities{
 		Bounding:    allCaps,
@@ -468,9 +476,10 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
 		Effective:   allCaps,
 	}
 
+	return nil
 }
 
-func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
+func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	// set the new root directory for the container
@@ -534,6 +543,8 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 			Flags:       defaultMountFlags | syscall.MS_RDONLY,
 		},
 	}
+
+	return nil
 }
 
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
@@ -545,6 +556,11 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 
 	id := uuid.Generate()
 	cfg.Cgroups.Path = filepath.Join(defaultCgroupParent, id)
+
+	if command.Resources == nil || command.Resources.NomadResources == nil {
+		return nil
+	}
+
 	if command.Resources.NomadResources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
 		cfg.Cgroups.Resources.Memory = int64(command.Resources.NomadResources.MemoryMB * 1024 * 1024)
@@ -594,7 +610,7 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 	return nil
 }
 
-func newLibcontainerConfig(command *ExecCommand) *lconfigs.Config {
+func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{
@@ -606,10 +622,16 @@ func newLibcontainerConfig(command *ExecCommand) *lconfigs.Config {
 		Version: "1.0.0",
 	}
 
-	configureCapabilities(cfg, command)
-	configureIsolation(cfg, command)
-	configureCgroups(cfg, command)
-	return cfg
+	if err := configureCapabilities(cfg, command); err != nil {
+		return nil, err
+	}
+	if err := configureIsolation(cfg, command); err != nil {
+		return nil, err
+	}
+	if err := configureCgroups(cfg, command); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 // JoinRootCgroup moves the current process to the cgroups of the init process

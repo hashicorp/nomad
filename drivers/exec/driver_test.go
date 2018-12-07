@@ -95,7 +95,6 @@ func TestExecDriver_StartWait(t *testing.T) {
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
-	fmt.Println(task.AllocDir)
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
