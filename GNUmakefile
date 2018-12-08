@@ -264,7 +264,7 @@ test-nomad: dev ## Run Nomad test suites
 	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") go test \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
-		-timeout=30m \
+		-timeout=15m \
 		-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
