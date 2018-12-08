@@ -160,7 +160,7 @@ func TestPreemption(t *testing.T) {
 	lowPrioJob.Priority = 30
 
 	lowPrioJob2 := mock.Job()
-	lowPrioJob2.Priority = 30
+	lowPrioJob2.Priority = 40
 
 	// Create some persistent alloc ids to use in test cases
 	allocIDs := []string{uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate()}
@@ -1022,6 +1022,81 @@ func TestPreemption(t *testing.T) {
 					Vendor:    "nvidia",
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[2]},
+				}),
+				createAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
+				}),
+				createAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
+					CPU:      100,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
+				}),
+				createAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "gpu",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[2]: {},
+				allocIDs[3]: {},
+			},
+		},
+		{
+			// This test cases creates allocations across two GPUs
+			// Both GPUs are eligible for the task, but only allocs with the lower
+			// priority are chosen
+			desc: "Preemption with allocs across multiple devices that match",
+			currentAllocations: []*structs.Allocation{
+				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
+				}),
+				createAllocWithDevice(allocIDs[1], lowPrioJob2, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 100,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[2], deviceIDs[3]},
 				}),
 				createAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,

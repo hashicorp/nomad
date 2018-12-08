@@ -498,6 +498,7 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 	neededCount := ask.Count
 
+	var preemptionOptions [][]*structs.Allocation
 	// Examine matching allocs by device
 	for deviceIDTuple, allocsGrp := range deviceToAllocs {
 		// First group and sort allocations using this device by priority
@@ -520,13 +521,47 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 				// Check if we met needed count
 				if preemptedCount+devInst.FreeCount() >= int(neededCount) {
-					return preemptedAllocs
+					preemptionOptions = append(preemptionOptions, preemptedAllocs)
 				}
 			}
 		}
 	}
 
+	// Find the combination of allocs with lowest net priority
+	if len(preemptionOptions) > 0 {
+		return selectBestAllocs(preemptionOptions)
+	}
+
 	return nil
+}
+
+// selectBestAllocs finds the best allocations based on minimal net priority amongst
+// all options. The net priority is the sum of unique priorities in each option
+func selectBestAllocs(allocSets [][]*structs.Allocation) []*structs.Allocation {
+	if len(allocSets) == 1 {
+		return allocSets[0]
+	}
+	bestPriority := math.MaxInt32
+	var bestAllocs []*structs.Allocation
+
+	for _, allocs := range allocSets {
+		// Find unique priorities and add them
+		priorities := map[int]struct{}{}
+		netPriority := 0
+		for _, alloc := range allocs {
+			_, ok := priorities[alloc.Job.Priority]
+			if !ok {
+				priorities[alloc.Job.Priority] = struct{}{}
+				netPriority += alloc.Job.Priority
+			}
+		}
+		if netPriority < bestPriority {
+			bestPriority = netPriority
+			bestAllocs = allocs
+		}
+
+	}
+	return bestAllocs
 }
 
 // basicResourceDistance computes a distance using a coordinate system. It compares resource fields like CPU/Memory and Disk.
