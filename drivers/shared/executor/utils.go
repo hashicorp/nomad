@@ -79,7 +79,7 @@ func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (Executo
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
-	// TODO: Use versioned plugin map to support backwards compatability with
+	// TODO: Use versioned plugin map to support backwards compatibility with
 	// existing pre-0.9 executors
 	config.Plugins = GetPluginMap(w, hclog.Debug, false)
 	config.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}

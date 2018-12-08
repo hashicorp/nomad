@@ -10,7 +10,7 @@ import (
 )
 
 type ExecutorPlugin struct {
-	// TODO: support backwards compatability with pre 0.9 NetRPC plugin
+	// TODO: support backwards compatibility with pre 0.9 NetRPC plugin
 	plugin.NetRPCUnsupportedPlugin
 	logger      hclog.Logger
 	fsIsolation bool
