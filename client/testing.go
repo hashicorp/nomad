@@ -1,6 +1,8 @@
 package client
 
 import (
+	"time"
+
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -47,10 +49,26 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func()) {
 		t.Fatalf("err: %v", err)
 	}
 	return client, func() {
-		// Shutdown client
-		client.Shutdown()
+		ch := make(chan error, 1)
 
-		// Call TestClientConfig cleanup
-		cleanup()
+		go func() {
+			defer close(ch)
+
+			// Shutdown client
+			err := client.Shutdown()
+			if err != nil {
+				t.Errorf("failed to shutdown client: %v", err)
+			}
+
+			// Call TestClientConfig cleanup
+			cleanup()
+		}()
+
+		select {
+		case <-ch:
+			// all good
+		case <-time.After(1 * time.Minute):
+			t.Errorf("timed out cleaning up test client")
+		}
 	}
 }

@@ -170,11 +170,24 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd.ResourceLimits = true
 
 	ps, err := executor.Launch(execCmd)
+
 	require.NoError(err)
 	require.NotZero(ps.Pid)
 	time.Sleep(500 * time.Millisecond)
 	require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
-	executor.Wait()
+
+	ch := make(chan interface{})
+	go func() {
+		executor.Wait()
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		// all good
+	case <-time.After(5 * time.Second):
+		require.Fail("timeout waiting for exec to shutdown")
+	}
 
 	output := execCmd.stdout.(*bufferCloser).String()
 	require.NotZero(len(output))
