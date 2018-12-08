@@ -173,7 +173,7 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 	ctestutils.ExecCompatible(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
