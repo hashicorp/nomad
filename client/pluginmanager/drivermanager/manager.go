@@ -191,11 +191,7 @@ func (m *manager) Run() {
 	}
 
 	// signal ready
-	select {
-	case <-m.ctx.Done():
-		return
-	case m.readyCh <- struct{}{}:
-	}
+	close(m.readyCh)
 
 	// wait for shutdown
 	<-m.ctx.Done()
@@ -216,25 +212,27 @@ func (m *manager) Shutdown() {
 }
 
 func (m *manager) Ready() <-chan struct{} {
-	ret := make(chan struct{})
+	ctx, cancel := context.WithTimeout(m.ctx, time.Second*10)
 	go func() {
+		defer cancel()
 		// We don't want to start initial fingerprint wait until Run loop has
 		// finished
-		<-m.readyCh
+		select {
+		case <-m.readyCh:
+		case <-m.ctx.Done():
+			return
+		}
 
 		var availDrivers []string
-		ctx, cancel := context.WithTimeout(m.ctx, time.Second*10)
 		for name, instance := range m.instances {
 			instance.WaitForFirstFingerprint(ctx)
 			if instance.lastHealthState != drivers.HealthStateUndetected {
 				availDrivers = append(availDrivers, name)
 			}
 		}
-		cancel()
 		m.logger.Debug("detected drivers", "drivers", availDrivers)
-		close(ret)
 	}()
-	return ret
+	return ctx.Done()
 }
 
 func (m *manager) loadReattachConfigs() error {
@@ -299,13 +297,17 @@ func (m *manager) fetchPluginReattachConfig(id loader.PluginID) (*plugin.Reattac
 
 func (m *manager) RegisterEventHandler(driver, taskID string, handler EventHandler) {
 	m.instancesMu.Lock()
-	m.instances[driver].registerEventHandler(taskID, handler)
+	if d, ok := m.instances[driver]; ok {
+		d.registerEventHandler(taskID, handler)
+	}
 	m.instancesMu.Unlock()
 }
 
 func (m *manager) DeregisterEventHandler(driver, taskID string) {
 	m.instancesMu.Lock()
-	m.instances[driver].deregisterEventHandler(taskID)
+	if d, ok := m.instances[driver]; ok {
+		d.deregisterEventHandler(taskID)
+	}
 	m.instancesMu.Unlock()
 }
 

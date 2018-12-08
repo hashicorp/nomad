@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -387,12 +388,19 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
 	}
 
-	// Wait for plugin manangers to initialize
-	pluginReadyCh, err := c.pluginManagers.Ready(pluginmanager.DefaultManagerReadyTimeout)
+	// Wait for plugin manangers to initialize.
+	// Plugins must be initialized before restore is called otherwise restoring
+	// tasks that use uninitialized plugins will fail.
+	ctx, cancel := context.WithTimeout(context.Background(), pluginmanager.DefaultManagerReadyTimeout)
+	defer cancel()
+	pluginReadyCh, err := c.pluginManagers.Ready(ctx)
 	if err != nil {
 		return nil, err
 	}
-	<-pluginReadyCh
+	select {
+	case <-pluginReadyCh:
+	case <-ctx.Done():
+	}
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {

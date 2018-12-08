@@ -1,6 +1,7 @@
 package pluginmanager
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -42,7 +43,6 @@ func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	m.mLock.Lock()
 	defer m.mLock.Unlock()
 	if m.shutdown {
-		m.mLock.Unlock()
 		return fmt.Errorf("plugin group already shutdown")
 	}
 	m.managers = append(m.managers, manager)
@@ -57,7 +57,7 @@ func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 
 // Ready returns a channel which will be closed once all plugin manangers are ready.
 // A timeout for waiting on each manager is given
-func (m *PluginGroup) Ready(timeout time.Duration) (<-chan struct{}, error) {
+func (m *PluginGroup) Ready(ctx context.Context) (<-chan struct{}, error) {
 	m.mLock.Lock()
 	defer m.mLock.Unlock()
 	if m.shutdown {
@@ -72,7 +72,7 @@ func (m *PluginGroup) Ready(timeout time.Duration) (<-chan struct{}, error) {
 			defer wg.Done()
 			select {
 			case <-manager.Ready():
-			case <-time.After(timeout):
+			case <-ctx.Done():
 				m.logger.Warn("timeout waiting for plugin manager to be ready",
 					"plugin-type", manager.PluginType())
 			}

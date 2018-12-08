@@ -265,14 +265,9 @@ func TestTaskRunner_DevicePropogation(t *testing.T) {
 	}
 
 	// Get the mock driver plugin
-	driverPlugin, err := conf.PluginSingletonLoader.Dispense(
-		mockdriver.PluginID.Name,
-		mockdriver.PluginID.PluginType,
-		nil,
-		conf.Logger,
-	)
+	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
 	require.NoError(err)
-	mockDriver := driverPlugin.Plugin().(*mockdriver.Driver)
+	mockDriver := driverPlugin.(*mockdriver.Driver)
 
 	// Assert its config has been properly interpolated
 	driverCfg, _ := mockDriver.GetTaskConfig()

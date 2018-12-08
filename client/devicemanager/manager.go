@@ -195,16 +195,14 @@ func (m *manager) Shutdown() {
 }
 
 func (m *manager) Ready() <-chan struct{} {
-	ret := make(chan struct{})
+	ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
 	go func() {
-		ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
 		for _, i := range m.instances {
 			i.WaitForFirstFingerprint(ctx)
 		}
 		cancel()
-		close(ret)
 	}()
-	return ret
+	return ctx.Done()
 }
 
 // Reserve reserves the given allocated device. If the device is unknown, an
