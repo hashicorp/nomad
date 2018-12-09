@@ -14,6 +14,7 @@ import (
 	"time"
 
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+	"golang.org/x/sys/unix"
 
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
@@ -121,52 +122,39 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 	require.NoError(err)
 	require.Nil(driverNet)
 
-	// Wait for task to start
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Block on the channel returned by wait task
-	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.Equal(15, result.Signal)
-	}()
-
-	// Wait until task started
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	// Add to the wait group
-	wg.Add(1)
-
-	// Stop the task
 	go func() {
-		defer wg.Done()
-		err := harness.StopTask(task.ID, 1*time.Second, "SIGTERM")
-		require.NoError(err)
+		harness.StopTask(task.ID, 2*time.Second, "SIGTERM")
 	}()
 
-	// Wait on the wait group
-	waitCh := make(chan struct{})
-	go func() {
-		defer close(waitCh)
-		wg.Wait()
-	}()
-
-	// Verify that the task exited
 	select {
-	case <-waitCh:
-		status, err := harness.InspectTask(task.ID)
-		require.NoError(err)
-		require.Equal(drivers.TaskStateExited, status.State)
-	case <-time.After(2 * time.Second):
+	case result := <-ch:
+		require.Equal(int(unix.SIGTERM), result.Signal)
+	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
 
-	require.NoError(harness.DestroyTask(task.ID, true))
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := harness.InspectTask(task.ID)
+		if err != nil {
+			return false, fmt.Errorf("inspecting task failed: %v", err)
+		}
+		if status.State != drivers.TaskStateExited {
+			return false, fmt.Errorf("task hasn't exited yet; status: %v", status.State)
+		}
 
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
 // Verifies waiting on task to exit cleanly
