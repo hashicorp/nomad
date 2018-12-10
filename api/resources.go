@@ -172,7 +172,7 @@ type Attribute struct {
 func (a Attribute) String() string {
 	switch {
 	case a.FloatVal != nil:
-		str := strconv.FormatFloat(*a.FloatVal, 'f', -1, 64)
+		str := helper.FormatFloat(*a.FloatVal, 3)
 		if a.Unit != "" {
 			str += " " + a.Unit
 		}

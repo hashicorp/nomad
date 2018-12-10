@@ -4,6 +4,8 @@ import (
 	"crypto/sha512"
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -343,4 +345,27 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 	}
 
 	return result
+}
+
+// FormatFloat converts the floating-point number f to a string,
+// after rounding it to the passed unit.
+//
+// Uses 'f' format (-ddd.dddddd, no exponent), and uses at most
+// maxPrec digits after the decimal point.
+func FormatFloat(f float64, maxPrec int) string {
+	v := strconv.FormatFloat(f, 'f', -1, 64)
+
+	idx := strings.LastIndex(v, ".")
+	if idx == -1 {
+		return v
+	}
+
+	sublen := idx + maxPrec + 1
+	if sublen > len(v) {
+		sublen = len(v)
+	}
+
+	return v[:sublen]
+
+	return v
 }
