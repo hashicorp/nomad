@@ -19,7 +19,7 @@ moduleForAcceptance('Acceptance | client detail', {
     // Related models
     server.create('agent');
     server.create('job', { createAllocations: false });
-    server.createList('allocation', 3, { nodeId: node.id });
+    server.createList('allocation', 3, { nodeId: node.id, clientStatus: 'running' });
   },
 });
 
@@ -545,10 +545,14 @@ moduleForAcceptance('Acceptance | client detail (multi-namespace)', {
 
     // Make a job for each namespace, but have both scheduled on the same node
     server.create('job', { id: 'job-1', namespaceId: 'default', createAllocations: false });
-    server.createList('allocation', 3, { nodeId: node.id });
+    server.createList('allocation', 3, { nodeId: node.id, clientStatus: 'running' });
 
     server.create('job', { id: 'job-2', namespaceId: 'other-namespace', createAllocations: false });
-    server.createList('allocation', 3, { nodeId: node.id, jobId: 'job-2' });
+    server.createList('allocation', 3, {
+      nodeId: node.id,
+      jobId: 'job-2',
+      clientStatus: 'running',
+    });
   },
 });
 

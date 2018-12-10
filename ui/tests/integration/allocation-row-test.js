@@ -49,7 +49,7 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
     return new Response(500, {}, '');
   });
 
-  this.server.create('allocation');
+  this.server.create('allocation', { clientStatus: 'running' });
   this.store.findAll('allocation');
 
   let allocation;
@@ -93,7 +93,7 @@ test('Allocation row shows warning when it requires drivers that are unhealthy o
   });
   node.update({ drivers });
 
-  this.server.create('allocation');
+  this.server.create('allocation', { clientStatus: 'running' });
   this.store.findAll('job');
   this.store.findAll('node');
   this.store.findAll('allocation');

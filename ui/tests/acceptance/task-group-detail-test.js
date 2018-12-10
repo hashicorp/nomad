@@ -33,6 +33,7 @@ moduleForAcceptance('Acceptance | task group detail', {
     allocations = server.createList('allocation', 2, {
       jobId: job.id,
       taskGroup: taskGroup.name,
+      clientStatus: 'running',
     });
 
     // Allocations associated to a different task group on the job to
@@ -40,6 +41,7 @@ moduleForAcceptance('Acceptance | task group detail', {
     server.createList('allocation', 3, {
       jobId: job.id,
       taskGroup: taskGroups[1].name,
+      clientStatus: 'running',
     });
 
     // Set a static name to make the search test deterministic
@@ -118,6 +120,7 @@ test('/jobs/:id/:task-group should list one page of allocations for the task gro
   server.createList('allocation', TaskGroup.pageSize, {
     jobId: job.id,
     taskGroup: taskGroup.name,
+    clientStatus: 'running',
   });
 
   JobsList.visit();

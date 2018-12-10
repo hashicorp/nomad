@@ -38,42 +38,42 @@
   </ul>
 </td>
 <td data-test-cpu class="is-1 has-text-centered">
-  {{#if (and (not cpu) fetchStats.isRunning)}}
-    ...
-  {{else if (not task)}}
-    {{! nothing when there's no task}}
-  {{else if statsError}}
-    <span class="tooltip text-center" role="tooltip" aria-label="Couldn't collect stats">
-      {{x-icon "warning" class="is-warning"}}
-    </span>
-  {{else}}
-    <div class="inline-chart is-small tooltip" role="tooltip" aria-label="{{cpu.used}} / {{taskStats.reservedCPU}} MHz">
-      <progress
-        class="progress is-info is-small"
-        value="{{cpu.percent}}"
-        max="1">
-        {{cpu.percent}}
-      </progress>
-    </div>
+  {{#if task.isRunning}}
+    {{#if (and (not cpu) fetchStats.isRunning)}}
+      ...
+    {{else if statsError}}
+      <span class="tooltip text-center" role="tooltip" aria-label="Couldn't collect stats">
+        {{x-icon "warning" class="is-warning"}}
+      </span>
+    {{else}}
+      <div class="inline-chart is-small tooltip" role="tooltip" aria-label="{{cpu.used}} / {{taskStats.reservedCPU}} MHz">
+        <progress
+          class="progress is-info is-small"
+          value="{{cpu.percent}}"
+          max="1">
+          {{cpu.percent}}
+        </progress>
+      </div>
+    {{/if}}
   {{/if}}
 </td>
 <td data-test-mem class="is-1 has-text-centered">
-  {{#if (and (not memory) fetchStats.isRunning)}}
-    ...
-  {{else if (not task)}}
-    {{! nothing when there's no task}}
-  {{else if statsError}}
-    <span class="tooltip is-small text-center" role="tooltip" aria-label="Couldn't collect stats">
-      {{x-icon "warning" class="is-warning"}}
-    </span>
-  {{else}}
-    <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-bytes memory.used}} / {{taskStats.reservedMemory}} MiB">
-      <progress
-        class="progress is-danger is-small"
-        value="{{memory.percent}}"
-        max="1">
-        {{memory.percent}}
-      </progress>
-    </div>
+  {{#if task.isRunning}}
+    {{#if (and (not memory) fetchStats.isRunning)}}
+      ...
+    {{else if statsError}}
+      <span class="tooltip is-small text-center" role="tooltip" aria-label="Couldn't collect stats">
+        {{x-icon "warning" class="is-warning"}}
+      </span>
+    {{else}}
+      <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-bytes memory.used}} / {{taskStats.reservedMemory}} MiB">
+        <progress
+          class="progress is-danger is-small"
+          value="{{memory.percent}}"
+          max="1">
+          {{memory.percent}}
+        </progress>
+      </div>
+    {{/if}}
   {{/if}}
 </td>
