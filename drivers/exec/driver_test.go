@@ -489,6 +489,97 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
+func TestExecDriver_DevicesAndMounts(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	tmpDir, err := ioutil.TempDir("", "exec_binds_mounts")
+	require.NoError(err)
+	defer os.RemoveAll(tmpDir)
+
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
+	require.NoError(err)
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
+		ID:         uuid.Generate(),
+		Name:       "test",
+		StdoutPath: filepath.Join(tmpDir, "task-stdout"),
+		StderrPath: filepath.Join(tmpDir, "task-stderr"),
+		Devices: []*drivers.DeviceConfig{
+			{
+				TaskPath:    "/dev/inserted-random",
+				HostPath:    "/dev/random",
+				Permissions: "rw",
+			},
+		},
+		Mounts: []*drivers.MountConfig{
+			{
+				TaskPath: "/tmp/task-path-rw",
+				HostPath: tmpDir,
+				Readonly: false,
+			},
+			{
+				TaskPath: "/tmp/task-path-ro",
+				HostPath: tmpDir,
+				Readonly: true,
+			},
+		},
+	}
+
+	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
+	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
+
+	taskConfig := map[string]interface{}{
+		"command": "/bin/bash",
+		"args": []string{"-c", `
+export LANG=en.UTF-8
+echo "mounted device /inserted-random: $(stat -c '%t:%T' /dev/inserted-random)"
+echo "reading from ro path: $(cat /tmp/task-path-ro/testfile)"
+echo "reading from rw path: $(cat /tmp/task-path-rw/testfile)"
+touch /tmp/task-path-rw/testfile && echo 'overwriting file in rw succeeded'
+touch /tmp/task-path-rw/testfile-from-rw && echo from-exec >  /tmp/task-path-rw/testfile-from-rw && echo 'writing new file in rw succeeded'
+touch /tmp/task-path-ro/testfile && echo 'overwriting file in ro succeeded'
+touch /tmp/task-path-ro/testfile-from-ro && echo from-exec >  /tmp/task-path-ro/testfile-from-ro && echo 'writing new file in ro succeeded'
+exit 0
+`},
+	}
+	encodeDriverHelper(require, task, taskConfig)
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+	result := <-ch
+	require.NoError(harness.DestroyTask(task.ID, true))
+
+	stdout, err := ioutil.ReadFile(task.StdoutPath)
+	require.NoError(err)
+	require.Equal(`mounted device /inserted-random: 1:8
+reading from ro path: from-host
+reading from rw path: from-host
+overwriting file in rw succeeded
+writing new file in rw succeeded`, strings.TrimSpace(string(stdout)))
+
+	stderr, err := ioutil.ReadFile(task.StderrPath)
+	require.NoError(err)
+	require.Equal(`touch: cannot touch '/tmp/task-path-ro/testfile': Read-only file system
+touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`, strings.TrimSpace(string(stdout)))
+
+	// testing exit code last so we can inspect output first
+	require.Zero(result.ExitCode)
+
+	fromRWContent, err := ioutil.ReadFile(filepath.Join(tmpDir, "testfile-from-rw"))
+	require.NoError(err)
+	require.Equal("from-exec", strings.TrimSpace(string(fromRWContent)))
+}
+
 func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
 	evalCtx := &hcl.EvalContext{
 		Functions: shared.GetStdlibFuncs(),

@@ -17,8 +17,11 @@ import (
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
+	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 func init() {
@@ -181,4 +184,67 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	output1 := execCmd.stdout.(*bufferCloser).String()
 	require.Equal(len(output), len(output1))
+}
+
+func TestExecutor_cmdDevices(t *testing.T) {
+	input := []*drivers.DeviceConfig{
+		{
+			HostPath:    "/dev/null",
+			TaskPath:    "/task/dev/null",
+			Permissions: "rwm",
+		},
+	}
+
+	expected := &lconfigs.Device{
+		Path:        "/task/dev/null",
+		Type:        99,
+		Major:       1,
+		Minor:       3,
+		Permissions: "rwm",
+	}
+
+	found, err := cmdDevices(input)
+	require.NoError(t, err)
+	require.Len(t, found, 1)
+
+	// ignore file permission and ownership
+	// as they are host specific potentially
+	d := found[0]
+	d.FileMode = 0
+	d.Uid = 0
+	d.Gid = 0
+
+	require.EqualValues(t, expected, d)
+}
+
+func TestExecutor_cmdMounts(t *testing.T) {
+	input := []*drivers.MountConfig{
+		{
+			HostPath: "/host/path-ro",
+			TaskPath: "/task/path-ro",
+			Readonly: true,
+		},
+		{
+			HostPath: "/host/path-rw",
+			TaskPath: "/task/path-rw",
+			Readonly: false,
+		},
+	}
+
+	expected := []*lconfigs.Mount{
+		{
+			Source:      "/host/path-ro",
+			Destination: "/task/path-ro",
+			Flags:       unix.MS_BIND | unix.MS_RDONLY,
+			Device:      "bind",
+		},
+		{
+			Source:      "/host/path-rw",
+			Destination: "/task/path-rw",
+			Flags:       unix.MS_BIND,
+			Device:      "bind",
+		},
+	}
+
+	require.EqualValues(t, expected, cmdMounts(input))
 }
