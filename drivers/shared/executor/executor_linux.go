@@ -22,11 +22,14 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/syndtr/gocapability/capability"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -125,7 +128,11 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	// A container groups processes under the same isolation enforcement
-	container, err := factory.Create(l.id, newLibcontainerConfig(command))
+	containerCfg, err := newLibcontainerConfig(command)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
+	}
+	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
 	}
@@ -468,7 +475,7 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
 
 }
 
-func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
+func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
 	// set the new root directory for the container
@@ -491,6 +498,14 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 	}
 
 	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	if len(command.Devices) > 0 {
+		devs, err := cmdDevices(command.Devices)
+		if err != nil {
+			return err
+		}
+		cfg.Devices = append(cfg.Devices, devs...)
+	}
+
 	cfg.Mounts = []*lconfigs.Mount{
 		{
 			Source:      "tmpfs",
@@ -532,6 +547,12 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) {
 			Flags:       defaultMountFlags | syscall.MS_RDONLY,
 		},
 	}
+
+	if len(command.Mounts) > 0 {
+		cfg.Mounts = append(cfg.Mounts, cmdMounts(command.Mounts)...)
+	}
+
+	return nil
 }
 
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
@@ -592,7 +613,7 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 	return nil
 }
 
-func newLibcontainerConfig(command *ExecCommand) *lconfigs.Config {
+func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{
@@ -605,9 +626,13 @@ func newLibcontainerConfig(command *ExecCommand) *lconfigs.Config {
 	}
 
 	configureCapabilities(cfg, command)
-	configureIsolation(cfg, command)
-	configureCgroups(cfg, command)
-	return cfg
+	if err := configureIsolation(cfg, command); err != nil {
+		return nil, err
+	}
+	if err := configureCgroups(cfg, command); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 // JoinRootCgroup moves the current process to the cgroups of the init process
@@ -630,4 +655,48 @@ func JoinRootCgroup(subsystems []string) error {
 	}
 
 	return mErrs.ErrorOrNil()
+}
+
+// cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
+func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
+	if len(devices) == 0 {
+		return nil, nil
+	}
+
+	r := make([]*lconfigs.Device, len(devices))
+
+	for i, d := range devices {
+		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
+		}
+		ed.Path = d.TaskPath
+		r[i] = ed
+	}
+
+	return r, nil
+}
+
+// cmdMounts converts a list of driver.MountConfigs into excutor.Mounts.
+func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
+	if len(mounts) == 0 {
+		return nil
+	}
+
+	r := make([]*lconfigs.Mount, len(mounts))
+
+	for i, m := range mounts {
+		flags := unix.MS_BIND
+		if m.Readonly {
+			flags |= unix.MS_RDONLY
+		}
+		r[i] = &lconfigs.Mount{
+			Source:      m.HostPath,
+			Destination: m.TaskPath,
+			Device:      "bind",
+			Flags:       flags,
+		}
+	}
+
+	return r
 }

@@ -308,6 +308,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		TaskDir:        cfg.TaskDir().Dir,
 		StdoutPath:     cfg.StdoutPath,
 		StderrPath:     cfg.StderrPath,
+		Mounts:         cfg.Mounts,
+		Devices:        cfg.Devices,
 	}
 
 	ps, err := exec.Launch(execCmd)
