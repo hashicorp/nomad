@@ -22,14 +22,21 @@
       Resource Utilization
     </div>
     <div class="boxed-section-body">
-      <div class="columns">
-        <div class="column">
-          {{primary-metric resource=model metric="cpu"}}
+      {{#if model.isRunning}}
+        <div class="columns">
+          <div class="column">
+            {{primary-metric resource=model metric="cpu"}}
+          </div>
+          <div class="column">
+            {{primary-metric resource=model metric="memory"}}
+          </div>
         </div>
-        <div class="column">
-          {{primary-metric resource=model metric="memory"}}
+      {{else}}
+        <div class="empty-message">
+          <h3 class="empty-message-headline">Allocation isn't running</h3>
+          <p class="empty-message-body">Only running allocations utilize resources.</p>
         </div>
-      </div>
+      {{/if}}
     </div>
   </div>
 
