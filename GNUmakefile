@@ -8,6 +8,9 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
+# Control whether to test Linux+LXC, defaults to environment variable
+ENABLE_LXC := $(ENABLE_LXC)
+
 default: help
 
 ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
@@ -219,7 +222,7 @@ changelogfmt:
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
-dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
+dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(ENABLE_LXC),-lxc)/nomad
 dev: vendorfmt changelogfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
@@ -265,7 +268,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=30m \
-		-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+		-tags="$(if $(ENABLE_LXC),lxc) $(GO_TAGS)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
