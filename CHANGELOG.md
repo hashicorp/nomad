@@ -51,7 +51,7 @@ BUG FIXES:
   unnecessarily updated [[GH-4764](https://github.com/hashicorp/nomad/issues/4764)]
 * core: Fixed bug that affects garbage collection of batch jobs that are purged
   and resubmitted with the same id [[GH-4839](https://github.com/hashicorp/nomad/pull/4839)]
-* core: FIxed an issue with garbage collection where terminal but still running
+* core: Fixed an issue with garbage collection where terminal but still running
   allocations could be garbage collected server side [[GH-4965](https://github.com/hashicorp/nomad/issues/4965)]
 * deployments: Fix an issue where a deployment with multiple task groups could
   be marked as failed when the first progress deadline was hit regardless of if
