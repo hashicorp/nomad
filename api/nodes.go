@@ -683,7 +683,6 @@ func (v *StatValue) String() string {
 		}
 		return str
 	case v.IntNumeratorVal != nil:
-
 		str := strconv.FormatInt(*v.IntNumeratorVal, 10)
 		if v.IntDenominatorVal != nil {
 			str += " / " + strconv.FormatInt(*v.IntDenominatorVal, 10)

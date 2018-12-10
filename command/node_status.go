@@ -419,6 +419,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	if c.verbose {
 		c.formatAttributes(node)
+		c.formatDeviceAttributes(node)
 		c.formatMeta(node)
 	}
 	return 0
@@ -527,6 +528,32 @@ func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
 	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Attributes[reset]"))
 	c.Ui.Output(formatKV(attributes))
+}
+
+func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
+	devices := node.NodeResources.Devices
+	if len(devices) == 0 {
+		return
+	}
+
+	sort.Slice(devices, func(i, j int) bool {
+		return devices[i].ID() < devices[j].ID()
+	})
+
+	first := true
+	for _, d := range devices {
+		if len(d.Attributes) == 0 {
+			continue
+		}
+
+		if first {
+			c.Ui.Output("\nDevice Group Attributes")
+			first = false
+		} else {
+			c.Ui.Output("")
+		}
+		c.Ui.Output(formatKV(getDeviceAttributes(d)))
+	}
 }
 
 func (c *NodeStatusCommand) formatMeta(node *api.Node) {

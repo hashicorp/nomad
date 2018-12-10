@@ -247,3 +247,29 @@ func TestNodeStatusCommand_GetDeviceResources(t *testing.T) {
 
 	assert.Equal(t, expected, formattedDevices)
 }
+func TestGetDeviceAttributes(t *testing.T) {
+	d := &api.NodeDeviceResource{
+		Vendor: "Vendor",
+		Type:   "Type",
+		Name:   "Name",
+
+		Attributes: map[string]*api.Attribute{
+			"utilization": &api.Attribute{
+				FloatVal: helper.Float64ToPtr(0.78),
+				Unit:     "%",
+			},
+			"filesystem": &api.Attribute{
+				StringVal: helper.StringToPtr("ext4"),
+			},
+		},
+	}
+
+	formattedDevices := getDeviceAttributes(d)
+	expected := []string{
+		"Device Group|Vendor/Type/Name",
+		"filesystem|ext4",
+		"utilization|0.78 %",
+	}
+
+	assert.Equal(t, expected, formattedDevices)
+}
