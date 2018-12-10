@@ -160,7 +160,7 @@ func distAssetsVendorD41d8cd98f00b204e9800998ecf8427eCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/assets/vendor-d41d8cd98f00b204e9800998ecf8427e.css", size: 0, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/assets/vendor-d41d8cd98f00b204e9800998ecf8427e.css", size: 0, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -340,7 +340,7 @@ func distImagesNomadLogoSvg() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/images/nomad-logo.svg", size: 1982, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/images/nomad-logo.svg", size: 1982, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
