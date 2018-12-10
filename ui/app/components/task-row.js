@@ -22,13 +22,16 @@ export default Component.extend({
   enablePolling: computed(() => !Ember.testing),
 
   // Since all tasks for an allocation share the same tracker, use the registry
-  stats: computed('task', function() {
+  stats: computed('task', 'task.isRunning', function() {
+    if (!this.get('task.isRunning')) return;
+
     return this.get('statsTrackersRegistry').getTracker(this.get('task.allocation'));
   }),
 
   taskStats: computed('task.name', 'stats.tasks.[]', function() {
-    const ret = this.get('stats.tasks').findBy('task', this.get('task.name'));
-    return ret;
+    if (!this.get('stats')) return;
+
+    return this.get('stats.tasks').findBy('task', this.get('task.name'));
   }),
 
   cpu: alias('taskStats.cpu.lastObject'),
@@ -42,12 +45,15 @@ export default Component.extend({
 
   fetchStats: task(function*() {
     do {
-      try {
-        yield this.get('stats.poll').perform();
-        this.set('statsError', false);
-      } catch (error) {
-        this.set('statsError', true);
+      if (this.get('stats')) {
+        try {
+          yield this.get('stats.poll').perform();
+          this.set('statsError', false);
+        } catch (error) {
+          this.set('statsError', true);
+        }
       }
+
       yield timeout(500);
     } while (this.get('enablePolling'));
   }).drop(),
