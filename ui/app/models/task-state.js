@@ -1,5 +1,5 @@
 import { computed } from '@ember/object';
-import { alias, none } from '@ember/object/computed';
+import { alias, none, and } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragment, fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
@@ -14,7 +14,7 @@ export default Fragment.extend({
   failed: attr('boolean'),
 
   isActive: none('finishedAt'),
-  isRunning: alias('allocation.isRunning'),
+  isRunning: and('isActive', 'allocation.isRunning'),
 
   task: computed('allocation.taskGroup.tasks.[]', function() {
     const tasks = this.get('allocation.taskGroup.tasks');
