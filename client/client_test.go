@@ -1183,3 +1183,80 @@ func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 
 	assert.EqualValues(t, expected, result)
 }
+
+func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
+	t.Parallel()
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	// initial update
+	{
+		info := &structs.DriverInfo{
+			Detected:          true,
+			Healthy:           false,
+			HealthDescription: "not healthy at start",
+			Attributes: map[string]string{
+				"node.mock.testattr1": "val1",
+			},
+		}
+		n := client.updateNodeFromDriver("mock", info)
+
+		updatedInfo := *n.Drivers["mock"]
+		// compare without update time
+		updatedInfo.UpdateTime = info.UpdateTime
+		assert.EqualValues(t, updatedInfo, *info)
+
+		// check node attributes
+		assert.Equal(t, "val1", n.Attributes["node.mock.testattr1"])
+	}
+
+	// initial update
+	{
+		info := &structs.DriverInfo{
+			Detected:          true,
+			Healthy:           true,
+			HealthDescription: "healthy",
+			Attributes: map[string]string{
+				"node.mock.testattr1": "val2",
+			},
+		}
+		n := client.updateNodeFromDriver("mock", info)
+
+		updatedInfo := *n.Drivers["mock"]
+		// compare without update time
+		updatedInfo.UpdateTime = info.UpdateTime
+		assert.EqualValues(t, updatedInfo, *info)
+
+		// check node attributes are updated
+		assert.Equal(t, "val2", n.Attributes["node.mock.testattr1"])
+
+		// update once more with the same info, updateTime shouldn't change
+		un := client.updateNodeFromDriver("mock", info)
+		assert.EqualValues(t, n, un)
+	}
+
+	// update once more to unhealthy because why not
+	{
+		info := &structs.DriverInfo{
+			Detected:          true,
+			Healthy:           false,
+			HealthDescription: "lost track",
+			Attributes: map[string]string{
+				"node.mock.testattr1": "",
+			},
+		}
+		n := client.updateNodeFromDriver("mock", info)
+
+		updatedInfo := *n.Drivers["mock"]
+		// compare without update time
+		updatedInfo.UpdateTime = info.UpdateTime
+		assert.EqualValues(t, updatedInfo, *info)
+
+		// check node attributes are updated
+		assert.Equal(t, "", n.Attributes["node.mock.testattr1"])
+
+		// update once more with the same info, updateTime shouldn't change
+		un := client.updateNodeFromDriver("mock", info)
+		assert.EqualValues(t, n, un)
+	}
+}
