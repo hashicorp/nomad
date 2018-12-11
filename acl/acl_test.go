@@ -309,7 +309,7 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 	}
 }
 
-func TestACL_matchingCapabilitySet(t *testing.T) {
+func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 	tests := []struct {
 		Policy        string
 		NS            string
@@ -351,6 +351,41 @@ func TestACL_matchingCapabilitySet(t *testing.T) {
 			}
 
 			assert.Equal(tc.MatchingGlobs, namespaces)
+		})
+	}
+}
+
+func TestACL_matchingCapabilitySet_difference(t *testing.T) {
+	tests := []struct {
+		Policy     string
+		NS         string
+		Difference int
+	}{
+		{
+			Policy:     `namespace "production-*" { policy = "write" }`,
+			NS:         "production-api",
+			Difference: 3,
+		},
+		{
+			Policy:     `namespace "production-*" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 9,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.NoError(err)
+			assert.NotNil(policy.Namespaces)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			matches := acl.findAllMatchingWildcards(tc.NS)
+			assert.Equal(tc.Difference, matches[0].difference)
 		})
 	}
 
