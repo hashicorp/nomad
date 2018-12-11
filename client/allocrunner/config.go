@@ -36,12 +36,14 @@ type Config struct {
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.AllocStateHandler
 
-	// deviceStatsReporter is used to lookup resource usage for alloc devices
+	// DeviceStatsReporter is used to lookup resource usage for alloc devices
 	DeviceStatsReporter interfaces.DeviceStatsReporter
 
-	// PrevAllocWatcher handles waiting on previous allocations and
-	// migrating their ephemeral disk when necessary.
+	// PrevAllocWatcher handles waiting on previous or preempted allocations
 	PrevAllocWatcher allocwatcher.PrevAllocWatcher
+
+	// PrevAllocMigrator allows the migration of a previous allocations alloc dir
+	PrevAllocMigrator allocwatcher.PrevAllocMigrator
 
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog

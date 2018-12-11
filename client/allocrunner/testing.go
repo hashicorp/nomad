@@ -63,6 +63,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		Vault:                 vaultclient.NewMockVaultClient(),
 		StateUpdater:          &MockStateUpdater{},
 		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
+		PrevAllocMigrator:     allocwatcher.NoopPrevAlloc{},
 		PluginSingletonLoader: singleton.NewSingletonLoader(clientConf.Logger, pluginLoader),
 		DeviceManager:         devicemanager.NoopMockManager(),
 	}

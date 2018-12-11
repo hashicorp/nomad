@@ -13,11 +13,11 @@ import (
 // being built but must be run before anything else manipulates the alloc dir.
 type diskMigrationHook struct {
 	allocDir     *allocdir.AllocDir
-	allocWatcher allocwatcher.PrevAllocWatcher
+	allocWatcher allocwatcher.PrevAllocMigrator
 	logger       log.Logger
 }
 
-func newDiskMigrationHook(logger log.Logger, allocWatcher allocwatcher.PrevAllocWatcher, allocDir *allocdir.AllocDir) *diskMigrationHook {
+func newDiskMigrationHook(logger log.Logger, allocWatcher allocwatcher.PrevAllocMigrator, allocDir *allocdir.AllocDir) *diskMigrationHook {
 	h := &diskMigrationHook{
 		allocDir:     allocDir,
 		allocWatcher: allocWatcher,

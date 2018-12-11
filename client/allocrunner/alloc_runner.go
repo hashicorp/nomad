@@ -98,9 +98,12 @@ type allocRunner struct {
 	// allocBroadcaster sends client allocation updates to all listeners
 	allocBroadcaster *cstructs.AllocBroadcaster
 
-	// prevAllocWatcher allows waiting for a previous allocation to exit
-	// and if necessary migrate its alloc dir.
+	// prevAllocWatcher allows waiting for any previous or preempted allocations
+	// to exit
 	prevAllocWatcher allocwatcher.PrevAllocWatcher
+
+	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
+	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
 	// pluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
@@ -134,6 +137,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		taskStateUpdateHandlerCh: make(chan struct{}),
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
+		prevAllocMigrator:        config.PrevAllocMigrator,
 		pluginSingletonLoader:    config.PluginSingletonLoader,
 		devicemanager:            config.DeviceManager,
 	}
@@ -713,7 +717,7 @@ func (ar *allocRunner) Shutdown() {
 //
 // This method is safe for calling concurrently with Run().
 func (ar *allocRunner) IsMigrating() bool {
-	return ar.prevAllocWatcher.IsMigrating()
+	return ar.prevAllocMigrator.IsMigrating()
 }
 
 func (ar *allocRunner) StatsReporter() interfaces.AllocStatsReporter {
