@@ -3,6 +3,11 @@ package vault
 var (
 	// versions is the set of Vault versions we test for backwards compatibility
 	versions = []string{
+		"1.0.0",
+		"0.11.5",
+		"0.11.4",
+		"0.11.3",
+		"0.11.2",
 		"0.11.1",
 		"0.11.0",
 		"0.10.4",
