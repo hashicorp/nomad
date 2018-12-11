@@ -95,9 +95,7 @@ type Config struct {
 }
 
 func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string, m AllocRunnerMeta) PrevAllocMigrator {
-	logger := c.Logger.Named("alloc_migrator")
-	logger = logger.With("alloc_id", c.Alloc.ID)
-	logger = logger.With("previous_alloc", watchedAllocID)
+	logger := c.Logger.Named("alloc_migrator").With("alloc_id", c.Alloc.ID).With("previous_alloc", watchedAllocID)
 
 	tasks := tg.Tasks
 	sticky := tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky
@@ -130,9 +128,7 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 }
 
 func newWatcherForAlloc(c Config, watchedAllocID string, m AllocRunnerMeta) PrevAllocWatcher {
-	logger := c.Logger.Named("alloc_watcher")
-	logger = logger.With("alloc_id", c.Alloc.ID)
-	logger = logger.With("previous_alloc", watchedAllocID)
+	logger := c.Logger.Named("alloc_watcher").With("alloc_id", c.Alloc.ID).With("previous_alloc", watchedAllocID)
 
 	if m != nil {
 		// Local Allocation because there's no meta
