@@ -72,7 +72,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 	dockerDynamic := ports[1]
 
 	cfg := TaskConfig{
-		Image:     "busybox",
+		Image:     "busybox:latest",
 		LoadImage: "busybox.tar",
 		Command:   "/bin/nc",
 		Args:      []string{"-l", "127.0.0.1", "-p", "0"},
