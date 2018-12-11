@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
@@ -66,8 +67,9 @@ type Executor interface {
 	// Version returns the executor API version
 	Version() (*ExecutorVersion, error)
 
-	// Stats fetchs process usage stats for the executor and each pid if available
-	Stats() (*drivers.TaskResourceUsage, error)
+	// Returns a channel of stats. Stats are collected and
+	// pushed to the channel on the given interval
+	Stats(context.Context, time.Duration) (<-chan *cstructs.TaskResourceUsage, error)
 
 	// Signal sends the given signal to the user process
 	Signal(os.Signal) error
@@ -506,12 +508,36 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	return nil
 }
 
-func (e *UniversalExecutor) Stats() (*drivers.TaskResourceUsage, error) {
-	pidStats, err := e.pidCollector.pidStats()
-	if err != nil {
-		return nil, err
+func (e *UniversalExecutor) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	ch := make(chan *cstructs.TaskResourceUsage)
+	go e.handleStats(ch, ctx, interval)
+	return ch, nil
+}
+
+func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx context.Context, interval time.Duration) {
+	defer close(ch)
+	timer := time.NewTimer(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-timer.C:
+			timer.Reset(interval)
+		}
+
+		pidStats, err := e.pidCollector.pidStats()
+		if err != nil {
+			e.logger.Warn("error collecting stats", "error", err)
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- aggregatedResourceUsage(e.systemCpuStats, pidStats):
+		}
 	}
-	return aggregatedResourceUsage(e.systemCpuStats, pidStats), nil
 }
 
 // lookupBin looks for path to the binary to run by looking for the binary in

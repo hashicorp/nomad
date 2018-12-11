@@ -3,20 +3,25 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"syscall"
 	"time"
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
+	hclog "github.com/hashicorp/go-hclog"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
 )
 
 var _ Executor = (*grpcExecutorClient)(nil)
 
 type grpcExecutorClient struct {
 	client proto.ExecutorClient
+	logger hclog.Logger
 
 	// doneCtx is close when the plugin exits
 	doneCtx context.Context
@@ -99,19 +104,54 @@ func (c *grpcExecutorClient) Version() (*ExecutorVersion, error) {
 	return &ExecutorVersion{Version: resp.Version}, nil
 }
 
-func (c *grpcExecutorClient) Stats() (*drivers.TaskResourceUsage, error) {
-	ctx := context.Background()
-	resp, err := c.client.Stats(ctx, &proto.StatsRequest{})
+func (c *grpcExecutorClient) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	stream, err := c.client.Stats(ctx, &proto.StatsRequest{})
 	if err != nil {
 		return nil, err
 	}
 
-	stats, err := drivers.TaskStatsFromProto(resp.Stats)
-	if err != nil {
-		return nil, err
-	}
-	return stats, nil
+	ch := make(chan *cstructs.TaskResourceUsage)
+	go c.handleStats(ctx, stream, ch)
+	return ch, nil
+}
 
+func (c *grpcExecutorClient) handleStats(ctx context.Context, stream proto.Executor_StatsClient, ch chan<- *cstructs.TaskResourceUsage) {
+	defer close(ch)
+	for {
+		resp, err := stream.Recv()
+		if err != nil {
+			if err != io.EOF {
+				c.logger.Error("error receiving stream from Stats executor RPC", "error", err)
+				truErr := &cstructs.TaskResourceUsage{
+					Err: grpcutils.HandleReqCtxGrpcErr(err, ctx, c.doneCtx),
+				}
+				select {
+				case ch <- truErr:
+				case <-ctx.Done():
+				}
+			}
+
+			// End stream
+			return
+		}
+
+		stats, err := drivers.TaskStatsFromProto(resp.Stats)
+		if err != nil {
+			truErr := &cstructs.TaskResourceUsage{
+				Err: fmt.Errorf("failed to decode stats from RPC: %v", err),
+			}
+			select {
+			case ch <- truErr:
+			case <-ctx.Done():
+			}
+		}
+
+		select {
+		case ch <- stats:
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (c *grpcExecutorClient) Signal(s os.Signal) error {

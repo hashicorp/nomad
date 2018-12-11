@@ -1478,16 +1478,17 @@ func TestDockerDriver_Stats(t *testing.T) {
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	go func() {
-		time.Sleep(3 * time.Second)
-		ru, err := handle.Stats()
-		if err != nil {
-			t.Fatalf("err: %v", err)
+		defer d.DestroyTask(task.ID, true)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		ch, err := handle.Stats(ctx, 1*time.Second)
+		assert.NoError(t, err)
+		select {
+		case ru := <-ch:
+			assert.NotNil(t, ru.ResourceUsage)
+		case <-time.After(3 * time.Second):
+			assert.Fail(t, "stats timeout")
 		}
-		if ru.ResourceUsage == nil {
-			d.DestroyTask(task.ID, true)
-			t.Fatalf("expected resource usage")
-		}
-		d.DestroyTask(task.ID, true)
 	}()
 
 	waitCh, err := d.WaitTask(context.Background(), task.ID)

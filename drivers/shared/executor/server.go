@@ -87,20 +87,46 @@ func (s *grpcExecutorServer) Version(context.Context, *proto.VersionRequest) (*p
 	}, nil
 }
 
-func (s *grpcExecutorServer) Stats(context.Context, *proto.StatsRequest) (*proto.StatsResponse, error) {
-	stats, err := s.impl.Stats()
-	if err != nil {
-		return nil, err
+func (s *grpcExecutorServer) Stats(req *proto.StatsRequest, stream proto.Executor_StatsServer) error {
+	ctx := stream.Context()
+
+	interval := time.Duration(req.Interval)
+	if interval.Nanoseconds() == 0 {
+		interval = time.Second
 	}
 
-	pbStats, err := drivers.TaskStatsToProto(stats)
+	outCh, err := s.impl.Stats(stream.Context(), time.Duration(req.Interval))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &proto.StatsResponse{
-		Stats: pbStats,
-	}, nil
+	for {
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case resp, ok := <-outCh:
+			// chan closed, end stream
+			if !ok {
+				return nil
+			}
+
+			pbStats, err := drivers.TaskStatsToProto(resp)
+			if err != nil {
+				return err
+			}
+
+			presp := &proto.StatsResponse{
+				Stats: pbStats,
+			}
+
+			// Send the stats
+			if err := stream.Send(presp); err != nil {
+				return err
+			}
+
+		}
+	}
 }
 
 func (s *grpcExecutorServer) Signal(ctx context.Context, req *proto.SignalRequest) (*proto.SignalResponse, error) {

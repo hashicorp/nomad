@@ -11,7 +11,7 @@ service Executor {
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {}
     rpc UpdateResources(UpdateResourcesRequest) returns (UpdateResourcesResponse) {}
     rpc Version(VersionRequest) returns (VersionResponse) {}
-    rpc Stats(StatsRequest) returns (StatsResponse) {}
+    rpc Stats(StatsRequest) returns (stream StatsResponse) {}
     rpc Signal(SignalRequest) returns (SignalResponse) {}
     rpc Exec(ExecRequest) returns (ExecResponse) {}
 }
@@ -60,7 +60,9 @@ message VersionResponse{
     string version = 1;
 }
 
-message StatsRequest {}
+message StatsRequest {
+    int64 interval = 1;
+}
 
 message StatsResponse {
     hashicorp.nomad.plugins.drivers.proto.TaskStats stats = 1;

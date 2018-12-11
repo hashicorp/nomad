@@ -3,7 +3,6 @@ package docker
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -14,7 +13,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
-	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"golang.org/x/net/context"
@@ -160,16 +158,6 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	return nil
 }
 
-func (h *taskHandle) Stats() (*drivers.TaskResourceUsage, error) {
-	h.resourceUsageLock.RLock()
-	defer h.resourceUsageLock.RUnlock()
-	var err error
-	if h.resourceUsage == nil {
-		err = fmt.Errorf("stats collection hasn't started yet")
-	}
-	return h.resourceUsage, err
-}
-
 func (h *taskHandle) run() {
 	exitCode, werr := h.waitClient.WaitContainer(h.containerID)
 	if werr != nil {
@@ -189,9 +177,8 @@ func (h *taskHandle) run() {
 		werr = fmt.Errorf("OOM Killed")
 	}
 
+	// Shutdown stats collection
 	close(h.doneCh)
-
-	// Shutdown the syslog collector
 
 	// Stop the container just incase the docker daemon's wait returned
 	// incorrectly
@@ -222,72 +209,4 @@ func (h *taskHandle) run() {
 	}
 	h.exitResultLock.Unlock()
 	close(h.waitCh)
-}
-
-// collectStats starts collecting resource usage stats of a docker container
-func (h *taskHandle) collectStats() {
-
-	statsCh := make(chan *docker.Stats)
-	statsOpts := docker.StatsOptions{ID: h.containerID, Done: h.doneCh, Stats: statsCh, Stream: true}
-	go func() {
-		//TODO handle Stats error
-		if err := h.waitClient.Stats(statsOpts); err != nil {
-			h.logger.Debug("error collecting stats from container", "error", err)
-		}
-	}()
-	numCores := runtime.NumCPU()
-	for {
-		select {
-		case s := <-statsCh:
-			if s != nil {
-				ms := &drivers.MemoryStats{
-					RSS:      s.MemoryStats.Stats.Rss,
-					Cache:    s.MemoryStats.Stats.Cache,
-					Swap:     s.MemoryStats.Stats.Swap,
-					MaxUsage: s.MemoryStats.MaxUsage,
-					Measured: DockerMeasuredMemStats,
-				}
-
-				cs := &drivers.CpuStats{
-					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
-					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
-					Measured:         DockerMeasuredCpuStats,
-				}
-
-				// Calculate percentage
-				cs.Percent = calculatePercent(
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-					s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, numCores)
-				cs.SystemMode = calculatePercent(
-					s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
-				cs.UserMode = calculatePercent(
-					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
-				cs.TotalTicks = (cs.Percent / 100) * stats.TotalTicksAvailable() / float64(numCores)
-
-				h.resourceUsageLock.Lock()
-				h.resourceUsage = &drivers.TaskResourceUsage{
-					ResourceUsage: &drivers.ResourceUsage{
-						MemoryStats: ms,
-						CpuStats:    cs,
-					},
-					Timestamp: s.Read.UTC().UnixNano(),
-				}
-				h.resourceUsageLock.Unlock()
-			}
-		case <-h.doneCh:
-			return
-		}
-	}
-}
-
-func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int) float64 {
-	numerator := newSample - oldSample
-	denom := newTotal - oldTotal
-	if numerator <= 0 || denom <= 0 {
-		return 0.0
-	}
-
-	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }

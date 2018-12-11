@@ -3,11 +3,14 @@ package drivers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
+	hclog "github.com/hashicorp/go-hclog"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
@@ -24,6 +27,7 @@ type driverPluginClient struct {
 	*base.BasePluginClient
 
 	client proto.DriverClient
+	logger hclog.Logger
 
 	// doneCtx is closed when the plugin exits
 	doneCtx context.Context
@@ -252,20 +256,65 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 }
 
 // TaskStats returns resource usage statistics for the task
-func (d *driverPluginClient) TaskStats(taskID string) (*TaskResourceUsage, error) {
-	req := &proto.TaskStatsRequest{TaskId: taskID}
-
-	resp, err := d.client.TaskStats(d.doneCtx, req)
-	if err != nil {
-		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
+func (d *driverPluginClient) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	req := &proto.TaskStatsRequest{
+		TaskId:   taskID,
+		Interval: int64(interval),
 	}
-
-	stats, err := TaskStatsFromProto(resp.Stats)
+	ctx, _ = joincontext.Join(ctx, d.doneCtx)
+	stream, err := d.client.TaskStats(ctx, req)
 	if err != nil {
+		st := status.Convert(err)
+		if len(st.Details()) > 0 {
+			if rec, ok := st.Details()[0].(*sproto.RecoverableError); ok {
+				return nil, structs.NewRecoverableError(err, rec.Recoverable)
+			}
+		}
 		return nil, err
 	}
 
-	return stats, nil
+	ch := make(chan *cstructs.TaskResourceUsage, 1)
+	d.handleStats(ctx, ch, stream)
+
+	return ch, nil
+}
+
+func (d *driverPluginClient) handleStats(ctx context.Context, ch chan<- *cstructs.TaskResourceUsage, stream proto.Driver_TaskStatsClient) {
+	defer close(ch)
+	for {
+		resp, err := stream.Recv()
+		if err != nil {
+			if err != io.EOF {
+				d.logger.Error("error receiving stream from TaskStats driver RPC", "error", err)
+				truErr := &cstructs.TaskResourceUsage{
+					Err: grpcutils.HandleReqCtxGrpcErr(err, ctx, d.doneCtx),
+				}
+				select {
+				case ch <- truErr:
+				case <-ctx.Done():
+				}
+			}
+
+			// End of stream
+			return
+		}
+
+		stats, err := TaskStatsFromProto(resp.Stats)
+		if err != nil {
+			truErr := &cstructs.TaskResourceUsage{
+				Err: fmt.Errorf("failed to decode stats from RPC: %v", err),
+			}
+			select {
+			case ch <- truErr:
+			case <-ctx.Done():
+			}
+		}
+
+		select {
+		case ch <- stats:
+		case <-ctx.Done():
+		}
+	}
 }
 
 // TaskEvents returns a channel that will receive events from the driver about all

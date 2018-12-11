@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -167,14 +168,20 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			require.NoError(err)
 
 			go func() {
-				time.Sleep(2 * time.Second)
-				_, err := executor.Stats()
-				require.NoError(err)
-				//require.NotEmpty(ru.Pids)
+				// Give process time to start
+				time.Sleep(time.Second)
+				ch, err := executor.Stats(context.Background(), time.Second)
+				assert.NoError(t, err)
+				select {
+				case <-time.After(time.Second):
+					assert.Fail(t, "stats failed to send on interval")
+				case ru := <-ch:
+					assert.NotEmpty(t, ru.Pids)
+				}
 				proc, err := os.FindProcess(ps.Pid)
-				require.NoError(err)
+				assert.NoError(t, err)
 				err = proc.Signal(syscall.SIGKILL)
-				require.NoError(err)
+				assert.NoError(t, err)
 			}()
 
 			ps, err = executor.Wait(context.Background())

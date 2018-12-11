@@ -861,12 +861,19 @@ func TestRktDriver_Stats(t *testing.T) {
 	// Wait until task started
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	resourceUsage, err := d.TaskStats(task.ID)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	statsCh, err := d.TaskStats(ctx, task.ID, time.Second*10)
 	require.Nil(err)
 
-	//TODO(preetha) why are these zero
-	fmt.Printf("pid map %v\n", resourceUsage.Pids)
-	fmt.Printf("CPU:%+v Memory:%+v", resourceUsage.ResourceUsage.CpuStats, resourceUsage.ResourceUsage.MemoryStats)
+	select {
+	case ru := <-statsCh:
+		//TODO(preetha) why are these zero
+		fmt.Printf("pid map %v\n", ru.Pids)
+		fmt.Printf("CPU:%+v Memory:%+v", ru.ResourceUsage.CpuStats, ru.ResourceUsage.MemoryStats)
+	case <-time.After(time.Second):
+		require.Fail("timeout receiving stats from channel")
+	}
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 

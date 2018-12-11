@@ -3,6 +3,7 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	plugin "github.com/hashicorp/go-plugin"
@@ -221,22 +222,36 @@ func (b *driverPluginServer) InspectTask(ctx context.Context, req *proto.Inspect
 	return resp, nil
 }
 
-func (b *driverPluginServer) TaskStats(ctx context.Context, req *proto.TaskStatsRequest) (*proto.TaskStatsResponse, error) {
-	stats, err := b.impl.TaskStats(req.TaskId)
+func (b *driverPluginServer) TaskStats(req *proto.TaskStatsRequest, srv proto.Driver_TaskStatsServer) error {
+	ch, err := b.impl.TaskStats(srv.Context(), req.TaskId, time.Duration(req.Interval))
 	if err != nil {
-		return nil, err
+		if rec, ok := err.(structs.Recoverable); ok {
+			st := status.New(codes.FailedPrecondition, rec.Error())
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			if err != nil {
+				// If this error, it will always error
+				panic(err)
+			}
+			return st.Err()
+		}
+		return err
 	}
 
-	pb, err := TaskStatsToProto(stats)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode task stats: %v", err)
+	for stats := range ch {
+		pb, err := TaskStatsToProto(stats)
+		if err != nil {
+			return fmt.Errorf("failed to encode task stats: %v", err)
+		}
+
+		if err = srv.Send(&proto.TaskStatsResponse{Stats: pb}); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
 	}
 
-	resp := &proto.TaskStatsResponse{
-		Stats: pb,
-	}
-
-	return resp, nil
+	return nil
 }
 
 func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRequest) (*proto.ExecTaskResponse, error) {

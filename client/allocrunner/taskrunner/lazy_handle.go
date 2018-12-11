@@ -128,7 +128,7 @@ TRY:
 	return out, c, err
 }
 
-func (l *LazyHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+func (l *LazyHandle) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
 	h, err := l.getHandle()
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (l *LazyHandle) Stats() (*cstructs.TaskResourceUsage, error) {
 	first := true
 
 TRY:
-	out, err := h.Stats()
+	out, err := h.Stats(ctx, interval)
 	if err == bstructs.ErrPluginShutdown && first {
 		first = false
 

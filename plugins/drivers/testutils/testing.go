@@ -198,7 +198,7 @@ type MockDriver struct {
 	StopTaskF         func(string, time.Duration, string) error
 	DestroyTaskF      func(string, bool) error
 	InspectTaskF      func(string) (*drivers.TaskStatus, error)
-	TaskStatsF        func(string) (*drivers.TaskResourceUsage, error)
+	TaskStatsF        func(context.Context, string, time.Duration) (<-chan *drivers.TaskResourceUsage, error)
 	TaskEventsF       func(context.Context) (<-chan *drivers.TaskEvent, error)
 	SignalTaskF       func(string, string) error
 	ExecTaskF         func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
@@ -225,8 +225,8 @@ func (d *MockDriver) DestroyTask(taskID string, force bool) error {
 func (d *MockDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return d.InspectTaskF(taskID)
 }
-func (d *MockDriver) TaskStats(taskID string) (*drivers.TaskResourceUsage, error) {
-	return d.TaskStats(taskID)
+func (d *MockDriver) TaskStats(ctx context.Context, taskID string, i time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
+	return d.TaskStats(ctx, taskID, i)
 }
 func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.TaskEventsF(ctx)
