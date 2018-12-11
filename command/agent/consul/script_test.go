@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,20 +24,34 @@ func TestMain(m *testing.M) {
 // blockingScriptExec implements ScriptExec by running a subcommand that never
 // exits.
 type blockingScriptExec struct {
+	// pctx is canceled *only* for test cleanup. Just like real
+	// ScriptExecutors its Exec method cannot be canceled directly -- only
+	// with a timeout.
+	pctx context.Context
+
 	// running is ticked before blocking to allow synchronizing operations
 	running chan struct{}
 
-	// set to true if Exec is called and has exited
-	exited bool
+	// set to 1 with atomics if Exec is called and has exited
+	exited int32
 }
 
-func newBlockingScriptExec() *blockingScriptExec {
-	return &blockingScriptExec{running: make(chan struct{})}
+// newBlockingScriptExec returns a ScriptExecutor that blocks Exec() until the
+// caller recvs on the b.running chan. It also returns a CancelFunc for test
+// cleanup only. The runtime cannot cancel ScriptExecutors before their timeout
+// expires.
+func newBlockingScriptExec() (*blockingScriptExec, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+	exec := &blockingScriptExec{
+		pctx:    ctx,
+		running: make(chan struct{}),
+	}
+	return exec, cancel
 }
 
 func (b *blockingScriptExec) Exec(dur time.Duration, _ string, _ []string) ([]byte, int, error) {
 	b.running <- struct{}{}
-	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	ctx, cancel := context.WithTimeout(b.pctx, dur)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, testtask.Path(), "sleep", "9000h")
 	testtask.SetCmdEnv(cmd)
@@ -47,23 +62,20 @@ func (b *blockingScriptExec) Exec(dur time.Duration, _ string, _ []string) ([]by
 			code = 1
 		}
 	}
-	b.exited = true
+	atomic.StoreInt32(&b.exited, 1)
 	return []byte{}, code, err
 }
 
 // TestConsulScript_Exec_Cancel asserts cancelling a script check shortcircuits
 // any running scripts.
 func TestConsulScript_Exec_Cancel(t *testing.T) {
-	// FIXME: This test is failing now as check process cancellation
-	// doesn't get propogated to the script check causing timeouts
-	t.Skip("FIXME: unexpected failing test")
-
 	serviceCheck := structs.ServiceCheck{
 		Name:     "sleeper",
 		Interval: time.Hour,
 		Timeout:  time.Hour,
 	}
-	exec := newBlockingScriptExec()
+	exec, cancel := newBlockingScriptExec()
+	defer cancel()
 
 	// pass nil for heartbeater as it shouldn't be called
 	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, nil, testlog.HCLogger(t), nil)
@@ -80,8 +92,11 @@ func TestConsulScript_Exec_Cancel(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timed out waiting for script check to exit")
 	}
-	if !exec.exited {
-		t.Errorf("expected script executor to run and exit but it has not")
+
+	// The underlying ScriptExecutor (newBlockScriptExec) *cannot* be
+	// canceled. Only a wrapper around it obeys the context cancelation.
+	if atomic.LoadInt32(&exec.exited) == 1 {
+		t.Errorf("expected script executor to still be running after timeout")
 	}
 }
 
@@ -106,16 +121,19 @@ func newFakeHeartbeater() *fakeHeartbeater {
 	return &fakeHeartbeater{updates: make(chan execStatus)}
 }
 
-// TestConsulScript_Exec_Timeout asserts a script will be killed when the
+// TestConsulScript_Exec_TimeoutBasic asserts a script will be killed when the
 // timeout is reached.
-func TestConsulScript_Exec_Timeout(t *testing.T) {
-	t.Parallel() // run the slow tests in parallel
+func TestConsulScript_Exec_TimeoutBasic(t *testing.T) {
+	t.Parallel()
+
 	serviceCheck := structs.ServiceCheck{
 		Name:     "sleeper",
 		Interval: time.Hour,
 		Timeout:  time.Second,
 	}
-	exec := newBlockingScriptExec()
+
+	exec, cancel := newBlockingScriptExec()
+	defer cancel()
 
 	hb := newFakeHeartbeater()
 	check := newScriptCheck("allocid", "testtask", "checkid", &serviceCheck, exec, hb, testlog.HCLogger(t), nil)
@@ -132,8 +150,11 @@ func TestConsulScript_Exec_Timeout(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatalf("timed out waiting for script check to exit")
 	}
-	if !exec.exited {
-		t.Errorf("expected script executor to run and exit but it has not")
+
+	// The underlying ScriptExecutor (newBlockScriptExec) *cannot* be
+	// canceled. Only a wrapper around it obeys the context cancelation.
+	if atomic.LoadInt32(&exec.exited) == 1 {
+		t.Errorf("expected script executor to still be running after timeout")
 	}
 
 	// Cancel and watch for exit
@@ -160,11 +181,8 @@ func (sleeperExec) Exec(time.Duration, string, []string) ([]byte, int, error) {
 // the timeout is reached and always set a critical status regardless of what
 // Exec returns.
 func TestConsulScript_Exec_TimeoutCritical(t *testing.T) {
-	// FIXME: This test is failing now because we no longer mark critical
-	// if check succeeded
-	t.Skip("FIXME: unexpected failing test")
+	t.Parallel()
 
-	t.Parallel() // run the slow tests in parallel
 	serviceCheck := structs.ServiceCheck{
 		Name:     "sleeper",
 		Interval: time.Hour,
