@@ -30,6 +30,8 @@ export default create({
     chartClass: attribute('class', '[data-test-percentage-chart] progress'),
   }),
 
+  resourceEmptyMessage: text('[data-test-resource-error-headline]'),
+
   hasAddresses: isPresent('[data-test-task-addresses]'),
   addresses: collection('[data-test-task-address]', {
     name: text('[data-test-task-address-name]'),

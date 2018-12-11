@@ -271,3 +271,22 @@ test('breadcrumbs match jobs / job / task group / allocation / task', function(a
     );
   });
 });
+
+moduleForAcceptance('Acceptance | task detail (not running)', {
+  beforeEach() {
+    server.create('agent');
+    server.create('node');
+    server.create('namespace');
+    server.create('namespace', { id: 'other-namespace' });
+    server.create('job', { createAllocations: false, namespaceId: 'other-namespace' });
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'complete' });
+    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+
+    Task.visit({ id: allocation.id, name: task.name });
+  },
+});
+
+test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', function(assert) {
+  assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
+  assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
+});

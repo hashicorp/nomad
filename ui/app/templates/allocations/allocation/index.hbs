@@ -32,8 +32,8 @@
           </div>
         </div>
       {{else}}
-        <div class="empty-message">
-          <h3 class="empty-message-headline">Allocation isn't running</h3>
+        <div data-test-resource-error class="empty-message">
+          <h3 data-test-resource-error-headline class="empty-message-headline">Allocation isn't running</h3>
           <p class="empty-message-body">Only running allocations utilize resources.</p>
         </div>
       {{/if}}

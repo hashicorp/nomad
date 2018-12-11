@@ -191,3 +191,24 @@ moduleForAcceptance('Acceptance | allocation detail (rescheduled)', {
 test('when the allocation has been rescheduled, the reschedule events section is rendered', function(assert) {
   assert.ok(Allocation.hasRescheduleEvents, 'Reschedule Events section exists');
 });
+
+moduleForAcceptance('Acceptance | allocation detail (not running)', {
+  beforeEach() {
+    server.create('agent');
+
+    node = server.create('node');
+    job = server.create('job', { createAllocations: false });
+    allocation = server.create('allocation', { clientStatus: 'pending' });
+
+    Allocation.visit({ id: allocation.id });
+  },
+});
+
+test('when the allocation is not running, the utilization graphs are replaced by an empty message', function(assert) {
+  assert.equal(Allocation.resourceCharts.length, 0, 'No resource charts');
+  assert.equal(
+    Allocation.resourceEmptyMessage,
+    "Allocation isn't running",
+    'Empty message is appropriate'
+  );
+});
