@@ -212,8 +212,8 @@ func expandPath(base, dir string) string {
 	return filepath.Clean(filepath.Join(base, dir))
 }
 
-// isParentPath returns true if path is a child or decendant of parent path.
-// Both inputes need to be absolute paths.
+// isParentPath returns true if path is a child or a descendant of parent path.
+// Both inputs need to be absolute paths.
 func isParentPath(parent, path string) bool {
 	rel, err := filepath.Rel(parent, path)
 	return err == nil && !strings.HasPrefix(rel, "..")
