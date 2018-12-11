@@ -443,7 +443,6 @@ $ curl \
             "CPU": 500,
             "MemoryMB": 256,
             "DiskMB": 0,
-            "IOPS": 0,
             "Networks": [
               {
                 "Device": "",
@@ -647,7 +646,6 @@ $ curl \
               "CPU": 500,
               "MemoryMB": 256,
               "DiskMB": 0,
-              "IOPS": 0,
               "Networks": [
                 {
                   "Device": "",

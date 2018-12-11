@@ -100,7 +100,6 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 		r.NomadResources = &structs.Resources{
 			CPU:      int(pb.RawResources.Cpu),
 			MemoryMB: int(pb.RawResources.Memory),
-			IOPS:     int(pb.RawResources.Iops),
 			DiskMB:   int(pb.RawResources.Disk),
 		}
 
@@ -151,7 +150,6 @@ func resourcesToProto(r *Resources) *proto.Resources {
 		pb.RawResources = &proto.RawResources{
 			Cpu:      int64(r.NomadResources.CPU),
 			Memory:   int64(r.NomadResources.MemoryMB),
-			Iops:     int64(r.NomadResources.IOPS),
 			Disk:     int64(r.NomadResources.DiskMB),
 			Networks: make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
 		}

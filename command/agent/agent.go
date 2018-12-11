@@ -485,7 +485,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	r.CPU = agentConfig.Client.Reserved.CPU
 	r.MemoryMB = agentConfig.Client.Reserved.MemoryMB
 	r.DiskMB = agentConfig.Client.Reserved.DiskMB
-	r.IOPS = agentConfig.Client.Reserved.IOPS
 
 	res := conf.Node.ReservedResources
 	if res == nil {

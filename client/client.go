@@ -1244,9 +1244,6 @@ func resourcesAreEqual(first, second *structs.Resources) bool {
 	if first.DiskMB != second.DiskMB {
 		return false
 	}
-	if first.IOPS != second.IOPS {
-		return false
-	}
 	if len(first.Networks) != len(second.Networks) {
 		return false
 	}

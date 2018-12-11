@@ -512,8 +512,6 @@ The `Resources` object supports the following keys:
 
 - `CPU` - The CPU required in MHz.
 
-- `IOPS` - The number of IOPS required given as a weight between 10-1000.
-
 - `MemoryMB` - The memory required in MB.
 
 - `Networks` - A list of network objects.

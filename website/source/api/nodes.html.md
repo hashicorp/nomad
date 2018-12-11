@@ -274,14 +274,12 @@ $ curl \
   "Reserved": {
     "CPU": 0,
     "DiskMB": 0,
-    "IOPS": 0,
     "MemoryMB": 0,
     "Networks": null
   },
   "Resources": {
     "CPU": 2200,
     "DiskMB": 25392,
-    "IOPS": 0,
     "MemoryMB": 3704,
     "Networks": [
       {
@@ -443,7 +441,6 @@ $ curl \
               "Resources": {
                 "CPU": 100,
                 "DiskMB": 0,
-                "IOPS": 0,
                 "MemoryMB": 300,
                 "Networks": [
                   {
@@ -541,7 +538,6 @@ $ curl \
     "Resources": {
       "CPU": 100,
       "DiskMB": 300,
-      "IOPS": 0,
       "MemoryMB": 300,
       "Networks": [
         {
@@ -562,7 +558,6 @@ $ curl \
     "SharedResources": {
       "CPU": 0,
       "DiskMB": 300,
-      "IOPS": 0,
       "MemoryMB": 0,
       "Networks": null
     },
@@ -571,7 +566,6 @@ $ curl \
       "webapp": {
         "CPU": 100,
         "DiskMB": 0,
-        "IOPS": 0,
         "MemoryMB": 300,
         "Networks": [
           {

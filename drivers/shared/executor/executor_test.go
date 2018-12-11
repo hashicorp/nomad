@@ -11,14 +11,13 @@ import (
 	"testing"
 	"time"
 
-	tu "github.com/hashicorp/nomad/testutil"
-
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,7 +53,6 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 		Resources: &Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
-			IOPS:     task.Resources.IOPS,
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}

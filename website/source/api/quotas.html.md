@@ -61,7 +61,6 @@ $ curl \
         "RegionLimit": {
           "CPU": 2500,
           "DiskMB": 0,
-          "IOPS": 0,
           "MemoryMB": 2000,
           "Networks": null
         }
@@ -115,7 +114,6 @@ $ curl \
       "RegionLimit": {
         "CPU": 2500,
         "DiskMB": 0,
-        "IOPS": 0,
         "MemoryMB": 2000,
         "Networks": null
       }
@@ -256,7 +254,6 @@ $ curl \
           "CPU": 500,
           "MemoryMB": 256,
           "DiskMB": 0,
-          "IOPS": 0,
           "Networks": null
         },
         "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU="
@@ -308,7 +305,6 @@ $ curl \
         "CPU": 500,
         "MemoryMB": 256,
         "DiskMB": 0,
-        "IOPS": 0,
         "Networks": null
       },
       "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU="

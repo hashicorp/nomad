@@ -67,7 +67,6 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 		Resources: &Resources{
 			CPU:      task.Resources.CPU,
 			MemoryMB: task.Resources.MemoryMB,
-			IOPS:     task.Resources.IOPS,
 			DiskMB:   task.Resources.DiskMB,
 		},
 	}

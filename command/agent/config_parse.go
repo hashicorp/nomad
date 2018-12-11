@@ -493,7 +493,6 @@ func parseReserved(result **Resources, list *ast.ObjectList) error {
 		"cpu",
 		"memory",
 		"disk",
-		"iops",
 		"reserved_ports",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
