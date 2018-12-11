@@ -1156,7 +1156,6 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 	if !hadDriver {
 		// If the driver info has not yet been set, do that here
 		hasChanged = true
-		c.config.Node.Drivers[name] = info
 		for attrName, newVal := range info.Attributes {
 			c.config.Node.Attributes[attrName] = newVal
 		}
@@ -1165,11 +1164,11 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 		// The driver info has already been set, fix it up
 		if oldVal.Detected != info.Detected {
 			hasChanged = true
-			c.config.Node.Drivers[name].Detected = info.Detected
 		}
 
 		if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
 			hasChanged = true
+
 			if info.HealthDescription != "" {
 				event := &structs.NodeEvent{
 					Subsystem: "Driver",
@@ -1188,6 +1187,7 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 			}
 
 			hasChanged = true
+
 			if newVal == "" {
 				delete(c.config.Node.Attributes, attrName)
 			} else {
@@ -1207,6 +1207,7 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 	}
 
 	if hasChanged {
+		c.config.Node.Drivers[name] = info
 		c.config.Node.Drivers[name].UpdateTime = time.Now()
 		c.updateNodeLocked()
 	}
