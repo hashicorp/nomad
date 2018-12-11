@@ -35,3 +35,38 @@ func TestValidateCgroupPermission(t *testing.T) {
 	}
 
 }
+
+func TestExpandPath(t *testing.T) {
+	cases := []struct {
+		base     string
+		target   string
+		expected string
+	}{
+		{"/tmp/alloc/task", "/home/user", "/home/user"},
+		{"/tmp/alloc/task", "/home/user/..", "/home"},
+
+		{"/tmp/alloc/task", ".", "/tmp/alloc/task"},
+		{"/tmp/alloc/task", "..", "/tmp/alloc"},
+
+		{"/tmp/alloc/task", "d1/d2", "/tmp/alloc/task/d1/d2"},
+		{"/tmp/alloc/task", "../d1/d2", "/tmp/alloc/d1/d2"},
+		{"/tmp/alloc/task", "../../d1/d2", "/tmp/d1/d2"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.expected, func(t *testing.T) {
+			require.Equal(t, c.expected, expandPath(c.base, c.target))
+		})
+	}
+}
+
+func TestIsParentPath(t *testing.T) {
+	require.True(t, isParentPath("/a/b/c", "/a/b/c"))
+	require.True(t, isParentPath("/a/b/c", "/a/b/c/d"))
+	require.True(t, isParentPath("/a/b/c", "/a/b/c/d/e"))
+
+	require.False(t, isParentPath("/a/b/c", "/a/b/d"))
+	require.False(t, isParentPath("/a/b/c", "/a/b/cd"))
+	require.False(t, isParentPath("/a/b/c", "/a/d/c"))
+	require.False(t, isParentPath("/a/b/c", "/d/e/c"))
+}

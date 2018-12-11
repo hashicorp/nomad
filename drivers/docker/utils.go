@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/cli/cli/config/configfile"
@@ -199,4 +200,21 @@ func validateCgroupPermission(s string) bool {
 	}
 
 	return true
+}
+
+// expandPath returns the absolute path of dir, relative to base if dir is relative path.
+// base is expected to be an absolute path
+func expandPath(base, dir string) string {
+	if filepath.IsAbs(dir) {
+		return filepath.Clean(dir)
+	}
+
+	return filepath.Clean(filepath.Join(base, dir))
+}
+
+// isParentPath returns true if path is a child or decendant of parent path.
+// Both inputes need to be absolute paths.
+func isParentPath(parent, path string) bool {
+	rel, err := filepath.Rel(parent, path)
+	return err == nil && !strings.HasPrefix(rel, "..")
 }
