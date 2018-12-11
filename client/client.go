@@ -861,6 +861,7 @@ func (c *Client) restoreState() error {
 		//    we need the local AllocRunners initialized first. We could
 		//    add a second loop to initialize just the alloc watcher.
 		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
+		prevAllocMigrator := allocwatcher.NoopPrevAlloc{}
 
 		c.configLock.RLock()
 		arConf := &allocrunner.Config{
@@ -873,6 +874,7 @@ func (c *Client) restoreState() error {
 			Consul:                c.consulService,
 			Vault:                 c.vaultClient,
 			PrevAllocWatcher:      prevAllocWatcher,
+			PrevAllocMigrator:     prevAllocMigrator,
 			PluginLoader:          c.config.PluginLoader,
 			PluginSingletonLoader: c.config.PluginSingletonLoader,
 			DeviceManager:         c.devicemanager,
