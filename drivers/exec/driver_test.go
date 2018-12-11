@@ -466,8 +466,9 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		if line == "" {
 			continue
 		}
-		// Skip systemd cgroup
-		if strings.HasPrefix(line, "1:name=systemd") {
+		// Skip systemd and rdma cgroups; rdma was added in most recent kernels and libcontainer/docker
+		// don't isolate them by default.
+		if strings.HasPrefix(line, "1:name=systemd") || strings.Contains(line, ":rdma:") {
 			continue
 		}
 		if !strings.Contains(line, ":/nomad/") {
