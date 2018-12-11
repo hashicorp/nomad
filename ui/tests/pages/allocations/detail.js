@@ -28,6 +28,8 @@ export default create({
     chartClass: attribute('class', '[data-test-percentage-chart] progress'),
   }),
 
+  resourceEmptyMessage: text('[data-test-resource-error-headline]'),
+
   tasks: collection('[data-test-task-row]', {
     name: text('[data-test-name]'),
     state: text('[data-test-state]'),
