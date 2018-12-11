@@ -49,7 +49,7 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func()) {
 		t.Fatalf("err: %v", err)
 	}
 	return client, func() {
-		ch := make(chan error, 1)
+		ch := make(chan error)
 
 		go func() {
 			defer close(ch)
