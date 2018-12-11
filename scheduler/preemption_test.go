@@ -163,7 +163,7 @@ func TestPreemption(t *testing.T) {
 	lowPrioJob2.Priority = 40
 
 	// Create some persistent alloc ids to use in test cases
-	allocIDs := []string{uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate()}
+	allocIDs := []string{uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate()}
 
 	var deviceIDs []string
 	for i := 0; i < 10; i++ {
@@ -242,6 +242,10 @@ func TestPreemption(t *testing.T) {
 					},
 					{
 						ID:      deviceIDs[7],
+						Healthy: true,
+					},
+					{
+						ID:      deviceIDs[8],
 						Healthy: true,
 					},
 				},
@@ -1076,7 +1080,7 @@ func TestPreemption(t *testing.T) {
 			// This test cases creates allocations across two GPUs
 			// Both GPUs are eligible for the task, but only allocs with the lower
 			// priority are chosen
-			desc: "Preemption with allocs across multiple devices that match",
+			desc: "Preemption with lower/higher priority combinations",
 			currentAllocations: []*structs.Allocation{
 				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      500,
@@ -1119,6 +1123,16 @@ func TestPreemption(t *testing.T) {
 					DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
 				}),
 				createAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
+					CPU:      100,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[8]},
+				}),
+				createAllocWithDevice(allocIDs[5], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,

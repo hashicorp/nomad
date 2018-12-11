@@ -498,8 +498,9 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 	neededCount := ask.Count
 
-	var preemptionOptions [][]*structs.Allocation
+	var preemptionOptions []*deviceGroupAllocs
 	// Examine matching allocs by device
+OUTER:
 	for deviceIDTuple, allocsGrp := range deviceToAllocs {
 		// First group and sort allocations using this device by priority
 		allocsByPriority := filterAndGroupPreemptibleAllocs(p.jobPriority, allocsGrp.allocs)
@@ -521,7 +522,11 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 				// Check if we met needed count
 				if preemptedCount+devInst.FreeCount() >= int(neededCount) {
-					preemptionOptions = append(preemptionOptions, preemptedAllocs)
+					preemptionOptions = append(preemptionOptions, &deviceGroupAllocs{
+						allocs:          preemptedAllocs,
+						deviceInstances: allocsGrp.deviceInstances,
+					})
+					continue OUTER
 				}
 			}
 		}
@@ -529,7 +534,7 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 	// Find the combination of allocs with lowest net priority
 	if len(preemptionOptions) > 0 {
-		return selectBestAllocs(preemptionOptions)
+		return selectBestAllocs(preemptionOptions, int(neededCount))
 	}
 
 	return nil
@@ -537,18 +542,39 @@ func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *dev
 
 // selectBestAllocs finds the best allocations based on minimal net priority amongst
 // all options. The net priority is the sum of unique priorities in each option
-func selectBestAllocs(allocSets [][]*structs.Allocation) []*structs.Allocation {
-	if len(allocSets) == 1 {
-		return allocSets[0]
-	}
+func selectBestAllocs(preemptionOptions []*deviceGroupAllocs, neededCount int) []*structs.Allocation {
 	bestPriority := math.MaxInt32
 	var bestAllocs []*structs.Allocation
 
-	for _, allocs := range allocSets {
-		// Find unique priorities and add them
+	// We iterate over allocations in priority order, so its possible
+	// that we have more allocations than needed to meet the needed count.
+	// e.g we need 4 instances, and we get 3 from a priority 10 alloc, and 4 from
+	// a priority 20 alloc. We should filter out the priority 10 alloc in that case.
+	// This loop does a filter and chooses the set with the smallest net priority
+	for _, allocGrp := range preemptionOptions {
+		// Find unique priorities and add them to calculate net priority
 		priorities := map[int]struct{}{}
 		netPriority := 0
-		for _, alloc := range allocs {
+
+		devInst := allocGrp.deviceInstances
+		var filteredAllocs []*structs.Allocation
+
+		// Sort by number of device instances used, descending
+		sort.Slice(allocGrp.allocs, func(i, j int) bool {
+			instanceCount1 := devInst[allocGrp.allocs[i].ID]
+			instanceCount2 := devInst[allocGrp.allocs[j].ID]
+			return instanceCount1 > instanceCount2
+		})
+
+		// Filter and calculate net priority
+		preemptedInstanceCount := 0
+		for _, alloc := range allocGrp.allocs {
+			if preemptedInstanceCount >= neededCount {
+				break
+			}
+			instanceCount := devInst[alloc.ID]
+			preemptedInstanceCount += instanceCount
+			filteredAllocs = append(filteredAllocs, alloc)
 			_, ok := priorities[alloc.Job.Priority]
 			if !ok {
 				priorities[alloc.Job.Priority] = struct{}{}
@@ -557,9 +583,8 @@ func selectBestAllocs(allocSets [][]*structs.Allocation) []*structs.Allocation {
 		}
 		if netPriority < bestPriority {
 			bestPriority = netPriority
-			bestAllocs = allocs
+			bestAllocs = filteredAllocs
 		}
-
 	}
 	return bestAllocs
 }
