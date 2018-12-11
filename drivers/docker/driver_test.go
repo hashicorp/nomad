@@ -1149,7 +1149,6 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	require.Equal(t, "org/repo:0.1", c.Config.Image)
 	require.EqualValues(t, opt, c.HostConfig.StorageOpt)
 }
-
 func TestDockerDriver_Capabilities(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
@@ -1638,6 +1637,143 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 
 }
 
+func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
+	t.Parallel()
+
+	allocDir := "/tmp/nomad/alloc-dir"
+
+	cases := []struct {
+		name            string
+		requiresVolumes bool
+
+		volumeDriver string
+		volumes      []string
+
+		expectedVolumes []string
+	}{
+		{
+			name:            "basic plugin",
+			requiresVolumes: true,
+			volumeDriver:    "nfs",
+			volumes:         []string{"test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "absolute default driver",
+			requiresVolumes: true,
+			volumeDriver:    "",
+			volumes:         []string{"/abs/test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/abs/test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "absolute local driver",
+			requiresVolumes: true,
+			volumeDriver:    "local",
+			volumes:         []string{"/abs/test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/abs/test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "relative default driver",
+			requiresVolumes: false,
+			volumeDriver:    "",
+			volumes:         []string{"test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/tmp/nomad/alloc-dir/demo/test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "relative local driver",
+			requiresVolumes: false,
+			volumeDriver:    "local",
+			volumes:         []string{"test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/tmp/nomad/alloc-dir/demo/test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "relative outside task-dir default driver",
+			requiresVolumes: false,
+			volumeDriver:    "",
+			volumes:         []string{"../test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/tmp/nomad/alloc-dir/test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "relative outside task-dir local driver",
+			requiresVolumes: false,
+			volumeDriver:    "local",
+			volumes:         []string{"../test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/tmp/nomad/alloc-dir/test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "relative outside alloc-dir default driver",
+			requiresVolumes: true,
+			volumeDriver:    "",
+			volumes:         []string{"../../test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/tmp/nomad/test-path:/tmp/taskpath"},
+		},
+		{
+			name:            "relative outside task-dir local driver",
+			requiresVolumes: true,
+			volumeDriver:    "local",
+			volumes:         []string{"../../test-path:/tmp/taskpath"},
+			expectedVolumes: []string{"/tmp/nomad/test-path:/tmp/taskpath"},
+		},
+	}
+
+	t.Run("with volumes enabled", func(t *testing.T) {
+		dh := dockerDriverHarness(t, nil)
+		driver := dh.Impl().(*Driver)
+		driver.config.Volumes.Enabled = true
+
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				task, cfg, _ := dockerTask(t)
+				cfg.VolumeDriver = c.volumeDriver
+				cfg.Volumes = c.volumes
+
+				task.AllocDir = allocDir
+				task.Name = "demo"
+
+				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+				require.NoError(t, err)
+
+				for _, v := range c.expectedVolumes {
+					require.Contains(t, cc.HostConfig.Binds, v)
+				}
+			})
+		}
+	})
+
+	t.Run("with volumes disabled", func(t *testing.T) {
+		dh := dockerDriverHarness(t, nil)
+		driver := dh.Impl().(*Driver)
+		driver.config.Volumes.Enabled = false
+
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				task, cfg, _ := dockerTask(t)
+				cfg.VolumeDriver = c.volumeDriver
+				cfg.Volumes = c.volumes
+
+				task.AllocDir = allocDir
+				task.Name = "demo"
+
+				require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+				cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+				if c.requiresVolumes {
+					require.Error(t, err, "volumes are not enabled")
+				} else {
+					require.NoError(t, err)
+
+					for _, v := range c.expectedVolumes {
+						require.Contains(t, cc.HostConfig.Binds, v)
+					}
+				}
+			})
+		}
+	})
+
+}
+
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
@@ -1810,13 +1946,8 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 			},
 		},
 		{
-
-			// FIXME: This needs to be true but we have a bug with security implications.
-			// The relative paths check should restrict access to alloc-dir  subtree
-			// documenting existing behavior in test here and need to follow up in another commit
-			requiresVolumes: false,
-
-			name: "bind relative outside",
+			name:            "bind relative outside",
+			requiresVolumes: true,
 			passedMounts: []DockerMount{
 				{
 					Type:   "bind",
