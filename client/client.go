@@ -1996,9 +1996,9 @@ func (c *Client) removeAlloc(allocID string) {
 
 // updateAlloc is invoked when we should update an allocation
 func (c *Client) updateAlloc(update *structs.Allocation) {
-	c.allocLock.Lock()
-	defer c.allocLock.Unlock()
+	c.allocLock.RLock()
 	ar, ok := c.allocs[update.ID]
+	c.allocLock.RUnlock()
 	if !ok {
 		c.logger.Warn("cannot update nonexistent alloc", "alloc_id", update.ID)
 		return
