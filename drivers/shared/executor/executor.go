@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 const (
@@ -120,6 +121,12 @@ type ExecCommand struct {
 	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
 	// Using the cgroup does allow more precise cleanup of processes.
 	BasicProcessCgroup bool
+
+	// Mounts are the host paths to be be made available inside rootfs
+	Mounts []*drivers.MountConfig
+
+	// Devices are the the device nodes to be created in isolation environment
+	Devices []*drivers.DeviceConfig
 }
 
 type nopCloser struct {
