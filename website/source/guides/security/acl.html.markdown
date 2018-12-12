@@ -253,6 +253,36 @@ namespace "default" {
 }
 ```
 
+Namespaces definitions may also include globs, allowing a single policy definition to apply to a set of namespaces. For example, the below policy allows read access to most production namespaces, but allows write access to the "production-api" namespace, and rejects any access to the "production-web" namespace.
+
+```
+namespace "production-*" {
+    policy = "read"
+}
+
+namespace "production-api" {
+    policy = "write"
+}
+
+namespace "production-web" {
+    policy = "deny"
+}
+```
+
+Namespaces are matched to their policies first by performing a lookup on any _exact match_, before falling back to performing a glob based lookup. When looking up namespaces by glob, the matching policy with the greatest number of matched characters will be chosen. For example:
+
+```
+namespace "*-web" {
+    policy = "deny"
+}
+
+namespace "*" {
+    policy = "write"
+}
+```
+
+Will evaluate to deny for `production-web`, because it is 9 characters different from the `"*-web"` rule, but 13 characters different from the `"*"` rule.
+
 ### Node Rules
 
 The `node` policy controls access to the [Node API](/api/nodes.html) such as listing nodes or triggering a node drain.
