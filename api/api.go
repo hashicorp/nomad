@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	rootcerts "github.com/hashicorp/go-rootcerts"
 )
 
@@ -199,9 +199,15 @@ func (t *TLSConfig) Copy() *TLSConfig {
 
 // DefaultConfig returns a default configuration for the client
 func DefaultConfig() *Config {
+	return DefaultConfigWithClient(cleanhttp.DefaultClient())
+}
+
+// DefaultConfigWithClient uses the default configuration but with an addition
+// of being able to specify your own http client for connections.
+func DefaultConfigWithClient(client *http.Client) *Config {
 	config := &Config{
 		Address:    "http://127.0.0.1:4646",
-		httpClient: cleanhttp.DefaultClient(),
+		httpClient: client,
 		TLSConfig:  &TLSConfig{},
 	}
 	transport := config.httpClient.Transport.(*http.Transport)
