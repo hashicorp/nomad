@@ -679,6 +679,18 @@ func (c *Client) Node() *structs.Node {
 	return c.configCopy.Node
 }
 
+func (c *Client) getAllocRunner(allocID string) (AllocRunner, error) {
+	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
+
+	ar, ok := c.allocs[allocID]
+	if !ok {
+		return nil, structs.NewErrUnknownAllocation(allocID)
+	}
+
+	return ar, nil
+}
+
 // StatsReporter exposes the various APIs related resource usage of a Nomad
 // client
 func (c *Client) StatsReporter() ClientStatsReporter {
@@ -686,11 +698,9 @@ func (c *Client) StatsReporter() ClientStatsReporter {
 }
 
 func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, error) {
-	c.allocLock.RLock()
-	defer c.allocLock.RUnlock()
-	ar, ok := c.allocs[allocID]
-	if !ok {
-		return nil, structs.NewErrUnknownAllocation(allocID)
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return nil, err
 	}
 	return ar.StatsReporter(), nil
 }
@@ -769,12 +779,9 @@ func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
 func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
-	c.allocLock.RLock()
-	defer c.allocLock.RUnlock()
-
-	ar, ok := c.allocs[allocID]
-	if !ok {
-		return nil, structs.NewErrUnknownAllocation(allocID)
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return nil, err
 	}
 
 	return ar.GetAllocDir(), nil
@@ -783,11 +790,9 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 // GetAllocState returns a copy of an allocation's state on this client. It
 // returns either an AllocState or an unknown allocation error.
 func (c *Client) GetAllocState(allocID string) (*arstate.State, error) {
-	c.allocLock.RLock()
-	ar, ok := c.allocs[allocID]
-	c.allocLock.RUnlock()
-	if !ok {
-		return nil, structs.NewErrUnknownAllocation(allocID)
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return nil, err
 	}
 
 	return ar.AllocState(), nil
@@ -1574,11 +1579,9 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 		// Terminated, mark for GC if we're still tracking this alloc
 		// runner. If it's not being tracked that means the server has
 		// already GC'd it (see removeAlloc).
-		c.allocLock.RLock()
-		ar, ok := c.allocs[alloc.ID]
-		c.allocLock.RUnlock()
+		ar, err := c.getAllocRunner(alloc.ID)
 
-		if ok {
+		if err == nil {
 			c.garbageCollector.MarkForCollection(alloc.ID, ar)
 
 			// Trigger a GC in case we're over thresholds and just
@@ -1925,11 +1928,9 @@ func (c *Client) runAllocs(update *allocUpdates) {
 // removeAlloc is invoked when we should remove an allocation because it has
 // been removed by the server.
 func (c *Client) removeAlloc(allocID string) {
-	c.allocLock.Lock()
-	defer c.allocLock.Unlock()
-	ar, ok := c.allocs[allocID]
-	if !ok {
-		c.logger.Warn("cannot remove nonexistent alloc", "alloc_id", allocID)
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		c.logger.Warn("cannot remove alloc", "alloc_id", allocID, "error", err)
 		return
 	}
 
@@ -1946,10 +1947,8 @@ func (c *Client) removeAlloc(allocID string) {
 
 // updateAlloc is invoked when we should update an allocation
 func (c *Client) updateAlloc(update *structs.Allocation) {
-	c.allocLock.RLock()
-	ar, ok := c.allocs[update.ID]
-	c.allocLock.RUnlock()
-	if !ok {
+	ar, err := c.getAllocRunner(update.ID)
+	if err != nil {
 		c.logger.Warn("cannot update nonexistent alloc", "alloc_id", update.ID)
 		return
 	}
