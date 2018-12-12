@@ -49,8 +49,8 @@ const (
 
 type rpcHandler struct {
 	*Server
-	logger   log.Logger
-	gologger *golog.Logger
+	logger          log.Logger
+	gologger        *golog.Logger
 	acceptLoopDelay time.Duration
 }
 
@@ -102,7 +102,7 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			r.handleAcceptErr(err, ctx)
 			continue
 		}
-		// No error, reset delay loop
+		// No error, reset loop delay
 		r.acceptLoopDelay = 0
 
 		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
@@ -113,7 +113,7 @@ func (r *rpcHandler) listen(ctx context.Context) {
 // Sleep to avoid spamming the log, with a maximum delay according to whether or not the error is temporary
 func (r *rpcHandler) handleAcceptErr(err error, ctx context.Context) {
 	const baseAcceptLoopDelay = 5 * time.Millisecond
-	const maxAcceptLoopDelay  = 5 * time.Second
+	const maxAcceptLoopDelay = 5 * time.Second
 	const maxAcceptLoopDelayTemporaryError = 1 * time.Second
 
 	if r.acceptLoopDelay == 0 {
