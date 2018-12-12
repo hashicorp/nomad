@@ -3255,6 +3255,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "IOPS",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "MemoryMB",
 								Old:  "100",
 								New:  "100",
@@ -3573,6 +3579,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "DiskMB",
 								Old:  "100",
 								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "IOPS",
+								Old:  "0",
+								New:  "0",
 							},
 							{
 								Type: DiffTypeNone,

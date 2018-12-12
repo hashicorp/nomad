@@ -212,6 +212,18 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 			DiskMB:   10000,
 			Networks: []*NetworkResource{
 				{
+					Device: "eth0",
+					CIDR:   "10.0.0.0/8",
+					MBits:  100,
+				},
+			},
+		},
+		Reserved: &Resources{
+			CPU:      1000,
+			MemoryMB: 1024,
+			DiskMB:   5000,
+			Networks: []*NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
