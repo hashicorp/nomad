@@ -51,6 +51,7 @@ type rpcHandler struct {
 	*Server
 	logger   log.Logger
 	gologger *golog.Logger
+	acceptLoopDelay time.Duration
 }
 
 func newRpcHandler(s *Server) *rpcHandler {
@@ -84,7 +85,6 @@ type RPCContext struct {
 // listen is used to listen for incoming RPC connections
 func (r *rpcHandler) listen(ctx context.Context) {
 	defer close(r.listenerCh)
-	var tempDelay time.Duration
 	for {
 		select {
 		case <-ctx.Done():
@@ -99,27 +99,41 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			if r.shutdown {
 				return
 			}
-
-			if tempDelay == 0 {
-				tempDelay = 5 * time.Millisecond
-			} else {
-				tempDelay *= 2
-			}
-			maxDelay := 5 * time.Second
-			if ne, ok := err.(net.Error); ok && ne.Temporary() {
-				maxDelay = 1 * time.Second
-			}
-			if tempDelay > maxDelay {
-				tempDelay = maxDelay
-			}
-			r.logger.Error("failed to accept RPC conn", "error", err, "delay", tempDelay)
-			time.Sleep(tempDelay)
+			r.handleAcceptErr(err, ctx)
 			continue
 		}
-		tempDelay = 0
+		// No error, reset delay loop
+		r.acceptLoopDelay = 0
 
 		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
+	}
+}
+
+// Sleep to avoid spamming the log, with a maximum delay according to whether or not the error is temporary
+func (r *rpcHandler) handleAcceptErr(err error, ctx context.Context) {
+	const baseAcceptLoopDelay = 5 * time.Millisecond
+	const maxAcceptLoopDelay  = 5 * time.Second
+	const maxAcceptLoopDelayTemporaryError = 1 * time.Second
+
+	if r.acceptLoopDelay == 0 {
+		r.acceptLoopDelay = baseAcceptLoopDelay
+	} else {
+		r.acceptLoopDelay *= 2
+	}
+	temporaryError := false
+	if ne, ok := err.(net.Error); ok && ne.Temporary() {
+		temporaryError = true
+	}
+	if temporaryError && r.acceptLoopDelay > maxAcceptLoopDelayTemporaryError {
+		r.acceptLoopDelay = maxAcceptLoopDelayTemporaryError
+	} else if r.acceptLoopDelay > maxAcceptLoopDelay {
+		r.acceptLoopDelay = maxAcceptLoopDelay
+	}
+	r.logger.Error("failed to accept RPC conn", "error", err, "delay", r.acceptLoopDelay)
+	select {
+	case <-ctx.Done():
+	case <-time.After(maxAcceptLoopDelay):
 	}
 }
 
