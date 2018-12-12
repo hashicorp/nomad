@@ -205,9 +205,7 @@ func (a *ACL) matchingCapabilitySet(ns string) (capabilitySet, bool) {
 	}
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
-	cs, ok := a.findClosestMatchingGlob(ns)
-
-	return cs, ok
+	return a.findClosestMatchingGlob(ns)
 }
 
 type matchingGlob struct {
@@ -251,10 +249,9 @@ func (a *ACL) findAllMatchingWildcards(ns string) []matchingGlob {
 
 		isMatch := glob.Glob(k, ns)
 		if isMatch {
-			globLen := len(strings.Replace(k, glob.GLOB, "", -1))
 			pair := matchingGlob{
 				ns:            k,
-				difference:    nsLen - globLen,
+				difference:    nsLen - len(k) + strings.Count(k, glob.GLOB),
 				capabilitySet: v,
 			}
 			matches = append(matches, pair)

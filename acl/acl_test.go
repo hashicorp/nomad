@@ -288,7 +288,12 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 		},
 		{ // The closest character match wins
 			Policy: `namespace "*-api-services" { policy = "deny" }
-			         namespace "prod-api-*" { policy = "write" }`, // 5 vs 8 chars
+			         namespace "prod-api-*" { policy = "write" }`, // 4 vs 8 chars
+			Allow: false,
+		},
+		{
+			Policy: `namespace "prod-api-*" { policy = "write" }
+               namespace "*-api-services" { policy = "deny" }`, // 4 vs 8 chars
 			Allow: false,
 		},
 	}
@@ -370,6 +375,21 @@ func TestACL_matchingCapabilitySet_difference(t *testing.T) {
 			Policy:     `namespace "production-*" { policy = "write" }`,
 			NS:         "production-admin-api",
 			Difference: 9,
+		},
+		{
+			Policy:     `namespace "production-**" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 9,
+		},
+		{
+			Policy:     `namespace "*" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 20,
+		},
+		{
+			Policy:     `namespace "*admin*" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 15,
 		},
 	}
 
