@@ -133,7 +133,7 @@ func (r *rpcHandler) handleAcceptErr(err error, ctx context.Context) {
 	r.logger.Error("failed to accept RPC conn", "error", err, "delay", r.acceptLoopDelay)
 	select {
 	case <-ctx.Done():
-	case <-time.After(maxAcceptLoopDelay):
+	case <-time.After(r.acceptLoopDelay):
 	}
 }
 
