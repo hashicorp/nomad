@@ -254,11 +254,11 @@ func TestGetDeviceAttributes(t *testing.T) {
 		Name:   "Name",
 
 		Attributes: map[string]*api.Attribute{
-			"utilization": &api.Attribute{
+			"utilization": {
 				FloatVal: helper.Float64ToPtr(0.78),
 				Unit:     "%",
 			},
-			"filesystem": &api.Attribute{
+			"filesystem": {
 				StringVal: helper.StringToPtr("ext4"),
 			},
 		},
