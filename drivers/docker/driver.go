@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
 var (
@@ -69,6 +70,10 @@ type Driver struct {
 	// configuration
 	clientConfig *base.ClientDriverConfig
 
+	// taskConfigSpec is the hcl specification for the driver config section
+	// of a task within a job.  It is returned in the TaskConfigSchema RPC
+	taskConfigSpec *hclspec.Spec
+
 	// ctx is the context for the driver. It is passed to other subsystems to
 	// coordinate shutdown
 	ctx context.Context
@@ -91,7 +96,7 @@ type Driver struct {
 func NewDockerDriver(logger hclog.Logger) drivers.DriverPlugin {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger = logger.Named(pluginName)
-	return &Driver{
+	d := &Driver{
 		eventer:        eventer.NewEventer(ctx, logger),
 		config:         &DriverConfig{},
 		tasks:          newTaskStore(),
@@ -99,6 +104,8 @@ func NewDockerDriver(logger hclog.Logger) drivers.DriverPlugin {
 		signalShutdown: cancel,
 		logger:         logger,
 	}
+	d.updateTaskConfigSpec()
+	return d
 }
 
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {

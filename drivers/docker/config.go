@@ -201,91 +201,6 @@ var (
 		),
 	})
 
-	// taskConfigSpec is the hcl specification for the driver config section of
-	// a task within a job. It is returned in the TaskConfigSchema RPC
-	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"image":                  hclspec.NewAttr("image", "string", true),
-		"advertise_ipv6_address": hclspec.NewAttr("advertise_ipv6_address", "bool", false),
-		"args":                   hclspec.NewAttr("args", "list(string)", false),
-		"auth": hclspec.NewBlock("auth", false, hclspec.NewObject(map[string]*hclspec.Spec{
-			"username":       hclspec.NewAttr("username", "string", false),
-			"password":       hclspec.NewAttr("password", "string", false),
-			"email":          hclspec.NewAttr("email", "string", false),
-			"server_address": hclspec.NewAttr("server_address", "string", false),
-		})),
-		"auth_soft_fail": hclspec.NewAttr("auth_soft_fail", "bool", false),
-		"cap_add":        hclspec.NewAttr("cap_add", "list(string)", false),
-		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
-		"command":        hclspec.NewAttr("command", "string", false),
-		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
-		"cpu_cfs_period": hclspec.NewAttr("cpu_cfs_period", "number", false),
-		"devices": hclspec.NewBlockSet("devices", hclspec.NewObject(map[string]*hclspec.Spec{
-			"host_path":          hclspec.NewAttr("host_path", "string", false),
-			"container_path":     hclspec.NewAttr("container_path", "string", false),
-			"cgroup_permissions": hclspec.NewAttr("cgroup_permissions", "string", false),
-		})),
-		"dns_search_domains": hclspec.NewAttr("dns_search_domains", "list(string)", false),
-		"dns_options":        hclspec.NewAttr("dns_options", "list(string)", false),
-		"dns_servers":        hclspec.NewAttr("dns_servers", "list(string)", false),
-		"entrypoint":         hclspec.NewAttr("entrypoint", "list(string)", false),
-		"extra_hosts":        hclspec.NewAttr("extra_hosts", "list(string)", false),
-		"force_pull":         hclspec.NewAttr("force_pull", "bool", false),
-		"hostname":           hclspec.NewAttr("hostname", "string", false),
-		"interactive":        hclspec.NewAttr("interactive", "bool", false),
-		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
-		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
-		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
-		"labels":             hclspec.NewBlockAttrs("labels", "string", false),
-		"load":               hclspec.NewAttr("load", "string", false),
-		"logging": hclspec.NewBlockSet("logging", hclspec.NewObject(map[string]*hclspec.Spec{
-			"type":   hclspec.NewAttr("type", "string", false),
-			"config": hclspec.NewBlockAttrs("config", "string", false),
-		})),
-		"mac_address": hclspec.NewAttr("mac_address", "string", false),
-		"mounts": hclspec.NewBlockSet("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
-			"type": hclspec.NewDefault(
-				hclspec.NewAttr("type", "string", false),
-				hclspec.NewLiteral("\"volume\""),
-			),
-			"target":   hclspec.NewAttr("target", "string", false),
-			"source":   hclspec.NewAttr("source", "string", false),
-			"readonly": hclspec.NewAttr("readonly", "bool", false),
-			"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"propagation": hclspec.NewAttr("propagation", "string", false),
-			})),
-			"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"size": hclspec.NewAttr("size", "number", false),
-				"mode": hclspec.NewAttr("mode", "number", false),
-			})),
-			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
-				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
-				"driver_config": hclspec.NewBlockSet("driver_config", hclspec.NewObject(map[string]*hclspec.Spec{
-					"name":    hclspec.NewAttr("name", "string", false),
-					"options": hclspec.NewBlockAttrs("name", "string", false),
-				})),
-			})),
-		})),
-		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
-		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
-		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
-		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
-		"port_map":        hclspec.NewBlockAttrs("port_map", "number", false),
-		"privileged":      hclspec.NewAttr("privileged", "bool", false),
-		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
-		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
-		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
-		"storage_opt":     hclspec.NewBlockAttrs("storage_opt", "string", false),
-		"sysctl":          hclspec.NewBlockAttrs("sysctl", "string", false),
-		"tty":             hclspec.NewAttr("tty", "bool", false),
-		"ulimit":          hclspec.NewBlockAttrs("ulimit", "string", false),
-		"uts_mode":        hclspec.NewAttr("uts_mode", "string", false),
-		"userns_mode":     hclspec.NewAttr("userns_mode", "string", false),
-		"volumes":         hclspec.NewAttr("volumes", "list(string)", false),
-		"volume_driver":   hclspec.NewAttr("volume_driver", "string", false),
-		"work_dir":        hclspec.NewAttr("work_dir", "string", false),
-	})
-
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
@@ -534,9 +449,94 @@ func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 }
 
 func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
-	return taskConfigSpec, nil
+	return d.taskConfigSpec, nil
 }
 
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
+}
+
+func (d *Driver) updateTaskConfigSpec() {
+	d.taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"image":                  hclspec.NewAttr("image", "string", true),
+		"advertise_ipv6_address": hclspec.NewAttr("advertise_ipv6_address", "bool", false),
+		"args":                   hclspec.NewAttr("args", "list(string)", false),
+		"auth": hclspec.NewBlock("auth", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"username":       hclspec.NewAttr("username", "string", false),
+			"password":       hclspec.NewAttr("password", "string", false),
+			"email":          hclspec.NewAttr("email", "string", false),
+			"server_address": hclspec.NewAttr("server_address", "string", false),
+		})),
+		"auth_soft_fail": hclspec.NewAttr("auth_soft_fail", "bool", false),
+		"cap_add":        hclspec.NewAttr("cap_add", "list(string)", false),
+		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
+		"command":        hclspec.NewAttr("command", "string", false),
+		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
+		"cpu_cfs_period": hclspec.NewAttr("cpu_cfs_period", "number", false),
+		"devices": hclspec.NewBlockSet("devices", hclspec.NewObject(map[string]*hclspec.Spec{
+			"host_path":          hclspec.NewAttr("host_path", "string", false),
+			"container_path":     hclspec.NewAttr("container_path", "string", false),
+			"cgroup_permissions": hclspec.NewAttr("cgroup_permissions", "string", false),
+		})),
+		"dns_search_domains": hclspec.NewAttr("dns_search_domains", "list(string)", false),
+		"dns_options":        hclspec.NewAttr("dns_options", "list(string)", false),
+		"dns_servers":        hclspec.NewAttr("dns_servers", "list(string)", false),
+		"entrypoint":         hclspec.NewAttr("entrypoint", "list(string)", false),
+		"extra_hosts":        hclspec.NewAttr("extra_hosts", "list(string)", false),
+		"force_pull":         hclspec.NewAttr("force_pull", "bool", false),
+		"hostname":           hclspec.NewAttr("hostname", "string", false),
+		"interactive":        hclspec.NewAttr("interactive", "bool", false),
+		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
+		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
+		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
+		"labels":             hclspec.NewBlockAttrs("labels", "string", false),
+		"load":               hclspec.NewAttr("load", "string", false),
+		"logging": hclspec.NewBlockSet("logging", hclspec.NewObject(map[string]*hclspec.Spec{
+			"type":   hclspec.NewAttr("type", "string", false),
+			"config": hclspec.NewBlockAttrs("config", "string", false),
+		})),
+		"mac_address": hclspec.NewAttr("mac_address", "string", false),
+		"mounts": hclspec.NewBlockSet("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
+			"type": hclspec.NewDefault(
+				hclspec.NewAttr("type", "string", false),
+				hclspec.NewLiteral("\"volume\""),
+			),
+			"target":   hclspec.NewAttr("target", "string", false),
+			"source":   hclspec.NewAttr("source", "string", false),
+			"readonly": hclspec.NewAttr("readonly", "bool", false),
+			"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"propagation": hclspec.NewAttr("propagation", "string", false),
+			})),
+			"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"size": hclspec.NewAttr("size", "number", false),
+				"mode": hclspec.NewAttr("mode", "number", false),
+			})),
+			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
+				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
+				"driver_config": hclspec.NewBlockSet("driver_config", hclspec.NewObject(map[string]*hclspec.Spec{
+					"name":    hclspec.NewAttr("name", "string", false),
+					"options": hclspec.NewBlockAttrs("name", "string", false),
+				})),
+			})),
+		})),
+		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
+		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
+		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
+		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
+		"port_map":        hclspec.NewBlockAttrs("port_map", "number", false),
+		"privileged":      hclspec.NewAttr("privileged", "bool", false),
+		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
+		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
+		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
+		"storage_opt":     hclspec.NewBlockAttrs("storage_opt", "string", false),
+		"sysctl":          hclspec.NewBlockAttrs("sysctl", "string", false),
+		"tty":             hclspec.NewAttr("tty", "bool", false),
+		"ulimit":          hclspec.NewBlockAttrs("ulimit", "string", false),
+		"uts_mode":        hclspec.NewAttr("uts_mode", "string", false),
+		"userns_mode":     hclspec.NewAttr("userns_mode", "string", false),
+		"volumes":         hclspec.NewAttr("volumes", "list(string)", false),
+		"volume_driver":   hclspec.NewAttr("volume_driver", "string", false),
+		"work_dir":        hclspec.NewAttr("work_dir", "string", false),
+	})
 }
