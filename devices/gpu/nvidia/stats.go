@@ -286,7 +286,7 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		}
 	}
 	return &device.DeviceStats{
-		Summary: temperatureStat,
+		Summary: memoryStateStat,
 		Stats: &structs.StatObject{
 			Attributes: map[string]*structs.StatValue{
 				PowerUsageAttr:         powerUsageStat,

@@ -1,6 +1,10 @@
 package api
 
-import "github.com/hashicorp/nomad/helper"
+import (
+	"strconv"
+
+	"github.com/hashicorp/nomad/helper"
+)
 
 // Resources encapsulates the required resources of
 // a given task or task group.
@@ -122,6 +126,10 @@ type NodeDeviceResource struct {
 	Attributes map[string]*Attribute
 }
 
+func (r NodeDeviceResource) ID() string {
+	return r.Vendor + "/" + r.Type + "/" + r.Name
+}
+
 // NodeDevice is an instance of a particular device.
 type NodeDevice struct {
 	// ID is the ID of the device.
@@ -143,19 +151,42 @@ type NodeDevice struct {
 // specifying units
 type Attribute struct {
 	// Float is the float value for the attribute
-	Float *float64
+	FloatVal *float64 `json:"Float,omitempty"`
 
 	// Int is the int value for the attribute
-	Int *int64
+	IntVal *int64 `json:"Int,omitempty"`
 
 	// String is the string value for the attribute
-	String *string
+	StringVal *string `json:"String,omitempty"`
 
 	// Bool is the bool value for the attribute
-	Bool *bool
+	BoolVal *bool `json:"Bool,omitempty"`
 
 	// Unit is the optional unit for the set int or float value
 	Unit string
+}
+
+func (a Attribute) String() string {
+	switch {
+	case a.FloatVal != nil:
+		str := helper.FormatFloat(*a.FloatVal, 3)
+		if a.Unit != "" {
+			str += " " + a.Unit
+		}
+		return str
+	case a.IntVal != nil:
+		str := strconv.FormatInt(*a.IntVal, 10)
+		if a.Unit != "" {
+			str += " " + a.Unit
+		}
+		return str
+	case a.StringVal != nil:
+		return *a.StringVal
+	case a.BoolVal != nil:
+		return strconv.FormatBool(*a.BoolVal)
+	default:
+		return "<unknown>"
+	}
 }
 
 // NodeDeviceLocality stores information about the devices hardware locality on
