@@ -117,7 +117,8 @@ type TaskRunner struct {
 	driverCapabilities *drivers.Capabilities
 
 	// taskSchema is the hcl spec for the task driver configuration
-	taskSchema hcldec.Spec
+	taskSchema     hcldec.Spec
+	taskSchemaDiag hcl.Diagnostics
 
 	// handleLock guards access to handle and handleResult
 	handleLock sync.Mutex
@@ -548,6 +549,10 @@ func (tr *TaskRunner) runDriver() error {
 		return err
 	}
 
+	if diag := tr.taskSchemaDiag; diag.HasErrors() {
+		return multierror.Append(errors.New("failed to convert task schema"), diag.Errs()...)
+	}
+
 	val, diag := shared.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
 	if diag.HasErrors() {
 		return multierror.Append(errors.New("failed to parse config"), diag.Errs()...)
@@ -654,8 +659,10 @@ func (tr *TaskRunner) initDriver() error {
 	}
 	spec, diag := hclspec.Convert(schema, evalCtx)
 	if diag.HasErrors() {
-		return multierror.Append(errors.New("failed to convert task schema"), diag.Errs()...)
+		tr.logger.Warn("failed to convert driver schema", "error", diag.Errs())
 	}
+	// store task schema errors to be reported as runDriver errors
+	tr.taskSchemaDiag = diag
 	tr.taskSchema = spec
 
 	caps, err := tr.driver.Capabilities()
