@@ -159,6 +159,11 @@ func (m *manager) Run() {
 	}
 
 	// Now start the fingerprint handler
+	go m.fingerprint()
+}
+
+// fingerprint is the main fingerprint loop
+func (m *manager) fingerprint() {
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -194,12 +199,18 @@ func (m *manager) Shutdown() {
 	}
 }
 
-func (m *manager) Ready() <-chan struct{} {
-	ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
+func (m *manager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
+	ctx, cancel := context.WithCancel(ctx)
 	go func() {
-		for _, i := range m.instances {
-			i.WaitForFirstFingerprint(ctx)
+		var wg sync.WaitGroup
+		for i := range m.instances {
+			wg.Add(1)
+			go func(instance *instanceManager) {
+				instance.WaitForFirstFingerprint(ctx)
+				wg.Done()
+			}(m.instances[i])
 		}
+		wg.Wait()
 		cancel()
 	}()
 	return ctx.Done()

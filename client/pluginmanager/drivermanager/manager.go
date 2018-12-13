@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -16,11 +15,22 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
+// ErrDriverNotFound is returned during Dispense when the requested driver
+// plugin is not found in the plugin catalog
+var ErrDriverNotFound = fmt.Errorf("driver not found")
+
 // Manager is the interface used to manage driver plugins
 type Manager interface {
+	// RegisterEventHandler will cause the given EventHandler to be called when
+	// an event is recieved that matches the given driver and taskID
 	RegisterEventHandler(driver, taskID string, handler EventHandler)
+
+	// DeregisterEventHandler stops the EventHandler registered for the given
+	// driver and taskID to be called if exists
 	DeregisterEventHandler(driver, taskID string)
 
+	// Dispense returns a drivers.DriverPlugin for the given driver plugin name
+	// handling reattaching to an existing driver if available
 	Dispense(driver string) (drivers.DriverPlugin, error)
 }
 
@@ -42,7 +52,7 @@ type StateStorage interface {
 
 // UpdateNodeDriverInfoFn is the callback used to update the node from
 // fingerprinting
-type UpdateNodeDriverInfoFn func(string, *structs.DriverInfo) *structs.Node
+type UpdateNodeDriverInfoFn func(string, *structs.DriverInfo)
 
 // StorePluginReattachFn is used to store plugin reattachment configurations.
 type StorePluginReattachFn func(*plugin.ReattachConfig) error
@@ -99,7 +109,7 @@ type manager struct {
 
 	// instances is the list of managed devices, access is serialized by instanceMu
 	instances   map[string]*instanceManager
-	instancesMu sync.Mutex
+	instancesMu sync.RWMutex
 
 	// reattachConfigs stores the plugin reattach configs
 	reattachConfigs    map[loader.PluginID]*shared.ReattachConfig
@@ -139,7 +149,10 @@ func (*manager) PluginType() string { return base.PluginTypeDriver }
 // is called.
 func (m *manager) Run() {
 	// Load any previous plugin reattach configuration
-	m.loadReattachConfigs()
+	if err := m.loadReattachConfigs(); err != nil {
+		m.logger.Warn("unable to load driver plugin reattach configs, a driver process may have been leaked",
+			"error", err)
+	}
 
 	// Get driver plugins
 	driversPlugins := m.loader.Catalog()[base.PluginTypeDriver]
@@ -152,13 +165,7 @@ func (m *manager) Run() {
 	var skippedDrivers []string
 	for _, d := range driversPlugins {
 		id := loader.PluginInfoID(d)
-		// Skip drivers that are not in the allowed list if it is set.
-		if _, ok := m.allowedDrivers[id.Name]; len(m.allowedDrivers) > 0 && !ok {
-			skippedDrivers = append(skippedDrivers, id.Name)
-			continue
-		}
-		// Skip fingerprinting drivers that are in the blocked list
-		if _, ok := m.blockedDrivers[id.Name]; ok {
+		if m.isDriverBlocked(id.Name) {
 			skippedDrivers = append(skippedDrivers, id.Name)
 			continue
 		}
@@ -192,9 +199,6 @@ func (m *manager) Run() {
 
 	// signal ready
 	close(m.readyCh)
-
-	// wait for shutdown
-	<-m.ctx.Done()
 }
 
 // Shutdown cleans up all the plugins
@@ -202,8 +206,8 @@ func (m *manager) Shutdown() {
 	// Cancel the context to stop any requests
 	m.cancel()
 
-	m.instancesMu.Lock()
-	defer m.instancesMu.Unlock()
+	m.instancesMu.RLock()
+	defer m.instancesMu.RUnlock()
 
 	// Go through and shut everything down
 	for _, i := range m.instances {
@@ -211,28 +215,44 @@ func (m *manager) Shutdown() {
 	}
 }
 
-func (m *manager) Ready() <-chan struct{} {
-	ctx, cancel := context.WithTimeout(m.ctx, time.Second*10)
-	go func() {
-		defer cancel()
-		// We don't want to start initial fingerprint wait until Run loop has
-		// finished
-		select {
-		case <-m.readyCh:
-		case <-m.ctx.Done():
-			return
-		}
+func (m *manager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
+	ctx, cancel := context.WithCancel(ctx)
+	go m.waitForFirstFingerprint(ctx, cancel)
+	return ctx.Done()
+}
 
-		var availDrivers []string
-		for name, instance := range m.instances {
+func (m *manager) waitForFirstFingerprint(ctx context.Context, cancel context.CancelFunc) {
+	defer cancel()
+	// We don't want to start initial fingerprint wait until Run loop has
+	// finished
+	select {
+	case <-m.readyCh:
+	case <-ctx.Done():
+		// parent context canceled or timedout
+		return
+	case <-m.ctx.Done():
+		// shutdown called
+		return
+	}
+
+	var availDrivers []string
+	var wg sync.WaitGroup
+
+	// loop through instances and wait for each to finish initial fingerprint
+	m.instancesMu.RLock()
+	for n, i := range m.instances {
+		wg.Add(1)
+		go func(name string, instance *instanceManager) {
+			defer wg.Done()
 			instance.WaitForFirstFingerprint(ctx)
-			if instance.lastHealthState != drivers.HealthStateUndetected {
+			if instance.getLastHealth() != drivers.HealthStateUndetected {
 				availDrivers = append(availDrivers, name)
 			}
-		}
-		m.logger.Debug("detected drivers", "drivers", availDrivers)
-	}()
-	return ctx.Done()
+		}(n, i)
+	}
+	m.instancesMu.RUnlock()
+	wg.Wait()
+	m.logger.Debug("detected drivers", "drivers", availDrivers)
 }
 
 func (m *manager) loadReattachConfigs() error {
@@ -246,10 +266,15 @@ func (m *manager) loadReattachConfigs() error {
 
 	if s != nil {
 		for name, c := range s.ReattachConfigs {
+			if m.isDriverBlocked(name) {
+				continue
+			}
+
 			id := loader.PluginID{
 				PluginType: base.PluginTypeDriver,
 				Name:       name,
 			}
+
 			m.reattachConfigs[id] = c
 		}
 	}
@@ -288,6 +313,7 @@ func (m *manager) fetchPluginReattachConfig(id loader.PluginID) (*plugin.Reattac
 		c, err := shared.ReattachConfigToGoPlugin(cfg)
 		if err != nil {
 			m.logger.Warn("failed to read plugin reattach config", "config", cfg, "error", err)
+			delete(m.reattachConfigs, id)
 			return nil, false
 		}
 		return c, true
@@ -296,7 +322,7 @@ func (m *manager) fetchPluginReattachConfig(id loader.PluginID) (*plugin.Reattac
 }
 
 func (m *manager) RegisterEventHandler(driver, taskID string, handler EventHandler) {
-	m.instancesMu.Lock()
+	m.instancesMu.RLock()
 	if d, ok := m.instances[driver]; ok {
 		d.registerEventHandler(taskID, handler)
 	}
@@ -304,7 +330,7 @@ func (m *manager) RegisterEventHandler(driver, taskID string, handler EventHandl
 }
 
 func (m *manager) DeregisterEventHandler(driver, taskID string) {
-	m.instancesMu.Lock()
+	m.instancesMu.RLock()
 	if d, ok := m.instances[driver]; ok {
 		d.deregisterEventHandler(taskID)
 	}
@@ -312,11 +338,24 @@ func (m *manager) DeregisterEventHandler(driver, taskID string) {
 }
 
 func (m *manager) Dispense(d string) (drivers.DriverPlugin, error) {
-	m.instancesMu.Lock()
-	defer m.instancesMu.Unlock()
+	m.instancesMu.RLock()
+	defer m.instancesMu.RUnlock()
 	if instance, ok := m.instances[d]; ok {
 		return instance.dispense()
 	}
 
-	return nil, fmt.Errorf("driver not found")
+	return nil, ErrDriverNotFound
+}
+
+func (m *manager) isDriverBlocked(name string) bool {
+	// Block drivers that are not in the allowed list if it is set.
+	if _, ok := m.allowedDrivers[name]; len(m.allowedDrivers) > 0 && !ok {
+		return true
+	}
+
+	// Block drivers that are in the blocked list
+	if _, ok := m.blockedDrivers[name]; ok {
+		return true
+	}
+	return false
 }

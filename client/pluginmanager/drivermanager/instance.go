@@ -220,7 +220,7 @@ func (i *instanceManager) dispense() (plugin drivers.DriverPlugin, err error) {
 		}
 	}
 
-	// Convert to a fingerprint plugin
+	// Convert to a driver plugin
 	driver, ok := pluginInstance.Plugin().(drivers.DriverPlugin)
 	if !ok {
 		pluginInstance.Kill()

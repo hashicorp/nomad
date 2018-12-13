@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -234,6 +233,9 @@ type Client struct {
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
 	baseLabels []metrics.Label
+
+	// batchNodeUpdates is used to batch initial updates to the node
+	batchNodeUpdates *batchNodeUpdates
 }
 
 var (
@@ -279,6 +281,11 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerNodeUpdate:    make(chan struct{}, 8),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 	}
+
+	c.batchNodeUpdates = newBatchNodeUpdates(
+		c.updateNodeFromDriver,
+		c.updateNodeFromDevices,
+	)
 
 	// Initialize the server manager
 	c.servers = servers.New(c.logger, c.shutdownCh, c)
@@ -327,7 +334,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		Logger:         c.logger,
 		Loader:         c.configCopy.PluginSingletonLoader,
 		PluginConfig:   c.configCopy.NomadPluginConfig(),
-		Updater:        c.updateNodeFromDriver,
+		Updater:        c.batchNodeUpdates.updateNodeFromDriver,
 		State:          c.stateDB,
 		AllowedDrivers: allowlistDrivers,
 		BlockedDrivers: blocklistDrivers,
@@ -341,13 +348,17 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		Logger:        c.logger,
 		Loader:        c.configCopy.PluginSingletonLoader,
 		PluginConfig:  c.configCopy.NomadPluginConfig(),
-		Updater:       c.updateNodeFromDevices,
+		Updater:       c.batchNodeUpdates.updateNodeFromDevices,
 		StatsInterval: c.configCopy.StatsCollectionInterval,
 		State:         c.stateDB,
 	}
 	devManager := devicemanager.New(devConfig)
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
+
+	// Batching of initial fingerprints is done to reduce the number of node
+	// updates sent to the server on startup.
+	go c.batchFirstFingerprints()
 
 	// Add the stats collector
 	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
@@ -386,20 +397,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Setup the vault client for token and secret renewals
 	if err := c.setupVaultClient(); err != nil {
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
-	}
-
-	// Wait for plugin manangers to initialize.
-	// Plugins must be initialized before restore is called otherwise restoring
-	// tasks that use uninitialized plugins will fail.
-	ctx, cancel := context.WithTimeout(context.Background(), pluginmanager.DefaultManagerReadyTimeout)
-	defer cancel()
-	pluginReadyCh, err := c.pluginManagers.Ready(ctx)
-	if err != nil {
-		return nil, err
-	}
-	select {
-	case <-pluginReadyCh:
-	case <-ctx.Done():
 	}
 
 	// Restore the state
@@ -1183,97 +1180,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	}
 
 	return c.configCopy.Node
-}
-
-// updateNodeFromDriver receives a DriverInfo struct for the driver and updates
-// the node accordingly
-func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *structs.Node {
-	c.configLock.Lock()
-	defer c.configLock.Unlock()
-	if info == nil {
-		return c.configCopy.Node
-	}
-
-	var hasChanged bool
-
-	hadDriver := c.config.Node.Drivers[name] != nil
-	if !hadDriver {
-		// If the driver info has not yet been set, do that here
-		hasChanged = true
-		for attrName, newVal := range info.Attributes {
-			c.config.Node.Attributes[attrName] = newVal
-		}
-	} else {
-		oldVal := c.config.Node.Drivers[name]
-		// The driver info has already been set, fix it up
-		if oldVal.Detected != info.Detected {
-			hasChanged = true
-		}
-
-		if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
-			hasChanged = true
-
-			if info.HealthDescription != "" {
-				event := &structs.NodeEvent{
-					Subsystem: "Driver",
-					Message:   info.HealthDescription,
-					Timestamp: time.Now(),
-					Details:   map[string]string{"driver": name},
-				}
-				c.triggerNodeEvent(event)
-			}
-		}
-
-		for attrName, newVal := range info.Attributes {
-			oldVal := c.config.Node.Drivers[name].Attributes[attrName]
-			if oldVal == newVal {
-				continue
-			}
-
-			hasChanged = true
-
-			if newVal == "" {
-				delete(c.config.Node.Attributes, attrName)
-			} else {
-				c.config.Node.Attributes[attrName] = newVal
-			}
-		}
-	}
-
-	// COMPAT Remove in Nomad 0.10
-	// We maintain the driver enabled attribute until all drivers expose
-	// their attributes as DriverInfo
-	driverName := fmt.Sprintf("driver.%s", name)
-	if info.Detected {
-		c.config.Node.Attributes[driverName] = "1"
-	} else {
-		delete(c.config.Node.Attributes, driverName)
-	}
-
-	if hasChanged {
-		c.config.Node.Drivers[name] = info
-		c.config.Node.Drivers[name].UpdateTime = time.Now()
-		c.updateNodeLocked()
-	}
-
-	return c.configCopy.Node
-}
-
-// updateNodeFromFingerprint updates the node with the result of
-// fingerprinting the node from the diff that was created
-func (c *Client) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
-	c.configLock.Lock()
-	defer c.configLock.Unlock()
-
-	// Not updating node.Resources: the field is deprecated and includes
-	// dispatched task resources and not appropriate for expressing
-	// node available device resources
-	if !structs.DevicesEquals(c.config.Node.NodeResources.Devices, devices) {
-		c.logger.Debug("new devices detected", "devices", len(devices))
-
-		c.config.Node.NodeResources.Devices = devices
-		c.updateNodeLocked()
-	}
 }
 
 // resourcesAreEqual is a temporary function to compare whether resources are

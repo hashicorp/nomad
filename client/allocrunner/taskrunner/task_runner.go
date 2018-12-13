@@ -567,7 +567,7 @@ func (tr *TaskRunner) runDriver() error {
 
 	//XXX Evaluate and encode driver config
 
-	// Register an event handler with the diver mananger to emit task events
+	// Register an event handler with the driver manager to emit task events
 	tr.driverManager.RegisterEventHandler(tr.Task().Driver, taskConfig.ID, tr.handleTaskEvent)
 
 	// If there's already a task handle (eg from a Restore) there's nothing
