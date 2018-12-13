@@ -862,10 +862,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		config.Cmd = driverConfig.Args
 	}
 
+	labels := map[string]string{}
 	if len(driverConfig.Labels) > 0 {
-		config.Labels = driverConfig.Labels
-		logger.Debug("applied labels on the container", "labels", config.Labels)
+		labels = driverConfig.Labels
 	}
+	for k, v := range driverConfig.Internal.DefaultLabels {
+		labels[k] = v
+	}
+	logger.Debug("applied labels on the container", "labels", labels)
+	config.Labels = labels
 
 	config.Env = task.EnvList()
 

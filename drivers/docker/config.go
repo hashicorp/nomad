@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -199,6 +200,14 @@ var (
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","NET_RAW","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
 		),
+		"default_labels": hclspec.NewDefault(
+			hclspec.NewBlockAttrs("default_labels", "string", false),
+			hclspec.NewLiteral(`{
+				"com.hashicorp.nomad.task_name" = "$${NOMAD_TASK_NAME}"
+				"com.hashicorp.nomad.alloc_id"  = "$${NOMAD_ALLOC_ID}"
+				"com.hashicorp.nomad.job_name"  = "$${NOMAD_JOB_NAME}"
+			}`),
+		),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -256,6 +265,13 @@ type TaskConfig struct {
 	Volumes           []string          `codec:"volumes"`
 	VolumeDriver      string            `codec:"volume_driver"`
 	WorkDir           string            `codec:"work_dir"`
+
+	// Internal is a struct used internally to have nomad client render fields
+	Internal Internal `codec:"__internal"`
+}
+
+type Internal struct {
+	DefaultLabels map[string]string `codec:"default_labels"`
 }
 
 type DockerAuth struct {
@@ -373,13 +389,17 @@ type DockerVolumeDriverConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint        string       `codec:"endpoint"`
-	Auth            AuthConfig   `codec:"auth"`
-	TLS             TLSConfig    `codec:"tls"`
-	GC              GCConfig     `codec:"gc"`
-	Volumes         VolumeConfig `codec:"volumes"`
-	AllowPrivileged bool         `codec:"allow_privileged"`
-	AllowCaps       []string     `codec:"allow_caps"`
+	Endpoint        string            `codec:"endpoint"`
+	Auth            AuthConfig        `codec:"auth"`
+	TLS             TLSConfig         `codec:"tls"`
+	GC              GCConfig          `codec:"gc"`
+	Volumes         VolumeConfig      `codec:"volumes"`
+	AllowPrivileged bool              `codec:"allow_privileged"`
+	AllowCaps       []string          `codec:"allow_caps"`
+	DefaultLabels   map[string]string `codec:"default_labels"`
+
+	// defaultLabelsJSON is a json formatted string of DefaultLabels
+	defaultLabelsJSON string
 }
 
 type AuthConfig struct {
@@ -428,6 +448,15 @@ func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 		d.config.GC.imageDelayDuration = dur
 	}
 
+	defaultLabelsJSON, err := json.Marshal(config.DefaultLabels)
+	if err != nil {
+		// This should never happen, as map[string]string is always json serializable
+		return fmt.Errorf("failed to serialize default labels into json: %v", err)
+	}
+	d.config.defaultLabelsJSON = string(defaultLabelsJSON)
+
+	d.updateTaskConfigSpec()
+
 	if cfg != nil {
 		d.clientConfig = cfg.Driver
 	}
@@ -457,6 +486,11 @@ func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 }
 
 func (d *Driver) updateTaskConfigSpec() {
+	defaultLabels := "{}"
+	if d.config != nil && d.config.defaultLabelsJSON != "" {
+		defaultLabels = d.config.defaultLabelsJSON
+	}
+
 	d.taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"image":                  hclspec.NewAttr("image", "string", true),
 		"advertise_ipv6_address": hclspec.NewAttr("advertise_ipv6_address", "bool", false),
@@ -538,5 +572,10 @@ func (d *Driver) updateTaskConfigSpec() {
 		"volumes":         hclspec.NewAttr("volumes", "list(string)", false),
 		"volume_driver":   hclspec.NewAttr("volume_driver", "string", false),
 		"work_dir":        hclspec.NewAttr("work_dir", "string", false),
+
+		// __internal is a block used internally, not a customer facing primitive, used to render default_labels by nomad client
+		"__internal": hclspec.NewDefault(
+			hclspec.NewBlockAttrs("__internal", "string", false),
+			hclspec.NewLiteral(fmt.Sprintf(`{ default_labels = %s}`, defaultLabels))),
 	})
 }
