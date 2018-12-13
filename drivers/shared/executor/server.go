@@ -12,8 +12,7 @@ import (
 )
 
 type grpcExecutorServer struct {
-	impl    Executor
-	doneCtx context.Context
+	impl Executor
 }
 
 func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchRequest) (*proto.LaunchResponse, error) {

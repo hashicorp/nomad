@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -57,6 +58,8 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 			NomadResources: task.Resources,
 		},
 	}
+
+	setupRootfs(t, td.Dir)
 	configureTLogging(cmd)
 	return cmd, allocDir
 }
@@ -121,6 +124,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/echo"
 			execCmd.Args = []string{"hello world"}
+
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
@@ -189,7 +193,7 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/sleep"
-			execCmd.Args = []string{"10 && hello world"}
+			execCmd.Args = []string{"10"}
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
@@ -280,4 +284,37 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	_, err = lookupBin(tmpDir, "tmp.txt")
 	require.Nil(err)
 
+}
+
+// setupRoootfs setups the rootfs for libcontainer executor
+// It uses busybox to make some binaries available - somewhat cheaper
+// than mounting the underlying host filesystem
+func setupRootfs(t *testing.T, rootfs string) {
+	paths := []string{
+		"/bin/sh",
+		"/bin/sleep",
+		"/bin/echo",
+		"/bin/date",
+	}
+
+	for _, p := range paths {
+		setupRootfsBinary(t, rootfs, p)
+	}
+}
+
+// setupRootfsBinary installs a busybox link in the desired path
+func setupRootfsBinary(t *testing.T, rootfs, path string) {
+	t.Helper()
+
+	dst := filepath.Join(rootfs, path)
+	err := os.MkdirAll(filepath.Dir(dst), 666)
+	require.NoError(t, err)
+
+	src := filepath.Join(
+		"test-resources", "busybox",
+		fmt.Sprintf("busybox-%s-%s", runtime.GOOS, runtime.GOARCH),
+	)
+
+	err = os.Link(src, dst)
+	require.NoError(t, err)
 }

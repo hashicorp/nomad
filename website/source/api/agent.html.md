@@ -194,7 +194,6 @@ $ curl \
       "Reserved": {
         "CPU": 0,
         "DiskMB": 0,
-        "IOPS": 0,
         "MemoryMB": 0,
         "ParsedReservedPorts": null,
         "ReservedPorts": ""

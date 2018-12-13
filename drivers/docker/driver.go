@@ -541,7 +541,9 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	if !d.config.Volumes.Enabled && driverConfig.VolumeDriver != "" {
+	localBindVolume := driverConfig.VolumeDriver == "" || driverConfig.VolumeDriver == "local"
+
+	if !d.config.Volumes.Enabled && !localBindVolume {
 		return nil, fmt.Errorf("volumes are not enabled; cannot use volume driver %q", driverConfig.VolumeDriver)
 	}
 
@@ -551,25 +553,15 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 			return nil, fmt.Errorf("invalid docker volume: %q", userbind)
 		}
 
-		// Resolve dotted path segments
-		parts[0] = filepath.Clean(parts[0])
-
-		// Absolute paths aren't always supported
-		if filepath.IsAbs(parts[0]) {
-			if !d.config.Volumes.Enabled {
-				// Disallow mounting arbitrary absolute paths
-				return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
-			}
-			binds = append(binds, userbind)
-			continue
-		}
-
-		// Relative paths are always allowed as they mount within a container
+		// Paths inside task dir are always allowed, Relative paths are always allowed as they mount within a container
 		// When a VolumeDriver is set, we assume we receive a binding in the format volume-name:container-dest
 		// Otherwise, we assume we receive a relative path binding in the format relative/to/task:/also/in/container
-		if driverConfig.VolumeDriver == "" {
-			// Expand path relative to alloc dir
-			parts[0] = filepath.Join(task.TaskDir().Dir, parts[0])
+		if localBindVolume {
+			parts[0] = expandPath(task.TaskDir().Dir, parts[0])
+
+			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, parts[0]) {
+				return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
+			}
 		}
 
 		binds = append(binds, strings.Join(parts, ":"))
@@ -718,29 +710,20 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
-	if len(driverConfig.Devices) > 0 {
-		var devices []docker.Device
-		for _, device := range driverConfig.Devices {
-			if device.HostPath == "" {
-				return c, fmt.Errorf("host path must be set in configuration for devices")
-			}
-			if device.CgroupPermissions != "" {
-				for _, char := range device.CgroupPermissions {
-					ch := string(char)
-					if ch != "r" && ch != "w" && ch != "m" {
-						return c, fmt.Errorf("invalid cgroup permission string: %q", device.CgroupPermissions)
-					}
-				}
-			} else {
-				device.CgroupPermissions = "rwm"
-			}
-			dev := docker.Device{
-				PathOnHost:        device.HostPath,
-				PathInContainer:   device.ContainerPath,
-				CgroupPermissions: device.CgroupPermissions}
-			devices = append(devices, dev)
+	// Setup devices
+	for _, device := range driverConfig.Devices {
+		dd, err := device.toDockerDevice()
+		if err != nil {
+			return c, err
 		}
-		hostConfig.Devices = devices
+		hostConfig.Devices = append(hostConfig.Devices, dd)
+	}
+	for _, device := range task.Devices {
+		hostConfig.Devices = append(hostConfig.Devices, docker.Device{
+			PathOnHost:        device.HostPath,
+			PathInContainer:   device.TaskPath,
+			CgroupPermissions: device.Permissions,
+		})
 	}
 
 	// Setup mounts
@@ -751,17 +734,23 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 
 		if hm.Type == "bind" {
-			if filepath.IsAbs(filepath.Clean(hm.Source)) {
-				if !d.config.Volumes.Enabled {
-					return c, fmt.Errorf("volumes are not enabled; cannot mount host path: %q", hm.Source)
-				}
-			} else {
-				// Relative paths are always allowed as they mount within a container, and treated as relative to task dir
-				hm.Source = filepath.Join(task.TaskDir().Dir, hm.Source)
+			hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
+
+			// paths inside alloc dir are always allowed as they mount within a container, and treated as relative to task dir
+			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
+				return c, fmt.Errorf("volumes are not enabled; cannot mount host path: %q %q", hm.Source, task.AllocDir)
 			}
 		}
 
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+	}
+	for _, m := range task.Mounts {
+		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+			Type:     "bind",
+			Target:   m.TaskPath,
+			Source:   m.HostPath,
+			ReadOnly: m.Readonly,
+		})
 	}
 
 	// set DNS search domains and extra hosts

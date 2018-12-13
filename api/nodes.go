@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -673,9 +674,9 @@ func (v *StatValue) String() string {
 	case v.StringVal != nil:
 		return *v.StringVal
 	case v.FloatNumeratorVal != nil:
-		str := strconv.FormatFloat(*v.FloatNumeratorVal, 'f', -1, 64)
+		str := helper.FormatFloat(*v.FloatNumeratorVal, 3)
 		if v.FloatDenominatorVal != nil {
-			str += " / " + strconv.FormatFloat(*v.FloatDenominatorVal, 'f', -1, 64)
+			str += " / " + helper.FormatFloat(*v.FloatDenominatorVal, 3)
 		}
 
 		if v.Unit != "" {
@@ -683,7 +684,6 @@ func (v *StatValue) String() string {
 		}
 		return str
 	case v.IntNumeratorVal != nil:
-
 		str := strconv.FormatInt(*v.IntNumeratorVal, 10)
 		if v.IntDenominatorVal != nil {
 			str += " / " + strconv.FormatInt(*v.IntDenominatorVal, 10)

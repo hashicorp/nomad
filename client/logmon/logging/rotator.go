@@ -145,6 +145,12 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		f.currentWr += int64(n)
 		if err != nil {
 			f.logger.Error("error writing to file", "err", err)
+
+			// As bufio writer does not automatically recover in case of any
+			// io error, we need to recover from it manually resetting the
+			// writter.
+			f.createOrResetBuffer()
+
 			return
 		}
 	}

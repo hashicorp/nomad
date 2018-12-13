@@ -143,7 +143,6 @@ func TestAllocsFit_Old(t *testing.T) {
 			CPU:      2000,
 			MemoryMB: 2048,
 			DiskMB:   10000,
-			IOPS:     100,
 			Networks: []*NetworkResource{
 				{
 					Device: "eth0",
@@ -156,7 +155,6 @@ func TestAllocsFit_Old(t *testing.T) {
 			CPU:      1000,
 			MemoryMB: 1024,
 			DiskMB:   5000,
-			IOPS:     50,
 			Networks: []*NetworkResource{
 				{
 					Device:        "eth0",
@@ -173,7 +171,6 @@ func TestAllocsFit_Old(t *testing.T) {
 			CPU:      1000,
 			MemoryMB: 1024,
 			DiskMB:   5000,
-			IOPS:     50,
 			Networks: []*NetworkResource{
 				{
 					Device:        "eth0",
@@ -213,7 +210,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 			CPU:      2000,
 			MemoryMB: 2048,
 			DiskMB:   10000,
-			IOPS:     100,
 			Networks: []*NetworkResource{
 				{
 					Device: "eth0",
@@ -226,7 +222,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 			CPU:      1000,
 			MemoryMB: 1024,
 			DiskMB:   5000,
-			IOPS:     50,
 			Networks: []*NetworkResource{
 				{
 					Device:        "eth0",
@@ -243,7 +238,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 			CPU:      1000,
 			MemoryMB: 1024,
 			DiskMB:   5000,
-			IOPS:     50,
 			Networks: []*NetworkResource{
 				{
 					Device:        "eth0",

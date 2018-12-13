@@ -46,9 +46,6 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
-- `iops` `(int: 0)` - Specifies the number of IOPS required given as a weight
-  between 0-1000.
-
 - `memory` `(int: 300)` - Specifies the memory required in MB
 
 - `network` <code>([Network][]: <required>)</code> - Specifies the network

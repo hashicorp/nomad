@@ -426,7 +426,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"fingerprint.whitelist": "  arch,cpu,memory,foo,bar	",
-			"fingerprint.blacklist": "  memory,nomad	",
+			"fingerprint.blacklist": "  memory,host	",
 		}
 	})
 	defer cleanup()
@@ -449,7 +449,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 	require.NotEqual(node.Attributes["cpu.frequency"], "")
 	require.NotEqual(node.Attributes["cpu.arch"], "")
 	require.NotContains(node.Attributes, "memory.totalbytes")
-	require.NotContains(node.Attributes, "nomad.version")
+	require.NotContains(node.Attributes, "os.name")
 }
 
 func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {

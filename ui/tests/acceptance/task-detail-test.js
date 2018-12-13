@@ -194,7 +194,7 @@ moduleForAcceptance('Acceptance | task detail (no addresses)', {
     server.create('agent');
     server.create('node');
     server.create('job');
-    allocation = server.create('allocation', 'withoutTaskWithPorts');
+    allocation = server.create('allocation', 'withoutTaskWithPorts', { clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     Task.visit({ id: allocation.id, name: task.name });

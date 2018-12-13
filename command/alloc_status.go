@@ -9,7 +9,6 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -490,7 +489,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	}
 
 	var resourcesOutput []string
-	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|IOPS|Addresses")
+	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|Addresses")
 	firstAddr := ""
 	if len(addr) > 0 {
 		firstAddr = addr[0]
@@ -512,11 +511,10 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			deviceStats = ru.ResourceUsage.DeviceStats
 		}
 	}
-	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v|%v",
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v",
 		cpuUsage,
 		memUsage,
 		humanize.IBytes(uint64(*alloc.Resources.DiskMB*bytesPerMegabyte)),
-		*resource.IOPS,
 		firstAddr))
 	for i := 1; i < len(addr); i++ {
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))

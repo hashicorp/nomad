@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/cli/cli/config/configfile"
@@ -187,4 +188,33 @@ func authIsEmpty(auth *docker.AuthConfiguration) bool {
 		auth.Password == "" &&
 		auth.Email == "" &&
 		auth.ServerAddress == ""
+}
+
+func validateCgroupPermission(s string) bool {
+	for _, c := range s {
+		switch c {
+		case 'r', 'w', 'm':
+		default:
+			return false
+		}
+	}
+
+	return true
+}
+
+// expandPath returns the absolute path of dir, relative to base if dir is relative path.
+// base is expected to be an absolute path
+func expandPath(base, dir string) string {
+	if filepath.IsAbs(dir) {
+		return filepath.Clean(dir)
+	}
+
+	return filepath.Clean(filepath.Join(base, dir))
+}
+
+// isParentPath returns true if path is a child or a descendant of parent path.
+// Both inputs need to be absolute paths.
+func isParentPath(parent, path string) bool {
+	rel, err := filepath.Rel(parent, path)
+	return err == nil && !strings.HasPrefix(rel, "..")
 }

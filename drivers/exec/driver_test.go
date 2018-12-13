@@ -13,24 +13,36 @@ import (
 	"testing"
 	"time"
 
-	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 func TestMain(m *testing.M) {
 	if !testtask.Run() {
 		os.Exit(m.Run())
 	}
+}
+
+var testResources = &drivers.Resources{
+	NomadResources: &structs.Resources{
+		MemoryMB: 128,
+		CPU:      100,
+	},
+	LinuxResources: &drivers.LinuxResources{
+		MemoryLimitBytes: 134217728,
+		CPUShares:        100,
+	},
 }
 
 func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
@@ -83,8 +95,9 @@ func TestExecDriver_StartWait(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -114,13 +127,14 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
 		"command": "/bin/sleep",
-		"args":    []string{"5"},
+		"args":    []string{"600"},
 	}
 	encodeDriverHelper(require, task, taskConfig)
 
@@ -133,37 +147,95 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.Equal(2, result.Signal)
-	}()
-
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		err := harness.StopTask(task.ID, 2*time.Second, "SIGINT")
-		require.NoError(err)
-	}()
-
-	waitCh := make(chan struct{})
-	go func() {
-		defer close(waitCh)
-		wg.Wait()
+		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
 	}()
 
 	select {
-	case <-waitCh:
-		status, err := harness.InspectTask(task.ID)
-		require.NoError(err)
-		require.Equal(drivers.TaskStateExited, status.State)
-	case <-time.After(1 * time.Second):
+	case result := <-ch:
+		require.Equal(int(unix.SIGINT), result.Signal)
+	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
+
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := harness.InspectTask(task.ID)
+		if err != nil {
+			return false, fmt.Errorf("inspecting task failed: %v", err)
+		}
+		if status.State != drivers.TaskStateExited {
+			return false, fmt.Errorf("task hasn't exited yet; status: %v", status.State)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
+func TestExecDriver_StartWaitStopKill(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
+	}
+
+	taskConfig := map[string]interface{}{
+		"command": "/bin/bash",
+		"args":    []string{"-c", "echo hi; sleep 600"},
+	}
+	encodeDriverHelper(require, task, taskConfig)
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer harness.DestroyTask(task.ID, true)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
+
+	go func() {
+		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
+	}()
+
+	select {
+	case result := <-ch:
+		require.False(result.Successful())
+	case <-time.After(10 * time.Second):
+		require.Fail("timeout waiting for task to shutdown")
+	}
+
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := harness.InspectTask(task.ID)
+		if err != nil {
+			return false, fmt.Errorf("inspecting task failed: %v", err)
+		}
+		if status.State != drivers.TaskStateExited {
+			return false, fmt.Errorf("task hasn't exited yet; status: %v", status.State)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
@@ -176,8 +248,9 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -245,8 +318,9 @@ func TestExecDriver_Stats(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -278,8 +352,9 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		Resources: testResources,
 	}
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -326,9 +401,10 @@ func TestExecDriver_User(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
-		User: "alice",
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		User:      "alice",
+		Resources: testResources,
 	}
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -359,8 +435,9 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		Resources: testResources,
 	}
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -407,8 +484,9 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		if line == "" {
 			continue
 		}
-		// Skip systemd cgroup
-		if strings.HasPrefix(line, "1:name=systemd") {
+		// Skip systemd and rdma cgroups; rdma was added in most recent kernels and libcontainer/docker
+		// don't isolate them by default.
+		if strings.HasPrefix(line, "1:name=systemd") || strings.Contains(line, ":rdma:") {
 			continue
 		}
 		if !strings.Contains(line, ":/nomad/") {
@@ -428,6 +506,98 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	}
 
 	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
+func TestExecDriver_DevicesAndMounts(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	tmpDir, err := ioutil.TempDir("", "exec_binds_mounts")
+	require.NoError(err)
+	defer os.RemoveAll(tmpDir)
+
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
+	require.NoError(err)
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
+		ID:         uuid.Generate(),
+		Name:       "test",
+		Resources:  testResources,
+		StdoutPath: filepath.Join(tmpDir, "task-stdout"),
+		StderrPath: filepath.Join(tmpDir, "task-stderr"),
+		Devices: []*drivers.DeviceConfig{
+			{
+				TaskPath:    "/dev/inserted-random",
+				HostPath:    "/dev/random",
+				Permissions: "rw",
+			},
+		},
+		Mounts: []*drivers.MountConfig{
+			{
+				TaskPath: "/tmp/task-path-rw",
+				HostPath: tmpDir,
+				Readonly: false,
+			},
+			{
+				TaskPath: "/tmp/task-path-ro",
+				HostPath: tmpDir,
+				Readonly: true,
+			},
+		},
+	}
+
+	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
+	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
+
+	taskConfig := map[string]interface{}{
+		"command": "/bin/bash",
+		"args": []string{"-c", `
+export LANG=en.UTF-8
+echo "mounted device /inserted-random: $(stat -c '%t:%T' /dev/inserted-random)"
+echo "reading from ro path: $(cat /tmp/task-path-ro/testfile)"
+echo "reading from rw path: $(cat /tmp/task-path-rw/testfile)"
+touch /tmp/task-path-rw/testfile && echo 'overwriting file in rw succeeded'
+touch /tmp/task-path-rw/testfile-from-rw && echo from-exec >  /tmp/task-path-rw/testfile-from-rw && echo 'writing new file in rw succeeded'
+touch /tmp/task-path-ro/testfile && echo 'overwriting file in ro succeeded'
+touch /tmp/task-path-ro/testfile-from-ro && echo from-exec >  /tmp/task-path-ro/testfile-from-ro && echo 'writing new file in ro succeeded'
+exit 0
+`},
+	}
+	encodeDriverHelper(require, task, taskConfig)
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+	result := <-ch
+	require.NoError(harness.DestroyTask(task.ID, true))
+
+	stdout, err := ioutil.ReadFile(task.StdoutPath)
+	require.NoError(err)
+	require.Equal(`mounted device /inserted-random: 1:8
+reading from ro path: from-host
+reading from rw path: from-host
+overwriting file in rw succeeded
+writing new file in rw succeeded`, strings.TrimSpace(string(stdout)))
+
+	stderr, err := ioutil.ReadFile(task.StderrPath)
+	require.NoError(err)
+	require.Equal(`touch: cannot touch '/tmp/task-path-ro/testfile': Read-only file system
+touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`, strings.TrimSpace(string(stderr)))
+
+	// testing exit code last so we can inspect output first
+	require.Zero(result.ExitCode)
+
+	fromRWContent, err := ioutil.ReadFile(filepath.Join(tmpDir, "testfile-from-rw"))
+	require.NoError(err)
+	require.Equal("from-exec", strings.TrimSpace(string(fromRWContent)))
 }
 
 func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {

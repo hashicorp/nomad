@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	ldevices "github.com/opencontainers/runc/libcontainer/devices"
+	"gopkg.in/lxc/go-lxc.v2"
 )
 
 var (
@@ -91,12 +92,42 @@ func networkTypeConfigKey() string {
 }
 
 func (d *Driver) mountVolumes(c *lxc.Container, cfg *drivers.TaskConfig, taskConfig TaskConfig) error {
+	mounts, err := d.mountEntries(cfg, taskConfig)
+	if err != nil {
+		return err
+	}
+
+	devCgroupAllows, err := d.devicesCgroupEntries(cfg)
+	if err != nil {
+		return err
+	}
+
+	for _, mnt := range mounts {
+		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
+			return fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
+		}
+	}
+
+	for _, cgroupDev := range devCgroupAllows {
+		if err := c.SetConfigItem("lxc.cgroup.devices.allow", cgroupDev); err != nil {
+			return fmt.Errorf("error setting cgroup permission %q error: %v", cgroupDev, err)
+		}
+	}
+
+	return nil
+}
+
+// mountEntries compute the mount entries to be set on the container
+func (d *Driver) mountEntries(cfg *drivers.TaskConfig, taskConfig TaskConfig) ([]string, error) {
 	// Bind mount the shared alloc dir and task local dir in the container
 	mounts := []string{
 		fmt.Sprintf("%s local none rw,bind,create=dir", cfg.TaskDir().LocalDir),
 		fmt.Sprintf("%s alloc none rw,bind,create=dir", cfg.TaskDir().SharedAllocDir),
 		fmt.Sprintf("%s secrets none rw,bind,create=dir", cfg.TaskDir().SecretsDir),
 	}
+
+	mounts = append(mounts, d.formatTaskMounts(cfg.Mounts)...)
+	mounts = append(mounts, d.formatTaskDevices(cfg.Devices)...)
 
 	volumesEnabled := d.config.AllowVolumes
 
@@ -106,23 +137,75 @@ func (d *Driver) mountVolumes(c *lxc.Container, cfg *drivers.TaskConfig, taskCon
 
 		if filepath.IsAbs(paths[0]) {
 			if !volumesEnabled {
-				return fmt.Errorf("absolute bind-mount volume in config but volumes are disabled")
+				return nil, fmt.Errorf("absolute bind-mount volume in config but volumes are disabled")
 			}
 		} else {
 			// Relative source paths are treated as relative to alloc dir
 			paths[0] = filepath.Join(cfg.TaskDir().Dir, paths[0])
 		}
 
-		mounts = append(mounts, fmt.Sprintf("%s %s none rw,bind,create=dir", paths[0], paths[1]))
+		// LXC assumes paths are relative with respect to rootfs
+		target := strings.TrimLeft(paths[1], "/")
+		mounts = append(mounts, fmt.Sprintf("%s %s none rw,bind,create=dir", paths[0], target))
 	}
 
-	for _, mnt := range mounts {
-		if err := c.SetConfigItem("lxc.mount.entry", mnt); err != nil {
-			return fmt.Errorf("error setting bind mount %q error: %v", mnt, err)
+	return mounts, nil
+
+}
+
+func (d *Driver) devicesCgroupEntries(cfg *drivers.TaskConfig) ([]string, error) {
+	entries := make([]string, len(cfg.Devices))
+
+	for i, d := range cfg.Devices {
+		hd, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
+		if err != nil {
+			return nil, err
 		}
+
+		entries[i] = hd.CgroupString()
 	}
 
-	return nil
+	return entries, nil
+}
+
+func (d *Driver) formatTaskMounts(mounts []*drivers.MountConfig) []string {
+	result := make([]string, len(mounts))
+
+	for i, m := range mounts {
+		result[i] = d.formatMount(m.HostPath, m.TaskPath, m.Readonly)
+	}
+
+	return result
+}
+
+func (d *Driver) formatTaskDevices(devices []*drivers.DeviceConfig) []string {
+	result := make([]string, len(devices))
+
+	for i, m := range devices {
+		result[i] = d.formatMount(m.HostPath, m.TaskPath,
+			!strings.Contains(m.Permissions, "w"))
+	}
+
+	return result
+}
+
+func (d *Driver) formatMount(hostPath, taskPath string, readOnly bool) string {
+	typ := "dir"
+	s, err := os.Stat(hostPath)
+	if err != nil {
+		d.logger.Warn("failed to find mount host path type, defaulting to dir type", "path", hostPath, "error", err)
+	} else if !s.IsDir() {
+		typ = "file"
+	}
+
+	perm := "rw"
+	if readOnly {
+		perm = "ro"
+	}
+
+	// LXC assumes paths are relative with respect to rootfs
+	target := strings.TrimLeft(taskPath, "/")
+	return fmt.Sprintf("%s %s none %s,bind,create=%s", hostPath, target, perm, typ)
 }
 
 func (d *Driver) setResourceLimits(c *lxc.Container, cfg *drivers.TaskConfig) error {

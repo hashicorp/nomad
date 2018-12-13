@@ -1411,7 +1411,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 	// Check for invalid keys
 	valid := []string{
 		"cpu",
-		"iops",
+		"iops", // COMPAT(0.10): Remove after one release to allow it to be removed from jobspecs
 		"disk",
 		"memory",
 		"network",

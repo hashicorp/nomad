@@ -861,6 +861,7 @@ func (c *Client) restoreState() error {
 		//    we need the local AllocRunners initialized first. We could
 		//    add a second loop to initialize just the alloc watcher.
 		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
+		prevAllocMigrator := allocwatcher.NoopPrevAlloc{}
 
 		c.configLock.RLock()
 		arConf := &allocrunner.Config{
@@ -873,6 +874,7 @@ func (c *Client) restoreState() error {
 			Consul:                c.consulService,
 			Vault:                 c.vaultClient,
 			PrevAllocWatcher:      prevAllocWatcher,
+			PrevAllocMigrator:     prevAllocMigrator,
 			PluginLoader:          c.config.PluginLoader,
 			PluginSingletonLoader: c.config.PluginSingletonLoader,
 			DeviceManager:         c.devicemanager,
@@ -1154,7 +1156,6 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 	if !hadDriver {
 		// If the driver info has not yet been set, do that here
 		hasChanged = true
-		c.config.Node.Drivers[name] = info
 		for attrName, newVal := range info.Attributes {
 			c.config.Node.Attributes[attrName] = newVal
 		}
@@ -1163,11 +1164,11 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 		// The driver info has already been set, fix it up
 		if oldVal.Detected != info.Detected {
 			hasChanged = true
-			c.config.Node.Drivers[name].Detected = info.Detected
 		}
 
 		if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
 			hasChanged = true
+
 			if info.HealthDescription != "" {
 				event := &structs.NodeEvent{
 					Subsystem: "Driver",
@@ -1186,6 +1187,7 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 			}
 
 			hasChanged = true
+
 			if newVal == "" {
 				delete(c.config.Node.Attributes, attrName)
 			} else {
@@ -1205,6 +1207,7 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 	}
 
 	if hasChanged {
+		c.config.Node.Drivers[name] = info
 		c.config.Node.Drivers[name].UpdateTime = time.Now()
 		c.updateNodeLocked()
 	}
@@ -1240,9 +1243,6 @@ func resourcesAreEqual(first, second *structs.Resources) bool {
 		return false
 	}
 	if first.DiskMB != second.DiskMB {
-		return false
-	}
-	if first.IOPS != second.IOPS {
 		return false
 	}
 	if len(first.Networks) != len(second.Networks) {
@@ -1994,9 +1994,9 @@ func (c *Client) removeAlloc(allocID string) {
 
 // updateAlloc is invoked when we should update an allocation
 func (c *Client) updateAlloc(update *structs.Allocation) {
-	c.allocLock.Lock()
-	defer c.allocLock.Unlock()
+	c.allocLock.RLock()
 	ar, ok := c.allocs[update.ID]
+	c.allocLock.RUnlock()
 	if !ok {
 		c.logger.Warn("cannot update nonexistent alloc", "alloc_id", update.ID)
 		return
@@ -2028,17 +2028,27 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		return err
 	}
 
+	// Collect any preempted allocations to pass into the previous alloc watcher
+	var preemptedAllocs map[string]allocwatcher.AllocRunnerMeta
+	if len(alloc.PreemptedAllocations) > 0 {
+		preemptedAllocs = make(map[string]allocwatcher.AllocRunnerMeta)
+		for _, palloc := range alloc.PreemptedAllocations {
+			preemptedAllocs[palloc] = c.allocs[palloc]
+		}
+	}
+
 	// Since only the Client has access to other AllocRunners and the RPC
 	// client, create the previous allocation watcher here.
 	watcherConfig := allocwatcher.Config{
-		Alloc:          alloc,
-		PreviousRunner: c.allocs[alloc.PreviousAllocation],
-		RPC:            c,
-		Config:         c.configCopy,
-		MigrateToken:   migrateToken,
-		Logger:         c.logger,
+		Alloc:            alloc,
+		PreviousRunner:   c.allocs[alloc.PreviousAllocation],
+		PreemptedRunners: preemptedAllocs,
+		RPC:              c,
+		Config:           c.configCopy,
+		MigrateToken:     migrateToken,
+		Logger:           c.logger,
 	}
-	prevAllocWatcher := allocwatcher.NewAllocWatcher(watcherConfig)
+	prevAllocWatcher, prevAllocMigrator := allocwatcher.NewAllocWatcher(watcherConfig)
 
 	// Copy the config since the node can be swapped out as it is being updated.
 	// The long term fix is to pass in the config and node separately and then
@@ -2054,6 +2064,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		StateUpdater:          c,
 		DeviceStatsReporter:   c,
 		PrevAllocWatcher:      prevAllocWatcher,
+		PrevAllocMigrator:     prevAllocMigrator,
 		PluginLoader:          c.config.PluginLoader,
 		PluginSingletonLoader: c.config.PluginSingletonLoader,
 		DeviceManager:         c.devicemanager,

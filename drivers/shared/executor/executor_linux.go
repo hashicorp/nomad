@@ -28,8 +28,9 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
-
+	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/syndtr/gocapability/capability"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -260,7 +261,7 @@ func (l *LibcontainerExecutor) wait() {
 			ps = exitErr.ProcessState
 		} else {
 			l.logger.Error("failed to call wait on user process", "error", err)
-			l.exitState = &ProcessState{Pid: 0, ExitCode: 0, Time: time.Now()}
+			l.exitState = &ProcessState{Pid: 0, ExitCode: 1, Time: time.Now()}
 			return
 		}
 	}
@@ -323,6 +324,8 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
 		}
 
+		// Signal initial container processes only during graceful
+		// shutdown; hence `false` arg.
 		err = l.container.Signal(sig, false)
 		if err != nil {
 			return err
@@ -332,10 +335,12 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		case <-l.userProcExited:
 			return nil
 		case <-time.After(grace):
-			return l.container.Signal(os.Kill, false)
+			// Force kill all container processes after grace period,
+			// hence `true` argument.
+			return l.container.Signal(os.Kill, true)
 		}
 	} else {
-		return l.container.Signal(os.Kill, false)
+		return l.container.Signal(os.Kill, true)
 	}
 }
 
@@ -502,6 +507,14 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	}
 
 	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	if len(command.Devices) > 0 {
+		devs, err := cmdDevices(command.Devices)
+		if err != nil {
+			return err
+		}
+		cfg.Devices = append(cfg.Devices, devs...)
+	}
+
 	cfg.Mounts = []*lconfigs.Mount{
 		{
 			Source:      "tmpfs",
@@ -542,6 +555,10 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 			Device:      "sysfs",
 			Flags:       defaultMountFlags | syscall.MS_RDONLY,
 		},
+	}
+
+	if len(command.Mounts) > 0 {
+		cfg.Mounts = append(cfg.Mounts, cmdMounts(command.Mounts)...)
 	}
 
 	return nil
@@ -654,4 +671,48 @@ func JoinRootCgroup(subsystems []string) error {
 	}
 
 	return mErrs.ErrorOrNil()
+}
+
+// cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
+func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
+	if len(devices) == 0 {
+		return nil, nil
+	}
+
+	r := make([]*lconfigs.Device, len(devices))
+
+	for i, d := range devices {
+		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
+		}
+		ed.Path = d.TaskPath
+		r[i] = ed
+	}
+
+	return r, nil
+}
+
+// cmdMounts converts a list of driver.MountConfigs into excutor.Mounts.
+func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
+	if len(mounts) == 0 {
+		return nil
+	}
+
+	r := make([]*lconfigs.Mount, len(mounts))
+
+	for i, m := range mounts {
+		flags := unix.MS_BIND
+		if m.Readonly {
+			flags |= unix.MS_RDONLY
+		}
+		r[i] = &lconfigs.Mount{
+			Source:      m.HostPath,
+			Destination: m.TaskPath,
+			Device:      "bind",
+			Flags:       flags,
+		}
+	}
+
+	return r
 }

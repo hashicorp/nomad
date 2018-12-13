@@ -356,7 +356,6 @@ message RawResources {
     int64 cpu = 1;
     int64 memory = 2;
     int64 disk = 3;
-    int64 iops = 4;
     repeated NetworkResource networks = 5;
 }
 

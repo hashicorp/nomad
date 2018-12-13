@@ -70,8 +70,8 @@ Reschedule Eligibility = 25s from now
 
 Task "demo" is "dead"
 Task Resources
-CPU      Memory   Disk     IOPS  Addresses
-100 MHz  300 MiB  300 MiB  0     p1: 127.0.0.1:27646
+CPU      Memory   Disk     Addresses
+100 MHz  300 MiB  300 MiB  p1: 127.0.0.1:27646
 
 Task Events:
 Started At     = 2018-04-12T20:44:25Z

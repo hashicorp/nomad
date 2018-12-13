@@ -79,10 +79,10 @@ func (c *DeploymentFailCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
+	// Check that we got one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error("This command takes one argument: <deployment id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

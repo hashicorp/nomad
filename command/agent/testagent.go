@@ -240,8 +240,19 @@ func (a *TestAgent) Shutdown() error {
 	}()
 
 	// shutdown agent before endpoints
-	a.Server.Shutdown()
-	return a.Agent.Shutdown()
+	ch := make(chan error, 1)
+	go func() {
+		defer close(ch)
+		a.Server.Shutdown()
+		ch <- a.Agent.Shutdown()
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(1 * time.Minute):
+		return fmt.Errorf("timed out while shutting down test agent")
+	}
 }
 
 func (a *TestAgent) HTTPAddr() string {

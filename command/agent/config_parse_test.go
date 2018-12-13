@@ -76,7 +76,6 @@ func TestConfig_Parse(t *testing.T) {
 						CPU:           10,
 						MemoryMB:      10,
 						DiskMB:        10,
-						IOPS:          10,
 						ReservedPorts: "1,100,10-12",
 					},
 					GCInterval:            6 * time.Second,

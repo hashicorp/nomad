@@ -317,20 +317,6 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
     <td>node_id, datacenter</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocated.iops`</td>
-    <td>Total amount of IOPS the scheduler has allocated to tasks</td>
-    <td>IOPS</td>
-    <td>Gauge</td>
-    <td>node_id, datacenter</td>
-  </tr>
-  <tr>
-    <td>`nomad.client.unallocated.iops`</td>
-    <td>Total amount of IOPS free for the scheduler to allocate to tasks</td>
-    <td>IOPS</td>
-    <td>Gauge</td>
-    <td>node_id, datacenter</td>
-  </tr>
-  <tr>
     <td>`nomad.client.allocated.network`</td>
     <td>Total amount of bandwidth the scheduler has allocated to tasks on the
     given device</td>
@@ -539,18 +525,6 @@ detailed above) but any new metrics will only be available in the new format.
     <td>`nomad.client.unallocated.disk.<HostID>`</td>
     <td>Total amount of disk space free for the scheduler to allocate to tasks</td>
     <td>Megabytes</td>
-    <td>Gauge</td>
-  </tr>
-  <tr>
-    <td>`nomad.client.allocated.iops.<HostID>`</td>
-    <td>Total amount of IOPS the scheduler has allocated to tasks</td>
-    <td>IOPS</td>
-    <td>Gauge</td>
-  </tr>
-  <tr>
-    <td>`nomad.client.unallocated.iops.<HostID>`</td>
-    <td>Total amount of IOPS free for the scheduler to allocate to tasks</td>
-    <td>IOPS</td>
     <td>Gauge</td>
   </tr>
   <tr>

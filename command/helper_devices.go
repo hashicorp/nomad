@@ -109,3 +109,15 @@ func printDeviceStats(ui cli.Ui, deviceGroupStats []*api.DeviceGroupStats) {
 		}
 	}
 }
+
+func getDeviceAttributes(d *api.NodeDeviceResource) []string {
+	attrs := []string{fmt.Sprintf("Device Group|%s", d.ID())}
+
+	for k, v := range d.Attributes {
+		attrs = append(attrs, k+"|"+v.String())
+	}
+
+	sort.Strings(attrs[1:])
+
+	return attrs
+}

@@ -356,6 +356,28 @@ type DockerDevice struct {
 	CgroupPermissions string `codec:"cgroup_permissions"`
 }
 
+func (d DockerDevice) toDockerDevice() (docker.Device, error) {
+	dd := docker.Device{
+		PathOnHost:        d.HostPath,
+		PathInContainer:   d.ContainerPath,
+		CgroupPermissions: d.CgroupPermissions,
+	}
+
+	if d.HostPath == "" {
+		return dd, fmt.Errorf("host path must be set in configuration for devices")
+	}
+
+	if dd.CgroupPermissions == "" {
+		dd.CgroupPermissions = "rwm"
+	}
+
+	if !validateCgroupPermission(dd.CgroupPermissions) {
+		return dd, fmt.Errorf("invalid cgroup permission string: %q", dd.CgroupPermissions)
+	}
+
+	return dd, nil
+}
+
 type DockerLogging struct {
 	Type   string            `codec:"type"`
 	Config map[string]string `codec:"config"`

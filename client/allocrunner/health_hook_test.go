@@ -22,7 +22,7 @@ import (
 // statically assert health hook implements the expected interfaces
 var _ interfaces.RunnerPrerunHook = (*allocHealthWatcherHook)(nil)
 var _ interfaces.RunnerUpdateHook = (*allocHealthWatcherHook)(nil)
-var _ interfaces.RunnerDestroyHook = (*allocHealthWatcherHook)(nil)
+var _ interfaces.RunnerPostrunHook = (*allocHealthWatcherHook)(nil)
 var _ interfaces.ShutdownHook = (*allocHealthWatcherHook)(nil)
 
 // allocHealth is emitted to a chan whenever SetHealth is called
@@ -76,8 +76,9 @@ func (m *mockHealthSetter) ClearHealth() {
 	m.taskEvents = nil
 }
 
-// TestHealthHook_PrerunDestroy asserts a health hook does not error if it is run and destroyed.
-func TestHealthHook_PrerunDestroy(t *testing.T) {
+// TestHealthHook_PrerunPostrun asserts a health hook does not error if it is
+// run and postrunned.
+func TestHealthHook_PrerunPostrun(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -96,7 +97,7 @@ func TestHealthHook_PrerunDestroy(t *testing.T) {
 	require.True(ok)
 	_, ok = h.(interfaces.RunnerUpdateHook)
 	require.True(ok)
-	destroyh, ok := h.(interfaces.RunnerDestroyHook)
+	postrunh, ok := h.(interfaces.RunnerPostrunHook)
 	require.True(ok)
 
 	// Prerun
@@ -109,12 +110,12 @@ func TestHealthHook_PrerunDestroy(t *testing.T) {
 	assert.False(t, ahw.isDeploy)
 	ahw.hookLock.Unlock()
 
-	// Destroy
-	require.NoError(destroyh.Destroy())
+	// Postrun
+	require.NoError(postrunh.Postrun())
 }
 
-// TestHealthHook_PrerunUpdateDestroy asserts Updates may be applied concurrently.
-func TestHealthHook_PrerunUpdateDestroy(t *testing.T) {
+// TestHealthHook_PrerunUpdatePostrun asserts Updates may be applied concurrently.
+func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -147,13 +148,13 @@ func TestHealthHook_PrerunUpdateDestroy(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	// Destroy
-	require.NoError(h.Destroy())
+	// Postrun
+	require.NoError(h.Postrun())
 }
 
-// TestHealthHook_UpdatePrerunDestroy asserts that a hook may have Update
+// TestHealthHook_UpdatePrerunPostrun asserts that a hook may have Update
 // called before Prerun.
-func TestHealthHook_UpdatePrerunDestroy(t *testing.T) {
+func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -191,12 +192,12 @@ func TestHealthHook_UpdatePrerunDestroy(t *testing.T) {
 	assert.True(t, h.isDeploy)
 	h.hookLock.Unlock()
 
-	// Destroy
-	require.NoError(h.Destroy())
+	// Postrun
+	require.NoError(h.Postrun())
 }
 
-// TestHealthHook_Destroy asserts that a hook may have only Destroy called.
-func TestHealthHook_Destroy(t *testing.T) {
+// TestHealthHook_Postrun asserts that a hook may have only Postrun called.
+func TestHealthHook_Postrun(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -209,8 +210,8 @@ func TestHealthHook_Destroy(t *testing.T) {
 
 	h := newAllocHealthWatcherHook(logger, mock.Alloc(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
 
-	// Destroy
-	require.NoError(h.Destroy())
+	// Postrun
+	require.NoError(h.Postrun())
 }
 
 // TestHealthHook_SetHealth asserts SetHealth is called when health status is
@@ -290,8 +291,8 @@ func TestHealthHook_SetHealth(t *testing.T) {
 		require.Nilf(ev, "%#v", health.taskEvents)
 	}
 
-	// Destroy
-	require.NoError(h.Destroy())
+	// Postrun
+	require.NoError(h.Postrun())
 }
 
 // TestHealthHook_SystemNoop asserts that system jobs return the noop tracker.
@@ -309,7 +310,9 @@ func TestHealthHook_SystemNoop(t *testing.T) {
 	require.False(t, ok)
 	_, ok = h.(interfaces.RunnerUpdateHook)
 	require.False(t, ok)
-	_, ok = h.(interfaces.RunnerDestroyHook)
+	_, ok = h.(interfaces.RunnerPostrunHook)
+	require.False(t, ok)
+	_, ok = h.(interfaces.ShutdownHook)
 	require.False(t, ok)
 }
 

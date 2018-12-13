@@ -7,12 +7,11 @@ import (
 	"testing"
 	"time"
 
+	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
-
-	capi "github.com/hashicorp/consul/api"
 )
 
 func TestParse(t *testing.T) {
@@ -317,7 +316,6 @@ func TestParse(t *testing.T) {
 								Resources: &api.Resources{
 									CPU:      helper.IntToPtr(500),
 									MemoryMB: helper.IntToPtr(128),
-									IOPS:     helper.IntToPtr(30),
 								},
 								Constraints: []*api.Constraint{
 									{

@@ -1,12 +1,11 @@
 package scheduler
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
-
-	"fmt"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
@@ -1568,7 +1567,6 @@ func TestSystemSched_Preemption(t *testing.T) {
 			CPU:      3072,
 			MemoryMB: 5034,
 			DiskMB:   20 * 1024,
-			IOPS:     150,
 			Networks: []*structs.NetworkResource{
 				{
 					Device: "eth0",

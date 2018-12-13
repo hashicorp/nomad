@@ -1698,7 +1698,7 @@ type Resources struct {
 	CPU      int
 	MemoryMB int
 	DiskMB   int
-	IOPS     int
+	IOPS     int // COMPAT(0.10): Only being used to issue warnings
 	Networks Networks
 	Devices  []*RequestedDevice
 }
@@ -1715,7 +1715,6 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 300,
-		IOPS:     0,
 	}
 }
 
@@ -1728,7 +1727,6 @@ func MinResources() *Resources {
 	return &Resources{
 		CPU:      20,
 		MemoryMB: 10,
-		IOPS:     0,
 	}
 }
 
@@ -1768,9 +1766,6 @@ func (r *Resources) Merge(other *Resources) {
 	if other.DiskMB != 0 {
 		r.DiskMB = other.DiskMB
 	}
-	if other.IOPS != 0 {
-		r.IOPS = other.IOPS
-	}
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
 	}
@@ -1805,9 +1800,6 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
-	}
-	if r.IOPS < minResources.IOPS {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is %d; got %d", minResources.IOPS, r.IOPS))
 	}
 	for i, n := range r.Networks {
 		if err := n.MeetsMinResources(); err != nil {
@@ -1865,9 +1857,6 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.DiskMB < other.DiskMB {
 		return false, "disk"
 	}
-	if r.IOPS < other.IOPS {
-		return false, "iops"
-	}
 	return true, ""
 }
 
@@ -1880,7 +1869,6 @@ func (r *Resources) Add(delta *Resources) error {
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
 	r.DiskMB += delta.DiskMB
-	r.IOPS += delta.IOPS
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR
@@ -4676,6 +4664,13 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		}
 	}
 
+	for _, t := range tg.Tasks {
+		if err := t.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", t.Name))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -5516,6 +5511,17 @@ func validateServices(t *Task) error {
 	}
 
 	// Ensure address mode is valid
+	return mErr.ErrorOrNil()
+}
+
+func (t *Task) Warnings() error {
+	var mErr multierror.Error
+
+	// Validate the resources
+	if t.Resources != nil && t.Resources.IOPS != 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
+	}
+
 	return mErr.ErrorOrNil()
 }
 

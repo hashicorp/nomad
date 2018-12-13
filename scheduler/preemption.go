@@ -113,13 +113,17 @@ type Preemptor struct {
 
 	// currentAllocs is the candidate set used to find preemptible allocations
 	currentAllocs []*structs.Allocation
+
+	// ctx is the context from the scheduler stack
+	ctx Context
 }
 
-func NewPreemptor(jobPriority int) *Preemptor {
+func NewPreemptor(jobPriority int, ctx Context) *Preemptor {
 	return &Preemptor{
 		currentPreemptions: make(map[structs.NamespacedID]map[string]int),
 		jobPriority:        jobPriority,
 		allocDetails:       make(map[string]*allocInfo),
+		ctx:                ctx,
 	}
 }
 
@@ -433,6 +437,156 @@ OUTER:
 	}
 	filteredBestAllocs := p.filterSuperset(allocsToPreempt, nodeRemainingResources, resourcesNeeded, preemptionResourceFactory)
 	return filteredBestAllocs
+}
+
+// deviceGroupAllocs represents a group of allocs that share a device
+type deviceGroupAllocs struct {
+	allocs []*structs.Allocation
+
+	// deviceInstances tracks the number of instances used per alloc
+	deviceInstances map[string]int
+}
+
+func newAllocDeviceGroup() *deviceGroupAllocs {
+	return &deviceGroupAllocs{
+		deviceInstances: make(map[string]int),
+	}
+}
+
+// PreemptForDevice tries to find allocations to preempt to meet devices needed
+// This is called once per device request when assigning devices to the task
+func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *deviceAllocator) []*structs.Allocation {
+
+	// Group allocations by device, tracking the number of
+	// instances used in each device by alloc id
+	deviceToAllocs := make(map[structs.DeviceIdTuple]*deviceGroupAllocs)
+	for _, alloc := range p.currentAllocs {
+		for _, tr := range alloc.AllocatedResources.Tasks {
+			// Ignore allocs that don't use devices
+			if len(tr.Devices) == 0 {
+				continue
+			}
+
+			// Go through each assigned device group
+			for _, device := range tr.Devices {
+				// Look up the device instance from the device allocator
+				deviceIdTuple := *device.ID()
+				devInst := devAlloc.Devices[deviceIdTuple]
+
+				// devInst can be nil if the device is no longer healthy
+				if devInst == nil {
+					continue
+				}
+
+				// Ignore if the device doesn't match the ask
+				if !nodeDeviceMatches(p.ctx, devInst.Device, ask) {
+					continue
+				}
+
+				// Store both the alloc and the number of instances used
+				// in our tracking map
+				allocDeviceGrp := deviceToAllocs[deviceIdTuple]
+				if allocDeviceGrp == nil {
+					allocDeviceGrp = newAllocDeviceGroup()
+					deviceToAllocs[deviceIdTuple] = allocDeviceGrp
+				}
+				allocDeviceGrp.allocs = append(allocDeviceGrp.allocs, alloc)
+				allocDeviceGrp.deviceInstances[alloc.ID] += len(device.DeviceIDs)
+			}
+		}
+	}
+
+	neededCount := ask.Count
+
+	var preemptionOptions []*deviceGroupAllocs
+	// Examine matching allocs by device
+OUTER:
+	for deviceIDTuple, allocsGrp := range deviceToAllocs {
+		// First group and sort allocations using this device by priority
+		allocsByPriority := filterAndGroupPreemptibleAllocs(p.jobPriority, allocsGrp.allocs)
+
+		// Reset preempted count for this device
+		preemptedCount := 0
+
+		// Initialize slice of preempted allocations
+		var preemptedAllocs []*structs.Allocation
+
+		for _, grpAllocs := range allocsByPriority {
+			for _, alloc := range grpAllocs.allocs {
+				// Look up the device instance from the device allocator
+				devInst := devAlloc.Devices[deviceIDTuple]
+
+				// Add to preemption list because this device matches
+				preemptedCount += allocsGrp.deviceInstances[alloc.ID]
+				preemptedAllocs = append(preemptedAllocs, alloc)
+
+				// Check if we met needed count
+				if preemptedCount+devInst.FreeCount() >= int(neededCount) {
+					preemptionOptions = append(preemptionOptions, &deviceGroupAllocs{
+						allocs:          preemptedAllocs,
+						deviceInstances: allocsGrp.deviceInstances,
+					})
+					continue OUTER
+				}
+			}
+		}
+	}
+
+	// Find the combination of allocs with lowest net priority
+	if len(preemptionOptions) > 0 {
+		return selectBestAllocs(preemptionOptions, int(neededCount))
+	}
+
+	return nil
+}
+
+// selectBestAllocs finds the best allocations based on minimal net priority amongst
+// all options. The net priority is the sum of unique priorities in each option
+func selectBestAllocs(preemptionOptions []*deviceGroupAllocs, neededCount int) []*structs.Allocation {
+	bestPriority := math.MaxInt32
+	var bestAllocs []*structs.Allocation
+
+	// We iterate over allocations in priority order, so its possible
+	// that we have more allocations than needed to meet the needed count.
+	// e.g we need 4 instances, and we get 3 from a priority 10 alloc, and 4 from
+	// a priority 20 alloc. We should filter out the priority 10 alloc in that case.
+	// This loop does a filter and chooses the set with the smallest net priority
+	for _, allocGrp := range preemptionOptions {
+		// Find unique priorities and add them to calculate net priority
+		priorities := map[int]struct{}{}
+		netPriority := 0
+
+		devInst := allocGrp.deviceInstances
+		var filteredAllocs []*structs.Allocation
+
+		// Sort by number of device instances used, descending
+		sort.Slice(allocGrp.allocs, func(i, j int) bool {
+			instanceCount1 := devInst[allocGrp.allocs[i].ID]
+			instanceCount2 := devInst[allocGrp.allocs[j].ID]
+			return instanceCount1 > instanceCount2
+		})
+
+		// Filter and calculate net priority
+		preemptedInstanceCount := 0
+		for _, alloc := range allocGrp.allocs {
+			if preemptedInstanceCount >= neededCount {
+				break
+			}
+			instanceCount := devInst[alloc.ID]
+			preemptedInstanceCount += instanceCount
+			filteredAllocs = append(filteredAllocs, alloc)
+			_, ok := priorities[alloc.Job.Priority]
+			if !ok {
+				priorities[alloc.Job.Priority] = struct{}{}
+				netPriority += alloc.Job.Priority
+			}
+		}
+		if netPriority < bestPriority {
+			bestPriority = netPriority
+			bestAllocs = filteredAllocs
+		}
+	}
+	return bestAllocs
 }
 
 // basicResourceDistance computes a distance using a coordinate system. It compares resource fields like CPU/Memory and Disk.

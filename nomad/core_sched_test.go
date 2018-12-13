@@ -1973,6 +1973,16 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ShouldGC:       false,
 		},
 		{
+			Desc:           "Don't GC when non terminal on client and job dead",
+			ClientStatus:   structs.AllocClientStatusRunning,
+			DesiredStatus:  structs.AllocDesiredStatusStop,
+			JobStatus:      structs.JobStatusDead,
+			GCTime:         fail,
+			ModifyIndex:    90,
+			ThresholdIndex: 90,
+			ShouldGC:       false,
+		},
+		{
 			Desc:             "GC when terminal but not failed ",
 			ClientStatus:     structs.AllocClientStatusComplete,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
