@@ -84,6 +84,8 @@ type RPCContext struct {
 // listen is used to listen for incoming RPC connections
 func (r *rpcHandler) listen(ctx context.Context) {
 	defer close(r.listenerCh)
+
+	var acceptLoopDelay time.Duration
 	for {
 		select {
 		case <-ctx.Done():
@@ -98,19 +100,46 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			if r.shutdown {
 				return
 			}
-
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			r.logger.Error("failed to accept RPC conn", "error", err)
+			r.handleAcceptErr(ctx, err, &acceptLoopDelay)
 			continue
 		}
+		// No error, reset loop delay
+		acceptLoopDelay = 0
 
 		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
+	}
+}
+
+// handleAcceptErr sleeps to avoid spamming the log,
+// with a maximum delay according to whether or not the error is temporary
+func (r *rpcHandler) handleAcceptErr(ctx context.Context, err error, loopDelay *time.Duration) {
+	const baseDelay = 5 * time.Millisecond
+	const maxDelayPerm = 5 * time.Second
+	const maxDelayTemp = 1 * time.Second
+
+	if *loopDelay == 0 {
+		*loopDelay = baseDelay
+	} else {
+		*loopDelay *= 2
+	}
+
+	temporaryError := false
+	if ne, ok := err.(net.Error); ok && ne.Temporary() {
+		temporaryError = true
+	}
+
+	if temporaryError && *loopDelay > maxDelayTemp {
+		*loopDelay = maxDelayTemp
+	} else if *loopDelay > maxDelayPerm {
+		*loopDelay = maxDelayPerm
+	}
+
+	r.logger.Error("failed to accept RPC conn", "error", err, "delay", *loopDelay)
+
+	select {
+	case <-ctx.Done():
+	case <-time.After(*loopDelay):
 	}
 }
 
