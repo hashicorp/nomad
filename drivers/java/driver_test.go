@@ -270,7 +270,7 @@ func encodeDriverHelper(t *testing.T, task *drivers.TaskConfig, taskConfig map[s
 	evalCtx := &hcl.EvalContext{
 		Functions: shared.GetStdlibFuncs(),
 	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
+	spec, diag := hclspec.Convert(taskConfigSpec, evalCtx)
 	require.False(t, diag.HasErrors())
 	taskConfigCtyVal, diag := shared.ParseHclInterface(taskConfig, spec, evalCtx)
 	require.Empty(t, diag.Errs())

@@ -20,7 +20,7 @@ func testSpecConversions(t *testing.T, cases []testConversions) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			act, diag := Convert(c.Input)
+			act, diag := Convert(c.Input, nil)
 			if diag.HasErrors() {
 				if c.ExpectedError == "" {
 					t.Fatalf("Convert %q failed: %v", c.Name, diag.Error())

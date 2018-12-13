@@ -176,7 +176,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 	c.logger.Trace("device spec", "spec", hclog.Fmt("% #v", pretty.Formatter(spec)))
 
 	// Convert the schema
-	schema, diag := hclspec.Convert(spec)
+	schema, diag := hclspec.Convert(spec, nil)
 	if diag.HasErrors() {
 		errStr := "failed to convert HCL schema: "
 		for _, err := range diag.Errs() {

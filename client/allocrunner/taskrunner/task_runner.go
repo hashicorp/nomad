@@ -507,16 +507,11 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	}
 }
 
-// runDriver runs the driver and waits for it to exit
-func (tr *TaskRunner) runDriver() error {
-
-	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
-	taskConfig := tr.buildTaskConfig()
-
+func (tr *TaskRunner) evalContext() (*hcl.EvalContext, error) {
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()
 	if err != nil {
-		return fmt.Errorf("error building environment variables: %v", err)
+		return nil, fmt.Errorf("error building environment variables: %v", err)
 	}
 
 	// Handle per-key errors
@@ -537,6 +532,20 @@ func (tr *TaskRunner) runDriver() error {
 	evalCtx := &hcl.EvalContext{
 		Variables: vars,
 		Functions: shared.GetStdlibFuncs(),
+	}
+
+	return evalCtx, nil
+}
+
+// runDriver runs the driver and waits for it to exit
+func (tr *TaskRunner) runDriver() error {
+
+	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
+	taskConfig := tr.buildTaskConfig()
+
+	evalCtx, err := tr.evalContext()
+	if err != nil {
+		return err
 	}
 
 	val, diag := shared.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
@@ -638,7 +647,12 @@ func (tr *TaskRunner) initDriver() error {
 	if err != nil {
 		return err
 	}
-	spec, diag := hclspec.Convert(schema)
+
+	evalCtx, err := tr.evalContext()
+	if err != nil {
+		return err
+	}
+	spec, diag := hclspec.Convert(schema, evalCtx)
 	if diag.HasErrors() {
 		return multierror.Append(errors.New("failed to convert task schema"), diag.Errs()...)
 	}

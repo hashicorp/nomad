@@ -369,7 +369,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 	}
 
 	// Convert the schema to hcl
-	spec, diag := hclspec.Convert(info.configSchema)
+	spec, diag := hclspec.Convert(info.configSchema, configParseCtx)
 	if diag.HasErrors() {
 		multierror.Append(&mErr, diag.Errs()...)
 		return multierror.Prefix(&mErr, "failed converting config schema:")
