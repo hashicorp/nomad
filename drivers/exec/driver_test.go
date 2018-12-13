@@ -13,14 +13,14 @@ import (
 	"testing"
 	"time"
 
-	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/testutil"
@@ -32,6 +32,17 @@ func TestMain(m *testing.M) {
 	if !testtask.Run() {
 		os.Exit(m.Run())
 	}
+}
+
+var testResources = &drivers.Resources{
+	NomadResources: &structs.Resources{
+		MemoryMB: 128,
+		CPU:      100,
+	},
+	LinuxResources: &drivers.LinuxResources{
+		MemoryLimitBytes: 134217728,
+		CPUShares:        100,
+	},
 }
 
 func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
@@ -84,8 +95,9 @@ func TestExecDriver_StartWait(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -116,8 +128,9 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -175,8 +188,9 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -235,8 +249,9 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -304,8 +319,9 @@ func TestExecDriver_Stats(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "test",
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
 	}
 
 	taskConfig := map[string]interface{}{
@@ -337,8 +353,9 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		Resources: testResources,
 	}
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -385,9 +402,10 @@ func TestExecDriver_User(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
-		User: "alice",
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		User:      "alice",
+		Resources: testResources,
 	}
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -418,8 +436,9 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	d := NewExecDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		Resources: testResources,
 	}
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -507,6 +526,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	task := &drivers.TaskConfig{
 		ID:         uuid.Generate(),
 		Name:       "test",
+		Resources:  testResources,
 		StdoutPath: filepath.Join(tmpDir, "task-stdout"),
 		StderrPath: filepath.Join(tmpDir, "task-stderr"),
 		Devices: []*drivers.DeviceConfig{
