@@ -698,6 +698,8 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	alloc := tr.Alloc()
 	invocationid := uuid.Generate()[:8]
 
+	// TODO This shouldn't use the task resources
+
 	return &drivers.TaskConfig{
 		ID:      fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:    task.Name,

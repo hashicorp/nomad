@@ -110,10 +110,14 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 		Name: t.Name,
 		Env:  t.Env,
 	}
+
+	// Create the mock allocation
+	alloc := mock.Alloc()
 	if t.Resources != nil {
-		task.Resources = t.Resources.NomadResources
+		alloc.AllocatedResources.Tasks[task.Name] = t.Resources.NomadResources
 	}
-	taskBuilder := taskenv.NewBuilder(mock.Node(), mock.Alloc(), task, "global")
+
+	taskBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, "global")
 	utils.SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
 
 	taskEnv := taskBuilder.Build()
