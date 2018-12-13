@@ -9,8 +9,9 @@ export default ApplicationSerializer.extend({
     hash.ID = JSON.stringify([hash.JobID, hash.Namespace || 'default']);
     hash.JobID = hash.ID;
 
-    hash.TaskGroupSummaries = Object.keys(get(hash, 'Summary') || {}).map(key => {
-      const allocStats = get(hash, `Summary.${key}`) || {};
+    const fullSummary = hash.Summary || {};
+    hash.TaskGroupSummaries = Object.keys(fullSummary).map(key => {
+      const allocStats = fullSummary[key] || {};
       const summary = { Name: key };
 
       Object.keys(allocStats).forEach(
