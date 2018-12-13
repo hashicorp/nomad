@@ -41,9 +41,9 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
 		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir.Dir); err != nil {
 			wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
-			h.logger.Debug(wrapped.Error())
-			h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
-			return wrapped
+			herr := NewHookError(wrapped, structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
+
+			return herr
 		}
 	}
 

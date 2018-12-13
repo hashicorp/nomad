@@ -14,15 +14,10 @@ var (
 	ErrTaskNotRunning = errors.New(errTaskNotRunning)
 )
 
-// HookError is an error interface that can be used by a TaskRunner hook to
-// emit custom task events when an error occurs.
-type HookError interface {
-	TaskEvent() *structs.TaskEvent
-	Error() string
-}
-
 // NewHookError returns an implementation of a HookError with an underlying err
 // and a pre-formatted task event.
+// If the taskEvent is nil, then we won't attempt to generate one during error
+// handling.
 func NewHookError(err error, taskEvent *structs.TaskEvent) error {
 	return &hookError{
 		err:       err,
@@ -33,10 +28,6 @@ func NewHookError(err error, taskEvent *structs.TaskEvent) error {
 type hookError struct {
 	taskEvent *structs.TaskEvent
 	err       error
-}
-
-func (h *hookError) TaskEvent() *structs.TaskEvent {
-	return h.taskEvent
 }
 
 func (h *hookError) Error() string {

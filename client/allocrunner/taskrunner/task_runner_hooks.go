@@ -106,20 +106,18 @@ func (tr *TaskRunner) initHooks() {
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
 	var taskEvent *structs.TaskEvent
-	if herr, ok := err.(HookError); ok {
-		taskEvent = herr.TaskEvent()
+	if herr, ok := err.(*hookError); ok {
+		taskEvent = herr.taskEvent
 	} else {
 		message := fmt.Sprintf("%s: %v", hookName, err)
 		taskEvent = structs.NewTaskEvent(structs.TaskHookFailed).SetMessage(message)
 	}
 
 	// The TaskEvent returned by a HookError may be nil if the hook chooses to opt
-	// out of sending a task event on terminal status.
-	if taskEvent == nil {
-		return
+	// out of sending a task event.
+	if taskEvent != nil {
+		tr.EmitEvent(taskEvent)
 	}
-
-	tr.EmitEvent(taskEvent)
 }
 
 // prestart is used to run the runners prestart hooks.
