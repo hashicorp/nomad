@@ -2311,7 +2311,7 @@ DISCOLOOP:
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 				}
-				srv := &servers.Server{Addr: addr}
+				srv := &servers.Server{DC: dc, Addr: addr}
 				nomadServers = append(nomadServers, srv)
 			}
 			if len(nomadServers) > 0 {
