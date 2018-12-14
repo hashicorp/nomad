@@ -148,8 +148,8 @@ deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
 	go get -u github.com/kardianos/govendor
 	go get -u github.com/ugorji/go/codec/codecgen
-	go get -u github.com/hashicorp/go-bindata/...
-	go get -u github.com/elazarl/go-bindata-assetfs/...
+	go get -u github.com/hashicorp/go-bindata/go-bindata
+	go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	go get -u github.com/golang/protobuf/protoc-gen-go
