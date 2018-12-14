@@ -119,6 +119,8 @@ type AllocRunner interface {
 	StatsReporter() interfaces.AllocStatsReporter
 	Update(*structs.Allocation)
 	WaitCh() <-chan struct{}
+	DestroyCh() <-chan struct{}
+	ShutdownCh() <-chan struct{}
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -567,22 +569,21 @@ func (c *Client) Shutdown() error {
 	// Stop Garbage collector
 	c.garbageCollector.Stop()
 
+	arGroup := group{}
 	if c.config.DevMode {
 		// In DevMode destroy all the running allocations.
 		for _, ar := range c.getAllocRunners() {
 			ar.Destroy()
-		}
-		for _, ar := range c.getAllocRunners() {
-			<-ar.WaitCh()
+			arGroup.AddCh(ar.DestroyCh())
 		}
 	} else {
 		// In normal mode call shutdown
-		arGroup := group{}
 		for _, ar := range c.getAllocRunners() {
-			arGroup.Go(ar.Shutdown)
+			ar.Shutdown()
+			arGroup.AddCh(ar.ShutdownCh())
 		}
-		arGroup.Wait()
 	}
+	arGroup.Wait()
 
 	c.shutdown = true
 	close(c.shutdownCh)
@@ -2680,6 +2681,12 @@ func (g *group) Go(f func()) {
 		defer g.wg.Done()
 		f()
 	}()
+}
+
+func (c *group) AddCh(ch <-chan struct{}) {
+	c.Go(func() {
+		<-ch
+	})
 }
 
 // Wait for all goroutines to exit. Must be called after all calls to Go
