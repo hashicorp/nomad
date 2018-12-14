@@ -15,7 +15,7 @@ type BasePlugin interface {
 
 	// SetConfig is used to set the configuration by passing a MessagePack
 	// encoding of it.
-	SetConfig(data []byte, config *ClientAgentConfig) error
+	SetConfig(c *Config) error
 }
 
 // PluginInfoResponse returns basic information about the plugin such that Nomad
@@ -24,9 +24,9 @@ type PluginInfoResponse struct {
 	// Type returns the plugins type
 	Type string
 
-	// PluginApiVersion returns the version of the Nomad plugin API it is built
-	// against.
-	PluginApiVersion string
+	// PluginApiVersions returns the versions of the Nomad plugin API that the
+	// plugin supports.
+	PluginApiVersions []string
 
 	// PluginVersion is the version of the plugin.
 	PluginVersion string
@@ -35,8 +35,21 @@ type PluginInfoResponse struct {
 	Name string
 }
 
-// ClientAgentConfig is the nomad client configuration sent to all plugins
-type ClientAgentConfig struct {
+// Config contains the configuration for the plugin.
+type Config struct {
+	// ApiVersion is the negotiated plugin API version to use.
+	ApiVersion string
+
+	// PluginConfig is the MessagePack encoding of the plugins user
+	// configuration.
+	PluginConfig []byte
+
+	// AgentConfig is the Nomad agents configuration as applicable to plugins
+	AgentConfig *AgentConfig
+}
+
+// AgentConfig is the Nomad agent's configuration sent to all plugins
+type AgentConfig struct {
 	Driver *ClientDriverConfig
 }
 
@@ -51,7 +64,7 @@ type ClientDriverConfig struct {
 	ClientMinPort uint
 }
 
-func (c *ClientAgentConfig) toProto() *proto.NomadConfig {
+func (c *AgentConfig) toProto() *proto.NomadConfig {
 	if c == nil {
 		return nil
 	}
@@ -68,12 +81,12 @@ func (c *ClientAgentConfig) toProto() *proto.NomadConfig {
 	return cfg
 }
 
-func nomadConfigFromProto(pb *proto.NomadConfig) *ClientAgentConfig {
+func nomadConfigFromProto(pb *proto.NomadConfig) *AgentConfig {
 	if pb == nil {
 		return nil
 	}
 
-	cfg := &ClientAgentConfig{}
+	cfg := &AgentConfig{}
 	if pb.Driver != nil {
 		cfg.Driver = &ClientDriverConfig{
 			ClientMaxPort: uint(pb.Driver.ClientMaxPort),

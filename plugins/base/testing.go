@@ -48,7 +48,7 @@ type TestConfig struct {
 
 type PluginInfoFn func() (*PluginInfoResponse, error)
 type ConfigSchemaFn func() (*hclspec.Spec, error)
-type SetConfigFn func([]byte, *ClientAgentConfig) error
+type SetConfigFn func(*Config) error
 
 // MockPlugin is used for testing.
 // Each function can be set as a closure to make assertions about how data
@@ -61,8 +61,8 @@ type MockPlugin struct {
 
 func (p *MockPlugin) PluginInfo() (*PluginInfoResponse, error) { return p.PluginInfoF() }
 func (p *MockPlugin) ConfigSchema() (*hclspec.Spec, error)     { return p.ConfigSchemaF() }
-func (p *MockPlugin) SetConfig(data []byte, cfg *ClientAgentConfig) error {
-	return p.SetConfigF(data, cfg)
+func (p *MockPlugin) SetConfig(cfg *Config) error {
+	return p.SetConfigF(cfg)
 }
 
 // Below are static implementations of the base plugin functions
@@ -89,5 +89,5 @@ func TestConfigSchema() ConfigSchemaFn {
 
 // NoopSetConfig is a noop implementation of set config
 func NoopSetConfig() SetConfigFn {
-	return func(_ []byte, _ *ClientAgentConfig) error { return nil }
+	return func(_ *Config) error { return nil }
 }
