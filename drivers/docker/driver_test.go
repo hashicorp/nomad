@@ -2250,8 +2250,8 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 	cfg := &TaskConfig{
 		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
-		Command:   "sh",
-		Args:      []string{"-c", "x=a; while true; do eval x='$x$x'; done"},
+		Command:   "/bin/sh",
+		Args:      []string{"-c", "sleep 2; x=a; while true; do eval x='$x$x'; done"},
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
