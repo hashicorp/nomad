@@ -35,9 +35,13 @@ func TestMain(m *testing.M) {
 }
 
 var testResources = &drivers.Resources{
-	NomadResources: &structs.Resources{
-		MemoryMB: 128,
-		CPU:      100,
+	NomadResources: &structs.AllocatedTaskResources{
+		Memory: structs.AllocatedMemoryResources{
+			MemoryMB: 128,
+		},
+		Cpu: structs.AllocatedCpuResources{
+			CpuShares: 100,
+		},
 	},
 	LinuxResources: &drivers.LinuxResources{
 		MemoryLimitBytes: 134217728,

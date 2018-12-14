@@ -69,7 +69,7 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
 		Resources: &drivers.Resources{
-			NomadResources: task.Resources,
+			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
 		},
 	}
 	configureTLogging(cmd)
@@ -109,7 +109,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		data, err := ioutil.ReadFile(memLimits)
 		require.NoError(err)
 
-		expectedMemLim := strconv.Itoa(execCmd.Resources.NomadResources.MemoryMB * 1024 * 1024)
+		expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
 		actualMemLim := strings.TrimSpace(string(data))
 		require.Equal(actualMemLim, expectedMemLim)
 		require.NoError(executor.Shutdown("", 0))

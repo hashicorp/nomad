@@ -318,10 +318,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		accelerator = driverConfig.Accelerator
 	}
 
-	if cfg.Resources.NomadResources.MemoryMB < 128 || cfg.Resources.NomadResources.MemoryMB > 4000000 {
+	mb := cfg.Resources.NomadResources.Memory.MemoryMB
+	if mb < 128 || mb > 4000000 {
 		return nil, nil, fmt.Errorf("Qemu memory assignment out of bounds")
 	}
-	mem := fmt.Sprintf("%dM", cfg.Resources.NomadResources.MemoryMB)
+	mem := fmt.Sprintf("%dM", mb)
 
 	absPath, err := GetAbsolutePath("qemu-system-x86_64")
 	if err != nil {

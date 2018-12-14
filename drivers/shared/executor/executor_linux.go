@@ -105,7 +105,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	if command.Resources == nil {
 		command.Resources = &drivers.Resources{
-			NomadResources: &structs.Resources{},
+			NomadResources: &structs.AllocatedTaskResources{},
 		}
 	}
 
@@ -578,20 +578,21 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 		return nil
 	}
 
-	if command.Resources.NomadResources.MemoryMB > 0 {
+	if mb := command.Resources.NomadResources.Memory.MemoryMB; mb > 0 {
 		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = int64(command.Resources.NomadResources.MemoryMB * 1024 * 1024)
+		cfg.Cgroups.Resources.Memory = int64(mb * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
 		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
 	}
 
-	if command.Resources.NomadResources.CPU < 2 {
-		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", command.Resources.NomadResources.CPU)
+	cpuShares := command.Resources.NomadResources.Cpu.CpuShares
+	if cpuShares < 2 {
+		return fmt.Errorf("resources.Cpu.CpuShares must be equal to or greater than 2: %v", cpuShares)
 	}
 
 	// Set the relative CPU shares for this cgroup.
-	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.NomadResources.CPU)
+	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
 
 	return nil
 }

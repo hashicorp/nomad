@@ -17,8 +17,6 @@ import (
 	"testing"
 	"time"
 
-	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/consul/lib/freeport"
 	hclog "github.com/hashicorp/go-hclog"
@@ -30,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -38,10 +37,13 @@ import (
 
 var (
 	basicResources = &drivers.Resources{
-		NomadResources: &structs.Resources{
-			MemoryMB: 256,
-			CPU:      512,
-			DiskMB:   20,
+		NomadResources: &structs.AllocatedTaskResources{
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: 256,
+			},
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: 250,
+			},
 		},
 		LinuxResources: &drivers.LinuxResources{
 			CPUShares:        512,
@@ -96,9 +98,13 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 		ID:   uuid.Generate(),
 		Name: "redis-demo",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 256,
-				CPU:      512,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 256,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 512,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						IP:            "127.0.0.1",
@@ -2259,7 +2265,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 		Resources: basicResources,
 	}
 	task.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
-	task.Resources.NomadResources.MemoryMB = 10
+	task.Resources.NomadResources.Memory.MemoryMB = 10
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
 

@@ -209,7 +209,7 @@ func (d *Driver) formatMount(hostPath, taskPath string, readOnly bool) string {
 }
 
 func (d *Driver) setResourceLimits(c *lxc.Container, cfg *drivers.TaskConfig) error {
-	if err := c.SetMemoryLimit(lxc.ByteSize(cfg.Resources.NomadResources.MemoryMB) * lxc.MB); err != nil {
+	if err := c.SetMemoryLimit(lxc.ByteSize(cfg.Resources.NomadResources.Memory.MemoryMB) * lxc.MB); err != nil {
 		return fmt.Errorf("unable to set memory limits: %v", err)
 	}
 

@@ -697,15 +697,14 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	task := tr.Task()
 	alloc := tr.Alloc()
 	invocationid := uuid.Generate()[:8]
-
-	// TODO This shouldn't use the task resources
+	taskResources := tr.taskResources
 
 	return &drivers.TaskConfig{
 		ID:      fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:    task.Name,
 		JobName: alloc.Job.Name,
 		Resources: &drivers.Resources{
-			NomadResources: task.Resources,
+			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: int64(task.Resources.MemoryMB) * 1024 * 1024,
 				CPUShares:        int64(task.Resources.CPU),
