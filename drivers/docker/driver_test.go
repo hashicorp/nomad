@@ -39,12 +39,12 @@ import (
 var (
 	basicResources = &drivers.Resources{
 		NomadResources: &structs.Resources{
-			CPU:      250,
 			MemoryMB: 256,
+			CPU:      512,
 			DiskMB:   20,
 		},
 		LinuxResources: &drivers.LinuxResources{
-			CPUShares:        250,
+			CPUShares:        512,
 			MemoryLimitBytes: 256 * 1024 * 1024,
 		},
 	}
@@ -2247,24 +2247,33 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	cfg := &TaskConfig{
+	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
-		Command:   "sh",
-		Args:      []string{"-c", "x=a; while true; do eval x='$x$x'; done"},
+		Command:   "/bin/sh",
+		Args:      []string{"-c", `/bin/sleep 2 && x=a && while true; do x="$x$x"; done`},
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "oom-killed",
 		Resources: basicResources,
 	}
-	task.Resources.LinuxResources.MemoryLimitBytes = 4 * 1024 * 1024
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	task.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
+	task.Resources.NomadResources.MemoryMB = 10
 
-	_, driver, _, cleanup := dockerSetup(t, task)
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+	d := dockerDriverHarness(t, nil)
+	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
+	copyImage(t, task.TaskDir(), "busybox.tar")
 
-	waitCh, err := driver.WaitTask(context.Background(), task.ID)
+	_, _, err := d.StartTask(task)
+	require.NoError(t, err)
+
+	defer d.DestroyTask(task.ID, true)
+
+	waitCh, err := d.WaitTask(context.Background(), task.ID)
 	require.NoError(t, err)
 	select {
 	case res := <-waitCh:
