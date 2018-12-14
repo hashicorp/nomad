@@ -511,7 +511,7 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 
 	// Replace any env vars in Cmd with value from Nomad env:
 	parsedArgs := ctx.TaskEnv.ParseAndReplace(executeConfig.CmdArgs)
-	d.logger.Printf("[INFO] env vars substituted in command \"%s\" - new command is \"%s\"", executeConfig.CmdArgs, parsedArgs)
+	d.logger.Printf("[INFO] env vars substituted in command \"%#v\" - new command is \"%#v\"", executeConfig.CmdArgs, parsedArgs)
 
 	if err := c.SetConfigItem("lxc.execute.cmd", strings.Join(parsedArgs, " ")); err != nil {
 		return nil, fmt.Errorf("unable to set final parsed command to \"%s\"", parsedArgs), removeLVCleanup
