@@ -279,7 +279,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	ar2.Destroy()
 
 	select {
-	case <-ar2.WaitCh():
+	case <-ar2.DestroyCh():
 		// exited as expected
 	case <-time.After(10 * time.Second):
 		t.Fatalf("timed out waiting for AR to GC")
