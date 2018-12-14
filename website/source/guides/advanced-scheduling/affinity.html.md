@@ -21,7 +21,7 @@ The [affinity][affinity-stanza] stanza allows operators to express placement pre
 
 ## Challenge
 
-Think of a scenario where a Nomad operator needs the flexibility to express placement preferences for a critical job but still have the scheduler run the job on appropriate nodes anywhere if the desired resources are not available.
+Think of a scenario where a Nomad operator needs the flexibility to express placement preferences for a critical job but still have the scheduler run the job on the most appropriate nodes anywhere if the desired resources are not available.
 
 ## Solution
 
@@ -69,9 +69,9 @@ status` command and see that one of your nodes is now in datacenter `dc2`.
 ```shell
 $ nomad node status
 ID        DC   Name              Class   Drain  Eligibility  Status
-335de832  dc2  ip-172-31-50-163  <none>  false  eligible     ready
-1cdde5bc  dc1  ip-172-31-48-23   <none>  false  eligible     ready
-4bbb2aa7  dc1  ip-172-31-59-0    <none>  false  eligible     ready
+3592943e  dc1  ip-172-31-27-159  <none>  false  eligible     ready
+3dea0188  dc1  ip-172-31-16-175  <none>  false  eligible     ready
+6b6e9518  dc2  ip-172-31-27-25   <none>  false  eligible     ready
 ```
 
 ### Step 2: Create a Job with the `affinity` Stanza
@@ -146,17 +146,86 @@ $ nomad run redis.nomad
 
 Note that two of the allocations have been placed on node `6b6e9518`. This is
 the node we configured to be in datacenter `dc2`. The Nomad scheduler has leaned
-towards placing the majority of our workload on this node because of the
+towards placing the majority of the workload on this node because of the
 affinity we specified. All of the workload has not been placed on this node
 because the Nomad scheduler still factors in other components into the overall
 scoring when making placements. We will take a detailed look at the scoring in the next few steps.
 
+### Step 4: Check the Status of the `redis` Job
 
+At this point, we are going to check the status of our job and verify where our
+allocations have been placed. Run the following command:
+
+```shell
+$ nomad status redis
+```
+
+You should see 4 instances of your job running in the `Summary` section of the
+output as show below:
+
+```shell
+...
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache1      0       0         4        0       0         0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
+0dfcf0ba  6b6e9518  cache1      0        run      running  1h44m ago  1h44m ago
+89a9aae9  3592943e  cache1      0        run      running  1h44m ago  1h44m ago
+9a00f742  6b6e9518  cache1      0        run      running  1h44m ago  1h44m ago
+fc0f21bc  3dea0188  cache1      0        run      running  1h44m ago  1h44m ago
+```
+
+As stated earlier, you can cross-check this output with the results of the
+`nomad node status` command to verify that the majority of your workload has
+been placed on the node in `dc2` (in our case, that node is `6b6e9518`).
+
+### Step 5: Obtain Detailed Scoring Information on Job Placement
+
+As stated earlier, the Nomad scheduler will not necessarily place all of your
+workload on nodes you have specified in the `affinity` stanza even if the
+resources are available. This is because affinity scoring is factored in with
+other metrics as well before making a scheduling decision. In this step, we will
+take a look at some of those other factors.
+
+Using the output from the previous step, find an allocation that has been placed
+on a node in `dc2` and use the nomad [alloc status][alloc status] command with
+the [verbose][verbose] option to obtain detailed scoring information on it. In
+this example, we will use the allocation ID `0dfcf0ba` (your allocation IDs will
+be different).
+
+```shell
+$ nomad alloc status -verbose 0dfcf0ba
+``` 
+The resulting output will show the `Placement Metrics` section at the bottom.
+
+```shell
+...
+Placement Metrics
+Node                                  binpack  job-anti-affinity  node-reschedule-penalty  node-affinity  final score
+6b6e9518-d2a4-82c8-af3b-6805c8cdc29c  0.33     0                  0                        1              0.665
+3dea0188-ae06-ad98-64dd-a761ab2b1bf3  0.33     0                  0                        0              0.33
+3592943e-67e4-461f-d888-d5842372a4d4  0.33     0                  0                        0              0.33
+```
+
+Note that the results from the `binpack`, `job-anti-affinity`,
+`node-reschedule-penalty`, and `node-affinity` columns are combined to produce the
+numbers listed in the `final score` column for each node. The Nomad scheduler
+uses the final score for each node in deciding where to make placements.
+
+## Next Steps
+
+Experiment with the weight provided in the `affinity` stanza (the value can be
+from -100 through 100) and observe how the final score given to each node
+changes (use the `nomad alloc status` command as shown in the previous step).
 
 [affinity-stanza]: /docs/job-specification/affinity.html
+[alloc status]: /docs/commands/alloc/status.html
 [attributes]: /docs/runtime/interpolation.html#node-variables- 
 [constraint]: /docs/job-specification/constraint.html
 [client-metadata]: /docs/configuration/client.html#meta
 [scheduling]: /docs/internals/scheduling.html
+[verbose]: /docs/commands/alloc/status.html#verbose
 [weight]: /docs/job-specification/affinity.html#weight
 
