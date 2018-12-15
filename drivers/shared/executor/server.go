@@ -26,6 +26,8 @@ func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchReques
 		TaskDir:            req.TaskDir,
 		ResourceLimits:     req.ResourceLimits,
 		BasicProcessCgroup: req.BasicProcessCgroup,
+		Mounts:             drivers.MountsFromProto(req.Mounts),
+		Devices:            drivers.DevicesFromProto(req.Devices),
 	})
 
 	if err != nil {

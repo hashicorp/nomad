@@ -36,6 +36,8 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 		TaskDir:            cmd.TaskDir,
 		ResourceLimits:     cmd.ResourceLimits,
 		BasicProcessCgroup: cmd.BasicProcessCgroup,
+		Mounts:             drivers.MountsToProto(cmd.Mounts),
+		Devices:            drivers.DevicesToProto(cmd.Devices),
 	}
 	resp, err := c.client.Launch(ctx, req)
 	if err != nil {

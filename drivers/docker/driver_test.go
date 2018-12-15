@@ -1849,9 +1849,9 @@ func TestDockerDriver_Mounts(t *testing.T) {
 		},
 	}
 
-	d := dockerDriverHarness(t, nil)
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			d := dockerDriverHarness(t, nil)
 			// Build the task
 			task, cfg, _ := dockerTask(t)
 			cfg.Command = "/bin/sleep"
