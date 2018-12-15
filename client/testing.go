@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -19,7 +20,7 @@ import (
 // There is no need to override the AllocDir or StateDir as they are randomized
 // and removed in the returned cleanup function. If they are overridden in the
 // callback then the caller still must run the returned cleanup func.
-func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func()) {
+func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func() error) {
 	conf, cleanup := config.TestClientConfig(t)
 
 	// Tighten the fingerprinter timeouts (must be done in client package
@@ -48,7 +49,7 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func()) {
 		cleanup()
 		t.Fatalf("err: %v", err)
 	}
-	return client, func() {
+	return client, func() error {
 		ch := make(chan error)
 
 		go func() {
@@ -57,7 +58,7 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func()) {
 			// Shutdown client
 			err := client.Shutdown()
 			if err != nil {
-				t.Errorf("failed to shutdown client: %v", err)
+				ch <- fmt.Errorf("failed to shutdown client: %v", err)
 			}
 
 			// Call TestClientConfig cleanup
@@ -65,10 +66,11 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func()) {
 		}()
 
 		select {
-		case <-ch:
-			// all good
+		case e := <-ch:
+			return e
 		case <-time.After(1 * time.Minute):
 			t.Errorf("timed out cleaning up test client")
+			return fmt.Errorf("timed out while shutting down client")
 		}
 	}
 }
