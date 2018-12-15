@@ -831,7 +831,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 
 		defer d.DestroyTask(task.ID, true)
 
-		d.WaitUntilStarted(task.ID, 5*time.Second)
+		require.NoError(d.WaitUntilStarted(task.ID, 5*time.Second))
 	}
 
 	t.Log("All tasks are started. Terminating...")
@@ -882,7 +882,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	_, _, err := d.StartTask(task)
 	require.NoError(t, err)
 
-	d.WaitUntilStarted(task.ID, 5*time.Second)
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	defer d.DestroyTask(task.ID, true)
 
@@ -971,7 +971,7 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 
 	client, d, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
-	d.WaitUntilStarted(task.ID, 5*time.Second)
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	container, err := client.InspectContainer(handle.containerID)
 	assert.Nil(t, err, "unexpected error: %v", err)
@@ -1262,7 +1262,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			handle, ok := dockerDriver.tasks.Get(task.ID)
 			require.True(t, ok)
 
-			d.WaitUntilStarted(task.ID, 5*time.Second)
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 			container, err := client.InspectContainer(handle.containerID)
 			require.NoError(t, err)
@@ -2165,7 +2165,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 	client, driver, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
-	driver.WaitUntilStarted(task.ID, 5*time.Second)
+	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 	// Cleanup
 	require.NoError(t, driver.DestroyTask(task.ID, true))
 
