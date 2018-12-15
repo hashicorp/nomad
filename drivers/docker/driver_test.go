@@ -2402,36 +2402,6 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 	require.Equal(t, entrypoint, container.Config.Entrypoint, "Incorrect entrypoint ")
 }
 
-func TestDockerDriver_Kill(t *testing.T) {
-	require := require.New(t)
-	if !tu.IsTravis() {
-		t.Parallel()
-	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
-
-	// Tasks started with a signal that is not supported should not error
-	task := &drivers.TaskConfig{
-		ID:        uuid.Generate(),
-		Name:      "nc-demo",
-		Resources: basicResources,
-	}
-
-	cfg := &TaskConfig{
-		Image:     busyboxImageID,
-		LoadImage: "busybox.tar",
-		Command:   busyboxLongRunningCmd[0],
-		Args:      busyboxLongRunningCmd[1:],
-	}
-
-	require.NoError(task.EncodeConcreteDriverConfig(cfg))
-	_, driver, handle, cleanup := dockerSetup(t, task)
-	defer cleanup()
-	require.NoError(driver.WaitUntilStarted(task.ID, 5*time.Second))
-	require.NoError(handle.Kill(time.Second, os.Interrupt))
-}
-
 func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
