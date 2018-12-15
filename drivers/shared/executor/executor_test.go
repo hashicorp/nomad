@@ -2,6 +2,7 @@ package executor
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,13 +13,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/plugins/drivers"
+	tu "github.com/hashicorp/nomad/testutil"
+
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
-	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,10 +54,8 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	cmd := &ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &Resources{
-			CPU:      task.Resources.CPU,
-			MemoryMB: task.Resources.MemoryMB,
-			DiskMB:   task.Resources.DiskMB,
+		Resources: &drivers.Resources{
+			NomadResources: task.Resources,
 		},
 	}
 
@@ -70,8 +71,7 @@ type bufferCloser struct {
 func (_ *bufferCloser) Close() error { return nil }
 
 func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
-	cmd.stdout = &stdout
-	cmd.stderr = &stderr
+	cmd.SetWriters(&stdout, &stderr)
 	return
 }
 
@@ -109,7 +109,7 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 			ps, err := executor.Launch(execCmd)
 			require.NoError(err)
 			require.NotZero(ps.Pid)
-			ps, _ = executor.Wait()
+			ps, _ = executor.Wait(context.Background())
 			require.NotZero(ps.ExitCode, "expected exit code to be non zero")
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 		})
@@ -133,13 +133,14 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 
-			ps, err = executor.Wait()
+			ps, err = executor.Wait(context.Background())
 			require.NoError(err)
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			expected := "hello world"
 			tu.WaitForResult(func() (bool, error) {
-				output := execCmd.stdout.(*bufferCloser).String()
+				outWriter, _ := execCmd.GetWriters()
+				output := outWriter.(*bufferCloser).String()
 				act := strings.TrimSpace(string(output))
 				if expected != act {
 					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
@@ -178,7 +179,7 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 				require.NoError(err)
 			}()
 
-			ps, err = executor.Wait()
+			ps, err = executor.Wait(context.Background())
 			require.NoError(err)
 			require.Equal(ps.Signal, int(syscall.SIGKILL))
 		})
@@ -204,7 +205,8 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
-			output := execCmd.stdout.(*bufferCloser).String()
+			outWriter, _ := execCmd.GetWriters()
+			output := outWriter.(*bufferCloser).String()
 			expected := ""
 			act := strings.TrimSpace(string(output))
 			if act != expected {

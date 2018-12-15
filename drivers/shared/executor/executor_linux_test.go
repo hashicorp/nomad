@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -67,10 +68,8 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 	cmd := &ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
-		Resources: &Resources{
-			CPU:      task.Resources.CPU,
-			MemoryMB: task.Resources.MemoryMB,
-			DiskMB:   task.Resources.DiskMB,
+		Resources: &drivers.Resources{
+			NomadResources: task.Resources,
 		},
 	}
 	configureTLogging(cmd)
@@ -97,7 +96,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	require.NoError(err)
 	require.NotZero(ps.Pid)
 
-	state, err := executor.Wait()
+	state, err := executor.Wait(context.Background())
 	require.NoError(err)
 	require.Zero(state.ExitCode)
 
@@ -110,11 +109,11 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 		data, err := ioutil.ReadFile(memLimits)
 		require.NoError(err)
 
-		expectedMemLim := strconv.Itoa(execCmd.Resources.MemoryMB * 1024 * 1024)
+		expectedMemLim := strconv.Itoa(execCmd.Resources.NomadResources.MemoryMB * 1024 * 1024)
 		actualMemLim := strings.TrimSpace(string(data))
 		require.Equal(actualMemLim, expectedMemLim)
 		require.NoError(executor.Shutdown("", 0))
-		executor.Wait()
+		executor.Wait(context.Background())
 
 		// Check if Nomad has actually removed the cgroups
 		tu.WaitForResult(func() (bool, error) {
@@ -145,7 +144,8 @@ ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
 	tu.WaitForResult(func() (bool, error) {
-		output := execCmd.stdout.(*bufferCloser).String()
+		outWriter, _ := execCmd.GetWriters()
+		output := outWriter.(*bufferCloser).String()
 		act := strings.TrimSpace(string(output))
 		if act != expected {
 			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
@@ -180,7 +180,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 
 	ch := make(chan interface{})
 	go func() {
-		executor.Wait()
+		executor.Wait(context.Background())
 		close(ch)
 	}()
 
@@ -191,10 +191,11 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 		require.Fail("timeout waiting for exec to shutdown")
 	}
 
-	output := execCmd.stdout.(*bufferCloser).String()
+	outWriter, _ := execCmd.GetWriters()
+	output := outWriter.(*bufferCloser).String()
 	require.NotZero(len(output))
 	time.Sleep(2 * time.Second)
-	output1 := execCmd.stdout.(*bufferCloser).String()
+	output1 := outWriter.(*bufferCloser).String()
 	require.Equal(len(output), len(output1))
 }
 

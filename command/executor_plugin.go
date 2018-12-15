@@ -8,8 +8,8 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/executor"
 )
 
 type ExecutorPluginCommand struct {
@@ -49,6 +49,7 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 			hclog.LevelFromString(executorConfig.LogLevel),
 			executorConfig.FSIsolation,
 		),
+		GRPCServer: plugin.DefaultGRPCServer,
 	})
 	return 0
 }

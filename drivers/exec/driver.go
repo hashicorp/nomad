@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
-	pexecutor "github.com/hashicorp/nomad/plugins/executor"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
@@ -249,7 +248,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		Reattach: plugRC,
 	}
 
-	exec, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
+	exec, pluginClient, err := executor.CreateExecutorWithConfig(pluginConfig, os.Stderr)
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -286,14 +285,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
-	executorConfig := &pexecutor.ExecutorConfig{
+	executorConfig := &executor.ExecutorConfig{
 		LogFile:     pluginLogFile,
 		LogLevel:    "debug",
 		FSIsolation: true,
 	}
 
 	// TODO: best way to pass port ranges in from client config
-	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
+	exec, pluginClient, err := executor.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
@@ -304,7 +303,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		Env:            cfg.EnvList(),
 		User:           cfg.User,
 		ResourceLimits: true,
-		Resources:      toExecResources(cfg.Resources),
+		Resources:      cfg.Resources,
 		TaskDir:        cfg.TaskDir().Dir,
 		StdoutPath:     cfg.StdoutPath,
 		StderrPath:     cfg.StderrPath,
@@ -347,19 +346,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	return handle, nil, nil
 }
 
-func toExecResources(resources *drivers.Resources) *executor.Resources {
-	if resources == nil || resources.NomadResources == nil {
-		return nil
-	}
-
-	return &executor.Resources{
-		CPU:      resources.NomadResources.CPU,
-		MemoryMB: resources.NomadResources.MemoryMB,
-		DiskMB:   resources.NomadResources.DiskMB,
-	}
-
-}
-
 func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
@@ -375,7 +361,7 @@ func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.E
 func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
-	ps, err := handle.exec.Wait()
+	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
 		result = &drivers.ExitResult{
 			Err: fmt.Errorf("executor: error waiting on process: %v", err),

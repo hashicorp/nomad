@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -103,7 +104,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	if command.Resources == nil {
-		command.Resources = &Resources{}
+		command.Resources = &drivers.Resources{
+			NomadResources: &structs.Resources{},
+		}
 	}
 
 	l.command = command
@@ -132,6 +135,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
+
 	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
@@ -237,9 +241,13 @@ func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
-func (l *LibcontainerExecutor) Wait() (*ProcessState, error) {
-	<-l.userProcExited
-	return l.exitState, nil
+func (l *LibcontainerExecutor) Wait(ctx context.Context) (*ProcessState, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-l.userProcExited:
+		return l.exitState, nil
+	}
 }
 
 func (l *LibcontainerExecutor) wait() {
@@ -337,7 +345,7 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 }
 
 // UpdateResources updates the resource isolation with new values to be enforced
-func (l *LibcontainerExecutor) UpdateResources(resources *Resources) error {
+func (l *LibcontainerExecutor) UpdateResources(resources *drivers.Resources) error {
 	return nil
 }
 
@@ -463,7 +471,7 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 	ch <- &waitResult{ps, err}
 }
 
-func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
+func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
 	// TODO: allow better control of these
 	cfg.Capabilities = &lconfigs.Capabilities{
 		Bounding:    allCaps,
@@ -473,6 +481,7 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
 		Effective:   allCaps,
 	}
 
+	return nil
 }
 
 func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
@@ -564,20 +573,25 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 
 	id := uuid.Generate()
 	cfg.Cgroups.Path = filepath.Join(defaultCgroupParent, id)
-	if command.Resources.MemoryMB > 0 {
+
+	if command.Resources == nil || command.Resources.NomadResources == nil {
+		return nil
+	}
+
+	if command.Resources.NomadResources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = int64(command.Resources.MemoryMB * 1024 * 1024)
+		cfg.Cgroups.Resources.Memory = int64(command.Resources.NomadResources.MemoryMB * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
-		var memSwappiness uint64 = 0
+		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
 	}
 
-	if command.Resources.CPU < 2 {
-		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", command.Resources.CPU)
+	if command.Resources.NomadResources.CPU < 2 {
+		return fmt.Errorf("resources.CPU must be equal to or greater than 2: %v", command.Resources.NomadResources.CPU)
 	}
 
 	// Set the relative CPU shares for this cgroup.
-	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.CPU)
+	cfg.Cgroups.Resources.CpuShares = uint64(command.Resources.NomadResources.CPU)
 
 	return nil
 }
@@ -625,7 +639,9 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		Version: "1.0.0",
 	}
 
-	configureCapabilities(cfg, command)
+	if err := configureCapabilities(cfg, command); err != nil {
+		return nil, err
+	}
 	if err := configureIsolation(cfg, command); err != nil {
 		return nil, err
 	}

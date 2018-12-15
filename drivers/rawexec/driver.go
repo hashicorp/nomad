@@ -18,8 +18,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/utils"
-	pexecutor "github.com/hashicorp/nomad/plugins/executor"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
@@ -276,7 +274,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	// Create client for reattached executor
-	exec, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
+	exec, pluginClient, err := executor.CreateExecutorWithConfig(pluginConfig, os.Stderr)
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -313,12 +311,12 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
-	executorConfig := &pexecutor.ExecutorConfig{
+	executorConfig := &executor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
 	}
 
-	exec, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
+	exec, pluginClient, err := executor.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
@@ -388,7 +386,7 @@ func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.E
 func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
-	ps, err := handle.exec.Wait()
+	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
 		result = &drivers.ExitResult{
 			Err: fmt.Errorf("executor: error waiting on process: %v", err),
@@ -479,8 +477,9 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 
 	sig := os.Interrupt
 	if s, ok := signals.SignalLookup[signal]; ok {
-		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.taskConfig.ID)
 		sig = s
+	} else {
+		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.taskConfig.ID)
 	}
 	return handle.exec.Signal(sig)
 }

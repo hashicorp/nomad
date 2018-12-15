@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"time"
@@ -58,7 +59,7 @@ func (h *taskHandle) run() {
 	h.stateLock.Unlock()
 
 	// Block until process exits
-	ps, err := h.exec.Wait()
+	ps, err := h.exec.Wait(context.Background())
 
 	h.stateLock.Lock()
 	defer h.stateLock.Unlock()

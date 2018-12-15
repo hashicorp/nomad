@@ -230,7 +230,7 @@ func (b *driverPluginServer) TaskStats(ctx context.Context, req *proto.TaskStats
 		return nil, err
 	}
 
-	pb, err := taskStatsToProto(stats)
+	pb, err := TaskStatsToProto(stats)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode task stats: %v", err)
 	}

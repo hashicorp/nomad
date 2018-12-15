@@ -150,6 +150,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 
 		return func() {
 			h.lm.Stop()
+			h.client.Close()
 			allocDir.Destroy()
 		}
 	}
@@ -158,6 +159,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 		if h.lm != nil {
 			h.lm.Stop()
 		}
+		h.client.Close()
 		allocDir.Destroy()
 	}
 }

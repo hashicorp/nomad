@@ -56,9 +56,9 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		Name:            pb.Name,
 		Env:             pb.Env,
 		rawDriverConfig: pb.MsgpackDriverConfig,
-		Resources:       resourcesFromProto(pb.Resources),
-		Devices:         devicesFromProto(pb.Devices),
-		Mounts:          mountsFromProto(pb.Mounts),
+		Resources:       ResourcesFromProto(pb.Resources),
+		Devices:         DevicesFromProto(pb.Devices),
+		Mounts:          MountsFromProto(pb.Mounts),
 		User:            pb.User,
 		AllocDir:        pb.AllocDir,
 		StdoutPath:      pb.StdoutPath,
@@ -77,9 +77,9 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		TaskGroupName:       cfg.TaskGroupName,
 		Name:                cfg.Name,
 		Env:                 cfg.Env,
-		Resources:           resourcesToProto(cfg.Resources),
-		Devices:             devicesToProto(cfg.Devices),
-		Mounts:              mountsToProto(cfg.Mounts),
+		Resources:           ResourcesToProto(cfg.Resources),
+		Devices:             DevicesToProto(cfg.Devices),
+		Mounts:              MountsToProto(cfg.Mounts),
 		User:                cfg.User,
 		AllocDir:            cfg.AllocDir,
 		MsgpackDriverConfig: cfg.rawDriverConfig,
@@ -90,7 +90,7 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 	return pb
 }
 
-func resourcesFromProto(pb *proto.Resources) *Resources {
+func ResourcesFromProto(pb *proto.Resources) *Resources {
 	var r Resources
 	if pb == nil {
 		return &r
@@ -141,7 +141,7 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 	return &r
 }
 
-func resourcesToProto(r *Resources) *proto.Resources {
+func ResourcesToProto(r *Resources) *proto.Resources {
 	if r == nil {
 		return nil
 	}
@@ -193,20 +193,20 @@ func resourcesToProto(r *Resources) *proto.Resources {
 	return &pb
 }
 
-func devicesFromProto(devices []*proto.Device) []*DeviceConfig {
+func DevicesFromProto(devices []*proto.Device) []*DeviceConfig {
 	if devices == nil {
 		return nil
 	}
 
 	out := make([]*DeviceConfig, len(devices))
 	for i, d := range devices {
-		out[i] = deviceFromProto(d)
+		out[i] = DeviceFromProto(d)
 	}
 
 	return out
 }
 
-func deviceFromProto(device *proto.Device) *DeviceConfig {
+func DeviceFromProto(device *proto.Device) *DeviceConfig {
 	if device == nil {
 		return nil
 	}
@@ -218,20 +218,20 @@ func deviceFromProto(device *proto.Device) *DeviceConfig {
 	}
 }
 
-func mountsFromProto(mounts []*proto.Mount) []*MountConfig {
+func MountsFromProto(mounts []*proto.Mount) []*MountConfig {
 	if mounts == nil {
 		return nil
 	}
 
 	out := make([]*MountConfig, len(mounts))
 	for i, m := range mounts {
-		out[i] = mountFromProto(m)
+		out[i] = MountFromProto(m)
 	}
 
 	return out
 }
 
-func mountFromProto(mount *proto.Mount) *MountConfig {
+func MountFromProto(mount *proto.Mount) *MountConfig {
 	if mount == nil {
 		return nil
 	}
@@ -243,20 +243,20 @@ func mountFromProto(mount *proto.Mount) *MountConfig {
 	}
 }
 
-func devicesToProto(devices []*DeviceConfig) []*proto.Device {
+func DevicesToProto(devices []*DeviceConfig) []*proto.Device {
 	if devices == nil {
 		return nil
 	}
 
 	out := make([]*proto.Device, len(devices))
 	for i, d := range devices {
-		out[i] = deviceToProto(d)
+		out[i] = DeviceToProto(d)
 	}
 
 	return out
 }
 
-func deviceToProto(device *DeviceConfig) *proto.Device {
+func DeviceToProto(device *DeviceConfig) *proto.Device {
 	if device == nil {
 		return nil
 	}
@@ -268,20 +268,20 @@ func deviceToProto(device *DeviceConfig) *proto.Device {
 	}
 }
 
-func mountsToProto(mounts []*MountConfig) []*proto.Mount {
+func MountsToProto(mounts []*MountConfig) []*proto.Mount {
 	if mounts == nil {
 		return nil
 	}
 
 	out := make([]*proto.Mount, len(mounts))
 	for i, m := range mounts {
-		out[i] = mountToProto(m)
+		out[i] = MountToProto(m)
 	}
 
 	return out
 }
 
-func mountToProto(mount *MountConfig) *proto.Mount {
+func MountToProto(mount *MountConfig) *proto.Mount {
 	if mount == nil {
 		return nil
 	}
@@ -371,7 +371,7 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 	}, nil
 }
 
-func taskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
+func TaskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
 	timestamp, err := ptypes.TimestampProto(time.Unix(0, stats.Timestamp))
 	if err != nil {
 		return nil, err
@@ -389,7 +389,7 @@ func taskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, erro
 	}, nil
 }
 
-func taskStatsFromProto(pb *proto.TaskStats) (*cstructs.TaskResourceUsage, error) {
+func TaskStatsFromProto(pb *proto.TaskStats) (*cstructs.TaskResourceUsage, error) {
 	timestamp, err := ptypes.Timestamp(pb.Timestamp)
 	if err != nil {
 		return nil, err

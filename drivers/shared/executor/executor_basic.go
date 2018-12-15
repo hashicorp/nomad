@@ -2,7 +2,9 @@
 
 package executor
 
-import hclog "github.com/hashicorp/go-hclog"
+import (
+	hclog "github.com/hashicorp/go-hclog"
+)
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 	logger = logger.Named("executor")

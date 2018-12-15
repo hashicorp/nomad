@@ -20,9 +20,10 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/plugins/drivers"
+
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
-	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 const (
@@ -47,7 +48,7 @@ type Executor interface {
 	Launch(launchCmd *ExecCommand) (*ProcessState, error)
 
 	// Wait blocks until the process exits or an error occures
-	Wait() (*ProcessState, error)
+	Wait(ctx context.Context) (*ProcessState, error)
 
 	// Shutdown will shutdown the executor by stopping the user process,
 	// cleaning up and resources created by the executor. The shutdown sequence
@@ -61,7 +62,7 @@ type Executor interface {
 
 	// UpdateResources updates any resource isolation enforcement with new
 	// constraints if supported.
-	UpdateResources(*Resources) error
+	UpdateResources(*drivers.Resources) error
 
 	// Version returns the executor API version
 	Version() (*ExecutorVersion, error)
@@ -77,13 +78,6 @@ type Executor interface {
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 }
 
-// Resources describes the resource isolation required
-type Resources struct {
-	CPU      int
-	MemoryMB int
-	DiskMB   int
-}
-
 // ExecCommand holds the user command, args, and other isolation related
 // settings.
 type ExecCommand struct {
@@ -94,13 +88,13 @@ type ExecCommand struct {
 	Args []string
 
 	// Resources defined by the task
-	Resources *Resources
+	Resources *drivers.Resources
 
-	// StdoutPath is the path the procoess stdout should be written to
+	// StdoutPath is the path the process stdout should be written to
 	StdoutPath string
 	stdout     io.WriteCloser
 
-	// StderrPath is the path the procoess stderr should be written to
+	// StderrPath is the path the process stderr should be written to
 	StderrPath string
 	stderr     io.WriteCloser
 
@@ -127,6 +121,20 @@ type ExecCommand struct {
 
 	// Devices are the the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
+}
+
+// SetWriters sets the writer for the process stdout and stderr. This should
+// not be used if writing to a file path such as a fifo file. SetStdoutWriter
+// is mainly used for unit testing purposes.
+func (c *ExecCommand) SetWriters(out io.WriteCloser, err io.WriteCloser) {
+	c.stdout = out
+	c.stderr = err
+}
+
+// GetWriters returns the unexported io.WriteCloser for the stdout and stderr
+// handles. This is mainly used for unit testing purposes.
+func (c *ExecCommand) GetWriters() (stdout io.WriteCloser, stderr io.WriteCloser) {
+	return c.stdout, c.stderr
 }
 
 type nopCloser struct {
@@ -350,12 +358,16 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
-func (e *UniversalExecutor) Wait() (*ProcessState, error) {
-	<-e.processExited
-	return e.exitState, nil
+func (e *UniversalExecutor) Wait(ctx context.Context) (*ProcessState, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-e.processExited:
+		return e.exitState, nil
+	}
 }
 
-func (e *UniversalExecutor) UpdateResources(resources *Resources) error {
+func (e *UniversalExecutor) UpdateResources(resources *drivers.Resources) error {
 	return nil
 }
 

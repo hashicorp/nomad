@@ -265,7 +265,7 @@ func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsa
 		return nil, err
 	}
 
-	stats, err := taskStatsFromProto(resp.Stats)
+	stats, err := TaskStatsFromProto(resp.Stats)
 	if err != nil {
 		return nil, err
 	}
