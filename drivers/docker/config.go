@@ -20,6 +20,10 @@ const (
 	// does not exist.
 	NoSuchContainerError = "No such container"
 
+	// ContainerNotRunningError is returned by the docker daemon if the container
+	// is not running, yet we requested it to stop
+	ContainerNotRunningError = "Container not running"
+
 	// pluginName is the name of the plugin
 	pluginName = "docker"
 

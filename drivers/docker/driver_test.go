@@ -39,12 +39,12 @@ import (
 var (
 	basicResources = &drivers.Resources{
 		NomadResources: &structs.Resources{
-			CPU:      250,
 			MemoryMB: 256,
+			CPU:      512,
 			DiskMB:   20,
 		},
 		LinuxResources: &drivers.LinuxResources{
-			CPUShares:        250,
+			CPUShares:        512,
 			MemoryLimitBytes: 256 * 1024 * 1024,
 		},
 	}
@@ -64,6 +64,21 @@ func dockerIsRemote(t *testing.T) bool {
 	return false
 }
 
+var (
+	// busyboxImageID is the ID stored in busybox.tar
+	busyboxImageID = "busybox:1.29.3"
+
+	// busyboxImageID is the ID stored in busybox_glibc.tar
+	busyboxGlibcImageID = "busybox:1.29.3-glibc"
+
+	// busyboxImageID is the ID stored in busybox_musl.tar
+	busyboxMuslImageID = "busybox:1.29.3-musl"
+
+	// busyboxLongRunningCmd is a busybox command that runs indefinitely, and
+	// ideally responds to SIGINT/SIGTERM.  Sadly, busybox:1.29.3 /bin/sleep doesn't.
+	busyboxLongRunningCmd = []string{"/bin/nc", "-l", "-p", "3000", "127.0.0.1"}
+)
+
 // Returns a task with a reserved and dynamic port. The ports are returned
 // respectively.
 func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
@@ -72,10 +87,10 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 	dockerDynamic := ports[1]
 
 	cfg := TaskConfig{
-		Image:     "busybox:latest",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
-		Command:   "/bin/nc",
-		Args:      []string{"-l", "127.0.0.1", "-p", "0"},
+		Command:   busyboxLongRunningCmd[0],
+		Args:      busyboxLongRunningCmd[1:],
 	}
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -326,10 +341,10 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	}
 
 	taskCfg := TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
-		Command:   "/bin/nc",
-		Args:      []string{"-l", "127.0.0.1", "-p", "0"},
+		Command:   busyboxLongRunningCmd[0],
+		Args:      busyboxLongRunningCmd[1:],
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -368,7 +383,7 @@ func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 	}
 
 	taskCfg := TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
 		Command:   "/bin/echo",
 		Args:      []string{"hello"},
@@ -417,7 +432,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	}
 
 	taskCfg := TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
 		Command:   "sleep",
 		Args:      []string{"9001"},
@@ -445,7 +460,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	opts := docker.CreateContainerOptions{
 		Name: strings.Replace(task.ID, "/", "_", -1),
 		Config: &docker.Config{
-			Image: "busybox",
+			Image: busyboxImageID,
 			Cmd:   []string{"sleep", "9000"},
 		},
 	}
@@ -471,7 +486,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	}
 
 	taskCfg := TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
 		Command:   "/bin/sh",
 		Args: []string{
@@ -573,7 +588,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
 	taskCfg := TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
 		Command:   "/bin/sh",
 		Args: []string{
@@ -633,12 +648,10 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	taskCfg := TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
-		Command:   "/bin/sleep",
-		Args: []string{
-			"10",
-		},
+		Command:   busyboxLongRunningCmd[0],
+		Args:      busyboxLongRunningCmd[1:],
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -685,7 +698,7 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 	}
 	timeout := 2 * time.Second
 	taskCfg := TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
 		Command:   "/bin/sleep",
 		Args: []string{
@@ -787,18 +800,17 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 	require := require.New(t)
 
 	task1, cfg1, _ := dockerTask(t)
-	cfg1.Image = "busybox"
+	cfg1.Image = busyboxImageID
 	cfg1.LoadImage = "busybox.tar"
 	require.NoError(task1.EncodeConcreteDriverConfig(cfg1))
 
 	task2, cfg2, _ := dockerTask(t)
-	cfg2.Image = "busybox:musl"
+	cfg2.Image = busyboxMuslImageID
 	cfg2.LoadImage = "busybox_musl.tar"
-	cfg2.Args = []string{"-l", "-p", "0"}
 	require.NoError(task2.EncodeConcreteDriverConfig(cfg2))
 
 	task3, cfg3, _ := dockerTask(t)
-	cfg3.Image = "busybox:glibc"
+	cfg3.Image = busyboxGlibcImageID
 	cfg3.LoadImage = "busybox_glibc.tar"
 	require.NoError(task3.EncodeConcreteDriverConfig(cfg3))
 
@@ -819,7 +831,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 
 		defer d.DestroyTask(task.ID, true)
 
-		d.WaitUntilStarted(task.ID, 5*time.Second)
+		require.NoError(d.WaitUntilStarted(task.ID, 5*time.Second))
 	}
 
 	t.Log("All tasks are started. Terminating...")
@@ -849,10 +861,10 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	expected := "host"
 
 	taskCfg := TaskConfig{
-		Image:       "busybox",
+		Image:       busyboxImageID,
 		LoadImage:   "busybox.tar",
-		Command:     "/bin/nc",
-		Args:        []string{"-l", "127.0.0.1", "-p", "0"},
+		Command:     busyboxLongRunningCmd[0],
+		Args:        busyboxLongRunningCmd[1:],
 		NetworkMode: expected,
 	}
 	task := &drivers.TaskConfig{
@@ -870,7 +882,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	_, _, err := d.StartTask(task)
 	require.NoError(t, err)
 
-	d.WaitUntilStarted(task.ID, 5*time.Second)
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	defer d.DestroyTask(task.ID, true)
 
@@ -910,10 +922,10 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 
 	expected := []string{"foobar"}
 	taskCfg := TaskConfig{
-		Image:          "busybox",
+		Image:          busyboxImageID,
 		LoadImage:      "busybox.tar",
-		Command:        "/bin/nc",
-		Args:           []string{"-l", "127.0.0.1", "-p", "0"},
+		Command:        busyboxLongRunningCmd[0],
+		Args:           busyboxLongRunningCmd[1:],
 		NetworkMode:    network.Name,
 		NetworkAliases: expected,
 	}
@@ -959,7 +971,7 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 
 	client, d, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
-	d.WaitUntilStarted(task.ID, 5*time.Second)
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	container, err := client.InspectContainer(handle.containerID)
 	assert.Nil(t, err, "unexpected error: %v", err)
@@ -1094,8 +1106,8 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	cfg.Image = "library/busybox@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
 	localDigest := "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7"
 	cfg.ForcePull = true
-	cfg.Command = "/bin/sleep"
-	cfg.Args = []string{"100"}
+	cfg.Command = busyboxLongRunningCmd[0]
+	cfg.Args = busyboxLongRunningCmd[1:]
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, d, handle, cleanup := dockerSetup(t, task)
@@ -1250,7 +1262,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			handle, ok := dockerDriver.tasks.Get(task.ID)
 			require.True(t, ok)
 
-			d.WaitUntilStarted(task.ID, 5*time.Second)
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 			container, err := client.InspectContainer(handle.containerID)
 			require.NoError(t, err)
@@ -1544,7 +1556,7 @@ func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath strin
 	containerFile := filepath.Join(containerPath, randfn)
 
 	taskCfg := &TaskConfig{
-		Image:     "busybox",
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
 		Command:   "touch",
 		Args:      []string{containerFile},
@@ -2153,7 +2165,7 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 	client, driver, handle, cleanup := dockerSetup(t, task)
 	defer cleanup()
 
-	driver.WaitUntilStarted(task.ID, 5*time.Second)
+	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 	// Cleanup
 	require.NoError(t, driver.DestroyTask(task.ID, true))
 
@@ -2235,24 +2247,33 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 		t.Skip("Docker not connected")
 	}
 
-	cfg := &TaskConfig{
-		Image:     "busybox",
+	taskCfg := TaskConfig{
+		Image:     busyboxImageID,
 		LoadImage: "busybox.tar",
-		Command:   "sh",
-		Args:      []string{"-c", "x=a; while true; do eval x='$x$x'; done"},
+		Command:   "/bin/sh",
+		Args:      []string{"-c", `/bin/sleep 2 && x=a && while true; do x="$x$x"; done`},
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "oom-killed",
 		Resources: basicResources,
 	}
-	task.Resources.LinuxResources.MemoryLimitBytes = 4 * 1024 * 1024
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	task.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
+	task.Resources.NomadResources.MemoryMB = 10
 
-	_, driver, _, cleanup := dockerSetup(t, task)
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+	d := dockerDriverHarness(t, nil)
+	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
+	copyImage(t, task.TaskDir(), "busybox.tar")
 
-	waitCh, err := driver.WaitTask(context.Background(), task.ID)
+	_, _, err := d.StartTask(task)
+	require.NoError(t, err)
+
+	defer d.DestroyTask(task.ID, true)
+
+	waitCh, err := d.WaitTask(context.Background(), task.ID)
 	require.NoError(t, err)
 	select {
 	case res := <-waitCh:
@@ -2364,7 +2385,7 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 	entrypoint := []string{"/bin/sh", "-c"}
 	task, cfg, _ := dockerTask(t)
 	cfg.Entrypoint = entrypoint
-	cfg.Command = "/bin/sleep 100"
+	cfg.Command = strings.Join(busyboxLongRunningCmd, " ")
 	cfg.Args = []string{}
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
@@ -2379,36 +2400,6 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 
 	require.Len(t, container.Config.Entrypoint, 2, "Expected one entrypoint")
 	require.Equal(t, entrypoint, container.Config.Entrypoint, "Incorrect entrypoint ")
-}
-
-func TestDockerDriver_Kill(t *testing.T) {
-	require := require.New(t)
-	if !tu.IsTravis() {
-		t.Parallel()
-	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
-
-	// Tasks started with a signal that is not supported should not error
-	task := &drivers.TaskConfig{
-		ID:        uuid.Generate(),
-		Name:      "nc-demo",
-		Resources: basicResources,
-	}
-
-	cfg := &TaskConfig{
-		LoadImage: "busybox.tar",
-		Image:     "busybox",
-		Command:   "/bin/nc",
-		Args:      []string{"-l", "127.0.0.1", "-p", "0"},
-	}
-
-	require.NoError(task.EncodeConcreteDriverConfig(cfg))
-	_, driver, handle, cleanup := dockerSetup(t, task)
-	defer cleanup()
-	require.NoError(driver.WaitUntilStarted(task.ID, 5*time.Second))
-	require.NoError(handle.Kill(time.Second, os.Interrupt))
 }
 
 func TestDockerDriver_ReadonlyRootfs(t *testing.T) {

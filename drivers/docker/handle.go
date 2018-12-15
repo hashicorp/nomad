@@ -148,6 +148,12 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 			h.logger.Debug("attempted to stop nonexistent container")
 			return nil
 		}
+		// Container has already been stopped.
+		if strings.Contains(err.Error(), ContainerNotRunningError) {
+			h.logger.Debug("attempted to stop an not-running container")
+			return nil
+		}
+
 		h.logger.Error("failed to stop container", "error", err)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
