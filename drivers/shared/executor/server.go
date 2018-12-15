@@ -1,11 +1,10 @@
 package executor
 
 import (
-	"fmt"
+	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"golang.org/x/net/context"
@@ -103,13 +102,11 @@ func (s *grpcExecutorServer) Stats(context.Context, *proto.StatsRequest) (*proto
 }
 
 func (s *grpcExecutorServer) Signal(ctx context.Context, req *proto.SignalRequest) (*proto.SignalResponse, error) {
-	if sig, ok := signals.SignalLookup[req.Signal]; ok {
-		if err := s.impl.Signal(sig); err != nil {
-			return nil, err
-		}
-		return &proto.SignalResponse{}, nil
+	sig := syscall.Signal(req.Signal)
+	if err := s.impl.Signal(sig); err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("invalid signal sent by client")
+	return &proto.SignalResponse{}, nil
 }
 
 func (s *grpcExecutorServer) Exec(ctx context.Context, req *proto.ExecRequest) (*proto.ExecResponse, error) {

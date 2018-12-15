@@ -2,7 +2,9 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/LK4D4/joincontext"
@@ -113,8 +115,12 @@ func (c *grpcExecutorClient) Stats() (*cstructs.TaskResourceUsage, error) {
 
 func (c *grpcExecutorClient) Signal(s os.Signal) error {
 	ctx := context.Background()
+	sig, ok := s.(syscall.Signal)
+	if !ok {
+		return fmt.Errorf("unsupported signal type: %q", s.String())
+	}
 	req := &proto.SignalRequest{
-		Signal: s.String(),
+		Signal: int32(sig),
 	}
 	if _, err := c.client.Signal(ctx, req); err != nil {
 		return err

@@ -65,7 +65,7 @@ message StatsResponse {
 }
 
 message SignalRequest {
-    string signal = 1;
+    int32 signal = 1;
 }
 
 message SignalResponse {}
