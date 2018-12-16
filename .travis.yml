@@ -25,6 +25,12 @@ matrix:
   fast_finish: true
 
 before_install:
+  - srcdir="$(dirname $PWD)"
+  - cd ../..
+  - mkdir -p hashicorp
+  - mv "${srcdir}/nomad" hashicorp/nomad
+  - cd hashicorp/nomad
+
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-mac-priv.sh ; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
   - if [[ "$RUN_UI_TESTS" ]]; then curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.0.1 ; fi
