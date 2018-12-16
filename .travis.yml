@@ -17,28 +17,6 @@ matrix:
     - os: linux
       dist: xenial
       sudo: required
-    - os: linux
-      dist: xenial
-      sudo: required
-      env: ENABLE_RACE=1
-    - os: linux
-      dist: xenial
-      sudo: false
-      env: RUN_WEBSITE_TESTS=1 SKIP_NOMAD_TESTS=1
-    - os: linux
-      dist: xenial
-      sudo: false
-      env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
-    - os: linux
-      dist: xenial
-      sudo: false
-      env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
-    - os: osx
-      osx_image: xcode9.1
-    - os: linux
-      dist: xenial
-      sudo: required
-      env: RUN_E2E_TESTS=1 SKIP_NOMAD_TESTS=1
   allow_failures:
     # Allow osx to fail as its flaky
     - os: osx
