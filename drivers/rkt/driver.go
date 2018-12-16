@@ -661,10 +661,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		Args:           runArgs,
 		ResourceLimits: true,
 		Resources:      cfg.Resources,
-		Env:            cfg.EnvList(),
-		TaskDir:        cfg.TaskDir().Dir,
-		StdoutPath:     cfg.StdoutPath,
-		StderrPath:     cfg.StderrPath,
+
+		// Use rktEnv, the environment needed for running rkt, not the task env
+		Env: rktEnv.List(),
+
+		TaskDir:    cfg.TaskDir().Dir,
+		StdoutPath: cfg.StdoutPath,
+		StderrPath: cfg.StderrPath,
 	}
 	ps, err := execImpl.Launch(execCmd)
 	if err != nil {
