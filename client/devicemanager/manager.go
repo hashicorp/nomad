@@ -11,6 +11,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -20,6 +21,8 @@ import (
 
 // Manager is the interface used to manage device plugins
 type Manager interface {
+	pluginmanager.PluginManager
+
 	// Reserve is used to reserve a set of devices
 	Reserve(d *structs.AllocatedDeviceResource) (*device.ContainerReservation, error)
 

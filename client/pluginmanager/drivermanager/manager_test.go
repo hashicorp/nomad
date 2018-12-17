@@ -96,16 +96,15 @@ func mockTaskEvent(taskID string) *drivers.TaskEvent {
 	}
 }
 
-func noopUpdater(string, *structs.DriverInfo) *structs.Node { return nil }
+func noopUpdater(string, *structs.DriverInfo) {}
 
 func TestMananger_Fingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
 	var infos []*structs.DriverInfo
-	mgr.updater = func(d string, i *structs.DriverInfo) *structs.Node {
+	mgr.updater = func(d string, i *structs.DriverInfo) {
 		infos = append(infos, i)
-		return nil
 	}
 	go mgr.Run()
 	defer mgr.Shutdown()

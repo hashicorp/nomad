@@ -7,6 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -21,8 +22,10 @@ var ErrDriverNotFound = fmt.Errorf("driver not found")
 
 // Manager is the interface used to manage driver plugins
 type Manager interface {
+	pluginmanager.PluginManager
+
 	// RegisterEventHandler will cause the given EventHandler to be called when
-	// an event is recieved that matches the given driver and taskID
+	// an event is received that matches the given driver and taskID
 	RegisterEventHandler(driver, taskID string, handler EventHandler)
 
 	// DeregisterEventHandler stops the EventHandler registered for the given

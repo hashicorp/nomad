@@ -2,6 +2,7 @@ package devicemanager
 
 import (
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 )
 
@@ -37,6 +38,7 @@ type MockManager struct {
 
 func (m *MockManager) Run()                                 {}
 func (m *MockManager) Shutdown()                            {}
+func (m *MockManager) PluginType() string                   { return base.PluginTypeDevice }
 func (m *MockManager) AllStats() []*device.DeviceGroupStats { return m.AllStatsF() }
 
 func (m *MockManager) Reserve(d *structs.AllocatedDeviceResource) (*device.ContainerReservation, error) {

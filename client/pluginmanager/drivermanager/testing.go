@@ -29,6 +29,10 @@ func TestDriverManager(t *testing.T) Manager {
 	}
 }
 
+func (m *testManager) Run()               {}
+func (m *testManager) Shutdown()          {}
+func (m *testManager) PluginType() string { return base.PluginTypeDriver }
+
 func (m *testManager) Dispense(driver string) (drivers.DriverPlugin, error) {
 	instance, err := m.loader.Dispense(driver, base.PluginTypeDriver, nil, m.logger)
 	if err != nil {
