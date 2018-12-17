@@ -5830,6 +5830,9 @@ const (
 
 	// TaskLeaderDead indicates that the leader task within the has finished.
 	TaskLeaderDead = "Leader Task Dead"
+
+	// TaskHookFailed indicates that one of the hooks for a task failed.
+	TaskHookFailed = "Task hook failed"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

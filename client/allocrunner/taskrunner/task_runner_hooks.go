@@ -104,6 +104,22 @@ func (tr *TaskRunner) initHooks() {
 	}
 }
 
+func (tr *TaskRunner) emitHookError(err error, hookName string) {
+	var taskEvent *structs.TaskEvent
+	if herr, ok := err.(*hookError); ok {
+		taskEvent = herr.taskEvent
+	} else {
+		message := fmt.Sprintf("%s: %v", hookName, err)
+		taskEvent = structs.NewTaskEvent(structs.TaskHookFailed).SetMessage(message)
+	}
+
+	// The TaskEvent returned by a HookError may be nil if the hook chooses to opt
+	// out of sending a task event.
+	if taskEvent != nil {
+		tr.EmitEvent(taskEvent)
+	}
+}
+
 // prestart is used to run the runners prestart hooks.
 func (tr *TaskRunner) prestart() error {
 	// Determine if the allocation is terminaland we should avoid running
@@ -170,6 +186,7 @@ func (tr *TaskRunner) prestart() error {
 		// Run the prestart hook
 		var resp interfaces.TaskPrestartResponse
 		if err := pre.Prestart(tr.killCtx, &req, &resp); err != nil {
+			tr.emitHookError(err, name)
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}
 
@@ -249,6 +266,7 @@ func (tr *TaskRunner) poststart() error {
 		}
 		var resp interfaces.TaskPoststartResponse
 		if err := post.Poststart(tr.killCtx, &req, &resp); err != nil {
+			tr.emitHookError(err, name)
 			merr.Errors = append(merr.Errors, fmt.Errorf("poststart hook %q failed: %v", name, err))
 		}
 
@@ -291,6 +309,7 @@ func (tr *TaskRunner) exited() error {
 		req := interfaces.TaskExitedRequest{}
 		var resp interfaces.TaskExitedResponse
 		if err := post.Exited(tr.killCtx, &req, &resp); err != nil {
+			tr.emitHookError(err, name)
 			merr.Errors = append(merr.Errors, fmt.Errorf("exited hook %q failed: %v", name, err))
 		}
 
@@ -334,6 +353,7 @@ func (tr *TaskRunner) stop() error {
 		req := interfaces.TaskStopRequest{}
 		var resp interfaces.TaskStopResponse
 		if err := post.Stop(tr.killCtx, &req, &resp); err != nil {
+			tr.emitHookError(err, name)
 			merr.Errors = append(merr.Errors, fmt.Errorf("stop hook %q failed: %v", name, err))
 		}
 
@@ -390,6 +410,7 @@ func (tr *TaskRunner) updateHooks() {
 		// Run the update hook
 		var resp interfaces.TaskUpdateResponse
 		if err := upd.Update(tr.killCtx, &req, &resp); err != nil {
+			tr.emitHookError(err, name)
 			tr.logger.Error("update hook failed", "name", name, "error", err)
 		}
 
@@ -432,6 +453,7 @@ func (tr *TaskRunner) killing() {
 		req := interfaces.TaskKillRequest{}
 		var resp interfaces.TaskKillResponse
 		if err := killHook.Killing(context.Background(), &req, &resp); err != nil {
+			tr.emitHookError(err, name)
 			tr.logger.Error("kill hook failed", "name", name, "error", err)
 		}
 
