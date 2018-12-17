@@ -7,8 +7,10 @@ export default ApplicationSerializer.extend({
   system: service(),
 
   normalize(typeHash, hash) {
-    hash.FailedTGAllocs = Object.keys(hash.FailedTGAllocs || {}).map(key => {
-      return assign({ Name: key }, get(hash, `FailedTGAllocs.${key}`) || {});
+    const failures = hash.FailedTGAllocs || {};
+    hash.FailedTGAllocs = Object.keys(failures).map(key => {
+      const propertiesForKey = failures[key] || {};
+      return assign({ Name: key }, propertiesForKey);
     });
 
     hash.PlainJobId = hash.JobID;
