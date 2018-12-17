@@ -26,8 +26,12 @@ The [spread stanza][spread-stanza] solves this problem by allowing operators to 
 
 ## Challenge
 
+Think of a scenario where a Nomad operator needs to increase the fault tolerance
+of a job that is deployed across different datacenters (we will be using `dc1` and `dc2` in our example). We want to make sure that the workload is not too heavily distributed in either datacenter in case one of them goes down.
 
 ## Solution
+
+Use the [spread][spread-stanza] stanza in the Nomad [job specification][job-specification] to ensure the workload is being evenly distributed between datacenters. The Nomad operator can use the [percent][percent] option with a [target][target] to customize the spread even further.
 
 
 ## Prerequisites
@@ -46,7 +50,41 @@ node. In a production cluster, 3 or 5 server nodes are recommended.
 
 ### Step 1: Place One of the Client Nodes in a Different Datacenter
 
+We are going to customize the spread for our job placement between the datacenters our nodes are located in. Choose one of your client nodes and edit `/etc/nomad.d/nomad.hcl` to change its location to `dc2`. A snippet of an example configuration file is show below with the required change is shown below.
+
+```shell
+data_dir = "/opt/nomad/data"
+bind_addr = "0.0.0.0"
+datacenter = "dc2"
+
+# Enable the client
+client {
+  enabled = true
+...
+```
+After making the change on your chosen client node, restart the Nomad service
+
+```shell
+$ sudo systemctl restart nomad
+```
+
+If everything worked correctly, you should be able to run the `nomad` [node status][node-status] command and see that one of your nodes is now in datacenter `dc2`.
+
+```shell
+$ nomad node status
+ID        DC   Name              Class   Drain  Eligibility  Status
+622dfefb  dc2  ip-172-31-20-105  <none>  false  eligible     ready
+18de1c0c  dc1  ip-172-31-21-117  <none>  false  eligible     ready
+abd5b2a8  dc1  ip-172-31-16-138  <none>  false  eligible     ready
+```
+
+### Step 2: Create a Job with the `spread` Stanza
+
 [attributes]: /docs/runtime/interpolation.html#node-variables-
 [client-metadata]: /docs/configuration/client.html#meta
+[job-specification]: /docs/job-specification/index.html
+[node-status]: /docs/commands/node/status.html
+[percent]: /spread-docs-coming-soon
 [scheduling]: /docs/internals/scheduling.html
 [spread-stanza]: /spread-docs-coming-soon
+[target]: /spread-docs-coming-soon

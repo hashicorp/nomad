@@ -63,8 +63,7 @@ After making the change on your chosen client node, restart the Nomad service
 $ sudo systemctl restart nomad
 ```
 
-If everything worked correctly, you should be able to run the `nomad node
-status` command and see that one of your nodes is now in datacenter `dc2`.
+If everything worked correctly, you should be able to run the `nomad` [node status][node-status] command and see that one of your nodes is now in datacenter `dc2`.
 
 ```shell
 $ nomad node status
@@ -225,6 +224,7 @@ changes (use the `nomad alloc status` command as shown in the previous step).
 [attributes]: /docs/runtime/interpolation.html#node-variables- 
 [constraint]: /docs/job-specification/constraint.html
 [client-metadata]: /docs/configuration/client.html#meta
+[node-status]: /docs/commands/node/status.html
 [scheduling]: /docs/internals/scheduling.html
 [verbose]: /docs/commands/alloc/status.html#verbose
 [weight]: /docs/job-specification/affinity.html#weight
