@@ -13,11 +13,10 @@ nodes to optimize resource utilization and density of applications. Although
 this feature ensures that cluster resources are being used efficiently, it does
 not necessarily promote maximum failure tolerance of jobs across nodes.
 
-The [spread stanza][spread-stanza] solves this problem by allowing operators to distribute their workloads in a customized way based on [attributes][attributes] and/or [client metadata][client-metadata]. By implementing spread, Nomad operators can ensure maximum levels of failure tolerance based on their specific architectures.
+The `spread` stanza solves this problem by allowing operators to distribute their workloads in a customized way based on [attributes][attributes] and/or [client metadata][client-metadata]. By implementing spread, Nomad operators can ensure maximum levels of failure tolerance based on their specific architectures.
 
 ## Reference Material
 
-- The [spread][spread-stanza] stanza documentation
 - [Scheduling][scheduling] with Nomad
 
 ## Estimated Time to Complete
@@ -31,7 +30,7 @@ of a job that is deployed across different datacenters (we will be using `dc1` a
 
 ## Solution
 
-Use the [spread][spread-stanza] stanza in the Nomad [job specification][job-specification] to ensure the workload is being evenly distributed between datacenters. The Nomad operator can use the [percent][percent] option with a [target][target] to customize the spread even further.
+Use the `spread` stanza in the Nomad [job specification][job-specification] to ensure the workload is being appropriately distributed between datacenters. The Nomad operator can use the `percent` option with a `target` to customize the spread.
 
 
 ## Prerequisites
@@ -90,10 +89,16 @@ job "redis" {
  spread {
    attribute = "${node.datacenter}"
    weight = 100
+   target "dc1" {
+     percent = 80
+   }
+   target "dc2" {
+     percent = 20
+   }
  }
 
  group "cache1" {
-   count = 6
+   count = 5
 
    task "redis" {
      driver = "docker"
@@ -126,7 +131,7 @@ job "redis" {
 }
 ```
 Note that we used the `spread` stanza and specified the [datacenter][attributes]
-attribute without using any targets with the percent option. This will tell the Nomad scheduler to evenly distribute the workload between the two datacenters we have configured.
+attribute while targeting `dc1` and `dc2` with the percent options. This will tell the Nomad scheduler to make an attempt to distribute 80% of the workload on `dc1` and 20% of the workload on `dc2`.
 
 ### Step 3: Register the Job `redis.nomad`
 
@@ -134,31 +139,88 @@ Run the Nomad job with the following command:
 
 ```shell
 $ nomad run redis.nomad
-==> Monitoring evaluation "c88e6a0d"
+==> Monitoring evaluation "01f212ee"
     Evaluation triggered by job "redis"
-    Allocation "7b953898" created: node "622dfefb", group "cache1"
-    Allocation "a46017cf" created: node "18de1c0c", group "cache1"
-    Allocation "d7b8ac3a" created: node "abd5b2a8", group "cache1"
-    Allocation "34477553" created: node "622dfefb", group "cache1"
-    Allocation "6a3766d2" created: node "622dfefb", group "cache1"
-    Allocation "788de07b" created: node "abd5b2a8", group "cache1"
+    Allocation "8f7ed89f" created: node "abd5b2a8", group "cache1"
+    Allocation "ccfbe54c" created: node "622dfefb", group "cache1"
+    Allocation "24d2cb08" created: node "abd5b2a8", group "cache1"
+    Allocation "4a1415b7" created: node "18de1c0c", group "cache1"
+    Allocation "62d14c6d" created: node "18de1c0c", group "cache1"
     Evaluation status changed: "pending" -> "complete"
+==> Evaluation "01f212ee" finished with status "complete"
 ```
 
-Note that three of the six allocations have been placed on node `622dfefb`. This
-is the node we configured to be in datacenter `dc2`. The Nomad scheduler has
-distributed the workload evenly between the two datacenters because of the
-spread we specified.
+Note that one of the five allocations have been placed on node `622dfefb`. This is the node we configured to be in datacenter `dc2`. The Nomad scheduler has
+distributed 20% of the workload to `dc2` as we specified in the `spread` stanza.
 
 Keep in mind that the Nomad scheduler still factors in other components into the overall scoring of nodes when making placements, so you should not expect the spread stanza to strictly implement your distribution preferences like a [constraint][constraint-stanza]. We will take a detailed look at the scoring in the next few steps.
 
+### Step 4: Check the Status of the `redis` Job
 
+At this point, we are going to check the status of our job and verify where our
+allocations have been placed. Run the following command:
+
+```shell
+$ nomad status redis
+```
+
+You should see 5 instances of your job running in the `Summary` section of the
+output as show below:
+
+```shell
+...
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache1      0       0         5        0       0         0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
+24d2cb08  abd5b2a8  cache1      0        run      running  3m30s ago  3m29s ago
+4a1415b7  18de1c0c  cache1      0        run      running  3m30s ago  3m29s ago
+62d14c6d  18de1c0c  cache1      0        run      running  3m30s ago  3m29s ago
+8f7ed89f  abd5b2a8  cache1      0        run      running  3m30s ago  3m29s ago
+ccfbe54c  622dfefb  cache1      0        run      running  3m30s ago  3m30s ago
+```
+
+As stated earlier, you can cross-check this output with the results of the
+`nomad node status` command to verify that 20% of your workload has
+been placed on the node in `dc2` (in our case, that node is `622dfefb`).
+
+### Step 5: Obtain Detailed Scoring Information on Job Placement
+
+As stated earlier, the Nomad scheduler will not necessarily spread your
+workload in the way you have specified in the `spread` stanza even if the
+resources are available. This is because spread scoring is factored in with
+other metrics as well before making a scheduling decision. In this step, we will
+take a look at some of those other factors.
+
+Using the output from the previous step, take any allocation that has been placed on a node and use the nomad [alloc status][alloc status] command with the [verbose][verbose] option to obtain detailed scoring information on it. In this example, we will use the allocation ID `4a1415b7` (your allocation IDs will be different).
+
+```shell
+$ nomad alloc status -verbose 4a1415b7
+``` 
+The resulting output will show the `Placement Metrics` section at the bottom.
+
+```shell
+...
+Placement Metrics
+Node                                  allocation-spread  binpack  job-anti-affinity  node-reschedule-penalty  node-affinity  final score
+18de1c0c-c1b5-528d-c0e0-43da66d7df62  0.5                0.33     0                  0                        0              0.415
+622dfefb-dceb-9c23-c292-7f8a2a3ca649  0                  0.33     0                  0                        0              0.33
+abd5b2a8-31e8-6f90-41a7-f61d9738a5cc  0.5                0.515    -0.4               0                        0              0.205
+```
+
+Note that the results from the `allocation-spread`, `binpack`, `job-anti-affinity`, `node-reschedule-penalty`, and `node-affinity` columns are combined to produce the numbers listed in the `final score` column for each node. The Nomad scheduler uses the final score for each node in deciding where to make placements.
+
+## Next Steps
+
+Change the values of the `percent` options on your targets in the `spread` stanza and observe how the placement behavior along with the final score given to each node changes (use the `nomad alloc status` command as shown in the previous step).
+
+[alloc status]: /docs/commands/alloc/status.html
 [attributes]: /docs/runtime/interpolation.html#node-variables-
 [client-metadata]: /docs/configuration/client.html#meta
 [constraint-stanza]: /docs/job-specification/constraint.html
 [job-specification]: /docs/job-specification/index.html
 [node-status]: /docs/commands/node/status.html
-[percent]: /spread-docs-coming-soon
 [scheduling]: /docs/internals/scheduling.html
-[spread-stanza]: /spread-docs-coming-soon
-[target]: /spread-docs-coming-soon
+[verbose]: /docs/commands/alloc/status.html#verbose
