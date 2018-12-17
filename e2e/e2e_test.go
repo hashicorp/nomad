@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/hashicorp/nomad/e2e/affinities"
 	_ "github.com/hashicorp/nomad/e2e/example"
+	_ "github.com/hashicorp/nomad/e2e/spread"
 )
 
 func TestE2E(t *testing.T) {

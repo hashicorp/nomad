@@ -36,8 +36,9 @@ func (tc *BasicSpreadStruct) TestEvenSpread(f *framework.F) {
 	job, err := jobspec.ParseFile("spread/input/spread1.nomad")
 	require := require.New(f.T())
 	require.Nil(err)
-	jobId := uuid.Generate()
-	job.ID = helper.StringToPtr("spr" + jobId[0:8])
+	uuid := uuid.Generate()
+	jobId := "spr" + uuid[0:8]
+	job.ID = helper.StringToPtr(jobId)
 
 	tc.jobIds = append(tc.jobIds, jobId)
 
@@ -89,8 +90,9 @@ func (tc *BasicSpreadStruct) TestMultipleSpreads(f *framework.F) {
 	job, err := jobspec.ParseFile("spread/input/spread2.nomad")
 	require := require.New(f.T())
 	require.Nil(err)
-	jobId := uuid.Generate()
-	job.ID = helper.StringToPtr("spr" + jobId[0:8])
+	uuid := uuid.Generate()
+	jobId := "spr" + uuid[0:8]
+	job.ID = helper.StringToPtr(jobId)
 
 	tc.jobIds = append(tc.jobIds, jobId)
 
@@ -142,13 +144,10 @@ func (tc *BasicSpreadStruct) TestMultipleSpreads(f *framework.F) {
 	expectedDcToAllocs["dc2"] = 5
 	require.Equal(expectedDcToAllocs, dcToAllocs)
 
-	/*
-		TODO(preetha): known failure that needs investigation
-		expectedRackToAllocs := make(map[string]int)
-		expectedRackToAllocs["r1"] = 5
-		expectedRackToAllocs["r2"] = 5
-		require.Equal(expectedRackToAllocs, rackToAllocs)
-	*/
+	expectedRackToAllocs := make(map[string]int)
+	expectedRackToAllocs["r1"] = 7
+	expectedRackToAllocs["r2"] = 3
+	require.Equal(expectedRackToAllocs, rackToAllocs)
 
 }
 
