@@ -19,8 +19,6 @@ VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULT
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.8.6
-NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
@@ -69,10 +67,6 @@ sudo mkdir -p $VAULTCONFIGDIR
 sudo chmod 755 $VAULTCONFIGDIR
 sudo mkdir -p $VAULTDIR
 sudo chmod 755 $VAULTDIR
-
-# Nomad
-
-curl -L $NOMADDOWNLOAD > nomad.zip
 
 ## Install
 sudo unzip nomad.zip -d /usr/local/bin
