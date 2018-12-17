@@ -624,6 +624,9 @@ func (ar *allocRunner) Update(update *structs.Allocation) {
 		// and return. This case shouldn't happen, but may in the case of a bug
 		// elsewhere inside the system.
 		if oldUpdate.AllocModifyIndex > update.AllocModifyIndex {
+			ar.logger.Warn("Discarding allocation update due to newer alloc revision in queue",
+				"old_modify_index", oldUpdate.AllocModifyIndex,
+				"new_modify_index", update.AllocModifyIndex)
 			ar.allocUpdatedCh <- oldUpdate
 			return
 		}
