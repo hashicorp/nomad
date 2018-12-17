@@ -49,6 +49,12 @@ type allocRunner struct {
 	// before this goroutine exits.
 	taskStateUpdateHandlerCh chan struct{}
 
+	// allocUpdatedCh is a channel that is used to stream allocation updates into
+	// the allocUpdate handler. Must have len==1 to allow nonblocking notification
+	// of new allocation updates while the goroutine is processing a previous
+	// update.
+	allocUpdatedCh chan *structs.Allocation
+
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
@@ -157,6 +163,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		stateUpdater:             config.StateUpdater,
 		taskStateUpdatedCh:       make(chan struct{}, 1),
 		taskStateUpdateHandlerCh: make(chan struct{}),
+		allocUpdatedCh:           make(chan *structs.Allocation, 1),
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
@@ -225,6 +232,9 @@ func (ar *allocRunner) Run() {
 
 	// Start the task state update handler
 	go ar.handleTaskStateUpdates()
+
+	// Start the alloc update handler
+	go ar.handleAllocUpdates()
 
 	// If an alloc should not be run, ensure any restored task handles are
 	// destroyed and exit to wait for the AR to be GC'd by the client.
@@ -601,12 +611,44 @@ func (ar *allocRunner) AllocState() *state.State {
 	return state
 }
 
-// Update the running allocation with a new version received from the server.
-//
+// Update asyncronously updates the running allocation with a new version
+// received from the server.
+// When processing a new update, we will first attempt to drain stale updates
+// from the queue, before appending the new one.
+func (ar *allocRunner) Update(update *structs.Allocation) {
+	select {
+	// Drain queued update from the channel if possible, and check the modify
+	// index
+	case oldUpdate := <-ar.allocUpdatedCh:
+		// If the old update is newer than the replacement, then skip the new one
+		// and return. This case shouldn't happen, but may in the case of a bug
+		// elsewhere inside the system.
+		if oldUpdate.AllocModifyIndex > update.AllocModifyIndex {
+			ar.allocUpdatedCh <- oldUpdate
+			return
+		}
+	default:
+	}
+
+	// Queue the new update
+	ar.allocUpdatedCh <- update
+}
+
+func (ar *allocRunner) handleAllocUpdates() {
+	for {
+		select {
+		case update := <-ar.allocUpdatedCh:
+			ar.handleAllocUpdate(update)
+		case <-ar.waitCh:
+			break
+		}
+	}
+}
+
 // This method sends the updated alloc to Run for serially processing updates.
 // If there is already a pending update it will be discarded and replaced by
 // the latest update.
-func (ar *allocRunner) Update(update *structs.Allocation) {
+func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 	// Detect Stop updates
 	stopping := !ar.Alloc().TerminalStatus() && update.TerminalStatus()
 
