@@ -1,0 +1,24 @@
+job "test1" {
+  datacenters = ["dc1", "dc2"]
+  type = "service"
+  affinity {
+    attribute ="${meta.rack}"
+    operator = "="
+    value = "r1"
+    weight = -50
+  }
+  group "test1" {
+    count = 4
+    spread {
+      attribute ="${node.datacenter}"
+    }
+    task "test" {
+      driver = "raw_exec"
+
+      config {
+        command = "bash"
+        args    = ["-c", "sleep 15000"]
+      }
+    }
+  }
+}
