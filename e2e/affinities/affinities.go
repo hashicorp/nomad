@@ -55,7 +55,7 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 		// Look for allocations
 		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
 		return allocs
-	}, 2*time.Second, time.Second).ShouldNot(BeEmpty())
+	}, 5*time.Second, time.Second).ShouldNot(BeEmpty())
 
 	jobAllocs := nomadClient.Allocations()
 
@@ -104,7 +104,7 @@ func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
 		// Look for allocations
 		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
 		return allocs
-	}, 2*time.Second, time.Second).ShouldNot(BeEmpty())
+	}, 5*time.Second, time.Second).ShouldNot(BeEmpty())
 
 	jobAllocs := nomadClient.Allocations()
 
@@ -168,7 +168,7 @@ func (tc *BasicAffinityTest) TestAntiAffinities(f *framework.F) {
 		// Look for allocations
 		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
 		return allocs
-	}, 2*time.Second, time.Second).ShouldNot(BeEmpty())
+	}, 5*time.Second, time.Second).ShouldNot(BeEmpty())
 
 	jobAllocs := nomadClient.Allocations()
 
