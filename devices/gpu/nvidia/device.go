@@ -38,7 +38,7 @@ var (
 	// pluginInfo describes the plugin
 	pluginInfo = &base.PluginInfoResponse{
 		Type:              base.PluginTypeDevice,
-		PluginApiVersions: []string{"v0.2.0"},
+		PluginApiVersions: []string{device.ApiVersion010},
 		PluginVersion:     "0.1.0",
 		Name:              pluginName,
 	}

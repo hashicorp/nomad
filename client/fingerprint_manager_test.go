@@ -565,7 +565,7 @@ func TestFingerprintManager_Run_DriverFailure(t *testing.T) {
 
 	dispenseCalls := 0
 	loader := &loader.MockCatalog{
-		DispenseF: func(name, pluginType string, cfg *base.ClientAgentConfig, logger log.Logger) (loader.PluginInstance, error) {
+		DispenseF: func(name, pluginType string, cfg *base.AgentConfig, logger log.Logger) (loader.PluginInstance, error) {
 			if pluginType == base.PluginTypeDriver && name == "raw_exec" {
 				dispenseCalls++
 			}

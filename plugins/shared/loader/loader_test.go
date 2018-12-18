@@ -22,7 +22,7 @@ var (
 	// supportedApiVersions is the set of api versions that the "client" can
 	// support
 	supportedApiVersions = map[string][]string{
-		base.PluginTypeDevice: []string{device.ApiVersion010},
+		base.PluginTypeDevice: {device.ApiVersion010},
 	}
 )
 
@@ -177,7 +177,7 @@ func TestPluginLoader_External_ApiVersions(t *testing.T) {
 		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		SupportedVersions: map[string][]string{
-			base.PluginTypeDevice: []string{"0.2.0", "0.2.1", "0.3.0"},
+			base.PluginTypeDevice: {"0.2.0", "0.2.1", "0.3.0"},
 		},
 		Configs: []*config.PluginConfig{
 			{
@@ -527,7 +527,7 @@ func TestPluginLoader_Internal_ApiVersions(t *testing.T) {
 		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		SupportedVersions: map[string][]string{
-			base.PluginTypeDevice: []string{"0.2.0", "0.2.1", "0.3.0"},
+			base.PluginTypeDevice: {"0.2.0", "0.2.1", "0.3.0"},
 		},
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
