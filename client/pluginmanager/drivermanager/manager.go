@@ -24,22 +24,17 @@ var ErrDriverNotFound = fmt.Errorf("driver not found")
 type Manager interface {
 	pluginmanager.PluginManager
 
-	// RegisterEventHandler will cause the given EventHandler to be called when
-	// an event is received that matches the given driver and taskID
-	RegisterEventHandler(driver, taskID string, handler EventHandler)
-
-	// DeregisterEventHandler stops the EventHandler registered for the given
-	// driver and taskID to be called if exists
-	DeregisterEventHandler(driver, taskID string)
-
 	// Dispense returns a drivers.DriverPlugin for the given driver plugin name
 	// handling reattaching to an existing driver if available
 	Dispense(driver string) (drivers.DriverPlugin, error)
 }
 
-// EventHandler can be registered with a Manager to be called for a matching task.
+// EventHandler can is a callback to be called for a task.
 // The handler should not block execution.
 type EventHandler func(*drivers.TaskEvent)
+
+// TaskEventHandlerFactory returns an event handler for a given allocID/task name
+type TaskEventHandlerFactory func(allocID, taskName string) EventHandler
 
 // StateStorage is used to persist the driver managers state across
 // agent restarts.
@@ -78,6 +73,9 @@ type Config struct {
 	// Updater is used to update the node when driver information changes
 	Updater UpdateNodeDriverInfoFn
 
+	// EventHandlerFactory is used to retrieve a task event handler
+	EventHandlerFactory TaskEventHandlerFactory
+
 	// State is used to manage the device managers state
 	State StateStorage
 
@@ -110,6 +108,10 @@ type manager struct {
 	// updater is used to update the node when device information changes
 	updater UpdateNodeDriverInfoFn
 
+	// eventHandlerFactory is passed to the instance managers and used to forward
+	// task events
+	eventHandlerFactory TaskEventHandlerFactory
+
 	// instances is the list of managed devices, access is serialized by instanceMu
 	instances   map[string]*instanceManager
 	instancesMu sync.RWMutex
@@ -130,18 +132,19 @@ type manager struct {
 func New(c *Config) *manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &manager{
-		logger:          c.Logger.Named("driver_mgr"),
-		state:           c.State,
-		ctx:             ctx,
-		cancel:          cancel,
-		loader:          c.Loader,
-		pluginConfig:    c.PluginConfig,
-		updater:         c.Updater,
-		instances:       make(map[string]*instanceManager),
-		reattachConfigs: make(map[loader.PluginID]*shared.ReattachConfig),
-		allowedDrivers:  c.AllowedDrivers,
-		blockedDrivers:  c.BlockedDrivers,
-		readyCh:         make(chan struct{}),
+		logger:              c.Logger.Named("driver_mgr"),
+		state:               c.State,
+		ctx:                 ctx,
+		cancel:              cancel,
+		loader:              c.Loader,
+		pluginConfig:        c.PluginConfig,
+		updater:             c.Updater,
+		eventHandlerFactory: c.EventHandlerFactory,
+		instances:           make(map[string]*instanceManager),
+		reattachConfigs:     make(map[loader.PluginID]*shared.ReattachConfig),
+		allowedDrivers:      c.AllowedDrivers,
+		blockedDrivers:      c.BlockedDrivers,
+		readyCh:             make(chan struct{}),
 	}
 }
 
@@ -189,6 +192,7 @@ func (m *manager) Run() {
 			PluginConfig:         m.pluginConfig,
 			ID:                   &id,
 			UpdateNodeFromDriver: m.updater,
+			EventHandlerFactory:  m.eventHandlerFactory,
 		})
 
 		m.instancesMu.Lock()
@@ -322,22 +326,6 @@ func (m *manager) fetchPluginReattachConfig(id loader.PluginID) (*plugin.Reattac
 		return c, true
 	}
 	return nil, false
-}
-
-func (m *manager) RegisterEventHandler(driver, taskID string, handler EventHandler) {
-	m.instancesMu.RLock()
-	if d, ok := m.instances[driver]; ok {
-		d.registerEventHandler(taskID, handler)
-	}
-	m.instancesMu.Unlock()
-}
-
-func (m *manager) DeregisterEventHandler(driver, taskID string) {
-	m.instancesMu.RLock()
-	if d, ok := m.instances[driver]; ok {
-		d.deregisterEventHandler(taskID)
-	}
-	m.instancesMu.Unlock()
 }
 
 func (m *manager) Dispense(d string) (drivers.DriverPlugin, error) {

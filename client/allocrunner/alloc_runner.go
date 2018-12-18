@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // allocRunner is used to run all the tasks in a given allocation
@@ -890,4 +891,18 @@ func (ar *allocRunner) LatestAllocStats(taskFilter string) (*cstructs.AllocResou
 	}
 
 	return astat, nil
+}
+
+func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventHandler {
+	if tr, ok := ar.tasks[taskName]; ok {
+		return func(ev *drivers.TaskEvent) {
+			tr.EmitEvent(&structs.TaskEvent{
+				Type:          structs.TaskDriverMessage,
+				Time:          ev.Timestamp.UnixNano(),
+				Details:       ev.Annotations,
+				DriverMessage: ev.Message,
+			})
+		}
+	}
+	return nil
 }

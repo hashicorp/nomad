@@ -289,6 +289,8 @@ func (b *driverPluginServer) TaskEvents(req *proto.TaskEventsRequest, srv proto.
 
 		pbEvent := &proto.DriverTaskEvent{
 			TaskId:      event.TaskID,
+			AllocId:     event.AllocID,
+			TaskName:    event.TaskName,
 			Timestamp:   pbTimestamp,
 			Message:     event.Message,
 			Annotations: event.Annotations,

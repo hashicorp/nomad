@@ -268,6 +268,8 @@ type TaskStatus struct {
 
 type TaskEvent struct {
 	TaskID      string
+	TaskName    string
+	AllocID     string
 	Timestamp   time.Time
 	Message     string
 	Annotations map[string]string

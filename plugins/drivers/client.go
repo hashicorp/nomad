@@ -310,6 +310,8 @@ func (d *driverPluginClient) handleTaskEvents(ctx context.Context, ch chan *Task
 		timestamp, _ := ptypes.Timestamp(ev.Timestamp)
 		event := &TaskEvent{
 			TaskID:      ev.TaskId,
+			AllocID:     ev.AllocId,
+			TaskName:    ev.TaskName,
 			Annotations: ev.Annotations,
 			Message:     ev.Message,
 			Timestamp:   timestamp,

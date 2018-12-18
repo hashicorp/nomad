@@ -572,12 +572,18 @@ message DriverTaskEvent {
     // TaskId is the id of the task for the event
     string task_id = 1;
 
+    // AllocId of the task for the event
+    string alloc_id = 2;
+
+    // TaskName is the name of the task for the event
+    string task_name = 3;
+
     // Timestamp when the event occurred
-    google.protobuf.Timestamp timestamp = 2;
+    google.protobuf.Timestamp timestamp = 4;
 
     // Message is the body of the event
-    string message = 3;
+    string message = 5;
 
     // Annotations allows for additional key/value data to be sent along with the event
-    map<string,string> annotations = 4;
+    map<string,string> annotations = 6;
 }

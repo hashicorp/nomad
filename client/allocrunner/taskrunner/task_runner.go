@@ -567,9 +567,6 @@ func (tr *TaskRunner) runDriver() error {
 
 	//XXX Evaluate and encode driver config
 
-	// Register an event handler with the driver manager to emit task events
-	tr.driverManager.RegisterEventHandler(tr.Task().Driver, taskConfig.ID, tr.handleTaskEvent)
-
 	// If there's already a task handle (eg from a Restore) there's nothing
 	// to do except update state.
 	if tr.getDriverHandle() != nil {
@@ -607,46 +604,6 @@ func (tr *TaskRunner) runDriver() error {
 	tr.UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 	return nil
 }
-
-func (tr *TaskRunner) handleTaskEvent(ev *drivers.TaskEvent) {
-	tr.EmitEvent(&structs.TaskEvent{
-		Type:          structs.TaskDriverMessage,
-		Time:          ev.Timestamp.UnixNano(),
-		Details:       ev.Annotations,
-		DriverMessage: ev.Message,
-	})
-}
-
-// initDriver creates the driver for the task
-/*func (tr *TaskRunner) initDriver() error {
-	// Create a task-specific event emitter callback to expose minimal
-	// state to drivers
-	//XXX Replace with EmitEvent -- no need for a shim
-	eventEmitter := func(m string, args ...interface{}) {
-		msg := fmt.Sprintf(m, args...)
-		tr.logger.Debug("driver event", "event", msg)
-		tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
-	}
-
-	alloc := tr.Alloc()
-	driverCtx := driver.NewDriverContext(
-		alloc.Job.Name,
-		alloc.TaskGroup,
-		tr.taskName,
-		tr.allocID,
-		tr.clientConfig,               // XXX Why does it need this
-		tr.clientConfig.Node,          // XXX THIS I NEED TO FIX
-		tr.logger.StandardLogger(nil), // XXX Should pass this through
-		eventEmitter)
-
-	driver, err := driver.NewDriver(tr.task.Driver, driverCtx)
-	if err != nil {
-		return err
-	}
-
-	tr.driver = driver
-	return nil
-}*/
 
 // initDriver retrives the DriverPlugin from the plugin loader for this task
 func (tr *TaskRunner) initDriver() error {

@@ -49,6 +49,9 @@ type instanceManagerConfig struct {
 
 	// updateNodeFromDriver is the callback used to update the node from fingerprinting
 	UpdateNodeFromDriver UpdateNodeDriverInfoFn
+
+	// EventHandlerFactory is used to fetch a task event handler
+	EventHandlerFactory TaskEventHandlerFactory
 }
 
 // instanceManager is used to manage a single driver plugin
@@ -92,9 +95,8 @@ type instanceManager struct {
 	// updateNodeFromDriver is the callback used to update the node from fingerprinting
 	updateNodeFromDriver UpdateNodeDriverInfoFn
 
-	// handlers is the map of taskID to handler func
-	handlers     map[string]EventHandler
-	handlersLock sync.RWMutex
+	// eventHandlerFactory is used to fetch a handler for a task event
+	eventHandlerFactory TaskEventHandlerFactory
 
 	// firstFingerprintCh is used to trigger that we have successfully
 	// fingerprinted once. It is used to gate launching the stats collection.
@@ -122,7 +124,7 @@ func newInstanceManager(c *instanceManagerConfig) *instanceManager {
 		pluginConfig:         c.PluginConfig,
 		id:                   c.ID,
 		updateNodeFromDriver: c.UpdateNodeFromDriver,
-		handlers:             map[string]EventHandler{},
+		eventHandlerFactory:  c.EventHandlerFactory,
 		firstFingerprintCh:   make(chan struct{}),
 	}
 
@@ -138,23 +140,6 @@ func (i *instanceManager) WaitForFirstFingerprint(ctx context.Context) {
 	case <-ctx.Done():
 	case <-i.firstFingerprintCh:
 	}
-}
-
-// registerEventHandler registers the given handler to run for events with the
-// given taskID
-func (i *instanceManager) registerEventHandler(taskID string, handler EventHandler) {
-	i.handlersLock.Lock()
-	defer i.handlersLock.Unlock()
-	i.handlers[taskID] = handler
-}
-
-// deregisterEventHandler removed the handlers registered for the given taskID
-// and is serlialized so as to not be called concurrently with the registered
-// handler
-func (i *instanceManager) deregisterEventHandler(taskID string) {
-	i.handlersLock.Lock()
-	defer i.handlersLock.Unlock()
-	delete(i.handlers, taskID)
 }
 
 // run is a long lived goroutine that starts the fingerprinting and stats
@@ -462,9 +447,7 @@ func (i *instanceManager) handleEvents() {
 
 // handleEvent looks up the event handler(s) for the event and runs them
 func (i *instanceManager) handleEvent(ev *drivers.TaskEvent) {
-	i.handlersLock.RLock()
-	defer i.handlersLock.RUnlock()
-	if handler, ok := i.handlers[ev.TaskID]; ok {
+	if handler := i.eventHandlerFactory(ev.AllocID, ev.TaskName); handler != nil {
 		i.logger.Trace("task event received", "event", ev)
 		handler(ev)
 		return

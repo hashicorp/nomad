@@ -31,13 +31,14 @@ func testSetup(t *testing.T) (chan *drivers.Fingerprint, chan *drivers.TaskEvent
 	drv := mockDriver(fpChan, evChan)
 	cat := mockCatalog(map[string]drivers.DriverPlugin{"mock": drv})
 	cfg := &Config{
-		Logger:         testlog.HCLogger(t),
-		Loader:         cat,
-		PluginConfig:   &base.ClientAgentConfig{},
-		Updater:        noopUpdater,
-		State:          state.NoopDB{},
-		AllowedDrivers: make(map[string]struct{}),
-		BlockedDrivers: make(map[string]struct{}),
+		Logger:              testlog.HCLogger(t),
+		Loader:              cat,
+		PluginConfig:        &base.ClientAgentConfig{},
+		Updater:             noopUpdater,
+		EventHandlerFactory: noopEventHandlerFactory,
+		State:               state.NoopDB{},
+		AllowedDrivers:      make(map[string]struct{}),
+		BlockedDrivers:      make(map[string]struct{}),
 	}
 
 	mgr := New(cfg)
@@ -96,7 +97,8 @@ func mockTaskEvent(taskID string) *drivers.TaskEvent {
 	}
 }
 
-func noopUpdater(string, *structs.DriverInfo) {}
+func noopUpdater(string, *structs.DriverInfo)             {}
+func noopEventHandlerFactory(string, string) EventHandler { return nil }
 
 func TestMananger_Fingerprint(t *testing.T) {
 	t.Parallel()
@@ -183,10 +185,12 @@ func TestMananger_TaskEvents(t *testing.T) {
 	event1 := mockTaskEvent("abc1")
 	var wg sync.WaitGroup
 	wg.Add(1)
-	mgr.RegisterEventHandler("mock", "abc1", func(ev *drivers.TaskEvent) {
-		defer wg.Done()
-		assert.Exactly(t, event1, ev)
-	})
+	mgr.eventHandlerFactory = func(string, string) EventHandler {
+		return func(ev *drivers.TaskEvent) {
+			defer wg.Done()
+			assert.Exactly(t, event1, ev)
+		}
+	}
 
 	evChan <- event1
 	wg.Wait()

@@ -123,6 +123,7 @@ type AllocRunner interface {
 	WaitCh() <-chan struct{}
 	DestroyCh() <-chan struct{}
 	ShutdownCh() <-chan struct{}
+	GetTaskEventHandler(taskName string) drivermanager.EventHandler
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -331,13 +332,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Setup the driver manager
 	driverConfig := &drivermanager.Config{
-		Logger:         c.logger,
-		Loader:         c.configCopy.PluginSingletonLoader,
-		PluginConfig:   c.configCopy.NomadPluginConfig(),
-		Updater:        c.batchNodeUpdates.updateNodeFromDriver,
-		State:          c.stateDB,
-		AllowedDrivers: allowlistDrivers,
-		BlockedDrivers: blocklistDrivers,
+		Logger:              c.logger,
+		Loader:              c.configCopy.PluginSingletonLoader,
+		PluginConfig:        c.configCopy.NomadPluginConfig(),
+		Updater:             c.batchNodeUpdates.updateNodeFromDriver,
+		EventHandlerFactory: c.GetTaskEventHandler,
+		State:               c.stateDB,
+		AllowedDrivers:      allowlistDrivers,
+		BlockedDrivers:      blocklistDrivers,
 	}
 	drvManager := drivermanager.New(driverConfig)
 	c.drivermanager = drvManager
@@ -2614,6 +2616,16 @@ func (c *Client) allAllocs() map[string]*structs.Allocation {
 		allocs[a.ID] = a
 	}
 	return allocs
+}
+
+// GetTaskEventHandler returns an event handler for the given allocID and task name
+func (c *Client) GetTaskEventHandler(allocID, taskName string) drivermanager.EventHandler {
+	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
+	if ar, ok := c.allocs[allocID]; ok {
+		return ar.GetTaskEventHandler(taskName)
+	}
+	return nil
 }
 
 // group wraps a func() in a goroutine and provides a way to block until it

@@ -475,6 +475,8 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 
 	d.eventer.EmitEvent(&drivers.TaskEvent{
 		TaskID:    task.ID,
+		AllocID:   task.AllocID,
+		TaskName:  task.Name,
 		Timestamp: time.Now(),
 		Message:   "Downloading image",
 		Annotations: map[string]string{
@@ -489,6 +491,8 @@ func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {
 	return func(msg string, annotations map[string]string) {
 		d.eventer.EmitEvent(&drivers.TaskEvent{
 			TaskID:      task.ID,
+			AllocID:     task.AllocID,
+			TaskName:    task.Name,
 			Timestamp:   time.Now(),
 			Message:     msg,
 			Annotations: annotations,
