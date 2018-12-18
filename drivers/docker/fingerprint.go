@@ -2,6 +2,8 @@ package docker
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -86,6 +88,24 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			}
 			break
 		}
+	}
+
+	if dockerInfo, err := client.Info(); err != nil {
+		d.logger.Warn("failed to get Docker system info", "error", err)
+	} else {
+		runtimeNames := make([]string, 0, len(dockerInfo.Runtimes))
+		for name := range dockerInfo.Runtimes {
+			if d.config.GPURuntimeName == name {
+				// Nvidia runtime is detected by Docker.
+				// It makes possible to run GPU workloads using Docker driver on this host.
+				d.gpuRuntime = true
+			}
+			runtimeNames = append(runtimeNames, name)
+		}
+		sort.Strings(runtimeNames)
+
+		fp.Attributes["runtimes"] = pstructs.NewStringAttribute(
+			strings.Join(runtimeNames, ","))
 	}
 
 	return fp
