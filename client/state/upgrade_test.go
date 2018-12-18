@@ -59,6 +59,37 @@ func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
 	require.False(t, up)
 }
 
+// TestUpgrade_NeedsUpgrade_Error asserts that an error is returned from
+// NeedsUpgrade if an invalid db version is found. This is a safety measure to
+// prevent invalid and unintentional upgrades when downgrading Nomad.
+func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
+	t.Parallel()
+
+	cases := [][]byte{
+		{'"', '2', '"'}, // wrong type
+		{'1'},           // wrong version (never existed)
+		{'3'},           // wrong version (future)
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
+			db, cleanup := setupBoltDB(t)
+			defer cleanup()
+
+			require.NoError(t, db.DB().BoltDB().Update(func(tx *bolt.Tx) error {
+				bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
+				require.NoError(t, err)
+
+				return bkt.Put(metaVersionKey, tc)
+			}))
+
+			_, err := NeedsUpgrade(db.DB().BoltDB())
+			require.Error(t, err)
+		})
+	}
+}
+
 // TestUpgrade_DeleteInvalidAllocs asserts invalid allocations are deleted
 // during state upgades instead of failing the entire agent.
 func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {

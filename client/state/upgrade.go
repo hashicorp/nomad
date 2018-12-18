@@ -29,7 +29,7 @@ func NeedsUpgrade(bdb *bolt.DB) (bool, error) {
 			return nil
 		}
 
-		if string(v) != metaVersion {
+		if !bytes.Equal(v, metaVersion) {
 			// Version exists but does not match. Abort.
 			return fmt.Errorf("incompatible state version. expected %q but found %q",
 				metaVersion, v)
@@ -52,7 +52,7 @@ func addMeta(tx *bolt.Tx) error {
 		return err
 	}
 
-	return bkt.Put(metaVersionKey, []byte(metaVersion))
+	return bkt.Put(metaVersionKey, metaVersion)
 }
 
 // backupDB backs up the existing state database prior to upgrade overwriting

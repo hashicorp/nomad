@@ -18,7 +18,7 @@ import (
 The client has a boltDB backed state store. The schema as of 0.9 looks as follows:
 
 meta/
-|--> version -> "1"
+|--> version -> '2' (not msgpack encoded)
 |--> upgraded -> time.Now().Format(timeRFC3339)
 allocations/
 |--> <alloc-id>/
@@ -45,7 +45,7 @@ var (
 	// metaVersion is the value of the state schema version to detect when
 	// an upgrade is needed. It skips the usual boltdd/msgpack backend to
 	// be as portable and futureproof as possible.
-	metaVersion = "1"
+	metaVersion = []byte{'2'}
 
 	// metaUpgradedKey is the key that stores the timestamp of the last
 	// time the schema was upgraded.
