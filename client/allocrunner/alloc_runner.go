@@ -725,6 +725,7 @@ func (ar *allocRunner) destroyImpl() {
 //
 // This method is safe for calling concurrently with Run() and will cause it to
 // exit (thus closing WaitCh).
+// When the destroy action is completed, it will close DestroyCh().
 func (ar *allocRunner) Destroy() {
 	ar.destroyedLock.Lock()
 	defer ar.destroyedLock.Unlock()
@@ -775,16 +776,21 @@ func (ar *allocRunner) IsWaiting() bool {
 	return ar.prevAllocWatcher.IsWaiting()
 }
 
+// DestroyCh is a channel that is closed when an allocrunner is closed due to
+// an explicit call to Destroy().
 func (ar *allocRunner) DestroyCh() <-chan struct{} {
 	return ar.destroyCh
 }
 
+// ShutdownCh is a channel that is closed when an allocrunner is closed due to
+// either an explicit call to Shutdown(), or Destroy().
 func (ar *allocRunner) ShutdownCh() <-chan struct{} {
 	return ar.shutdownCh
 }
 
-// Shutdown AllocRunner gracefully. Blocks while shutting down all TaskRunners.
+// Shutdown AllocRunner gracefully. Asynchronously shuts down all TaskRunners.
 // Tasks are unaffected and may be restored.
+// When the destroy action is completed, it will close ShutdownCh().
 func (ar *allocRunner) Shutdown() {
 	ar.destroyedLock.Lock()
 	defer ar.destroyedLock.Unlock()
