@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"text/template"
 	"time"
 
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -469,44 +468,26 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 
 	storageName := fmt.Sprintf("lvm:/dev/mapper/%s-%s", tr(vgName), tr(c.Name()))
 
-	configTemplate := struct {
-		RootFSPath    string
-		ContainerName string
-	}{
-		storageName,
-		c.Name(),
-	}
-
 	initialConfigFilePath := filepath.Join(d.lxcPath, c.Name(), "config.initial")
+
+	if err := exec.Command("cp", executeConfig.BaseConfigPath, initialConfigFilePath).Run(); err != nil {
+		return nil, fmt.Errorf("could not copy initial container config from '%s' to '%s': %v",
+			executeConfig.BaseConfigPath, initialConfigFilePath, err), removeLVCleanup
+	}
+
 	finalConfigFilePath := filepath.Join(d.lxcPath, c.Name(), "config")
-	initialConfigFile, err := os.Create(initialConfigFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create new config file '%s': %v", initialConfigFilePath, err), removeLVCleanup
-	}
-
-	if err := os.Chmod(initialConfigFilePath, 0777); err != nil {
-		return nil, fmt.Errorf("unable to change permissions on config file"), removeLVCleanup
-	}
-
-	tmpl, err := template.ParseFiles(executeConfig.BaseConfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse config template in '%v': %v",
-			executeConfig.BaseConfigPath, err), removeLVCleanup
-	}
-
-	if err := tmpl.Execute(initialConfigFile, configTemplate); err != nil {
-		initialConfigFile.Close()
-		return nil, fmt.Errorf("Error executing config file template: %v", err), removeLVCleanup
-	}
-	initialConfigFile.Close()
-
 	d.logger.Printf("[INFO] %s initial config path is %s, final config path is %s", c.Name(), initialConfigFilePath, finalConfigFilePath)
+
 	if err := c.LoadConfigFile(initialConfigFilePath); err != nil {
 		return nil, fmt.Errorf("unable to read config file for container: %v", err), removeLVCleanup
 	}
 
 	if err := d.setCommonContainerConfig(ctx, c, commonConfig); err != nil {
 		return nil, err, removeLVCleanup
+	}
+
+	if err := c.SetConfigItem("lxc.rootfs.path", storageName); err != nil {
+		return nil, fmt.Errorf("unable to set lxc.rootfs.path to '%s': %v", storageName, err), removeLVCleanup
 	}
 
 	// Replace any env vars in Cmd with value from Nomad env:
@@ -525,7 +506,7 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 	}
 
 	if err := c.StartExecute(parsedArgs); err != nil {
-		return nil, fmt.Errorf("unable to execute with args '%v': %v", parsedArgs, err), removeLVCleanup
+		return nil, fmt.Errorf("unable to execute with args %#v: %v", parsedArgs, err), removeLVCleanup
 	}
 
 	stopAndRemoveLVCleanup := func() error {
@@ -589,6 +570,11 @@ func extractVgName(baseLvName string) (string, error) {
 }
 
 func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container, commonConfig *LxcCommonDriverConfig) error {
+
+	if err := c.SetConfigItem("lxc.uts.name", c.Name()); err != nil {
+		return fmt.Errorf("unable to set lxc.uts.name to '%s': %v", c.Name(), err)
+	}
+
 	// Set the network type to none
 	if err := c.SetConfigItem("lxc.net.0.type", "none"); err != nil {
 		return fmt.Errorf("error setting network type configuration: %v", err)
