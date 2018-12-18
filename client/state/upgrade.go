@@ -102,7 +102,7 @@ func UpgradeAllocs(logger hclog.Logger, tx *boltdd.Tx) error {
 			)
 
 			if err := cur.Delete(); err != nil {
-				return err
+				return fmt.Errorf("error deleting unexpected key %q: %v", string(k), err)
 			}
 			continue
 		}
@@ -148,12 +148,11 @@ func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bolt.Bucket, al
 			// Alloc has not changed; leave it be
 			allocFound = true
 		case "alloc-dir":
-			// Delete alloc-dir entries as they're no longer
-			// needed.
+			// Drop alloc-dir entries as they're no longer needed.
 			cur.Delete()
 		case "immutable":
-			// Skip decoding immutable state. Nothing from it needs
-			// to be upgraded.
+			// Drop immutable state. Nothing from it needs to be
+			// upgraded.
 			cur.Delete()
 		case "mutable":
 			// Decode and upgrade
@@ -240,23 +239,24 @@ func upgradeTaskBucket(logger hclog.Logger, bkt *bolt.Bucket) (*taskRunnerState0
 	for k, v := cur.First(); k != nil; k, v = cur.Next() {
 		if !bytes.Equal(k, []byte("simple-all")) {
 			if v == nil {
-				// Delete Bucket
+				// value is nil: delete unexpected bucket
 				logger.Warn("deleting unexpected task state bucket",
 					"bucket", string(k),
 				)
 
 				if err := bkt.DeleteBucket(k); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("error deleting unexpected task bucket %q: %v", string(k), err)
 				}
-			} else {
-				// Delete entry
-				logger.Warn("deleting unexpected task state entry",
-					"key", string(k), "value_bytes", len(v),
-				)
+				continue
+			}
 
-				if err := cur.Delete(); err != nil {
-					return nil, err
-				}
+			// value is non-nil: delete unexpected entry
+			logger.Warn("deleting unexpected task state entry",
+				"key", string(k), "value_bytes", len(v),
+			)
+
+			if err := cur.Delete(); err != nil {
+				return nil, fmt.Errorf("error delting unexpected task key %q: %v", string(k), err)
 			}
 			continue
 		}
