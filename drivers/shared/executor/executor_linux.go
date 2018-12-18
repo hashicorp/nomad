@@ -580,7 +580,7 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 
 	if mb := command.Resources.NomadResources.Memory.MemoryMB; mb > 0 {
 		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = int64(mb * 1024 * 1024)
+		cfg.Cgroups.Resources.Memory = mb * 1024 * 1024
 		// Disable swap to avoid issues on the machine
 		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
