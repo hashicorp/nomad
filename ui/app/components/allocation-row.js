@@ -26,7 +26,9 @@ export default Component.extend({
 
   enablePolling: computed(() => !Ember.testing),
 
-  stats: computed('allocation', function() {
+  stats: computed('allocation', 'allocation.isRunning', function() {
+    if (!this.get('allocation.isRunning')) return;
+
     return AllocationStatsTracker.create({
       fetch: url => this.get('token').authorizedRequest(url),
       allocation: this.get('allocation'),
@@ -54,12 +56,15 @@ export default Component.extend({
 
   fetchStats: task(function*() {
     do {
-      try {
-        yield this.get('stats.poll').perform();
-        this.set('statsError', false);
-      } catch (error) {
-        this.set('statsError', true);
+      if (this.get('stats')) {
+        try {
+          yield this.get('stats.poll').perform();
+          this.set('statsError', false);
+        } catch (error) {
+          this.set('statsError', true);
+        }
       }
+
       yield timeout(500);
     } while (this.get('enablePolling'));
   }).drop(),
