@@ -265,12 +265,29 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
 	if ares != nil {
-		if tres, ok := ares.Tasks[tr.taskName]; ok {
-			tr.taskResources = tres
+		tres, ok := ares.Tasks[tr.taskName]
+		if !ok {
+			return nil, fmt.Errorf("no task resources found on allocation")
+		}
+		tr.taskResources = tres
+	} else {
+		// COMPAT(0.10): Upgrade from old resources to new resources
+		// Grab the old task resources
+		oldTr, ok := tr.alloc.TaskResources[tr.taskName]
+		if !ok {
+			return nil, fmt.Errorf("no task resources found on allocation")
 		}
 
-		// TODO in the else case should we do a migration from resources as an
-		// upgrade path
+		// Convert the old to new
+		tr.taskResources = &structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: int64(oldTr.CPU),
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: int64(oldTr.MemoryMB),
+			},
+			Networks: oldTr.Networks,
+		}
 	}
 
 	// Build the restart tracker.
