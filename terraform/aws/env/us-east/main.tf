@@ -29,7 +29,13 @@ variable "client_count" {
 
 variable "retry_join" {
   description = "Used by Consul to automatically form a cluster."
-  default     = "provider=aws tag_key=ConsulAutoJoin tag_value=auto-join"
+  type        = "map"
+
+  default = {
+    provider  = "aws"
+    tag_key   = "ConsulAutoJoin"
+    tag_value = "auto-join"
+  }
 }
 
 variable "nomad_binary" {
