@@ -9,7 +9,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -368,8 +367,8 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 }
 
 // NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
-func (c *Config) NomadPluginConfig() *base.ClientAgentConfig {
-	return &base.ClientAgentConfig{
+func (c *Config) NomadPluginConfig() *base.AgentConfig {
+	return &base.AgentConfig{
 		Driver: &base.ClientDriverConfig{
 			ClientMinPort: c.ClientMinPort,
 			ClientMaxPort: c.ClientMaxPort,

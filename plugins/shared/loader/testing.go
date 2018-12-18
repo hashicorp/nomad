@@ -12,12 +12,12 @@ import (
 
 // MockCatalog provides a mock PluginCatalog to be used for testing
 type MockCatalog struct {
-	DispenseF func(name, pluginType string, cfg *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error)
+	DispenseF func(name, pluginType string, cfg *base.AgentConfig, logger log.Logger) (PluginInstance, error)
 	ReattachF func(name, pluginType string, config *plugin.ReattachConfig) (PluginInstance, error)
 	CatalogF  func() map[string][]*base.PluginInfoResponse
 }
 
-func (m *MockCatalog) Dispense(name, pluginType string, cfg *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error) {
+func (m *MockCatalog) Dispense(name, pluginType string, cfg *base.AgentConfig, logger log.Logger) (PluginInstance, error) {
 	return m.DispenseF(name, pluginType, cfg, logger)
 }
 
@@ -36,6 +36,7 @@ type MockInstance struct {
 	ReattachConfigF func() (*plugin.ReattachConfig, bool)
 	PluginF         func() interface{}
 	ExitedF         func() bool
+	ApiVersionF     func() string
 }
 
 func (m *MockInstance) Internal() bool                                 { return m.InternalPlugin }
@@ -43,11 +44,12 @@ func (m *MockInstance) Kill()                                          { m.KillF
 func (m *MockInstance) ReattachConfig() (*plugin.ReattachConfig, bool) { return m.ReattachConfigF() }
 func (m *MockInstance) Plugin() interface{}                            { return m.PluginF() }
 func (m *MockInstance) Exited() bool                                   { return m.ExitedF() }
+func (m *MockInstance) ApiVersion() string                             { return m.ApiVersionF() }
 
 // MockBasicExternalPlugin returns a MockInstance that simulates an external
 // plugin returning it has been exited after kill is called. It returns the
 // passed inst as the plugin
-func MockBasicExternalPlugin(inst interface{}) *MockInstance {
+func MockBasicExternalPlugin(inst interface{}, apiVersion string) *MockInstance {
 	var killedLock sync.Mutex
 	killed := helper.BoolToPtr(false)
 	return &MockInstance{
@@ -79,5 +81,7 @@ func MockBasicExternalPlugin(inst interface{}) *MockInstance {
 			defer killedLock.Unlock()
 			return *killed
 		},
+
+		ApiVersionF: func() string { return apiVersion },
 	}
 }

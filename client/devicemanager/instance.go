@@ -40,7 +40,7 @@ type instanceManagerConfig struct {
 	StoreReattach StorePluginReattachFn
 
 	// PluginConfig is the config passed to the launched plugins
-	PluginConfig *base.ClientAgentConfig
+	PluginConfig *base.AgentConfig
 
 	// Id is the ID of the plugin being managed
 	Id *loader.PluginID
@@ -70,7 +70,7 @@ type instanceManager struct {
 	storeReattach StorePluginReattachFn
 
 	// pluginConfig is the config passed to the launched plugins
-	pluginConfig *base.ClientAgentConfig
+	pluginConfig *base.AgentConfig
 
 	// id is the ID of the plugin being managed
 	id *loader.PluginID

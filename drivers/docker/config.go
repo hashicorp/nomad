@@ -122,10 +122,10 @@ var (
 
 	// pluginInfo is the response returned for the PluginInfo RPC
 	pluginInfo = &base.PluginInfoResponse{
-		Type:             base.PluginTypeDriver,
-		PluginApiVersion: "0.0.1",
-		PluginVersion:    "0.1.0",
-		Name:             pluginName,
+		Type:              base.PluginTypeDriver,
+		PluginApiVersions: []string{drivers.ApiVersion010},
+		PluginVersion:     "0.1.0",
+		Name:              pluginName,
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
@@ -502,10 +502,12 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
+func (d *Driver) SetConfig(c *base.Config) error {
 	var config DriverConfig
-	if err := base.MsgPackDecode(data, &config); err != nil {
-		return err
+	if len(c.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(c.PluginConfig, &config); err != nil {
+			return err
+		}
 	}
 
 	d.config = &config
@@ -517,8 +519,8 @@ func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 		d.config.GC.imageDelayDuration = dur
 	}
 
-	if cfg != nil {
-		d.clientConfig = cfg.Driver
+	if c.AgentConfig != nil {
+		d.clientConfig = c.AgentConfig.Driver
 	}
 
 	dockerClient, _, err := d.dockerClients()

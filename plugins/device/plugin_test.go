@@ -24,27 +24,30 @@ func TestDevicePlugin_PluginInfo(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
+	var (
+		apiVersions = []string{"v0.1.0", "v0.2.0"}
+	)
+
 	const (
-		apiVersion    = "v0.1.0"
 		pluginVersion = "v0.2.1"
 		pluginName    = "mock_device"
 	)
 
 	knownType := func() (*base.PluginInfoResponse, error) {
 		info := &base.PluginInfoResponse{
-			Type:             base.PluginTypeDevice,
-			PluginApiVersion: apiVersion,
-			PluginVersion:    pluginVersion,
-			Name:             pluginName,
+			Type:              base.PluginTypeDevice,
+			PluginApiVersions: apiVersions,
+			PluginVersion:     pluginVersion,
+			Name:              pluginName,
 		}
 		return info, nil
 	}
 	unknownType := func() (*base.PluginInfoResponse, error) {
 		info := &base.PluginInfoResponse{
-			Type:             "bad",
-			PluginApiVersion: apiVersion,
-			PluginVersion:    pluginVersion,
-			Name:             pluginName,
+			Type:              "bad",
+			PluginApiVersions: apiVersions,
+			PluginVersion:     pluginVersion,
+			Name:              pluginName,
 		}
 		return info, nil
 	}
@@ -74,7 +77,7 @@ func TestDevicePlugin_PluginInfo(t *testing.T) {
 
 	resp, err := impl.PluginInfo()
 	require.NoError(err)
-	require.Equal(apiVersion, resp.PluginApiVersion)
+	require.Equal(apiVersions, resp.PluginApiVersions)
 	require.Equal(pluginVersion, resp.PluginVersion)
 	require.Equal(pluginName, resp.Name)
 	require.Equal(base.PluginTypeDevice, resp.Type)
@@ -129,17 +132,17 @@ func TestDevicePlugin_SetConfig(t *testing.T) {
 		MockPlugin: &base.MockPlugin{
 			PluginInfoF: func() (*base.PluginInfoResponse, error) {
 				return &base.PluginInfoResponse{
-					Type:             base.PluginTypeDevice,
-					PluginApiVersion: "v0.0.1",
-					PluginVersion:    "v0.0.1",
-					Name:             "mock_device",
+					Type:              base.PluginTypeDevice,
+					PluginApiVersions: []string{"v0.0.1"},
+					PluginVersion:     "v0.0.1",
+					Name:              "mock_device",
 				}, nil
 			},
 			ConfigSchemaF: func() (*hclspec.Spec, error) {
 				return base.TestSpec, nil
 			},
-			SetConfigF: func(data []byte, cfg *base.ClientAgentConfig) error {
-				receivedData = data
+			SetConfigF: func(cfg *base.Config) error {
+				receivedData = cfg.PluginConfig
 				return nil
 			},
 		},
@@ -169,7 +172,7 @@ func TestDevicePlugin_SetConfig(t *testing.T) {
 	})
 	cdata, err := msgpack.Marshal(config, config.Type())
 	require.NoError(err)
-	require.NoError(impl.SetConfig(cdata, nil))
+	require.NoError(impl.SetConfig(&base.Config{PluginConfig: cdata}))
 	require.Equal(cdata, receivedData)
 
 	// Decode the value back

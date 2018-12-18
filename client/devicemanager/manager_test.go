@@ -121,7 +121,7 @@ func baseTestConfig(t *testing.T) (
 	// Create the config
 	config = &Config{
 		Logger:        testlog.HCLogger(t),
-		PluginConfig:  &base.ClientAgentConfig{},
+		PluginConfig:  &base.AgentConfig{},
 		StatsInterval: 100 * time.Millisecond,
 		State:         state.NewMemDB(),
 		Updater:       updateFn,
@@ -133,7 +133,7 @@ func baseTestConfig(t *testing.T) (
 
 func configureCatalogWith(catalog *loader.MockCatalog, plugins map[*base.PluginInfoResponse]loader.PluginInstance) {
 
-	catalog.DispenseF = func(name, _ string, _ *base.ClientAgentConfig, _ log.Logger) (loader.PluginInstance, error) {
+	catalog.DispenseF = func(name, _ string, _ *base.AgentConfig, _ log.Logger) (loader.PluginInstance, error) {
 		for info, v := range plugins {
 			if info.Name == name {
 				return v, nil
@@ -167,10 +167,10 @@ func configureCatalogWith(catalog *loader.MockCatalog, plugins map[*base.PluginI
 
 func pluginInfoResponse(name string) *base.PluginInfoResponse {
 	return &base.PluginInfoResponse{
-		Type:             base.PluginTypeDevice,
-		PluginApiVersion: "v0.0.1",
-		PluginVersion:    "v0.0.1",
-		Name:             name,
+		Type:              base.PluginTypeDevice,
+		PluginApiVersions: []string{"v0.0.1"},
+		PluginVersion:     "v0.0.1",
+		Name:              name,
 	}
 }
 
@@ -209,7 +209,7 @@ func nvidiaAndIntelDefaultPlugins(catalog *loader.MockCatalog) {
 		ReserveF:     deviceReserveFn,
 		StatsF:       device.StaticStats([]*device.DeviceGroupStats{nvidiaDeviceGroupStats}),
 	}
-	pluginNvidia := loader.MockBasicExternalPlugin(deviceNvidia)
+	pluginNvidia := loader.MockBasicExternalPlugin(deviceNvidia, device.ApiVersion010)
 
 	pluginInfoIntel := pluginInfoResponse("intel")
 	deviceIntel := &device.MockDevicePlugin{
@@ -222,7 +222,7 @@ func nvidiaAndIntelDefaultPlugins(catalog *loader.MockCatalog) {
 		ReserveF:     deviceReserveFn,
 		StatsF:       device.StaticStats([]*device.DeviceGroupStats{intelDeviceGroupStats}),
 	}
-	pluginIntel := loader.MockBasicExternalPlugin(deviceIntel)
+	pluginIntel := loader.MockBasicExternalPlugin(deviceIntel, device.ApiVersion010)
 
 	// Configure the catalog with two plugins
 	configureCatalogWith(catalog, map[*base.PluginInfoResponse]loader.PluginInstance{
@@ -454,7 +454,7 @@ func TestManager_Shutdown(t *testing.T) {
 	m.Shutdown()
 
 	for _, resp := range catalog.Catalog()[base.PluginTypeDevice] {
-		pinst, _ := catalog.Dispense(resp.Name, resp.Type, &base.ClientAgentConfig{}, config.Logger)
+		pinst, _ := catalog.Dispense(resp.Name, resp.Type, &base.AgentConfig{}, config.Logger)
 		require.True(pinst.Exited())
 	}
 }
@@ -486,7 +486,7 @@ func TestManager_Run_ShutdownOld(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		for _, resp := range catalog.Catalog()[base.PluginTypeDevice] {
-			pinst, _ := catalog.Dispense(resp.Name, resp.Type, &base.ClientAgentConfig{}, config.Logger)
+			pinst, _ := catalog.Dispense(resp.Name, resp.Type, &base.AgentConfig{}, config.Logger)
 			if !pinst.Exited() {
 				return false, fmt.Errorf("plugin %q not shutdown", resp.Name)
 			}

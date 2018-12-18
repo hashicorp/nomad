@@ -120,7 +120,7 @@ func (c *Device) Run(args []string) int {
 	}
 	c.spec = spec
 
-	if err := c.setConfig(spec, config, nil); err != nil {
+	if err := c.setConfig(spec, device.ApiVersion010, config, nil); err != nil {
 		c.logger.Error("failed to set config", "error", err)
 		return 1
 	}
@@ -188,7 +188,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 	return schema, nil
 }
 
-func (c *Device) setConfig(spec hcldec.Spec, config []byte, nmdCfg *base.ClientAgentConfig) error {
+func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, nmdCfg *base.AgentConfig) error {
 	// Parse the config into hcl
 	configVal, err := hclConfigToInterface(config)
 	if err != nil {
@@ -216,8 +216,14 @@ func (c *Device) setConfig(spec hcldec.Spec, config []byte, nmdCfg *base.ClientA
 		return err
 	}
 
+	req := &base.Config{
+		PluginConfig: config,
+		AgentConfig:  nmdCfg,
+		ApiVersion:   apiVersion,
+	}
+
 	c.logger.Trace("msgpack config", "config", string(cdata))
-	if err := c.dev.SetConfig(cdata, nmdCfg); err != nil {
+	if err := c.dev.SetConfig(req); err != nil {
 		return err
 	}
 
