@@ -21,8 +21,6 @@ under `/ui`, but visiting the root of the Nomad server in your browser will redi
 to the Web UI. If you are unsure what port the Nomad HTTP API is running under, try the default
 port, `4646`.
 
-~> **Live Demo!** For a quick test drive, see our online Web UI demo at [demo.nomadproject.io](https://demo.nomadproject.io).
-
 ## Reviewing Jobs
 
 The home page of the Web UI is the jobs list view. This page has a searchable, sortable,
