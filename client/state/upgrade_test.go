@@ -14,11 +14,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func setupBoltDB(t *testing.T) (*bolt.DB, func()) {
+	dir, err := ioutil.TempDir("", "nomadtest")
+	require.NoError(t, err)
+
+	db, err := bolt.Open(filepath.Join(dir, "state.db"), 0666, nil)
+	if err != nil {
+		os.RemoveAll(dir)
+		require.NoError(t, err)
+	}
+
+	return db, func() {
+		require.NoError(t, db.Close())
+		require.NoError(t, os.RemoveAll(dir))
+	}
+}
+
 // TestUpgrade_NeedsUpgrade_New asserts new state dbs do not need upgrading.
 func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
 	t.Parallel()
 
-	db, cleanup := setupBoltDB(t)
+	// Setting up a new StateDB should initialize it at the latest version.
+	db, cleanup := setupBoltStateDB(t)
 	defer cleanup()
 
 	up, err := NeedsUpgrade(db.DB().BoltDB())
@@ -31,14 +48,8 @@ func TestUpgrade_NeedsUpgrade_New(t *testing.T) {
 func TestUpgrade_NeedsUpgrade_Old(t *testing.T) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
-
-	defer os.RemoveAll(dir)
-
-	db, err := bolt.Open(filepath.Join(dir, "state.db"), 0666, nil)
-	require.NoError(t, err)
-	defer db.Close()
+	db, cleanup := setupBoltDB(t)
+	defer cleanup()
 
 	// Create the allocations bucket which exists in both the old and 0.9
 	// schemas
@@ -77,14 +88,14 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 			db, cleanup := setupBoltDB(t)
 			defer cleanup()
 
-			require.NoError(t, db.DB().BoltDB().Update(func(tx *bolt.Tx) error {
+			require.NoError(t, db.Update(func(tx *bolt.Tx) error {
 				bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
 				require.NoError(t, err)
 
 				return bkt.Put(metaVersionKey, tc)
 			}))
 
-			_, err := NeedsUpgrade(db.DB().BoltDB())
+			_, err := NeedsUpgrade(db)
 			require.Error(t, err)
 		})
 	}
@@ -95,14 +106,10 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "nomadtest")
-	require.NoError(t, err)
+	bdb, cleanup := setupBoltDB(t)
+	defer cleanup()
 
-	defer os.RemoveAll(dir)
-
-	db, err := boltdd.Open(filepath.Join(dir, "state.db"), 0666, nil)
-	require.NoError(t, err)
-	defer db.Close()
+	db := boltdd.New(bdb)
 
 	allocID := []byte(uuid.Generate())
 
@@ -133,6 +140,49 @@ func TestUpgrade_DeleteInvalidAllocs_NoAlloc(t *testing.T) {
 
 		if parentBkt.Bucket(allocID) != nil {
 			return fmt.Errorf("invalid alloc bucket should have been deleted")
+		}
+
+		return nil
+	}))
+}
+
+// TestUpgrade_DeleteInvalidTaskEntries asserts invalid entries under a task
+// bucket are deleted.
+func TestUpgrade_upgradeTaskBucket_InvalidEntries(t *testing.T) {
+	t.Parallel()
+
+	db, cleanup := setupBoltDB(t)
+	defer cleanup()
+
+	taskName := []byte("fake-task")
+
+	// Insert unexpected bucket, unexpected key, and missing simple-all
+	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
+		bkt, err := tx.CreateBucket(taskName)
+		if err != nil {
+			return err
+		}
+
+		_, err = bkt.CreateBucket([]byte("unexpectedBucket"))
+		if err != nil {
+			return err
+		}
+
+		return bkt.Put([]byte("unexepectedKey"), []byte{'x'})
+	}))
+
+	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(taskName)
+
+		// upgradeTaskBucket should fail
+		state, err := upgradeTaskBucket(testlog.HCLogger(t), bkt)
+		require.Nil(t, state)
+		require.Error(t, err)
+
+		// Invalid entries should have been deleted
+		cur := bkt.Cursor()
+		for k, v := cur.First(); k != nil; k, v = cur.Next() {
+			t.Errorf("unexpected entry found: key=%q value=%q", k, v)
 		}
 
 		return nil

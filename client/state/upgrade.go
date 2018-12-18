@@ -237,19 +237,19 @@ func upgradeTaskBucket(logger hclog.Logger, bkt *bolt.Bucket) (*taskRunnerState0
 
 	cur := bkt.Cursor()
 	for k, v := cur.First(); k != nil; k, v = cur.Next() {
-		if !bytes.Equal(k, []byte("simple-all")) {
-			if v == nil {
-				// value is nil: delete unexpected bucket
-				logger.Warn("deleting unexpected task state bucket",
-					"bucket", string(k),
-				)
+		if v == nil {
+			// value is nil: delete unexpected bucket
+			logger.Warn("deleting unexpected task state bucket",
+				"bucket", string(k),
+			)
 
-				if err := bkt.DeleteBucket(k); err != nil {
-					return nil, fmt.Errorf("error deleting unexpected task bucket %q: %v", string(k), err)
-				}
-				continue
+			if err := bkt.DeleteBucket(k); err != nil {
+				return nil, fmt.Errorf("error deleting unexpected task bucket %q: %v", string(k), err)
 			}
+			continue
+		}
 
+		if !bytes.Equal(k, []byte("simple-all")) {
 			// value is non-nil: delete unexpected entry
 			logger.Warn("deleting unexpected task state entry",
 				"key", string(k), "value_bytes", len(v),
@@ -264,7 +264,7 @@ func upgradeTaskBucket(logger hclog.Logger, bkt *bolt.Bucket) (*taskRunnerState0
 		// Decode simple-all
 		simpleFound = true
 		if err := codec.NewDecoderBytes(v, structs.MsgpackHandle).Decode(&trState); err != nil {
-			return nil, fmt.Errorf("failed to decode task state: %v", err)
+			return nil, fmt.Errorf("failed to decode task state from 'simple-all' entry: %v", err)
 		}
 	}
 

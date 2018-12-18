@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupBoltDB(t *testing.T) (*BoltStateDB, func()) {
+func setupBoltStateDB(t *testing.T) (*BoltStateDB, func()) {
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(t, err)
 
@@ -41,7 +41,7 @@ func setupBoltDB(t *testing.T) (*BoltStateDB, func()) {
 }
 
 func testDB(t *testing.T, f func(*testing.T, StateDB)) {
-	boltdb, cleanup := setupBoltDB(t)
+	boltdb, cleanup := setupBoltStateDB(t)
 	defer cleanup()
 
 	memdb := NewMemDB()
