@@ -25,6 +25,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -690,13 +691,15 @@ func (tr *TaskRunner) persistLocalState() error {
 }
 
 // buildTaskConfig builds a drivers.TaskConfig with an unique ID for the task.
-// The ID is consistently built from the alloc ID, task name and restart attempt.
+// The ID is unique for every invocation, it is built from the alloc ID, task
+// name and 8 random characters.
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	task := tr.Task()
 	alloc := tr.Alloc()
+	invocationid := uuid.Generate()[:8]
 
 	return &drivers.TaskConfig{
-		ID:      fmt.Sprintf("%s/%s/%d", alloc.ID, task.Name, tr.restartTracker.GetCount()),
+		ID:      fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:    task.Name,
 		JobName: alloc.Job.Name,
 		Resources: &drivers.Resources{
