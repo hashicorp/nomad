@@ -642,7 +642,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	for _, ar := range c2.getAllocRunners() {
-		<-ar.WaitCh()
+		<-ar.DestroyCh()
 	}
 }
 
@@ -780,7 +780,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	}
 
 	for _, ar := range c1.getAllocRunners() {
-		<-ar.WaitCh()
+		<-ar.DestroyCh()
 	}
 }
 
