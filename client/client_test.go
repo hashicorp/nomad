@@ -1199,7 +1199,8 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 				"node.mock.testattr1": "val1",
 			},
 		}
-		n := client.updateNodeFromDriver("mock", info)
+		client.updateNodeFromDriver("mock", info)
+		n := client.config.Node
 
 		updatedInfo := *n.Drivers["mock"]
 		// compare without update time
@@ -1220,7 +1221,8 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 				"node.mock.testattr1": "val2",
 			},
 		}
-		n := client.updateNodeFromDriver("mock", info)
+		client.updateNodeFromDriver("mock", info)
+		n := client.Node()
 
 		updatedInfo := *n.Drivers["mock"]
 		// compare without update time
@@ -1231,7 +1233,8 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 		assert.Equal(t, "val2", n.Attributes["node.mock.testattr1"])
 
 		// update once more with the same info, updateTime shouldn't change
-		un := client.updateNodeFromDriver("mock", info)
+		client.updateNodeFromDriver("mock", info)
+		un := client.Node()
 		assert.EqualValues(t, n, un)
 	}
 
@@ -1245,7 +1248,8 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 				"node.mock.testattr1": "",
 			},
 		}
-		n := client.updateNodeFromDriver("mock", info)
+		client.updateNodeFromDriver("mock", info)
+		n := client.Node()
 
 		updatedInfo := *n.Drivers["mock"]
 		// compare without update time
@@ -1256,7 +1260,8 @@ func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {
 		assert.Equal(t, "", n.Attributes["node.mock.testattr1"])
 
 		// update once more with the same info, updateTime shouldn't change
-		un := client.updateNodeFromDriver("mock", info)
+		client.updateNodeFromDriver("mock", info)
+		un := client.Node()
 		assert.EqualValues(t, n, un)
 	}
 }

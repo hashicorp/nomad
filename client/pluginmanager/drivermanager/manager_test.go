@@ -185,12 +185,14 @@ func TestMananger_TaskEvents(t *testing.T) {
 	event1 := mockTaskEvent("abc1")
 	var wg sync.WaitGroup
 	wg.Add(1)
-	mgr.eventHandlerFactory = func(string, string) EventHandler {
+	mgr.instancesMu.Lock()
+	mgr.instances["mock"].eventHandlerFactory = func(string, string) EventHandler {
 		return func(ev *drivers.TaskEvent) {
 			defer wg.Done()
 			assert.Exactly(t, event1, ev)
 		}
 	}
+	mgr.instancesMu.Unlock()
 
 	evChan <- event1
 	wg.Wait()

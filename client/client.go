@@ -911,7 +911,7 @@ func (c *Client) restoreState() error {
 		arConf := &allocrunner.Config{
 			Alloc:               alloc,
 			Logger:              c.logger,
-			ClientConfig:        c.config,
+			ClientConfig:        c.configCopy,
 			StateDB:             c.stateDB,
 			StateUpdater:        c,
 			DeviceStatsReporter: c,
@@ -2009,7 +2009,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	arConf := &allocrunner.Config{
 		Alloc:               alloc,
 		Logger:              c.logger,
-		ClientConfig:        c.config,
+		ClientConfig:        c.configCopy,
 		StateDB:             c.stateDB,
 		Consul:              c.consulService,
 		Vault:               c.vaultClient,

@@ -274,6 +274,9 @@ func (m *manager) loadReattachConfigs() error {
 	if s != nil {
 		for name, c := range s.ReattachConfigs {
 			if m.isDriverBlocked(name) {
+				m.logger.Warn("reattach config for driver plugin found but driver is blocked due to allow/block list, killing plugin",
+					"driver", name)
+				m.shutdownBlockedDriver(name, c)
 				continue
 			}
 
@@ -286,6 +289,28 @@ func (m *manager) loadReattachConfigs() error {
 		}
 	}
 	return nil
+}
+
+// shutdownBlockedDriver is used to forcefully shutdown a running driver plugin
+// when it has been blocked due to allow/block lists
+func (m *manager) shutdownBlockedDriver(name string, reattach *shared.ReattachConfig) {
+	c, err := shared.ReattachConfigToGoPlugin(reattach)
+	if err != nil {
+		m.logger.Warn("failed to reattach and kill blocked driver plugin",
+			"driver", name, "error", err)
+		return
+
+	}
+	pluginInstance, err := m.loader.Reattach(name, base.PluginTypeDriver, c)
+	if err != nil {
+		m.logger.Warn("failed to reattach and kill blocked driver plugin",
+			"driver", name, "error", err)
+		return
+	}
+
+	if !pluginInstance.Exited() {
+		pluginInstance.Kill()
+	}
 }
 
 // storePluginReattachConfig is used as a callback to the instance managers and

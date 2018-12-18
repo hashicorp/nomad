@@ -13,7 +13,7 @@ import (
 
 var (
 	// batchFirstFingerprintsTimeout is the maximum amount of time to wait for
-	// intial fingerprinting to complete before sending a batched Node update
+	// initial fingerprinting to complete before sending a batched Node update
 	batchFirstFingerprintsTimeout = 5 * time.Second
 )
 
@@ -43,7 +43,10 @@ SEND_BATCH:
 	var driverChanged bool
 	c.batchNodeUpdates.batchDriverUpdates(func(driver string, info *structs.DriverInfo) {
 		if c.updateNodeFromDriverLocked(driver, info) {
-			c.config.Node.Drivers[driver].UpdateTime = time.Now()
+			c.config.Node.Drivers[driver] = info
+			if c.config.Node.Drivers[driver].UpdateTime.IsZero() {
+				c.config.Node.Drivers[driver].UpdateTime = time.Now()
+			}
 			driverChanged = true
 		}
 	})
@@ -56,7 +59,7 @@ SEND_BATCH:
 		}
 	})
 
-	// only update the node if changes occured
+	// only update the node if changes occurred
 	if driverChanged || devicesChanged {
 		c.updateNodeLocked()
 	}
@@ -69,7 +72,10 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) {
 	defer c.configLock.Unlock()
 
 	if c.updateNodeFromDriverLocked(name, info) {
-		c.config.Node.Drivers[name].UpdateTime = time.Now()
+		c.config.Node.Drivers[name] = info
+		if c.config.Node.Drivers[name].UpdateTime.IsZero() {
+			c.config.Node.Drivers[name].UpdateTime = time.Now()
+		}
 		c.updateNodeLocked()
 	}
 }
@@ -84,7 +90,6 @@ func (c *Client) updateNodeFromDriverLocked(name string, info *structs.DriverInf
 	if !hadDriver {
 		// If the driver info has not yet been set, do that here
 		hasChanged = true
-		c.config.Node.Drivers[name] = info
 		for attrName, newVal := range info.Attributes {
 			c.config.Node.Attributes[attrName] = newVal
 		}
@@ -93,9 +98,9 @@ func (c *Client) updateNodeFromDriverLocked(name string, info *structs.DriverInf
 		// The driver info has already been set, fix it up
 		if oldVal.Detected != info.Detected {
 			hasChanged = true
-			c.config.Node.Drivers[name].Detected = info.Detected
 		}
 
+		// If health state has change, trigger node event
 		if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
 			hasChanged = true
 			if info.HealthDescription != "" {
@@ -107,8 +112,6 @@ func (c *Client) updateNodeFromDriverLocked(name string, info *structs.DriverInf
 				}
 				c.triggerNodeEvent(event)
 			}
-			// Update the node with the latest information
-			c.config.Node.Drivers[name].MergeHealthCheck(info)
 		}
 
 		for attrName, newVal := range info.Attributes {
@@ -225,7 +228,7 @@ func (b *batchNodeUpdates) batchDriverUpdates(f drivermanager.UpdateNodeDriverIn
 }
 
 // updateNodeFromDevices implements devicemanager.UpdateNodeDevicesFn and is
-// used in teh device manager to send device fingerprints to
+// used in the device manager to send device fingerprints to
 func (b *batchNodeUpdates) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
 	b.devicesMu.Lock()
 	defer b.devicesMu.Unlock()
