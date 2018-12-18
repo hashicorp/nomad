@@ -706,9 +706,9 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
-				MemoryLimitBytes: int64(task.Resources.MemoryMB) * 1024 * 1024,
-				CPUShares:        int64(task.Resources.CPU),
-				PercentTicks:     float64(task.Resources.CPU) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
+				MemoryLimitBytes: int64(taskResources.Memory.MemoryMB) * 1024 * 1024,
+				CPUShares:        int64(taskResources.Cpu.CpuShares),
+				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
 		},
 		Devices:    tr.hookResources.getDevices(),
