@@ -88,3 +88,6 @@ command/agent/bindata_assetfs.go
 
 # auto-generated cert file for Terraform/Azure
 azure-hashistack.pem
+
+# generated keys for e2e tests
+e2e/terraform/keys/
