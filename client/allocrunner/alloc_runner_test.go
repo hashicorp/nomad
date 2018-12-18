@@ -326,6 +326,15 @@ func TestAllocRunner_Update_Semantics(t *testing.T) {
 
 	queuedAlloc = <-ar.allocUpdatedCh
 	require.Equal(upd2, queuedAlloc)
+
+	// Ignore after watch closed
+
+	close(ar.waitCh)
+
+	ar.Update(upd1)
+
+	// Did not queue the update
+	require.Len(ar.allocUpdatedCh, 0)
 }
 
 /*

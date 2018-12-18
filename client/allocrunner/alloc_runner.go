@@ -629,7 +629,15 @@ func (ar *allocRunner) Update(update *structs.Allocation) {
 				"new_modify_index", update.AllocModifyIndex)
 			ar.allocUpdatedCh <- oldUpdate
 			return
+		} else {
+			ar.logger.Trace("Discarding allocation update",
+				"skipped_modify_index", oldUpdate.AllocModifyIndex,
+				"new_modify_index", update.AllocModifyIndex)
 		}
+	case <-ar.waitCh:
+		ar.logger.Trace("AllocRunner has terminated, skipping alloc update",
+			"modify_index", update.AllocModifyIndex)
+		return
 	default:
 	}
 
