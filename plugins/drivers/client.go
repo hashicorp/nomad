@@ -8,7 +8,6 @@ import (
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
-	hclog "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -26,7 +25,6 @@ type driverPluginClient struct {
 	*base.BasePluginClient
 
 	client proto.DriverClient
-	logger hclog.Logger
 
 	// doneCtx is closed when the plugin exits
 	doneCtx context.Context
@@ -95,7 +93,6 @@ func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fin
 		pb, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
-				d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
 				ch <- &Fingerprint{
 					Err: shared.HandleStreamErr(err, ctx, d.doneCtx),
 				}
@@ -297,7 +294,6 @@ func (d *driverPluginClient) handleTaskEvents(ctx context.Context, ch chan *Task
 		ev, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
-				d.logger.Error("error receiving stream from TaskEvents driver RPC", "error", err)
 				ch <- &TaskEvent{
 					Err: shared.HandleStreamErr(err, ctx, d.doneCtx),
 				}
