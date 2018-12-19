@@ -15,7 +15,8 @@ as [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/),
 [Graphite](https://graphiteapp.org/), [DataDog](https://www.datadoghq.com/),
 and [Circonus](https://www.circonus.com).
 
-Please refer to the specific documentation links in the sidebar for more
-detailed information about using specific tools to collect metrics on Nomad.
+- [Prometheus](/guides/operations/monitoring-and-alerting/prometheus-metrics.html)
+
+Please refer to the specific documentation links above or in the sidebar for more detailed information about using specific tools to collect metrics on Nomad.
 See Nomad's [Metrics API](/api/metrics.html) for more information on how
 data can be exposed for other metrics tools as well.
