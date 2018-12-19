@@ -22,7 +22,6 @@ import (
 )
 
 func TestClientFS_List_Local(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -106,7 +105,6 @@ func TestClientFS_List_Local(t *testing.T) {
 }
 
 func TestClientFS_List_ACL(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server
@@ -168,7 +166,6 @@ func TestClientFS_List_ACL(t *testing.T) {
 }
 
 func TestClientFS_List_Remote(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -260,7 +257,6 @@ func TestClientFS_List_Remote(t *testing.T) {
 }
 
 func TestClientFS_Stat_OldNode(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server
@@ -291,7 +287,6 @@ func TestClientFS_Stat_OldNode(t *testing.T) {
 }
 
 func TestClientFS_Stat_Local(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -375,7 +370,6 @@ func TestClientFS_Stat_Local(t *testing.T) {
 }
 
 func TestClientFS_Stat_ACL(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server
@@ -437,7 +431,6 @@ func TestClientFS_Stat_ACL(t *testing.T) {
 }
 
 func TestClientFS_Stat_Remote(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -529,7 +522,6 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 }
 
 func TestClientFS_Streaming_NoAlloc(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -600,7 +592,6 @@ OUTER:
 }
 
 func TestClientFS_Streaming_ACL(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server
@@ -711,7 +702,6 @@ func TestClientFS_Streaming_ACL(t *testing.T) {
 }
 
 func TestClientFS_Streaming_Local(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -843,7 +833,6 @@ OUTER:
 }
 
 func TestClientFS_Streaming_Local_Follow(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -981,7 +970,6 @@ OUTER:
 }
 
 func TestClientFS_Streaming_Remote_Server(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1128,7 +1116,6 @@ OUTER:
 }
 
 func TestClientFS_Streaming_Remote_Region(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1272,7 +1259,6 @@ OUTER:
 }
 
 func TestClientFS_Logs_NoAlloc(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1343,7 +1329,6 @@ OUTER:
 }
 
 func TestClientFS_Logs_OldNode(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server
@@ -1423,7 +1408,6 @@ OUTER:
 }
 
 func TestClientFS_Logs_ACL(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server
@@ -1534,7 +1518,6 @@ func TestClientFS_Logs_ACL(t *testing.T) {
 }
 
 func TestClientFS_Logs_Local(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1667,7 +1650,6 @@ OUTER:
 }
 
 func TestClientFS_Logs_Local_Follow(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1806,7 +1788,6 @@ OUTER:
 }
 
 func TestClientFS_Logs_Remote_Server(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -1953,7 +1934,6 @@ OUTER:
 }
 
 func TestClientFS_Logs_Remote_Region(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
