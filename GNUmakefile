@@ -262,7 +262,7 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 test-nomad: dev ## Run Nomad test suites
 	go get gotest.tools/gotestsum
 	@echo "==> Running Nomad test suites:"
-	gotestsum -f short-verbose ./nomad -- -timeout 15m
+	gotestsum --debug -f short-verbose ./nomad -- -timeout 15m
 
 .PHONY: e2e-test
 e2e-test: dev ## Run the Nomad e2e test suite
