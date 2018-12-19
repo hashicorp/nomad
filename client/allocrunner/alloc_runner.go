@@ -653,8 +653,6 @@ func (ar *allocRunner) handleAllocUpdates() {
 			ar.handleAllocUpdate(update)
 		case <-ar.waitCh:
 			return
-		case <-ar.destroyCh:
-			return
 		}
 	}
 }
