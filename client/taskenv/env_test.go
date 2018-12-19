@@ -548,6 +548,33 @@ func TestEnvironment_HookVars(t *testing.T) {
 	}
 }
 
+// TestEnvironment_DeviceHookVars asserts device hook env vars are accessible
+// separately.
+func TestEnvironment_DeviceHookVars(t *testing.T) {
+	require := require.New(t)
+	n := mock.Node()
+	a := mock.Alloc()
+	builder := NewBuilder(n, a, a.Job.TaskGroups[0].Tasks[0], "global")
+
+	// Add vars from two hooks and assert the second one wins on
+	// conflicting keys.
+	builder.SetHookEnv("hookA", map[string]string{
+		"foo": "bar",
+		"baz": "quux",
+	})
+	builder.SetDeviceHookEnv("devices", map[string]string{
+		"hook": "wins",
+	})
+
+	b := builder.Build()
+	deviceEnv := b.DeviceEnv()
+	require.Len(deviceEnv, 1)
+	require.Contains(deviceEnv, "hook")
+
+	all := b.Map()
+	require.Contains(all, "foo")
+}
+
 func TestEnvironment_Interpolate(t *testing.T) {
 	n := mock.Node()
 	n.Attributes["arch"] = "x86"

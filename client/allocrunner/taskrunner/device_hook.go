@@ -11,6 +11,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+const (
+	// HookNameDevices is the name of the devices hook
+	HookNameDevices = "devices"
+)
+
 // deviceHook is used to retrieve device mounting information.
 type deviceHook struct {
 	logger log.Logger
@@ -26,7 +31,7 @@ func newDeviceHook(dm devicemanager.Manager, logger log.Logger) *deviceHook {
 }
 
 func (*deviceHook) Name() string {
-	return "devices"
+	return HookNameDevices
 }
 
 func (h *deviceHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {

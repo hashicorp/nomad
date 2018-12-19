@@ -676,6 +676,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	alloc := tr.Alloc()
 	invocationid := uuid.Generate()[:8]
 	taskResources := tr.taskResources
+	env := tr.envBuilder.Build()
 
 	return &drivers.TaskConfig{
 		ID:      fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
@@ -691,7 +692,8 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		},
 		Devices:    tr.hookResources.getDevices(),
 		Mounts:     tr.hookResources.getMounts(),
-		Env:        tr.envBuilder.Build().Map(),
+		Env:        env.Map(),
+		DeviceEnv:  env.DeviceEnv(),
 		User:       task.User,
 		AllocDir:   tr.taskDir.AllocDir,
 		StdoutPath: tr.logmonHookConfig.stdoutFifo,

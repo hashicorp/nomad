@@ -165,8 +165,14 @@ func (tr *TaskRunner) prestart() error {
 		if origHookState != nil {
 			if origHookState.PrestartDone {
 				tr.logger.Trace("skipping done prestart hook", "name", pre.Name())
+
 				// Always set env vars from hooks
-				tr.envBuilder.SetHookEnv(name, origHookState.Env)
+				if name == HookNameDevices {
+					tr.envBuilder.SetDeviceHookEnv(name, origHookState.Env)
+				} else {
+					tr.envBuilder.SetHookEnv(name, origHookState.Env)
+				}
+
 				continue
 			}
 
@@ -211,7 +217,11 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Store the environment variables returned by the hook
-		tr.envBuilder.SetHookEnv(name, resp.Env)
+		if name == HookNameDevices {
+			tr.envBuilder.SetDeviceHookEnv(name, origHookState.Env)
+		} else {
+			tr.envBuilder.SetHookEnv(name, origHookState.Env)
+		}
 
 		// Store the resources
 		if len(resp.Devices) != 0 {

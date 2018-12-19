@@ -109,15 +109,19 @@ type TaskEnv struct {
 	// EnvMap is the map of environment variables
 	EnvMap map[string]string
 
+	// deviceEnv is the environment variables populated from the device hooks.
+	deviceEnv map[string]string
+
 	// envList is a memoized list created by List()
 	envList []string
 }
 
-// NewTaskEnv creates a new task environment with the given environment and
-// node attribute maps.
-func NewTaskEnv(env, node map[string]string) *TaskEnv {
+// NewTaskEnv creates a new task environment with the given environment, device
+// environment and node attribute maps.
+func NewTaskEnv(env, deviceEnv, node map[string]string) *TaskEnv {
 	return &TaskEnv{
 		NodeAttrs: node,
+		deviceEnv: deviceEnv,
 		EnvMap:    env,
 	}
 }
@@ -134,6 +138,16 @@ func (t *TaskEnv) List() []string {
 	}
 
 	return env
+}
+
+// DeviceEnv returns the task's environment variables set by device hooks.
+func (t *TaskEnv) DeviceEnv() map[string]string {
+	m := make(map[string]string, len(t.deviceEnv))
+	for k, v := range t.deviceEnv {
+		m[k] = v
+	}
+
+	return m
 }
 
 // Map of the task's environment variables.
@@ -306,6 +320,11 @@ type Builder struct {
 	// order the hooks are run.
 	hookNames []string
 
+	// deviceHookName is the device hook name. It is set only if device hooks
+	// are set. While a bit round about, this enables us to return device hook
+	// environment variables without having to hardcode the name of the hook.
+	deviceHookName string
+
 	mu *sync.RWMutex
 }
 
@@ -329,6 +348,7 @@ func NewEmptyBuilder() *Builder {
 func (b *Builder) Build() *TaskEnv {
 	nodeAttrs := make(map[string]string)
 	envMap := make(map[string]string)
+	var deviceEnvs map[string]string
 
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -417,7 +437,16 @@ func (b *Builder) Build() *TaskEnv {
 	// Copy hook env vars in the order the hooks were run
 	for _, h := range b.hookNames {
 		for k, v := range b.hookEnvs[h] {
-			envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+			e := hargs.ReplaceEnv(v, nodeAttrs, envMap)
+			envMap[k] = e
+
+			if h == b.deviceHookName {
+				if deviceEnvs == nil {
+					deviceEnvs = make(map[string]string, len(b.hookEnvs[h]))
+				}
+
+				deviceEnvs[k] = e
+			}
 		}
 	}
 
@@ -433,7 +462,16 @@ func (b *Builder) Build() *TaskEnv {
 		cleanedEnv[cleanedK] = v
 	}
 
-	return NewTaskEnv(cleanedEnv, nodeAttrs)
+	var cleanedDeviceEnvs map[string]string
+	if deviceEnvs != nil {
+		cleanedDeviceEnvs = make(map[string]string, len(deviceEnvs))
+		for k, v := range deviceEnvs {
+			cleanedK := helper.CleanEnvVar(k, '_')
+			cleanedDeviceEnvs[cleanedK] = v
+		}
+	}
+
+	return NewTaskEnv(cleanedEnv, cleanedDeviceEnvs, nodeAttrs)
 }
 
 // Update task updates the environment based on a new alloc and task.
@@ -449,13 +487,30 @@ func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Bui
 func (b *Builder) SetHookEnv(hook string, envs map[string]string) *Builder {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.setHookEnvLocked(hook, envs)
+}
 
+// setHookEnvLocked is the implementation of setting hook environemnt variables
+// and should be called with the lock held
+func (b *Builder) setHookEnvLocked(hook string, envs map[string]string) *Builder {
 	if _, exists := b.hookEnvs[hook]; !exists {
 		b.hookNames = append(b.hookNames, hook)
 	}
 	b.hookEnvs[hook] = envs
 
 	return b
+}
+
+// SetDeviceHookEnv sets environment variables from a device hook. Variables are
+// Last-Write-Wins, so if a hook writes a variable that's also written by a
+// later hook, the later hooks value always gets used.
+func (b *Builder) SetDeviceHookEnv(hookName string, envs map[string]string) *Builder {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Store the device hook name
+	b.deviceHookName = hookName
+	return b.setHookEnvLocked(hookName, envs)
 }
 
 // setTask is called from NewBuilder to populate task related environment
