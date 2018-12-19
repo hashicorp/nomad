@@ -399,6 +399,8 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 
 	// Check that the new leader is tracking the periodic job only
 	testutil.WaitForResult(func() (bool, error) {
+		leader.periodicDispatcher.l.Lock()
+		defer leader.periodicDispatcher.l.Unlock()
 		if _, tracked := leader.periodicDispatcher.tracked[tuplePeriodic]; !tracked {
 			return false, fmt.Errorf("periodic job not tracked")
 		}
