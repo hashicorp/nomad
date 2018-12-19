@@ -233,12 +233,22 @@ func (i *instanceManager) cleanup() {
 	defer i.pluginLock.Unlock()
 	defer i.shutdownLock.Unlock()
 
-	if i.plugin != nil && !i.plugin.Exited() {
+	if i.plugin == nil {
+		return
+	}
+
+	if intPlug, ok := i.plugin.Plugin().(drivers.InternalDriverPlugin); ok {
+		intPlug.Shutdown()
+	}
+
+	if i.plugin.Exited() {
 		i.plugin.Kill()
 		if err := i.storeReattach(nil); err != nil {
 			i.logger.Warn("error clearing plugin reattach config from state store", "error", err)
 		}
 	}
+
+	i.cancel()
 }
 
 // dispenseFingerprintCh dispenses a driver and makes a Fingerprint RPC call

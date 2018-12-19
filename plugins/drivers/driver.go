@@ -42,6 +42,14 @@ type DriverPlugin interface {
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
 }
 
+// InternalDriverPlugin is the set of functions that are only implemented by
+// internal driver plugins
+type InternalDriverPlugin interface {
+	// Shutdown allows the plugin to cleanup any running state so it is not
+	// leaked, it should not block
+	Shutdown()
+}
+
 // DriverSignalTaskNotSupported can be embedded by drivers which don't support
 // the SignalTask RPC. This satisfies the SignalTask func requirement for the
 // DriverPlugin interface.
