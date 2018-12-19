@@ -1130,13 +1130,10 @@ func TestClientFS_Streaming_Remote_Region(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-	})
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
-		c.BootstrapExpect = 2
+		c.Region = "two"
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
