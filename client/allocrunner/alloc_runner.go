@@ -652,7 +652,9 @@ func (ar *allocRunner) handleAllocUpdates() {
 		case update := <-ar.allocUpdatedCh:
 			ar.handleAllocUpdate(update)
 		case <-ar.waitCh:
-			break
+			return
+		case <-ar.destroyCh:
+			return
 		}
 	}
 }
