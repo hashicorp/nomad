@@ -310,37 +310,43 @@ message TaskConfig {
     // Env is the a set of key/value pairs to be set as environment variables
     map<string, string> env = 4;
 
+    // DeviceEnv is the set of environment variables that are defined by device
+    // plugins. This allows the driver to differentiate environemnt variables
+    // set by the device plugins and those by the user. When populating the
+    // task's environment env should be used.
+    map<string, string> device_env = 5;
+
     // Resources defines the resources to isolate
-    Resources resources = 5;
+    Resources resources = 6;
 
     // Mounts is a list of targets to bind mount into the task directory
-    repeated Mount mounts = 6;
+    repeated Mount mounts = 7;
 
     // Devices is a list of system devices to mount into the task's execution
     // environment.
-    repeated Device devices = 7;
+    repeated Device devices = 8;
 
     // User defines the operating system user the tasks should run as
-    string user = 8;
+    string user = 9;
 
     // AllocDir is the directory on the host where the allocation directory
     // exists.
-    string alloc_dir = 9;
+    string alloc_dir = 10;
 
     // StdoutPath is the path to the file to open and write task stdout to
-    string stdout_path = 10;
+    string stdout_path = 11;
 
     // StderrPath is the path to the file to open and write task stderr to
-    string stderr_path = 11;
+    string stderr_path = 12;
 
     // TaskGroupName is the name of the task group which this task is a member of
-    string task_group_name = 12;
+    string task_group_name = 13;
 
     // JobName is the name of the job of which this task is part of
-    string job_name = 13;
+    string job_name = 14;
 
     // AllocId is the ID of the associated allocation
-    string alloc_id = 14;
+    string alloc_id = 15;
 }
 
 message Resources {
