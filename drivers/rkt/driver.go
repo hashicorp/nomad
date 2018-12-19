@@ -21,9 +21,9 @@ import (
 
 	appcschema "github.com/appc/spec/schema"
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/go-version"
+	hclog "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -780,6 +780,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	d.tasks.Delete(taskID)
+	d.signalShutdown()
 	return nil
 }
 

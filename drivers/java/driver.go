@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	hclog "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
@@ -480,6 +480,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	d.tasks.Delete(taskID)
+	d.signalShutdown()
 	return nil
 }
 

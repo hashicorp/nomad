@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/coreos/go-semver/semver"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	hclog "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -535,6 +535,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	d.tasks.Delete(taskID)
+	d.signalShutdown()
 	return nil
 }
 
