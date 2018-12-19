@@ -535,6 +535,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	d.tasks.Delete(taskID)
+	d.signalShutdown()
 	return nil
 }
 
