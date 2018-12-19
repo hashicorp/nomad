@@ -6,7 +6,8 @@ executors:
     environment:
       GOPATH: /go
     docker:
-      - image: golang:1.11
+      # go1.11 uses a lot of ram when linking... rolling back to 1.10 for now.
+      - image: golang:1.10
         user: root
 
 jobs:
