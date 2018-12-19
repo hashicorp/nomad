@@ -29,7 +29,7 @@ type Manager interface {
 	Dispense(driver string) (drivers.DriverPlugin, error)
 }
 
-// EventHandler can is a callback to be called for a task.
+// EventHandler is a callback to be called for a task.
 // The handler should not block execution.
 type EventHandler func(*drivers.TaskEvent)
 
@@ -68,7 +68,7 @@ type Config struct {
 	Loader loader.PluginCatalog
 
 	// PluginConfig is the config passed to the launched plugins
-	PluginConfig *base.ClientAgentConfig
+	PluginConfig *base.AgentConfig
 
 	// Updater is used to update the node when driver information changes
 	Updater UpdateNodeDriverInfoFn
@@ -103,7 +103,7 @@ type manager struct {
 	loader loader.PluginCatalog
 
 	// pluginConfig is the config passed to the launched plugins
-	pluginConfig *base.ClientAgentConfig
+	pluginConfig *base.AgentConfig
 
 	// updater is used to update the node when device information changes
 	updater UpdateNodeDriverInfoFn

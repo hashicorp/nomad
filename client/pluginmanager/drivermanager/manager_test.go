@@ -33,7 +33,7 @@ func testSetup(t *testing.T) (chan *drivers.Fingerprint, chan *drivers.TaskEvent
 	cfg := &Config{
 		Logger:              testlog.HCLogger(t),
 		Loader:              cat,
-		PluginConfig:        &base.ClientAgentConfig{},
+		PluginConfig:        &base.AgentConfig{},
 		Updater:             noopUpdater,
 		EventHandlerFactory: noopEventHandlerFactory,
 		State:               state.NoopDB{},
@@ -68,19 +68,19 @@ func mockCatalog(drivers map[string]drivers.DriverPlugin) *loader.MockCatalog {
 	}
 
 	return &loader.MockCatalog{
-		DispenseF: func(name, pluginType string, cfg *base.ClientAgentConfig, logger log.Logger) (loader.PluginInstance, error) {
+		DispenseF: func(name, pluginType string, cfg *base.AgentConfig, logger log.Logger) (loader.PluginInstance, error) {
 			d, ok := drivers[name]
 			if !ok {
 				return nil, fmt.Errorf("driver not found")
 			}
-			return loader.MockBasicExternalPlugin(d), nil
+			return loader.MockBasicExternalPlugin(d, "0.1.0"), nil
 		},
 		ReattachF: func(name, pluginType string, config *plugin.ReattachConfig) (loader.PluginInstance, error) {
 			d, ok := drivers[name]
 			if !ok {
 				return nil, fmt.Errorf("driver not found")
 			}
-			return loader.MockBasicExternalPlugin(d), nil
+			return loader.MockBasicExternalPlugin(d, "0.1.0"), nil
 		},
 		CatalogF: func() map[string][]*base.PluginInfoResponse {
 			return cat
