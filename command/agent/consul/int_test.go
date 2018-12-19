@@ -15,14 +15,13 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/stretchr/testify/require"
 )
 
@@ -146,19 +145,18 @@ func TestConsul_Integration(t *testing.T) {
 	}()
 
 	// Build the config
-	pluginLoader := catalog.TestPluginLoader(t)
 	config := &taskrunner.Config{
-		Alloc:                 alloc,
-		ClientConfig:          conf,
-		Consul:                serviceClient,
-		Task:                  task,
-		TaskDir:               taskDir,
-		Logger:                logger,
-		Vault:                 vclient,
-		StateDB:               state.NoopDB{},
-		StateUpdater:          logUpdate,
-		PluginSingletonLoader: singleton.NewSingletonLoader(logger, pluginLoader),
-		DeviceManager:         devicemanager.NoopMockManager(),
+		Alloc:         alloc,
+		ClientConfig:  conf,
+		Consul:        serviceClient,
+		Task:          task,
+		TaskDir:       taskDir,
+		Logger:        logger,
+		Vault:         vclient,
+		StateDB:       state.NoopDB{},
+		StateUpdater:  logUpdate,
+		DeviceManager: devicemanager.NoopMockManager(),
+		DriverManager: drivermanager.TestDriverManager(t),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

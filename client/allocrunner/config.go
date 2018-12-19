@@ -7,10 +7,10 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 // Config holds the configuration for creating an allocation runner.
@@ -45,14 +45,10 @@ type Config struct {
 	// PrevAllocMigrator allows the migration of a previous allocations alloc dir
 	PrevAllocMigrator allocwatcher.PrevAllocMigrator
 
-	// PluginLoader is used to load plugins.
-	PluginLoader loader.PluginCatalog
-
-	// PluginSingletonLoader is a plugin loader that will returns singleton
-	// instances of the plugins.
-	PluginSingletonLoader loader.PluginCatalog
-
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
+
+	// DriverManager handles dispensing of driver plugins
+	DriverManager drivermanager.Manager
 }

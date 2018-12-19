@@ -11,6 +11,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -18,13 +19,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
-// Manaager is the interface used to manage device plugins
+// Manager is the interface used to manage device plugins
 type Manager interface {
-	// Run starts the device manager
-	Run()
-
-	// Shutdown shutsdown the manager and all launched plugins
-	Shutdown()
+	pluginmanager.PluginManager
 
 	// Reserve is used to reserve a set of devices
 	Reserve(d *structs.AllocatedDeviceResource) (*device.ContainerReservation, error)
@@ -127,6 +124,9 @@ func New(c *Config) *manager {
 	}
 }
 
+// PluginType identifies this manager to the plugin manager and satisfies the PluginManager interface.
+func (*manager) PluginType() string { return base.PluginTypeDevice }
+
 // Run starts thed device manager. The manager will shutdown any previously
 // launched plugin and then begin fingerprinting and stats collection on all new
 // device plugins.
@@ -161,17 +161,12 @@ func (m *manager) Run() {
 		})
 	}
 
-	// XXX we should eventually remove this and have it be done in the client
-	// Give all the fingerprinters a chance to run at least once before we
-	// update the node. This prevents initial fingerprinting from causing too
-	// many server side updates.
-	ctx, cancel := context.WithTimeout(m.ctx, 5*time.Second)
-	for _, i := range m.instances {
-		i.WaitForFirstFingerprint(ctx)
-	}
-	cancel()
-
 	// Now start the fingerprint handler
+	go m.fingerprint()
+}
+
+// fingerprint is the main fingerprint loop
+func (m *manager) fingerprint() {
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -205,6 +200,23 @@ func (m *manager) Shutdown() {
 	for _, i := range m.instances {
 		i.cleanup()
 	}
+}
+
+func (m *manager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		var wg sync.WaitGroup
+		for i := range m.instances {
+			wg.Add(1)
+			go func(instance *instanceManager) {
+				instance.WaitForFirstFingerprint(ctx)
+				wg.Done()
+			}(m.instances[i])
+		}
+		wg.Wait()
+		cancel()
+	}()
+	return ctx.Done()
 }
 
 // Reserve reserves the given allocated device. If the device is unknown, an

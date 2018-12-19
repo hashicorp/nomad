@@ -8,11 +8,10 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,21 +50,20 @@ func (m *MockStateUpdater) Reset() {
 }
 
 func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, func()) {
-	pluginLoader := catalog.TestPluginLoader(t)
 	clientConf, cleanup := clientconfig.TestClientConfig(t)
 	conf := &Config{
 		// Copy the alloc in case the caller edits and reuses it
-		Alloc:                 alloc.Copy(),
-		Logger:                clientConf.Logger,
-		ClientConfig:          clientConf,
-		StateDB:               state.NoopDB{},
-		Consul:                consul.NewMockConsulServiceClient(t, clientConf.Logger),
-		Vault:                 vaultclient.NewMockVaultClient(),
-		StateUpdater:          &MockStateUpdater{},
-		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
-		PrevAllocMigrator:     allocwatcher.NoopPrevAlloc{},
-		PluginSingletonLoader: singleton.NewSingletonLoader(clientConf.Logger, pluginLoader),
-		DeviceManager:         devicemanager.NoopMockManager(),
+		Alloc:             alloc.Copy(),
+		Logger:            clientConf.Logger,
+		ClientConfig:      clientConf,
+		StateDB:           state.NoopDB{},
+		Consul:            consul.NewMockConsulServiceClient(t, clientConf.Logger),
+		Vault:             vaultclient.NewMockVaultClient(),
+		StateUpdater:      &MockStateUpdater{},
+		PrevAllocWatcher:  allocwatcher.NoopPrevAlloc{},
+		PrevAllocMigrator: allocwatcher.NoopPrevAlloc{},
+		DeviceManager:     devicemanager.NoopMockManager(),
+		DriverManager:     drivermanager.TestDriverManager(t),
 	}
 	return conf, cleanup
 }

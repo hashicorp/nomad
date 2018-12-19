@@ -1,6 +1,7 @@
 package pluginmanager
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -33,18 +34,55 @@ func New(logger log.Logger) *PluginGroup {
 // RegisterAndRun registers the manager and starts it in a separate goroutine
 func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	m.mLock.Lock()
+	defer m.mLock.Unlock()
 	if m.shutdown {
 		return fmt.Errorf("plugin group already shutdown")
 	}
 	m.managers = append(m.managers, manager)
-	m.mLock.Unlock()
 
-	go func() {
-		m.logger.Info("starting plugin manager", "plugin-type", manager.PluginType())
-		manager.Run()
-		m.logger.Info("plugin manager finished", "plugin-type", manager.PluginType())
-	}()
+	m.logger.Info("starting plugin manager", "plugin-type", manager.PluginType())
+	manager.Run()
 	return nil
+}
+
+// Ready returns a channel which will be closed once all plugin manangers are ready.
+// A timeout for waiting on each manager is given
+func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struct{}, error) {
+	m.mLock.Lock()
+	defer m.mLock.Unlock()
+	if m.shutdown {
+		return nil, fmt.Errorf("plugin group already shutdown")
+	}
+
+	var wg sync.WaitGroup
+	for i := range m.managers {
+		manager, ok := m.managers[i].(FingerprintingPluginManager)
+		if !ok {
+			continue
+		}
+		logger := m.logger.With("plugin-type", manager.PluginType())
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			logger.Debug("waiting on plugin mananger initial fingerprint")
+			select {
+			case <-manager.WaitForFirstFingerprint(ctx):
+				select {
+				case <-ctx.Done():
+					logger.Warn("timeout waiting for plugin manager to be ready")
+				default:
+					logger.Debug("finished plugin mananger initial fingerprint")
+				}
+			}
+		}()
+	}
+
+	ret := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(ret)
+	}()
+	return ret, nil
 }
 
 // Shutdown shutsdown all registered PluginManagers in reverse order of how
@@ -55,6 +93,7 @@ func (m *PluginGroup) Shutdown() {
 	for i := len(m.managers) - 1; i >= 0; i-- {
 		m.logger.Info("shutting down plugin manager", "plugin-type", m.managers[i].PluginType())
 		m.managers[i].Shutdown()
+		m.logger.Info("plugin manager finished", "plugin-type", m.managers[i].PluginType())
 	}
 	m.shutdown = true
 }

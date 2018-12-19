@@ -8,6 +8,7 @@ import (
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
@@ -211,6 +212,31 @@ func TestStateDB_DeviceManager(t *testing.T) {
 
 		// Getting should return the available state
 		ps, err = db.GetDevicePluginState()
+		require.NoError(err)
+		require.NotNil(ps)
+		require.Equal(state, ps)
+	})
+}
+
+// TestStateDB_DriverManager asserts the behavior of device manager state related StateDB
+// methods.
+func TestStateDB_DriverManager(t *testing.T) {
+	t.Parallel()
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		require := require.New(t)
+
+		// Getting nonexistent state should return nils
+		ps, err := db.GetDriverPluginState()
+		require.NoError(err)
+		require.Nil(ps)
+
+		// Putting PluginState should work
+		state := &driverstate.PluginState{}
+		require.NoError(db.PutDriverPluginState(state))
+
+		// Getting should return the available state
+		ps, err = db.GetDriverPluginState()
 		require.NoError(err)
 		require.NotNil(ps)
 		require.Equal(state, ps)

@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -49,6 +50,14 @@ type StateDB interface {
 	// PutDevicePluginState is used to store the device manager's plugin
 	// state.
 	PutDevicePluginState(state *dmstate.PluginState) error
+
+	// GetDriverPluginState is used to retrieve the driver manager's plugin
+	// state.
+	GetDriverPluginState() (*driverstate.PluginState, error)
+
+	// PutDriverPluginState is used to store the driver manager's plugin
+	// state.
+	PutDriverPluginState(state *driverstate.PluginState) error
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.
