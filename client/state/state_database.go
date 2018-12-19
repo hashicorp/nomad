@@ -275,6 +275,11 @@ func (s *BoltStateDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploym
 		return allocBkt.Get(allocDeployStatusKey, &entry)
 	})
 
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
