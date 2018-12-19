@@ -334,6 +334,18 @@ func (ar *allocRunner) GetAllocDir() *allocdir.AllocDir {
 // Restore state from database. Must be called after NewAllocRunner but before
 // Run.
 func (ar *allocRunner) Restore() error {
+	// Retrieve deployment status to avoid reseting it across agent
+	// restarts. Once a deployment status is set Nomad no longer monitors
+	// alloc health, so we must persist deployment state across restarts.
+	ds, err := ar.stateDB.GetDeploymentStatus(ar.id)
+	if err != nil {
+		return err
+	}
+
+	ar.stateLock.Lock()
+	ar.state.DeploymentStatus = ds
+	ar.stateLock.Unlock()
+
 	// Restore task runners
 	for _, tr := range ar.tasks {
 		if err := tr.Restore(); err != nil {
@@ -342,6 +354,19 @@ func (ar *allocRunner) Restore() error {
 	}
 
 	return nil
+}
+
+// persistDeploymentStatus stores AllocDeploymentStatus.
+func (ar *allocRunner) persistDeploymentStatus(ds *structs.AllocDeploymentStatus) {
+	if err := ar.stateDB.PutDeploymentStatus(ar.id, ds); err != nil {
+		// While any persistence errors are very bad, the worst case
+		// scenario for failing to persist deployment status is that if
+		// the agent is restarted it will monitor the deployment status
+		// again. This could cause a deployment's status to change when
+		// that shouldn't happen. However, allowing that seems better
+		// than failing the entire allocation.
+		ar.logger.Error("error storing deployment status", "error", err)
+	}
 }
 
 // TaskStateUpdated is called by TaskRunner when a task's state has been

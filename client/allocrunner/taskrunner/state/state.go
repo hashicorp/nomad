@@ -76,6 +76,7 @@ func (h *HookState) Copy() *HookState {
 	c := new(HookState)
 	*c = *h
 	c.Data = helper.CopyMapStringString(c.Data)
+	c.Env = helper.CopyMapStringString(c.Env)
 	return c
 }
 
@@ -88,5 +89,9 @@ func (h *HookState) Equal(o *HookState) bool {
 		return false
 	}
 
-	return helper.CompareMapStringString(h.Data, o.Data)
+	if !helper.CompareMapStringString(h.Data, o.Data) {
+		return false
+	}
+
+	return helper.CompareMapStringString(h.Env, o.Env)
 }

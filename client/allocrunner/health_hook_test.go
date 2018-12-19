@@ -76,6 +76,12 @@ func (m *mockHealthSetter) ClearHealth() {
 	m.taskEvents = nil
 }
 
+func (m *mockHealthSetter) HasHealth() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.healthy != nil
+}
+
 // TestHealthHook_PrerunPostrun asserts a health hook does not error if it is
 // run and postrunned.
 func TestHealthHook_PrerunPostrun(t *testing.T) {

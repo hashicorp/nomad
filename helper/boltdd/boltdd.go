@@ -1,4 +1,4 @@
-// boltdd contains a wrapper around BoltDB to deduplicate writes and encode
+// BOLTdd contains a wrapper around BoltDB to deduplicate writes and encode
 // values using mgspack.  (dd stands for DeDuplicate)
 package boltdd
 
@@ -54,10 +54,15 @@ func Open(path string, mode os.FileMode, options *bolt.Options) (*DB, error) {
 		return nil, err
 	}
 
+	return New(bdb), nil
+}
+
+// New deduplicating wrapper for the given boltdb.
+func New(bdb *bolt.DB) *DB {
 	return &DB{
 		rootBuckets: make(map[string]*bucketMeta),
 		bdb:         bdb,
-	}, nil
+	}
 }
 
 func (db *DB) bucket(btx *bolt.Tx, name []byte) *Bucket {

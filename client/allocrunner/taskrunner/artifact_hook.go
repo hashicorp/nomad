@@ -26,6 +26,8 @@ func newArtifactHook(e ti.EventEmitter, logger log.Logger) *artifactHook {
 }
 
 func (*artifactHook) Name() string {
+	// Copied in client/state when upgrading from <0.9 schemas, so if you
+	// change it here you also must change it there.
 	return "artifacts"
 }
 

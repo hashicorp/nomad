@@ -14,11 +14,23 @@ func (n NoopDB) Name() string {
 	return "noopdb"
 }
 
+func (n NoopDB) Upgrade() error {
+	return nil
+}
+
 func (n NoopDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, error) {
 	return nil, nil, nil
 }
 
 func (n NoopDB) PutAllocation(*structs.Allocation) error {
+	return nil
+}
+
+func (n NoopDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploymentStatus, error) {
+	return nil, nil
+}
+
+func (n NoopDB) PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentStatus) error {
 	return nil
 }
 

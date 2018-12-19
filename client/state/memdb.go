@@ -15,6 +15,9 @@ type MemDB struct {
 	// alloc_id -> value
 	allocs map[string]*structs.Allocation
 
+	// alloc_id -> value
+	deployStatus map[string]*structs.AllocDeploymentStatus
+
 	// alloc_id -> task_name -> value
 	localTaskState map[string]map[string]*state.LocalState
 	taskState      map[string]map[string]*structs.TaskState
@@ -31,6 +34,7 @@ type MemDB struct {
 func NewMemDB() *MemDB {
 	return &MemDB{
 		allocs:         make(map[string]*structs.Allocation),
+		deployStatus:   make(map[string]*structs.AllocDeploymentStatus),
 		localTaskState: make(map[string]map[string]*state.LocalState),
 		taskState:      make(map[string]map[string]*structs.TaskState),
 	}
@@ -38,6 +42,10 @@ func NewMemDB() *MemDB {
 
 func (m *MemDB) Name() string {
 	return "memdb"
+}
+
+func (m *MemDB) Upgrade() error {
+	return nil
 }
 
 func (m *MemDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, error) {
@@ -56,6 +64,19 @@ func (m *MemDB) PutAllocation(alloc *structs.Allocation) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.allocs[alloc.ID] = alloc
+	return nil
+}
+
+func (m *MemDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploymentStatus, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.deployStatus[allocID], nil
+}
+
+func (m *MemDB) PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentStatus) error {
+	m.mu.Lock()
+	m.deployStatus[allocID] = ds
+	defer m.mu.Unlock()
 	return nil
 }
 
