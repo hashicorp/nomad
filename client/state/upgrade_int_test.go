@@ -104,7 +104,7 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 
 			ps = &dmstate.PluginState{
 				ReattachConfigs: map[string]*shared.ReattachConfig{
-					"test": &shared.ReattachConfig{Pid: 1},
+					"test": {Pid: 1},
 				},
 			}
 			require.NoError(t, db.PutDevicePluginState(ps))
