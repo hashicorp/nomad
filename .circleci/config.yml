@@ -7,7 +7,7 @@ executors:
       GOPATH: /go
     docker:
       # go1.11 uses a lot of ram when linking... rolling back to 1.10 for now.
-      - image: golang:1.9
+      - image: golang:1.10
         user: root
 
 jobs:
@@ -24,7 +24,8 @@ jobs:
       - checkout
       - run: make bootstrap
       - setup_remote_docker
-      - run: make test-nomad
+      - run: go get -u gotest.tools/gotestsum
+      - run: gotestsum -f short-verbose ./nomad
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
