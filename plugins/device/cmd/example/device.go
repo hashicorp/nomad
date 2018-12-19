@@ -9,9 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
-
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -38,10 +37,10 @@ const (
 var (
 	// pluginInfo describes the plugin
 	pluginInfo = &base.PluginInfoResponse{
-		Type:             base.PluginTypeDevice,
-		PluginApiVersion: "0.0.1", // XXX This should be an array and should be consts
-		PluginVersion:    "0.1.0",
-		Name:             pluginName,
+		Type:              base.PluginTypeDevice,
+		PluginApiVersions: []string{device.ApiVersion010},
+		PluginVersion:     "v0.1.0",
+		Name:              pluginName,
 	}
 
 	// configSpec is the specification of the plugin's configuration
@@ -109,9 +108,9 @@ func (d *FsDevice) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 // SetConfig is used to set the configuration of the plugin.
-func (d *FsDevice) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
+func (d *FsDevice) SetConfig(c *base.Config) error {
 	var config Config
-	if err := base.MsgPackDecode(data, &config); err != nil {
+	if err := base.MsgPackDecode(c.PluginConfig, &config); err != nil {
 		return err
 	}
 

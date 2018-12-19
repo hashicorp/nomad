@@ -64,13 +64,15 @@ func TestRktDriver_SetConfig(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
 
 	config.VolumesEnabled = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig = &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
 
 }
@@ -446,7 +448,8 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
 
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
@@ -530,7 +533,8 @@ func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
 
 	tmpvol, err := ioutil.TempDir("", "nomadtest_rktdriver_volumes")
 	require.NoError(err)

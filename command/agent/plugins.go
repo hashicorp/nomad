@@ -18,10 +18,11 @@ func (a *Agent) setupPlugins() error {
 
 	// Build the plugin loader
 	config := &loader.PluginLoaderConfig{
-		Logger:          a.logger,
-		PluginDir:       a.config.PluginDir,
-		Configs:         a.config.Plugins,
-		InternalPlugins: internal,
+		Logger:            a.logger,
+		PluginDir:         a.config.PluginDir,
+		Configs:           a.config.Plugins,
+		InternalPlugins:   internal,
+		SupportedVersions: loader.AgentSupportedApiVersions,
 	}
 	l, err := loader.NewPluginLoader(config)
 	if err != nil {

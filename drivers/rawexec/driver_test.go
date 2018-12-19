@@ -42,25 +42,30 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
+	bconfig := &basePlug.Config{}
+
 	// Disable raw exec.
 	config := &Config{}
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig.PluginConfig = data
+	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
 
 	config.Enabled = true
 	config.NoCgroups = true
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig.PluginConfig = data
+	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
 
 	config.NoCgroups = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig.PluginConfig = data
+	require.NoError(harness.SetConfig(bconfig))
 	require.Exactly(config, d.(*Driver).config)
 }
 
@@ -76,7 +81,10 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 
 			var data []byte
 			require.NoError(basePlug.MsgPackEncode(&data, config))
-			require.NoError(harness.SetConfig(data, nil))
+			bconfig := &basePlug.Config{
+				PluginConfig: data,
+			}
+			require.NoError(harness.SetConfig(bconfig))
 
 			fingerCh, err := harness.Fingerprint(context.Background())
 			require.NoError(err)
@@ -168,7 +176,8 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	config := &Config{NoCgroups: true}
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -234,7 +243,8 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	config := &Config{NoCgroups: true}
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data, nil))
+	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),

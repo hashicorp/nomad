@@ -74,10 +74,10 @@ var (
 
 	// pluginInfo is the response returned for the PluginInfo RPC
 	pluginInfo = &base.PluginInfoResponse{
-		Type:             base.PluginTypeDriver,
-		PluginApiVersion: "0.0.1",
-		PluginVersion:    "0.1.0",
-		Name:             pluginName,
+		Type:              base.PluginTypeDriver,
+		PluginApiVersions: []string{drivers.ApiVersion010},
+		PluginVersion:     "0.1.0",
+		Name:              pluginName,
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
@@ -167,9 +167,9 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *Driver) SetConfig(_ []byte, cfg *base.ClientAgentConfig) error {
-	if cfg != nil {
-		d.nomadConfig = cfg.Driver
+func (d *Driver) SetConfig(cfg *base.Config) error {
+	if cfg.AgentConfig != nil {
+		d.nomadConfig = cfg.AgentConfig.Driver
 	}
 	return nil
 }

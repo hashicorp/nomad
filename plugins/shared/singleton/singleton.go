@@ -50,7 +50,7 @@ func (s *SingletonLoader) Catalog() map[string][]*base.PluginInfoResponse {
 // Dispense returns the plugin given its name and type. This will also
 // configure the plugin. If there is an instance of an already running plugin,
 // this is used.
-func (s *SingletonLoader) Dispense(name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) (loader.PluginInstance, error) {
+func (s *SingletonLoader) Dispense(name, pluginType string, config *base.AgentConfig, logger log.Logger) (loader.PluginInstance, error) {
 	return s.getPlugin(false, name, pluginType, logger, config, nil)
 }
 
@@ -62,7 +62,7 @@ func (s *SingletonLoader) Reattach(name, pluginType string, config *plugin.Reatt
 // getPlugin is a helper that either dispenses or reattaches to a plugin using
 // futures to ensure only a single instance is retrieved
 func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logger log.Logger,
-	nomadConfig *base.ClientAgentConfig, config *plugin.ReattachConfig) (loader.PluginInstance, error) {
+	nomadConfig *base.AgentConfig, config *plugin.ReattachConfig) (loader.PluginInstance, error) {
 
 	// Lock the instance map to prevent races
 	s.instanceLock.Lock()
@@ -102,7 +102,7 @@ func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logg
 
 // dispense should be called in a go routine to not block and creates the
 // desired plugin, setting the results in the future.
-func (s *SingletonLoader) dispense(f *future, name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) {
+func (s *SingletonLoader) dispense(f *future, name, pluginType string, config *base.AgentConfig, logger log.Logger) {
 	i, err := s.loader.Dispense(name, pluginType, config, logger)
 	f.set(i, err)
 }

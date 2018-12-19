@@ -169,8 +169,9 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 		}
 	}
 	plugLoader, err := loader.NewPluginLoader(&loader.PluginLoaderConfig{
-		Logger:    logger,
-		PluginDir: "./plugins",
+		Logger:            logger,
+		PluginDir:         "./plugins",
+		SupportedVersions: loader.AgentSupportedApiVersions,
 		InternalPlugins: map[loader.PluginID]*loader.InternalPluginConfig{
 			PluginID: {
 				Config: cfg,

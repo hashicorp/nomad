@@ -51,10 +51,11 @@ func TestPluginLoaderWithOptions(t testing.T,
 
 	// Build the plugin loader
 	config := &loader.PluginLoaderConfig{
-		Logger:          logger,
-		PluginDir:       "",
-		Configs:         configs,
-		InternalPlugins: internal,
+		Logger:            logger,
+		PluginDir:         "",
+		Configs:           configs,
+		InternalPlugins:   internal,
+		SupportedVersions: loader.AgentSupportedApiVersions,
 	}
 	l, err := loader.NewPluginLoader(config)
 	if err != nil {

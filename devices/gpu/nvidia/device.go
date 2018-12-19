@@ -37,10 +37,10 @@ const (
 var (
 	// pluginInfo describes the plugin
 	pluginInfo = &base.PluginInfoResponse{
-		Type:             base.PluginTypeDevice,
-		PluginApiVersion: "0.0.1", // XXX This should be an array and should be consts
-		PluginVersion:    "0.1.0",
-		Name:             pluginName,
+		Type:              base.PluginTypeDevice,
+		PluginApiVersions: []string{device.ApiVersion010},
+		PluginVersion:     "0.1.0",
+		Name:              pluginName,
 	}
 
 	// configSpec is the specification of the plugin's configuration
@@ -111,10 +111,12 @@ func (d *NvidiaDevice) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 // SetConfig is used to set the configuration of the plugin.
-func (d *NvidiaDevice) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
+func (d *NvidiaDevice) SetConfig(cfg *base.Config) error {
 	var config Config
-	if err := base.MsgPackDecode(data, &config); err != nil {
-		return err
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
 	}
 
 	for _, ignoredGPUId := range config.IgnoredGPUIDs {

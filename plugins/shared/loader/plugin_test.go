@@ -15,20 +15,33 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
+type stringSliceFlags []string
+
+func (i *stringSliceFlags) String() string {
+	return "my string representation"
+}
+
+func (i *stringSliceFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 // TestMain runs either the tests or runs a mock plugin based on the passed
 // flags
 func TestMain(m *testing.M) {
 	var plugin, configSchema bool
 	var name, pluginType, pluginVersion string
+	var pluginApiVersions stringSliceFlags
 	flag.BoolVar(&plugin, "plugin", false, "run binary as a plugin")
 	flag.BoolVar(&configSchema, "config-schema", true, "return a config schema")
 	flag.StringVar(&name, "name", "", "plugin name")
 	flag.StringVar(&pluginType, "type", "", "plugin type")
 	flag.StringVar(&pluginVersion, "version", "", "plugin version")
+	flag.Var(&pluginApiVersions, "api-version", "supported plugin API version")
 	flag.Parse()
 
 	if plugin {
-		if err := pluginMain(name, pluginType, pluginVersion, configSchema); err != nil {
+		if err := pluginMain(name, pluginType, pluginVersion, pluginApiVersions, configSchema); err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
@@ -38,7 +51,7 @@ func TestMain(m *testing.M) {
 }
 
 // pluginMain starts a mock plugin using the passed parameters
-func pluginMain(name, pluginType, version string, config bool) error {
+func pluginMain(name, pluginType, version string, apiVersions []string, config bool) error {
 	// Validate passed parameters
 	if name == "" || pluginType == "" {
 		return fmt.Errorf("name and plugin type must be specified")
@@ -55,6 +68,7 @@ func pluginMain(name, pluginType, version string, config bool) error {
 		name:         name,
 		ptype:        pluginType,
 		version:      version,
+		apiVersions:  apiVersions,
 		configSchema: config,
 	}
 
@@ -79,12 +93,13 @@ func pluginMain(name, pluginType, version string, config bool) error {
 
 // mockFactory returns a PluginFactory method which creates the mock plugin with
 // the passed parameters
-func mockFactory(name, ptype, version string, configSchema bool) func(log log.Logger) interface{} {
+func mockFactory(name, ptype, version string, apiVersions []string, configSchema bool) func(log log.Logger) interface{} {
 	return func(log log.Logger) interface{} {
 		return &mockPlugin{
 			name:         name,
 			ptype:        ptype,
 			version:      version,
+			apiVersions:  apiVersions,
 			configSchema: configSchema,
 		}
 	}
@@ -96,12 +111,18 @@ type mockPlugin struct {
 	name         string
 	ptype        string
 	version      string
+	apiVersions  []string
 	configSchema bool
 
 	// config is built on SetConfig
 	config *mockPluginConfig
+
 	// nomadconfig is set on SetConfig
-	nomadConfig *base.ClientAgentConfig
+	nomadConfig *base.AgentConfig
+
+	// negotiatedApiVersion is the version of the api to use and is set on
+	// SetConfig
+	negotiatedApiVersion string
 }
 
 // mockPluginConfig is the configuration for the mock plugin
@@ -118,10 +139,10 @@ type mockPluginConfig struct {
 // building the mock plugin
 func (m *mockPlugin) PluginInfo() (*base.PluginInfoResponse, error) {
 	return &base.PluginInfoResponse{
-		Type:             m.ptype,
-		PluginApiVersion: "v0.1.0",
-		PluginVersion:    m.version,
-		Name:             m.name,
+		Type:              m.ptype,
+		PluginApiVersions: m.apiVersions,
+		PluginVersion:     m.version,
+		Name:              m.name,
 	}, nil
 }
 
@@ -141,14 +162,17 @@ func (m *mockPlugin) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 // SetConfig decodes the configuration and stores it
-func (m *mockPlugin) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
+func (m *mockPlugin) SetConfig(c *base.Config) error {
 	var config mockPluginConfig
-	if err := base.MsgPackDecode(data, &config); err != nil {
-		return err
+	if len(c.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(c.PluginConfig, &config); err != nil {
+			return err
+		}
 	}
 
 	m.config = &config
-	m.nomadConfig = cfg
+	m.nomadConfig = c.AgentConfig
+	m.negotiatedApiVersion = c.ApiVersion
 	return nil
 }
 

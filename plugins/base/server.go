@@ -31,10 +31,10 @@ func (b *basePluginServer) PluginInfo(context.Context, *proto.PluginInfoRequest)
 	}
 
 	presp := &proto.PluginInfoResponse{
-		Type:             ptype,
-		PluginApiVersion: resp.PluginApiVersion,
-		PluginVersion:    resp.PluginVersion,
-		Name:             resp.Name,
+		Type:              ptype,
+		PluginApiVersions: resp.PluginApiVersions,
+		PluginVersion:     resp.PluginVersion,
+		Name:              resp.Name,
 	}
 
 	return presp, nil
@@ -61,7 +61,7 @@ func (b *basePluginServer) SetConfig(ctx context.Context, req *proto.SetConfigRe
 
 	// Client configuration is filtered based on plugin type
 	cfg := nomadConfigFromProto(req.GetNomadConfig())
-	filteredCfg := new(ClientAgentConfig)
+	filteredCfg := new(AgentConfig)
 
 	if cfg != nil {
 		switch info.Type {
@@ -70,8 +70,15 @@ func (b *basePluginServer) SetConfig(ctx context.Context, req *proto.SetConfigRe
 		}
 	}
 
+	// Build the config request
+	c := &Config{
+		ApiVersion:   req.GetPluginApiVersion(),
+		PluginConfig: req.GetMsgpackConfig(),
+		AgentConfig:  filteredCfg,
+	}
+
 	// Set the config
-	if err := b.impl.SetConfig(req.GetMsgpackConfig(), filteredCfg); err != nil {
+	if err := b.impl.SetConfig(c); err != nil {
 		return nil, fmt.Errorf("SetConfig failed: %v", err)
 	}
 

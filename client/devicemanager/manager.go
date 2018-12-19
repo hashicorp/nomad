@@ -63,7 +63,7 @@ type Config struct {
 	Loader loader.PluginCatalog
 
 	// PluginConfig is the config passed to the launched plugins
-	PluginConfig *base.ClientAgentConfig
+	PluginConfig *base.AgentConfig
 
 	// Updater is used to update the node when device information changes
 	Updater UpdateNodeDevicesFn
@@ -91,7 +91,7 @@ type manager struct {
 	loader loader.PluginCatalog
 
 	// pluginConfig is the config passed to the launched plugins
-	pluginConfig *base.ClientAgentConfig
+	pluginConfig *base.AgentConfig
 
 	// updater is used to update the node when device information changes
 	updater UpdateNodeDevicesFn

@@ -16,27 +16,30 @@ func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
+	var (
+		apiVersions = []string{"v0.1.0", "v0.1.1"}
+	)
+
 	const (
-		apiVersion    = "v0.1.0"
 		pluginVersion = "v0.2.1"
 		pluginName    = "mock"
 	)
 
 	knownType := func() (*PluginInfoResponse, error) {
 		info := &PluginInfoResponse{
-			Type:             PluginTypeDriver,
-			PluginApiVersion: apiVersion,
-			PluginVersion:    pluginVersion,
-			Name:             pluginName,
+			Type:              PluginTypeDriver,
+			PluginApiVersions: apiVersions,
+			PluginVersion:     pluginVersion,
+			Name:              pluginName,
 		}
 		return info, nil
 	}
 	unknownType := func() (*PluginInfoResponse, error) {
 		info := &PluginInfoResponse{
-			Type:             "bad",
-			PluginApiVersion: apiVersion,
-			PluginVersion:    pluginVersion,
-			Name:             pluginName,
+			Type:              "bad",
+			PluginApiVersions: apiVersions,
+			PluginVersion:     pluginVersion,
+			Name:              pluginName,
 		}
 		return info, nil
 	}
@@ -63,7 +66,7 @@ func TestBasePlugin_PluginInfo_GRPC(t *testing.T) {
 
 	resp, err := impl.PluginInfo()
 	require.NoError(err)
-	require.Equal(apiVersion, resp.PluginApiVersion)
+	require.Equal(apiVersions, resp.PluginApiVersions)
 	require.Equal(pluginVersion, resp.PluginVersion)
 	require.Equal(pluginName, resp.Name)
 	require.Equal(PluginTypeDriver, resp.Type)
@@ -118,8 +121,8 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 		ConfigSchemaF: func() (*hclspec.Spec, error) {
 			return TestSpec, nil
 		},
-		SetConfigF: func(data []byte, cfg *ClientAgentConfig) error {
-			receivedData = data
+		SetConfigF: func(cfg *Config) error {
+			receivedData = cfg.PluginConfig
 			return nil
 		},
 	}
@@ -147,7 +150,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 	})
 	cdata, err := msgpack.Marshal(config, config.Type())
 	require.NoError(err)
-	require.NoError(impl.SetConfig(cdata, &ClientAgentConfig{}))
+	require.NoError(impl.SetConfig(&Config{PluginConfig: cdata}))
 	require.Equal(cdata, receivedData)
 
 	// Decode the value back

@@ -33,9 +33,9 @@ message PluginInfoResponse {
   // type indicates what type of plugin this is.
   PluginType type = 1;
 
-  // plugin_api_version indicates the version of the Nomad Plugin API
-  // this plugin is built against.
-  string plugin_api_version = 2;
+  // plugin_api_versions indicates the versions of the Nomad Plugin API
+  // this plugin supports.
+  repeated string plugin_api_versions = 2;
 
   // plugin_version is the semver version of this individual plugin.
   // This is divorce from Nomad’s development and versioning.
@@ -61,6 +61,9 @@ message SetConfigRequest {
 
   // nomad_config is the nomad client configuration sent to all plugins.
   NomadConfig nomad_config = 2;
+
+  // plugin_api_version is the api version to use.
+  string plugin_api_version = 3;
 }
 
 // NomadConfig is the client configuration sent to all plugins

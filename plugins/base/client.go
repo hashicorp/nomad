@@ -34,10 +34,10 @@ func (b *BasePluginClient) PluginInfo() (*PluginInfoResponse, error) {
 	}
 
 	resp := &PluginInfoResponse{
-		Type:             ptype,
-		PluginApiVersion: presp.GetPluginApiVersion(),
-		PluginVersion:    presp.GetPluginVersion(),
-		Name:             presp.GetName(),
+		Type:              ptype,
+		PluginApiVersions: presp.GetPluginApiVersions(),
+		PluginVersion:     presp.GetPluginVersion(),
+		Name:              presp.GetName(),
 	}
 
 	return resp, nil
@@ -52,11 +52,12 @@ func (b *BasePluginClient) ConfigSchema() (*hclspec.Spec, error) {
 	return presp.GetSpec(), nil
 }
 
-func (b *BasePluginClient) SetConfig(data []byte, config *ClientAgentConfig) error {
+func (b *BasePluginClient) SetConfig(c *Config) error {
 	// Send the config
 	_, err := b.Client.SetConfig(b.DoneCtx, &proto.SetConfigRequest{
-		MsgpackConfig: data,
-		NomadConfig:   config.toProto(),
+		MsgpackConfig:    c.PluginConfig,
+		NomadConfig:      c.AgentConfig.toProto(),
+		PluginApiVersion: c.ApiVersion,
 	})
 
 	return err

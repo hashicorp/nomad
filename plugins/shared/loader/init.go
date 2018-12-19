@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
@@ -130,6 +131,18 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		}
 		info.version = v
 
+		// Detect the plugin API version to use
+		av, err := l.selectApiVersion(i)
+		if err != nil {
+			multierror.Append(&mErr, fmt.Errorf("failed to validate API versions %v for internal plugin %s: %v", i.PluginApiVersions, k, err))
+			continue
+		}
+		if av == "" {
+			l.logger.Warn("skipping plugin because supported API versions for plugin and Nomad do not overlap", "plugin", k)
+			continue
+		}
+		info.apiVersion = av
+
 		// Get the config schema
 		schema, err := base.ConfigSchema()
 		if err != nil {
@@ -142,7 +155,64 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		fingerprinted[k] = info
 	}
 
+	if err := mErr.ErrorOrNil(); err != nil {
+		return nil, err
+	}
+
 	return fingerprinted, nil
+}
+
+// selectApiVersion takes in PluginInfo and returns the highest compatable
+// version or an error if the plugins response is malformed. If there is no
+// overlap, an empty string is returned.
+func (l *PluginLoader) selectApiVersion(i *base.PluginInfoResponse) (string, error) {
+	if i == nil {
+		return "", fmt.Errorf("nil plugin info given")
+	}
+	if len(i.PluginApiVersions) == 0 {
+		return "", fmt.Errorf("plugin provided no compatible API versions")
+	}
+
+	pluginVersions, err := convertVersions(i.PluginApiVersions)
+	if err != nil {
+		return "", fmt.Errorf("plugin provided invalid versions: %v", err)
+	}
+
+	// Lookup the supported versions. These will be sorted highest to lowest
+	supportedVersions, ok := l.supportedVersions[i.Type]
+	if !ok {
+		return "", fmt.Errorf("unsupported plugin type %q", i.Type)
+	}
+
+	for _, sv := range supportedVersions {
+		for _, pv := range pluginVersions {
+			if sv.Equal(pv) {
+				return pv.Original(), nil
+			}
+		}
+	}
+
+	return "", nil
+}
+
+// convertVersions takes a list of string versions and returns a sorted list of
+// versions from highest to lowest.
+func convertVersions(in []string) ([]*version.Version, error) {
+	converted := make([]*version.Version, len(in))
+	for i, v := range in {
+		vv, err := version.NewVersion(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert version %q : %v", v, err)
+		}
+
+		converted[i] = vv
+	}
+
+	sort.Slice(converted, func(i, j int) bool {
+		return converted[i].GreaterThan(converted[j])
+	})
+
+	return converted, nil
 }
 
 // scan scans the plugin directory and retrieves potentially eligible binaries
@@ -200,8 +270,12 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 		c := configs[name]
 		info, err := l.fingerprintPlugin(p, c)
 		if err != nil {
-			l.logger.Error("failed to fingerprint plugin", "plugin", name)
+			l.logger.Error("failed to fingerprint plugin", "plugin", name, "error", err)
 			multierror.Append(&mErr, err)
+			continue
+		}
+		if info == nil {
+			// Plugin was skipped for validation reasons
 			continue
 		}
 
@@ -296,6 +370,17 @@ func (l *PluginLoader) fingerprintPlugin(pluginExe os.FileInfo, config *config.P
 			i.Name, info.exePath, i.PluginVersion, err)
 	}
 	info.version = v
+
+	// Detect the plugin API version to use
+	av, err := l.selectApiVersion(i)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate API versions %v for plugin %s (%v): %v", i.PluginApiVersions, i.Name, info.exePath, err)
+	}
+	if av == "" {
+		l.logger.Warn("skipping plugin because supported API versions for plugin and Nomad do not overlap", "plugin", i.Name, "path", info.exePath)
+		return nil, nil
+	}
+	info.apiVersion = av
 
 	// Retrieve the schema
 	schema, err := bplugin.ConfigSchema()
@@ -404,12 +489,18 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 	}
 	defer instance.Kill()
 
-	base, ok := instance.Plugin().(base.BasePlugin)
+	b, ok := instance.Plugin().(base.BasePlugin)
 	if !ok {
 		return fmt.Errorf("dispensed plugin %s doesn't meet base plugin interface", id)
 	}
 
-	if err := base.SetConfig(cdata, nil); err != nil {
+	c := &base.Config{
+		PluginConfig: cdata,
+		AgentConfig:  nil,
+		ApiVersion:   info.apiVersion,
+	}
+
+	if err := b.SetConfig(c); err != nil {
 		return fmt.Errorf("setting config on plugin failed: %v", err)
 	}
 	return nil
