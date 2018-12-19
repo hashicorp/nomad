@@ -96,14 +96,18 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 		return &r
 	}
 
-	if pb.RawResources != nil {
-		r.NomadResources = &structs.Resources{
-			CPU:      int(pb.RawResources.Cpu),
-			MemoryMB: int(pb.RawResources.Memory),
-			DiskMB:   int(pb.RawResources.Disk),
+	if pb.AllocatedResources != nil {
+		r.NomadResources = &structs.AllocatedTaskResources{}
+
+		if pb.AllocatedResources.Cpu != nil {
+			r.NomadResources.Cpu.CpuShares = pb.AllocatedResources.Cpu.CpuShares
 		}
 
-		for _, network := range pb.RawResources.Networks {
+		if pb.AllocatedResources.Memory != nil {
+			r.NomadResources.Memory.MemoryMB = pb.AllocatedResources.Memory.MemoryMb
+		}
+
+		for _, network := range pb.AllocatedResources.Networks {
 			var n structs.NetworkResource
 			n.Device = network.Device
 			n.IP = network.Ip
@@ -145,12 +149,16 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 	if r == nil {
 		return nil
 	}
+
 	var pb proto.Resources
 	if r.NomadResources != nil {
-		pb.RawResources = &proto.RawResources{
-			Cpu:      int64(r.NomadResources.CPU),
-			Memory:   int64(r.NomadResources.MemoryMB),
-			Disk:     int64(r.NomadResources.DiskMB),
+		pb.AllocatedResources = &proto.AllocatedTaskResources{
+			Cpu: &proto.AllocatedCpuResources{
+				CpuShares: r.NomadResources.Cpu.CpuShares,
+			},
+			Memory: &proto.AllocatedMemoryResources{
+				MemoryMb: r.NomadResources.Memory.MemoryMB,
+			},
 			Networks: make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
 		}
 
@@ -173,7 +181,7 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 					Value: int32(port.Value),
 				})
 			}
-			pb.RawResources.Networks[i] = &n
+			pb.AllocatedResources.Networks[i] = &n
 		}
 	}
 

@@ -37,6 +37,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.BatchAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
 
 	// Create two tasks in the task group
@@ -56,7 +57,8 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 		"run_for": "1s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
-	alloc.TaskResources[task2.Name] = task2.Resources
+	alloc.AllocatedResources.Tasks[task.Name] = tr
+	alloc.AllocatedResources.Tasks[task2.Name] = tr
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()
@@ -121,6 +123,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
 
 	// Create 3 tasks in the task group
@@ -146,7 +149,9 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 		"run_for": "10s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2, task3)
-	alloc.TaskResources[task2.Name] = task2.Resources
+	alloc.AllocatedResources.Tasks[task.Name] = tr
+	alloc.AllocatedResources.Tasks[task2.Name] = tr
+	alloc.AllocatedResources.Tasks[task3.Name] = tr
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()
@@ -216,6 +221,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.Alloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
 
 	// Create a leader and follower task in the task group
@@ -237,7 +243,8 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	}
 
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
-	alloc.TaskResources[task2.Name] = task2.Resources
+	alloc.AllocatedResources.Tasks[task.Name] = tr
+	alloc.AllocatedResources.Tasks[task2.Name] = tr
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
 	defer cleanup()

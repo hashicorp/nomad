@@ -173,7 +173,7 @@ func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
 }
 
 type Resources struct {
-	NomadResources *structs.Resources
+	NomadResources *structs.AllocatedTaskResources
 	LinuxResources *LinuxResources
 }
 

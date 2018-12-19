@@ -249,9 +249,13 @@ func basicTask(t *testing.T, name string, taskConfig map[string]interface{}) *dr
 		ID:   uuid.Generate(),
 		Name: name,
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,

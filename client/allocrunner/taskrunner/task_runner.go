@@ -265,12 +265,29 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
 	if ares != nil {
-		if tres, ok := ares.Tasks[tr.taskName]; ok {
-			tr.taskResources = tres
+		tres, ok := ares.Tasks[tr.taskName]
+		if !ok {
+			return nil, fmt.Errorf("no task resources found on allocation")
+		}
+		tr.taskResources = tres
+	} else {
+		// COMPAT(0.10): Upgrade from old resources to new resources
+		// Grab the old task resources
+		oldTr, ok := tr.alloc.TaskResources[tr.taskName]
+		if !ok {
+			return nil, fmt.Errorf("no task resources found on allocation")
 		}
 
-		// TODO in the else case should we do a migration from resources as an
-		// upgrade path
+		// Convert the old to new
+		tr.taskResources = &structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: int64(oldTr.CPU),
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: int64(oldTr.MemoryMB),
+			},
+			Networks: oldTr.Networks,
+		}
 	}
 
 	// Build the restart tracker.
@@ -697,17 +714,18 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	task := tr.Task()
 	alloc := tr.Alloc()
 	invocationid := uuid.Generate()[:8]
+	taskResources := tr.taskResources
 
 	return &drivers.TaskConfig{
 		ID:      fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:    task.Name,
 		JobName: alloc.Job.Name,
 		Resources: &drivers.Resources{
-			NomadResources: task.Resources,
+			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
-				MemoryLimitBytes: int64(task.Resources.MemoryMB) * 1024 * 1024,
-				CPUShares:        int64(task.Resources.CPU),
-				PercentTicks:     float64(task.Resources.CPU) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
+				MemoryLimitBytes: taskResources.Memory.MemoryMB * 1024 * 1024,
+				CPUShares:        taskResources.Cpu.CpuShares,
+				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
 		},
 		Devices:    tr.hookResources.getDevices(),

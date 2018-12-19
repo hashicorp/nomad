@@ -13,9 +13,6 @@ import (
 	"testing"
 	"time"
 
-	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"golang.org/x/sys/unix"
-
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -24,10 +21,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 var _ drivers.DriverPlugin = (*Driver)(nil)
@@ -93,9 +92,13 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "etcd",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -173,9 +176,13 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "etcd",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -228,9 +235,13 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "etcd",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -283,9 +294,13 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "etcd",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -334,9 +349,13 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "etcd",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -434,9 +453,13 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "rkttest_alpine",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -518,9 +541,13 @@ func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "rkttest_alpine",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -586,9 +613,13 @@ func TestRktDriver_PortMapping(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "redis",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						IP:            "127.0.0.1",
@@ -640,9 +671,13 @@ func TestRktDriver_UserGroup(t *testing.T) {
 		User:    "nobody",
 		Name:    "rkttest_alpine",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -702,9 +737,13 @@ func TestRktDriver_Exec(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "etcd",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
@@ -780,9 +819,13 @@ func TestRktDriver_Stats(t *testing.T) {
 		AllocID: uuid.Generate(),
 		Name:    "etcd",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 128,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 128,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,

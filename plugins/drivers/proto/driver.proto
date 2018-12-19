@@ -345,18 +345,25 @@ message TaskConfig {
 
 message Resources {
 
-    // RawResources are the resources set for the task
-    RawResources raw_resources = 1;
+    // AllocatedResources are the resources set for the task
+    AllocatedTaskResources allocated_resources = 1;
 
     // LinuxResources are the computed values to set for specific Linux features
     LinuxResources linux_resources = 2;
 }
 
-message RawResources {
-    int64 cpu = 1;
-    int64 memory = 2;
-    int64 disk = 3;
+message AllocatedTaskResources {
+    AllocatedCpuResources cpu = 1;
+    AllocatedMemoryResources memory = 2;
     repeated NetworkResource networks = 5;
+}
+
+message AllocatedCpuResources {
+    int64 cpu_shares = 1;
+}
+
+message AllocatedMemoryResources {
+    int64 memory_mb = 2;
 }
 
 message NetworkResource {

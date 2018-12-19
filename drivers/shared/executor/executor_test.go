@@ -13,15 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/plugins/drivers"
-	tu "github.com/hashicorp/nomad/testutil"
-
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,7 +54,7 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
 		Resources: &drivers.Resources{
-			NomadResources: task.Resources,
+			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
 		},
 	}
 

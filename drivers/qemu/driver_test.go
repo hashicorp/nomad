@@ -1,17 +1,14 @@
 package qemu
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"context"
-	"fmt"
 	"time"
-
-	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
@@ -19,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -44,9 +42,13 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 		ID:   uuid.Generate(),
 		Name: "linux",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 512,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 512,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
@@ -102,9 +104,13 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 		ID:   uuid.Generate(),
 		Name: "linux",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 512,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 512,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
@@ -153,9 +159,13 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 		ID:   uuid.Generate(),
 		Name: "linux",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 512,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 512,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
@@ -243,9 +253,13 @@ func TestQemuDriver_User(t *testing.T) {
 		Name: "linux",
 		User: "alice",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 512,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 512,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
@@ -295,9 +309,13 @@ func TestQemuDriver_Stats(t *testing.T) {
 		ID:   uuid.Generate(),
 		Name: "linux",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				MemoryMB: 512,
-				CPU:      100,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 512,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 100,
+				},
 				Networks: []*structs.NetworkResource{
 					{
 						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},

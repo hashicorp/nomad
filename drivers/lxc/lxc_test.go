@@ -19,9 +19,13 @@ func TestLXCDriver_Mounts(t *testing.T) {
 		ID:   uuid.Generate(),
 		Name: "test",
 		Resources: &drivers.Resources{
-			NomadResources: &structs.Resources{
-				CPU:      1,
-				MemoryMB: 2,
+			NomadResources: &structs.AllocatedTaskResources{
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 2,
+				},
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 1024,
+				},
 			},
 			LinuxResources: &drivers.LinuxResources{
 				CPUShares:        1024,
