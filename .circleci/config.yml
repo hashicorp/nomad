@@ -7,6 +7,7 @@ executors:
       GOPATH: /go
     docker:
       - image: golang:1.11
+        user: root
 
 jobs:
   build:
@@ -20,8 +21,9 @@ jobs:
     executor: go
     steps:
       - checkout
-      - run: make deps
-      - run: make travis
+      - run: make bootstrap
+      - setup_remote_docker
+      - run: make test-nomad
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
