@@ -169,10 +169,13 @@ func TestClientFS_List_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
@@ -435,10 +438,13 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
@@ -975,10 +981,13 @@ func TestClientFS_Streaming_Remote_Server(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
@@ -1121,10 +1130,13 @@ func TestClientFS_Streaming_Remote_Region(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
-		c.Region = "two"
+		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
@@ -1794,10 +1806,13 @@ func TestClientFS_Logs_Remote_Server(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer s1.Shutdown()
 	s2 := TestServer(t, func(c *Config) {
 		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
