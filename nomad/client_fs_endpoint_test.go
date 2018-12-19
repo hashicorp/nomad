@@ -992,6 +992,7 @@ func TestClientFS_Streaming_Remote_Server(t *testing.T) {
 	})
 	defer s2.Shutdown()
 	TestJoin(t, s1, s2)
+	time.Sleep(1 * time.Second)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
