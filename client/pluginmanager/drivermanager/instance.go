@@ -447,6 +447,11 @@ func (i *instanceManager) handleEvents() {
 
 // handleEvent looks up the event handler(s) for the event and runs them
 func (i *instanceManager) handleEvent(ev *drivers.TaskEvent) {
+	// Do not emit that the plugin is shutdown
+	if ev.Err != nil && ev.Err == base.ErrPluginShutdown {
+		return
+	}
+
 	if handler := i.eventHandlerFactory(ev.AllocID, ev.TaskName); handler != nil {
 		i.logger.Trace("task event received", "event", ev)
 		handler(ev)
