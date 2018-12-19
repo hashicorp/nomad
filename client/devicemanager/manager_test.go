@@ -236,20 +236,19 @@ func TestManager_AllStats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	config, updateCh, catalog := baseTestConfig(t)
+	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
 
 	m := New(config)
-	go m.Run()
+	m.Run()
 	defer m.Shutdown()
+	require.Len(m.instances, 2)
 
 	// Wait till we get a fingerprint result
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout")
-	case devices := <-updateCh:
-		require.Len(devices, 2)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	<-m.WaitForFirstFingerprint(ctx)
+	require.NoError(ctx.Err())
 
 	// Now collect all the stats
 	var stats []*device.DeviceGroupStats
@@ -286,20 +285,18 @@ func TestManager_DeviceStats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	config, updateCh, catalog := baseTestConfig(t)
+	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
 
 	m := New(config)
-	go m.Run()
+	m.Run()
 	defer m.Shutdown()
 
 	// Wait till we get a fingerprint result
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout")
-	case devices := <-updateCh:
-		require.Len(devices, 2)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	<-m.WaitForFirstFingerprint(ctx)
+	require.NoError(ctx.Err())
 
 	testutil.WaitForResult(func() (bool, error) {
 		stats := m.AllStats()
@@ -335,20 +332,18 @@ func TestManager_Reserve(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
 
-	config, updateCh, catalog := baseTestConfig(t)
+	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
 
 	m := New(config)
-	go m.Run()
+	m.Run()
 	defer m.Shutdown()
 
 	// Wait till we get a fingerprint result
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout")
-	case devices := <-updateCh:
-		r.Len(devices, 2)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	<-m.WaitForFirstFingerprint(ctx)
+	r.NoError(ctx.Err())
 
 	cases := []struct {
 		in       *structs.AllocatedDeviceResource
@@ -435,20 +430,18 @@ func TestManager_Shutdown(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	config, updateCh, catalog := baseTestConfig(t)
+	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
 
 	m := New(config)
-	go m.Run()
+	m.Run()
 	defer m.Shutdown()
 
 	// Wait till we get a fingerprint result
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout")
-	case devices := <-updateCh:
-		require.Len(devices, 2)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	<-m.WaitForFirstFingerprint(ctx)
+	require.NoError(ctx.Err())
 
 	// Call shutdown and assert that we killed the plugins
 	m.Shutdown()
@@ -464,20 +457,18 @@ func TestManager_Run_ShutdownOld(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	config, updateCh, catalog := baseTestConfig(t)
+	config, _, catalog := baseTestConfig(t)
 	nvidiaAndIntelDefaultPlugins(catalog)
 
 	m := New(config)
-	go m.Run()
+	m.Run()
 	defer m.Shutdown()
 
 	// Wait till we get a fingerprint result
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout")
-	case devices := <-updateCh:
-		require.Len(devices, 2)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	<-m.WaitForFirstFingerprint(ctx)
+	require.NoError(ctx.Err())
 
 	// Create a new manager with the same config so that it reads the old state
 	m2 := New(config)
