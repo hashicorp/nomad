@@ -279,11 +279,62 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	ar2.Destroy()
 
 	select {
-	case <-ar2.WaitCh():
+	case <-ar2.DestroyCh():
 		// exited as expected
 	case <-time.After(10 * time.Second):
 		t.Fatalf("timed out waiting for AR to GC")
 	}
+}
+
+func TestAllocRunner_Update_Semantics(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	updatedAlloc := func(a *structs.Allocation) *structs.Allocation {
+		upd := a.CopySkipJob()
+		upd.AllocModifyIndex++
+
+		return upd
+	}
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(err)
+
+	upd1 := updatedAlloc(alloc)
+	ar.Update(upd1)
+
+	// Update was placed into a queue
+	require.Len(ar.allocUpdatedCh, 1)
+
+	upd2 := updatedAlloc(alloc)
+	ar.Update(upd2)
+
+	// Allocation was _replaced_
+
+	require.Len(ar.allocUpdatedCh, 1)
+	queuedAlloc := <-ar.allocUpdatedCh
+	require.Equal(upd2, queuedAlloc)
+
+	// Requeueing older alloc is skipped
+	ar.Update(upd2)
+	ar.Update(upd1)
+
+	queuedAlloc = <-ar.allocUpdatedCh
+	require.Equal(upd2, queuedAlloc)
+
+	// Ignore after watch closed
+
+	close(ar.waitCh)
+
+	ar.Update(upd1)
+
+	// Did not queue the update
+	require.Len(ar.allocUpdatedCh, 0)
 }
 
 /*

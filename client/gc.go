@@ -183,7 +183,7 @@ func (a *AllocGarbageCollector) destroyAllocRunner(allocID string, ar AllocRunne
 	ar.Destroy()
 
 	select {
-	case <-ar.WaitCh():
+	case <-ar.DestroyCh():
 	case <-a.shutdownCh:
 	}
 
