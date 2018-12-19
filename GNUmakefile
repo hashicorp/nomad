@@ -260,15 +260,9 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 
 .PHONY: test-nomad
 test-nomad: dev ## Run Nomad test suites
+	go get gotest.tools/gotestsum
 	@echo "==> Running Nomad test suites:"
-	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") go test \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
-		-cover \
-		-timeout=25m \
-		-tags="$(if $(HAS_LXC),lxc)" ./nomad $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
-	@if [ $(VERBOSE) ] ; then \
-		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
-	fi
+	gotestsum -f short-verbose ./nomad -- -timeout 15m
 
 .PHONY: e2e-test
 e2e-test: dev ## Run the Nomad e2e test suite
