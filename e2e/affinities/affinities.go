@@ -28,6 +28,11 @@ func init() {
 	})
 }
 
+func (tc *BasicAffinityTest) BeforeAll(f *framework.F) {
+	// Ensure cluster has leader before running tests
+	framework.WaitForLeader(f.T(), tc.Nomad())
+}
+
 func (tc *BasicAffinityTest) registerAndWaitForAllocs(f *framework.F, jobFile string, prefix string) []*api.AllocationListStub {
 	nomadClient := tc.Nomad()
 	// Parse job
