@@ -404,55 +404,29 @@ func TestClient_Heartbeat(t *testing.T) {
 	})
 }
 
+// TestClient_UpdateAllocStatus that once running allocations send updates to
+// the server.
 func TestClient_UpdateAllocStatus(t *testing.T) {
-	t.Skip("missing exec driver plugin implementation")
 	t.Parallel()
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	_, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer cleanup()
 
-	// Wait until the node is ready
-	waitTilNodeReady(c1, t)
-
 	job := mock.Job()
-	alloc := mock.Alloc()
-	alloc.NodeID = c1.Node().ID
-	alloc.Job = job
-	alloc.JobID = job.ID
-	originalStatus := "foo"
-	alloc.ClientStatus = originalStatus
-
-	// Insert at zero so they are pulled
-	state := s1.State()
-	if err := state.UpsertJob(0, job); err != nil {
-		t.Fatal(err)
+	job.TaskGroups[0].Count = 1
+	task := job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
 	}
-	if err := state.UpsertJobSummary(100, mock.JobSummary(alloc.JobID)); err != nil {
-		t.Fatal(err)
-	}
-	state.UpsertAllocs(101, []*structs.Allocation{alloc})
+	task.Services = nil
 
-	testutil.WaitForResult(func() (bool, error) {
-		ws := memdb.NewWatchSet()
-		out, err := state.AllocByID(ws, alloc.ID)
-		if err != nil {
-			return false, err
-		}
-		if out == nil {
-			return false, fmt.Errorf("no such alloc")
-		}
-		if out.ClientStatus == originalStatus {
-			return false, fmt.Errorf("Alloc client status not updated; got %v", out.ClientStatus)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	// WaitForRunning polls the server until the ClientStatus is running
+	testutil.WaitForRunning(t, s1.RPC, job)
 }
 
 func TestClient_WatchAllocs(t *testing.T) {
