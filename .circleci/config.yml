@@ -1,14 +1,33 @@
 version: 2.1
 
 executors:
+  go-priv:
+    working_directory: /go/src/github.com/hashicorp/nomad
+    environment:
+      GOPATH: /go
+      GOMAXPROCS: 1
+    machine:
+      image: circleci/classic:201808-01
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     environment:
       GOPATH: /go
     docker:
-      # go1.11 uses a lot of ram when linking... rolling back to 1.10 for now.
-      - image: golang:1.10
+      - image: golang:1.11
         user: root
+
+commands:
+  install-go:
+    description: "Installs golang on a CircleCI Machine executor"
+    parameters:
+      version:
+        type: string
+        default: "1.11.4"
+    steps:
+      - run: curl -O https://storage.googleapis.com/golang/go<< parameters.version >>.linux-amd64.tar.gz
+      - run: tar -xvf go<< parameters.version >>.linux-amd64.tar.gz
+      - run: sudo mv go /usr/bin
+      - run: sudo chmod +x /usr/bin/go
 
 jobs:
   build:
@@ -19,11 +38,11 @@ jobs:
       - run: make check
       - run: make dev
   test:
-    executor: go
+    executor: go-priv
     steps:
       - checkout
+      - install-go
       - run: make bootstrap
-      - setup_remote_docker
       - run: go get -u gotest.tools/gotestsum
       - run: GOMAXPROCS=1 gotestsum -f short-verbose ./...
   build-website:
