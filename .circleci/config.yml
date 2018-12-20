@@ -2,9 +2,9 @@ version: 2.1
 
 executors:
   go-priv:
-    working_directory: /go/src/github.com/hashicorp/nomad
+    working_directory: /home/circleci/go/src/github.com/hashicorp/nomad
     environment:
-      GOPATH: /go
+      GOPATH: /home/circleci/go
       GOMAXPROCS: 1
     machine:
       image: circleci/classic:201808-01
