@@ -8,6 +8,8 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
+GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
+
 default: help
 
 ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
@@ -153,6 +155,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	go get -u github.com/golang/protobuf/protoc-gen-go
+	go get -u gotest.tools/gotestsum
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -261,7 +264,7 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 .PHONY: test-nomad
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
-	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") go test \
+	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
