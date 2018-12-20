@@ -25,7 +25,7 @@ jobs:
       - run: make bootstrap
       - setup_remote_docker
       - run: go get -u gotest.tools/gotestsum
-      - run: gotestsum -f short-verbose ./nomad
+      - run: GOMAXPROCS=1 gotestsum -f short-verbose ./...
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
