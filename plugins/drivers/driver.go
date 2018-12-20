@@ -103,6 +103,7 @@ type TaskConfig struct {
 	TaskGroupName   string
 	Name            string
 	Env             map[string]string
+	DeviceEnv       map[string]string
 	Resources       *Resources
 	Devices         []*DeviceConfig
 	Mounts          []*MountConfig
@@ -121,7 +122,25 @@ func (tc *TaskConfig) Copy() *TaskConfig {
 	c := new(TaskConfig)
 	*c = *tc
 	c.Env = helper.CopyMapStringString(c.Env)
+	c.DeviceEnv = helper.CopyMapStringString(c.DeviceEnv)
 	c.Resources = tc.Resources.Copy()
+
+	if c.Devices != nil {
+		dc := make([]*DeviceConfig, len(c.Devices))
+		for i, c := range c.Devices {
+			dc[i] = c.Copy()
+		}
+		c.Devices = dc
+	}
+
+	if c.Mounts != nil {
+		mc := make([]*MountConfig, len(c.Mounts))
+		for i, m := range c.Mounts {
+			mc[i] = m.Copy()
+		}
+		c.Mounts = mc
+	}
+
 	return c
 }
 
@@ -221,10 +240,30 @@ type DeviceConfig struct {
 	Permissions string
 }
 
+func (d *DeviceConfig) Copy() *DeviceConfig {
+	if d == nil {
+		return nil
+	}
+
+	dc := new(DeviceConfig)
+	*dc = *d
+	return dc
+}
+
 type MountConfig struct {
 	TaskPath string
 	HostPath string
 	Readonly bool
+}
+
+func (m *MountConfig) Copy() *MountConfig {
+	if m == nil {
+		return nil
+	}
+
+	mc := new(MountConfig)
+	*mc = *m
+	return mc
 }
 
 const (
