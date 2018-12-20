@@ -53,7 +53,7 @@ func TestAddNestedKey_Ok(t *testing.T) {
 			},
 		},
 		{
-			// Nested object b should get overwritten with "x"
+			// Nested object b should take precedence over values
 			M: map[string]interface{}{
 				"a": map[string]interface{}{
 					"b": map[string]interface{}{
@@ -64,7 +64,9 @@ func TestAddNestedKey_Ok(t *testing.T) {
 			K: "a.b",
 			Result: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": "x",
+					"b": map[string]interface{}{
+						"c": "c",
+					},
 				},
 			},
 		},
@@ -121,6 +123,81 @@ func TestAddNestedKey_Ok(t *testing.T) {
 						"c": "x",
 					},
 				},
+			},
+		},
+		// Regardless of whether attr.driver.qemu = "1" is added first
+		// or second, attr.driver.qemu.version = "..." should take
+		// precedence (nested maps take precedence over values)
+		{
+			M: map[string]interface{}{
+				"attr": map[string]interface{}{
+					"driver": map[string]interface{}{
+						"qemu": "1",
+					},
+				},
+			},
+			K: "attr.driver.qemu.version",
+			Result: map[string]interface{}{
+				"attr": map[string]interface{}{
+					"driver": map[string]interface{}{
+						"qemu": map[string]interface{}{
+							"version": "x",
+						},
+					},
+				},
+			},
+		},
+		{
+			M: map[string]interface{}{
+				"attr": map[string]interface{}{
+					"driver": map[string]interface{}{
+						"qemu": map[string]interface{}{
+							"version": "1.2.3",
+						},
+					},
+				},
+			},
+			K: "attr.driver.qemu",
+			Result: map[string]interface{}{
+				"attr": map[string]interface{}{
+					"driver": map[string]interface{}{
+						"qemu": map[string]interface{}{
+							"version": "1.2.3",
+						},
+					},
+				},
+			},
+		},
+		{
+			M: map[string]interface{}{
+				"a": "a",
+			},
+			K: "a.b",
+			Result: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "x",
+				},
+			},
+		},
+		{
+			M: map[string]interface{}{
+				"a": "a",
+				"foo": map[string]interface{}{
+					"b":   "b",
+					"bar": "quux",
+				},
+				"c": map[string]interface{}{},
+			},
+			K: "foo.bar.quux",
+			Result: map[string]interface{}{
+				"a": "a",
+				"foo": map[string]interface{}{
+					"b": "b",
+					"bar": map[string]interface{}{
+						"quux": "x",
+					},
+				},
+				"c": map[string]interface{}{},
 			},
 		},
 	}
@@ -233,40 +310,6 @@ func TestAddNestedKey_Bad(t *testing.T) {
 			},
 			K:      "foo.bar..quux",
 			Result: ErrInvalidObjectPath,
-		},
-		{
-			M: func() map[string]interface{} {
-				return map[string]interface{}{
-					"a": "a",
-				}
-			},
-			K:      "a.b",
-			Result: NewErrKeyExists("a.b", "a"),
-		},
-		{
-			M: func() map[string]interface{} {
-				return map[string]interface{}{
-					"a": "a",
-					"foo": map[string]interface{}{
-						"b":   "b",
-						"bar": "quux",
-					},
-					"c": map[string]interface{}{},
-				}
-			},
-			K:      "foo.bar.quux",
-			Result: NewErrKeyExists("foo.bar.quux", "bar"),
-		},
-		{
-			M: func() map[string]interface{} {
-				return map[string]interface{}{
-					"a": map[string]interface{}{
-						"b": "b",
-					},
-				}
-			},
-			K:      "a.b.c.",
-			Result: NewErrKeyExists("a.b.c.", "b"),
 		},
 	}
 
