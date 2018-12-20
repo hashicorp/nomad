@@ -137,10 +137,12 @@ https://github.com/google/protobuf for more information.
 
 **Note:** Building the Nomad UI from source requires Node, Yarn, and Ember CLI. These tools are already in the Vagrant VM. Read the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for more info.
 
-To cross-compile Nomad, run `make release`. This will compile Nomad for multiple
+To cross-compile Nomad, run `make prerelease` and `make release`.
+This will generate all the static assets, compile Nomad for multiple
 platforms and place the resulting binaries into the `./pkg` directory:
 
 ```sh
+$ make prerelease
 $ make release
 ...
 $ ls ./pkg
