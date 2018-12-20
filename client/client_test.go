@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/shared/catalog"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -163,15 +164,22 @@ func TestClient_Fingerprint(t *testing.T) {
 	})
 }
 
+// TestClient_Fingerprint_Periodic asserts that driver node attributes are
+// periodically fingerprinted.
 func TestClient_Fingerprint_Periodic(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
-		c.Options = map[string]string{
-			"test.shutdown_periodic_after":    "true",
-			"test.shutdown_periodic_duration": "1",
+		confs := []*nconfig.PluginConfig{
+			&nconfig.PluginConfig{
+				Name: "mock_driver",
+				Config: map[string]interface{}{
+					"shutdown_periodic_after":    true,
+					"shutdown_periodic_duration": time.Second,
+				},
+			},
 		}
+		c.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", nil, confs)
 	})
 	defer cleanup()
 
@@ -219,10 +227,10 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
 			}
 			if mockDriverInfo.Detected {
-				return false, fmt.Errorf("mock driver should be set as detected")
+				return false, fmt.Errorf("mock driver should not be set as detected")
 			}
 			if mockDriverInfo.Healthy {
-				return false, fmt.Errorf("mock driver should be set as healthy")
+				return false, fmt.Errorf("mock driver should not be set as healthy")
 			}
 			if mockDriverInfo.HealthDescription == "" {
 				return false, fmt.Errorf("mock driver description should not be empty")

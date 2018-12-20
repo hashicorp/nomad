@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/shared/catalog"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
 )
 
 // TestClient creates an in-memory client for testing purposes and returns a
@@ -40,6 +40,8 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func() error) 
 	// Set the plugin loaders
 	if conf.PluginLoader == nil {
 		conf.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", conf.Options, nil)
+	}
+	if conf.PluginSingletonLoader == nil {
 		conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, conf.PluginLoader)
 	}
 	catalog := consul.NewMockCatalog(logger)
