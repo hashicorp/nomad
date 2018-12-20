@@ -644,3 +644,7 @@ func sendQemuShutdown(logger hclog.Logger, monitorPath string, userPid int) erro
 	}
 	return err
 }
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
+}

@@ -1242,3 +1242,7 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 	}
 	return ulimits, nil
 }
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
+}

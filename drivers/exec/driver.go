@@ -143,9 +143,8 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	return nil
 }
 
-func (d *Driver) Shutdown(ctx context.Context) error {
+func (d *Driver) Shutdown() {
 	d.signalShutdown()
-	return nil
 }
 
 func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {

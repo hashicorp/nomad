@@ -550,3 +550,7 @@ func (d *Driver) GetHandle(taskID string) *taskHandle {
 	h, _ := d.tasks.Get(taskID)
 	return h
 }
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
+}

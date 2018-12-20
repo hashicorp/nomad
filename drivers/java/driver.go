@@ -556,3 +556,7 @@ func GetAbsolutePath(bin string) (string, error) {
 
 	return filepath.EvalSymlinks(lp)
 }
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
+}
