@@ -189,8 +189,6 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	_, _, err = client.Jobs().Register(sysjob, nil)
 	require.Nil(err)
 
-	evals, _, _ := client.Evaluations().List(nil)
-
 	var allocs []*api.Allocation
 	testutil.WaitForResult(func() (bool, error) {
 		allocs, _, err = client.Nodes().Allocations(nodeID, nil)
