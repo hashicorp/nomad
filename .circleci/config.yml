@@ -42,9 +42,8 @@ jobs:
     steps:
       - checkout
       - install-go
-      - run: make bootstrap
-      - run: go get -u gotest.tools/gotestsum
-      - run: GOMAXPROCS=1 gotestsum -f short-verbose ./...
+      - run: PATH="$GOPATH/bin:$PATH" make bootstrap
+      - run: PATH="$GOPATH/bin:$PATH" GOMAXPROCS=1 gotestsum -f short-verbose ./...
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
