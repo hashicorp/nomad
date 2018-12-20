@@ -18,7 +18,8 @@ var (
 )
 
 // batchFirstFingerprints waits for the first fingerprint response from all
-// plugin managers and sends a single Node update for all fingerprints
+// plugin managers and sends a single Node update for all fingerprints. It
+// should only ever be called once
 func (c *Client) batchFirstFingerprints() {
 	ctx, cancel := context.WithTimeout(context.Background(), batchFirstFingerprintsTimeout)
 	defer cancel()
@@ -63,6 +64,8 @@ SEND_BATCH:
 	if driverChanged || devicesChanged {
 		c.updateNodeLocked()
 	}
+
+	close(c.fpInitialized)
 }
 
 // updateNodeFromDriver receives a DriverInfo struct for the driver and updates

@@ -46,6 +46,9 @@ func TestFS_Logs(t *testing.T) {
 		if nodes[0].Status != "ready" {
 			return false, fmt.Errorf("node not ready: %s", nodes[0].Status)
 		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)

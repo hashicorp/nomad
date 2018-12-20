@@ -26,6 +26,21 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 
 	ui := new(cli.MockUi)
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
