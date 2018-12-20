@@ -1,20 +1,13 @@
 package spread
 
 import (
-	"time"
-
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/framework"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/onsi/gomega"
-	"testing"
+	"github.com/hashicorp/nomad/e2e/e2eutil"
 )
 
-type BasicSpreadStruct struct {
+type SpreadTest struct {
 	framework.TC
 	jobIds []string
 }
@@ -24,45 +17,24 @@ func init() {
 		Component:   "Spread",
 		CanRunLocal: true,
 		Cases: []framework.TestCase{
-			new(BasicSpreadStruct),
+			new(SpreadTest),
 		},
 	})
 }
 
-func (tc *BasicSpreadStruct) TestEvenSpread(f *framework.F) {
+func (tc *SpreadTest) BeforeAll(f *framework.F) {
+	// Ensure cluster has leader before running tests
+	e2eutil.WaitForLeader(f.T(), tc.Nomad())
+}
+
+func (tc *SpreadTest) TestEvenSpread(f *framework.F) {
 	nomadClient := tc.Nomad()
-
-	// Parse job
-	job, err := jobspec.ParseFile("spread/input/spread1.nomad")
-	require := require.New(f.T())
-	require.Nil(err)
-	uuid := uuid.Generate()
-	jobId := "spr" + uuid[0:8]
-	job.ID = helper.StringToPtr(jobId)
-
-	tc.jobIds = append(tc.jobIds, jobId)
-
-	// Register job
-	jobs := nomadClient.Jobs()
-	resp, _, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotEmpty(resp.EvalID)
-
-	g := NewGomegaWithT(f.T())
-
-	// Wrap in retry to wait until placement
-	g.Eventually(func() []*api.AllocationListStub {
-		// Look for allocations
-		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-		return allocs
-	}, 2*time.Second, time.Second).ShouldNot(BeEmpty())
+	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/even_spread.nomad", "spr")
+	tc.jobIds = append(tc.jobIds, jobID)
 
 	jobAllocs := nomadClient.Allocations()
-
-	allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-
 	dcToAllocs := make(map[string]int)
-
+	require := require.New(f.T())
 	// Verify spread score and alloc distribution
 	for _, allocStub := range allocs {
 		alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
@@ -83,41 +55,16 @@ func (tc *BasicSpreadStruct) TestEvenSpread(f *framework.F) {
 	require.Equal(expectedDcToAllocs, dcToAllocs)
 }
 
-func (tc *BasicSpreadStruct) TestMultipleSpreads(f *framework.F) {
+func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 	nomadClient := tc.Nomad()
-
-	// Parse job
-	job, err := jobspec.ParseFile("spread/input/spread2.nomad")
-	require := require.New(f.T())
-	require.Nil(err)
-	uuid := uuid.Generate()
-	jobId := "spr" + uuid[0:8]
-	job.ID = helper.StringToPtr(jobId)
-
-	tc.jobIds = append(tc.jobIds, jobId)
-
-	// Register job
-	jobs := nomadClient.Jobs()
-	resp, _, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotEmpty(resp.EvalID)
-
-	g := NewGomegaWithT(f.T())
-
-	// Wrap in retry to wait until placement
-	g.Eventually(func() []*api.AllocationListStub {
-		// Look for allocations
-		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-		return allocs
-	}, 2*time.Second, time.Second).ShouldNot(BeEmpty())
+	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/multiple_spread.nomad", "spr")
+	tc.jobIds = append(tc.jobIds, jobID)
 
 	jobAllocs := nomadClient.Allocations()
-
-	allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-
 	dcToAllocs := make(map[string]int)
 	rackToAllocs := make(map[string]int)
 
+	require := require.New(f.T())
 	// Verify spread score and alloc distribution
 	for _, allocStub := range allocs {
 		alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
@@ -151,7 +98,7 @@ func (tc *BasicSpreadStruct) TestMultipleSpreads(f *framework.F) {
 
 }
 
-func (tc *BasicSpreadStruct) AfterEach(f *framework.F) {
+func (tc *SpreadTest) AfterEach(f *framework.F) {
 	nomadClient := tc.Nomad()
 	jobs := nomadClient.Jobs()
 	// Stop all jobs in test
@@ -160,13 +107,4 @@ func (tc *BasicSpreadStruct) AfterEach(f *framework.F) {
 	}
 	// Garbage collect
 	nomadClient.System().GarbageCollect()
-}
-
-func TestCalledFromGoTest(t *testing.T) {
-	framework.New().AddSuites(&framework.TestSuite{
-		Component: "foo",
-		Cases: []framework.TestCase{
-			new(BasicSpreadStruct),
-		},
-	}).Run(t)
 }

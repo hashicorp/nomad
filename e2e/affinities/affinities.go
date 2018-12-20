@@ -1,16 +1,10 @@
 package affinities
 
 import (
-	"time"
-
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/framework"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/onsi/gomega"
+	"github.com/hashicorp/nomad/e2e/e2eutil"
 )
 
 type BasicAffinityTest struct {
@@ -30,45 +24,14 @@ func init() {
 
 func (tc *BasicAffinityTest) BeforeAll(f *framework.F) {
 	// Ensure cluster has leader before running tests
-	framework.WaitForLeader(f.T(), tc.Nomad())
-}
-
-func (tc *BasicAffinityTest) registerAndWaitForAllocs(f *framework.F, jobFile string, prefix string) []*api.AllocationListStub {
-	nomadClient := tc.Nomad()
-	// Parse job
-	job, err := jobspec.ParseFile(jobFile)
-	require := require.New(f.T())
-	require.Nil(err)
-	uuid := uuid.Generate()
-	jobId := helper.StringToPtr(prefix + uuid[0:8])
-	job.ID = jobId
-
-	tc.jobIds = append(tc.jobIds, *jobId)
-
-	// Register job
-	jobs := nomadClient.Jobs()
-	resp, _, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotEmpty(resp.EvalID)
-
-	g := NewGomegaWithT(f.T())
-
-	// Wrap in retry to wait until placement
-	g.Eventually(func() []*api.AllocationListStub {
-		// Look for allocations
-		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-		return allocs
-	}, 10*time.Second, time.Second).ShouldNot(BeEmpty())
-
-	allocs, _, err := jobs.Allocations(*job.ID, false, nil)
-	require.Nil(err)
-	return allocs
+	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 }
 
 func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
-	allocs := tc.registerAndWaitForAllocs(f, "affinities/input/single_affinity.nomad", "aff")
-
 	nomadClient := tc.Nomad()
+	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/single_affinity.nomad", "aff")
+	tc.jobIds = append(tc.jobIds, jobID)
+
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
 	// Verify affinity score metadata
@@ -87,9 +50,10 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 }
 
 func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
-	allocs := tc.registerAndWaitForAllocs(f, "affinities/input/multiple_affinities.nomad", "aff")
-
 	nomadClient := tc.Nomad()
+	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/multiple_affinities.nomad", "aff")
+	tc.jobIds = append(tc.jobIds, jobID)
+
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
 
@@ -126,9 +90,10 @@ func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
 }
 
 func (tc *BasicAffinityTest) TestAntiAffinities(f *framework.F) {
-	allocs := tc.registerAndWaitForAllocs(f, "affinities/input/anti_affinities.nomad", "aff")
-
 	nomadClient := tc.Nomad()
+	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/anti_affinities.nomad", "aff")
+	tc.jobIds = append(tc.jobIds, jobID)
+
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
 
