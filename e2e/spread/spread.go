@@ -43,10 +43,7 @@ func (tc *SpreadTest) TestEvenSpread(f *framework.F) {
 
 		node, _, err := nomadClient.Nodes().Info(alloc.NodeID, nil)
 		require.Nil(err)
-
-		cnt := dcToAllocs[node.Datacenter]
-		cnt++
-		dcToAllocs[node.Datacenter] = cnt
+		dcToAllocs[node.Datacenter]++
 	}
 
 	expectedDcToAllocs := make(map[string]int)
@@ -73,16 +70,10 @@ func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 
 		node, _, err := nomadClient.Nodes().Info(alloc.NodeID, nil)
 		require.Nil(err)
-
-		cnt := dcToAllocs[node.Datacenter]
-		cnt++
-		dcToAllocs[node.Datacenter] = cnt
-
+		dcToAllocs[node.Datacenter]++
 		rack := node.Meta["rack"]
 		if rack != "" {
-			cnt := rackToAllocs[rack]
-			cnt++
-			rackToAllocs[rack] = rackToAllocs[rack] + 1
+			rackToAllocs[rack]++
 		}
 	}
 
