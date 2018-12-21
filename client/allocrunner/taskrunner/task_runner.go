@@ -28,9 +28,10 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 )
 
 const (
@@ -408,8 +409,10 @@ MAIN:
 		}
 
 		// Grab the result proxy and wait for task to exit
+	WAIT:
 		{
 			handle := tr.getDriverHandle()
+			result = nil
 
 			// Do *not* use tr.killCtx here as it would cause
 			// Wait() to unblock before the task exits when Kill()
@@ -419,11 +422,14 @@ MAIN:
 			} else {
 				select {
 				case result = <-resultCh:
-					// WaitCh returned a result
-					tr.handleTaskExitResult(result)
 				case <-tr.ctx.Done():
 					// TaskRunner was told to exit immediately
 					return
+				}
+
+				// WaitCh returned a result
+				if retryWait := tr.handleTaskExitResult(result); retryWait {
+					goto WAIT
 				}
 			}
 		}
@@ -467,9 +473,33 @@ MAIN:
 	tr.logger.Debug("task run loop exiting")
 }
 
-func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) {
+// TODO(alex) is this a good return type? Should these be separate methods?
+func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWait bool) {
 	if result == nil {
-		return
+		return false
+	}
+
+	if result.Err == bstructs.ErrPluginShutdown {
+		tr.logger.Warn("driver plugin has shutdown; attempting to recover task")
+
+		// Initialize a new driver handle
+		if err := tr.initDriver(); err != nil {
+			tr.logger.Error("failed to initialize driver after it exited unexpectedly", "error", err)
+			return false
+		}
+
+		// Try to restore the handle
+		tr.stateLock.RLock()
+		h := tr.localState.TaskHandle
+		net := tr.localState.DriverNetwork
+		tr.stateLock.RUnlock()
+		if !tr.restoreHandle(h, net) {
+			tr.logger.Error("failed to restore handle on driver after it exited unexpectedly")
+			return false
+		}
+
+		tr.logger.Info("task successfully recovered on driver")
+		return true
 	}
 
 	event := structs.NewTaskEvent(structs.TaskTerminated).
@@ -483,6 +513,8 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) {
 	if result.OOMKilled && !tr.clientConfig.DisableTaggedMetrics {
 		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
 	}
+
+	return false
 }
 
 // handleUpdates runs update hooks when triggerUpdateCh is ticked and exits
@@ -530,7 +562,6 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 // runDriver runs the driver and waits for it to exit
 func (tr *TaskRunner) runDriver() error {
 
-	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
 	taskConfig := tr.buildTaskConfig()
 
 	// Build hcl context variables
@@ -556,10 +587,10 @@ func (tr *TaskRunner) runDriver() error {
 
 	evalCtx := &hcl.EvalContext{
 		Variables: vars,
-		Functions: shared.GetStdlibFuncs(),
+		Functions: hclutils.GetStdlibFuncs(),
 	}
 
-	val, diag := shared.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
+	val, diag := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
 	if diag.HasErrors() {
 		return multierror.Append(errors.New("failed to parse config"), diag.Errs()...)
 	}
@@ -567,8 +598,6 @@ func (tr *TaskRunner) runDriver() error {
 	if err := taskConfig.EncodeDriverConfig(val); err != nil {
 		return fmt.Errorf("failed to encode driver config: %v", err)
 	}
-
-	//XXX Evaluate and encode driver config
 
 	// If there's already a task handle (eg from a Restore) there's nothing
 	// to do except update state.
@@ -586,7 +615,22 @@ func (tr *TaskRunner) runDriver() error {
 	// Start the job if there's no existing handle (or if RecoverTask failed)
 	handle, net, err := tr.driver.StartTask(taskConfig)
 	if err != nil {
-		return fmt.Errorf("driver start failed: %v", err)
+		// The plugin has died, try relaunching it
+		if err == bstructs.ErrPluginShutdown {
+			tr.logger.Info("failed to start task because plugin shutdown unexpectedly; attempting to recover")
+			if err := tr.initDriver(); err != nil {
+				tr.logger.Error("failed to initialize driver after it exited unexpectedly", "error", err)
+				return fmt.Errorf("driver exited and couldn't be started again: %v", err)
+			}
+
+			handle, net, err = tr.driver.StartTask(taskConfig)
+			if err != nil {
+				tr.logger.Error("failed to start task after driver exited unexpectedly", "error", err)
+				return fmt.Errorf("driver start failed: %v", err)
+			}
+		} else {
+			return fmt.Errorf("driver start failed: %v", err)
+		}
 	}
 
 	tr.stateLock.Lock()
@@ -732,19 +776,20 @@ func (tr *TaskRunner) Restore() error {
 	return nil
 }
 
+// TODO(alex) Is the return optimal?
 // restoreHandle ensures a TaskHandle is valid by calling Driver.RecoverTask
 // and sets the driver handle. If the TaskHandle is not valid, DestroyTask is
 // called.
-func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstructs.DriverNetwork) {
+func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstructs.DriverNetwork) (success bool) {
 	// Ensure handle is well-formed
 	if taskHandle.Config == nil {
-		return
+		return true
 	}
 
 	if err := tr.driver.RecoverTask(taskHandle); err != nil {
 		if tr.TaskState().State != structs.TaskStateRunning {
 			// RecoverTask should fail if the Task wasn't running
-			return
+			return true
 		}
 
 		tr.logger.Error("error recovering task; cleaning up",
@@ -760,14 +805,15 @@ func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstruct
 					"error", err, "task_id", taskHandle.Config.ID)
 			}
 
+			return false
 		}
 
-		return
+		return true
 	}
 
 	// Update driver handle on task runner
 	tr.setDriverHandle(NewDriverHandle(tr.driver, taskHandle.Config.ID, tr.Task(), net))
-	return
+	return true
 }
 
 // UpdateState sets the task runners allocation state and triggers a server

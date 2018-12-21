@@ -13,8 +13,8 @@ import (
 	hcl2 "github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
@@ -22,7 +22,7 @@ var (
 	// configParseCtx is the context used to parse a plugin's configuration
 	// stanza
 	configParseCtx = &hcl2.EvalContext{
-		Functions: shared.GetStdlibFuncs(),
+		Functions: hclutils.GetStdlibFuncs(),
 	}
 )
 
@@ -467,7 +467,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 	}
 
 	// Parse the config using the spec
-	val, diag := shared.ParseHclInterface(info.config, spec, configParseCtx)
+	val, diag := hclutils.ParseHclInterface(info.config, spec, configParseCtx)
 	if diag.HasErrors() {
 		multierror.Append(&mErr, diag.Errs()...)
 		return multierror.Prefix(&mErr, "failed parsing config:")

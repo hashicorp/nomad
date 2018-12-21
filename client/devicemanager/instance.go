@@ -10,6 +10,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
@@ -363,7 +364,7 @@ START:
 
 		// Handle any errors
 		if fresp.Error != nil {
-			if fresp.Error == base.ErrPluginShutdown {
+			if fresp.Error == bstructs.ErrPluginShutdown {
 				i.logger.Error("plugin exited unexpectedly")
 				goto START
 			}
@@ -488,7 +489,7 @@ START:
 
 		// Handle any errors
 		if sresp.Error != nil {
-			if sresp.Error == base.ErrPluginShutdown {
+			if sresp.Error == bstructs.ErrPluginShutdown {
 				i.logger.Error("plugin exited unexpectedly")
 				goto START
 			}

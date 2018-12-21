@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
-	"github.com/hashicorp/nomad/plugins/shared"
+	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
@@ -35,7 +35,7 @@ func (d *driverPluginClient) TaskConfigSchema() (*hclspec.Spec, error) {
 
 	resp, err := d.client.TaskConfigSchema(d.doneCtx, req)
 	if err != nil {
-		return nil, err
+		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	return resp.Spec, nil
@@ -46,7 +46,7 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 
 	resp, err := d.client.Capabilities(d.doneCtx, req)
 	if err != nil {
-		return nil, err
+		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	caps := &Capabilities{}
@@ -74,11 +74,11 @@ func (d *driverPluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerpri
 	req := &proto.FingerprintRequest{}
 
 	// Join the passed context and the shutdown context
-	ctx, _ = joincontext.Join(ctx, d.doneCtx)
+	joinedCtx, _ := joincontext.Join(ctx, d.doneCtx)
 
-	stream, err := d.client.Fingerprint(ctx, req)
+	stream, err := d.client.Fingerprint(joinedCtx, req)
 	if err != nil {
-		return nil, err
+		return nil, grpcutils.HandleReqCtxGrpcErr(err, ctx, d.doneCtx)
 	}
 
 	ch := make(chan *Fingerprint, 1)
@@ -87,14 +87,14 @@ func (d *driverPluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerpri
 	return ch, nil
 }
 
-func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fingerprint, stream proto.Driver_FingerprintClient) {
+func (d *driverPluginClient) handleFingerprint(reqCtx context.Context, ch chan *Fingerprint, stream proto.Driver_FingerprintClient) {
 	defer close(ch)
 	for {
 		pb, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
 				ch <- &Fingerprint{
-					Err: shared.HandleStreamErr(err, ctx, d.doneCtx),
+					Err: grpcutils.HandleReqCtxGrpcErr(err, reqCtx, d.doneCtx),
 				}
 			}
 
@@ -109,7 +109,7 @@ func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fin
 		}
 
 		select {
-		case <-ctx.Done():
+		case <-reqCtx.Done():
 			return
 		case ch <- f:
 		}
@@ -122,7 +122,7 @@ func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
 	req := &proto.RecoverTaskRequest{Handle: taskHandleToProto(h)}
 
 	_, err := d.client.RecoverTask(d.doneCtx, req)
-	return err
+	return grpcutils.HandleGrpcErr(err, d.doneCtx)
 }
 
 // StartTask starts execution of a task with the given TaskConfig. A TaskHandle
@@ -141,7 +141,7 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.Dr
 				return nil, nil, structs.NewRecoverableError(err, rec.Recoverable)
 			}
 		}
-		return nil, nil, err
+		return nil, nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	var net *cstructs.DriverNetwork
@@ -165,10 +165,6 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.Dr
 // the same task without issue.
 func (d *driverPluginClient) WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error) {
 	ch := make(chan *ExitResult)
-
-	// Join the passed context and the shutdown context
-	ctx, _ = joincontext.Join(ctx, d.doneCtx)
-
 	go d.handleWaitTask(ctx, id, ch)
 	return ch, nil
 }
@@ -180,9 +176,12 @@ func (d *driverPluginClient) handleWaitTask(ctx context.Context, id string, ch c
 		TaskId: id,
 	}
 
-	resp, err := d.client.WaitTask(ctx, req)
+	// Join the passed context and the shutdown context
+	joinedCtx, _ := joincontext.Join(ctx, d.doneCtx)
+
+	resp, err := d.client.WaitTask(joinedCtx, req)
 	if err != nil {
-		result.Err = err
+		result.Err = grpcutils.HandleReqCtxGrpcErr(err, ctx, d.doneCtx)
 	} else {
 		result.ExitCode = int(resp.Result.ExitCode)
 		result.Signal = int(resp.Result.Signal)
@@ -206,7 +205,7 @@ func (d *driverPluginClient) StopTask(taskID string, timeout time.Duration, sign
 	}
 
 	_, err := d.client.StopTask(d.doneCtx, req)
-	return err
+	return grpcutils.HandleGrpcErr(err, d.doneCtx)
 }
 
 // DestroyTask removes the task from the driver's in memory state. The task
@@ -219,7 +218,7 @@ func (d *driverPluginClient) DestroyTask(taskID string, force bool) error {
 	}
 
 	_, err := d.client.DestroyTask(d.doneCtx, req)
-	return err
+	return grpcutils.HandleGrpcErr(err, d.doneCtx)
 }
 
 // InspectTask returns status information for a task
@@ -228,7 +227,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 
 	resp, err := d.client.InspectTask(d.doneCtx, req)
 	if err != nil {
-		return nil, err
+		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	status, err := taskStatusFromProto(resp.Task)
@@ -259,7 +258,7 @@ func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsa
 
 	resp, err := d.client.TaskStats(d.doneCtx, req)
 	if err != nil {
-		return nil, err
+		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	stats, err := TaskStatsFromProto(resp.Stats)
@@ -276,11 +275,11 @@ func (d *driverPluginClient) TaskEvents(ctx context.Context) (<-chan *TaskEvent,
 	req := &proto.TaskEventsRequest{}
 
 	// Join the passed context and the shutdown context
-	ctx, _ = joincontext.Join(ctx, d.doneCtx)
+	joinedCtx, _ := joincontext.Join(ctx, d.doneCtx)
 
-	stream, err := d.client.TaskEvents(ctx, req)
+	stream, err := d.client.TaskEvents(joinedCtx, req)
 	if err != nil {
-		return nil, err
+		return nil, grpcutils.HandleReqCtxGrpcErr(err, ctx, d.doneCtx)
 	}
 
 	ch := make(chan *TaskEvent, 1)
@@ -288,14 +287,14 @@ func (d *driverPluginClient) TaskEvents(ctx context.Context) (<-chan *TaskEvent,
 	return ch, nil
 }
 
-func (d *driverPluginClient) handleTaskEvents(ctx context.Context, ch chan *TaskEvent, stream proto.Driver_TaskEventsClient) {
+func (d *driverPluginClient) handleTaskEvents(reqCtx context.Context, ch chan *TaskEvent, stream proto.Driver_TaskEventsClient) {
 	defer close(ch)
 	for {
 		ev, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
 				ch <- &TaskEvent{
-					Err: shared.HandleStreamErr(err, ctx, d.doneCtx),
+					Err: grpcutils.HandleReqCtxGrpcErr(err, reqCtx, d.doneCtx),
 				}
 			}
 
@@ -313,7 +312,7 @@ func (d *driverPluginClient) handleTaskEvents(ctx context.Context, ch chan *Task
 			Timestamp:   timestamp,
 		}
 		select {
-		case <-ctx.Done():
+		case <-reqCtx.Done():
 			return
 		case ch <- event:
 		}
@@ -327,7 +326,7 @@ func (d *driverPluginClient) SignalTask(taskID string, signal string) error {
 		Signal: signal,
 	}
 	_, err := d.client.SignalTask(d.doneCtx, req)
-	return err
+	return grpcutils.HandleGrpcErr(err, d.doneCtx)
 }
 
 // ExecTask will run the given command within the execution context of the task.
@@ -343,7 +342,7 @@ func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.
 
 	resp, err := d.client.ExecTask(d.doneCtx, req)
 	if err != nil {
-		return nil, err
+		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	result := &ExecTaskResult{

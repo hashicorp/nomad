@@ -9,6 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
@@ -448,7 +449,7 @@ func (i *instanceManager) handleEvents() {
 // handleEvent looks up the event handler(s) for the event and runs them
 func (i *instanceManager) handleEvent(ev *drivers.TaskEvent) {
 	// Do not emit that the plugin is shutdown
-	if ev.Err != nil && ev.Err == base.ErrPluginShutdown {
+	if ev.Err != nil && ev.Err == bstructs.ErrPluginShutdown {
 		return
 	}
 
