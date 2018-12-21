@@ -124,12 +124,12 @@ func (n *Nodes) MonitorDrain(ctx context.Context, nodeID string, index uint64, i
 	allocCh := make(chan *MonitorMessage, 8)
 
 	// Multiplex node and alloc chans onto outCh. This goroutine closes
-	// outCh when other chans have been closed or context canceled.
+	// outCh when other chans have been closed.
 	multiplexCtx, cancel := context.WithCancel(ctx)
 	go n.monitorDrainMultiplex(multiplexCtx, cancel, outCh, nodeCh, allocCh)
 
 	// Monitor node for updates
-	go n.monitorDrainNode(multiplexCtx, cancel, nodeID, index, nodeCh)
+	go n.monitorDrainNode(multiplexCtx, nodeID, index, nodeCh)
 
 	// Monitor allocs on node for updates
 	go n.monitorDrainAllocs(multiplexCtx, nodeID, ignoreSys, allocCh)
@@ -160,12 +160,14 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 			if !nodeOk {
 				// nil chan to prevent further recvs
 				nodeCh = nil
+				continue
 			}
 
 		case msg, allocOk = <-allocCh:
 			if !allocOk {
 				// nil chan to prevent further recvs
 				allocCh = nil
+				continue
 			}
 
 		case <-ctx.Done():
@@ -179,14 +181,6 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 		select {
 		case outCh <- msg:
 		case <-ctx.Done():
-
-			// If we are exiting but we have a message, attempt to send it
-			// so we don't lose a message but do not block.
-			select {
-			case outCh <- msg:
-			default:
-			}
-
 			return
 		}
 
@@ -199,12 +193,12 @@ func (n *Nodes) monitorDrainMultiplex(ctx context.Context, cancel func(),
 
 // monitorDrainNode emits node updates on nodeCh and closes the channel when
 // the node has finished draining.
-func (n *Nodes) monitorDrainNode(ctx context.Context, cancel func(),
-	nodeID string, index uint64, nodeCh chan<- *MonitorMessage) {
+func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string,
+	index uint64, nodeCh chan<- *MonitorMessage) {
+
 	defer close(nodeCh)
 
 	var lastStrategy *DrainStrategy
-	var strategyChanged bool
 	q := QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
@@ -222,12 +216,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, cancel func(),
 
 		if node.DrainStrategy == nil {
 			var msg *MonitorMessage
-			if strategyChanged {
-				msg = Messagef(MonitorMsgLevelInfo, "Node %q has marked all allocations for migration", nodeID)
-			} else {
-				msg = Messagef(MonitorMsgLevelInfo, "No drain strategy set for node %s", nodeID)
-				defer cancel()
-			}
+			msg = Messagef(MonitorMsgLevelInfo, "Drain complete for node %s", nodeID)
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
@@ -254,7 +243,6 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, cancel func(),
 		}
 
 		lastStrategy = node.DrainStrategy
-		strategyChanged = true
 
 		// Drain still ongoing, update index and block for updates
 		q.WaitIndex = meta.LastIndex
