@@ -28,13 +28,18 @@
     "broccoli-asset-rev": "^2.4.5",
     "bulma": "0.6.1",
     "core-js": "^2.4.1",
+    "d3-array": "^1.2.0",
+    "d3-axis": "^1.0.0",
+    "d3-format": "^1.3.0",
+    "d3-scale": "^1.0.0",
     "d3-selection": "^1.1.0",
+    "d3-shape": "^1.2.0",
+    "d3-time-format": "^2.1.0",
     "d3-transition": "^1.1.0",
     "ember-ajax": "^3.0.0",
     "ember-auto-import": "^1.0.1",
     "ember-cli": "~2.18.2",
     "ember-cli-babel": "^6.0.0",
-    "ember-cli-bourbon": "2.0.0-beta.1",
     "ember-cli-dependency-checker": "^2.1.0",
     "ember-cli-eslint": "^4.2.3",
     "ember-cli-funnel": "^0.6.0",
@@ -88,5 +93,8 @@
       "lib/bulma",
       "lib/calendar"
     ]
+  },
+  "dependencies": {
+    "lru_map": "^0.3.3"
   }
 }

@@ -51,7 +51,7 @@ easier to adopt the paradigm.
 
 ## Batch Processing Workloads
 
-As data science and analytics teams grow is size and complexity, they increasingly 
+As data science and analytics teams grow in size and complexity, they increasingly 
 benefit from highly performant and scalable tools that can run batch workloads with 
 minimal operational overhead. Nomad can natively run batch jobs, [parameterized](https://www.hashicorp.com/blog/replacing-queues-with-nomad-dispatch) jobs, and [Spark](https://github.com/hashicorp/nomad-spark) 
 workloads. Nomad's architecture enables easy scalability and an optimistically 

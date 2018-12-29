@@ -2,16 +2,16 @@ package consul
 
 import (
 	"context"
-	"log"
 	"strings"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	version "github.com/hashicorp/go-version"
 )
 
 // checkConsulTLSSkipVerify logs if Consul does not support TLSSkipVerify on
 // checks and is intended to be run in a goroutine.
-func checkConsulTLSSkipVerify(ctx context.Context, logger *log.Logger, client AgentAPI, done chan struct{}) {
+func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client AgentAPI, done chan struct{}) {
 	const (
 		baseline = time.Second
 		limit    = 20 * time.Second
@@ -24,10 +24,10 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger *log.Logger, client Ag
 		self, err := client.Self()
 		if err == nil {
 			if supportsTLSSkipVerify(self) {
-				logger.Printf("[TRACE] consul.sync: supports TLSSkipVerify")
+				logger.Trace("Consul supports TLSSkipVerify")
 			} else {
-				logger.Printf("[WARN] consul.sync: Consul does NOT support TLSSkipVerify; please upgrade to Consul %s or newer",
-					consulTLSSkipVerifyMinVersion)
+				logger.Warn("Consul does NOT support TLSSkipVerify; please upgrade Consul",
+					"min_version", consulTLSSkipVerifyMinVersion)
 			}
 			return
 		}

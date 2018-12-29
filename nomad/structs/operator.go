@@ -119,3 +119,51 @@ type AutopilotConfig struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 }
+
+// SchedulerConfiguration is the config for controlling scheduler behavior
+type SchedulerConfiguration struct {
+	// PreemptionConfig specifies whether to enable eviction of lower
+	// priority jobs to place higher priority jobs.
+	PreemptionConfig PreemptionConfig
+
+	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration
+type SchedulerConfigurationResponse struct {
+	// SchedulerConfig contains scheduler config options
+	SchedulerConfig *SchedulerConfiguration
+
+	QueryMeta
+}
+
+// SchedulerSetConfigurationResponse is the response object used
+// when updating scheduler configuration
+type SchedulerSetConfigurationResponse struct {
+	// Updated returns whether the config was actually updated
+	// Only set when the request uses CAS
+	Updated bool
+
+	WriteMeta
+}
+
+// PreemptionConfig specifies whether preemption is enabled based on scheduler type
+type PreemptionConfig struct {
+	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs
+	SystemSchedulerEnabled bool
+}
+
+// SchedulerSetConfigRequest is used by the Operator endpoint to update the
+// current Scheduler configuration of the cluster.
+type SchedulerSetConfigRequest struct {
+	// Config is the new Scheduler configuration to use.
+	Config SchedulerConfiguration
+
+	// CAS controls whether to use check-and-set semantics for this request.
+	CAS bool
+
+	// WriteRequest holds the ACL token to go along with this request.
+	WriteRequest
+}

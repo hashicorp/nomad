@@ -31,10 +31,10 @@ func TestClientFS_List_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -183,10 +183,10 @@ func TestClientFS_List_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -300,10 +300,10 @@ func TestClientFS_Stat_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -452,10 +452,10 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -719,10 +719,10 @@ func TestClientFS_Streaming_Local(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -851,10 +851,10 @@ func TestClientFS_Streaming_Local_Follow(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expectedBase := "Hello from the other side"
@@ -868,10 +868,10 @@ func TestClientFS_Streaming_Local_Follow(t *testing.T) {
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
-			"run_for":                "20s",
+			"run_for":                "3s",
 			"stdout_string":          expectedBase,
 			"stdout_repeat":          repeat,
-			"stdout_repeat_duration": 200 * time.Millisecond,
+			"stdout_repeat_duration": "200ms",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -995,10 +995,10 @@ func TestClientFS_Streaming_Remote_Server(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -1141,11 +1141,11 @@ func TestClientFS_Streaming_Remote_Region(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.Region = "two"
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -1541,10 +1541,10 @@ func TestClientFS_Logs_Local(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -1674,10 +1674,10 @@ func TestClientFS_Logs_Local_Follow(t *testing.T) {
 	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expectedBase := "Hello from the other side"
@@ -1694,7 +1694,7 @@ func TestClientFS_Logs_Local_Follow(t *testing.T) {
 			"run_for":                "20s",
 			"stdout_string":          expectedBase,
 			"stdout_repeat":          repeat,
-			"stdout_repeat_duration": 200 * time.Millisecond,
+			"stdout_repeat_duration": "200ms",
 		},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
@@ -1819,10 +1819,10 @@ func TestClientFS_Logs_Remote_Server(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"
@@ -1966,11 +1966,11 @@ func TestClientFS_Logs_Remote_Region(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.Region = "two"
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	expected := "Hello from the other side"

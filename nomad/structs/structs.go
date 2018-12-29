@@ -2,6 +2,7 @@ package structs
 
 import (
 	"bytes"
+	"container/heap"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -11,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/url"
 	"os"
@@ -22,13 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/blake2b"
-
-	"container/heap"
-	"math"
-
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
+	hcodec "github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
@@ -36,10 +34,10 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/mitchellh/copystructure"
 	"github.com/ugorji/go/codec"
-
-	hcodec "github.com/hashicorp/go-msgpack/codec"
+	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -83,6 +81,7 @@ const (
 	AllocUpdateDesiredTransitionRequestType
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
+	SchedulerConfigRequestType
 )
 
 const (
@@ -163,6 +162,14 @@ const (
 type NamespacedID struct {
 	ID        string
 	Namespace string
+}
+
+// NewNamespacedID returns a new namespaced ID given the ID and namespace
+func NewNamespacedID(id, ns string) NamespacedID {
+	return NamespacedID{
+		ID:        id,
+		Namespace: ns,
+	}
 }
 
 func (n NamespacedID) String() string {
@@ -645,6 +652,14 @@ type ApplyPlanResultsRequest struct {
 	// processed many times, potentially making state updates, without the state of
 	// the evaluation itself being updated.
 	EvalID string
+
+	// NodePreemptions is a slice of allocations from other lower priority jobs
+	// that are preempted. Preempted allocations are marked as evicted.
+	NodePreemptions []*Allocation
+
+	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
+	// have been preempted to place allocs in this plan
+	PreemptionEvals []*Evaluation
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -1425,8 +1440,16 @@ type Node struct {
 	// "docker.runtime=1.8.3"
 	Attributes map[string]string
 
+	// NodeResources captures the available resources on the client.
+	NodeResources *NodeResources
+
+	// ReservedResources captures the set resources on the client that are
+	// reserved from scheduling.
+	ReservedResources *NodeReservedResources
+
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
+	// COMPAT(0.10): Remove in 0.10
 	Resources *Resources
 
 	// Reserved is the set of resources that are reserved,
@@ -1522,6 +1545,8 @@ func (n *Node) Copy() *Node {
 	nn.Attributes = helper.CopyMapStringString(nn.Attributes)
 	nn.Resources = nn.Resources.Copy()
 	nn.Reserved = nn.Reserved.Copy()
+	nn.NodeResources = nn.NodeResources.Copy()
+	nn.ReservedResources = nn.ReservedResources.Copy()
 	nn.Links = helper.CopyMapStringString(nn.Links)
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
@@ -1569,6 +1594,64 @@ func (n *Node) TerminalStatus() bool {
 	}
 }
 
+// COMPAT(0.11): Remove in 0.11
+// ComparableReservedResources returns the reserved resouces on the node
+// handling upgrade paths. Reserved networks must be handled separately. After
+// 0.11 calls to this should be replaced with:
+// node.ReservedResources.Comparable()
+func (n *Node) ComparableReservedResources() *ComparableResources {
+	// See if we can no-op
+	if n.Reserved == nil && n.ReservedResources == nil {
+		return nil
+	}
+
+	// Node already has 0.9+ behavior
+	if n.ReservedResources != nil {
+		return n.ReservedResources.Comparable()
+	}
+
+	// Upgrade path
+	return &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: int64(n.Reserved.CPU),
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: int64(n.Reserved.MemoryMB),
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: int64(n.Reserved.DiskMB),
+		},
+	}
+}
+
+// COMPAT(0.11): Remove in 0.11
+// ComparableResources returns the resouces on the node
+// handling upgrade paths. Networking must be handled separately. After 0.11
+// calls to this should be replaced with: node.NodeResources.Comparable()
+func (n *Node) ComparableResources() *ComparableResources {
+	// Node already has 0.9+ behavior
+	if n.NodeResources != nil {
+		return n.NodeResources.Comparable()
+	}
+
+	// Upgrade path
+	return &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: int64(n.Resources.CPU),
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: int64(n.Resources.MemoryMB),
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: int64(n.Resources.DiskMB),
+		},
+	}
+}
+
 // Stub returns a summarized version of the node
 func (n *Node) Stub() *NodeListStub {
 
@@ -1609,26 +1692,6 @@ type NodeListStub struct {
 	ModifyIndex           uint64
 }
 
-// Networks defined for a task on the Resources struct.
-type Networks []*NetworkResource
-
-// Port assignment and IP for the given label or empty values.
-func (ns Networks) Port(label string) (string, int) {
-	for _, n := range ns {
-		for _, p := range n.ReservedPorts {
-			if p.Label == label {
-				return n.IP, p.Value
-			}
-		}
-		for _, p := range n.DynamicPorts {
-			if p.Label == label {
-				return n.IP, p.Value
-			}
-		}
-	}
-	return "", 0
-}
-
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
@@ -1637,6 +1700,7 @@ type Resources struct {
 	DiskMB   int
 	IOPS     int
 	Networks Networks
+	Devices  []*RequestedDevice
 }
 
 const (
@@ -1673,6 +1737,26 @@ func (r *Resources) DiskInBytes() int64 {
 	return int64(r.DiskMB * BytesInMegabyte)
 }
 
+func (r *Resources) Validate() error {
+	var mErr multierror.Error
+	if err := r.MeetsMinResources(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	// Ensure the task isn't asking for disk resources
+	if r.DiskMB > 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
+	}
+
+	for i, d := range r.Devices {
+		if err := d.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("device %d failed validation: %v", i+1, err))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // Merge merges this resource with another resource.
 func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
@@ -1690,6 +1774,9 @@ func (r *Resources) Merge(other *Resources) {
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
 	}
+	if len(other.Devices) != 0 {
+		r.Devices = other.Devices
+	}
 }
 
 func (r *Resources) Canonicalize() {
@@ -1697,6 +1784,9 @@ func (r *Resources) Canonicalize() {
 	// problems since we use reflect DeepEquals.
 	if len(r.Networks) == 0 {
 		r.Networks = nil
+	}
+	if len(r.Devices) == 0 {
+		r.Devices = nil
 	}
 
 	for _, n := range r.Networks {
@@ -1735,6 +1825,8 @@ func (r *Resources) Copy() *Resources {
 	}
 	newR := new(Resources)
 	*newR = *r
+
+	// Copy the network objects
 	if r.Networks != nil {
 		n := len(r.Networks)
 		newR.Networks = make([]*NetworkResource, n)
@@ -1742,17 +1834,22 @@ func (r *Resources) Copy() *Resources {
 			newR.Networks[i] = r.Networks[i].Copy()
 		}
 	}
+
+	// Copy the devices
+	if r.Devices != nil {
+		n := len(r.Devices)
+		newR.Devices = make([]*RequestedDevice, n)
+		for i := 0; i < n; i++ {
+			newR.Devices[i] = r.Devices[i].Copy()
+		}
+	}
+
 	return newR
 }
 
 // NetIndex finds the matching net index using device name
 func (r *Resources) NetIndex(n *NetworkResource) int {
-	for idx, net := range r.Networks {
-		if net.Device == n.Device {
-			return idx
-		}
-	}
-	return -1
+	return r.Networks.NetIndex(n)
 }
 
 // Superset checks if one set of resources is a superset
@@ -1925,6 +2022,993 @@ func (n *NetworkResource) PortLabels() map[string]int {
 		labelValues[port.Label] = port.Value
 	}
 	return labelValues
+}
+
+// Networks defined for a task on the Resources struct.
+type Networks []*NetworkResource
+
+// Port assignment and IP for the given label or empty values.
+func (ns Networks) Port(label string) (string, int) {
+	for _, n := range ns {
+		for _, p := range n.ReservedPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+		for _, p := range n.DynamicPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+	}
+	return "", 0
+}
+
+func (ns Networks) NetIndex(n *NetworkResource) int {
+	for idx, net := range ns {
+		if net.Device == n.Device {
+			return idx
+		}
+	}
+	return -1
+}
+
+// RequestedDevice is used to request a device for a task.
+type RequestedDevice struct {
+	// Name is the request name. The possible values are as follows:
+	// * <type>: A single value only specifies the type of request.
+	// * <vendor>/<type>: A single slash delimiter assumes the vendor and type of device is specified.
+	// * <vendor>/<type>/<name>: Two slash delimiters assume vendor, type and specific model are specified.
+	//
+	// Examples are as follows:
+	// * "gpu"
+	// * "nvidia/gpu"
+	// * "nvidia/gpu/GTX2080Ti"
+	Name string
+
+	// Count is the number of requested devices
+	Count uint64
+
+	// Constraints are a set of constraints to apply when selecting the device
+	// to use.
+	Constraints []*Constraint
+
+	// Affinities are a set of affinites to apply when selecting the device
+	// to use.
+	Affinities []*Affinity
+}
+
+func (r *RequestedDevice) Copy() *RequestedDevice {
+	if r == nil {
+		return nil
+	}
+
+	nr := *r
+	nr.Constraints = CopySliceConstraints(nr.Constraints)
+	nr.Affinities = CopySliceAffinities(nr.Affinities)
+
+	return &nr
+}
+
+func (r *RequestedDevice) ID() *DeviceIdTuple {
+	if r == nil || r.Name == "" {
+		return nil
+	}
+
+	parts := strings.SplitN(r.Name, "/", 3)
+	switch len(parts) {
+	case 1:
+		return &DeviceIdTuple{
+			Type: parts[0],
+		}
+	case 2:
+		return &DeviceIdTuple{
+			Vendor: parts[0],
+			Type:   parts[1],
+		}
+	default:
+		return &DeviceIdTuple{
+			Vendor: parts[0],
+			Type:   parts[1],
+			Name:   parts[2],
+		}
+	}
+}
+
+func (r *RequestedDevice) Validate() error {
+	if r == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+	if r.Name == "" {
+		multierror.Append(&mErr, errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name"))
+	}
+
+	for idx, constr := range r.Constraints {
+		// Ensure that the constraint doesn't use an operand we do not allow
+		switch constr.Operand {
+		case ConstraintDistinctHosts, ConstraintDistinctProperty:
+			outer := fmt.Errorf("Constraint %d validation failed: using unsupported operand %q", idx+1, constr.Operand)
+			multierror.Append(&mErr, outer)
+		default:
+			if err := constr.Validate(); err != nil {
+				outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
+				multierror.Append(&mErr, outer)
+			}
+		}
+	}
+	for idx, affinity := range r.Affinities {
+		if err := affinity.Validate(); err != nil {
+			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
+			multierror.Append(&mErr, outer)
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// NodeResources is used to define the resources available on a client node.
+type NodeResources struct {
+	Cpu      NodeCpuResources
+	Memory   NodeMemoryResources
+	Disk     NodeDiskResources
+	Networks Networks
+	Devices  []*NodeDeviceResource
+}
+
+func (n *NodeResources) Copy() *NodeResources {
+	if n == nil {
+		return nil
+	}
+
+	newN := new(NodeResources)
+	*newN = *n
+
+	// Copy the networks
+	if n.Networks != nil {
+		networks := len(n.Networks)
+		newN.Networks = make([]*NetworkResource, networks)
+		for i := 0; i < networks; i++ {
+			newN.Networks[i] = n.Networks[i].Copy()
+		}
+	}
+
+	// Copy the devices
+	if n.Devices != nil {
+		devices := len(n.Devices)
+		newN.Devices = make([]*NodeDeviceResource, devices)
+		for i := 0; i < devices; i++ {
+			newN.Devices[i] = n.Devices[i].Copy()
+		}
+	}
+
+	return newN
+}
+
+// Comparable returns a comparable version of the nodes resources. This
+// conversion can be lossy so care must be taken when using it.
+func (n *NodeResources) Comparable() *ComparableResources {
+	if n == nil {
+		return nil
+	}
+
+	c := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: n.Cpu.CpuShares,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+			Networks: n.Networks,
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+	return c
+}
+
+func (n *NodeResources) Merge(o *NodeResources) {
+	if o == nil {
+		return
+	}
+
+	n.Cpu.Merge(&o.Cpu)
+	n.Memory.Merge(&o.Memory)
+	n.Disk.Merge(&o.Disk)
+
+	if len(o.Networks) != 0 {
+		n.Networks = o.Networks
+	}
+
+	if len(o.Devices) != 0 {
+		n.Devices = o.Devices
+	}
+}
+
+func (n *NodeResources) Equals(o *NodeResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if !n.Cpu.Equals(&o.Cpu) {
+		return false
+	}
+	if !n.Memory.Equals(&o.Memory) {
+		return false
+	}
+	if !n.Disk.Equals(&o.Disk) {
+		return false
+	}
+
+	if len(n.Networks) != len(o.Networks) {
+		return false
+	}
+	for i, n := range n.Networks {
+		if !n.Equals(o.Networks[i]) {
+			return false
+		}
+	}
+
+	// Check the devices
+	if !DevicesEquals(n.Devices, o.Devices) {
+		return false
+	}
+
+	return true
+}
+
+// DevicesEquals returns true if the two device arrays are equal
+func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
+	if len(d1) != len(d2) {
+		return false
+	}
+	idMap := make(map[DeviceIdTuple]*NodeDeviceResource, len(d1))
+	for _, d := range d1 {
+		idMap[*d.ID()] = d
+	}
+	for _, otherD := range d2 {
+		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equals(otherD) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// NodeCpuResources captures the CPU resources of the node.
+type NodeCpuResources struct {
+	// CpuShares is the CPU shares available. This is calculated by number of
+	// cores multiplied by the core frequency.
+	CpuShares int64
+}
+
+func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
+	if o == nil {
+		return
+	}
+
+	if o.CpuShares != 0 {
+		n.CpuShares = o.CpuShares
+	}
+}
+
+func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.CpuShares != o.CpuShares {
+		return false
+	}
+
+	return true
+}
+
+// NodeMemoryResources captures the memory resources of the node
+type NodeMemoryResources struct {
+	// MemoryMB is the total available memory on the node
+	MemoryMB int64
+}
+
+func (n *NodeMemoryResources) Merge(o *NodeMemoryResources) {
+	if o == nil {
+		return
+	}
+
+	if o.MemoryMB != 0 {
+		n.MemoryMB = o.MemoryMB
+	}
+}
+
+func (n *NodeMemoryResources) Equals(o *NodeMemoryResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.MemoryMB != o.MemoryMB {
+		return false
+	}
+
+	return true
+}
+
+// NodeDiskResources captures the disk resources of the node
+type NodeDiskResources struct {
+	// DiskMB is the total available disk space on the node
+	DiskMB int64
+}
+
+func (n *NodeDiskResources) Merge(o *NodeDiskResources) {
+	if o == nil {
+		return
+	}
+	if o.DiskMB != 0 {
+		n.DiskMB = o.DiskMB
+	}
+}
+
+func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.DiskMB != o.DiskMB {
+		return false
+	}
+
+	return true
+}
+
+// DeviceIdTuple is the tuple that identifies a device
+type DeviceIdTuple struct {
+	Vendor string
+	Type   string
+	Name   string
+}
+
+func (d *DeviceIdTuple) String() string {
+	if d == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/%s/%s", d.Vendor, d.Type, d.Name)
+}
+
+// Matches returns if this Device ID is a superset of the passed ID.
+func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
+	if other == nil {
+		return false
+	}
+
+	if other.Name != "" && other.Name != id.Name {
+		return false
+	}
+
+	if other.Vendor != "" && other.Vendor != id.Vendor {
+		return false
+	}
+
+	if other.Type != "" && other.Type != id.Type {
+		return false
+	}
+
+	return true
+}
+
+// Equals returns if this Device ID is the same as the passed ID.
+func (id *DeviceIdTuple) Equals(o *DeviceIdTuple) bool {
+	if id == nil && o == nil {
+		return true
+	} else if id == nil || o == nil {
+		return false
+	}
+
+	return o.Vendor == id.Vendor && o.Type == id.Type && o.Name == id.Name
+}
+
+// NodeDeviceResource captures a set of devices sharing a common
+// vendor/type/device_name tuple.
+type NodeDeviceResource struct {
+	Vendor     string
+	Type       string
+	Name       string
+	Instances  []*NodeDevice
+	Attributes map[string]*psstructs.Attribute
+}
+
+func (n *NodeDeviceResource) ID() *DeviceIdTuple {
+	if n == nil {
+		return nil
+	}
+
+	return &DeviceIdTuple{
+		Vendor: n.Vendor,
+		Type:   n.Type,
+		Name:   n.Name,
+	}
+}
+
+func (n *NodeDeviceResource) Copy() *NodeDeviceResource {
+	if n == nil {
+		return nil
+	}
+
+	// Copy the primitives
+	nn := *n
+
+	// Copy the device instances
+	if l := len(nn.Instances); l != 0 {
+		nn.Instances = make([]*NodeDevice, 0, l)
+		for _, d := range n.Instances {
+			nn.Instances = append(nn.Instances, d.Copy())
+		}
+	}
+
+	// Copy the Attributes
+	nn.Attributes = psstructs.CopyMapStringAttribute(nn.Attributes)
+
+	return &nn
+}
+
+func (n *NodeDeviceResource) Equals(o *NodeDeviceResource) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.Vendor != o.Vendor {
+		return false
+	} else if n.Type != o.Type {
+		return false
+	} else if n.Name != o.Name {
+		return false
+	}
+
+	// Check the attributes
+	if len(n.Attributes) != len(o.Attributes) {
+		return false
+	}
+	for k, v := range n.Attributes {
+		if otherV, ok := o.Attributes[k]; !ok || v != otherV {
+			return false
+		}
+	}
+
+	// Check the instances
+	if len(n.Instances) != len(o.Instances) {
+		return false
+	}
+	idMap := make(map[string]*NodeDevice, len(n.Instances))
+	for _, d := range n.Instances {
+		idMap[d.ID] = d
+	}
+	for _, otherD := range o.Instances {
+		if d, ok := idMap[otherD.ID]; !ok || !d.Equals(otherD) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// NodeDevice is an instance of a particular device.
+type NodeDevice struct {
+	// ID is the ID of the device.
+	ID string
+
+	// Healthy captures whether the device is healthy.
+	Healthy bool
+
+	// HealthDescription is used to provide a human readable description of why
+	// the device may be unhealthy.
+	HealthDescription string
+
+	// Locality stores HW locality information for the node to optionally be
+	// used when making placement decisions.
+	Locality *NodeDeviceLocality
+}
+
+func (n *NodeDevice) Equals(o *NodeDevice) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.ID != o.ID {
+		return false
+	} else if n.Healthy != o.Healthy {
+		return false
+	} else if n.HealthDescription != o.HealthDescription {
+		return false
+	} else if !n.Locality.Equals(o.Locality) {
+		return false
+	}
+
+	return false
+}
+
+func (n *NodeDevice) Copy() *NodeDevice {
+	if n == nil {
+		return nil
+	}
+
+	// Copy the primitives
+	nn := *n
+
+	// Copy the locality
+	nn.Locality = nn.Locality.Copy()
+
+	return &nn
+}
+
+// NodeDeviceLocality stores information about the devices hardware locality on
+// the node.
+type NodeDeviceLocality struct {
+	// PciBusID is the PCI Bus ID for the device.
+	PciBusID string
+}
+
+func (n *NodeDeviceLocality) Equals(o *NodeDeviceLocality) bool {
+	if o == nil && n == nil {
+		return true
+	} else if o == nil {
+		return false
+	} else if n == nil {
+		return false
+	}
+
+	if n.PciBusID != o.PciBusID {
+		return false
+	}
+
+	return true
+}
+
+func (n *NodeDeviceLocality) Copy() *NodeDeviceLocality {
+	if n == nil {
+		return nil
+	}
+
+	// Copy the primitives
+	nn := *n
+	return &nn
+}
+
+// NodeReservedResources is used to capture the resources on a client node that
+// should be reserved and not made available to jobs.
+type NodeReservedResources struct {
+	Cpu      NodeReservedCpuResources
+	Memory   NodeReservedMemoryResources
+	Disk     NodeReservedDiskResources
+	Networks NodeReservedNetworkResources
+}
+
+func (n *NodeReservedResources) Copy() *NodeReservedResources {
+	if n == nil {
+		return nil
+	}
+	newN := new(NodeReservedResources)
+	*newN = *n
+	return newN
+}
+
+// Comparable returns a comparable version of the node's reserved resources. The
+// returned resources doesn't contain any network information. This conversion
+// can be lossy so care must be taken when using it.
+func (n *NodeReservedResources) Comparable() *ComparableResources {
+	if n == nil {
+		return nil
+	}
+
+	c := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: n.Cpu.CpuShares,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+	return c
+}
+
+// NodeReservedCpuResources captures the reserved CPU resources of the node.
+type NodeReservedCpuResources struct {
+	CpuShares int64
+}
+
+// NodeReservedMemoryResources captures the reserved memory resources of the node.
+type NodeReservedMemoryResources struct {
+	MemoryMB int64
+}
+
+// NodeReservedDiskResources captures the reserved disk resources of the node.
+type NodeReservedDiskResources struct {
+	DiskMB int64
+}
+
+// NodeReservedNetworkResources captures the reserved network resources of the node.
+type NodeReservedNetworkResources struct {
+	// ReservedHostPorts is the set of ports reserved on all host network
+	// interfaces. Its format is a comma separate list of integers or integer
+	// ranges. (80,443,1000-2000,2005)
+	ReservedHostPorts string
+}
+
+// ParsePortHostPorts returns the reserved host ports.
+func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error) {
+	return ParsePortRanges(n.ReservedHostPorts)
+}
+
+// AllocatedResources is the set of resources to be used by an allocation.
+type AllocatedResources struct {
+	// Tasks is a mapping of task name to the resources for the task.
+	Tasks map[string]*AllocatedTaskResources
+
+	// Shared is the set of resource that are shared by all tasks in the group.
+	Shared AllocatedSharedResources
+}
+
+func (a *AllocatedResources) Copy() *AllocatedResources {
+	if a == nil {
+		return nil
+	}
+	newA := new(AllocatedResources)
+	*newA = *a
+
+	if a.Tasks != nil {
+		tr := make(map[string]*AllocatedTaskResources, len(newA.Tasks))
+		for task, resource := range newA.Tasks {
+			tr[task] = resource.Copy()
+		}
+		newA.Tasks = tr
+	}
+
+	return newA
+}
+
+// Comparable returns a comparable version of the allocations allocated
+// resources. This conversion can be lossy so care must be taken when using it.
+func (a *AllocatedResources) Comparable() *ComparableResources {
+	if a == nil {
+		return nil
+	}
+
+	c := &ComparableResources{
+		Shared: a.Shared,
+	}
+	for _, r := range a.Tasks {
+		c.Flattened.Add(r)
+	}
+	return c
+}
+
+// OldTaskResources returns the pre-0.9.0 map of task resources
+func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
+	m := make(map[string]*Resources, len(a.Tasks))
+	for name, res := range a.Tasks {
+		m[name] = &Resources{
+			CPU:      int(res.Cpu.CpuShares),
+			MemoryMB: int(res.Memory.MemoryMB),
+			Networks: res.Networks,
+		}
+	}
+
+	return m
+}
+
+// AllocatedTaskResources are the set of resources allocated to a task.
+type AllocatedTaskResources struct {
+	Cpu      AllocatedCpuResources
+	Memory   AllocatedMemoryResources
+	Networks Networks
+	Devices  []*AllocatedDeviceResource
+}
+
+func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
+	if a == nil {
+		return nil
+	}
+	newA := new(AllocatedTaskResources)
+	*newA = *a
+
+	// Copy the networks
+	if a.Networks != nil {
+		n := len(a.Networks)
+		newA.Networks = make([]*NetworkResource, n)
+		for i := 0; i < n; i++ {
+			newA.Networks[i] = a.Networks[i].Copy()
+		}
+	}
+
+	// Copy the devices
+	if newA.Devices != nil {
+		n := len(a.Devices)
+		newA.Devices = make([]*AllocatedDeviceResource, n)
+		for i := 0; i < n; i++ {
+			newA.Devices[i] = a.Devices[i].Copy()
+		}
+	}
+
+	return newA
+}
+
+// NetIndex finds the matching net index using device name
+func (a *AllocatedTaskResources) NetIndex(n *NetworkResource) int {
+	return a.Networks.NetIndex(n)
+}
+
+func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
+	if delta == nil {
+		return
+	}
+
+	a.Cpu.Add(&delta.Cpu)
+	a.Memory.Add(&delta.Memory)
+
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := a.NetIndex(n)
+		if idx == -1 {
+			a.Networks = append(a.Networks, n.Copy())
+		} else {
+			a.Networks[idx].Add(n)
+		}
+	}
+
+	for _, d := range delta.Devices {
+		// Find the matching device
+		idx := AllocatedDevices(a.Devices).Index(d)
+		if idx == -1 {
+			a.Devices = append(a.Devices, d.Copy())
+		} else {
+			a.Devices[idx].Add(d)
+		}
+	}
+}
+
+// Comparable turns AllocatedTaskResources into ComparableResources
+// as a helper step in preemption
+func (a *AllocatedTaskResources) Comparable() *ComparableResources {
+	ret := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: a.Cpu.CpuShares,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: a.Memory.MemoryMB,
+			},
+		},
+	}
+	if len(a.Networks) > 0 {
+		for _, net := range a.Networks {
+			ret.Flattened.Networks = append(ret.Flattened.Networks, net)
+		}
+	}
+	return ret
+}
+
+// Subtract only subtracts CPU and Memory resources. Network utilization
+// is managed separately in NetworkIndex
+func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
+	if delta == nil {
+		return
+	}
+
+	a.Cpu.Subtract(&delta.Cpu)
+	a.Memory.Subtract(&delta.Memory)
+}
+
+// AllocatedSharedResources are the set of resources allocated to a task group.
+type AllocatedSharedResources struct {
+	DiskMB int64
+}
+
+func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
+	if delta == nil {
+		return
+	}
+
+	a.DiskMB += delta.DiskMB
+}
+
+func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
+	if delta == nil {
+		return
+	}
+
+	a.DiskMB -= delta.DiskMB
+}
+
+// AllocatedCpuResources captures the allocated CPU resources.
+type AllocatedCpuResources struct {
+	CpuShares int64
+}
+
+func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
+	if delta == nil {
+		return
+	}
+
+	a.CpuShares += delta.CpuShares
+}
+
+func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
+	if delta == nil {
+		return
+	}
+
+	a.CpuShares -= delta.CpuShares
+}
+
+// AllocatedMemoryResources captures the allocated memory resources.
+type AllocatedMemoryResources struct {
+	MemoryMB int64
+}
+
+func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
+	if delta == nil {
+		return
+	}
+
+	a.MemoryMB += delta.MemoryMB
+}
+
+func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
+	if delta == nil {
+		return
+	}
+
+	a.MemoryMB -= delta.MemoryMB
+}
+
+type AllocatedDevices []*AllocatedDeviceResource
+
+// Index finds the matching index using the passed device. If not found, -1 is
+// returned.
+func (a AllocatedDevices) Index(d *AllocatedDeviceResource) int {
+	if d == nil {
+		return -1
+	}
+
+	for i, o := range a {
+		if o.ID().Equals(d.ID()) {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// AllocatedDeviceResource captures a set of allocated devices.
+type AllocatedDeviceResource struct {
+	// Vendor, Type, and Name are used to select the plugin to request the
+	// device IDs from.
+	Vendor string
+	Type   string
+	Name   string
+
+	// DeviceIDs is the set of allocated devices
+	DeviceIDs []string
+}
+
+func (a *AllocatedDeviceResource) ID() *DeviceIdTuple {
+	if a == nil {
+		return nil
+	}
+
+	return &DeviceIdTuple{
+		Vendor: a.Vendor,
+		Type:   a.Type,
+		Name:   a.Name,
+	}
+}
+
+func (a *AllocatedDeviceResource) Add(delta *AllocatedDeviceResource) {
+	if delta == nil {
+		return
+	}
+
+	a.DeviceIDs = append(a.DeviceIDs, delta.DeviceIDs...)
+}
+
+func (a *AllocatedDeviceResource) Copy() *AllocatedDeviceResource {
+	if a == nil {
+		return a
+	}
+
+	na := *a
+
+	// Copy the devices
+	na.DeviceIDs = make([]string, len(a.DeviceIDs))
+	for i, id := range a.DeviceIDs {
+		na.DeviceIDs[i] = id
+	}
+
+	return &na
+}
+
+// ComparableResources is the set of resources allocated to a task group but
+// not keyed by Task, making it easier to compare.
+type ComparableResources struct {
+	Flattened AllocatedTaskResources
+	Shared    AllocatedSharedResources
+}
+
+func (c *ComparableResources) Add(delta *ComparableResources) {
+	if delta == nil {
+		return
+	}
+
+	c.Flattened.Add(&delta.Flattened)
+	c.Shared.Add(&delta.Shared)
+}
+
+func (c *ComparableResources) Subtract(delta *ComparableResources) {
+	if delta == nil {
+		return
+	}
+
+	c.Flattened.Subtract(&delta.Flattened)
+	c.Shared.Subtract(&delta.Shared)
+}
+
+func (c *ComparableResources) Copy() *ComparableResources {
+	if c == nil {
+		return nil
+	}
+	newR := new(ComparableResources)
+	*newR = *c
+	return newR
+}
+
+// Superset checks if one set of resources is a superset of another. This
+// ignores network resources, and the NetworkIndex should be used for that.
+func (c *ComparableResources) Superset(other *ComparableResources) (bool, string) {
+	if c.Flattened.Cpu.CpuShares < other.Flattened.Cpu.CpuShares {
+		return false, "cpu"
+	}
+	if c.Flattened.Memory.MemoryMB < other.Flattened.Memory.MemoryMB {
+		return false, "memory"
+	}
+	if c.Shared.DiskMB < other.Shared.DiskMB {
+		return false, "disk"
+	}
+	return true, ""
+}
+
+// allocated finds the matching net index using device name
+func (c *ComparableResources) NetIndex(n *NetworkResource) int {
+	return c.Flattened.Networks.NetIndex(n)
 }
 
 const (
@@ -3427,19 +4511,6 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
 	}
-
-	// Add up the disk resources to EphemeralDisk. This is done so that users
-	// are not required to move their disk attribute from resources to
-	// EphemeralDisk section of the job spec in Nomad 0.5
-	// COMPAT 0.4.1 -> 0.5
-	// Remove in 0.6
-	var diskMB int
-	for _, task := range tg.Tasks {
-		diskMB += task.Resources.DiskMB
-	}
-	if diskMB > 0 {
-		tg.EphemeralDisk.SizeMB = diskMB
-	}
 }
 
 // Validate is used to sanity check a task group
@@ -3620,17 +4691,6 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 
 func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
-}
-
-// CombinedResources returns the combined resources for the task group
-func (tg *TaskGroup) CombinedResources() *Resources {
-	r := &Resources{
-		DiskMB: tg.EphemeralDisk.SizeMB,
-	}
-	for _, task := range tg.Tasks {
-		r.Add(task.Resources)
-	}
-	return r
 }
 
 // CheckRestart describes if and when a task should be restarted based on
@@ -4241,15 +5301,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string) error {
 	// Validate the resources.
 	if t.Resources == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task resources"))
-	} else {
-		if err := t.Resources.MeetsMinResources(); err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
-
-		// Ensure the task isn't asking for disk resources
-		if t.Resources.DiskMB > 0 {
-			mErr.Errors = append(mErr.Errors, errors.New("Task can't ask for disk resources, they have to be specified at the task group level."))
-		}
+	} else if err := t.Resources.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	// Validate the log config
@@ -4649,6 +5702,21 @@ type TaskState struct {
 	Events []*TaskEvent
 }
 
+// NewTaskState returns a TaskState initialized in the Pending state.
+func NewTaskState() *TaskState {
+	return &TaskState{
+		State: TaskStatePending,
+	}
+}
+
+// Canonicalize ensures the TaskState has a State set. It should default to
+// Pending.
+func (ts *TaskState) Canonicalize() {
+	if ts.State == "" {
+		ts.State = TaskStatePending
+	}
+}
+
 func (ts *TaskState) Copy() *TaskState {
 	if ts == nil {
 		return nil
@@ -4976,6 +6044,12 @@ func (te *TaskEvent) GoString() string {
 	return fmt.Sprintf("%v - %v", te.Time, te.Type)
 }
 
+// SetDisplayMessage sets the display message of TaskEvent
+func (te *TaskEvent) SetDisplayMessage(msg string) *TaskEvent {
+	te.DisplayMessage = msg
+	return te
+}
+
 // SetMessage sets the message of TaskEvent
 func (te *TaskEvent) SetMessage(msg string) *TaskEvent {
 	te.Message = msg
@@ -5130,6 +6204,11 @@ func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	return e
 }
 
+func (e *TaskEvent) SetOOMKilled(oom bool) *TaskEvent {
+	e.Details["oom_killed"] = strconv.FormatBool(oom)
+	return e
+}
+
 // TaskArtifact is an artifact to download before running the task.
 type TaskArtifact struct {
 	// GetterSource is the source to download an artifact using go-getter
@@ -5209,60 +6288,74 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes allocation directory"))
 	}
 
-	// Verify the checksum
-	if check, ok := ta.GetterOptions["checksum"]; ok {
-		check = strings.TrimSpace(check)
-		if check == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("checksum value cannot be empty"))
-			return mErr.ErrorOrNil()
-		}
-
-		parts := strings.Split(check, ":")
-		if l := len(parts); l != 2 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf(`checksum must be given as "type:value"; got %q`, check))
-			return mErr.ErrorOrNil()
-		}
-
-		checksumVal := parts[1]
-		checksumBytes, err := hex.DecodeString(checksumVal)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid checksum: %v", err))
-			return mErr.ErrorOrNil()
-		}
-
-		checksumType := parts[0]
-		expectedLength := 0
-		switch checksumType {
-		case "md5":
-			expectedLength = md5.Size
-		case "sha1":
-			expectedLength = sha1.Size
-		case "sha256":
-			expectedLength = sha256.Size
-		case "sha512":
-			expectedLength = sha512.Size
-		default:
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported checksum type: %s", checksumType))
-			return mErr.ErrorOrNil()
-		}
-
-		if len(checksumBytes) != expectedLength {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal))
-			return mErr.ErrorOrNil()
-		}
+	if err := ta.validateChecksum(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	return mErr.ErrorOrNil()
 }
 
+func (ta *TaskArtifact) validateChecksum() error {
+	check, ok := ta.GetterOptions["checksum"]
+	if !ok {
+		return nil
+	}
+
+	// Job struct validation occurs before interpolation resolution can be effective.
+	// Skip checking if checksum contain variable reference, and artifacts fetching will
+	// eventually fail, if checksum is indeed invalid.
+	if args.ContainsEnv(check) {
+		return nil
+	}
+
+	check = strings.TrimSpace(check)
+	if check == "" {
+		return fmt.Errorf("checksum value cannot be empty")
+	}
+
+	parts := strings.Split(check, ":")
+	if l := len(parts); l != 2 {
+		return fmt.Errorf(`checksum must be given as "type:value"; got %q`, check)
+	}
+
+	checksumVal := parts[1]
+	checksumBytes, err := hex.DecodeString(checksumVal)
+	if err != nil {
+		return fmt.Errorf("invalid checksum: %v", err)
+	}
+
+	checksumType := parts[0]
+	expectedLength := 0
+	switch checksumType {
+	case "md5":
+		expectedLength = md5.Size
+	case "sha1":
+		expectedLength = sha1.Size
+	case "sha256":
+		expectedLength = sha256.Size
+	case "sha512":
+		expectedLength = sha512.Size
+	default:
+		return fmt.Errorf("unsupported checksum type: %s", checksumType)
+	}
+
+	if len(checksumBytes) != expectedLength {
+		return fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal)
+	}
+
+	return nil
+}
+
 const (
-	ConstraintDistinctProperty = "distinct_property"
-	ConstraintDistinctHosts    = "distinct_hosts"
-	ConstraintRegex            = "regexp"
-	ConstraintVersion          = "version"
-	ConstraintSetContains      = "set_contains"
-	ConstraintSetContainsAll   = "set_contains_all"
-	ConstraintSetContaintsAny  = "set_contains_any"
+	ConstraintDistinctProperty  = "distinct_property"
+	ConstraintDistinctHosts     = "distinct_hosts"
+	ConstraintRegex             = "regexp"
+	ConstraintVersion           = "version"
+	ConstraintSetContains       = "set_contains"
+	ConstraintSetContainsAll    = "set_contains_all"
+	ConstraintSetContainsAny    = "set_contains_any"
+	ConstraintAttributeIsSet    = "is_set"
+	ConstraintAttributeIsNotSet = "is_not_set"
 )
 
 // Constraints are used to restrict placement options.
@@ -5311,7 +6404,7 @@ func (c *Constraint) Validate() error {
 	switch c.Operand {
 	case ConstraintDistinctHosts:
 		requireLtarget = false
-	case ConstraintSetContains:
+	case ConstraintSetContainsAll, ConstraintSetContainsAny, ConstraintSetContains:
 		if c.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains constraint requires an RTarget"))
 		}
@@ -5332,6 +6425,10 @@ func (c *Constraint) Validate() error {
 			} else if count < 1 {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct Property must have an allowed count of 1 or greater: %d < 1", count))
 			}
+		}
+	case ConstraintAttributeIsSet, ConstraintAttributeIsNotSet:
+		if c.RTarget != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Operator %q does not support an RTarget", c.Operand))
 		}
 	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
 		if c.RTarget == "" {
@@ -5391,7 +6488,7 @@ func (a *Affinity) Validate() error {
 
 	// Perform additional validation based on operand
 	switch a.Operand {
-	case ConstraintSetContainsAll, ConstraintSetContaintsAny, ConstraintSetContains:
+	case ConstraintSetContainsAll, ConstraintSetContainsAny, ConstraintSetContains:
 		if a.RTarget == "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Set contains operators require an RTarget"))
 		}
@@ -6032,17 +7129,25 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
+	// COMPAT(0.11): Remove in 0.11
 	// Resources is the total set of resources allocated as part
-	// of this allocation of the task group.
+	// of this allocation of the task group. Dynamic ports will be set by
+	// the scheduler.
 	Resources *Resources
 
+	// COMPAT(0.11): Remove in 0.11
 	// SharedResources are the resources that are shared by all the tasks in an
 	// allocation
 	SharedResources *Resources
 
+	// COMPAT(0.11): Remove in 0.11
 	// TaskResources is the set of resources allocated to each
-	// task. These should sum to the total Resources.
+	// task. These should sum to the total Resources. Dynamic ports will be
+	// set by the scheduler.
 	TaskResources map[string]*Resources
+
+	// AllocatedResources is the total resources allocated for the task group.
+	AllocatedResources *AllocatedResources
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
@@ -6086,6 +7191,14 @@ type Allocation struct {
 	// FollowupEvalID captures a follow up evaluation created to handle a failed allocation
 	// that can be rescheduled in the future
 	FollowupEvalID string
+
+	// PreemptedAllocations captures IDs of any allocations that were preempted
+	// in order to place this allocation
+	PreemptedAllocations []string
+
+	// PreemptedByAllocation tracks the alloc ID of the allocation that caused this allocation
+	// to stop running because it got preempted
+	PreemptedByAllocation string
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -6137,6 +7250,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 		na.Job = na.Job.Copy()
 	}
 
+	na.AllocatedResources = na.AllocatedResources.Copy()
 	na.Resources = na.Resources.Copy()
 	na.SharedResources = na.SharedResources.Copy()
 
@@ -6160,6 +7274,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.RescheduleTracker = a.RescheduleTracker.Copy()
+	na.PreemptedAllocations = helper.CopySliceString(a.PreemptedAllocations)
 	return na
 }
 
@@ -6401,14 +7516,69 @@ func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }
 
+// COMPAT(0.11): Remove in 0.11
+// ComparableResources returns the resouces on the allocation
+// handling upgrade paths. After 0.11 calls to this should be replaced with:
+// alloc.AllocatedResources.Comparable()
+func (a *Allocation) ComparableResources() *ComparableResources {
+	// ALloc already has 0.9+ behavior
+	if a.AllocatedResources != nil {
+		return a.AllocatedResources.Comparable()
+	}
+
+	var resources *Resources
+	if a.Resources != nil {
+		resources = a.Resources
+	} else if a.TaskResources != nil {
+		resources = new(Resources)
+		resources.Add(a.SharedResources)
+		for _, taskResource := range a.TaskResources {
+			resources.Add(taskResource)
+		}
+	}
+
+	// Upgrade path
+	return &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: int64(resources.CPU),
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: int64(resources.MemoryMB),
+			},
+			Networks: resources.Networks,
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: int64(resources.DiskMB),
+		},
+	}
+}
+
+// LookupTask by name from the Allocation. Returns nil if the Job is not set, the
+// TaskGroup does not exist, or the task name cannot be found.
+func (a *Allocation) LookupTask(name string) *Task {
+	if a.Job == nil {
+		return nil
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+
+	return tg.LookupTask(name)
+}
+
 // Stub returns a list stub for the allocation
 func (a *Allocation) Stub() *AllocListStub {
 	return &AllocListStub{
 		ID:                 a.ID,
 		EvalID:             a.EvalID,
 		Name:               a.Name,
+		Namespace:          a.Namespace,
 		NodeID:             a.NodeID,
 		JobID:              a.JobID,
+		JobType:            a.Job.Type,
 		JobVersion:         a.Job.Version,
 		TaskGroup:          a.TaskGroup,
 		DesiredStatus:      a.DesiredStatus,
@@ -6432,8 +7602,10 @@ type AllocListStub struct {
 	ID                 string
 	EvalID             string
 	Name               string
+	Namespace          string
 	NodeID             string
 	JobID              string
+	JobType            string
 	JobVersion         uint64
 	TaskGroup          string
 	DesiredStatus      string
@@ -6751,6 +7923,8 @@ const (
 	EvalTriggerFailedFollowUp    = "failed-follow-up"
 	EvalTriggerMaxPlans          = "max-plan-attempts"
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
+	EvalTriggerQueuedAllocs      = "queued-allocs"
+	EvalTriggerPreemption        = "preemption"
 )
 
 const (
@@ -6882,8 +8056,11 @@ type Evaluation struct {
 	LeaderACL string
 
 	// SnapshotIndex is the Raft index of the snapshot used to process the
-	// evaluation. As such it will only be set once it has gone through the
-	// scheduler.
+	// evaluation. The index will either be set when it has gone through the
+	// scheduler or if a blocked evaluation is being created. The index is set
+	// in this case so we can determine if an early unblocking is required since
+	// capacity has changed since the evaluation was created. This can result in
+	// the SnapshotIndex being less than the CreateIndex.
 	SnapshotIndex uint64
 
 	// Raft Indexes
@@ -6973,11 +8150,12 @@ func (e *Evaluation) ShouldBlock() bool {
 // for a given Job
 func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
-		EvalID:         e.ID,
-		Priority:       e.Priority,
-		Job:            j,
-		NodeUpdate:     make(map[string][]*Allocation),
-		NodeAllocation: make(map[string][]*Allocation),
+		EvalID:          e.ID,
+		Priority:        e.Priority,
+		Job:             j,
+		NodeUpdate:      make(map[string][]*Allocation),
+		NodeAllocation:  make(map[string][]*Allocation),
+		NodePreemptions: make(map[string][]*Allocation),
 	}
 	if j != nil {
 		p.AllAtOnce = j.AllAtOnce
@@ -7013,7 +8191,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		Namespace:            e.Namespace,
 		Priority:             e.Priority,
 		Type:                 e.Type,
-		TriggeredBy:          e.TriggeredBy,
+		TriggeredBy:          EvalTriggerQueuedAllocs,
 		JobID:                e.JobID,
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
@@ -7090,6 +8268,11 @@ type Plan struct {
 	// deployments. This allows the scheduler to cancel any unneeded deployment
 	// because the job is stopped or the update block is removed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as evicted.
+	NodePreemptions map[string][]*Allocation
 }
 
 // AppendUpdate marks the allocation for eviction. The clientStatus of the
@@ -7122,6 +8305,35 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 	p.NodeUpdate[node] = append(existing, newAlloc)
 }
 
+// AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
+// To minimize the size of the plan, this only sets a minimal set of fields in the allocation
+func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preemptingAllocID string) {
+	newAlloc := &Allocation{}
+	newAlloc.ID = alloc.ID
+	newAlloc.JobID = alloc.JobID
+	newAlloc.Namespace = alloc.Namespace
+	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.PreemptedByAllocation = preemptingAllocID
+
+	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
+	newAlloc.DesiredDescription = desiredDesc
+
+	// TaskResources are needed by the plan applier to check if allocations fit
+	// after removing preempted allocations
+	if alloc.AllocatedResources != nil {
+		newAlloc.AllocatedResources = alloc.AllocatedResources
+	} else {
+		// COMPAT Remove in version 0.11
+		newAlloc.TaskResources = alloc.TaskResources
+		newAlloc.SharedResources = alloc.SharedResources
+	}
+
+	// Append this alloc to slice for this node
+	node := alloc.NodeID
+	existing := p.NodePreemptions[node]
+	p.NodePreemptions[node] = append(existing, newAlloc)
+}
+
 func (p *Plan) PopUpdate(alloc *Allocation) {
 	existing := p.NodeUpdate[alloc.NodeID]
 	n := len(existing)
@@ -7138,6 +8350,10 @@ func (p *Plan) PopUpdate(alloc *Allocation) {
 func (p *Plan) AppendAlloc(alloc *Allocation) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
+
+	// Normalize the job
+	alloc.Job = nil
+
 	p.NodeAllocation[node] = append(existing, alloc)
 }
 
@@ -7162,6 +8378,11 @@ type PlanResult struct {
 
 	// DeploymentUpdates is the set of deployment updates that were committed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as stopped.
+	NodePreemptions map[string][]*Allocation
 
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
@@ -7199,6 +8420,9 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 type PlanAnnotations struct {
 	// DesiredTGUpdates is the set of desired updates per task group.
 	DesiredTGUpdates map[string]*DesiredUpdates
+
+	// PreemptedAllocs is the set of allocations to be preempted to make the placement successful.
+	PreemptedAllocs []*AllocListStub
 }
 
 // DesiredUpdates is the set of changes the scheduler would like to make given
@@ -7211,6 +8435,7 @@ type DesiredUpdates struct {
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
 	Canary            uint64
+	Preemptions       uint64
 }
 
 func (d *DesiredUpdates) GoString() string {

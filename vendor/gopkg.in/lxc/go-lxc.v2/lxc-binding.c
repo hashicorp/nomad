@@ -15,10 +15,9 @@
 
 #include "lxc-binding.h"
 
-#define VERSION_AT_LEAST(major, minor, micro)							\
-	(!(major > LXC_VERSION_MAJOR ||								\
-	major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR ||				\
-	major == LXC_VERSION_MAJOR && minor == LXC_VERSION_MINOR && micro > LXC_VERSION_MICRO))
+#ifndef LXC_DEVEL
+#define LXC_DEVEL 0
+#endif
 
 bool go_lxc_defined(struct lxc_container *c) {
 	return c->is_defined(c);
@@ -92,16 +91,24 @@ bool go_lxc_wait(struct lxc_container *c, const char *state, int timeout) {
 	return c->wait(c, state, timeout);
 }
 
-char* go_lxc_get_config_item(struct lxc_container *c, const char *key) {
+char *go_lxc_get_config_item(struct lxc_container *c, const char *key)
+{
+	char *value = NULL;
+
 	int len = c->get_config_item(c, key, NULL, 0);
-	if (len <= 0) {
+	if (len <= 0)
+		return NULL;
+
+again:
+	value = (char *)malloc(sizeof(char) * len + 1);
+	if (value == NULL)
+		goto again;
+
+	if (c->get_config_item(c, key, value, len + 1) != len) {
+		free(value);
 		return NULL;
 	}
 
-	char* value = (char*)malloc(sizeof(char)*len + 1);
-	if (c->get_config_item(c, key, value, len + 1) != len) {
-		return NULL;
-	}
 	return value;
 }
 
@@ -121,29 +128,45 @@ char* go_lxc_get_running_config_item(struct lxc_container *c, const char *key) {
 	return c->get_running_config_item(c, key);
 }
 
-char* go_lxc_get_keys(struct lxc_container *c, const char *key) {
+char *go_lxc_get_keys(struct lxc_container *c, const char *key)
+{
+	char *value = NULL;
+
 	int len = c->get_keys(c, key, NULL, 0);
-	if (len <= 0) {
+	if (len <= 0)
+		return NULL;
+
+again:
+	value = (char *)malloc(sizeof(char) * len + 1);
+	if (value == NULL)
+		goto again;
+
+	if (c->get_keys(c, key, value, len + 1) != len) {
+		free(value);
 		return NULL;
 	}
 
-	char* value = (char*)malloc(sizeof(char)*len + 1);
-	if (c->get_keys(c, key, value, len + 1) != len) {
-		return NULL;
-	}
 	return value;
 }
 
-char* go_lxc_get_cgroup_item(struct lxc_container *c, const char *key) {
+char *go_lxc_get_cgroup_item(struct lxc_container *c, const char *key)
+{
+	char *value = NULL;
+
 	int len = c->get_cgroup_item(c, key, NULL, 0);
-	if (len <= 0) {
+	if (len <= 0)
+		return NULL;
+
+again:
+	value = (char *)malloc(sizeof(char) * len + 1);
+	if (value == NULL)
+		goto again;
+
+	if (c->get_cgroup_item(c, key, value, len + 1) != len) {
+		free(value);
 		return NULL;
 	}
 
-	char* value = (char*)malloc(sizeof(char)*len + 1);
-	if (c->get_cgroup_item(c, key, value, len + 1) != len) {
-		return NULL;
-	}
 	return value;
 }
 
@@ -173,10 +196,12 @@ bool go_lxc_clone(struct lxc_container *c, const char *newname, const char *lxcp
 
 int go_lxc_console_getfd(struct lxc_container *c, int ttynum) {
 	int masterfd;
+	int ret = 0;
 
-	if (c->console_getfd(c, &ttynum, &masterfd) < 0) {
-		return -1;
-	}
+	ret = c->console_getfd(c, &ttynum, &masterfd);
+	if (ret < 0)
+		return ret;
+
 	return masterfd;
 }
 
@@ -210,6 +235,51 @@ again:
         if (ret != pid)
                 goto again;
         return status;
+}
+
+int go_lxc_attach_no_wait(struct lxc_container *c,
+		bool clear_env,
+		int namespaces,
+		long personality,
+		uid_t uid, gid_t gid,
+		int stdinfd, int stdoutfd, int stderrfd,
+		char *initial_cwd,
+		char **extra_env_vars,
+		char **extra_keep_env,
+		const char * const argv[],
+		pid_t *attached_pid) {
+	int ret;
+
+	lxc_attach_options_t attach_options = LXC_ATTACH_OPTIONS_DEFAULT;
+	lxc_attach_command_t command = (lxc_attach_command_t){.program = NULL};
+
+	attach_options.env_policy = LXC_ATTACH_KEEP_ENV;
+	if (clear_env) {
+		attach_options.env_policy = LXC_ATTACH_CLEAR_ENV;
+	}
+
+	attach_options.namespaces = namespaces;
+	attach_options.personality = personality;
+
+	attach_options.uid = uid;
+	attach_options.gid = gid;
+
+	attach_options.stdin_fd = stdinfd;
+	attach_options.stdout_fd = stdoutfd;
+	attach_options.stderr_fd = stderrfd;
+
+	attach_options.initial_cwd = initial_cwd;
+	attach_options.extra_env_vars = extra_env_vars;
+	attach_options.extra_keep_env = extra_keep_env;
+
+	command.program = (char *)argv[0];
+	command.argv = (char **)argv;
+
+	ret = c->attach(c, lxc_attach_run_command, &command, &attach_options, attached_pid);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 int go_lxc_attach(struct lxc_container *c,
@@ -257,16 +327,16 @@ int go_lxc_attach(struct lxc_container *c,
 
 	ret = c->attach(c, lxc_attach_run_shell, NULL, &attach_options, &pid);
 	if (ret < 0)
-		return -1;
+		return ret;
 
 	ret = wait_for_pid_status(pid);
 	if (ret < 0)
-		return -1;
+		return ret;
 
 	if (WIFEXITED(ret))
 		return WEXITSTATUS(ret);
 
-	return -1;
+	return ret;
 }
 
 int go_lxc_attach_run_wait(struct lxc_container *c,
@@ -366,6 +436,9 @@ bool go_lxc_restore(struct lxc_container *c, char *directory, bool verbose) {
 }
 
 int go_lxc_migrate(struct lxc_container *c, unsigned int cmd, struct migrate_opts *opts, struct extra_migrate_opts *extras) {
+#if VERSION_AT_LEAST(3, 0, 0)
+	opts->features_to_check = extras->features_to_check;
+#endif
 #if VERSION_AT_LEAST(2, 0, 4)
 	opts->action_script = extras->action_script;
 	opts->ghost_limit = extras->ghost_limit;
@@ -393,6 +466,37 @@ bool go_lxc_attach_interface(struct lxc_container *c, const char *dev, const cha
 bool go_lxc_detach_interface(struct lxc_container *c, const char *dev, const char *dst_dev) {
 #if VERSION_AT_LEAST(1, 1, 0)
 	return c->detach_interface(c, dev, dst_dev);
+#else
+	return false;
+#endif
+}
+
+bool go_lxc_config_item_is_supported(const char *key)
+{
+#if VERSION_AT_LEAST(2, 1, 0)
+	return lxc_config_item_is_supported(key);
+#else
+	return false;
+#endif
+}
+
+int go_lxc_error_num(struct lxc_container *c)
+{
+	return c->error_num;
+}
+
+int go_lxc_console_log(struct lxc_container *c, struct lxc_console_log *log) {
+#if VERSION_AT_LEAST(3, 0, 0)
+	return c->console_log(c, log);
+#else
+	return false;
+#endif
+}
+
+bool go_lxc_has_api_extension(const char *extension)
+{
+#if VERSION_AT_LEAST(3, 1, 0)
+	return lxc_has_api_extension(extension);
 #else
 	return false;
 #endif

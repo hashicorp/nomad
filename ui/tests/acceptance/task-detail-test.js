@@ -12,7 +12,7 @@ moduleForAcceptance('Acceptance | task detail', {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts');
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     Task.visit({ id: allocation.id, name: task.name });
@@ -92,6 +92,12 @@ test('breadcrumbs match jobs / job / task group / allocation / task', function(a
       'Allocations breadcrumb links correctly'
     );
   });
+});
+
+test('/allocation/:id/:task_name should include resource utilization graphs', function(assert) {
+  assert.equal(Task.resourceCharts.length, 2, 'Two resource utilization graphs');
+  assert.equal(Task.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
+  assert.equal(Task.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
 });
 
 test('the addresses table lists all reserved and dynamic ports', function(assert) {
@@ -197,4 +203,71 @@ moduleForAcceptance('Acceptance | task detail (no addresses)', {
 
 test('when the task has no addresses, the addresses table is not shown', function(assert) {
   assert.notOk(Task.hasAddresses, 'No addresses table');
+});
+
+moduleForAcceptance('Acceptance | task detail (different namespace)', {
+  beforeEach() {
+    server.create('agent');
+    server.create('node');
+    server.create('namespace');
+    server.create('namespace', { id: 'other-namespace' });
+    server.create('job', { createAllocations: false, namespaceId: 'other-namespace' });
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
+    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+
+    Task.visit({ id: allocation.id, name: task.name });
+  },
+});
+
+test('breadcrumbs match jobs / job / task group / allocation / task', function(assert) {
+  const { jobId, taskGroup } = allocation;
+  const job = server.db.jobs.find(jobId);
+
+  Task.breadcrumbFor('jobs.index').visit();
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      '/jobs?namespace=other-namespace',
+      'Jobs breadcrumb links correctly'
+    );
+  });
+  andThen(() => {
+    Task.visit({ id: allocation.id, name: task.name });
+  });
+  andThen(() => {
+    Task.breadcrumbFor('jobs.job.index').visit();
+  });
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}?namespace=other-namespace`,
+      'Job breadcrumb links correctly'
+    );
+  });
+  andThen(() => {
+    Task.visit({ id: allocation.id, name: task.name });
+  });
+  andThen(() => {
+    Task.breadcrumbFor('jobs.job.task-group').visit();
+  });
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/${taskGroup}?namespace=other-namespace`,
+      'Task Group breadcrumb links correctly'
+    );
+  });
+  andThen(() => {
+    Task.visit({ id: allocation.id, name: task.name });
+  });
+  andThen(() => {
+    Task.breadcrumbFor('allocations.allocation').visit();
+  });
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}`,
+      'Allocations breadcrumb links correctly'
+    );
+  });
 });

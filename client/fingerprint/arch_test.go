@@ -10,7 +10,7 @@ import (
 )
 
 func TestArchFingerprint(t *testing.T) {
-	f := NewArchFingerprint(testlog.Logger(t))
+	f := NewArchFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

@@ -306,8 +306,18 @@ export default function() {
   this.get('/client/allocation/:id/stats', clientAllocationStatsHandler);
   this.get('/client/fs/logs/:allocation_id', clientAllocationLog);
 
-  this.get('/client/v1/client/stats', function({ clientStats }, { queryParams }) {
-    return this.serialize(clientStats.find(queryParams.node_id));
+  this.get('/client/stats', function({ clientStats }, { queryParams }) {
+    const seed = Math.random();
+    if (seed > 0.8) {
+      const stats = clientStats.find(queryParams.node_id);
+      stats.update({
+        timestamp: Date.now() * 1000000,
+        CPUTicksConsumed: stats.CPUTicksConsumed + (Math.random() * 20 - 10),
+      });
+      return this.serialize(stats);
+    } else {
+      return new Response(500, {}, null);
+    }
   });
 
   // TODO: in the future, this hack may be replaceable with dynamic host name

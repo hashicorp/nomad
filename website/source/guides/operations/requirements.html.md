@@ -67,8 +67,8 @@ port.
 * HTTP API (Default 4646). This is used by clients and servers to serve the HTTP
   API. TCP only.
 
-* RPC (Default 4647). This is used by servers and clients to communicate among
-  each other. TCP only.
+* RPC (Default 4647). This is used for internal RPC communication between client
+  agents and servers, and for inter-server traffic. TCP only.
 
 * Serf WAN (Default 4648). This is used by servers to gossip both over the LAN and
   WAN to other servers. It isn't required that Nomad clients can reach this address.

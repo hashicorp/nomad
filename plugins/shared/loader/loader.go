@@ -18,48 +18,13 @@ import (
 type PluginCatalog interface {
 	// Dispense returns the plugin given its name and type. This will also
 	// configure the plugin
-	Dispense(name, pluginType string, logger log.Logger) (*PluginInstance, error)
+	Dispense(name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error)
 
 	// Reattach is used to reattach to a previously launched external plugin.
-	Reattach(pluginType string, config *plugin.ReattachConfig) (*PluginInstance, error)
+	Reattach(name, pluginType string, config *plugin.ReattachConfig) (PluginInstance, error)
 
 	// Catalog returns the catalog of all plugins keyed by plugin type
 	Catalog() map[string][]*base.PluginInfoResponse
-}
-
-// PluginInstance wraps an instance of a plugin. If the plugin is external, it
-// provides methods to retrieve the ReattachConfig and to kill the plugin.
-type PluginInstance struct {
-	client   *plugin.Client
-	instance interface{}
-}
-
-// Internal returns if the plugin is internal
-func (p *PluginInstance) Internal() bool {
-	return p.client == nil
-}
-
-// Kill kills the plugin if it is external. It is safe to call on internal
-// plugins.
-func (p *PluginInstance) Kill() {
-	if p.client != nil {
-		p.client.Kill()
-	}
-}
-
-// ReattachConfig returns the ReattachConfig and whether the plugin is internal
-// or not. If the second return value is true, no ReattachConfig is possible to
-// return.
-func (p *PluginInstance) ReattachConfig() (*plugin.ReattachConfig, bool) {
-	if p.client == nil {
-		return nil, false
-	}
-	return p.client.ReattachConfig(), true
-}
-
-// Plugin returns the wrapped plugin instance.
-func (p *PluginInstance) Plugin() interface{} {
-	return p.instance
 }
 
 // PluginLoader is used to retrieve plugins either externally or from internal
@@ -87,6 +52,13 @@ type PluginID struct {
 // String returns a friendly representation of the plugin.
 func (id PluginID) String() string {
 	return fmt.Sprintf("%q (%v)", id.Name, id.PluginType)
+}
+
+func PluginInfoID(resp *base.PluginInfoResponse) PluginID {
+	return PluginID{
+		Name:       resp.Name,
+		PluginType: resp.Type,
+	}
 }
 
 // PluginLoaderConfig configures a plugin loader.
@@ -149,7 +121,7 @@ func NewPluginLoader(config *PluginLoaderConfig) (*PluginLoader, error) {
 
 // Dispense returns a plugin instance, loading it either internally or by
 // launching an external plugin.
-func (l *PluginLoader) Dispense(name, pluginType string, logger log.Logger) (*PluginInstance, error) {
+func (l *PluginLoader) Dispense(name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) (PluginInstance, error) {
 	id := PluginID{
 		Name:       name,
 		PluginType: pluginType,
@@ -160,9 +132,9 @@ func (l *PluginLoader) Dispense(name, pluginType string, logger log.Logger) (*Pl
 	}
 
 	// If the plugin is internal, launch via the factory
-	var instance *PluginInstance
+	var instance PluginInstance
 	if pinfo.factory != nil {
-		instance = &PluginInstance{
+		instance = &internalPluginInstance{
 			instance: pinfo.factory(logger),
 		}
 	} else {
@@ -180,7 +152,7 @@ func (l *PluginLoader) Dispense(name, pluginType string, logger log.Logger) (*Pl
 	}
 
 	if len(pinfo.msgpackConfig) != 0 {
-		if err := base.SetConfig(pinfo.msgpackConfig); err != nil {
+		if err := base.SetConfig(pinfo.msgpackConfig, config); err != nil {
 			return nil, fmt.Errorf("setting config for plugin %s failed: %v", id, err)
 		}
 	}
@@ -189,14 +161,14 @@ func (l *PluginLoader) Dispense(name, pluginType string, logger log.Logger) (*Pl
 }
 
 // Reattach reattaches to a previously launched external plugin.
-func (l *PluginLoader) Reattach(pluginType string, config *plugin.ReattachConfig) (*PluginInstance, error) {
+func (l *PluginLoader) Reattach(name, pluginType string, config *plugin.ReattachConfig) (PluginInstance, error) {
 	return l.dispensePlugin(pluginType, "", nil, config, l.logger)
 }
 
 // dispensePlugin is used to launch or reattach to an external plugin.
 func (l *PluginLoader) dispensePlugin(
 	pluginType, cmd string, args []string, reattach *plugin.ReattachConfig,
-	logger log.Logger) (*PluginInstance, error) {
+	logger log.Logger) (PluginInstance, error) {
 
 	var pluginCmd *exec.Cmd
 	if cmd != "" && reattach != nil {
@@ -230,7 +202,7 @@ func (l *PluginLoader) dispensePlugin(
 		return nil, err
 	}
 
-	instance := &PluginInstance{
+	instance := &externalPluginInstance{
 		client:   client,
 		instance: raw,
 	}

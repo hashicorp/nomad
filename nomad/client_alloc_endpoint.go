@@ -5,15 +5,18 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/nomad/acl"
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ClientAllocations is used to forward RPC requests to the targed Nomad client's
 // Allocation endpoint.
 type ClientAllocations struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // GarbageCollectAll is used to garbage collect all allocations on a client.

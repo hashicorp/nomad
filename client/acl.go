@@ -134,7 +134,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 	if err := c.RPC("ACL.ResolveToken", &req, &resp); err != nil {
 		// If we encounter an error but have a cached value, mask the error and extend the cache
 		if ok {
-			c.logger.Printf("[WARN] client: failed to resolve token, using expired cached value: %v", err)
+			c.logger.Warn("failed to resolve token, using expired cached value", "error", err)
 			cached := raw.(*cachedACLValue)
 			return cached.Token, nil
 		}
@@ -198,7 +198,7 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 	if err := c.RPC("ACL.GetPolicies", &req, &resp); err != nil {
 		// If we encounter an error but have cached policies, mask the error and extend the cache
 		if len(missing) == 0 {
-			c.logger.Printf("[WARN] client: failed to resolve policies, using expired cached value: %v", err)
+			c.logger.Warn("failed to resolve policies, using expired cached value", "error", err)
 			out = append(out, expired...)
 			return out, nil
 		}

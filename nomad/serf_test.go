@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/serf/serf"
@@ -296,6 +297,114 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	if termAfter != termBefore {
 		t.Fatalf("looks like an election took place")
 	}
+}
+
+func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
+	t.Parallel()
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node1")
+		c.NonVoter = true
+	})
+	defer s1.Shutdown()
+	s2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node2")
+		c.NonVoter = true
+	})
+	defer s2.Shutdown()
+	s3 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node3")
+	})
+	defer s3.Shutdown()
+	TestJoin(t, s1, s2, s3)
+
+	// Assert that we do not bootstrap
+	testutil.AssertUntil(testutil.Timeout(time.Second), func() (bool, error) {
+		_, p := s1.getLeader()
+		if p != nil {
+			return false, fmt.Errorf("leader %v", p)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("should not have leader: %v", err)
+	})
+
+	// Add the fourth server that is a voter
+	s4 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DevDisableBootstrap = true
+		c.DataDir = path.Join(dir, "node4")
+	})
+	defer s4.Shutdown()
+	TestJoin(t, s1, s2, s3, s4)
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Retry the join to decrease flakiness
+		TestJoin(t, s1, s2, s3, s4)
+		peers, err := s1.numPeers()
+		if err != nil {
+			return false, err
+		}
+		if peers != 4 {
+			return false, fmt.Errorf("bad: %#v", peers)
+		}
+		peers, err = s2.numPeers()
+		if err != nil {
+			return false, err
+		}
+		if peers != 4 {
+			return false, fmt.Errorf("bad: %#v", peers)
+		}
+		peers, err = s3.numPeers()
+		if err != nil {
+			return false, err
+		}
+		if peers != 4 {
+			return false, fmt.Errorf("bad: %#v", peers)
+		}
+		peers, err = s4.numPeers()
+		if err != nil {
+			return false, err
+		}
+		if peers != 4 {
+			return false, fmt.Errorf("bad: %#v", peers)
+		}
+
+		if len(s1.localPeers) != 4 {
+			return false, fmt.Errorf("bad: %#v", s1.localPeers)
+		}
+		if len(s2.localPeers) != 4 {
+			return false, fmt.Errorf("bad: %#v", s2.localPeers)
+		}
+		if len(s3.localPeers) != 4 {
+			return false, fmt.Errorf("bad: %#v", s3.localPeers)
+		}
+		if len(s4.localPeers) != 4 {
+			return false, fmt.Errorf("bad: %#v", s3.localPeers)
+		}
+
+		_, p := s1.getLeader()
+		if p == nil {
+			return false, fmt.Errorf("no leader")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 }
 
 func TestNomad_BadExpect(t *testing.T) {

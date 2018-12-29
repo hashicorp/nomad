@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -100,10 +101,10 @@ func TestPluginLoader_External(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -157,10 +158,10 @@ func TestPluginLoader_External_Config(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -223,10 +224,10 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -236,7 +237,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 				Config: map[string]interface{}{
 					"foo":          "1",
 					"bar":          "2",
-					"non-existant": "3",
+					"non-existent": "3",
 				},
 			},
 		},
@@ -244,7 +245,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 
 	_, err := NewPluginLoader(lconfig)
 	require.Error(err)
-	require.Contains(err.Error(), "No argument or block type is named \"non-existant\"")
+	require.Contains(err.Error(), "No argument or block type is named \"non-existent\"")
 }
 
 func TestPluginLoader_External_VersionOverlap(t *testing.T) {
@@ -257,10 +258,10 @@ func TestPluginLoader_External_VersionOverlap(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -309,10 +310,10 @@ func TestPluginLoader_Internal(t *testing.T) {
 	plugins := []string{"mock-device", "mock-device-2"}
 	pluginVersions := []string{"v0.0.1", "v0.0.2"}
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -369,10 +370,10 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 	plugins := []string{"mock-device", "mock-device-2"}
 	pluginVersions := []string{"v0.0.1", "v0.0.2"}
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -426,6 +427,75 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 	require.EqualValues(expected, detected)
 }
 
+// Tests that an external config can override the config of an internal plugin
+func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Create the harness
+	h := newHarness(t, nil)
+	defer h.cleanup()
+
+	plugin := "mock-device"
+	pluginVersion := "v0.0.1"
+
+	id := PluginID{
+		Name:       plugin,
+		PluginType: base.PluginTypeDevice,
+	}
+	expectedConfig := map[string]interface{}{
+		"foo": "2",
+		"bar": "3",
+	}
+
+	logger := testlog.HCLogger(t)
+	logger.SetLevel(log.Trace)
+	lconfig := &PluginLoaderConfig{
+		Logger:    logger,
+		PluginDir: h.pluginDir(),
+		InternalPlugins: map[PluginID]*InternalPluginConfig{
+			id: {
+				Factory: mockFactory(plugin, base.PluginTypeDevice, pluginVersion, true),
+				Config: map[string]interface{}{
+					"foo": "1",
+					"bar": "2",
+				},
+			},
+		},
+		Configs: []*config.PluginConfig{
+			{
+				Name:   plugin,
+				Config: expectedConfig,
+			},
+		},
+	}
+
+	l, err := NewPluginLoader(lconfig)
+	require.NoError(err)
+
+	// Get the catalog and assert we have the two plugins
+	c := l.Catalog()
+	require.Len(c, 1)
+	require.Contains(c, base.PluginTypeDevice)
+	detected := c[base.PluginTypeDevice]
+	require.Len(detected, 1)
+
+	expected := []*base.PluginInfoResponse{
+		{
+			Name:             plugin,
+			Type:             base.PluginTypeDevice,
+			PluginVersion:    pluginVersion,
+			PluginApiVersion: "v0.1.0",
+		},
+	}
+	require.EqualValues(expected, detected)
+
+	// Check the config
+	loaded, ok := l.plugins[id]
+	require.True(ok)
+	require.EqualValues(expectedConfig, loaded.config)
+}
+
 // Pass a config but make sure it is fatal
 func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 	t.Parallel()
@@ -438,10 +508,10 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 	plugins := []string{"mock-device"}
 	pluginVersions := []string{"v0.0.1"}
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -452,7 +522,7 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 				Config: map[string]interface{}{
 					"foo":          "1",
 					"bar":          "2",
-					"non-existant": "3",
+					"non-existent": "3",
 				},
 			},
 		},
@@ -460,7 +530,7 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 
 	_, err := NewPluginLoader(lconfig)
 	require.Error(err)
-	require.Contains(err.Error(), "No argument or block type is named \"non-existant\"")
+	require.Contains(err.Error(), "No argument or block type is named \"non-existent\"")
 }
 
 func TestPluginLoader_InternalOverrideExternal(t *testing.T) {
@@ -473,10 +543,10 @@ func TestPluginLoader_InternalOverrideExternal(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -527,10 +597,10 @@ func TestPluginLoader_ExternalOverrideInternal(t *testing.T) {
 	h := newHarness(t, plugins)
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -583,10 +653,10 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -604,7 +674,7 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -628,11 +698,16 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	defer h.cleanup()
 
 	expKey := "set_config_worked"
+	expNomadConfig := &base.ClientAgentConfig{
+		Driver: &base.ClientDriverConfig{
+			ClientMinPort: 100,
+		},
+	}
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			{
@@ -651,7 +726,7 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, expNomadConfig, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -662,6 +737,10 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(res)
 	require.Contains(res.Envs, expKey)
+
+	mock, ok := p.Plugin().(*mockPlugin)
+	require.True(ok)
+	require.Exactly(expNomadConfig, mock.nomadConfig)
 }
 
 func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
@@ -676,10 +755,10 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -703,7 +782,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -723,14 +802,14 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	pid := PluginID{
 		Name:       plugin,
 		PluginType: base.PluginTypeDevice,
 	}
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			pid: {
@@ -752,7 +831,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -772,10 +851,10 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 
 	expKey := "set_config_worked"
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -793,7 +872,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 	require.NoError(err)
 
 	// Dispense a device plugin
-	p, err := l.Dispense(plugin, base.PluginTypeDevice, logger)
+	p, err := l.Dispense(plugin, base.PluginTypeDevice, nil, logger)
 	require.NoError(err)
 	defer p.Kill()
 
@@ -809,7 +888,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 	reattach, ok := p.ReattachConfig()
 	require.True(ok)
 
-	p2, err := l.Reattach(base.PluginTypeDevice, reattach)
+	p2, err := l.Reattach(plugin, base.PluginTypeDevice, reattach)
 	require.NoError(err)
 
 	// Get the reattached plugin and ensure its the same
@@ -832,10 +911,10 @@ func TestPluginLoader_Bad_Executable(t *testing.T) {
 	h := newHarness(t, []string{plugin})
 	defer h.cleanup()
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{
@@ -874,10 +953,10 @@ func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
 	// Create a non-executable file
 	require.NoError(ioutil.WriteFile(filepath.Join(h.pluginDir(), "some.yaml"), []byte("hcl > yaml"), 0666))
 
-	logger := log.Default()
+	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
 	lconfig := &PluginLoaderConfig{
-		Logger:    logger, // XXX Use testlog package
+		Logger:    logger,
 		PluginDir: h.pluginDir(),
 		Configs: []*config.PluginConfig{
 			{

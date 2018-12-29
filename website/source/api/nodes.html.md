@@ -800,7 +800,7 @@ The table below shows this endpoint's support for
 ```json
 {
     "DrainSpec": {
-         "Deadline": "3600000000000",
+         "Deadline": 3600000000000,
          "IgnoreSystemJobs": true
     }
 }

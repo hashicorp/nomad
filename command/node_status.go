@@ -390,6 +390,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.Ui.Output(formatList(hostResources))
 		}
 
+		if err == nil && len(node.NodeResources.Devices) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Device Resource Utilization[reset]"))
+			c.Ui.Output(formatList(getDeviceResourcesForNode(hostStats.DeviceStats, node)))
+		}
 		if hostStats != nil && c.stats {
 			c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
 			c.printCpuStats(hostStats)
@@ -397,6 +401,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.printMemoryStats(hostStats)
 			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
+			if len(hostStats.DeviceStats) > 0 {
+				c.Ui.Output(c.Colorize().Color("\n[bold]Device Stats[reset]"))
+				printDeviceStats(c.Ui, hostStats.DeviceStats)
+			}
 		}
 	}
 

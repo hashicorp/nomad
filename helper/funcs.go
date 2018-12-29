@@ -57,8 +57,13 @@ func Int64ToPtr(i int64) *int64 {
 	return &i
 }
 
-// UintToPtr returns the pointer to an uint
+// Uint64ToPtr returns the pointer to an uint64
 func Uint64ToPtr(u uint64) *uint64 {
+	return &u
+}
+
+// UintToPtr returns the pointer to an uint
+func UintToPtr(u uint) *uint {
 	return &u
 }
 
@@ -70,6 +75,11 @@ func StringToPtr(str string) *string {
 // TimeToPtr returns the pointer to a time stamp
 func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
+}
+
+// Float64ToPtr returns the pointer to an float64
+func Float64ToPtr(f float64) *float64 {
+	return &f
 }
 
 func IntMin(a, b int) int {
@@ -160,6 +170,38 @@ func SliceSetDisjoint(first, second []string) (bool, []string) {
 		flattened = append(flattened, k)
 	}
 	return false, flattened
+}
+
+// CompareMapStringString returns true if the maps are equivalent. A nil and
+// empty map are considered not equal.
+func CompareMapStringString(a, b map[string]string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for k, v := range a {
+		v2, ok := b[k]
+		if !ok {
+			return false
+		}
+		if v != v2 {
+			return false
+		}
+	}
+
+	// Already compared all known values in a so only test that keys from b
+	// exist in a
+	for k := range b {
+		if _, ok := a[k]; !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Helpers for copying generic structures.

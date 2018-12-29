@@ -118,6 +118,7 @@ func (c *Command) readConfig() *Config {
 	}), "consul-auto-advertise", "")
 	flags.StringVar(&cmdConfig.Consul.CAFile, "consul-ca-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.CertFile, "consul-cert-file", "", "")
+	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.ChecksUseAdvertise = &b
 		return nil
@@ -128,7 +129,6 @@ func (c *Command) readConfig() *Config {
 	}), "consul-client-auto-join", "")
 	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
@@ -454,7 +454,59 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		complete.PredictFiles("*.hcl"))
 
 	return map[string]complete.Predictor{
-		"-config": configFilePredictor,
+		"-dev":                           complete.PredictNothing,
+		"-server":                        complete.PredictNothing,
+		"-client":                        complete.PredictNothing,
+		"-bootstrap-expect":              complete.PredictAnything,
+		"-encrypt":                       complete.PredictAnything,
+		"-raft-protocol":                 complete.PredictAnything,
+		"-rejoin":                        complete.PredictNothing,
+		"-join":                          complete.PredictAnything,
+		"-retry-join":                    complete.PredictAnything,
+		"-retry-max":                     complete.PredictAnything,
+		"-state-dir":                     complete.PredictDirs("*"),
+		"-alloc-dir":                     complete.PredictDirs("*"),
+		"-node-class":                    complete.PredictAnything,
+		"-servers":                       complete.PredictAnything,
+		"-meta":                          complete.PredictAnything,
+		"-config":                        configFilePredictor,
+		"-bind":                          complete.PredictAnything,
+		"-region":                        complete.PredictAnything,
+		"-data-dir":                      complete.PredictDirs("*"),
+		"-plugin-dir":                    complete.PredictDirs("*"),
+		"-dc":                            complete.PredictAnything,
+		"-log-level":                     complete.PredictAnything,
+		"-node":                          complete.PredictAnything,
+		"-consul-auth":                   complete.PredictAnything,
+		"-consul-auto-advertise":         complete.PredictNothing,
+		"-consul-ca-file":                complete.PredictAnything,
+		"-consul-cert-file":              complete.PredictAnything,
+		"-consul-key-file":               complete.PredictAnything,
+		"-consul-checks-use-advertise":   complete.PredictNothing,
+		"-consul-client-auto-join":       complete.PredictNothing,
+		"-consul-client-service-name":    complete.PredictAnything,
+		"-consul-client-http-check-name": complete.PredictAnything,
+		"-consul-server-service-name":    complete.PredictAnything,
+		"-consul-server-http-check-name": complete.PredictAnything,
+		"-consul-server-serf-check-name": complete.PredictAnything,
+		"-consul-server-rpc-check-name":  complete.PredictAnything,
+		"-consul-server-auto-join":       complete.PredictNothing,
+		"-consul-ssl":                    complete.PredictNothing,
+		"-consul-verify-ssl":             complete.PredictNothing,
+		"-consul-address":                complete.PredictAnything,
+		"-vault-enabled":                 complete.PredictNothing,
+		"-vault-allow-unauthenticated":   complete.PredictNothing,
+		"-vault-token":                   complete.PredictAnything,
+		"-vault-address":                 complete.PredictAnything,
+		"-vault-create-from-role":        complete.PredictAnything,
+		"-vault-ca-file":                 complete.PredictAnything,
+		"-vault-ca-path":                 complete.PredictAnything,
+		"-vault-cert-file":               complete.PredictAnything,
+		"-vault-key-file":                complete.PredictAnything,
+		"-vault-tls-skip-verify":         complete.PredictNothing,
+		"-vault-tls-server-name":         complete.PredictAnything,
+		"-acl-enabled":                   complete.PredictNothing,
+		"-acl-replication-token":         complete.PredictAnything,
 	}
 }
 
@@ -570,7 +622,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger,
+			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
 			serverEnabled: true,
 		}
@@ -593,7 +645,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 			config.Server.RetryInterval = 0
 		}
 
-		c.agent.logger.Printf("[WARN] agent: Using deprecated retry_join fields. Upgrade configuration to use server_join")
+		c.agent.logger.Warn("using deprecated retry_join fields. Upgrade configuration to use server_join")
 	}
 
 	if config.Server.Enabled &&
@@ -603,7 +655,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger,
+			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
 			serverEnabled: true,
 		}
@@ -621,7 +673,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		joiner := retryJoiner{
 			discover:      &discover.Discover{},
 			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger,
+			logger:        c.agent.logger.Named("joiner"),
 			clientJoin:    c.agent.client.SetServers,
 			clientEnabled: true,
 		}
@@ -704,7 +756,7 @@ WAIT:
 // reloadHTTPServer shuts down the existing HTTP server and restarts it. This
 // is helpful when reloading the agent configuration.
 func (c *Command) reloadHTTPServer() error {
-	c.agent.logger.Println("[INFO] agent: Reloading HTTP server with new TLS configuration")
+	c.agent.logger.Info("reloading HTTP server with new TLS configuration")
 
 	c.httpServer.Shutdown()
 
@@ -741,37 +793,48 @@ func (c *Command) handleReload() {
 
 	shouldReloadAgent, shouldReloadHTTP := c.agent.ShouldReload(newConf)
 	if shouldReloadAgent {
-		c.agent.logger.Printf("[DEBUG] agent: starting reload of agent config")
+		c.agent.logger.Debug("starting reload of agent config")
 		err := c.agent.Reload(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
+			c.agent.logger.Error("failed to reload the config", "error", err)
 			return
 		}
 	}
 
 	if s := c.agent.Server(); s != nil {
-		c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
-		sconf, err := convertServerConfig(newConf, c.logOutput)
+		c.agent.logger.Debug("starting reload of server config")
+		sconf, err := convertServerConfig(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+			c.agent.logger.Error("failed to convert server config", "error", err)
 			return
-		} else {
-			if err := s.Reload(sconf); err != nil {
-				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
-				return
-			}
+		}
+
+		// Finalize the config to get the agent objects injected in
+		c.agent.finalizeServerConfig(sconf)
+
+		// Reload the config
+		if err := s.Reload(sconf); err != nil {
+			c.agent.logger.Error("reloading server config failed", "error", err)
+			return
 		}
 	}
 
 	if s := c.agent.Client(); s != nil {
-		clientConfig, err := c.agent.clientConfig()
-		c.agent.logger.Printf("[DEBUG] agent: starting reload of client config")
+		c.agent.logger.Debug("starting reload of client config")
+		clientConfig, err := convertClientConfig(newConf)
 		if err != nil {
-			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			c.agent.logger.Error("failed to convert client config", "error", err)
 			return
 		}
+
+		// Finalize the config to get the agent objects injected in
+		if err := c.agent.finalizeClientConfig(clientConfig); err != nil {
+			c.agent.logger.Error("failed to finalize client config", "error", err)
+			return
+		}
+
 		if err := c.agent.Client().Reload(clientConfig); err != nil {
-			c.agent.logger.Printf("[ERR] agent: reloading client config failed: %v", err)
+			c.agent.logger.Error("reloading client config failed", "error", err)
 			return
 		}
 	}
@@ -783,7 +846,7 @@ func (c *Command) handleReload() {
 	if shouldReloadHTTP {
 		err := c.reloadHTTPServer()
 		if err != nil {
-			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
+			c.agent.httpLogger.Error("reloading config failed", "error", err)
 			return
 		}
 	}
@@ -815,6 +878,18 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName
 		metricsConf.EnableHostname = true
+	}
+
+	allowedPrefixes, blockedPrefixes, err := telConfig.PrefixFilters()
+	if err != nil {
+		return inm, err
+	}
+
+	metricsConf.AllowedPrefixes = allowedPrefixes
+	metricsConf.BlockedPrefixes = blockedPrefixes
+
+	if telConfig.FilterDefault != nil {
+		metricsConf.FilterDefault = *telConfig.FilterDefault
 	}
 
 	// Configure the statsite sink
@@ -900,6 +975,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		metricsConf.EnableHostname = false
 		metrics.NewGlobal(metricsConf, inm)
 	}
+
 	return inm, nil
 }
 

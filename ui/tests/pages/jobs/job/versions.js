@@ -1,5 +1,7 @@
 import { create, collection, text, visitable } from 'ember-cli-page-object';
 
+import error from 'nomad-ui/tests/pages/components/error';
+
 export default create({
   visit: visitable('/jobs/:id/versions'),
 
@@ -8,4 +10,6 @@ export default create({
     stability: text('[data-test-version-stability]'),
     submitTime: text('[data-test-version-submit-time]'),
   }),
+
+  error: error(),
 });

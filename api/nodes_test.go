@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -530,4 +531,89 @@ func TestNodes_DrainStrategy_Equal(t *testing.T) {
 
 	o.IgnoreSystemJobs = true
 	require.True(d.Equal(o))
+}
+
+func TestNodeStatValueFormatting(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		expected string
+		value    StatValue
+	}{
+		{
+			"true",
+			StatValue{BoolVal: helper.BoolToPtr(true)},
+		},
+		{
+			"false",
+			StatValue{BoolVal: helper.BoolToPtr(false)},
+		},
+		{
+			"myvalue",
+			StatValue{StringVal: helper.StringToPtr("myvalue")},
+		},
+		{
+			"2.718",
+			StatValue{
+				FloatNumeratorVal: helper.Float64ToPtr(2.718),
+			},
+		},
+		{
+			"2.718 / 3.14",
+			StatValue{
+				FloatNumeratorVal:   helper.Float64ToPtr(2.718),
+				FloatDenominatorVal: helper.Float64ToPtr(3.14),
+			},
+		},
+		{
+			"2.718 MHz",
+			StatValue{
+				FloatNumeratorVal: helper.Float64ToPtr(2.718),
+				Unit:              "MHz",
+			},
+		},
+		{
+			"2.718 / 3.14 MHz",
+			StatValue{
+				FloatNumeratorVal:   helper.Float64ToPtr(2.718),
+				FloatDenominatorVal: helper.Float64ToPtr(3.14),
+				Unit:                "MHz",
+			},
+		},
+		{
+			"2",
+			StatValue{
+				IntNumeratorVal: helper.Int64ToPtr(2),
+			},
+		},
+		{
+			"2 / 3",
+			StatValue{
+				IntNumeratorVal:   helper.Int64ToPtr(2),
+				IntDenominatorVal: helper.Int64ToPtr(3),
+			},
+		},
+		{
+			"2 MHz",
+			StatValue{
+				IntNumeratorVal: helper.Int64ToPtr(2),
+				Unit:            "MHz",
+			},
+		},
+		{
+			"2 / 3 MHz",
+			StatValue{
+				IntNumeratorVal:   helper.Int64ToPtr(2),
+				IntDenominatorVal: helper.Int64ToPtr(3),
+				Unit:              "MHz",
+			},
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("case %d %v", i, c.expected), func(t *testing.T) {
+			formatted := c.value.String()
+			require.Equal(t, c.expected, formatted)
+		})
+	}
 }

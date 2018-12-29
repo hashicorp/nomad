@@ -36,14 +36,14 @@ func (cp *fauxConnPool) Ping(net.Addr) error {
 }
 
 func testManager(t *testing.T) (m *Manager) {
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m = New(logger, shutdownCh, &fauxConnPool{})
 	return m
 }
 
 func testManagerFailProb(t *testing.T, failPct float64) (m *Manager) {
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m = New(logger, shutdownCh, &fauxConnPool{failPct: failPct})
 	return m
@@ -136,7 +136,7 @@ func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 		{1000000, 19, 10 * time.Minute},
 	}
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 
 	for _, s := range clusters {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	golog "log"
 	"net"
 	"os"
 	"path/filepath"
@@ -17,6 +17,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
+	log "github.com/hashicorp/go-hclog"
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -25,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/raft"
 )
 
@@ -50,8 +52,9 @@ type Agent struct {
 	config     *Config
 	configLock sync.Mutex
 
-	logger    *log.Logger
-	logOutput io.Writer
+	logger     log.Logger
+	httpLogger log.Logger
+	logOutput  io.Writer
 
 	// consulService is Nomad's custom Consul client for managing services
 	// and checks.
@@ -60,9 +63,20 @@ type Agent struct {
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
+	// client is the launched Nomad Client. Can be nil if the agent isn't
+	// configured to run a client.
 	client *client.Client
 
+	// server is the launched Nomad Server. Can be nil if the agent isn't
+	// configured to run a server.
 	server *nomad.Server
+
+	// pluginLoader is used to load plugins
+	pluginLoader loader.PluginCatalog
+
+	// pluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	pluginSingletonLoader loader.PluginCatalog
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -75,20 +89,30 @@ type Agent struct {
 func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
-		logger:     log.New(logOutput, "", log.LstdFlags|log.Lmicroseconds),
 		logOutput:  logOutput,
 		shutdownCh: make(chan struct{}),
 		InmemSink:  inmem,
 	}
 
+	// Create the loggers
+	a.logger = log.New(&log.LoggerOptions{
+		Name:       "agent",
+		Level:      log.LevelFromString(config.LogLevel),
+		Output:     logOutput,
+		JSONFormat: false, // TODO(alex,hclog) Add a config option
+	})
+	a.httpLogger = a.logger.ResetNamed("http")
+
 	// Global logger should match internal logger as much as possible
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	golog.SetFlags(golog.LstdFlags | golog.Lmicroseconds)
 
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
 
-	// TODO setup plugin loader
+	if err := a.setupPlugins(); err != nil {
+		return nil, err
+	}
 
 	if err := a.setupServer(); err != nil {
 		return nil, err
@@ -104,13 +128,13 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 }
 
 // convertServerConfig takes an agent config and log output and returns a Nomad
-// Config.
-func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Config, error) {
+// Config. There may be missing fields that must be set by the agent. To do this
+// call finalizeServerConfig
+func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf := agentConfig.NomadConfig
 	if conf == nil {
 		conf = nomad.DefaultConfig()
 	}
-	conf.LogOutput = logOutput
 	conf.DevMode = agentConfig.DevMode
 	conf.Build = agentConfig.Version.VersionNumber()
 	if agentConfig.Region != "" {
@@ -301,6 +325,7 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	// Setup telemetry related config
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
+	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
 	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	return conf, nil
@@ -309,149 +334,206 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 // serverConfig is used to generate a new server configuration struct
 // for initializing a nomad server.
 func (a *Agent) serverConfig() (*nomad.Config, error) {
-	return convertServerConfig(a.config, a.logOutput)
+	c, err := convertServerConfig(a.config)
+	if err != nil {
+		return nil, err
+	}
+
+	a.finalizeServerConfig(c)
+	return c, nil
 }
 
-// clientConfig is used to generate a new client configuration struct
-// for initializing a Nomad client.
+// finalizeServerConfig sets configuration fields on the server config that are
+// not staticly convertable and are from the agent.
+func (a *Agent) finalizeServerConfig(c *nomad.Config) {
+	// Setup the logging
+	c.Logger = a.logger
+	c.LogOutput = a.logOutput
+
+	// Setup the plugin loaders
+	c.PluginLoader = a.pluginLoader
+	c.PluginSingletonLoader = a.pluginSingletonLoader
+}
+
+// clientConfig is used to generate a new client configuration struct for
+// initializing a Nomad client.
 func (a *Agent) clientConfig() (*clientconfig.Config, error) {
-	// Setup the configuration
-	conf := a.config.ClientConfig
-	if conf == nil {
-		conf = clientconfig.DefaultConfig()
+	c, err := convertClientConfig(a.config)
+	if err != nil {
+		return nil, err
 	}
+
+	if err := a.finalizeClientConfig(c); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// finalizeClientConfig sets configuration fields on the client config that are
+// not staticly convertable and are from the agent.
+func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
+	// Setup the logging
+	c.Logger = a.logger
+	c.LogOutput = a.logOutput
 
 	// If we are running a server, append both its bind and advertise address so
 	// we are able to at least talk to the local server even if that isn't
 	// configured explicitly. This handles both running server and client on one
 	// host and -dev mode.
-	conf.Servers = a.config.Client.Servers
 	if a.server != nil {
 		if a.config.AdvertiseAddrs == nil || a.config.AdvertiseAddrs.RPC == "" {
-			return nil, fmt.Errorf("AdvertiseAddrs is nil or empty")
+			return fmt.Errorf("AdvertiseAddrs is nil or empty")
 		} else if a.config.normalizedAddrs == nil || a.config.normalizedAddrs.RPC == "" {
-			return nil, fmt.Errorf("normalizedAddrs is nil or empty")
+			return fmt.Errorf("normalizedAddrs is nil or empty")
 		}
 
-		conf.Servers = append(conf.Servers,
+		c.Servers = append(c.Servers,
 			a.config.normalizedAddrs.RPC,
 			a.config.AdvertiseAddrs.RPC)
 	}
 
-	conf.LogOutput = a.logOutput
-	conf.LogLevel = a.config.LogLevel
-	conf.DevMode = a.config.DevMode
-	if a.config.Region != "" {
-		conf.Region = a.config.Region
-	}
-	if a.config.DataDir != "" {
-		conf.StateDir = filepath.Join(a.config.DataDir, "client")
-		conf.AllocDir = filepath.Join(a.config.DataDir, "alloc")
-	}
-	if a.config.Client.StateDir != "" {
-		conf.StateDir = a.config.Client.StateDir
-	}
-	if a.config.Client.AllocDir != "" {
-		conf.AllocDir = a.config.Client.AllocDir
-	}
-	if a.config.Client.NetworkInterface != "" {
-		conf.NetworkInterface = a.config.Client.NetworkInterface
-	}
-	conf.ChrootEnv = a.config.Client.ChrootEnv
-	conf.Options = a.config.Client.Options
-	// Logging deprecation messages about consul related configuration in client
+	// Setup the plugin loaders
+	c.PluginLoader = a.pluginLoader
+	c.PluginSingletonLoader = a.pluginSingletonLoader
+
+	// Log deprecation messages about Consul related configuration in client
 	// options
 	var invalidConsulKeys []string
-	for key := range conf.Options {
+	for key := range c.Options {
 		if strings.HasPrefix(key, "consul") {
 			invalidConsulKeys = append(invalidConsulKeys, fmt.Sprintf("options.%s", key))
 		}
 	}
 	if len(invalidConsulKeys) > 0 {
-		a.logger.Printf("[WARN] agent: Invalid keys: %v", strings.Join(invalidConsulKeys, ","))
-		a.logger.Printf(`Nomad client ignores consul related configuration in client options.
+		a.logger.Warn("invalid consul keys", "keys", strings.Join(invalidConsulKeys, ","))
+		a.logger.Warn(`Nomad client ignores consul related configuration in client options.
 		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
 		to configure Nomad to work with Consul.`)
 	}
 
-	if a.config.Client.NetworkSpeed != 0 {
-		conf.NetworkSpeed = a.config.Client.NetworkSpeed
+	return nil
+}
+
+// convertClientConfig takes an agent config and log output and returns a client
+// Config. There may be missing fields that must be set by the agent. To do this
+// call finalizeServerConfig
+func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
+	// Setup the configuration
+	conf := agentConfig.ClientConfig
+	if conf == nil {
+		conf = clientconfig.DefaultConfig()
 	}
-	if a.config.Client.CpuCompute != 0 {
-		conf.CpuCompute = a.config.Client.CpuCompute
+
+	conf.Servers = agentConfig.Client.Servers
+	conf.LogLevel = agentConfig.LogLevel
+	conf.DevMode = agentConfig.DevMode
+	if agentConfig.Region != "" {
+		conf.Region = agentConfig.Region
 	}
-	if a.config.Client.MemoryMB != 0 {
-		conf.MemoryMB = a.config.Client.MemoryMB
+	if agentConfig.DataDir != "" {
+		conf.StateDir = filepath.Join(agentConfig.DataDir, "client")
+		conf.AllocDir = filepath.Join(agentConfig.DataDir, "alloc")
 	}
-	if a.config.Client.MaxKillTimeout != "" {
-		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
+	if agentConfig.Client.StateDir != "" {
+		conf.StateDir = agentConfig.Client.StateDir
+	}
+	if agentConfig.Client.AllocDir != "" {
+		conf.AllocDir = agentConfig.Client.AllocDir
+	}
+	if agentConfig.Client.NetworkInterface != "" {
+		conf.NetworkInterface = agentConfig.Client.NetworkInterface
+	}
+	conf.ChrootEnv = agentConfig.Client.ChrootEnv
+	conf.Options = agentConfig.Client.Options
+	if agentConfig.Client.NetworkSpeed != 0 {
+		conf.NetworkSpeed = agentConfig.Client.NetworkSpeed
+	}
+	if agentConfig.Client.CpuCompute != 0 {
+		conf.CpuCompute = agentConfig.Client.CpuCompute
+	}
+	if agentConfig.Client.MemoryMB != 0 {
+		conf.MemoryMB = agentConfig.Client.MemoryMB
+	}
+	if agentConfig.Client.MaxKillTimeout != "" {
+		dur, err := time.ParseDuration(agentConfig.Client.MaxKillTimeout)
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing max kill timeout: %s", err)
 		}
 		conf.MaxKillTimeout = dur
 	}
-	conf.ClientMaxPort = uint(a.config.Client.ClientMaxPort)
-	conf.ClientMinPort = uint(a.config.Client.ClientMinPort)
+	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
+	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 
 	// Setup the node
 	conf.Node = new(structs.Node)
-	conf.Node.Datacenter = a.config.Datacenter
-	conf.Node.Name = a.config.NodeName
-	conf.Node.Meta = a.config.Client.Meta
-	conf.Node.NodeClass = a.config.Client.NodeClass
+	conf.Node.Datacenter = agentConfig.Datacenter
+	conf.Node.Name = agentConfig.NodeName
+	conf.Node.Meta = agentConfig.Client.Meta
+	conf.Node.NodeClass = agentConfig.Client.NodeClass
 
 	// Set up the HTTP advertise address
-	conf.Node.HTTPAddr = a.config.AdvertiseAddrs.HTTP
+	conf.Node.HTTPAddr = agentConfig.AdvertiseAddrs.HTTP
 
 	// Reserve resources on the node.
+	// COMPAT(0.10): Remove in 0.10
 	r := conf.Node.Reserved
 	if r == nil {
 		r = new(structs.Resources)
 		conf.Node.Reserved = r
 	}
-	r.CPU = a.config.Client.Reserved.CPU
-	r.MemoryMB = a.config.Client.Reserved.MemoryMB
-	r.DiskMB = a.config.Client.Reserved.DiskMB
-	r.IOPS = a.config.Client.Reserved.IOPS
-	conf.GloballyReservedPorts = a.config.Client.Reserved.ParsedReservedPorts
+	r.CPU = agentConfig.Client.Reserved.CPU
+	r.MemoryMB = agentConfig.Client.Reserved.MemoryMB
+	r.DiskMB = agentConfig.Client.Reserved.DiskMB
+	r.IOPS = agentConfig.Client.Reserved.IOPS
 
-	conf.Version = a.config.Version
+	res := conf.Node.ReservedResources
+	if res == nil {
+		res = new(structs.NodeReservedResources)
+		conf.Node.ReservedResources = res
+	}
+	res.Cpu.CpuShares = int64(agentConfig.Client.Reserved.CPU)
+	res.Memory.MemoryMB = int64(agentConfig.Client.Reserved.MemoryMB)
+	res.Disk.DiskMB = int64(agentConfig.Client.Reserved.DiskMB)
+	res.Networks.ReservedHostPorts = agentConfig.Client.Reserved.ReservedPorts
 
-	if *a.config.Consul.AutoAdvertise && a.config.Consul.ClientServiceName == "" {
+	conf.Version = agentConfig.Version
+
+	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ClientServiceName == "" {
 		return nil, fmt.Errorf("client_service_name must be set when auto_advertise is enabled")
 	}
 
-	conf.ConsulConfig = a.config.Consul
-	conf.VaultConfig = a.config.Vault
+	conf.ConsulConfig = agentConfig.Consul
+	conf.VaultConfig = agentConfig.Vault
 
 	// Set up Telemetry configuration
-	conf.StatsCollectionInterval = a.config.Telemetry.collectionInterval
-	conf.PublishNodeMetrics = a.config.Telemetry.PublishNodeMetrics
-	conf.PublishAllocationMetrics = a.config.Telemetry.PublishAllocationMetrics
-	conf.DisableTaggedMetrics = a.config.Telemetry.DisableTaggedMetrics
-	conf.BackwardsCompatibleMetrics = a.config.Telemetry.BackwardsCompatibleMetrics
+	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
+	conf.PublishNodeMetrics = agentConfig.Telemetry.PublishNodeMetrics
+	conf.PublishAllocationMetrics = agentConfig.Telemetry.PublishAllocationMetrics
+	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
+	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	// Set the TLS related configs
-	conf.TLSConfig = a.config.TLSConfig
+	conf.TLSConfig = agentConfig.TLSConfig
 	conf.Node.TLSEnabled = conf.TLSConfig.EnableHTTP
 
 	// Set the GC related configs
-	conf.GCInterval = a.config.Client.GCInterval
-	conf.GCParallelDestroys = a.config.Client.GCParallelDestroys
-	conf.GCDiskUsageThreshold = a.config.Client.GCDiskUsageThreshold
-	conf.GCInodeUsageThreshold = a.config.Client.GCInodeUsageThreshold
-	conf.GCMaxAllocs = a.config.Client.GCMaxAllocs
-	if a.config.Client.NoHostUUID != nil {
-		conf.NoHostUUID = *a.config.Client.NoHostUUID
+	conf.GCInterval = agentConfig.Client.GCInterval
+	conf.GCParallelDestroys = agentConfig.Client.GCParallelDestroys
+	conf.GCDiskUsageThreshold = agentConfig.Client.GCDiskUsageThreshold
+	conf.GCInodeUsageThreshold = agentConfig.Client.GCInodeUsageThreshold
+	conf.GCMaxAllocs = agentConfig.Client.GCMaxAllocs
+	if agentConfig.Client.NoHostUUID != nil {
+		conf.NoHostUUID = *agentConfig.Client.NoHostUUID
 	} else {
 		// Default no_host_uuid to true
 		conf.NoHostUUID = true
 	}
 
 	// Setup the ACLs
-	conf.ACLEnabled = a.config.ACL.Enabled
-	conf.ACLTokenTTL = a.config.ACL.TokenTTL
-	conf.ACLPolicyTTL = a.config.ACL.PolicyTTL
+	conf.ACLEnabled = agentConfig.ACL.Enabled
+	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL
+	conf.ACLPolicyTTL = agentConfig.ACL.PolicyTTL
 
 	return conf, nil
 }
@@ -480,7 +562,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulCatalog, a.logger)
+	server, err := nomad.NewServer(conf, a.consulCatalog)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -650,7 +732,7 @@ func (a *Agent) setupClient() error {
 		}
 	}
 
-	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, a.logger)
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
@@ -702,7 +784,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 		return &check
 	}
 	if a.config.TLSConfig.VerifyHTTPSClient {
-		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because verify_https_client enabled")
+		a.logger.Warn("not registering Nomad HTTPS Health Check because verify_https_client enabled")
 		return nil
 	}
 
@@ -715,37 +797,17 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 // reservePortsForClient reserves a range of ports for the client to use when
 // it creates various plugins for log collection, executors, drivers, etc
 func (a *Agent) reservePortsForClient(conf *clientconfig.Config) error {
-	// finding the device name for loopback
-	deviceName, addr, mask, err := a.findLoopbackDevice()
-	if err != nil {
-		return fmt.Errorf("error finding the device name for loopback: %v", err)
+	if conf.Node.ReservedResources == nil {
+		conf.Node.ReservedResources = &structs.NodeReservedResources{}
 	}
 
-	// seeing if the user has already reserved some resources on this device
-	var nr *structs.NetworkResource
-	if conf.Node.Reserved == nil {
-		conf.Node.Reserved = &structs.Resources{}
+	res := conf.Node.ReservedResources.Networks.ReservedHostPorts
+	if res == "" {
+		res = fmt.Sprintf("%d-%d", conf.ClientMinPort, conf.ClientMaxPort)
+	} else {
+		res += fmt.Sprintf(",%d-%d", conf.ClientMinPort, conf.ClientMaxPort)
 	}
-	for _, n := range conf.Node.Reserved.Networks {
-		if n.Device == deviceName {
-			nr = n
-		}
-	}
-	// If the user hasn't already created the device, we create it
-	if nr == nil {
-		nr = &structs.NetworkResource{
-			Device:        deviceName,
-			IP:            addr,
-			CIDR:          mask,
-			ReservedPorts: make([]structs.Port, 0),
-		}
-	}
-	// appending the port ranges we want to use for the client to the list of
-	// reserved ports for this device
-	for i := conf.ClientMinPort; i <= conf.ClientMaxPort; i++ {
-		nr.ReservedPorts = append(nr.ReservedPorts, structs.Port{Label: fmt.Sprintf("plugin-%d", i), Value: int(i)})
-	}
-	conf.Node.Reserved.Networks = append(conf.Node.Reserved.Networks, nr)
+	conf.Node.ReservedResources.Networks.ReservedHostPorts = res
 	return nil
 }
 
@@ -788,12 +850,12 @@ func (a *Agent) findLoopbackDevice() (string, string, string, error) {
 func (a *Agent) Leave() error {
 	if a.client != nil {
 		if err := a.client.Leave(); err != nil {
-			a.logger.Printf("[ERR] agent: client leave failed: %v", err)
+			a.logger.Error("client leave failed", "error", err)
 		}
 	}
 	if a.server != nil {
 		if err := a.server.Leave(); err != nil {
-			a.logger.Printf("[ERR] agent: server leave failed: %v", err)
+			a.logger.Error("server leave failed", "error", err)
 		}
 	}
 	return nil
@@ -808,23 +870,23 @@ func (a *Agent) Shutdown() error {
 		return nil
 	}
 
-	a.logger.Println("[INFO] agent: requesting shutdown")
+	a.logger.Info("requesting shutdown")
 	if a.client != nil {
 		if err := a.client.Shutdown(); err != nil {
-			a.logger.Printf("[ERR] agent: client shutdown failed: %v", err)
+			a.logger.Error("client shutdown failed", "error", err)
 		}
 	}
 	if a.server != nil {
 		if err := a.server.Shutdown(); err != nil {
-			a.logger.Printf("[ERR] agent: server shutdown failed: %v", err)
+			a.logger.Error("server shutdown failed", "error", err)
 		}
 	}
 
 	if err := a.consulService.Shutdown(); err != nil {
-		a.logger.Printf("[ERR] agent: shutting down Consul client failed: %v", err)
+		a.logger.Error("shutting down Consul client failed", "error", err)
 	}
 
-	a.logger.Println("[INFO] agent: shutdown complete")
+	a.logger.Info("shutdown complete")
 	a.shutdown = true
 	close(a.shutdownCh)
 	return nil
@@ -875,7 +937,7 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
-		a.logger.Printf("[INFO] agent: error when parsing TLS certificate %v", err)
+		a.logger.Error("parsing TLS certificate", "error", err)
 		return false, false
 	} else if !isEqual {
 		return true, true
@@ -930,9 +992,9 @@ func (a *Agent) Reload(newConfig *Config) error {
 	a.config.TLSConfig = newConfig.TLSConfig.Copy()
 
 	if newConfig.TLSConfig.IsEmpty() {
-		a.logger.Println("[WARN] agent: Downgrading agent's existing TLS configuration to plaintext")
+		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
 	} else {
-		a.logger.Println("[INFO] agent: Upgrading from plaintext configuration to TLS")
+		a.logger.Info("upgrading from plaintext configuration to TLS")
 	}
 
 	return nil

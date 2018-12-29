@@ -56,6 +56,9 @@ func decodeSpecBlock(spec *Spec, impliedName string) (hcldec.Spec, hcl.Diagnosti
 	case *Spec_BlockValue:
 		return decodeBlockSpec(spec.GetBlockValue(), impliedName)
 
+	case *Spec_BlockAttrs:
+		return decodeBlockAttrsSpec(spec.GetBlockAttrs(), impliedName)
+
 	case *Spec_BlockList:
 		return decodeBlockListSpec(spec.GetBlockList(), impliedName)
 
@@ -153,6 +156,38 @@ func decodeBlockSpec(block *Block, impliedName string) (hcldec.Spec, hcl.Diagnos
 
 	nested, diags := decodeBlockNestedSpec(block.GetNested())
 	spec.Nested = nested
+	return spec, diags
+}
+
+func decodeBlockAttrsSpec(block *BlockAttrs, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+	// Convert the string type to an hcl.Expression
+	typeExpr, diags := hclsyntax.ParseExpression([]byte(block.GetType()), "proto", emptyPos)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	spec := &hcldec.BlockAttrsSpec{
+		TypeName: impliedName,
+		Required: block.GetRequired(),
+	}
+
+	if n := block.GetName(); n != "" {
+		spec.TypeName = n
+	}
+
+	var typeDiags hcl.Diagnostics
+	spec.ElementType, typeDiags = evalTypeExpr(typeExpr)
+	diags = append(diags, typeDiags...)
+
+	if spec.TypeName == "" {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Missing name in block_attrs spec",
+			Detail:   "The name attribute is required, to specify the block attr name that is expected in an input HCL file.",
+		})
+		return nil, diags
+	}
+
 	return spec, diags
 }
 

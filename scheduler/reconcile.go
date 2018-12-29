@@ -2,10 +2,11 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"sort"
+
+	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -38,7 +39,7 @@ type allocUpdateType func(existing *structs.Allocation, newJob *structs.Job,
 type allocReconciler struct {
 	// logger is used to log debug information. Logging should be kept at a
 	// minimal here
-	logger *log.Logger
+	logger log.Logger
 
 	// canInplace is used to check if the allocation can be inplace upgraded
 	allocUpdateFn allocUpdateType
@@ -155,11 +156,11 @@ func (r *reconcileResults) Changes() int {
 
 // NewAllocReconciler creates a new reconciler that should be used to determine
 // the changes required to bring the cluster state inline with the declared jobspec
-func NewAllocReconciler(logger *log.Logger, allocUpdateFn allocUpdateType, batch bool,
+func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string) *allocReconciler {
 	return &allocReconciler{
-		logger:         logger,
+		logger:         logger.Named("reconciler"),
 		allocUpdateFn:  allocUpdateFn,
 		batch:          batch,
 		jobID:          jobID,
@@ -271,6 +272,7 @@ func (a *allocReconciler) cancelDeployments() {
 // handleStop marks all allocations to be stopped, handling the lost case
 func (a *allocReconciler) handleStop(m allocMatrix) {
 	for group, as := range m {
+		as = filterByTerminal(as)
 		untainted, migrate, lost := as.filterByTainted(a.taintedNodes)
 		a.markStop(untainted, "", allocNotNeeded)
 		a.markStop(migrate, "", allocNotNeeded)

@@ -230,6 +230,31 @@ func TestParse(t *testing.T) {
 											DynamicPorts:  []api.Port{{Label: "http", Value: 0}, {Label: "https", Value: 0}, {Label: "admin", Value: 0}},
 										},
 									},
+									Devices: []*api.RequestedDevice{
+										{
+											Name:  "nvidia/gpu",
+											Count: helper.Uint64ToPtr(10),
+											Constraints: []*api.Constraint{
+												{
+													LTarget: "${driver.attr.memory}",
+													RTarget: "2GB",
+													Operand: ">",
+												},
+											},
+											Affinities: []*api.Affinity{
+												{
+													LTarget: "${driver.model}",
+													RTarget: "1080ti",
+													Operand: "=",
+													Weight:  50,
+												},
+											},
+										},
+										{
+											Name:  "intel/gpu",
+											Count: nil,
+										},
+									},
 								},
 								KillTimeout:   helper.TimeToPtr(22 * time.Second),
 								ShutdownDelay: 11 * time.Second,

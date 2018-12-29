@@ -12,10 +12,13 @@ import (
 // gRPC to communicate to the remote plugin.
 type BasePluginClient struct {
 	Client proto.BasePluginClient
+
+	// DoneCtx is closed when the plugin exits
+	DoneCtx context.Context
 }
 
 func (b *BasePluginClient) PluginInfo() (*PluginInfoResponse, error) {
-	presp, err := b.Client.PluginInfo(context.Background(), &proto.PluginInfoRequest{})
+	presp, err := b.Client.PluginInfo(b.DoneCtx, &proto.PluginInfoRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +44,7 @@ func (b *BasePluginClient) PluginInfo() (*PluginInfoResponse, error) {
 }
 
 func (b *BasePluginClient) ConfigSchema() (*hclspec.Spec, error) {
-	presp, err := b.Client.ConfigSchema(context.Background(), &proto.ConfigSchemaRequest{})
+	presp, err := b.Client.ConfigSchema(b.DoneCtx, &proto.ConfigSchemaRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -49,10 +52,11 @@ func (b *BasePluginClient) ConfigSchema() (*hclspec.Spec, error) {
 	return presp.GetSpec(), nil
 }
 
-func (b *BasePluginClient) SetConfig(data []byte) error {
+func (b *BasePluginClient) SetConfig(data []byte, config *ClientAgentConfig) error {
 	// Send the config
-	_, err := b.Client.SetConfig(context.Background(), &proto.SetConfigRequest{
+	_, err := b.Client.SetConfig(b.DoneCtx, &proto.SetConfigRequest{
 		MsgpackConfig: data,
+		NomadConfig:   config.toProto(),
 	})
 
 	return err

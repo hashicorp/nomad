@@ -3,17 +3,16 @@ package deploymentwatcher
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
-	"golang.org/x/time/rate"
-
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -91,7 +90,7 @@ type deploymentWatcher struct {
 	// by holding the lock or using the setter and getter methods.
 	latestEval uint64
 
-	logger *log.Logger
+	logger log.Logger
 	ctx    context.Context
 	exitFn context.CancelFunc
 	l      sync.RWMutex
@@ -100,7 +99,7 @@ type deploymentWatcher struct {
 // newDeploymentWatcher returns a deployment watcher that is used to watch
 // deployments and trigger the scheduler as needed.
 func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
-	logger *log.Logger, state *state.StateStore, d *structs.Deployment,
+	logger log.Logger, state *state.StateStore, d *structs.Deployment,
 	j *structs.Job, triggers deploymentTriggers) *deploymentWatcher {
 
 	ctx, exitFn := context.WithCancel(parent)
@@ -112,7 +111,7 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 		j:                  j,
 		state:              state,
 		deploymentTriggers: triggers,
-		logger:             logger,
+		logger:             logger.With("deployment_id", d.ID, "job", j.NamespacedID()),
 		ctx:                ctx,
 		exitFn:             exitFn,
 	}
@@ -225,7 +224,6 @@ func (w *deploymentWatcher) SetAllocHealth(
 	if j != nil {
 		resp.RevertedJobVersion = helper.Uint64ToPtr(j.Version)
 	}
-	w.setLatestEval(index)
 	return nil
 }
 
@@ -264,7 +262,6 @@ func (w *deploymentWatcher) PromoteDeployment(
 	resp.EvalCreateIndex = index
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
-	w.setLatestEval(index)
 	return nil
 }
 
@@ -296,7 +293,6 @@ func (w *deploymentWatcher) PauseDeployment(
 	}
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
-	w.setLatestEval(i)
 	return nil
 }
 
@@ -346,7 +342,6 @@ func (w *deploymentWatcher) FailDeployment(
 	if rollbackJob != nil {
 		resp.RevertedJobVersion = helper.Uint64ToPtr(rollbackJob.Version)
 	}
-	w.setLatestEval(i)
 	return nil
 }
 
@@ -366,7 +361,7 @@ func (w *deploymentWatcher) watch() {
 	// handle the case that the deployment has already progressed and we are now
 	// just starting to watch it. This must likely would occur if there was a
 	// leader transition and we are now starting our watcher.
-	currentDeadline := getDeploymentProgressCutoff(w.getDeployment())
+	currentDeadline := w.getDeploymentProgressCutoff(w.getDeployment())
 	var deadlineTimer *time.Timer
 	if currentDeadline.IsZero() {
 		deadlineTimer = time.NewTimer(0)
@@ -395,20 +390,20 @@ FAIL:
 			deadlineHit = true
 			fail, rback, err := w.shouldFail()
 			if err != nil {
-				w.logger.Printf("[ERR] nomad.deployment_watcher: failed to determine whether to rollback job for deployment %q: %v", w.deploymentID, err)
+				w.logger.Error("failed to determine whether to rollback job", "error", err)
 			}
 			if !fail {
-				w.logger.Printf("[DEBUG] nomad.deployment_watcher: skipping deadline for deployment %q", w.deploymentID)
+				w.logger.Debug("skipping deadline")
 				continue
 			}
 
-			w.logger.Printf("[DEBUG] nomad.deployment_watcher: deadline for deployment %q hit and rollback is %v", w.deploymentID, rback)
+			w.logger.Debug("deadline hit", "rollback", rback)
 			rollback = rback
 			break FAIL
 		case <-w.deploymentUpdateCh:
 			// Get the updated deployment and check if we should change the
 			// deadline timer
-			next := getDeploymentProgressCutoff(w.getDeployment())
+			next := w.getDeploymentProgressCutoff(w.getDeployment())
 			if !next.Equal(currentDeadline) {
 				prevDeadlineZero := currentDeadline.IsZero()
 				currentDeadline = next
@@ -422,7 +417,17 @@ FAIL:
 					default:
 					}
 				}
-				deadlineTimer.Reset(next.Sub(time.Now()))
+
+				// If the next deadline is zero, we should not reset the timer
+				// as we aren't tracking towards a progress deadline yet. This
+				// can happen if you have multiple task groups with progress
+				// deadlines and one of the task groups hasn't made any
+				// placements. As soon as the other task group finishes its
+				// rollout, the next progress deadline becomes zero, so we want
+				// to avoid resetting, causing a deployment failure.
+				if !next.IsZero() {
+					deadlineTimer.Reset(next.Sub(time.Now()))
+				}
 			}
 
 		case updates = <-w.getAllocsCh(allocIndex):
@@ -431,7 +436,7 @@ FAIL:
 					return
 				}
 
-				w.logger.Printf("[ERR] nomad.deployment_watcher: failed to retrieve allocations for deployment %q: %v", w.deploymentID, err)
+				w.logger.Error("failed to retrieve allocations", "error", err)
 				return
 			}
 			allocIndex = updates.index
@@ -444,7 +449,7 @@ FAIL:
 					return
 				}
 
-				w.logger.Printf("[ERR] nomad.deployment_watcher: failed handling allocation updates: %v", err)
+				w.logger.Error("failed handling allocation updates", "error", err)
 				return
 			}
 
@@ -474,7 +479,7 @@ FAIL:
 		var err error
 		j, err = w.latestStableJob()
 		if err != nil {
-			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to lookup latest stable job for %q: %v", w.j.ID, err)
+			w.logger.Error("failed to lookup latest stable job", "error", err)
 		}
 
 		// Description should include that the job is being rolled back to
@@ -489,10 +494,8 @@ FAIL:
 	// Update the status of the deployment to failed and create an evaluation.
 	e := w.getEval()
 	u := w.getDeploymentStatusUpdate(structs.DeploymentStatusFailed, desc)
-	if index, err := w.upsertDeploymentStatusUpdate(u, e, j); err != nil {
-		w.logger.Printf("[ERR] nomad.deployment_watcher: failed to update deployment %q status: %v", w.deploymentID, err)
-	} else {
-		w.setLatestEval(index)
+	if _, err := w.upsertDeploymentStatusUpdate(u, e, j); err != nil {
+		w.logger.Error("failed to update deployment status", "error", err)
 	}
 }
 
@@ -511,7 +514,7 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 	var res allocUpdateResult
 
 	// Get the latest evaluation index
-	latestEval, err := w.latestEvalIndex()
+	latestEval, err := w.jobEvalStatus()
 	if err != nil {
 		if err == context.Canceled || w.ctx.Err() == context.Canceled {
 			return res, err
@@ -527,19 +530,20 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			continue
 		}
 
-		// Nothing to do for this allocation
-		if alloc.DeploymentStatus == nil || alloc.DeploymentStatus.ModifyIndex <= latestEval {
-			continue
-		}
-
 		// Determine if the update stanza for this group is progress based
 		progressBased := dstate.ProgressDeadline != 0
 
-		// We need to create an eval so the job can progress.
-		if alloc.DeploymentStatus.IsHealthy() {
-			res.createEval = true
-		} else if progressBased && alloc.DeploymentStatus.IsUnhealthy() && deployment.Active() && !alloc.DesiredTransition.ShouldReschedule() {
+		// Check if the allocation has failed and we need to mark it for allow
+		// replacements
+		if progressBased && alloc.DeploymentStatus.IsUnhealthy() &&
+			deployment.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 			res.allowReplacements = append(res.allowReplacements, alloc.ID)
+			continue
+		}
+
+		// We need to create an eval so the job can progress.
+		if alloc.DeploymentStatus.IsHealthy() && alloc.DeploymentStatus.ModifyIndex > latestEval {
+			res.createEval = true
 		}
 
 		// If the group is using a progress deadline, we don't have to do anything.
@@ -615,14 +619,70 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 
 // getDeploymentProgressCutoff returns the progress cutoff for the given
 // deployment
-func getDeploymentProgressCutoff(d *structs.Deployment) time.Time {
+func (w *deploymentWatcher) getDeploymentProgressCutoff(d *structs.Deployment) time.Time {
 	var next time.Time
-	for _, state := range d.TaskGroups {
+	doneTGs := w.doneGroups(d)
+	for name, state := range d.TaskGroups {
+		// This task group is done so we don't have to concern ourselves with
+		// its progress deadline.
+		if done, ok := doneTGs[name]; ok && done {
+			continue
+		}
+
+		if state.RequireProgressBy.IsZero() {
+			continue
+		}
+
 		if next.IsZero() || state.RequireProgressBy.Before(next) {
 			next = state.RequireProgressBy
 		}
 	}
 	return next
+}
+
+// doneGroups returns a map of task group to whether the deployment appears to
+// be done for the group. A true value doesn't mean no more action will be taken
+// in the life time of the deployment because there could always be node
+// failures, or rescheduling events.
+func (w *deploymentWatcher) doneGroups(d *structs.Deployment) map[string]bool {
+	if d == nil {
+		return nil
+	}
+
+	// Collect the allocations by the task group
+	snap, err := w.state.Snapshot()
+	if err != nil {
+		return nil
+	}
+
+	allocs, err := snap.AllocsByDeployment(nil, d.ID)
+	if err != nil {
+		return nil
+	}
+
+	// Go through the allocs and count up how many healthy allocs we have
+	healthy := make(map[string]int, len(d.TaskGroups))
+	for _, a := range allocs {
+		if a.TerminalStatus() || !a.DeploymentStatus.IsHealthy() {
+			continue
+		}
+		healthy[a.TaskGroup]++
+	}
+
+	// Go through each group and check if it done
+	groups := make(map[string]bool, len(d.TaskGroups))
+	for name, state := range d.TaskGroups {
+		// Requires promotion
+		if state.DesiredCanaries != 0 && !state.Promoted {
+			groups[name] = false
+			continue
+		}
+
+		// Check we have enough healthy currently running allocations
+		groups[name] = healthy[name] >= state.DesiredTotal
+	}
+
+	return groups
 }
 
 // latestStableJob returns the latest stable job. It may be nil if none exist
@@ -684,10 +744,8 @@ func (w *deploymentWatcher) createBatchedUpdate(allowReplacements []string, forI
 		w.l.Unlock()
 
 		// Create the eval
-		if index, err := w.createUpdate(replacements, w.getEval()); err != nil {
-			w.logger.Printf("[ERR] nomad.deployment_watcher: failed to create evaluation for deployment %q: %v", w.deploymentID, err)
-		} else {
-			w.setLatestEval(index)
+		if _, err := w.createUpdate(replacements, w.getEval()); err != nil {
+			w.logger.Error("failed to create evaluation for deployment", "deployment_id", w.deploymentID, "error", err)
 		}
 	})
 }
@@ -763,24 +821,31 @@ func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateS
 		return nil, 0, err
 	}
 
+	maxIndex := uint64(0)
 	stubs := make([]*structs.AllocListStub, 0, len(allocs))
 	for _, alloc := range allocs {
 		stubs = append(stubs, alloc.Stub())
+
+		if maxIndex < alloc.ModifyIndex {
+			maxIndex = alloc.ModifyIndex
+		}
 	}
 
-	// Use the last index that affected the jobs table
-	index, err := state.Index("allocs")
-	if err != nil {
-		return nil, index, err
+	// Use the last index that affected the allocs table
+	if len(stubs) == 0 {
+		index, err := state.Index("allocs")
+		if err != nil {
+			return nil, index, err
+		}
+		maxIndex = index
 	}
 
-	return stubs, index, nil
+	return stubs, maxIndex, nil
 }
 
-// latestEvalIndex returns the index of the last evaluation created for
-// the job. The index is used to determine if an allocation update requires an
-// evaluation to be triggered.
-func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
+// jobEvalStatus returns the latest eval index for a job. The index is used to
+// determine if an allocation update requires an evaluation to be triggered.
+func (w *deploymentWatcher) jobEvalStatus() (latestIndex uint64, err error) {
 	if err := w.queryLimiter.Wait(w.ctx); err != nil {
 		return 0, err
 	}
@@ -795,39 +860,27 @@ func (w *deploymentWatcher) latestEvalIndex() (uint64, error) {
 		return 0, err
 	}
 
+	// If there are no evals for the job, return zero, since we want any
+	// allocation change to trigger an evaluation.
 	if len(evals) == 0 {
-		idx, err := snap.Index("evals")
-		if err != nil {
-			w.setLatestEval(idx)
+		return 0, nil
+	}
+
+	var max uint64
+	for _, eval := range evals {
+		// A cancelled eval never impacts what the scheduler has saw, so do not
+		// use it's indexes.
+		if eval.Status == structs.EvalStatusCancelled {
+			continue
 		}
 
-		return idx, err
+		// Prefer using the snapshot index. Otherwise use the create index
+		if eval.SnapshotIndex != 0 && max < eval.SnapshotIndex {
+			max = eval.SnapshotIndex
+		} else if max < eval.CreateIndex {
+			max = eval.CreateIndex
+		}
 	}
 
-	// Prefer using the snapshot index. Otherwise use the create index
-	e := evals[0]
-	if e.SnapshotIndex != 0 {
-		w.setLatestEval(e.SnapshotIndex)
-		return e.SnapshotIndex, nil
-	}
-
-	w.setLatestEval(e.CreateIndex)
-	return e.CreateIndex, nil
-}
-
-// setLatestEval sets the given index as the latest eval unless the currently
-// stored index is higher.
-func (w *deploymentWatcher) setLatestEval(index uint64) {
-	w.l.Lock()
-	defer w.l.Unlock()
-	if index > w.latestEval {
-		w.latestEval = index
-	}
-}
-
-// getLatestEval returns the latest eval index.
-func (w *deploymentWatcher) getLatestEval() uint64 {
-	w.l.Lock()
-	defer w.l.Unlock()
-	return w.latestEval
+	return max, nil
 }

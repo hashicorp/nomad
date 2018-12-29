@@ -26,3 +26,10 @@ test('When duration is 0, 0 is shown in terms of the units provided to the funct
   assert.equal(formatDuration(0), '0ns', 'formatDuration(0) -> 0ns');
   assert.equal(formatDuration(0, 'year'), '0 years', 'formatDuration(0, "year") -> 0 years');
 });
+
+test('The longForm option expands suffixes to words', function(assert) {
+  const expectation1 = '3 seconds 20ms';
+  const expectation2 = '5 hours 59 minutes';
+  assert.equal(formatDuration(3020, 'ms', true), expectation1, expectation1);
+  assert.equal(formatDuration(60 * 5 + 59, 'm', true), expectation2, expectation2);
+});

@@ -45,6 +45,14 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
+- `migrate` <code>([Migrate][]: nil)</code> - Specifies the group strategy for
+  migrating off of draining nodes. Only service jobs with a count greater than
+  1 support migrate stanzas.
+
+- `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
+  rescheduling strategy. Nomad will then attempt to schedule the task on another
+  node if any of the group allocation statuses become "failed".
+
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
   type, which can be found in the [restart stanza documentation][restart].
@@ -112,5 +120,7 @@ group "example" {
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk.html "Nomad ephemeral_disk Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
+[migrate]: /docs/job-specification/migrate.html "Nomad migrate Job Specification"
+[reschedule]: /docs/job-specification/reschedule.html "Nomad reschedule Job Specification"
 [restart]: /docs/job-specification/restart.html "Nomad restart Job Specification"
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"

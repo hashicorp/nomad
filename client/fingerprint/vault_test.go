@@ -14,7 +14,7 @@ func TestVaultFingerprint(t *testing.T) {
 	tv := testutil.NewTestVault(t)
 	defer tv.Stop()
 
-	fp := NewVaultFingerprint(testlog.Logger(t))
+	fp := NewVaultFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}

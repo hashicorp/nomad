@@ -25,6 +25,11 @@ export default create({
     return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
   },
 
+  resourceCharts: collection('[data-test-primary-metric]', {
+    name: text('[data-test-primary-metric-title]'),
+    chartClass: attribute('class', '[data-test-percentage-chart] progress'),
+  }),
+
   hasAddresses: isPresent('[data-test-task-addresses]'),
   addresses: collection('[data-test-task-address]', {
     name: text('[data-test-task-address-name]'),

@@ -1571,13 +1571,15 @@ func TestConstraint_Validate(t *testing.T) {
 		t.Fatalf("expected valid constraint: %v", err)
 	}
 
-	// Perform set_contains validation
-	c.Operand = ConstraintSetContains
+	// Perform set_contains* validation
 	c.RTarget = ""
-	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
-		t.Fatalf("err: %s", err)
+	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
+		c.Operand = o
+		err = c.Validate()
+		mErr = err.(*multierror.Error)
+		if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
+			t.Fatalf("err: %s", err)
+		}
 	}
 
 	// Perform LTarget validation
@@ -1865,6 +1867,75 @@ func TestResource_Add_Network(t *testing.T) {
 	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
 		t.Fatalf("bad: %#v %#v", expect.Networks[0], r1.Networks[0])
 	}
+}
+
+func TestComparableResources_Subtract(t *testing.T) {
+	r1 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 2000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 2048,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 10000,
+		},
+	}
+
+	r2 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         20,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+	r1.Subtract(r2)
+
+	expect := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+
+	require := require.New(t)
+	require.Equal(expect, r1)
 }
 
 func TestEncodeDecode(t *testing.T) {
@@ -2669,6 +2740,15 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 				},
 			},
 			true,
+		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "md5:${ARTIFACT_CHECKSUM}",
+				},
+			},
+			false,
 		},
 	}
 
@@ -3915,6 +3995,38 @@ func TestNode_Copy(t *testing.T) {
 				},
 			},
 		},
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				CpuShares: 4000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		ReservedResources: &NodeReservedResources{
+			Cpu: NodeReservedCpuResources{
+				CpuShares: 100,
+			},
+			Memory: NodeReservedMemoryResources{
+				MemoryMB: 256,
+			},
+			Disk: NodeReservedDiskResources{
+				DiskMB: 4 * 1024,
+			},
+			Networks: NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
+			},
+		},
 		Links: map[string]string{
 			"consul": "foobar.dc1",
 		},
@@ -4063,5 +4175,51 @@ func TestSpread_Validate(t *testing.T) {
 				require.Nil(t, err)
 			}
 		})
+	}
+}
+
+func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
+	require := require.New(t)
+	cases := []struct {
+		Input  string
+		Parsed []uint64
+		Err    bool
+	}{
+		{
+			"1,2,3",
+			[]uint64{1, 2, 3},
+			false,
+		},
+		{
+			"3,1,2,1,2,3,1-3",
+			[]uint64{1, 2, 3},
+			false,
+		},
+		{
+			"3-1",
+			nil,
+			true,
+		},
+		{
+			"1-3,2-4",
+			[]uint64{1, 2, 3, 4},
+			false,
+		},
+		{
+			"1-3,4,5-5,6,7,8-10",
+			[]uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			false,
+		},
+	}
+
+	for i, tc := range cases {
+		r := &NodeReservedNetworkResources{ReservedHostPorts: tc.Input}
+		out, err := r.ParseReservedHostPorts()
+		if (err != nil) != tc.Err {
+			t.Fatalf("test case %d: %v", i, err)
+			continue
+		}
+
+		require.Equal(out, tc.Parsed)
 	}
 }

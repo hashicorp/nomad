@@ -48,13 +48,25 @@ func allocUpdateFnDestructive(*structs.Allocation, *structs.Job, *structs.TaskGr
 func allocUpdateFnInplace(existing *structs.Allocation, _ *structs.Job, newTG *structs.TaskGroup) (bool, bool, *structs.Allocation) {
 	// Create a shallow copy
 	newAlloc := existing.CopySkipJob()
-	newAlloc.TaskResources = make(map[string]*structs.Resources)
+	newAlloc.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: int64(newTG.EphemeralDisk.SizeMB),
+		},
+	}
 
 	// Use the new task resources but keep the network from the old
 	for _, task := range newTG.Tasks {
-		r := task.Resources.Copy()
-		r.Networks = existing.TaskResources[task.Name].Networks
-		newAlloc.TaskResources[task.Name] = r
+		networks := existing.AllocatedResources.Tasks[task.Name].Copy().Networks
+		newAlloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: int64(task.Resources.CPU),
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: int64(task.Resources.MemoryMB),
+			},
+			Networks: networks,
+		}
 	}
 
 	return false, false, newAlloc
@@ -278,7 +290,7 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 // existing allocations
 func TestReconciler_Place_NoExisting(t *testing.T) {
 	job := mock.Job()
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, nil, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, nil, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -314,7 +326,7 @@ func TestReconciler_Place_Existing(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -352,7 +364,7 @@ func TestReconciler_ScaleDown_Partial(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -391,7 +403,7 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -431,7 +443,7 @@ func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
 		expectedStopped = append(expectedStopped, i%2)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -466,7 +478,7 @@ func TestReconciler_Inplace(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -504,7 +516,7 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -544,7 +556,7 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -581,7 +593,7 @@ func TestReconciler_Destructive(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -617,7 +629,7 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -656,7 +668,7 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -701,7 +713,7 @@ func TestReconciler_LostNode(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -751,7 +763,7 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -801,7 +813,7 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -847,7 +859,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -900,7 +912,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -954,7 +966,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -999,7 +1011,7 @@ func TestReconciler_RemovedTG(t *testing.T) {
 	newName := "different"
 	job.TaskGroups[0].Name = newName
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1061,7 +1073,7 @@ func TestReconciler_JobStopped(t *testing.T) {
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -1079,6 +1091,68 @@ func TestReconciler_JobStopped(t *testing.T) {
 			})
 
 			assertNamesHaveIndexes(t, intRange(0, 9), stopResultsToNames(r.stop))
+		})
+	}
+}
+
+// Tests the reconciler doesn't update allocs in terminal state
+// when job is stopped or nil
+func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
+	job := mock.Job()
+	job.Stop = true
+
+	cases := []struct {
+		name             string
+		job              *structs.Job
+		jobID, taskGroup string
+	}{
+		{
+			name:      "stopped job",
+			job:       job,
+			jobID:     job.ID,
+			taskGroup: job.TaskGroups[0].Name,
+		},
+		{
+			name:      "nil job",
+			job:       nil,
+			jobID:     "foo",
+			taskGroup: "bar",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Create 10 terminal allocations
+			var allocs []*structs.Allocation
+			for i := 0; i < 10; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = c.job
+				alloc.JobID = c.jobID
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
+				alloc.TaskGroup = c.taskGroup
+				if i%2 == 0 {
+					alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				} else {
+					alloc.ClientStatus = structs.AllocClientStatusFailed
+				}
+				allocs = append(allocs, alloc)
+			}
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
+			r := reconciler.Compute()
+			require.Len(t, r.stop, 0)
+			// Assert the correct results
+			assertResults(t, r, &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             0,
+				inplace:           0,
+				stop:              0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					c.taskGroup: {},
+				},
+			})
 		})
 	}
 }
@@ -1101,7 +1175,7 @@ func TestReconciler_MultiTG(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1153,7 +1227,7 @@ func TestReconciler_MultiTG_SingleUpdateStanza(t *testing.T) {
 		DesiredTotal: 10,
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1229,7 +1303,7 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 	// Mark one as complete
 	allocs[5].ClientStatus = structs.AllocClientStatusComplete
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
 	r := reconciler.Compute()
 
 	// Two reschedule attempts were already made, one more can be made at a future time
@@ -1308,7 +1382,7 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 			FinishedAt: now.Add(10 * time.Second)}}
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
 	r := reconciler.Compute()
 
 	// Verify that two follow up evals were created
@@ -1401,7 +1475,7 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 	// Mark one as complete
 	allocs[5].ClientStatus = structs.AllocClientStatusComplete
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, "")
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -1475,7 +1549,7 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 	// Mark one as desired state stop
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, uuid.Generate())
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, uuid.Generate())
 	r := reconciler.Compute()
 
 	// Should place a new placement and create a follow up eval for the delayed reschedule
@@ -1543,7 +1617,7 @@ func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
 	// Mark one as client status complete
 	allocs[4].ClientStatus = structs.AllocClientStatusComplete
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Should place a new placement for the alloc that was marked complete
@@ -1599,7 +1673,7 @@ func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
 	allocs[4].ClientStatus = structs.AllocClientStatusFailed
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Should place a new placement for the alloc that was marked stopped
@@ -1676,7 +1750,7 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 	// Mark one as desired state stop
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Verify that no follow up evals were created
@@ -1753,7 +1827,7 @@ func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 		FinishedAt: now.Add(-4 * time.Second)}}
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -1833,7 +1907,7 @@ func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
 	allocs[1].FollowupEvalID = evalID
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, evalID)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, evalID)
 	reconciler.now = now.Add(-30 * time.Second)
 	r := reconciler.Compute()
 
@@ -1941,7 +2015,7 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Verify that no follow up evals were created
@@ -2063,7 +2137,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -2189,7 +2263,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
 	reconciler.now = now
 	r := reconciler.Compute()
 
@@ -2253,7 +2327,7 @@ func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
 	// Mark one as desired state stop
 	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Should place 1 - one is a new placement to make up the desired count of 5
@@ -2340,7 +2414,7 @@ func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, c.jobID, c.job, c.deployment, allocs, nil, "")
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, c.deployment, allocs, nil, "")
 			r := reconciler.Compute()
 
 			var updates []*structs.DeploymentStatusUpdate
@@ -2417,7 +2491,7 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, c.deployment, allocs, nil, "")
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, c.deployment, allocs, nil, "")
 			r := reconciler.Compute()
 
 			var updates []*structs.DeploymentStatusUpdate
@@ -2466,7 +2540,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job)
@@ -2509,7 +2583,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job)
@@ -2551,7 +2625,7 @@ func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job)
@@ -2595,7 +2669,7 @@ func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -2673,7 +2747,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 			d.TaskGroups[canary.TaskGroup].PlacedCanaries = []string{canary.ID}
 
 			mockUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{canary.ID: allocUpdateFnIgnore}, allocUpdateFnDestructive)
-			reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -2738,7 +2812,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -2812,7 +2886,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 			allocs = append(allocs, newAlloc)
 
 			mockUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{newAlloc.ID: allocUpdateFnIgnore}, allocUpdateFnDestructive)
-			reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -2884,7 +2958,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 	tainted[n.ID] = n
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -2956,7 +3030,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 	tainted[n.ID] = n
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3022,7 +3096,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		allocs = append(allocs, canary)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -3075,7 +3149,7 @@ func TestReconciler_NewCanaries(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -3123,7 +3197,7 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -3174,7 +3248,7 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 		}
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -3227,7 +3301,7 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -3275,7 +3349,7 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -3352,7 +3426,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 		allocs = append(allocs, canary)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3421,7 +3495,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3495,7 +3569,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -3594,7 +3668,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 			}
 
 			mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-			reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -3675,7 +3749,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3760,7 +3834,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3816,7 +3890,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3871,7 +3945,7 @@ func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -3966,7 +4040,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4035,7 +4109,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 	jobNew := job.Copy()
 	jobNew.Version += 100
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, jobNew, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, jobNew, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	dnew := structs.NewDeployment(jobNew)
@@ -4088,7 +4162,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -4157,7 +4231,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testlog.Logger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4192,7 +4266,7 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job)
@@ -4244,7 +4318,7 @@ func TestReconciler_Batch_Rerun(t *testing.T) {
 	job2 := job.Copy()
 	job2.CreateIndex++
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, true, job2.ID, job2, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job2.ID, job2, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -4305,7 +4379,7 @@ func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert that no rescheduled placements were created
@@ -4360,7 +4434,7 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 		allocs[i].DesiredTransition.Reschedule = helper.BoolToPtr(true)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert that no rescheduled placements were created
@@ -4443,7 +4517,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 		allocs = append(allocs, new)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, jobv2, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, jobv2, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -4505,7 +4579,7 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert that rescheduled placements were created
@@ -4567,7 +4641,7 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 	// Mark DesiredTransition ForceReschedule
 	allocs[0].DesiredTransition = structs.DesiredTransition{ForceReschedule: helper.BoolToPtr(true)}
 
-	reconciler := NewAllocReconciler(testlog.Logger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Verify that no follow up evals were created

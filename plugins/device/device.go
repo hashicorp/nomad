@@ -2,9 +2,12 @@ package device
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -24,8 +27,9 @@ type DevicePlugin interface {
 	// instructions.
 	Reserve(deviceIDs []string) (*ContainerReservation, error)
 
-	// Stats returns a stream of statistics per device.
-	Stats(ctx context.Context) (<-chan *StatsResponse, error)
+	// Stats returns a stream of statistics per device collected at the passed
+	// interval.
+	Stats(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error)
 }
 
 // FingerprintResponse includes a set of detected devices or an error in the
@@ -69,7 +73,42 @@ type DeviceGroup struct {
 	Devices []*Device
 
 	// Attributes are a set of attributes shared for all the devices.
-	Attributes map[string]string
+	Attributes map[string]*structs.Attribute
+}
+
+// Validate validates that the device group is valid
+func (d *DeviceGroup) Validate() error {
+	var mErr multierror.Error
+
+	if d.Vendor == "" {
+		multierror.Append(&mErr, fmt.Errorf("device vendor must be specified"))
+	}
+	if d.Type == "" {
+		multierror.Append(&mErr, fmt.Errorf("device type must be specified"))
+	}
+	if d.Name == "" {
+		multierror.Append(&mErr, fmt.Errorf("device name must be specified"))
+	}
+
+	for i, dev := range d.Devices {
+		if dev == nil {
+			multierror.Append(&mErr, fmt.Errorf("device %d is nil", i))
+			continue
+		}
+
+		if err := dev.Validate(); err != nil {
+			multierror.Append(&mErr, multierror.Prefix(err, fmt.Sprintf("device %d: ", i)))
+		}
+	}
+
+	for k, v := range d.Attributes {
+		if err := v.Validate(); err != nil {
+			multierror.Append(&mErr, fmt.Errorf("device attribute %q invalid: %v", k, err))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+
 }
 
 // Device is an instance of a particular device.
@@ -86,6 +125,15 @@ type Device struct {
 
 	// HwLocality captures hardware locality information for the device.
 	HwLocality *DeviceLocality
+}
+
+// Validate validates that the device is valid
+func (d *Device) Validate() error {
+	if d.ID == "" {
+		return fmt.Errorf("device ID must be specified")
+	}
+
+	return nil
 }
 
 // DeviceLocality captures hardware locality information for a device.
@@ -141,6 +189,13 @@ type StatsResponse struct {
 	Error error
 }
 
+// NewStatsError takes an error and returns a stats response
+func NewStatsError(err error) *StatsResponse {
+	return &StatsResponse{
+		Error: err,
+	}
+}
+
 // DeviceGroupStats contains statistics for each device of a particular
 // device group, identified by the vendor, type and name of the device.
 type DeviceGroupStats struct {
@@ -156,48 +211,11 @@ type DeviceGroupStats struct {
 type DeviceStats struct {
 	// Summary exposes a single summary metric that should be the most
 	// informative to users.
-	Summary *StatValue
+	Summary *structs.StatValue
 
 	// Stats contains the verbose statistics for the device.
-	Stats *StatObject
+	Stats *structs.StatObject
 
 	// Timestamp is the time the statistics were collected.
 	Timestamp time.Time
-}
-
-// StatObject is a collection of statistics either exposed at the top
-// level or via nested StatObjects.
-type StatObject struct {
-	// Nested is a mapping of object name to a nested stats object.
-	Nested map[string]*StatObject
-
-	// Attributes is a mapping of statistic name to its value.
-	Attributes map[string]*StatValue
-}
-
-// StatValue exposes the values of a particular statistic. The value may be of
-// type float, integer, string or boolean. Numeric types can be exposed as a
-// single value or as a fraction.
-type StatValue struct {
-	// FloatNumeratorVal exposes a floating point value. If denominator is set
-	// it is assumed to be a fractional value, otherwise it is a scalar.
-	FloatNumeratorVal   float64
-	FloatDenominatorVal float64
-
-	// IntNumeratorVal exposes a int value. If denominator is set it is assumed
-	// to be a fractional value, otherwise it is a scalar.
-	IntNumeratorVal   int64
-	IntDenominatorVal int64
-
-	// StringVal exposes a string value. These are likely annotations.
-	StringVal string
-
-	// BoolVal exposes a boolean statistic.
-	BoolVal bool
-
-	// Unit gives the unit type: °F, %, MHz, MB, etc.
-	Unit string
-
-	// Desc provides a human readable description of the statistic.
-	Desc string
 }

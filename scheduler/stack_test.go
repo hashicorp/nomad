@@ -107,16 +107,9 @@ func TestServiceStack_Select_Size(t *testing.T) {
 	job := mock.Job()
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
-	node, size := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-	if size == nil {
-		t.Fatalf("missing size")
-	}
-
-	if size.CPU != 500 || size.MemoryMB != 256 {
-		t.Fatalf("bad: %#v", size)
 	}
 
 	// Note: On Windows time.Now currently has a best case granularity of 1ms.
@@ -143,7 +136,7 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 	preferredNode := mock.Node()
 	prefNodes := []*structs.Node{preferredNode}
 	selectOptions := &SelectOptions{PreferredNodes: prefNodes}
-	option, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	option := stack.Select(job.TaskGroups[0], selectOptions)
 	if option == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -161,7 +154,7 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 	preferredNode1.ComputeClass()
 	prefNodes1 := []*structs.Node{preferredNode1}
 	selectOptions = &SelectOptions{PreferredNodes: prefNodes1}
-	option, _ = stack.Select(job.TaskGroups[0], selectOptions)
+	option = stack.Select(job.TaskGroups[0], selectOptions)
 	if option == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -186,7 +179,7 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 	job := mock.Job()
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
-	n1, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	n1 := stack.Select(job.TaskGroups[0], selectOptions)
 	m1 := ctx.Metrics()
 	if n1 == nil {
 		t.Fatalf("missing node %#v", m1)
@@ -196,7 +189,7 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 		t.Fatalf("should only be 2")
 	}
 
-	n2, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	n2 := stack.Select(job.TaskGroups[0], selectOptions)
 	m2 := ctx.Metrics()
 	if n2 == nil {
 		t.Fatalf("missing node %#v", m2)
@@ -228,7 +221,7 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	stack.SetJob(job)
 
 	selectOptions := &SelectOptions{}
-	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -257,7 +250,7 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	job.Constraints[0].RTarget = "freebsd"
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
-	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -286,7 +279,11 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	}
 	zero := nodes[0]
 	one := nodes[1]
-	one.Reserved = one.Resources
+	one.ReservedResources = &structs.NodeReservedResources{
+		Cpu: structs.NodeReservedCpuResources{
+			CpuShares: one.NodeResources.Cpu.CpuShares,
+		},
+	}
 
 	stack := NewGenericStack(false, ctx)
 	stack.SetNodes(nodes)
@@ -294,7 +291,7 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	job := mock.Job()
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
-	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	ctx.Metrics().PopulateScoreMetaData()
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
@@ -363,16 +360,9 @@ func TestSystemStack_Select_Size(t *testing.T) {
 	job := mock.Job()
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
-	node, size := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-	if size == nil {
-		t.Fatalf("missing size")
-	}
-
-	if size.CPU != 500 || size.MemoryMB != 256 {
-		t.Fatalf("bad: %#v", size)
 	}
 
 	// Note: On Windows time.Now currently has a best case granularity of 1ms.
@@ -398,7 +388,7 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 	job := mock.Job()
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
-	n1, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	n1 := stack.Select(job.TaskGroups[0], selectOptions)
 	m1 := ctx.Metrics()
 	if n1 == nil {
 		t.Fatalf("missing node %#v", m1)
@@ -408,7 +398,7 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 		t.Fatalf("should only be 1")
 	}
 
-	n2, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	n2 := stack.Select(job.TaskGroups[0], selectOptions)
 	m2 := ctx.Metrics()
 	if n2 == nil {
 		t.Fatalf("missing node %#v", m2)
@@ -436,7 +426,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	stack.SetJob(job)
 
 	selectOptions := &SelectOptions{}
-	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -453,7 +443,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	stack = NewSystemStack(ctx)
 	stack.SetNodes(nodes)
 	stack.SetJob(job)
-	node, _ = stack.Select(job.TaskGroups[0], selectOptions)
+	node = stack.Select(job.TaskGroups[0], selectOptions)
 	if node != nil {
 		t.Fatalf("node not filtered %#v", node)
 	}
@@ -479,7 +469,7 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 	stack.SetJob(job)
 
 	selectOptions := &SelectOptions{}
-	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -507,7 +497,11 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 		mock.Node(),
 	}
 	zero := nodes[0]
-	zero.Reserved = zero.Resources
+	zero.ReservedResources = &structs.NodeReservedResources{
+		Cpu: structs.NodeReservedCpuResources{
+			CpuShares: zero.NodeResources.Cpu.CpuShares,
+		},
+	}
 	one := nodes[1]
 
 	stack := NewSystemStack(ctx)
@@ -517,7 +511,7 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	stack.SetJob(job)
 
 	selectOptions := &SelectOptions{}
-	node, _ := stack.Select(job.TaskGroups[0], selectOptions)
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	ctx.Metrics().PopulateScoreMetaData()
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())

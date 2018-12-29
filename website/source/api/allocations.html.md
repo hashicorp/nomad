@@ -221,11 +221,13 @@ $ curl \
       "dc1"
     ],
     "Constraints": null,
+    "Affinities": null,
     "TaskGroups": [
       {
         "Name": "cache",
         "Count": 1,
         "Constraints": null,
+        "Affinities": null,
         "RestartPolicy": {
           "Attempts": 10,
           "Interval": 300000000000,
@@ -273,6 +275,7 @@ $ curl \
             "Vault": null,
             "Templates": null,
             "Constraints": null,
+            "Affinities": null,
             "Resources": {
               "CPU": 500,
               "MemoryMB": 10,

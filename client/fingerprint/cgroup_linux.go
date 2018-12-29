@@ -44,7 +44,7 @@ func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		f.clearCGroupAttributes(resp)
 
 		if f.lastState == cgroupAvailable {
-			f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are unavailable")
+			f.logger.Info("cgroups are unavailable")
 		}
 		f.lastState = cgroupUnavailable
 		return nil
@@ -54,7 +54,7 @@ func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	resp.Detected = true
 
 	if f.lastState == cgroupUnavailable {
-		f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are available")
+		f.logger.Info("cgroups are available")
 	}
 	f.lastState = cgroupAvailable
 	return nil

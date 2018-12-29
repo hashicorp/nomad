@@ -67,3 +67,28 @@ test('the no leader error state gets its own error message', function(assert) {
     );
   });
 });
+
+test('error pages include links to the jobs and clients pages', function(assert) {
+  visit('/a/non-existent/page');
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    JobsList.error.gotoJobs();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs', 'Now on the jobs page');
+    assert.notOk(JobsList.error.isPresent, 'The error is gone now');
+    visit('/a/non-existent/page');
+  });
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    JobsList.error.gotoClients();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/clients', 'Now on the clients page');
+    assert.notOk(JobsList.error.isPresent, 'The error is gone now');
+  });
+});

@@ -156,9 +156,8 @@ export default Factory.extend({
       namespace,
       jobId: job.id,
       nodeId: node.id,
-      taskStateIds: states.mapBy('id'),
-      task_state_ids: states.mapBy('id'),
-      taskResourcesIds: resources.mapBy('id'),
+      taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),
+      taskResourcesIds: allocation.clientStatus === 'pending' ? [] : resources.mapBy('id'),
       taskGroup: taskGroup.name,
       name: allocation.name || `${taskGroup.name}.[${faker.random.number(10)}]`,
     });

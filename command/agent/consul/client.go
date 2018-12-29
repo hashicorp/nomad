@@ -3,7 +3,6 @@ package consul
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"strconv"
@@ -13,8 +12,10 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/api"
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+
+	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -193,7 +194,7 @@ func (s *ServiceRegistration) copy() *ServiceRegistration {
 // ServiceClient handles task and agent service registration with Consul.
 type ServiceClient struct {
 	client           AgentAPI
-	logger           *log.Logger
+	logger           log.Logger
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 	periodicInterval time.Duration
@@ -242,7 +243,8 @@ type ServiceClient struct {
 // Client, logger and takes whether the client is being used by a Nomad Client agent.
 // When being used by a Nomad client, this Consul client reconciles all services and
 // checks created by Nomad on behalf of running tasks.
-func NewServiceClient(consulClient AgentAPI, logger *log.Logger, isNomadClient bool) *ServiceClient {
+func NewServiceClient(consulClient AgentAPI, logger log.Logger, isNomadClient bool) *ServiceClient {
+	logger = logger.ResetNamed("consul.sync")
 	return &ServiceClient{
 		client:             consulClient,
 		logger:             logger,
@@ -306,7 +308,7 @@ INIT:
 			c.merge(ops)
 		}
 	}
-	c.logger.Printf("[TRACE] consul.sync: able to contact Consul")
+	c.logger.Trace("able to contact Consul")
 
 	// Block until contact with Consul has been established
 	// Start checkWatcher
@@ -329,10 +331,10 @@ INIT:
 		if err := c.sync(); err != nil {
 			if failures == 0 {
 				// Log on the first failure
-				c.logger.Printf("[WARN] consul.sync: failed to update services in Consul: %v", err)
+				c.logger.Warn("failed to update services in Consul", "error", err)
 			} else if failures%10 == 0 {
 				// Log every 10th consecutive failure
-				c.logger.Printf("[ERR] consul.sync: still unable to update services in Consul after %d failures; latest error: %v", failures, err)
+				c.logger.Error("still unable to update services in Consul", "failures", failures, "error", err)
 			}
 
 			failures++
@@ -352,7 +354,7 @@ INIT:
 			retryTimer.Reset(backoff)
 		} else {
 			if failures > 0 {
-				c.logger.Printf("[INFO] consul.sync: successfully updated services in Consul")
+				c.logger.Info("successfully updated services in Consul")
 				failures = 0
 			}
 
@@ -531,8 +533,8 @@ func (c *ServiceClient) sync() error {
 		}
 	}
 
-	c.logger.Printf("[DEBUG] consul.sync: registered %d services, %d checks; deregistered %d services, %d checks",
-		sreg, creg, sdereg, cdereg)
+	c.logger.Debug("sync complete", "registered_services", sreg, "deregistered_services", sdereg,
+		"registered_checks", creg, "deregistered_checks", cdereg)
 	return nil
 }
 
@@ -564,6 +566,10 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			Tags:    service.Tags,
 			Address: host,
 			Port:    port,
+			// This enables the consul UI to show that Nomad registered this service
+			Meta: map[string]string{
+				"external-source": "nomad",
+			},
 		}
 		ops.regServices = append(ops.regServices, serviceReg)
 
@@ -658,6 +664,10 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Tags:    tags,
 		Address: ip,
 		Port:    port,
+		// This enables the consul UI to show that Nomad registered this service
+		Meta: map[string]string{
+			"external-source": "nomad",
+		},
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -999,12 +1009,12 @@ func (c *ServiceClient) Shutdown() error {
 	// deadline was reached
 	for id := range c.agentServices {
 		if err := c.client.ServiceDeregister(id); err != nil {
-			c.logger.Printf("[ERR] consul.sync: error deregistering agent service (id: %q): %v", id, err)
+			c.logger.Error("failed deregistering agent service", "service_id", id, "error", err)
 		}
 	}
 	for id := range c.agentChecks {
 		if err := c.client.CheckDeregister(id); err != nil {
-			c.logger.Printf("[ERR] consul.sync: error deregistering agent service (id: %q): %v", id, err)
+			c.logger.Error("failed deregistering agent check", "check_id", id, "error", err)
 		}
 	}
 

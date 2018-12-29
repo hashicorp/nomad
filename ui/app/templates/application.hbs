@@ -30,5 +30,9 @@
         <pre class="error-stack-trace"><code>{{errorStr}}</code></pre>
       {{/if}}
     </div>
+    <div class="error-links">
+      {{#link-to "jobs" data-test-error-jobs-link class="button is-white"}}Go to Jobs{{/link-to}}
+      {{#link-to "clients" data-test-error-clients-link class="button is-white"}}Go to Clients{{/link-to}}
+    </div>
   </div>
 {{/unless}}

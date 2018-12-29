@@ -82,7 +82,7 @@ The key features of Nomad are:
 
 Nomad differentiates from related tools by virtue of its **simplicity**, **flexibility**, 
 **scalability**, and **high performance**. Nomad's synergy and integration points with 
-HashiCorp Terrform, Consul, and Vault make it uniquely suited for easy integration into 
+HashiCorp Terraform, Consul, and Vault make it uniquely suited for easy integration into 
 an organization's existing workflows, minimizing the time-to-market for critical initiatives. 
 See the [Nomad vs. Other Software](/intro/vs/index.html) page for additional details and 
 comparisons.

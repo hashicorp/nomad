@@ -31,6 +31,9 @@ export default create({
     return this.stats.toArray().findBy('id', id);
   },
 
+  childrenSummary: isPresent('[data-test-job-summary] [data-test-children-status-bar]'),
+  allocationsSummary: isPresent('[data-test-job-summary] [data-test-allocation-status-bar]'),
+
   ...allocations(),
 
   viewAllAllocations: text('[data-test-view-all-allocations]'),
