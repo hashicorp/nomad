@@ -9,12 +9,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -83,8 +83,21 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 }
 
+// HACK: This function is copy/pasted from client.testutil to prevent a test
+//       import cycle, due to testutil transitively importing allocdir. This
+//       should be fixed after DriverManager is implemented.
+func MountCompatible(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support mount")
+	}
+
+	if syscall.Geteuid() != 0 {
+		t.Skip("Must be root to run test")
+	}
+}
+
 func TestAllocDir_MountSharedAlloc(t *testing.T) {
-	testutil.MountCompatible(t)
+	MountCompatible(t)
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)

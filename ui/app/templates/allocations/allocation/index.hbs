@@ -37,29 +37,36 @@
     <div class="boxed-section-head">
       Tasks
     </div>
-    <div class="boxed-section-body is-full-bleed">
-      {{#list-table
-        source=sortedStates
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        class="is-striped" as |t|}}
-        {{#t.head}}
-          <th class="is-narrow"></th>
-          {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-          {{#t.sort-by prop="state"}}State{{/t.sort-by}}
-          <th>Last Event</th>
-          {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
-          <th>Addresses</th>
-          <th>CPU</th>
-          <th>Memory</th>
-        {{/t.head}}
-        {{#t.body as |row|}}
-          {{task-row
-            data-test-task-row=row.model.name
-            task=row.model
-            onClick=(action "taskClick" row.model.allocation row.model)}}
-        {{/t.body}}
-      {{/list-table}}
+    <div class="boxed-section-body {{if sortedStates.length "is-full-bleed"}}">
+      {{#if sortedStates.length}}
+        {{#list-table
+          source=sortedStates
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="is-striped" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="state"}}State{{/t.sort-by}}
+            <th>Last Event</th>
+            {{#t.sort-by prop="events.lastObject.time"}}Time{{/t.sort-by}}
+            <th>Addresses</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{task-row
+              data-test-task-row=row.model.name
+              task=row.model
+              onClick=(action "taskClick" row.model.allocation row.model)}}
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div data-test-empty-tasks-list class="empty-message">
+          <h3 data-test-empty-tasks-list-headline class="empty-message-headline">No Tasks</h3>
+          <p data-test-empty-tasks-list-body class="empty-message-body">Allocations will not have tasks until they are in a running state.</p>
+        </div>
+      {{/if}}
     </div>
   </div>
 

@@ -31,12 +31,10 @@ func (d *NvidiaDevice) fingerprint(ctx context.Context, devices chan<- *device.F
 		if d.initErr.Error() != nvml.UnavailableLib.Error() {
 			d.logger.Error("exiting fingerprinting due to problems with NVML loading", "error", d.initErr)
 			devices <- device.NewFingerprintError(d.initErr)
-		} else {
-			// write empty fingerprint response to let server know that there are
-			// no working Nvidia GPU units
-			devices <- device.NewFingerprint()
 		}
 
+		// Just close the channel to let server know that there are no working
+		// Nvidia GPU units
 		return
 	}
 

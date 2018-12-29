@@ -16,31 +16,33 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
-	consulApi "github.com/hashicorp/nomad/client/consul"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	hstats "github.com/hashicorp/nomad/helper/stats"
-	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
-	vaultapi "github.com/hashicorp/vault/api"
-
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
+	consulApi "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/stats"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
+	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/device"
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -106,6 +108,7 @@ type AllocRunner interface {
 	Alloc() *structs.Allocation
 	AllocState() *arstate.State
 	Destroy()
+	Shutdown()
 	GetAllocDir() *allocdir.AllocDir
 	IsDestroyed() bool
 	IsMigrating() bool
@@ -186,9 +189,18 @@ type Client struct {
 	// HostStatsCollector collects host resource usage stats
 	hostStatsCollector *stats.HostStatsCollector
 
-	shutdown     bool
-	shutdownCh   chan struct{}
+	// shutdown is true when the Client has been shutdown. Must hold
+	// shutdownLock to access.
+	shutdown bool
+
+	// shutdownCh is closed to signal the Client is shutting down.
+	shutdownCh chan struct{}
+
 	shutdownLock sync.Mutex
+
+	// shutdownGroup are goroutines that exit when shutdownCh is closed.
+	// Shutdown() blocks on Wait() after closing shutdownCh.
+	shutdownGroup group
 
 	// vaultClient is used to interact with Vault for token and secret renewals
 	vaultClient vaultclient.VaultClient
@@ -204,6 +216,9 @@ type Client struct {
 	rpcServer     *rpc.Server
 	endpoints     rpcEndpoints
 	streamingRpcs *structs.StreamingRpcRegistry
+
+	// devicemanger is responsible for managing device plugins.
+	devicemanager devicemanager.Manager
 
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
@@ -270,22 +285,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("failed to initialize ACL state: %v", err)
 	}
 
-	// Add the stats collector
-	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir)
-	c.hostStatsCollector = statsCollector
-
-	// Add the garbage collector
-	gcConfig := &GCConfig{
-		MaxAllocs:           cfg.GCMaxAllocs,
-		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
-		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
-		Interval:            cfg.GCInterval,
-		ParallelDestroys:    cfg.GCParallelDestroys,
-		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
-	}
-	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
-	go c.garbageCollector.Run()
-
 	// Setup the node
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
@@ -306,6 +305,34 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
+	// Setup the device manager
+	devConfig := &devicemanager.Config{
+		Logger:        c.logger,
+		Loader:        c.configCopy.PluginSingletonLoader,
+		PluginConfig:  c.configCopy.NomadPluginConfig(),
+		Updater:       c.updateNodeFromDevices,
+		StatsInterval: c.configCopy.StatsCollectionInterval,
+		State:         c.stateDB,
+	}
+	c.devicemanager = devicemanager.New(devConfig)
+	go c.devicemanager.Run()
+
+	// Add the stats collector
+	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
+	c.hostStatsCollector = statsCollector
+
+	// Add the garbage collector
+	gcConfig := &GCConfig{
+		MaxAllocs:           cfg.GCMaxAllocs,
+		DiskUsageThreshold:  cfg.GCDiskUsageThreshold,
+		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
+		Interval:            cfg.GCInterval,
+		ParallelDestroys:    cfg.GCParallelDestroys,
+		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
+	}
+	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
+	go c.garbageCollector.Run()
+
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
@@ -317,7 +344,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	// Setup Consul discovery if enabled
 	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
-		go c.consulDiscovery()
+		c.shutdownGroup.Go(c.consulDiscovery)
 		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
 			c.triggerDiscoveryCh <- struct{}{}
@@ -344,19 +371,21 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	}
 
 	// Register and then start heartbeating to the servers.
-	go c.registerAndHeartbeat()
+	c.shutdownGroup.Go(c.registerAndHeartbeat)
 
 	// Begin periodic snapshotting of state.
-	go c.periodicSnapshot()
+	c.shutdownGroup.Go(c.periodicSnapshot)
 
 	// Begin syncing allocations to the server
-	go c.allocSync()
+	c.shutdownGroup.Go(c.allocSync)
 
-	// Start the client!
+	// Start the client! Don't use the shutdownGroup as run handles
+	// shutdowns manually to prevent updates from being applied during
+	// shutdown.
 	go c.run()
 
 	// Start collecting stats
-	go c.emitStats()
+	c.shutdownGroup.Go(c.emitStats)
 
 	c.logger.Info("started client", "node_id", c.NodeID())
 	return c, nil
@@ -518,20 +547,17 @@ func (c *Client) RPCMinorVersion() int {
 
 // Shutdown is used to tear down the client
 func (c *Client) Shutdown() error {
-	c.logger.Info("shutting down")
 	c.shutdownLock.Lock()
 	defer c.shutdownLock.Unlock()
 
 	if c.shutdown {
+		c.logger.Info("already shutdown")
 		return nil
 	}
+	c.logger.Info("shutting down")
 
-	// Defer closing the database
-	defer func() {
-		if err := c.stateDB.Close(); err != nil {
-			c.logger.Error("error closing state database on shutdown", "error", err)
-		}
-	}()
+	// Shutdown the device manager
+	c.devicemanager.Shutdown()
 
 	// Stop renewing tokens and secrets
 	if c.vaultClient != nil {
@@ -541,20 +567,35 @@ func (c *Client) Shutdown() error {
 	// Stop Garbage collector
 	c.garbageCollector.Stop()
 
-	// Destroy all the running allocations.
 	if c.config.DevMode {
+		// In DevMode destroy all the running allocations.
 		for _, ar := range c.getAllocRunners() {
 			ar.Destroy()
 		}
 		for _, ar := range c.getAllocRunners() {
 			<-ar.WaitCh()
 		}
+	} else {
+		// In normal mode call shutdown
+		arGroup := group{}
+		for _, ar := range c.getAllocRunners() {
+			arGroup.Go(ar.Shutdown)
+		}
+		arGroup.Wait()
 	}
 
 	c.shutdown = true
 	close(c.shutdownCh)
+
+	// Must close connection pool to unblock alloc watcher
 	c.connPool.Shutdown()
-	return nil
+
+	// Wait for goroutines to stop
+	c.shutdownGroup.Wait()
+
+	// One final save state
+	c.saveState()
+	return c.stateDB.Close()
 }
 
 // Stats is used to return statistics for debugging and insight
@@ -613,6 +654,62 @@ func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, e
 // HostStats returns all the stats related to a Nomad client
 func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
+}
+
+func (c *Client) LatestDeviceResourceStats(devices []*structs.AllocatedDeviceResource) []*device.DeviceGroupStats {
+	return c.computeAllocatedDeviceGroupStats(devices, c.LatestHostStats().DeviceStats)
+}
+
+func (c *Client) computeAllocatedDeviceGroupStats(devices []*structs.AllocatedDeviceResource, hostDeviceGroupStats []*device.DeviceGroupStats) []*device.DeviceGroupStats {
+	// basic optimization for the usual case
+	if len(devices) == 0 || len(hostDeviceGroupStats) == 0 {
+		return nil
+	}
+
+	// Build an index of allocated devices
+	adIdx := map[structs.DeviceIdTuple][]string{}
+
+	total := 0
+	for _, ds := range devices {
+		adIdx[*ds.ID()] = ds.DeviceIDs
+		total += len(ds.DeviceIDs)
+	}
+
+	// Collect allocated device stats from host stats
+	result := make([]*device.DeviceGroupStats, 0, len(adIdx))
+
+	for _, dg := range hostDeviceGroupStats {
+		k := structs.DeviceIdTuple{
+			Vendor: dg.Vendor,
+			Type:   dg.Type,
+			Name:   dg.Name,
+		}
+
+		allocatedDeviceIDs, ok := adIdx[k]
+		if !ok {
+			continue
+		}
+
+		rdgStats := &device.DeviceGroupStats{
+			Vendor:        dg.Vendor,
+			Type:          dg.Type,
+			Name:          dg.Name,
+			InstanceStats: map[string]*device.DeviceStats{},
+		}
+
+		for _, adID := range allocatedDeviceIDs {
+			deviceStats, ok := dg.InstanceStats[adID]
+			if !ok || deviceStats == nil {
+				c.logger.Warn("device not found in stats", "device_id", adID, "device_group_id", k)
+				continue
+			}
+
+			rdgStats.InstanceStats[adID] = deviceStats
+		}
+		result = append(result, rdgStats)
+	}
+
+	return result
 }
 
 // ValidateMigrateToken verifies that a token is for a specific client and
@@ -772,11 +869,13 @@ func (c *Client) restoreState() error {
 			ClientConfig:          c.config,
 			StateDB:               c.stateDB,
 			StateUpdater:          c,
+			DeviceStatsReporter:   c,
 			Consul:                c.consulService,
 			Vault:                 c.vaultClient,
 			PrevAllocWatcher:      prevAllocWatcher,
 			PluginLoader:          c.config.PluginLoader,
 			PluginSingletonLoader: c.config.PluginSingletonLoader,
+			DeviceManager:         c.devicemanager,
 		}
 		c.configLock.RUnlock()
 
@@ -811,7 +910,7 @@ func (c *Client) restoreState() error {
 	// All allocs restored successfully, run them!
 	c.allocLock.Lock()
 	for _, ar := range c.allocs {
-		ar.Run()
+		go ar.Run()
 	}
 	c.allocLock.Unlock()
 
@@ -986,7 +1085,7 @@ func (c *Client) setupNode() error {
 
 // updateNodeFromFingerprint updates the node with the result of
 // fingerprinting the node from the diff that was created
-func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) *structs.Node {
+func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResponse) *structs.Node {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
 
@@ -1111,6 +1210,23 @@ func (c *Client) updateNodeFromDriver(name string, info *structs.DriverInfo) *st
 	}
 
 	return c.configCopy.Node
+}
+
+// updateNodeFromFingerprint updates the node with the result of
+// fingerprinting the node from the diff that was created
+func (c *Client) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	// Not updating node.Resources: the field is deprecated and includes
+	// dispatched task resources and not appropriate for expressing
+	// node available device resources
+	if !structs.DevicesEquals(c.config.Node.NodeResources.Devices, devices) {
+		c.logger.Debug("new devices detected", "devices", len(devices))
+
+		c.config.Node.NodeResources.Devices = devices
+		c.updateNodeLocked()
+	}
 }
 
 // resourcesAreEqual is a temporary function to compare whether resources are
@@ -1276,7 +1392,7 @@ func (c *Client) periodicSnapshot() {
 	}
 }
 
-// run is a long lived goroutine used to run the client
+// run is a long lived goroutine used to run the client. Shutdown() stops it first
 func (c *Client) run() {
 	// Watch for changes in allocations
 	allocUpdates := make(chan *allocUpdates, 8)
@@ -1285,7 +1401,17 @@ func (c *Client) run() {
 	for {
 		select {
 		case update := <-allocUpdates:
+			// Don't apply updates while shutting down.
+			c.shutdownLock.Lock()
+			if c.shutdown {
+				c.shutdownLock.Unlock()
+				return
+			}
+
+			// Apply updates inside lock to prevent a concurrent
+			// shutdown.
 			c.runAllocs(update)
+			c.shutdownLock.Unlock()
 
 		case <-c.shutdownCh:
 			return
@@ -1750,6 +1876,7 @@ OUTER:
 			pulled:        pulledAllocs,
 			migrateTokens: resp.MigrateTokens,
 		}
+
 		select {
 		case updates <- update:
 		case <-c.shutdownCh:
@@ -1925,9 +2052,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		Consul:                c.consulService,
 		Vault:                 c.vaultClient,
 		StateUpdater:          c,
+		DeviceStatsReporter:   c,
 		PrevAllocWatcher:      prevAllocWatcher,
 		PluginLoader:          c.config.PluginLoader,
 		PluginSingletonLoader: c.config.PluginSingletonLoader,
+		DeviceManager:         c.devicemanager,
 	}
 	c.configLock.RUnlock()
 
@@ -1939,7 +2068,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
 
-	ar.Run()
+	go ar.Run()
 	return nil
 }
 
@@ -2525,4 +2654,25 @@ func (c *Client) allAllocs() map[string]*structs.Allocation {
 		allocs[a.ID] = a
 	}
 	return allocs
+}
+
+// group wraps a func() in a goroutine and provides a way to block until it
+// exits. Inspired by https://godoc.org/golang.org/x/sync/errgroup
+type group struct {
+	wg sync.WaitGroup
+}
+
+// Go starts f in a goroutine and must be called before Wait.
+func (g *group) Go(f func()) {
+	g.wg.Add(1)
+	go func() {
+		defer g.wg.Done()
+		f()
+	}()
+}
+
+// Wait for all goroutines to exit. Must be called after all calls to Go
+// complete.
+func (g *group) Wait() {
+	g.wg.Wait()
 }

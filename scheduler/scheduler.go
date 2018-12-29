@@ -88,6 +88,9 @@ type State interface {
 	// LatestDeploymentByJobID returns the latest deployment matching the given
 	// job ID
 	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
+
+	// SchedulerConfig returns config options for the scheduler
+	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

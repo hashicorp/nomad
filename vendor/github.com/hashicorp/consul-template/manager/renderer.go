@@ -38,7 +38,7 @@ type RenderInput struct {
 }
 
 // RenderResult is returned and stored. It contains the status of the render
-// operationg.
+// operation.
 type RenderResult struct {
 	// DidRender indicates if the template rendered to disk. This will be false in
 	// the event of an error, but it will also be false in dry mode or when the

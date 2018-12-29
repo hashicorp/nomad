@@ -20,6 +20,10 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
+      env: ENABLE_LXC=1
+    - os: linux
+      dist: trusty
+      sudo: required
       env: ENABLE_RACE=1
     - os: linux
       dist: trusty
@@ -44,6 +48,8 @@ matrix:
     - os: osx
     #FIXME Allow race enabled builds to fail for now.
     - env: ENABLE_RACE=1
+    #FIXME Allow lxc tests enabled builds to fail for now.
+    - env: ENABLE_LXC=1
   fast_finish: true
 
 before_install:

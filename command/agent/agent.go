@@ -325,6 +325,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	// Setup telemetry related config
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
+	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
 	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	return conf, nil

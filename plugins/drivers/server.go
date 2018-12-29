@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"io"
 
-	"golang.org/x/net/context"
-
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
+	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	context "golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type driverPluginServer struct {
@@ -73,7 +77,7 @@ func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv prot
 				return nil
 			}
 			resp := &proto.FingerprintResponse{
-				Attributes:        f.Attributes,
+				Attributes:        dstructs.ConvertStructAttributeMap(f.Attributes),
 				Health:            healthStateToProto(f.Health),
 				HealthDescription: f.HealthDescription,
 			}
@@ -97,6 +101,15 @@ func (b *driverPluginServer) RecoverTask(ctx context.Context, req *proto.Recover
 func (b *driverPluginServer) StartTask(ctx context.Context, req *proto.StartTaskRequest) (*proto.StartTaskResponse, error) {
 	handle, net, err := b.impl.StartTask(taskConfigFromProto(req.Task))
 	if err != nil {
+		if rec, ok := err.(structs.Recoverable); ok {
+			st := status.New(codes.FailedPrecondition, rec.Error())
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			if err != nil {
+				// If this error, it will always error
+				panic(err)
+			}
+			return nil, st.Err()
+		}
 		return nil, err
 	}
 

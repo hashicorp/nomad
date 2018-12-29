@@ -47,6 +47,8 @@ export default create({
 
   hasRescheduleEvents: isPresent('[data-test-reschedule-events]'),
 
+  isEmpty: isPresent('[data-test-empty-tasks-list]'),
+
   error: {
     isShown: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),

@@ -5,6 +5,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/interfaces"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -35,6 +36,9 @@ type Config struct {
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.AllocStateHandler
 
+	// deviceStatsReporter is used to lookup resource usage for alloc devices
+	DeviceStatsReporter interfaces.DeviceStatsReporter
+
 	// PrevAllocWatcher handles waiting on previous allocations and
 	// migrating their ephemeral disk when necessary.
 	PrevAllocWatcher allocwatcher.PrevAllocWatcher
@@ -45,4 +49,8 @@ type Config struct {
 	// PluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
 	PluginSingletonLoader loader.PluginCatalog
+
+	// DeviceManager is used to mount devices as well as lookup device
+	// statistics
+	DeviceManager devicemanager.Manager
 }

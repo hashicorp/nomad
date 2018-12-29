@@ -280,7 +280,7 @@ func Must(s string) *Config {
 	return c
 }
 
-// TestConfig returuns a default, finalized config, with the provided
+// TestConfig returns a default, finalized config, with the provided
 // configuration taking precedence.
 func TestConfig(c *Config) *Config {
 	d := DefaultConfig().Merge(c)

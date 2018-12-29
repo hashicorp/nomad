@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -12,9 +13,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
-	"golang.org/x/net/context"
 )
 
 // DriverPlugin is the interface with drivers will implement. It is also
@@ -46,7 +47,7 @@ type DriverPlugin interface {
 // DriverPlugin interface.
 type DriverSignalTaskNotSupported struct{}
 
-func (_ DriverSignalTaskNotSupported) SignalTask(taskID, signal string) error {
+func (DriverSignalTaskNotSupported) SignalTask(taskID, signal string) error {
 	return fmt.Errorf("SignalTask is not supported by this driver")
 }
 
@@ -68,7 +69,7 @@ var (
 )
 
 type Fingerprint struct {
-	Attributes        map[string]string
+	Attributes        map[string]*pstructs.Attribute
 	Health            HealthState
 	HealthDescription string
 
@@ -98,16 +99,19 @@ type Capabilities struct {
 
 type TaskConfig struct {
 	ID              string
+	JobName         string
+	TaskGroupName   string
 	Name            string
 	Env             map[string]string
 	Resources       *Resources
-	Devices         []DeviceConfig
-	Mounts          []MountConfig
+	Devices         []*DeviceConfig
+	Mounts          []*MountConfig
 	User            string
 	AllocDir        string
 	rawDriverConfig []byte
 	StdoutPath      string
 	StderrPath      string
+	AllocID         string
 }
 
 func (tc *TaskConfig) Copy() *TaskConfig {
@@ -157,6 +161,17 @@ func (tc *TaskConfig) EncodeDriverConfig(val cty.Value) error {
 	return nil
 }
 
+func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
+	data := []byte{}
+	err := base.MsgPackEncode(&data, t)
+	if err != nil {
+		return err
+	}
+
+	tc.rawDriverConfig = data
+	return nil
+}
+
 type Resources struct {
 	NomadResources *structs.Resources
 	LinuxResources *LinuxResources
@@ -184,6 +199,14 @@ type LinuxResources struct {
 	OOMScoreAdj      int64
 	CpusetCPUs       string
 	CpusetMems       string
+
+	// PrecentTicks is used to calculate the CPUQuota, currently the docker
+	// driver exposes cpu period and quota through the driver configuration
+	// and thus the calculation for CPUQuota cannot be done on the client.
+	// This is a capatability and should only be used by docker until the docker
+	// specific options are deprecated in favor of exposes CPUPeriod and
+	// CPUQuota at the task resource stanza.
+	PercentTicks float64
 }
 
 func (r *LinuxResources) Copy() *LinuxResources {
@@ -221,6 +244,15 @@ type ExitResult struct {
 
 func (r *ExitResult) Successful() bool {
 	return r.ExitCode == 0 && r.Signal == 0 && r.Err == nil
+}
+
+func (r *ExitResult) Copy() *ExitResult {
+	if r == nil {
+		return nil
+	}
+	res := new(ExitResult)
+	*res = *r
+	return res
 }
 
 type TaskStatus struct {

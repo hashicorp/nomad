@@ -4,6 +4,7 @@ package rkt
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -24,18 +25,19 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
-	"github.com/hashicorp/nomad/client/driver/executor"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	rktv1 "github.com/rkt/rkt/api/v1"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -123,7 +125,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: cstructs.FSIsolationChroot,
+		FSIsolation: cstructs.FSIsolationImage,
 	}
 
 	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
@@ -160,7 +162,7 @@ type TaskConfig struct {
 // StartTask. This information is needed to rebuild the taskConfig state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *utils.ReattachConfig
+	ReattachConfig *shared.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -261,7 +263,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: "ready",
 	}
@@ -301,11 +303,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fingerprint
 	}
 
-	fingerprint.Attributes["driver.rkt"] = "1"
-	fingerprint.Attributes["driver.rkt.version"] = rktMatches[1]
-	fingerprint.Attributes["driver.rkt.appc.version"] = appcMatches[1]
+	fingerprint.Attributes["driver.rkt"] = pstructs.NewBoolAttribute(true)
+	fingerprint.Attributes["driver.rkt.version"] = pstructs.NewStringAttribute(rktMatches[1])
+	fingerprint.Attributes["driver.rkt.appc.version"] = pstructs.NewStringAttribute(appcMatches[1])
 	if d.config.VolumesEnabled {
-		fingerprint.Attributes["driver.rkt.volumes.enabled"] = "1"
+		fingerprint.Attributes["driver.rkt.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	return fingerprint
@@ -317,13 +319,22 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("error: handle cannot be nil")
 	}
 
+	// If already attached to handle there's nothing to recover.
+	if _, ok := d.tasks.Get(handle.Config.ID); ok {
+		d.logger.Trace("nothing to recover; task already exists",
+			"task_id", handle.Config.ID,
+			"task_name", handle.Config.Name,
+		)
+		return nil
+	}
+
 	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
 		d.logger.Error("failed to decode taskConfig state from handle", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
 	}
 
-	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from taskConfig state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
@@ -342,7 +353,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	// The taskConfig's environment is set via --set-env flags in Start, but the rkt
 	// command itself needs an environment with PATH set to find iptables.
 	// TODO (preetha) need to figure out how to read env.blacklist
-	eb := env.NewEmptyBuilder()
+	eb := taskenv.NewEmptyBuilder()
 	filter := strings.Split(config.DefaultEnvBlacklist, ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
@@ -436,17 +447,17 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	sanitizedName := strings.Replace(cfg.Name, "_", "-", -1)
 
 	// Mount /alloc
-	allocVolName := fmt.Sprintf("%s-%s-alloc", cfg.ID, sanitizedName)
+	allocVolName := fmt.Sprintf("%s-%s-alloc", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, cfg.TaskDir().SharedAllocDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, "/alloc"))
 
 	// Mount /local
-	localVolName := fmt.Sprintf("%s-%s-local", cfg.ID, sanitizedName)
+	localVolName := fmt.Sprintf("%s-%s-local", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, cfg.TaskDir().LocalDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, "/local"))
 
 	// Mount /secrets
-	secretsVolName := fmt.Sprintf("%s-%s-secrets", cfg.ID, sanitizedName)
+	secretsVolName := fmt.Sprintf("%s-%s-secrets", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, cfg.TaskDir().SecretsDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, "/secrets"))
 
@@ -471,10 +482,25 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 			} else if len(parts) != 2 {
 				return nil, nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
-			volName := fmt.Sprintf("%s-%s-%d", cfg.ID, sanitizedName, i)
+			volName := fmt.Sprintf("%s-%s-%d", cfg.AllocID, sanitizedName, i)
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%s", volName, parts[0], readOnly))
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
 		}
+	}
+
+	// Mount task volumes, always do
+	for i, vol := range cfg.Mounts {
+		volName := fmt.Sprintf("%s-%s-taskmounts-%d", cfg.AllocID, sanitizedName, i)
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%v", volName, vol.HostPath, vol.Readonly))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, vol.TaskPath))
+	}
+
+	// Mount task devices, always do
+	for i, vol := range cfg.Devices {
+		volName := fmt.Sprintf("%s-%s-taskdevices-%d", cfg.AllocID, sanitizedName, i)
+		readOnly := !strings.Contains(vol.Permissions, "w")
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%v", volName, vol.HostPath, readOnly))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, vol.TaskPath))
 	}
 
 	// Inject environment variables
@@ -593,7 +619,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, fmt.Sprintf("%s-executor.out", cfg.Name))
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
 	}
@@ -625,7 +651,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	// command itself needs an environment with PATH set to find iptables.
 
 	// TODO (preetha) need to figure out how to pass env.blacklist from client config
-	eb := env.NewEmptyBuilder()
+	eb := taskenv.NewEmptyBuilder()
 	filter := strings.Split(config.DefaultEnvBlacklist, ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
@@ -641,7 +667,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
 			DiskMB:   cfg.Resources.NomadResources.DiskMB,
 		},
-		Env:        cfg.EnvList(),
+		Env:        rktEnv.List(),
 		TaskDir:    cfg.TaskDir().Dir,
 		StdoutPath: cfg.StdoutPath,
 		StderrPath: cfg.StderrPath,
@@ -666,7 +692,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	rktDriverState := TaskState{
-		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,

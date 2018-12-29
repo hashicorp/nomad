@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"time"
 
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -19,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +38,7 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 
 	require := require.New(t)
 	d := NewQemuDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -93,7 +96,7 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 
 	require := require.New(t)
 	d := NewQemuDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -115,8 +118,8 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 	defer cleanup()
 
 	fingerPrint := &drivers.Fingerprint{
-		Attributes: map[string]string{
-			driverVersionAttr: "2.0.0",
+		Attributes: map[string]*pstructs.Attribute{
+			driverVersionAttr: pstructs.NewStringAttribute("2.0.0"),
 		},
 	}
 	shortPath := strings.Repeat("x", 10)
@@ -144,7 +147,7 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 
 	require := require.New(t)
 	d := NewQemuDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -166,8 +169,8 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	defer cleanup()
 
 	fingerPrint := &drivers.Fingerprint{
-		Attributes: map[string]string{
-			driverVersionAttr: "2.99.99",
+		Attributes: map[string]*pstructs.Attribute{
+			driverVersionAttr: pstructs.NewStringAttribute("2.99.99"),
 		},
 	}
 	shortPath := strings.Repeat("x", 10)
@@ -233,7 +236,7 @@ func TestQemuDriver_User(t *testing.T) {
 
 	require := require.New(t)
 	d := NewQemuDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -286,7 +289,7 @@ func TestQemuDriver_Stats(t *testing.T) {
 
 	require := require.New(t)
 	d := NewQemuDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -356,14 +359,14 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	}
 
 	d := NewQemuDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
 	require.NoError(err)
 	select {
 	case finger := <-fingerCh:
 		require.Equal(drivers.HealthStateHealthy, finger.Health)
-		require.Equal("1", finger.Attributes["driver.qemu"])
+		require.True(finger.Attributes["driver.qemu"].GetBool())
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
 	}

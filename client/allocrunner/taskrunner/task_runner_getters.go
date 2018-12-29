@@ -10,10 +10,16 @@ func (tr *TaskRunner) Alloc() *structs.Allocation {
 	return tr.alloc
 }
 
-func (tr *TaskRunner) setAlloc(updated *structs.Allocation) {
+// setAlloc and task on TaskRunner
+func (tr *TaskRunner) setAlloc(updated *structs.Allocation, task *structs.Task) {
 	tr.allocLock.Lock()
+	defer tr.allocLock.Unlock()
+
+	tr.taskLock.Lock()
+	defer tr.taskLock.Unlock()
+
 	tr.alloc = updated
-	tr.allocLock.Unlock()
+	tr.task = task
 }
 
 // IsLeader returns true if this task is the leader of its task group.
@@ -53,19 +59,22 @@ func (tr *TaskRunner) setVaultToken(token string) {
 	tr.envBuilder.SetVaultToken(token, tr.task.Vault.Env)
 }
 
-// getDriverHandle returns a driver handle and its result proxy. Use the
-// result proxy instead of the handle's WaitCh.
+// getDriverHandle returns a driver handle.
 func (tr *TaskRunner) getDriverHandle() *DriverHandle {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	return tr.handle
 }
 
-// setDriverHanlde sets the driver handle and creates a new result proxy.
+// setDriverHandle sets the driver handle and updates the driver network in the
+// task's environment.
 func (tr *TaskRunner) setDriverHandle(handle *DriverHandle) {
 	tr.handleLock.Lock()
 	defer tr.handleLock.Unlock()
 	tr.handle = handle
+
+	// Update the environment's driver network
+	tr.envBuilder.SetDriverNetwork(handle.net)
 }
 
 func (tr *TaskRunner) clearDriverHandle() {

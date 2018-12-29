@@ -5,13 +5,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -19,6 +20,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/device"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
@@ -166,8 +169,8 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			driver.ShutdownPeriodicAfter:    "true",
-			driver.ShutdownPeriodicDuration: "1",
+			"test.shutdown_periodic_after":    "true",
+			"test.shutdown_periodic_duration": "1",
 		}
 	})
 	defer cleanup()
@@ -549,7 +552,7 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 
 func TestClient_SaveRestoreState(t *testing.T) {
 	t.Parallel()
-	ctestutil.ExecCompatible(t)
+
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -570,8 +573,10 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	alloc1.Job = job
 	alloc1.JobID = job.ID
 	alloc1.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	task := alloc1.Job.TaskGroups[0].Tasks[0]
-	task.Config["run_for"] = "10s"
+	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	alloc1.ClientStatus = structs.AllocClientStatusRunning
 
 	state := s1.State()
 	if err := state.UpsertJob(100, job); err != nil {
@@ -995,4 +1000,186 @@ func TestClient_ServerList(t *testing.T) {
 	if len(s) != 0 {
 		t.Fatalf("expected 2 servers but received: %+q", s)
 	}
+}
+
+func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
+	t.Parallel()
+	client, cleanup := TestClient(t, func(c *config.Config) {})
+	defer cleanup()
+
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+		},
+	})
+
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Memory: structs.NodeMemoryResources{MemoryMB: 1024},
+		},
+	})
+
+	client.updateNodeFromDevices([]*structs.NodeDeviceResource{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+		},
+	})
+
+	// initial check
+	expectedResources := &structs.NodeResources{
+		// computed through test client initialization
+		Networks: client.configCopy.Node.NodeResources.Networks,
+		Disk:     client.configCopy.Node.NodeResources.Disk,
+
+		// injected
+		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Memory: structs.NodeMemoryResources{MemoryMB: 1024},
+		Devices: []*structs.NodeDeviceResource{
+			{
+				Vendor: "vendor",
+				Type:   "type",
+			},
+		},
+	}
+
+	assert.EqualValues(t, expectedResources, client.configCopy.Node.NodeResources)
+
+	// overrides of values
+
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Memory: structs.NodeMemoryResources{MemoryMB: 2048},
+		},
+	})
+
+	client.updateNodeFromDevices([]*structs.NodeDeviceResource{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+		},
+	})
+
+	expectedResources2 := &structs.NodeResources{
+		// computed through test client initialization
+		Networks: client.configCopy.Node.NodeResources.Networks,
+		Disk:     client.configCopy.Node.NodeResources.Disk,
+
+		// injected
+		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Memory: structs.NodeMemoryResources{MemoryMB: 2048},
+		Devices: []*structs.NodeDeviceResource{
+			{
+				Vendor: "vendor",
+				Type:   "type",
+			},
+			{
+				Vendor: "vendor2",
+				Type:   "type2",
+			},
+		},
+	}
+
+	assert.EqualValues(t, expectedResources2, client.configCopy.Node.NodeResources)
+
+}
+
+func TestClient_computeAllocatedDeviceStats(t *testing.T) {
+	logger := testlog.HCLogger(t)
+	c := &Client{logger: logger}
+
+	newDeviceStats := func(strValue string) *device.DeviceStats {
+		return &device.DeviceStats{
+			Summary: &psstructs.StatValue{
+				StringVal: &strValue,
+			},
+		}
+	}
+
+	allocatedDevices := []*structs.AllocatedDeviceResource{
+		{
+			Vendor:    "vendor",
+			Type:      "type",
+			Name:      "name",
+			DeviceIDs: []string{"d2", "d3", "notfoundid"},
+		},
+		{
+			Vendor:    "vendor2",
+			Type:      "type2",
+			Name:      "name2",
+			DeviceIDs: []string{"a2"},
+		},
+		{
+			Vendor:    "vendor_notfound",
+			Type:      "type_notfound",
+			Name:      "name_notfound",
+			DeviceIDs: []string{"d3"},
+		},
+	}
+
+	hostDeviceGroupStats := []*device.DeviceGroupStats{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+			Name:   "name",
+			InstanceStats: map[string]*device.DeviceStats{
+				"unallocated": newDeviceStats("unallocated"),
+				"d2":          newDeviceStats("d2"),
+				"d3":          newDeviceStats("d3"),
+			},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			Name:   "name2",
+			InstanceStats: map[string]*device.DeviceStats{
+				"a2": newDeviceStats("a2"),
+			},
+		},
+		{
+			Vendor: "vendor_unused",
+			Type:   "type_unused",
+			Name:   "name_unused",
+			InstanceStats: map[string]*device.DeviceStats{
+				"unallocated_unused": newDeviceStats("unallocated_unused"),
+			},
+		},
+	}
+
+	// test some edge conditions
+	assert.Empty(t, c.computeAllocatedDeviceGroupStats(nil, nil))
+	assert.Empty(t, c.computeAllocatedDeviceGroupStats(nil, hostDeviceGroupStats))
+	assert.Empty(t, c.computeAllocatedDeviceGroupStats(allocatedDevices, nil))
+
+	// actual test
+	result := c.computeAllocatedDeviceGroupStats(allocatedDevices, hostDeviceGroupStats)
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Vendor < result[j].Vendor
+	})
+
+	expected := []*device.DeviceGroupStats{
+		{
+			Vendor: "vendor",
+			Type:   "type",
+			Name:   "name",
+			InstanceStats: map[string]*device.DeviceStats{
+				"d2": newDeviceStats("d2"),
+				"d3": newDeviceStats("d3"),
+			},
+		},
+		{
+			Vendor: "vendor2",
+			Type:   "type2",
+			Name:   "name2",
+			InstanceStats: map[string]*device.DeviceStats{
+				"a2": newDeviceStats("a2"),
+			},
+		},
+	}
+
+	assert.EqualValues(t, expected, result)
 }

@@ -9,11 +9,11 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -37,7 +37,7 @@ type FingerprintManager struct {
 
 	// updateNodeAttributes is a callback to the client to update the state of its
 	// associated node
-	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node
+	updateNodeAttributes func(*fingerprint.FingerprintResponse) *structs.Node
 
 	// updateNodeFromDriver is a callback to the client to update the state of a
 	// specific driver for the node
@@ -52,7 +52,7 @@ func NewFingerprintManager(
 	getConfig func() *config.Config,
 	node *structs.Node,
 	shutdownCh chan struct{},
-	updateNodeAttributes func(*cstructs.FingerprintResponse) *structs.Node,
+	updateNodeAttributes func(*fingerprint.FingerprintResponse) *structs.Node,
 	updateNodeFromDriver func(string, *structs.DriverInfo) *structs.Node,
 	logger log.Logger) *FingerprintManager {
 
@@ -249,10 +249,10 @@ func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, period t
 // is meant to be run continuously, a process is launched to perform this
 // fingerprint on an ongoing basis in the background.
 func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint) (bool, error) {
-	var response cstructs.FingerprintResponse
+	var response fingerprint.FingerprintResponse
 
 	fm.nodeLock.Lock()
-	request := &cstructs.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
+	request := &fingerprint.FingerprintRequest{Config: fm.getConfig(), Node: fm.node}
 	err := f.Fingerprint(request, &response)
 	fm.nodeLock.Unlock()
 
@@ -321,7 +321,7 @@ func (fm *FingerprintManager) watchDriverFingerprint(fpChan <-chan *drivers.Fing
 // struct and updates the Node with it
 func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, driverName string) {
 	di := &structs.DriverInfo{
-		Attributes:        fp.Attributes,
+		Attributes:        stringify(fp.Attributes),
 		Detected:          fp.Health != drivers.HealthStateUndetected,
 		Healthy:           fp.Health == drivers.HealthStateHealthy,
 		HealthDescription: fp.HealthDescription,
@@ -330,6 +330,13 @@ func (fm *FingerprintManager) processDriverFingerprint(fp *drivers.Fingerprint, 
 	if n := fm.updateNodeFromDriver(driverName, di); n != nil {
 		fm.setNode(n)
 	}
+}
+func stringify(attributes map[string]*pstructs.Attribute) map[string]string {
+	ret := make(map[string]string, len(attributes))
+	for key, attribute := range attributes {
+		ret[key] = attribute.GoString()
+	}
+	return ret
 }
 
 // dispenseDriverFingerprint dispenses a driver plugin for the given driver name

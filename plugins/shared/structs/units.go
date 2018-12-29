@@ -206,7 +206,7 @@ var (
 		{
 			Name:       UnitMHz,
 			Base:       UnitHertz,
-			Multiplier: Pow(1000, 1),
+			Multiplier: Pow(1000, 2),
 		},
 		{
 			Name:       UnitGHz,

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
@@ -27,8 +26,8 @@ func TestNomadFingerprint(t *testing.T) {
 		HTTPAddr:   h,
 	}
 
-	request := &cstructs.FingerprintRequest{Config: c, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: c, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)

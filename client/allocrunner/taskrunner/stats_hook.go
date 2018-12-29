@@ -8,7 +8,6 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -23,7 +22,7 @@ type statsHook struct {
 	updater  StatsUpdater
 	interval time.Duration
 
-	// stopCh is closed by Exited
+	// stopCh is closed by Exited or Canceled
 	stopCh chan struct{}
 
 	mu sync.Mutex
@@ -95,7 +94,7 @@ func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, sto
 			ru, err := handle.Stats()
 			if err != nil {
 				// Check if the driver doesn't implement stats
-				if err.Error() == driver.DriverStatsNotImplemented.Error() {
+				if err.Error() == cstructs.DriverStatsNotImplemented.Error() {
 					h.logger.Debug("driver does not support stats")
 					return
 				}
@@ -116,5 +115,21 @@ func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, sto
 		case <-stopCh:
 			return
 		}
+	}
+}
+
+func (h *statsHook) Shutdown() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.stopCh == nil {
+		return
+	}
+
+	select {
+	case <-h.stopCh:
+		// Already closed
+	default:
+		close(h.stopCh)
 	}
 }

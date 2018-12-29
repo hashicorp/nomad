@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -165,6 +166,6 @@ func (m *mockPlugin) Reserve(deviceIDs []string) (*device.ContainerReservation, 
 	}, nil
 }
 
-func (m *mockPlugin) Stats(ctx context.Context) (<-chan *device.StatsResponse, error) {
+func (m *mockPlugin) Stats(ctx context.Context, interval time.Duration) (<-chan *device.StatsResponse, error) {
 	return make(chan *device.StatsResponse), nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/plugins"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -52,6 +53,13 @@ type PluginID struct {
 // String returns a friendly representation of the plugin.
 func (id PluginID) String() string {
 	return fmt.Sprintf("%q (%v)", id.Name, id.PluginType)
+}
+
+func PluginInfoID(resp *base.PluginInfoResponse) PluginID {
+	return PluginID{
+		Name:       resp.Name,
+		PluginType: resp.Type,
+	}
 }
 
 // PluginLoaderConfig configures a plugin loader.
@@ -211,6 +219,8 @@ func getPluginMap(pluginType string) map[string]plugin.Plugin {
 	switch pluginType {
 	case base.PluginTypeDevice:
 		pmap[base.PluginTypeDevice] = &device.PluginDevice{}
+	case base.PluginTypeDriver:
+		pmap[base.PluginTypeDriver] = &drivers.PluginDriver{}
 	}
 
 	return pmap

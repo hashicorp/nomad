@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -345,7 +346,7 @@ func (c *Device) replOutput(ctx context.Context, startFingerprint, startStats <-
 			c.Ui.Output(fmt.Sprintf("> fingerprint: % #v", pretty.Formatter(resp)))
 		case ctx := <-startStats:
 			var err error
-			stats, err = c.dev.Stats(ctx)
+			stats, err = c.dev.Stats(ctx, 1*time.Second)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("stats: %s", err))
 				os.Exit(1)

@@ -1,8 +1,10 @@
 package qemu
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,21 +13,20 @@ import (
 	"strings"
 	"time"
 
-	"net"
-
 	"github.com/coreos/go-semver/semver"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/driver/executor"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"golang.org/x/net/context"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -118,7 +119,7 @@ type TaskConfig struct {
 // This information is needed to rebuild the taskConfig state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *utils.ReattachConfig
+	ReattachConfig *shared.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -206,7 +207,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: "ready",
 	}
@@ -234,8 +235,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fingerprint
 	}
 	currentQemuVersion := matches[1]
-	fingerprint.Attributes[driverAttr] = "1"
-	fingerprint.Attributes[driverVersionAttr] = currentQemuVersion
+	fingerprint.Attributes[driverAttr] = pstructs.NewBoolAttribute(true)
+	fingerprint.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(currentQemuVersion)
 	return fingerprint
 }
 
@@ -244,13 +245,22 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("error: handle cannot be nil")
 	}
 
+	// If already attached to handle there's nothing to recover.
+	if _, ok := d.tasks.Get(handle.Config.ID); ok {
+		d.logger.Trace("nothing to recover; task already exists",
+			"task_id", handle.Config.ID,
+			"task_name", handle.Config.Name,
+		)
+		return nil
+	}
+
 	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
 		d.logger.Error("failed to decode taskConfig state from handle", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
 	}
 
-	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from taskConfig state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
@@ -404,7 +414,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	d.logger.Debug("starting QemuVM command ", "args", strings.Join(args, " "))
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, fmt.Sprintf("%s-executor.out", cfg.Name))
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
 	}
@@ -442,7 +452,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	qemuDriverState := TaskState{
-		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,
@@ -601,7 +611,7 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (string, error) {
 	var longPathSupport bool
 	currentQemuVer := fingerPrint.Attributes[driverVersionAttr]
-	currentQemuSemver := semver.New(currentQemuVer)
+	currentQemuSemver := semver.New(currentQemuVer.GoString())
 	if currentQemuSemver.LessThan(*qemuVersionLongSocketPathFix) {
 		longPathSupport = false
 		d.logger.Debug("long socket paths are not available in this version of QEMU", "version", currentQemuVer)

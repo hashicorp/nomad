@@ -42,6 +42,13 @@ const (
 
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
+// Default configuration for scheduler with preemption enabled for system jobs
+var defaultSchedulerConfig = &structs.SchedulerConfiguration{
+	PreemptionConfig: structs.PreemptionConfig{
+		SystemSchedulerEnabled: true,
+	},
+}
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -186,6 +193,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize and start the autopilot routine
 	s.getOrCreateAutopilotConfig()
 	s.autopilot.Start()
+
+	// Initialize scheduler configuration
+	s.getOrCreateSchedulerConfig()
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
@@ -614,64 +624,78 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 					break
 				}
 				summary := raw.(*structs.JobSummary)
-				for name, tgSummary := range summary.Summary {
-					if !s.config.DisableTaggedMetrics {
-						labels := []metrics.Label{
-							{
-								Name:  "job",
-								Value: summary.JobID,
-							},
-							{
-								Name:  "task_group",
-								Value: name,
-							},
-						}
-
-						if strings.Contains(summary.JobID, "/dispatch-") {
-							jobInfo := strings.Split(summary.JobID, "/dispatch-")
-							labels = append(labels, metrics.Label{
-								Name:  "parent_id",
-								Value: jobInfo[0],
-							}, metrics.Label{
-								Name:  "dispatch_id",
-								Value: jobInfo[1],
-							})
-						}
-
-						if strings.Contains(summary.JobID, "/periodic-") {
-							jobInfo := strings.Split(summary.JobID, "/periodic-")
-							labels = append(labels, metrics.Label{
-								Name:  "parent_id",
-								Value: jobInfo[0],
-							}, metrics.Label{
-								Name:  "periodic_id",
-								Value: jobInfo[1],
-							})
-						}
-
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
-							float32(tgSummary.Queued), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
-							float32(tgSummary.Complete), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
-							float32(tgSummary.Failed), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
-							float32(tgSummary.Running), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
-							float32(tgSummary.Starting), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
-							float32(tgSummary.Lost), labels)
+				if s.config.DisableDispatchedJobSummaryMetrics {
+					job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
+					if err != nil {
+						s.logger.Error("error getting job for summary", "error", err)
+						continue
 					}
-					if s.config.BackwardsCompatibleMetrics {
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+					if job.Dispatched {
+						continue
 					}
 				}
+				s.iterateJobSummaryMetrics(summary)
 			}
+		}
+	}
+}
+
+func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
+	for name, tgSummary := range summary.Summary {
+		if !s.config.DisableTaggedMetrics {
+			labels := []metrics.Label{
+				{
+					Name:  "job",
+					Value: summary.JobID,
+				},
+				{
+					Name:  "task_group",
+					Value: name,
+				},
+			}
+
+			if strings.Contains(summary.JobID, "/dispatch-") {
+				jobInfo := strings.Split(summary.JobID, "/dispatch-")
+				labels = append(labels, metrics.Label{
+					Name:  "parent_id",
+					Value: jobInfo[0],
+				}, metrics.Label{
+					Name:  "dispatch_id",
+					Value: jobInfo[1],
+				})
+			}
+
+			if strings.Contains(summary.JobID, "/periodic-") {
+				jobInfo := strings.Split(summary.JobID, "/periodic-")
+				labels = append(labels, metrics.Label{
+					Name:  "parent_id",
+					Value: jobInfo[0],
+				}, metrics.Label{
+					Name:  "periodic_id",
+					Value: jobInfo[1],
+				})
+			}
+
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+				float32(tgSummary.Queued), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+				float32(tgSummary.Complete), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+				float32(tgSummary.Failed), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+				float32(tgSummary.Running), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+				float32(tgSummary.Starting), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+				float32(tgSummary.Lost), labels)
+		}
+		if s.config.BackwardsCompatibleMetrics {
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
 		}
 	}
 }
@@ -1225,6 +1249,28 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 	req := structs.AutopilotSetConfigRequest{Config: *config}
 	if _, _, err = s.raftApply(structs.AutopilotRequestType, req); err != nil {
 		s.logger.Named("autopilot").Error("failed to initialize config", "error", err)
+		return nil
+	}
+
+	return config
+}
+
+// getOrCreateSchedulerConfig is used to get the scheduler config. We create a default
+// config if it doesn't already exist for bootstrapping an empty cluster
+func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
+	state := s.fsm.State()
+	_, config, err := state.SchedulerConfig()
+	if err != nil {
+		s.logger.Named("core").Error("failed to get scheduler config", "error", err)
+		return nil
+	}
+	if config != nil {
+		return config
+	}
+
+	req := structs.SchedulerSetConfigRequest{Config: *defaultSchedulerConfig}
+	if _, _, err = s.raftApply(structs.SchedulerConfigRequestType, req); err != nil {
+		s.logger.Named("core").Error("failed to initialize config", "error", err)
 		return nil
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -445,70 +446,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -539,69 +540,69 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:      PowerUsageUnit,
 							Desc:      PowerUsageDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -632,69 +633,69 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:      PowerUsageUnit,
 							Desc:      PowerUsageDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -725,70 +726,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:      GPUUtilizationUnit,
 							Desc:      GPUUtilizationDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -819,70 +820,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:      MemoryUtilizationUnit,
 							Desc:      MemoryUtilizationDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -913,70 +914,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:      EncoderUtilizationUnit,
 							Desc:      EncoderUtilizationDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1007,70 +1008,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:      DecoderUtilizationUnit,
 							Desc:      DecoderUtilizationDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1101,70 +1102,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:      TemperatureUnit,
 					Desc:      TemperatureDesc,
-					StringVal: notAvailable,
+					StringVal: helper.StringToPtr(notAvailable),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:      TemperatureUnit,
 							Desc:      TemperatureDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1195,69 +1196,69 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:      MemoryStateUnit,
 							Desc:      MemoryStateDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1288,69 +1289,69 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:      MemoryStateUnit,
 							Desc:      MemoryStateDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1381,69 +1382,69 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:      BAR1StateUnit,
 							Desc:      BAR1StateDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1474,69 +1475,69 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:      BAR1StateUnit,
 							Desc:      BAR1StateDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1567,70 +1568,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:      ECCErrorsL1CacheUnit,
 							Desc:      ECCErrorsL1CacheDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1661,70 +1662,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    helper.Uint64ToPtr(100),
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:      ECCErrorsL2CacheUnit,
 							Desc:      ECCErrorsL2CacheDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:            ECCErrorsDeviceUnit,
 							Desc:            ECCErrorsDeviceDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 					},
 				},
@@ -1755,70 +1756,70 @@ func TestStatsForItem(t *testing.T) {
 				ECCErrorsDevice:    nil,
 			},
 			ExpectedResult: &device.DeviceStats{
-				Summary: &device.StatValue{
+				Summary: &structs.StatValue{
 					Unit:            TemperatureUnit,
 					Desc:            TemperatureDesc,
-					IntNumeratorVal: 1,
+					IntNumeratorVal: helper.Int64ToPtr(1),
 				},
-				Stats: &device.StatObject{
-					Attributes: map[string]*device.StatValue{
+				Stats: &structs.StatObject{
+					Attributes: map[string]*structs.StatValue{
 						PowerUsageAttr: {
 							Unit:              PowerUsageUnit,
 							Desc:              PowerUsageDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						GPUUtilizationAttr: {
 							Unit:            GPUUtilizationUnit,
 							Desc:            GPUUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryUtilizationAttr: {
 							Unit:            MemoryUtilizationUnit,
 							Desc:            MemoryUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						EncoderUtilizationAttr: {
 							Unit:            EncoderUtilizationUnit,
 							Desc:            EncoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						DecoderUtilizationAttr: {
 							Unit:            DecoderUtilizationUnit,
 							Desc:            DecoderUtilizationDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						TemperatureAttr: {
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
 						MemoryStateAttr: {
 							Unit:              MemoryStateUnit,
 							Desc:              MemoryStateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 1,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(1),
 						},
 						BAR1StateAttr: {
 							Unit:              BAR1StateUnit,
 							Desc:              BAR1StateDesc,
-							IntNumeratorVal:   1,
-							IntDenominatorVal: 256,
+							IntNumeratorVal:   helper.Int64ToPtr(1),
+							IntDenominatorVal: helper.Int64ToPtr(256),
 						},
 						ECCErrorsL1CacheAttr: {
 							Unit:            ECCErrorsL1CacheUnit,
 							Desc:            ECCErrorsL1CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsL2CacheAttr: {
 							Unit:            ECCErrorsL2CacheUnit,
 							Desc:            ECCErrorsL2CacheDesc,
-							IntNumeratorVal: 100,
+							IntNumeratorVal: helper.Int64ToPtr(100),
 						},
 						ECCErrorsDeviceAttr: {
 							Unit:      ECCErrorsDeviceUnit,
 							Desc:      ECCErrorsDeviceDesc,
-							StringVal: notAvailable,
+							StringVal: helper.StringToPtr(notAvailable),
 						},
 					},
 				},
@@ -1911,210 +1912,210 @@ func TestStatsForGroup(t *testing.T) {
 				Name:   "DeviceName1",
 				InstanceStats: map[string]*device.DeviceStats{
 					"UUID1": {
-						Summary: &device.StatValue{
+						Summary: &structs.StatValue{
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 1,
+							IntNumeratorVal: helper.Int64ToPtr(1),
 						},
-						Stats: &device.StatObject{
-							Attributes: map[string]*device.StatValue{
+						Stats: &structs.StatObject{
+							Attributes: map[string]*structs.StatValue{
 								PowerUsageAttr: {
 									Unit:              PowerUsageUnit,
 									Desc:              PowerUsageDesc,
-									IntNumeratorVal:   1,
-									IntDenominatorVal: 1,
+									IntNumeratorVal:   helper.Int64ToPtr(1),
+									IntDenominatorVal: helper.Int64ToPtr(1),
 								},
 								GPUUtilizationAttr: {
 									Unit:            GPUUtilizationUnit,
 									Desc:            GPUUtilizationDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
 								MemoryUtilizationAttr: {
 									Unit:            MemoryUtilizationUnit,
 									Desc:            MemoryUtilizationDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
 								EncoderUtilizationAttr: {
 									Unit:            EncoderUtilizationUnit,
 									Desc:            EncoderUtilizationDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
 								DecoderUtilizationAttr: {
 									Unit:            DecoderUtilizationUnit,
 									Desc:            DecoderUtilizationDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
 								TemperatureAttr: {
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
 								MemoryStateAttr: {
 									Unit:              MemoryStateUnit,
 									Desc:              MemoryStateDesc,
-									IntNumeratorVal:   1,
-									IntDenominatorVal: 1,
+									IntNumeratorVal:   helper.Int64ToPtr(1),
+									IntDenominatorVal: helper.Int64ToPtr(1),
 								},
 								BAR1StateAttr: {
 									Unit:              BAR1StateUnit,
 									Desc:              BAR1StateDesc,
-									IntNumeratorVal:   1,
-									IntDenominatorVal: 256,
+									IntNumeratorVal:   helper.Int64ToPtr(1),
+									IntDenominatorVal: helper.Int64ToPtr(256),
 								},
 								ECCErrorsL1CacheAttr: {
 									Unit:            ECCErrorsL1CacheUnit,
 									Desc:            ECCErrorsL1CacheDesc,
-									IntNumeratorVal: 100,
+									IntNumeratorVal: helper.Int64ToPtr(100),
 								},
 								ECCErrorsL2CacheAttr: {
 									Unit:            ECCErrorsL2CacheUnit,
 									Desc:            ECCErrorsL2CacheDesc,
-									IntNumeratorVal: 100,
+									IntNumeratorVal: helper.Int64ToPtr(100),
 								},
 								ECCErrorsDeviceAttr: {
 									Unit:            ECCErrorsDeviceUnit,
 									Desc:            ECCErrorsDeviceDesc,
-									IntNumeratorVal: 100,
+									IntNumeratorVal: helper.Int64ToPtr(100),
 								},
 							},
 						},
 						Timestamp: time.Date(1974, time.May, 19, 1, 2, 3, 4, time.UTC),
 					},
 					"UUID2": {
-						Summary: &device.StatValue{
+						Summary: &structs.StatValue{
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 2,
+							IntNumeratorVal: helper.Int64ToPtr(2),
 						},
-						Stats: &device.StatObject{
-							Attributes: map[string]*device.StatValue{
+						Stats: &structs.StatObject{
+							Attributes: map[string]*structs.StatValue{
 								PowerUsageAttr: {
 									Unit:              PowerUsageUnit,
 									Desc:              PowerUsageDesc,
-									IntNumeratorVal:   2,
-									IntDenominatorVal: 2,
+									IntNumeratorVal:   helper.Int64ToPtr(2),
+									IntDenominatorVal: helper.Int64ToPtr(2),
 								},
 								GPUUtilizationAttr: {
 									Unit:            GPUUtilizationUnit,
 									Desc:            GPUUtilizationDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
 								MemoryUtilizationAttr: {
 									Unit:            MemoryUtilizationUnit,
 									Desc:            MemoryUtilizationDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
 								EncoderUtilizationAttr: {
 									Unit:            EncoderUtilizationUnit,
 									Desc:            EncoderUtilizationDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
 								DecoderUtilizationAttr: {
 									Unit:            DecoderUtilizationUnit,
 									Desc:            DecoderUtilizationDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
 								TemperatureAttr: {
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
 								MemoryStateAttr: {
 									Unit:              MemoryStateUnit,
 									Desc:              MemoryStateDesc,
-									IntNumeratorVal:   2,
-									IntDenominatorVal: 2,
+									IntNumeratorVal:   helper.Int64ToPtr(2),
+									IntDenominatorVal: helper.Int64ToPtr(2),
 								},
 								BAR1StateAttr: {
 									Unit:              BAR1StateUnit,
 									Desc:              BAR1StateDesc,
-									IntNumeratorVal:   2,
-									IntDenominatorVal: 256,
+									IntNumeratorVal:   helper.Int64ToPtr(2),
+									IntDenominatorVal: helper.Int64ToPtr(256),
 								},
 								ECCErrorsL1CacheAttr: {
 									Unit:            ECCErrorsL1CacheUnit,
 									Desc:            ECCErrorsL1CacheDesc,
-									IntNumeratorVal: 200,
+									IntNumeratorVal: helper.Int64ToPtr(200),
 								},
 								ECCErrorsL2CacheAttr: {
 									Unit:            ECCErrorsL2CacheUnit,
 									Desc:            ECCErrorsL2CacheDesc,
-									IntNumeratorVal: 200,
+									IntNumeratorVal: helper.Int64ToPtr(200),
 								},
 								ECCErrorsDeviceAttr: {
 									Unit:            ECCErrorsDeviceUnit,
 									Desc:            ECCErrorsDeviceDesc,
-									IntNumeratorVal: 200,
+									IntNumeratorVal: helper.Int64ToPtr(200),
 								},
 							},
 						},
 						Timestamp: time.Date(1974, time.May, 19, 1, 2, 3, 4, time.UTC),
 					},
 					"UUID3": {
-						Summary: &device.StatValue{
+						Summary: &structs.StatValue{
 							Unit:            TemperatureUnit,
 							Desc:            TemperatureDesc,
-							IntNumeratorVal: 3,
+							IntNumeratorVal: helper.Int64ToPtr(3),
 						},
-						Stats: &device.StatObject{
-							Attributes: map[string]*device.StatValue{
+						Stats: &structs.StatObject{
+							Attributes: map[string]*structs.StatValue{
 								PowerUsageAttr: {
 									Unit:              PowerUsageUnit,
 									Desc:              PowerUsageDesc,
-									IntNumeratorVal:   3,
-									IntDenominatorVal: 3,
+									IntNumeratorVal:   helper.Int64ToPtr(3),
+									IntDenominatorVal: helper.Int64ToPtr(3),
 								},
 								GPUUtilizationAttr: {
 									Unit:            GPUUtilizationUnit,
 									Desc:            GPUUtilizationDesc,
-									IntNumeratorVal: 3,
+									IntNumeratorVal: helper.Int64ToPtr(3),
 								},
 								MemoryUtilizationAttr: {
 									Unit:            MemoryUtilizationUnit,
 									Desc:            MemoryUtilizationDesc,
-									IntNumeratorVal: 3,
+									IntNumeratorVal: helper.Int64ToPtr(3),
 								},
 								EncoderUtilizationAttr: {
 									Unit:            EncoderUtilizationUnit,
 									Desc:            EncoderUtilizationDesc,
-									IntNumeratorVal: 3,
+									IntNumeratorVal: helper.Int64ToPtr(3),
 								},
 								DecoderUtilizationAttr: {
 									Unit:            DecoderUtilizationUnit,
 									Desc:            DecoderUtilizationDesc,
-									IntNumeratorVal: 3,
+									IntNumeratorVal: helper.Int64ToPtr(3),
 								},
 								TemperatureAttr: {
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 3,
+									IntNumeratorVal: helper.Int64ToPtr(3),
 								},
 								MemoryStateAttr: {
 									Unit:              MemoryStateUnit,
 									Desc:              MemoryStateDesc,
-									IntNumeratorVal:   3,
-									IntDenominatorVal: 3,
+									IntNumeratorVal:   helper.Int64ToPtr(3),
+									IntDenominatorVal: helper.Int64ToPtr(3),
 								},
 								BAR1StateAttr: {
 									Unit:              BAR1StateUnit,
 									Desc:              BAR1StateDesc,
-									IntNumeratorVal:   3,
-									IntDenominatorVal: 256,
+									IntNumeratorVal:   helper.Int64ToPtr(3),
+									IntDenominatorVal: helper.Int64ToPtr(256),
 								},
 								ECCErrorsL1CacheAttr: {
 									Unit:            ECCErrorsL1CacheUnit,
 									Desc:            ECCErrorsL1CacheDesc,
-									IntNumeratorVal: 300,
+									IntNumeratorVal: helper.Int64ToPtr(300),
 								},
 								ECCErrorsL2CacheAttr: {
 									Unit:            ECCErrorsL2CacheUnit,
 									Desc:            ECCErrorsL2CacheDesc,
-									IntNumeratorVal: 300,
+									IntNumeratorVal: helper.Int64ToPtr(300),
 								},
 								ECCErrorsDeviceAttr: {
 									Unit:            ECCErrorsDeviceUnit,
 									Desc:            ECCErrorsDeviceDesc,
-									IntNumeratorVal: 300,
+									IntNumeratorVal: helper.Int64ToPtr(300),
 								},
 							},
 						},
@@ -2232,70 +2233,70 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName1",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 1,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(1),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 1,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(1),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 									},
 								},
@@ -2309,70 +2310,70 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName2",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID2": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 2,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(2),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 2,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(2),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 									},
 								},
@@ -2386,70 +2387,70 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName3",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID3": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 3,
+									IntNumeratorVal: helper.Int64ToPtr(3),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   3,
-											IntDenominatorVal: 3,
+											IntNumeratorVal:   helper.Int64ToPtr(3),
+											IntDenominatorVal: helper.Int64ToPtr(3),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   3,
-											IntDenominatorVal: 3,
+											IntNumeratorVal:   helper.Int64ToPtr(3),
+											IntDenominatorVal: helper.Int64ToPtr(3),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   3,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(3),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 300,
+											IntNumeratorVal: helper.Int64ToPtr(300),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 300,
+											IntNumeratorVal: helper.Int64ToPtr(300),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 300,
+											IntNumeratorVal: helper.Int64ToPtr(300),
 										},
 									},
 								},
@@ -2543,70 +2544,70 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName1",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 1,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(1),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 1,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(1),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 									},
 								},
@@ -2620,140 +2621,140 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName2",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID3": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 3,
+									IntNumeratorVal: helper.Int64ToPtr(3),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   3,
-											IntDenominatorVal: 3,
+											IntNumeratorVal:   helper.Int64ToPtr(3),
+											IntDenominatorVal: helper.Int64ToPtr(3),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 3,
+											IntNumeratorVal: helper.Int64ToPtr(3),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   3,
-											IntDenominatorVal: 3,
+											IntNumeratorVal:   helper.Int64ToPtr(3),
+											IntDenominatorVal: helper.Int64ToPtr(3),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   3,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(3),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 300,
+											IntNumeratorVal: helper.Int64ToPtr(300),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 300,
+											IntNumeratorVal: helper.Int64ToPtr(300),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 300,
+											IntNumeratorVal: helper.Int64ToPtr(300),
 										},
 									},
 								},
 								Timestamp: time.Date(1974, time.May, 19, 1, 2, 3, 4, time.UTC),
 							},
 							"UUID2": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 2,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(2),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 2,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(2),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 									},
 								},
@@ -2846,70 +2847,70 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName1",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID1": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 1,
+									IntNumeratorVal: helper.Int64ToPtr(1),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 1,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(1),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 1,
+											IntNumeratorVal: helper.Int64ToPtr(1),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 1,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(1),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   1,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(1),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 100,
+											IntNumeratorVal: helper.Int64ToPtr(100),
 										},
 									},
 								},
@@ -2923,70 +2924,70 @@ func TestWriteStatsToChannel(t *testing.T) {
 						Name:   "DeviceName2",
 						InstanceStats: map[string]*device.DeviceStats{
 							"UUID2": {
-								Summary: &device.StatValue{
+								Summary: &structs.StatValue{
 									Unit:            TemperatureUnit,
 									Desc:            TemperatureDesc,
-									IntNumeratorVal: 2,
+									IntNumeratorVal: helper.Int64ToPtr(2),
 								},
-								Stats: &device.StatObject{
-									Attributes: map[string]*device.StatValue{
+								Stats: &structs.StatObject{
+									Attributes: map[string]*structs.StatValue{
 										PowerUsageAttr: {
 											Unit:              PowerUsageUnit,
 											Desc:              PowerUsageDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 2,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(2),
 										},
 										GPUUtilizationAttr: {
 											Unit:            GPUUtilizationUnit,
 											Desc:            GPUUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										MemoryUtilizationAttr: {
 											Unit:            MemoryUtilizationUnit,
 											Desc:            MemoryUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										EncoderUtilizationAttr: {
 											Unit:            EncoderUtilizationUnit,
 											Desc:            EncoderUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										DecoderUtilizationAttr: {
 											Unit:            DecoderUtilizationUnit,
 											Desc:            DecoderUtilizationDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										TemperatureAttr: {
 											Unit:            TemperatureUnit,
 											Desc:            TemperatureDesc,
-											IntNumeratorVal: 2,
+											IntNumeratorVal: helper.Int64ToPtr(2),
 										},
 										MemoryStateAttr: {
 											Unit:              MemoryStateUnit,
 											Desc:              MemoryStateDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 2,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(2),
 										},
 										BAR1StateAttr: {
 											Unit:              BAR1StateUnit,
 											Desc:              BAR1StateDesc,
-											IntNumeratorVal:   2,
-											IntDenominatorVal: 256,
+											IntNumeratorVal:   helper.Int64ToPtr(2),
+											IntDenominatorVal: helper.Int64ToPtr(256),
 										},
 										ECCErrorsL1CacheAttr: {
 											Unit:            ECCErrorsL1CacheUnit,
 											Desc:            ECCErrorsL1CacheDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 										ECCErrorsL2CacheAttr: {
 											Unit:            ECCErrorsL2CacheUnit,
 											Desc:            ECCErrorsL2CacheDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 										ECCErrorsDeviceAttr: {
 											Unit:            ECCErrorsDeviceUnit,
 											Desc:            ECCErrorsDeviceDesc,
-											IntNumeratorVal: 200,
+											IntNumeratorVal: helper.Int64ToPtr(200),
 										},
 									},
 								},

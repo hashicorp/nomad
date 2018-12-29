@@ -82,3 +82,18 @@ test('when changes are submitted, the site redirects to the job overview page', 
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Now on the job overview page');
   });
 });
+
+test('when the job for the definition is not found, an error message is shown, but the URL persists', function(assert) {
+  Definition.visit({ id: 'not-a-real-job' });
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/job/not-a-real-job',
+      'A request to the nonexistent job is made'
+    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/definition', 'The URL persists');
+    assert.ok(Definition.error.isPresent, 'Error message is shown');
+    assert.equal(Definition.error.title, 'Not Found', 'Error message is for 404');
+  });
+});

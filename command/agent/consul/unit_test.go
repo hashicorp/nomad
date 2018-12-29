@@ -828,7 +828,7 @@ func TestConsul_ShutdownOK(t *testing.T) {
 		t.Fatalf("expected 1 checkTTL entry but found: %d", n)
 	}
 	for _, v := range ctx.FakeConsul.checkTTLs {
-		require.Equalf(2, v, "expected 2 updates but foud %d", v)
+		require.Equalf(2, v, "expected 2 updates but found %d", v)
 	}
 	for _, v := range ctx.FakeConsul.checks {
 		if v.Status != "passing" {

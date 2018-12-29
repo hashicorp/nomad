@@ -1,25 +1,29 @@
 package rawexec
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/driver/executor"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"golang.org/x/net/context"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -109,7 +113,7 @@ type Driver struct {
 	// nomadConfig is the client config from nomad
 	nomadConfig *base.ClientDriverConfig
 
-	// tasks is the in memory datastore mapping taskIDs to rawExecDriverHandles
+	// tasks is the in memory datastore mapping taskIDs to driverHandles
 	tasks *taskStore
 
 	// ctx is the context for the driver. It is passed to other subsystems to
@@ -144,7 +148,7 @@ type TaskConfig struct {
 // StartTask. This information is needed to rebuild the task state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *utils.ReattachConfig
+	ReattachConfig *shared.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -223,11 +227,11 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan<- *drivers.Finge
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	var health drivers.HealthState
 	var desc string
-	attrs := map[string]string{}
+	attrs := map[string]*pstructs.Attribute{}
 	if d.config.Enabled {
 		health = drivers.HealthStateHealthy
 		desc = "ready"
-		attrs["driver.raw_exec"] = "1"
+		attrs["driver.raw_exec"] = pstructs.NewBoolAttribute(true)
 	} else {
 		health = drivers.HealthStateUndetected
 		desc = "disabled"
@@ -242,16 +246,26 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
-		return fmt.Errorf("error: handle cannot be nil")
+		return fmt.Errorf("handle cannot be nil")
 	}
 
+	// If already attached to handle there's nothing to recover.
+	if _, ok := d.tasks.Get(handle.Config.ID); ok {
+		d.logger.Trace("nothing to recover; task already exists",
+			"task_id", handle.Config.ID,
+			"task_name", handle.Config.Name,
+		)
+		return nil
+	}
+
+	// Handle doesn't already exist, try to reattach
 	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
 		d.logger.Error("failed to decode task state from handle", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to decode task state from handle: %v", err)
 	}
 
-	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from task state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from task state: %v", err)
@@ -261,6 +275,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		Reattach: plugRC,
 	}
 
+	// Create client for reattached executor
 	exec, pluginClient, err := utils.CreateExecutorWithConfig(pluginConfig, os.Stderr)
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
@@ -298,7 +313,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
 	}
@@ -308,12 +323,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
+	// Only use cgroups when running as root on linux - Doing so in other cases
+	// will cause an error.
+	useCgroups := !d.config.NoCgroups && runtime.GOOS == "linux" && syscall.Geteuid() == 0
+
 	execCmd := &executor.ExecCommand{
 		Cmd:                driverConfig.Command,
 		Args:               driverConfig.Args,
 		Env:                cfg.EnvList(),
 		User:               cfg.User,
-		BasicProcessCgroup: !d.config.NoCgroups,
+		BasicProcessCgroup: useCgroups,
 		TaskDir:            cfg.TaskDir().Dir,
 		StdoutPath:         cfg.StdoutPath,
 		StderrPath:         cfg.StderrPath,
@@ -336,7 +355,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	driverState := TaskState{
-		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,
@@ -468,19 +487,14 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	if len(cmd) == 0 {
-		return nil, fmt.Errorf("error cmd must have atleast one value")
+		return nil, fmt.Errorf("error cmd must have at least one value")
 	}
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	args := []string{}
-	if len(cmd) > 1 {
-		args = cmd[1:]
-	}
-
-	out, exitCode, err := handle.exec.Exec(time.Now().Add(timeout), cmd[0], args)
+	out, exitCode, err := handle.exec.Exec(time.Now().Add(timeout), cmd[0], cmd[1:])
 	if err != nil {
 		return nil, err
 	}

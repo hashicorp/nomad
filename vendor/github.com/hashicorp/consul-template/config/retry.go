@@ -30,7 +30,7 @@ type RetryConfig struct {
 	Attempts *int
 
 	// Backoff is the base of the exponentialbackoff. This number will be
-	// multipled by the next power of 2 on each iteration.
+	// multiplied by the next power of 2 on each iteration.
 	Backoff *time.Duration
 
 	// MaxBackoff is an upper limit to the sleep time between retries

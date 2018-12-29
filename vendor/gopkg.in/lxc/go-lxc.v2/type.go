@@ -260,7 +260,15 @@ const (
 )
 
 const (
-	MIGRATE_PRE_DUMP = 0
-	MIGRATE_DUMP     = 1
-	MIGRATE_RESTORE  = 2
+	MIGRATE_PRE_DUMP      = 0
+	MIGRATE_DUMP          = 1
+	MIGRATE_RESTORE       = 2
+	MIGRATE_FEATURE_CHECK = 3
+)
+
+type CriuFeatures uint64
+
+const (
+	FEATURE_MEM_TRACK CriuFeatures = 1 << iota
+	FEATURE_LAZY_PAGES
 )

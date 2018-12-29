@@ -21,12 +21,23 @@ func TestDockerLogger(t *testing.T) {
 		t.Skip("docker unavailable:", err)
 	}
 
+	if img, err := client.InspectImage("busybox:1"); err != nil || img == nil {
+		t.Log("image not found locally, downloading...")
+		err = client.PullImage(docker.PullImageOptions{
+			Repository: "busybox",
+			Tag:        "1",
+		}, docker.AuthConfiguration{})
+		if err != nil {
+			t.Fatalf("failed to pull image: %v", err)
+		}
+	}
+
 	containerConf := docker.CreateContainerOptions{
 		Config: &docker.Config{
 			Cmd: []string{
-				"/bin/ash", "-c", "touch /tmp/docklog; tail -f /tmp/docklog",
+				"/bin/sh", "-c", "touch /tmp/docklog; tail -f /tmp/docklog",
 			},
-			Image: "alpine",
+			Image: "busybox:1",
 		},
 		Context: context.Background(),
 	}

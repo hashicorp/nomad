@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -16,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	netctx "golang.org/x/net/context"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -64,9 +65,9 @@ var (
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"start_error":             hclspec.NewAttr("start_error", "string", false),
 		"start_error_recoverable": hclspec.NewAttr("start_error_recoverable", "bool", false),
-		"start_block_for":         hclspec.NewAttr("start_block_for", "number", false),
-		"kill_after":              hclspec.NewAttr("kill_after", "number", false),
-		"run_for":                 hclspec.NewAttr("run_for", "number", false),
+		"start_block_for":         hclspec.NewAttr("start_block_for", "string", false),
+		"kill_after":              hclspec.NewAttr("kill_after", "string", false),
+		"run_for":                 hclspec.NewAttr("run_for", "string", false),
 		"exit_code":               hclspec.NewAttr("exit_code", "number", false),
 		"exit_signal":             hclspec.NewAttr("exit_signal", "number", false),
 		"exit_err_msg":            hclspec.NewAttr("exit_err_msg", "string", false),
@@ -76,7 +77,7 @@ var (
 		"driver_port_map":         hclspec.NewAttr("driver_port_map", "string", false),
 		"stdout_string":           hclspec.NewAttr("stdout_string", "string", false),
 		"stdout_repeat":           hclspec.NewAttr("stdout_repeat", "number", false),
-		"stdout_repeat_duration":  hclspec.NewAttr("stdout_repeat_duration", "number", false),
+		"stdout_repeat_duration":  hclspec.NewAttr("stdout_repeat_duration", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -109,6 +110,15 @@ type Driver struct {
 	signalShutdown context.CancelFunc
 
 	shutdownFingerprintTime time.Time
+
+	// lastDriverTaskConfig is the last *drivers.TaskConfig passed to StartTask
+	lastDriverTaskConfig *drivers.TaskConfig
+
+	// lastTaskConfig is the last decoded *TaskConfig created by StartTask
+	lastTaskConfig *TaskConfig
+
+	// lastMu guards access to last[Driver]TaskConfig
+	lastMu sync.Mutex
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
@@ -152,16 +162,19 @@ type TaskConfig struct {
 	StartErrRecoverable bool `codec:"start_error_recoverable"`
 
 	// StartBlockFor specifies a duration in which to block before returning
-	StartBlockFor time.Duration `codec:"start_block_for"`
+	StartBlockFor         string `codec:"start_block_for"`
+	startBlockForDuration time.Duration
 
 	// KillAfter is the duration after which the mock driver indicates the task
 	// has exited after getting the initial SIGINT signal
-	KillAfter time.Duration `codec:"kill_after"`
+	KillAfter         string `codec:"kill_after"`
+	killAfterDuration time.Duration
 
 	// RunFor is the duration for which the fake task runs for. After this
 	// period the MockDriver responds to the task running indicating that the
 	// task has terminated
-	RunFor time.Duration `codec:"run_for"`
+	RunFor         string `codec:"run_for"`
+	runForDuration time.Duration
 
 	// ExitCode is the exit code with which the MockDriver indicates the task
 	// has exited
@@ -195,7 +208,8 @@ type TaskConfig struct {
 	StdoutRepeat int `codec:"stdout_repeat"`
 
 	// StdoutRepeatDur is the duration between repeated outputs.
-	StdoutRepeatDur time.Duration `codec:"stdout_repeat_duration"`
+	StdoutRepeatDur      string `codec:"stdout_repeat_duration"`
+	stdoutRepeatDuration time.Duration
 }
 
 type MockTaskState struct {
@@ -232,7 +246,7 @@ func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (d *Driver) Fingerprint(ctx netctx.Context) (<-chan *drivers.Fingerprint, error) {
+func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
 	go d.handleFingerprint(ctx, ch)
 	return ch, nil
@@ -256,26 +270,40 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	var health drivers.HealthState
 	var desc string
-	attrs := map[string]string{}
+	attrs := map[string]*pstructs.Attribute{}
 	if !d.shutdownFingerprintTime.IsZero() && time.Now().After(d.shutdownFingerprintTime) {
 		health = drivers.HealthStateUndetected
 		desc = "disabled"
 	} else {
 		health = drivers.HealthStateHealthy
-		attrs["driver.mock"] = "1"
+		attrs["driver.mock"] = pstructs.NewBoolAttribute(true)
 		desc = "ready"
 	}
 
 	return &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        attrs,
 		Health:            health,
 		HealthDescription: desc,
 	}
 }
 
-func (d *Driver) RecoverTask(*drivers.TaskHandle) error {
-	//TODO is there anything to do here?
-	return nil
+func (d *Driver) RecoverTask(h *drivers.TaskHandle) error {
+	if h == nil {
+		return fmt.Errorf("handle cannot be nil")
+	}
+
+	if _, ok := d.tasks.Get(h.Config.ID); ok {
+		d.logger.Debug("nothing to recover; task already exists",
+			"task_id", h.Config.ID,
+			"task_name", h.Config.Name,
+		)
+		return nil
+	}
+
+	// Recovering a task requires the task to be running external to the
+	// plugin. Since the mock_driver runs all tasks in process it cannot
+	// recover tasks.
+	return fmt.Errorf("%s cannot recover tasks", pluginName)
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
@@ -284,9 +312,28 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, err
 	}
 
-	if driverConfig.StartBlockFor != 0 {
-		time.Sleep(driverConfig.StartBlockFor)
+	var err error
+	if driverConfig.startBlockForDuration, err = parseDuration(driverConfig.StartBlockFor); err != nil {
+		return nil, nil, fmt.Errorf("start_block_for %v not a valid duration: %v", driverConfig.StartBlockFor, err)
 	}
+
+	if driverConfig.runForDuration, err = parseDuration(driverConfig.RunFor); err != nil {
+		return nil, nil, fmt.Errorf("run_for %v not a valid duration: %v", driverConfig.RunFor, err)
+	}
+
+	if driverConfig.stdoutRepeatDuration, err = parseDuration(driverConfig.StdoutRepeatDur); err != nil {
+		return nil, nil, fmt.Errorf("stdout_repeat_duration %v not a valid duration: %v", driverConfig.stdoutRepeatDuration, err)
+	}
+
+	if driverConfig.startBlockForDuration != 0 {
+		time.Sleep(driverConfig.startBlockForDuration)
+	}
+
+	// Store last configs
+	d.lastMu.Lock()
+	d.lastDriverTaskConfig = cfg
+	d.lastTaskConfig = &driverConfig
+	d.lastMu.Unlock()
 
 	if driverConfig.StartErr != "" {
 		return nil, nil, structs.NewRecoverableError(errors.New(driverConfig.StartErr), driverConfig.StartErrRecoverable)
@@ -313,13 +360,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 
 	h := &taskHandle{
 		taskConfig:      cfg,
-		runFor:          driverConfig.RunFor,
-		killAfter:       driverConfig.KillAfter,
+		runFor:          driverConfig.runForDuration,
+		killAfter:       driverConfig.killAfterDuration,
 		exitCode:        driverConfig.ExitCode,
 		exitSignal:      driverConfig.ExitSignal,
 		stdoutString:    driverConfig.StdoutString,
 		stdoutRepeat:    driverConfig.StdoutRepeat,
-		stdoutRepeatDur: driverConfig.StdoutRepeatDur,
+		stdoutRepeatDur: driverConfig.stdoutRepeatDuration,
 		logger:          d.logger.With("task_name", cfg.Name),
 		waitCh:          make(chan struct{}),
 		killCh:          killCtx.Done(),
@@ -351,7 +398,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 
 }
 
-func (d *Driver) WaitTask(ctx netctx.Context, taskID string) (<-chan *drivers.ExitResult, error) {
+func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -416,7 +463,7 @@ func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	return nil, nil
 }
 
-func (d *Driver) TaskEvents(ctx netctx.Context) (<-chan *drivers.TaskEvent, error) {
+func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.eventer.TaskEvents(ctx)
 }
 
@@ -440,4 +487,13 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 		ExitResult: &drivers.ExitResult{},
 	}
 	return &res, nil
+}
+
+// GetTaskConfig is unique to the mock driver and for testing purposes only. It
+// returns the *drivers.TaskConfig passed to StartTask and the decoded
+// *mock.TaskConfig created by the last StartTask call.
+func (d *Driver) GetTaskConfig() (*drivers.TaskConfig, *TaskConfig) {
+	d.lastMu.Lock()
+	defer d.lastMu.Unlock()
+	return d.lastDriverTaskConfig, d.lastTaskConfig
 }

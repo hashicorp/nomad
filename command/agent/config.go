@@ -441,6 +441,19 @@ type Telemetry struct {
 	// key/value structure as done in older versions of Nomad
 	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
 
+	// PrefixFilter allows for filtering out metrics from being collected
+	PrefixFilter []string `mapstructure:"prefix_filter"`
+
+	// FilterDefault controls whether to allow metrics that have not been specified
+	// by the filter
+	FilterDefault *bool `mapstructure:"filter_default"`
+
+	// DisableDispatchedJobSummaryMetrics allows ignoring dispatched jobs when
+	// publishing Job summary metrics. This is useful in environments that produce
+	// high numbers of single count dispatch jobs as the metrics for each take up
+	// a small memory overhead.
+	DisableDispatchedJobSummaryMetrics bool `mapstructure:"disable_dispatched_job_summary_metrics"`
+
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
 	// Valid configuration combinations:
@@ -511,6 +524,24 @@ type Telemetry struct {
 	// (e.g. a specific geo location or datacenter, dc:sfo)
 	// Default: none
 	CirconusBrokerSelectTag string `mapstructure:"circonus_broker_select_tag"`
+}
+
+// PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
+func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range t.PrefixFilter {
+		if rule == "" {
+			continue
+		}
+		switch rule[0] {
+		case '+':
+			allowed = append(allowed, rule[1:])
+		case '-':
+			blocked = append(blocked, rule[1:])
+		default:
+			return nil, nil, fmt.Errorf("Filter rule must begin with either '+' or '-': %q", rule)
+		}
+	}
+	return allowed, blocked, nil
 }
 
 // Ports encapsulates the various ports we bind to for network services. If any
@@ -1287,6 +1318,18 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.BackwardsCompatibleMetrics {
 		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
+	}
+
+	if b.PrefixFilter != nil {
+		result.PrefixFilter = b.PrefixFilter
+	}
+
+	if b.FilterDefault != nil {
+		result.FilterDefault = b.FilterDefault
+	}
+
+	if b.DisableDispatchedJobSummaryMetrics {
+		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
 	}
 
 	return &result

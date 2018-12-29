@@ -15,7 +15,7 @@ moduleForAcceptance('Acceptance | allocation detail', {
 
     node = server.create('node');
     job = server.create('job', { groupsCount: 1, createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts');
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
 
     // Make sure the node has an unhealthy driver
     node.update({
@@ -76,6 +76,7 @@ test('/allocation/:id should list all tasks for the allocation', function(assert
     server.db.taskStates.where({ allocationId: allocation.id }).length,
     'Table lists all tasks'
   );
+  assert.notOk(Allocation.isEmpty, 'Task table empty state is not shown');
 });
 
 test('each task row should list high-level information for the task', function(assert) {
@@ -144,6 +145,16 @@ test('each task row should link to the task detail page', function(assert) {
 
 test('tasks with an unhealthy driver have a warning icon', function(assert) {
   assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
+});
+
+test('when there are no tasks, an empty state is shown', function(assert) {
+  // Make sure the allocation is pending in order to ensure there are no tasks
+  allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'pending' });
+  Allocation.visit({ id: allocation.id });
+
+  andThen(() => {
+    assert.ok(Allocation.isEmpty, 'Task table empty state is shown');
+  });
 });
 
 test('when the allocation has not been rescheduled, the reschedule events section is not rendered', function(assert) {

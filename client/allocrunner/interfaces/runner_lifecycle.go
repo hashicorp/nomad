@@ -42,3 +42,11 @@ type HookTarget interface {
 	// State retrieves a copy of the target alloc runners state.
 	State() *state.State
 }
+
+// ShutdownHook may be implemented by AllocRunner or TaskRunner hooks and will
+// be called when the agent process is being shutdown gracefully.
+type ShutdownHook interface {
+	RunnerHook
+
+	Shutdown()
+}

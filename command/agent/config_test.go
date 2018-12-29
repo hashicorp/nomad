@@ -77,6 +77,7 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusCheckTags:                  "cat1:tag1,cat2:tag2",
 			CirconusBrokerID:                   "0",
 			CirconusBrokerSelectTag:            "dc:dc1",
+			PrefixFilter:                       []string{"filter1", "filter2"},
 		},
 		Client: &ClientConfig{
 			Enabled:   false,
@@ -225,6 +226,9 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusCheckTags:                  "cat1:tag1,cat2:tag2",
 			CirconusBrokerID:                   "1",
 			CirconusBrokerSelectTag:            "dc:dc2",
+			PrefixFilter:                       []string{"prefix1", "prefix2"},
+			DisableDispatchedJobSummaryMetrics: true,
+			FilterDefault:                      helper.BoolToPtr(false),
 		},
 		Client: &ClientConfig{
 			Enabled:   true,
@@ -989,4 +993,69 @@ func TestMergeServerJoin(t *testing.T) {
 		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
 		require.Equal(result.RetryInterval, retryInterval)
 	}
+}
+
+func TestTelemetry_PrefixFilters(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in       []string
+		expAllow []string
+		expBlock []string
+		expErr   bool
+	}{
+		{
+			in:       []string{"+foo"},
+			expAllow: []string{"foo"},
+		},
+		{
+			in:       []string{"-foo"},
+			expBlock: []string{"foo"},
+		},
+		{
+			in:       []string{"+a.b.c", "-x.y.z"},
+			expAllow: []string{"a.b.c"},
+			expBlock: []string{"x.y.z"},
+		},
+		{
+			in:     []string{"+foo", "bad", "-bar"},
+			expErr: true,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("PrefixCase%d", i), func(t *testing.T) {
+			require := require.New(t)
+			tel := &Telemetry{
+				PrefixFilter: c.in,
+			}
+
+			allow, block, err := tel.PrefixFilters()
+			require.Exactly(c.expAllow, allow)
+			require.Exactly(c.expBlock, block)
+			require.Equal(c.expErr, err != nil)
+		})
+	}
+}
+
+func TestTelemetry_Parse(t *testing.T) {
+	require := require.New(t)
+	dir, err := ioutil.TempDir("", "nomad")
+	require.NoError(err)
+	defer os.RemoveAll(dir)
+
+	file1 := filepath.Join(dir, "config1.hcl")
+	err = ioutil.WriteFile(file1, []byte(`telemetry{
+		prefix_filter = ["+nomad.raft"]
+		filter_default = false
+		disable_dispatched_job_summary_metrics = true
+	}`), 0600)
+	require.NoError(err)
+
+	// Works on config dir
+	config, err := LoadConfig(dir)
+	require.NoError(err)
+
+	require.False(*config.Telemetry.FilterDefault)
+	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
+	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
 }

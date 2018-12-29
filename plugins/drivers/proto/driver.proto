@@ -6,6 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
+import "github.com/hashicorp/nomad/plugins/shared/structs/proto/attribute.proto";
 
 // Driver service defines RPCs used to communicate with a nomad runtime driver.
 // Some rpcs may not be implemented by the driver based on it's capabilities.
@@ -97,7 +98,7 @@ message FingerprintResponse {
 
     // Attributes are key/value pairs that annotate the nomad client and can be
     // used in scheduling contraints and affinities.
-    map<string, string> attributes = 1;
+    map<string, hashicorp.nomad.plugins.shared.structs.Attribute> attributes = 1;
 
     enum HealthState {
         UNDETECTED = 0;
@@ -331,6 +332,15 @@ message TaskConfig {
 
     // StderrPath is the path to the file to open and write task stderr to
     string stderr_path = 11;
+
+    // TaskGroupName is the name of the task group which this task is a member of
+    string task_group_name = 12;
+
+    // JobName is the name of the job of which this task is part of
+    string job_name = 13;
+
+    // AllocId is the ID of the associated allocation
+    string alloc_id = 14;
 }
 
 message Resources {
@@ -380,6 +390,8 @@ message LinuxResources {
     string cpuset_cpus = 6;
     // CpusetMems constrains the allowed set of memory nodes. Default: "" (not specified)
     string cpuset_mems = 7;
+    // PercentTicks is a compatibility option for docker and should not be used
+    double PercentTicks = 8;
 }
 
 message Mount {

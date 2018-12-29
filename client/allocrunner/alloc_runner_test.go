@@ -2,78 +2,15 @@ package allocrunner
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocwatcher"
-	"github.com/hashicorp/nomad/client/config"
-	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
-
-// MockStateUpdater implements the AllocStateHandler interface and records
-// alloc updates.
-type MockStateUpdater struct {
-	Updates []*structs.Allocation
-	mu      sync.Mutex
-}
-
-// AllocStateUpdated implements the AllocStateHandler interface and records an
-// alloc update.
-func (m *MockStateUpdater) AllocStateUpdated(alloc *structs.Allocation) {
-	m.mu.Lock()
-	m.Updates = append(m.Updates, alloc)
-	m.mu.Unlock()
-}
-
-// Last returns a copy of the last alloc (or nil) update. Safe for concurrent
-// access with updates.
-func (m *MockStateUpdater) Last() *structs.Allocation {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	n := len(m.Updates)
-	if n == 0 {
-		return nil
-	}
-	return m.Updates[n-1].Copy()
-}
-
-// Reset resets the recorded alloc updates.
-func (m *MockStateUpdater) Reset() {
-	m.mu.Lock()
-	m.Updates = nil
-	m.mu.Unlock()
-}
-
-// testAllocRunnerConfig returns a new allocrunner.Config with mocks and noop
-// versions of dependencies along with a cleanup func.
-func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, func()) {
-	logger := testlog.HCLogger(t)
-	pluginLoader := catalog.TestPluginLoader(t)
-	clientConf, cleanup := config.TestClientConfig(t)
-	conf := &Config{
-		// Copy the alloc in case the caller edits and reuses it
-		Alloc:                 alloc.Copy(),
-		Logger:                logger,
-		ClientConfig:          clientConf,
-		StateDB:               state.NoopDB{},
-		Consul:                consulapi.NewMockConsulServiceClient(t, logger),
-		Vault:                 vaultclient.NewMockVaultClient(),
-		StateUpdater:          &MockStateUpdater{},
-		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
-		PluginSingletonLoader: singleton.NewSingletonLoader(logger, pluginLoader),
-	}
-	return conf, cleanup
-}
 
 // TestAllocRunner_AllocState_Initialized asserts that getting TaskStates via
 // AllocState() are initialized even before the AllocRunner has run.
@@ -108,7 +45,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.KillTimeout = 10 * time.Millisecond
 	task.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -116,7 +53,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task2.Driver = "mock_driver"
 	task2.Leader = true
 	task2.Config = map[string]interface{}{
-		"run_for": 1 * time.Second,
+		"run_for": "1s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
 	alloc.TaskResources[task2.Name] = task2.Resources
@@ -126,7 +63,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
-	ar.Run()
+	go ar.Run()
 
 	// Wait for all tasks to be killed
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -191,7 +128,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	task.Name = "follower1"
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -199,14 +136,14 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	task2.Driver = "mock_driver"
 	task2.Leader = true
 	task2.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 
 	task3 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	task3.Name = "follower2"
 	task3.Driver = "mock_driver"
 	task3.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2, task3)
 	alloc.TaskResources[task2.Name] = task2.Resources
@@ -216,7 +153,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	defer ar.Destroy()
-	ar.Run()
+	go ar.Run()
 
 	// Wait for tasks to start
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -310,7 +247,6 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
-	defer ar.Destroy()
 
 	// Mimic Nomad exiting before the leader stopping is able to stop other tasks.
 	ar.tasks["leader"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled))

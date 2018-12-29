@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -34,12 +35,13 @@ type serviceHook struct {
 	logger    log.Logger
 
 	// The following fields may be updated
+	delay      time.Duration
 	driverExec tinterfaces.ScriptExecutor
 	driverNet  *cstructs.DriverNetwork
 	canary     bool
 	services   []*structs.Service
 	networks   structs.Networks
-	taskEnv    *env.TaskEnv
+	taskEnv    *taskenv.TaskEnv
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -53,6 +55,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		taskName:  c.task.Name,
 		services:  c.task.Services,
 		restarter: c.restarter,
+		delay:     c.task.ShutdownDelay,
 	}
 
 	if res := c.alloc.TaskResources[c.task.Name]; res != nil {
@@ -111,6 +114,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	}
 
 	// Update service hook fields
+	h.delay = task.ShutdownDelay
 	h.taskEnv = req.TaskEnv
 	h.services = task.Services
 	h.networks = networks
@@ -122,10 +126,35 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	return h.consul.UpdateTask(oldTaskServices, newTaskServices)
 }
 
-func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
+func (h *serviceHook) Killing(ctx context.Context, req *interfaces.TaskKillRequest, resp *interfaces.TaskKillResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// Deregister before killing task
+	h.deregister()
+
+	// If there's no shutdown delay, exit early
+	if h.delay == 0 {
+		return nil
+	}
+
+	h.logger.Debug("waiting before killing task", "shutdown_delay", h.delay)
+	select {
+	case <-ctx.Done():
+	case <-time.After(h.delay):
+	}
+	return nil
+}
+
+func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.deregister()
+	return nil
+}
+
+// deregister services from Consul.
+func (h *serviceHook) deregister() {
 	taskServices := h.getTaskServices()
 	h.consul.RemoveTask(taskServices)
 
@@ -134,7 +163,6 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 	taskServices.Canary = !taskServices.Canary
 	h.consul.RemoveTask(taskServices)
 
-	return nil
 }
 
 func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {
@@ -156,7 +184,7 @@ func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {
 
 // interpolateServices returns an interpolated copy of services and checks with
 // values from the task's environment.
-func interpolateServices(taskEnv *env.TaskEnv, services []*structs.Service) []*structs.Service {
+func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) []*structs.Service {
 	interpolated := make([]*structs.Service, len(services))
 
 	for i, origService := range services {

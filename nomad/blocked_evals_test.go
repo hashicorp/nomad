@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -14,7 +15,7 @@ import (
 func testBlockedEvals(t *testing.T) (*BlockedEvals, *EvalBroker) {
 	broker := testBroker(t, 0)
 	broker.SetEnabled(true)
-	blocked := NewBlockedEvals(broker)
+	blocked := NewBlockedEvals(broker, testlog.HCLogger(t))
 	blocked.SetEnabled(true)
 	return blocked, broker
 }
@@ -99,14 +100,20 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 
 	// Create duplicate blocked evals and add them to the blocked tracker.
 	e := mock.Eval()
+	e.CreateIndex = 100
 	e2 := mock.Eval()
 	e2.JobID = e.JobID
+	e2.CreateIndex = 101
 	e3 := mock.Eval()
 	e3.JobID = e.JobID
+	e3.CreateIndex = 102
+	e4 := mock.Eval()
+	e4.JobID = e.JobID
+	e4.CreateIndex = 100
 	blocked.Block(e)
 	blocked.Block(e2)
 
-	// Verify block did track both
+	// Verify stats such that we are only tracking one
 	bStats := blocked.Stats()
 	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
 		t.Fatalf("bad: %#v", bStats)
@@ -114,8 +121,8 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 
 	// Get the duplicates.
 	out := blocked.GetDuplicates(0)
-	if len(out) != 1 || !reflect.DeepEqual(out[0], e2) {
-		t.Fatalf("bad: %#v %#v", out, e2)
+	if len(out) != 1 || !reflect.DeepEqual(out[0], e) {
+		t.Fatalf("bad: %#v %#v", out, e)
 	}
 
 	// Call block again after a small sleep.
@@ -126,8 +133,27 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 
 	// Get the duplicates.
 	out = blocked.GetDuplicates(1 * time.Second)
-	if len(out) != 1 || !reflect.DeepEqual(out[0], e3) {
+	if len(out) != 1 || !reflect.DeepEqual(out[0], e2) {
 		t.Fatalf("bad: %#v %#v", out, e2)
+	}
+
+	// Verify stats such that we are only tracking one
+	bStats = blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
+	}
+
+	// Add an older evaluation and assert it gets cancelled
+	blocked.Block(e4)
+	out = blocked.GetDuplicates(0)
+	if len(out) != 1 || !reflect.DeepEqual(out[0], e4) {
+		t.Fatalf("bad: %#v %#v", out, e4)
+	}
+
+	// Verify stats such that we are only tracking one
+	bStats = blocked.Stats()
+	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
+		t.Fatalf("bad: %#v", bStats)
 	}
 }
 
@@ -647,7 +673,7 @@ func TestBlockedEvals_Untrack(t *testing.T) {
 	}
 
 	// Untrack and verify
-	blocked.Untrack(e.JobID)
+	blocked.Untrack(e.JobID, e.Namespace)
 	bStats = blocked.Stats()
 	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
 		t.Fatalf("bad: %#v", bStats)
@@ -672,7 +698,7 @@ func TestBlockedEvals_Untrack_Quota(t *testing.T) {
 	}
 
 	// Untrack and verify
-	blocked.Untrack(e.JobID)
+	blocked.Untrack(e.JobID, e.Namespace)
 	bs = blocked.Stats()
 	if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
 		t.Fatalf("bad: %#v", bs)

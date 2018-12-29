@@ -1869,6 +1869,75 @@ func TestResource_Add_Network(t *testing.T) {
 	}
 }
 
+func TestComparableResources_Subtract(t *testing.T) {
+	r1 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 2000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 2048,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 10000,
+		},
+	}
+
+	r2 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         20,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+	r1.Subtract(r2)
+
+	expect := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+
+	require := require.New(t)
+	require.Equal(expect, r1)
+}
+
 func TestEncodeDecode(t *testing.T) {
 	type FooRequest struct {
 		Foo string
@@ -2671,6 +2740,15 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 				},
 			},
 			true,
+		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "md5:${ARTIFACT_CHECKSUM}",
+				},
+			},
+			false,
 		},
 	}
 

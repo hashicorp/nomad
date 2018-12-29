@@ -1,6 +1,9 @@
 package interfaces
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/device"
+)
 
 type Client interface {
 	AllocStateHandler
@@ -11,4 +14,10 @@ type AllocStateHandler interface {
 	// AllocStateUpdated is used to emit an updated allocation. This allocation
 	// is stripped to only include client settable fields.
 	AllocStateUpdated(alloc *structs.Allocation)
+}
+
+// DeviceStatsReporter gives access to the latest resource usage
+// for devices
+type DeviceStatsReporter interface {
+	LatestDeviceResourceStats([]*structs.AllocatedDeviceResource) []*device.DeviceGroupStats
 }

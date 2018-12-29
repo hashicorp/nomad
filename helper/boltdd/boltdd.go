@@ -69,6 +69,10 @@ func (db *DB) bucket(btx *bolt.Tx, name []byte) *Bucket {
 	db.rootBucketsLock.Lock()
 	defer db.rootBucketsLock.Unlock()
 
+	if db.isClosed() {
+		return nil
+	}
+
 	b, ok := db.rootBuckets[string(name)]
 	if !ok {
 		b = newBucketMeta()
@@ -87,6 +91,12 @@ func (db *DB) createBucket(btx *bolt.Tx, name []byte) (*Bucket, error) {
 	db.rootBucketsLock.Lock()
 	defer db.rootBucketsLock.Unlock()
 
+	// While creating a bucket on a closed db would error, we must recheck
+	// after acquiring the lock to avoid races.
+	if db.isClosed() {
+		return nil, bolt.ErrDatabaseNotOpen
+	}
+
 	// Always create a new Bucket since CreateBucket above fails if the
 	// bucket already exists.
 	b := newBucketMeta()
@@ -103,6 +113,12 @@ func (db *DB) createBucketIfNotExists(btx *bolt.Tx, name []byte) (*Bucket, error
 
 	db.rootBucketsLock.Lock()
 	defer db.rootBucketsLock.Unlock()
+
+	// While creating a bucket on a closed db would error, we must recheck
+	// after acquiring the lock to avoid races.
+	if db.isClosed() {
+		return nil, bolt.ErrDatabaseNotOpen
+	}
 
 	b, ok := db.rootBuckets[string(name)]
 	if !ok {
@@ -127,10 +143,18 @@ func (db *DB) View(fn func(*Tx) error) error {
 	})
 }
 
+// isClosed returns true if the database is closed and must be called while
+// db.rootBucketsLock is acquired.
+func (db *DB) isClosed() bool {
+	return db.rootBuckets == nil
+}
+
 // Close closes the underlying bolt.DB and clears all bucket hashes. DB is
 // unusable after closing.
 func (db *DB) Close() error {
+	db.rootBucketsLock.Lock()
 	db.rootBuckets = nil
+	db.rootBucketsLock.Unlock()
 	return db.bdb.Close()
 }
 

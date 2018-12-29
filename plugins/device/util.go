@@ -326,49 +326,9 @@ func convertProtoDeviceStats(in *proto.DeviceStats) *DeviceStats {
 	}
 
 	return &DeviceStats{
-		Summary:   convertProtoStatValue(in.Summary),
-		Stats:     convertProtoStatObject(in.Stats),
+		Summary:   structs.ConvertProtoStatValue(in.Summary),
+		Stats:     structs.ConvertProtoStatObject(in.Stats),
 		Timestamp: ts,
-	}
-}
-
-// convertProtoStatObject converts between a proto and struct StatObject
-func convertProtoStatObject(in *proto.StatObject) *StatObject {
-	if in == nil {
-		return nil
-	}
-
-	out := &StatObject{
-		Nested:     make(map[string]*StatObject, len(in.Nested)),
-		Attributes: make(map[string]*StatValue, len(in.Attributes)),
-	}
-
-	for k, v := range in.Nested {
-		out.Nested[k] = convertProtoStatObject(v)
-	}
-
-	for k, v := range in.Attributes {
-		out.Attributes[k] = convertProtoStatValue(v)
-	}
-
-	return out
-}
-
-// convertProtoStatValue converts between a proto and struct StatValue
-func convertProtoStatValue(in *proto.StatValue) *StatValue {
-	if in == nil {
-		return nil
-	}
-
-	return &StatValue{
-		FloatNumeratorVal:   in.FloatNumeratorVal,
-		FloatDenominatorVal: in.FloatDenominatorVal,
-		IntNumeratorVal:     in.IntNumeratorVal,
-		IntDenominatorVal:   in.IntDenominatorVal,
-		StringVal:           in.StringVal,
-		BoolVal:             in.BoolVal,
-		Unit:                in.Unit,
-		Desc:                in.Desc,
 	}
 }
 
@@ -420,48 +380,8 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 	}
 
 	return &proto.DeviceStats{
-		Summary:   convertStructStatValue(in.Summary),
-		Stats:     convertStructStatObject(in.Stats),
+		Summary:   structs.ConvertStructStatValue(in.Summary),
+		Stats:     structs.ConvertStructStatObject(in.Stats),
 		Timestamp: ts,
-	}
-}
-
-// convertStructStatObject converts between a struct and proto StatObject
-func convertStructStatObject(in *StatObject) *proto.StatObject {
-	if in == nil {
-		return nil
-	}
-
-	out := &proto.StatObject{
-		Nested:     make(map[string]*proto.StatObject, len(in.Nested)),
-		Attributes: make(map[string]*proto.StatValue, len(in.Attributes)),
-	}
-
-	for k, v := range in.Nested {
-		out.Nested[k] = convertStructStatObject(v)
-	}
-
-	for k, v := range in.Attributes {
-		out.Attributes[k] = convertStructStatValue(v)
-	}
-
-	return out
-}
-
-// convertStructStatValue converts between a struct and proto StatValue
-func convertStructStatValue(in *StatValue) *proto.StatValue {
-	if in == nil {
-		return nil
-	}
-
-	return &proto.StatValue{
-		FloatNumeratorVal:   in.FloatNumeratorVal,
-		FloatDenominatorVal: in.FloatDenominatorVal,
-		IntNumeratorVal:     in.IntNumeratorVal,
-		IntDenominatorVal:   in.IntDenominatorVal,
-		StringVal:           in.StringVal,
-		BoolVal:             in.BoolVal,
-		Unit:                in.Unit,
-		Desc:                in.Desc,
 	}
 }

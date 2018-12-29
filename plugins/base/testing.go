@@ -22,7 +22,7 @@ var (
 						Block: &hclspec.Spec_Attr{
 							Attr: &hclspec.Attr{
 								Type:     "number",
-								Required: true,
+								Required: false,
 							},
 						},
 					},
@@ -46,17 +46,48 @@ type TestConfig struct {
 	Baz bool   `cty:"baz" codec:"baz"`
 }
 
+type PluginInfoFn func() (*PluginInfoResponse, error)
+type ConfigSchemaFn func() (*hclspec.Spec, error)
+type SetConfigFn func([]byte, *ClientAgentConfig) error
+
 // MockPlugin is used for testing.
 // Each function can be set as a closure to make assertions about how data
 // is passed through the base plugin layer.
 type MockPlugin struct {
-	PluginInfoF   func() (*PluginInfoResponse, error)
-	ConfigSchemaF func() (*hclspec.Spec, error)
-	SetConfigF    func([]byte, *ClientAgentConfig) error
+	PluginInfoF   PluginInfoFn
+	ConfigSchemaF ConfigSchemaFn
+	SetConfigF    SetConfigFn
 }
 
 func (p *MockPlugin) PluginInfo() (*PluginInfoResponse, error) { return p.PluginInfoF() }
 func (p *MockPlugin) ConfigSchema() (*hclspec.Spec, error)     { return p.ConfigSchemaF() }
 func (p *MockPlugin) SetConfig(data []byte, cfg *ClientAgentConfig) error {
 	return p.SetConfigF(data, cfg)
+}
+
+// Below are static implementations of the base plugin functions
+
+// StaticInfo returns the passed PluginInfoResponse with no error
+func StaticInfo(out *PluginInfoResponse) PluginInfoFn {
+	return func() (*PluginInfoResponse, error) {
+		return out, nil
+	}
+}
+
+// StaticConfigSchema returns the passed Spec with no error
+func StaticConfigSchema(out *hclspec.Spec) ConfigSchemaFn {
+	return func() (*hclspec.Spec, error) {
+		return out, nil
+	}
+}
+
+// TestConfigSchema returns a ConfigSchemaFn that statically returns the
+// TestSpec
+func TestConfigSchema() ConfigSchemaFn {
+	return StaticConfigSchema(TestSpec)
+}
+
+// NoopSetConfig is a noop implementation of set config
+func NoopSetConfig() SetConfigFn {
+	return func(_ []byte, _ *ClientAgentConfig) error { return nil }
 }

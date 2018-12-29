@@ -4,7 +4,6 @@ import (
 	"runtime"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // ArchFingerprint is used to fingerprint the architecture
@@ -19,7 +18,7 @@ func NewArchFingerprint(logger log.Logger) Fingerprint {
 	return f
 }
 
-func (f *ArchFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *ArchFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	resp.AddAttribute("cpu.arch", runtime.GOARCH)
 	resp.Detected = true
 	return nil

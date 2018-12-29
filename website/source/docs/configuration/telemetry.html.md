@@ -31,7 +31,7 @@ telemetry {
 
 This section of the documentation only covers the configuration options for
 `telemetry` stanza. To understand the architecture and metrics themselves,
-please see the [Telemetry guide](/guides/operations/monitoring/telemetry.html).
+please see the [Telemetry guide](/docs/telemetry/index.html).
 
 ## `telemetry` Parameters
 
@@ -64,13 +64,36 @@ The following options are available on all telemetry configurations.
   only be added to tagged metrics. Note that this option is used to transition
   monitoring to tagged metrics and will eventually be deprecated.
 
-
 - `disable_tagged_metrics` `(bool: false)` - Specifies if Nomad should not emit
   tagged metrics and only emit metrics compatible with versions below Nomad
   0.7. Note that this option is used to transition monitoring to tagged
   metrics and will eventually be deprecated.
 
+- `filter_default` `(bool: true)` - This controls whether to allow metrics that
+  have not been specified by the filter. Defaults to true, which will allow all
+  metrics when no filters are provided. When set to false with no filters, no
+  metrics will be sent.
 
+- `prefix_filter` `(list: [])` - This is a list of filter rules to apply for
+  allowing/blocking metrics by prefix. A leading "<b>+</b>" will enable any
+  metrics with the given prefix, and a leading "<b>-</b>" will block them. If
+  there is overlap between two rules, the more specific rule will take
+  precedence. Blocking will take priority if the same prefix is listed multiple
+  times. 
+
+```javascript
+  [
+    "-nomad.raft",
+    "+nomad.raft.apply",
+    "-nomad.memberlist",
+  ]
+```
+
+- `disable_dispatched_job_summary_metrics` `(bool: false)` - Specifies if Nomad
+  should ignore jobs dispatched from a parameterized job when publishing job
+  summary statistics. Since each job has a small memory overhead for tracking
+  summary statistics, it is sometimes desired to trade these statistics for
+  more memory when dispatching high volumes of jobs.
 
 ### `statsite`
 

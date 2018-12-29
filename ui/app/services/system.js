@@ -1,13 +1,9 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { copy } from '@ember/object/internals';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
-
-// When the request isn't ok (e.g., forbidden) handle gracefully
-const jsonWithDefault = defaultResponse => res =>
-  res.ok ? res.json() : copy(defaultResponse, true);
+import jsonWithDefault from '../utils/json-with-default';
 
 export default Service.extend({
   token: service(),
@@ -113,7 +109,7 @@ export default Service.extend({
 
       // If the namespace in localStorage is no longer in the cluster, it needs to
       // be cleared from localStorage
-      this.set('activeNamespace', null);
+      window.localStorage.removeItem('nomadActiveNamespace');
       return this.get('namespaces').findBy('id', 'default');
     },
     set(key, value) {

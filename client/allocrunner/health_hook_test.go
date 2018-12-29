@@ -23,6 +23,7 @@ import (
 var _ interfaces.RunnerPrerunHook = (*allocHealthWatcherHook)(nil)
 var _ interfaces.RunnerUpdateHook = (*allocHealthWatcherHook)(nil)
 var _ interfaces.RunnerDestroyHook = (*allocHealthWatcherHook)(nil)
+var _ interfaces.ShutdownHook = (*allocHealthWatcherHook)(nil)
 
 // allocHealth is emitted to a chan whenever SetHealth is called
 type allocHealth struct {
@@ -80,10 +81,10 @@ func TestHealthHook_PrerunDestroy(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	b := cstructs.NewAllocBroadcaster()
-	defer b.Close()
-
 	logger := testlog.HCLogger(t)
+
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
 
 	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
@@ -119,10 +120,10 @@ func TestHealthHook_PrerunUpdateDestroy(t *testing.T) {
 
 	alloc := mock.Alloc()
 
-	b := cstructs.NewAllocBroadcaster()
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	logger := testlog.HCLogger(t)
 	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
@@ -158,10 +159,10 @@ func TestHealthHook_UpdatePrerunDestroy(t *testing.T) {
 
 	alloc := mock.Alloc()
 
-	b := cstructs.NewAllocBroadcaster()
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	logger := testlog.HCLogger(t)
 	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
@@ -199,10 +200,10 @@ func TestHealthHook_Destroy(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	b := cstructs.NewAllocBroadcaster()
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	logger := testlog.HCLogger(t)
 	consul := consul.NewMockConsulServiceClient(t, logger)
 	hs := &mockHealthSetter{}
 
@@ -250,10 +251,9 @@ func TestHealthHook_SetHealth(t *testing.T) {
 		},
 	}
 
-	b := cstructs.NewAllocBroadcaster()
-	defer b.Close()
-
 	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
 
 	// Don't reply on the first call
 	called := false
