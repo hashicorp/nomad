@@ -18,13 +18,13 @@ func (c *DeploymentPromoteCommand) Help() string {
 	helpText := `
 Usage: nomad deployment promote [options] <deployment id>
 
-Promote is used to promote task groups in a deployment. Promotion should occur
-when the deployment has placed canaries for a task group and those canaries have
-been deemed healthy. When a task group is promoted, the rolling upgrade of the
-remaining allocations is unblocked. If the canaries are found to be unhealthy,
-the deployment may either be failed using the "nomad deployment fail" command,
-the job can be failed forward by submitting a new version or failed backwards by
-reverting to an older version using the "nomad job revert" command.
+  Promote is used to promote task groups in a deployment. Promotion should occur
+  when the deployment has placed canaries for a task group and those canaries have
+  been deemed healthy. When a task group is promoted, the rolling upgrade of the
+  remaining allocations is unblocked. If the canaries are found to be unhealthy,
+  the deployment may either be failed using the "nomad deployment fail" command,
+  the job can be failed forward by submitting a new version or failed backwards by
+  reverting to an older version using the "nomad job revert" command.
 
 General Options:
 
@@ -75,11 +75,13 @@ func (c *DeploymentPromoteCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *DeploymentPromoteCommand) Name() string { return "deployment promote" }
+
 func (c *DeploymentPromoteCommand) Run(args []string) int {
 	var detach, verbose bool
 	var groups []string
 
-	flags := c.Meta.FlagSet("deployment promote", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -89,10 +91,11 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
+	// Check that we got exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <deployment id>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	dID := args[0]

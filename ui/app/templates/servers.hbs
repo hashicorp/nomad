@@ -1,0 +1,41 @@
+{{#page-layout}}
+  <section class="section">
+    {{#if isForbidden}}
+      {{partial "partials/forbidden-message"}}
+    {{else}}
+      {{#list-pagination
+        source=sortedAgents
+        size=pageSize
+        page=currentPage as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+            {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
+            {{#t.sort-by prop="isLeader"}}Leader{{/t.sort-by}}
+            {{#t.sort-by prop="address"}}Address{{/t.sort-by}}
+            {{#t.sort-by prop="serfPort"}}port{{/t.sort-by}}
+            {{#t.sort-by prop="datacenter"}}Datacenter{{/t.sort-by}}
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{server-agent-row data-test-server-agent-row agent=row.model}}
+          {{/t.body}}
+        {{/list-table}}
+        <div class="table-foot">
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAgents.length}}
+            </div>
+            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      {{/list-pagination}}
+      {{outlet}}
+    {{/if}}
+  </section>
+{{/page-layout}}

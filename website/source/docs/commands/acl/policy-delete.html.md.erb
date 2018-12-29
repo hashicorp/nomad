@@ -1,0 +1,32 @@
+---
+layout: "docs"
+page_title: "Commands: acl policy delete"
+sidebar_current: "docs-commands-acl-policy-delete"
+description: >
+  The policy delete command is used to delete an existing ACL policies.
+---
+
+# Command: acl policy delete
+
+The `acl policy delete` command is used to delete an existing ACL policies.
+
+## Usage
+
+```
+nomad acl policy delete <policy_name>
+```
+
+The `acl policy delete` command requires the policy name as an argument.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Examples
+
+Delete an ACL Policy:
+
+```
+$ nomad acl policy delete my-policy
+Successfully deleted 'my-policy' ACL policy!
+```

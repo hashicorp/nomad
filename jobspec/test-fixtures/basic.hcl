@@ -16,12 +16,31 @@ job "binstore-storagelocker" {
     value     = "windows"
   }
 
+  affinity {
+    attribute = "${meta.team}"
+    value = "mobile"
+    operator = "="
+    weight = 50
+  }
+
+   spread {
+     attribute = "${meta.rack}"
+     weight = 100
+     target "r1" {
+       percent = 40
+     }
+     target "r2" {
+       percent = 60
+     }
+   }
+
   update {
     stagger      = "60s"
     max_parallel = 2
     health_check = "manual"
     min_healthy_time = "10s"
     healthy_deadline = "10m"
+    progress_deadline = "10m"
     auto_revert = true
     canary = 1
   }
@@ -48,6 +67,11 @@ job "binstore-storagelocker" {
       mode     = "delay"
     }
 
+    reschedule {
+       attempts = 5
+       interval = "12h"
+    }
+
     ephemeral_disk {
         sticky = true
         size = 150
@@ -58,14 +82,51 @@ job "binstore-storagelocker" {
         health_check = "checks"
         min_healthy_time = "1s"
         healthy_deadline = "1m"
+        progress_deadline = "1m"
         auto_revert = false
         canary = 2
     }
+
+    migrate {
+        max_parallel = 2
+        health_check = "task_states"
+        min_healthy_time = "11s"
+        healthy_deadline = "11m"
+    }
+
+    affinity {
+      attribute = "${node.datacenter}"
+      value = "dc2"
+      operator = "="
+      weight = 100
+    }
+    
+    spread {
+      attribute = "${node.datacenter}"
+      weight = 50
+      target "dc1" {
+        percent = 50
+      }
+      target "dc2" {
+        percent = 25
+      }
+      target "dc3" {
+        percent = 25
+      }
+    }
+
 
     task "binstore" {
       driver = "docker"
       user   = "bob"
       leader = true
+
+      affinity {
+        attribute = "${meta.foo}"
+        value = "a,b,c"
+        operator = "set_contains"
+        weight = 25
+      }
 
       config {
         image = "hashicorp/binstore"
@@ -87,14 +148,23 @@ job "binstore-storagelocker" {
 
       service {
         tags = ["foo", "bar"]
+        canary_tags = ["canary", "bam"]
         port = "http"
 
         check {
-          name     = "check-name"
-          type     = "tcp"
-          interval = "10s"
-          timeout  = "2s"
-          port     = "admin"
+          name         = "check-name"
+          type         = "tcp"
+          interval     = "10s"
+          timeout      = "2s"
+          port         = "admin"
+          grpc_service = "foo.Bar"
+          grpc_use_tls = true
+
+          check_restart {
+            limit = 3
+            grace = "10s"
+            ignore_warnings = true
+          }
         }
       }
 
@@ -126,6 +196,23 @@ job "binstore-storagelocker" {
           port "admin" {
           }
         }
+
+        device "nvidia/gpu" {
+            count = 10
+            constraint {
+              attribute = "${driver.attr.memory}"
+              value = "2GB"
+              operator = ">"
+            }
+
+            affinity {
+              attribute = "${driver.model}"
+              value     = "1080ti"
+              weight = 50
+            }
+        }
+        
+        device "intel/gpu" {}
       }
 
       kill_timeout = "22s"

@@ -3,13 +3,25 @@ package state
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
+	"sort"
+	"time"
+
+	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	// NodeRegisterEventReregistered is the message used when the node becomes
+	// reregistered.
+	NodeRegisterEventRegistered = "Node registered"
+
+	// NodeRegisterEventReregistered is the message used when the node becomes
+	// reregistered.
+	NodeRegisterEventReregistered = "Node re-registered"
 )
 
 // IndexEntry is used with the "index" table
@@ -17,6 +29,15 @@ import (
 type IndexEntry struct {
 	Key   string
 	Value uint64
+}
+
+// StateStoreConfig is used to configure a new state store
+type StateStoreConfig struct {
+	// Logger is used to output the state store's logs
+	Logger log.Logger
+
+	// Region is the region of the server embedding the state store.
+	Region string
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -27,8 +48,11 @@ type IndexEntry struct {
 // returned as a result of a read against the state store should be
 // considered a constant and NEVER modified in place.
 type StateStore struct {
-	logger *log.Logger
+	logger log.Logger
 	db     *memdb.MemDB
+
+	// config is the passed in configuration
+	config *StateStoreConfig
 
 	// abandonCh is used to signal watchers that this state store has been
 	// abandoned (usually during a restore). This is only ever closed.
@@ -36,7 +60,7 @@ type StateStore struct {
 }
 
 // NewStateStore is used to create a new state store
-func NewStateStore(logOutput io.Writer) (*StateStore, error) {
+func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -45,11 +69,17 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(logOutput, "", log.LstdFlags),
+		logger:    config.Logger.Named("state_store"),
 		db:        db,
+		config:    config,
 		abandonCh: make(chan struct{}),
 	}
 	return s, nil
+}
+
+// Config returns the state store configuration.
+func (s *StateStore) Config() *StateStoreConfig {
+	return s.config
 }
 
 // Snapshot is used to create a point in time snapshot. Because
@@ -59,6 +89,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
 		StateStore: StateStore{
 			logger: s.logger,
+			config: s.config,
 			db:     s.db.Snapshot(),
 		},
 	}
@@ -154,6 +185,7 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	// being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(results.Job, results.Alloc)
 
+	// COMPAT(0.11): Remove in 0.11
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
 	// denormalized prior to being inserted into MemDB.
@@ -174,6 +206,16 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	// Upsert the allocations
 	if err := s.upsertAllocsImpl(index, results.Alloc, txn); err != nil {
 		return err
+	}
+
+	// COMPAT: Nomad versions before 0.7.1 did not include the eval ID when
+	// applying the plan. Thus while we are upgrading, we ignore updating the
+	// modify index of evaluations from older plans.
+	if results.EvalID != "" {
+		// Update the modify index of the eval id
+		if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
+			return err
+		}
 	}
 
 	txn.Commit()
@@ -197,9 +239,9 @@ func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSumma
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	// TODO(alex): Remove before releasing
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if jobSummary.Namespace == "" {
-		panic("empty namespace")
+		jobSummary.Namespace = structs.DefaultNamespace
 	}
 
 	// Check if the job summary already exists
@@ -237,8 +279,9 @@ func (s *StateStore) DeleteJobSummary(index uint64, namespace, id string) error 
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
 
 	// Delete the job summary
@@ -269,6 +312,11 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 	existing, err := txn.First("deployment", "id", deployment.ID)
 	if err != nil {
 		return fmt.Errorf("deployment lookup failed: %v", err)
+	}
+
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if deployment.Namespace == "" {
+		deployment.Namespace = structs.DefaultNamespace
 	}
 
 	// Setup the indexes correctly
@@ -377,8 +425,9 @@ func (s *StateStore) deploymentByIDImpl(ws memdb.WatchSet, deploymentID string, 
 func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string) ([]*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
 
 	// Get an iterator over the deployments
@@ -408,8 +457,9 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID stri
 func (s *StateStore) LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
 
 	// Get an iterator over the deployments
@@ -471,7 +521,7 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
-// of drain which is set by the scheduler.
+// of drain/eligibility which is set by the scheduler.
 func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
@@ -487,8 +537,28 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		exist := existing.(*structs.Node)
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
-		node.Drain = exist.Drain // Retain the drain mode
+
+		// Retain node events that have already been set on the node
+		node.Events = exist.Events
+
+		// If we are transitioning from down, record the re-registration
+		if exist.Status == structs.NodeStatusDown && node.Status != structs.NodeStatusDown {
+			appendNodeEvents(index, node, []*structs.NodeEvent{
+				structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).
+					SetMessage(NodeRegisterEventReregistered).
+					SetTimestamp(time.Unix(node.StatusUpdatedAt, 0))})
+		}
+
+		node.Drain = exist.Drain                                 // Retain the drain mode
+		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
+		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 	} else {
+		// Because this is the first time the node is being registered, we should
+		// also create a node registration event
+		nodeEvent := structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).
+			SetMessage(NodeRegisterEventRegistered).
+			SetTimestamp(time.Unix(node.StatusUpdatedAt, 0))
+		node.Events = []*structs.NodeEvent{nodeEvent}
 		node.CreateIndex = index
 		node.ModifyIndex = index
 	}
@@ -532,7 +602,7 @@ func (s *StateStore) DeleteNode(index uint64, nodeID string) error {
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error {
+func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, event *structs.NodeEvent) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -547,8 +617,12 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := new(structs.Node)
-	*copyNode = *existingNode
+	copyNode := existingNode.Copy()
+
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+	}
 
 	// Update the status in the copy
 	copyNode.Status = status
@@ -566,8 +640,78 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string) error
 	return nil
 }
 
+// BatchUpdateNodeDrain is used to update the drain of a node set of nodes
+func (s *StateStore) BatchUpdateNodeDrain(index uint64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+	for node, update := range updates {
+		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible, events[node]); err != nil {
+			return err
+		}
+	}
+	txn.Commit()
+	return nil
+}
+
 // UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) error {
+func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool, event *structs.NodeEvent) error {
+
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, event); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) updateNodeDrainImpl(txn *memdb.Txn, index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool, event *structs.NodeEvent) error {
+
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+	}
+
+	// Update the drain in the copy
+	copyNode.Drain = drain != nil // COMPAT: Remove in Nomad 0.9
+	copyNode.DrainStrategy = drain
+	if drain != nil {
+		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
+	} else if markEligible {
+		copyNode.SchedulingEligibility = structs.NodeSchedulingEligible
+	}
+
+	copyNode.ModifyIndex = index
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
+// UpdateNodeEligibility is used to update the scheduling eligibility of a node
+func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string, event *structs.NodeEvent) error {
+
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -582,11 +726,20 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := new(structs.Node)
-	*copyNode = *existingNode
+	copyNode := existingNode.Copy()
 
-	// Update the drain in the copy
-	copyNode.Drain = drain
+	// Add the event if given
+	if event != nil {
+		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+	}
+
+	// Check if this is a valid action
+	if copyNode.DrainStrategy != nil && eligibility == structs.NodeSchedulingEligible {
+		return fmt.Errorf("can not set node's scheduling eligibility to eligible while it is draining")
+	}
+
+	// Update the eligibility in the copy
+	copyNode.SchedulingEligibility = eligibility
 	copyNode.ModifyIndex = index
 
 	// Insert the node
@@ -599,6 +752,67 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string, drain bool) er
 
 	txn.Commit()
 	return nil
+}
+
+// UpsertNodeEvents adds the node events to the nodes, rotating events as
+// necessary.
+func (s *StateStore) UpsertNodeEvents(index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for nodeID, events := range nodeEvents {
+		if err := s.upsertNodeEvents(index, nodeID, events, txn); err != nil {
+			return err
+		}
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// upsertNodeEvent upserts a node event for a respective node. It also maintains
+// that a fixed number of node events are ever stored simultaneously, deleting
+// older events once this bound has been reached.
+func (s *StateStore) upsertNodeEvents(index uint64, nodeID string, events []*structs.NodeEvent, txn *memdb.Txn) error {
+	// Lookup the node
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("node not found")
+	}
+
+	// Copy the existing node
+	existingNode := existing.(*structs.Node)
+	copyNode := existingNode.Copy()
+	appendNodeEvents(index, copyNode, events)
+
+	// Insert the node
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
+// appendNodeEvents is a helper that takes a node and new events and appends
+// them, pruning older events as needed.
+func appendNodeEvents(index uint64, node *structs.Node, events []*structs.NodeEvent) {
+	// Add the events, updating the indexes
+	for _, e := range events {
+		e.CreateIndex = index
+		node.Events = append(node.Events, e)
+	}
+
+	// Keep node events pruned to not exceed the max allowed
+	if l := len(node.Events); l > structs.MaxRetainedNodeEvents {
+		delta := l - structs.MaxRetainedNodeEvents
+		node.Events = node.Events[delta:]
+	}
 }
 
 // NodeByID is used to lookup a node by ID
@@ -630,6 +844,22 @@ func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.Re
 	return iter, nil
 }
 
+// NodeBySecretID is used to lookup a node by SecretID
+func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID string) (*structs.Node, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("nodes", "secret_id", secretID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup by SecretID failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.Node), nil
+	}
+	return nil, nil
+}
+
 // Nodes returns an iterator over all the nodes
 func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -656,9 +886,18 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 
 // upsertJobImpl is the implementation for registering a job or updating a job definition
 func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if job.Namespace == "" {
-		panic("empty namespace")
+		job.Namespace = structs.DefaultNamespace
 	}
+
+	// Assert the namespace exists
+	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("job %q is in nonexistent namespace %q", job.ID, job.Namespace)
+	}
+
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
 	if err != nil {
@@ -712,10 +951,6 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	s.addEphemeralDiskToTaskGroups(job)
-
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -732,9 +967,11 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	// Lookup the node
 	existing, err := txn.First("jobs", "id", namespace, jobID)
 	if err != nil {
@@ -778,6 +1015,11 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 					// Update the modify index
 					pSummary.ModifyIndex = index
 
+					// COMPAT 0.7: Upgrade old objects that do not have namespaces
+					if pSummary.Namespace == "" {
+						pSummary.Namespace = structs.DefaultNamespace
+					}
+
 					// Insert the summary
 					if err := txn.Insert("job_summary", pSummary); err != nil {
 						return fmt.Errorf("job summary insert failed: %v", err)
@@ -817,9 +1059,11 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 
 // deleteJobVersions deletes all versions of the given job.
 func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if job.Namespace == "" {
-		panic("empty namespace")
+		job.Namespace = structs.DefaultNamespace
 	}
+
 	iter, err := txn.Get("job_version", "id_prefix", job.Namespace, job.ID)
 	if err != nil {
 		return err
@@ -852,9 +1096,11 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 // upsertJobVersion inserts a job into its historic version table and limits the
 // number of job versions that are tracked.
 func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if job.Namespace == "" {
-		panic("empty namespace")
+		job.Namespace = structs.DefaultNamespace
 	}
+
 	// Insert the job
 	if err := txn.Insert("job_version", job); err != nil {
 		return fmt.Errorf("failed to insert job into job_version table: %v", err)
@@ -906,9 +1152,11 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	watchCh, existing, err := txn.FirstWatch("jobs", "id", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
@@ -925,8 +1173,9 @@ func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.
 func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
 
 	iter, err := txn.Get("jobs", "id_prefix", namespace, id)
@@ -942,9 +1191,12 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (me
 // JobVersionsByID returns all the tracked versions of a job.
 func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
 	txn := s.db.Txn(false)
+
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	return s.jobVersionByID(txn, &ws, namespace, id)
 }
 
@@ -952,9 +1204,11 @@ func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([
 // versions of a job and is called under an existing transaction. A watch set
 // can optionally be passed in to add the job histories to the watch set.
 func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	// Get all the historic jobs for this ID
 	iter, err := txn.Get("job_version", "id_prefix", namespace, id)
 	if err != nil {
@@ -981,10 +1235,10 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, namespac
 		all = append(all, j)
 	}
 
-	// Reverse so that highest versions first
-	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
-		all[i], all[j] = all[j], all[i]
-	}
+	// Sort in reverse order so that the highest version is first
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Version > all[j].Version
+	})
 
 	return all, nil
 }
@@ -992,8 +1246,9 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, namespac
 // JobByIDAndVersion returns the job identified by its ID and Version. The
 // passed watchset may be nil.
 func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, namespace, id string, version uint64) (*structs.Job, error) {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
 	txn := s.db.Txn(false)
 	return s.jobByIDAndVersionImpl(ws, namespace, id, version, txn)
@@ -1003,8 +1258,9 @@ func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, namespace, id string, 
 // passed watchset may be nil.
 func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, namespace, id string,
 	version uint64, txn *memdb.Txn) (*structs.Job, error) {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
 
 	watchCh, existing, err := txn.FirstWatch("job_version", "id", namespace, id, version)
@@ -1120,9 +1376,11 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 func (s *StateStore) JobSummaryByID(ws memdb.WatchSet, namespace, jobID string) (*structs.JobSummary, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	watchCh, existing, err := txn.FirstWatch("job_summary", "id", namespace, jobID)
 	if err != nil {
 		return nil, err
@@ -1157,9 +1415,11 @@ func (s *StateStore) JobSummaries(ws memdb.WatchSet) (memdb.ResultIterator, erro
 func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	iter, err := txn.Get("job_summary", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
@@ -1175,9 +1435,11 @@ func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.Periodic
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if launch.Namespace == "" {
-		panic("empty namespace")
+		launch.Namespace = structs.DefaultNamespace
 	}
+
 	// Check if the job already exists
 	existing, err := txn.First("periodic_launch", "id", launch.Namespace, launch.ID)
 	if err != nil {
@@ -1210,9 +1472,11 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	// Lookup the launch
 	existing, err := txn.First("periodic_launch", "id", namespace, jobID)
 	if err != nil {
@@ -1239,9 +1503,11 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 func (s *StateStore) PeriodicLaunchByID(ws memdb.WatchSet, namespace, id string) (*structs.PeriodicLaunch, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	watchCh, existing, err := txn.FirstWatch("periodic_launch", "id", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("periodic launch lookup failed: %v", err)
@@ -1306,6 +1572,11 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		return fmt.Errorf("eval lookup failed: %v", err)
 	}
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if eval.Namespace == "" {
+		eval.Namespace = structs.DefaultNamespace
+	}
+
 	// Update the indexes
 	if existing != nil {
 		eval.CreateIndex = existing.(*structs.Evaluation).CreateIndex
@@ -1315,9 +1586,6 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		eval.ModifyIndex = index
 	}
 
-	if eval.Namespace == "" {
-		panic("empty namespace")
-	}
 	// Update the job summary
 	summaryRaw, err := txn.First("job_summary", "id", eval.Namespace, eval.JobID)
 	if err != nil {
@@ -1334,12 +1602,17 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 					hasSummaryChanged = true
 				}
 			} else {
-				s.logger.Printf("[ERR] state_store: unable to update queued for job %q and task group %q", eval.JobID, tg)
+				s.logger.Error("unable to update queued for job and task group", "job_id", eval.JobID, "task_group", tg, "namespace", eval.Namespace)
 			}
 		}
 
 		// Insert the job summary
 		if hasSummaryChanged {
+			// COMPAT 0.7: Upgrade old objects that do not have namespaces
+			if js.Namespace == "" {
+				js.Namespace = structs.DefaultNamespace
+			}
+
 			js.ModifyIndex = index
 			if err := txn.Insert("job_summary", js); err != nil {
 				return fmt.Errorf("job summary insert failed: %v", err)
@@ -1373,11 +1646,44 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 			newEval.Status = structs.EvalStatusCancelled
 			newEval.StatusDescription = fmt.Sprintf("evaluation %q successful", newEval.ID)
 			newEval.ModifyIndex = index
+
+			// COMPAT 0.7: Upgrade old objects that do not have namespaces
+			if newEval.Namespace == "" {
+				newEval.Namespace = structs.DefaultNamespace
+			}
+
 			if err := txn.Insert("evals", newEval); err != nil {
 				return fmt.Errorf("eval insert failed: %v", err)
 			}
 		}
 	}
+
+	// Insert the eval
+	if err := txn.Insert("evals", eval); err != nil {
+		return fmt.Errorf("eval insert failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return nil
+}
+
+// updateEvalModifyIndex is used to update the modify index of an evaluation that has been
+// through a scheduler pass. This is done as part of plan apply. It ensures that when a subsequent
+// scheduler workers process a re-queued evaluation it sees any partial updates from the plan apply.
+func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID string) error {
+	// Lookup the evaluation
+	existing, err := txn.First("evals", "id", evalID)
+	if err != nil {
+		return fmt.Errorf("eval lookup failed: %v", err)
+	}
+	if existing == nil {
+		s.logger.Error("unable to find eval", "eval_id", evalID)
+		return fmt.Errorf("unable to find eval id %q", evalID)
+	}
+	eval := existing.(*structs.Evaluation).Copy()
+	// Update the indexes
+	eval.ModifyIndex = index
 
 	// Insert the eval
 	if err := txn.Insert("evals", eval); err != nil {
@@ -1416,14 +1722,14 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	}
 
 	for _, alloc := range allocs {
-		existing, err := txn.First("allocs", "id", alloc)
+		raw, err := txn.First("allocs", "id", alloc)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
-		if existing == nil {
+		if raw == nil {
 			continue
 		}
-		if err := txn.Delete("allocs", existing); err != nil {
+		if err := txn.Delete("allocs", raw); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
 	}
@@ -1475,6 +1781,11 @@ func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string) (m
 
 	ws.Add(iter.WatchCh())
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Wrap the iterator in a filter
 	wrap := memdb.NewFilterIterator(iter, evalNamespaceFilter(namespace))
 	return wrap, nil
@@ -1497,9 +1808,11 @@ func evalNamespaceFilter(namespace string) func(interface{}) bool {
 func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	// Get an iterator over the node allocations
 	iter, err := txn.Get("evals", "job_prefix", namespace, jobID)
 	if err != nil {
@@ -1600,14 +1913,28 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	// Copy everything from the existing allocation
 	copyAlloc := exist.Copy()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if copyAlloc.Namespace == "" {
+		copyAlloc.Namespace = structs.DefaultNamespace
+	}
+
 	// Pull in anything the client is the authority on
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
+
+	// Merge the deployment status taking only what the client should set
+	oldDeploymentStatus := copyAlloc.DeploymentStatus
 	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
+	if oldDeploymentStatus != nil && oldDeploymentStatus.Canary {
+		copyAlloc.DeploymentStatus.Canary = true
+	}
 
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
+
+	// Update the modify time
+	copyAlloc.ModifyTime = alloc.ModifyTime
 
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating deployment: %v", err)
@@ -1615,6 +1942,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating job summary: %v", err)
+	}
+
+	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
+		return err
 	}
 
 	// Update the allocation
@@ -1668,6 +1999,9 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			alloc.CreateIndex = index
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
+			if alloc.DeploymentStatus != nil {
+				alloc.DeploymentStatus.ModifyIndex = index
+			}
 
 			// Issue https://github.com/hashicorp/nomad/issues/2583 uncovered
 			// the a race between a forced garbage collection and the scheduler
@@ -1704,6 +2038,15 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			}
 		}
 
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if alloc.Namespace == "" {
+			alloc.Namespace = structs.DefaultNamespace
+		}
+
+		// OPTIMIZATION:
+		// These should be given a map of new to old allocation and the updates
+		// should be one on all changes. The current implementation causes O(n)
+		// lookups/copies/insertions rather than O(1)
 		if err := s.updateDeploymentWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating deployment: %v", err)
 		}
@@ -1712,14 +2055,28 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			return fmt.Errorf("error updating job summary: %v", err)
 		}
 
-		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-		// COMPAT 0.4.1 -> 0.5
-		if alloc.Job != nil {
-			s.addEphemeralDiskToTaskGroups(alloc.Job)
+		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
+			return err
 		}
 
 		if err := txn.Insert("allocs", alloc); err != nil {
 			return fmt.Errorf("alloc insert failed: %v", err)
+		}
+
+		if alloc.PreviousAllocation != "" {
+			prevAlloc, err := txn.First("allocs", "id", alloc.PreviousAllocation)
+			if err != nil {
+				return fmt.Errorf("alloc lookup failed: %v", err)
+			}
+			existingPrevAlloc, _ := prevAlloc.(*structs.Allocation)
+			if existingPrevAlloc != nil {
+				prevAllocCopy := existingPrevAlloc.Copy()
+				prevAllocCopy.NextAllocation = alloc.ID
+				prevAllocCopy.ModifyIndex = index
+				if err := txn.Insert("allocs", prevAllocCopy); err != nil {
+					return fmt.Errorf("alloc insert failed: %v", err)
+				}
+			}
 		}
 
 		// If the allocation is running, force the job to running status.
@@ -1743,6 +2100,71 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 	// Set the job's status
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
+	}
+
+	return nil
+}
+
+// UpdateAllocsDesiredTransitions is used to update a set of allocations
+// desired transitions.
+func (s *StateStore) UpdateAllocsDesiredTransitions(index uint64, allocs map[string]*structs.DesiredTransition,
+	evals []*structs.Evaluation) error {
+
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Handle each of the updated allocations
+	for id, transition := range allocs {
+		if err := s.nestedUpdateAllocDesiredTransition(txn, index, id, transition); err != nil {
+			return err
+		}
+	}
+
+	for _, eval := range evals {
+		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// nestedUpdateAllocDesiredTransition is used to nest an update of an
+// allocations desired transition
+func (s *StateStore) nestedUpdateAllocDesiredTransition(
+	txn *memdb.Txn, index uint64, allocID string,
+	transition *structs.DesiredTransition) error {
+
+	// Look for existing alloc
+	existing, err := txn.First("allocs", "id", allocID)
+	if err != nil {
+		return fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	// Nothing to do if this does not exist
+	if existing == nil {
+		return nil
+	}
+	exist := existing.(*structs.Allocation)
+
+	// Copy everything from the existing allocation
+	copyAlloc := exist.Copy()
+
+	// Merge the desired transitions
+	copyAlloc.DesiredTransition.Merge(transition)
+
+	// Update the modify index
+	copyAlloc.ModifyIndex = index
+
+	// Update the allocation
+	if err := txn.Insert("allocs", copyAlloc); err != nil {
+		return fmt.Errorf("alloc insert failed: %v", err)
 	}
 
 	return nil
@@ -1845,9 +2267,11 @@ func (s *StateStore) AllocsByNodeTerminal(ws memdb.WatchSet, node string, termin
 func (s *StateStore) AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Allocation, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	// Get the job
 	var job *structs.Job
 	rawJob, err := txn.First("jobs", "id", namespace, jobID)
@@ -1950,7 +2374,12 @@ func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 // namespace
 func (s *StateStore) AllocsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
+	return s.allocsByNamespaceImpl(ws, txn, namespace)
+}
 
+// allocsByNamespaceImpl returns an iterator over all the allocations in the
+// namespace
+func (s *StateStore) allocsByNamespaceImpl(ws memdb.WatchSet, txn *memdb.Txn, namespace string) (memdb.ResultIterator, error) {
 	// Walk the entire table
 	iter, err := txn.Get("allocs", "namespace", namespace)
 	if err != nil {
@@ -2131,6 +2560,11 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.StatusDescription = u.StatusDescription
 	copy.ModifyIndex = index
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if copy.Namespace == "" {
+		copy.Namespace = structs.DefaultNamespace
+	}
+
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
 		return err
@@ -2139,9 +2573,6 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	// Update the index
 	if err := txn.Insert("index", &IndexEntry{"deployment", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
-	}
-	if copy.Namespace == "" {
-		panic("empty namespace")
 	}
 
 	// If the deployment is being marked as complete, set the job to stable.
@@ -2159,8 +2590,10 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 func (s *StateStore) UpdateJobStability(index uint64, namespace, jobID string, jobVersion uint64, stable bool) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
 
 	if err := s.updateJobStabilityImpl(index, namespace, jobID, jobVersion, stable, txn); err != nil {
@@ -2173,9 +2606,11 @@ func (s *StateStore) UpdateJobStability(index uint64, namespace, jobID string, j
 
 // updateJobStabilityImpl updates the stability of the given job and version
 func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID string, jobVersion uint64, stable bool, txn *memdb.Txn) error {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
-		panic("empty namespace")
+		namespace = structs.DefaultNamespace
 	}
+
 	// Get the job that is referenced
 	job, err := s.jobByIDAndVersionImpl(nil, namespace, jobID, jobVersion, txn)
 	if err != nil {
@@ -2220,11 +2655,13 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		return err
 	}
 
+	// groupIndex is a map of groups being promoted
 	groupIndex := make(map[string]struct{}, len(req.Groups))
 	for _, g := range req.Groups {
 		groupIndex[g] = struct{}{}
 	}
 
+	// canaryIndex is the set of placed canaries in the deployment
 	canaryIndex := make(map[string]struct{}, len(deployment.TaskGroups))
 	for _, state := range deployment.TaskGroups {
 		for _, c := range state.PlacedCanaries {
@@ -2232,8 +2669,13 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
-	haveCanaries := false
-	var unhealthyErr multierror.Error
+	// healthyCounts is a mapping of group to the number of healthy canaries
+	healthyCounts := make(map[string]int, len(deployment.TaskGroups))
+
+	// promotable is the set of allocations that we can move from canary to
+	// non-canary
+	var promotable []*structs.Allocation
+
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -2254,19 +2696,32 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 		// Ensure the canaries are healthy
 		if !alloc.DeploymentStatus.IsHealthy() {
-			multierror.Append(&unhealthyErr, fmt.Errorf("Canary allocation %q for group %q is not healthy", alloc.ID, alloc.TaskGroup))
 			continue
 		}
 
-		haveCanaries = true
+		healthyCounts[alloc.TaskGroup]++
+		promotable = append(promotable, alloc)
+	}
+
+	// Determine if we have enough healthy allocations
+	var unhealthyErr multierror.Error
+	for tg, state := range deployment.TaskGroups {
+		if _, ok := groupIndex[tg]; !req.All && !ok {
+			continue
+		}
+
+		need := state.DesiredCanaries
+		if need == 0 {
+			continue
+		}
+
+		if have := healthyCounts[tg]; have < need {
+			multierror.Append(&unhealthyErr, fmt.Errorf("Task group %q has %d/%d healthy allocations", tg, have, need))
+		}
 	}
 
 	if err := unhealthyErr.ErrorOrNil(); err != nil {
 		return err
-	}
-
-	if !haveCanaries {
-		return fmt.Errorf("no canaries to promote")
 	}
 
 	// Update deployment
@@ -2298,6 +2753,24 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
+	// For each promotable allocation remoce the canary field
+	for _, alloc := range promotable {
+		promoted := alloc.Copy()
+		promoted.DeploymentStatus.Canary = false
+		promoted.DeploymentStatus.ModifyIndex = index
+		promoted.ModifyIndex = index
+		promoted.AllocModifyIndex = index
+
+		if err := txn.Insert("allocs", promoted); err != nil {
+			return fmt.Errorf("alloc insert failed: %v", err)
+		}
+	}
+
+	// Update the alloc index
+	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	txn.Commit()
 	return nil
 }
@@ -2321,7 +2794,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 
 	// Update the health status of each allocation
 	if total := len(req.HealthyAllocationIDs) + len(req.UnhealthyAllocationIDs); total != 0 {
-		setAllocHealth := func(id string, healthy bool) error {
+		setAllocHealth := func(id string, healthy bool, ts time.Time) error {
 			existing, err := txn.First("allocs", "id", id)
 			if err != nil {
 				return fmt.Errorf("alloc %q lookup failed: %v", id, err)
@@ -2341,7 +2814,9 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
 			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
+			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
+			copy.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
 				return fmt.Errorf("error updating deployment: %v", err)
@@ -2355,12 +2830,12 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 		}
 
 		for _, id := range req.HealthyAllocationIDs {
-			if err := setAllocHealth(id, true); err != nil {
+			if err := setAllocHealth(id, true, req.Timestamp); err != nil {
 				return err
 			}
 		}
 		for _, id := range req.UnhealthyAllocationIDs {
-			if err := setAllocHealth(id, false); err != nil {
+			if err := setAllocHealth(id, false, req.Timestamp); err != nil {
 				return err
 			}
 		}
@@ -2489,8 +2964,10 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 		for _, tg := range job.TaskGroups {
 			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
 		}
+
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
 		if job.Namespace == "" {
-			panic("empty namespace")
+			job.Namespace = structs.DefaultNamespace
 		}
 
 		// Find all the allocations for the jobs
@@ -2526,7 +3003,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			case structs.AllocClientStatusPending:
 				tg.Starting += 1
 			default:
-				s.logger.Printf("[ERR] state_store: invalid client status: %v in allocation %q", alloc.ClientStatus, alloc.ID)
+				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
 			}
 			summary.Summary[alloc.TaskGroup] = tg
 		}
@@ -2556,9 +3033,11 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 func (s *StateStore) setJobStatuses(index uint64, txn *memdb.Txn,
 	jobs map[structs.NamespacedID]string, evalDelete bool) error {
 	for tuple, forceStatus := range jobs {
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
 		if tuple.Namespace == "" {
-			panic("empty namespace")
+			tuple.Namespace = structs.DefaultNamespace
 		}
+
 		existing, err := txn.First("jobs", "id", tuple.Namespace, tuple.ID)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
@@ -2610,16 +3089,17 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 	updated.Status = newStatus
 	updated.ModifyIndex = index
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if updated.Namespace == "" {
+		updated.Namespace = structs.DefaultNamespace
+	}
+
 	// Insert the job
 	if err := txn.Insert("jobs", updated); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
 	if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	if updated.Namespace == "" {
-		panic("empty namespace")
 	}
 
 	// Update the children summary
@@ -2637,6 +3117,11 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 			pSummary := existing.Copy()
 			if pSummary.Children == nil {
 				pSummary.Children = new(structs.JobChildrenSummary)
+			}
+
+			// COMPAT 0.7: Upgrade old objects that do not have namespaces
+			if pSummary.Namespace == "" {
+				pSummary.Namespace = structs.DefaultNamespace
 			}
 
 			// Determine the transition and update the correct fields
@@ -2685,9 +3170,21 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 }
 
 func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete bool) (string, error) {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if job.Namespace == "" {
-		panic("empty namespace")
+		job.Namespace = structs.DefaultNamespace
 	}
+
+	// System, Periodic and Parameterized jobs are running until explicitly
+	// stopped
+	if job.Type == structs.JobTypeSystem || job.IsParameterized() || job.IsPeriodic() {
+		if job.Stop {
+			return structs.JobStatusDead, nil
+		}
+
+		return structs.JobStatusRunning, nil
+	}
+
 	allocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
 	if err != nil {
 		return "", err
@@ -2722,33 +3219,12 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		}
 	}
 
-	// system jobs are running until explicitly stopped (which is handled elsewhere)
-	if job.Type == structs.JobTypeSystem {
-		if job.Stop {
-			return structs.JobStatusDead, nil
-		}
-
-		// Pending until at least one eval has completed
-		return structs.JobStatusRunning, nil
-	}
-
 	// The job is dead if all the allocations and evals are terminal or if there
 	// are no evals because of garbage collection.
 	if evalDelete || hasEval || hasAlloc {
 		return structs.JobStatusDead, nil
 	}
 
-	// If there are no allocations or evaluations it is a new job. If the
-	// job is periodic or is a parameterized job, we mark it as running as
-	// it will never have an allocation/evaluation against it.
-	if job.IsPeriodic() || job.IsParameterized() {
-		// If the job is stopped mark it as dead
-		if job.Stop {
-			return structs.JobStatusDead, nil
-		}
-
-		return structs.JobStatusRunning, nil
-	}
 	return structs.JobStatusPending, nil
 }
 
@@ -2757,8 +3233,9 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 	txn *memdb.Txn) error {
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if job.Namespace == "" {
-		panic("empty namespace")
+		job.Namespace = structs.DefaultNamespace
 	}
 
 	// Update the job summary
@@ -2799,6 +3276,11 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 	// The job summary has changed, so update the modify index.
 	if hasSummaryChanged {
 		summary.ModifyIndex = index
+
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if summary.Namespace == "" {
+			summary.Namespace = structs.DefaultNamespace
+		}
 
 		// Update the indexes table for job summary
 		if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
@@ -2846,8 +3328,8 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 
 	// If there was no existing allocation, this is a placement and we increment
 	// the placement
-	existingHealthSet := existing != nil && existing.DeploymentStatus != nil && existing.DeploymentStatus.Healthy != nil
-	allocHealthSet := alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil
+	existingHealthSet := existing != nil && existing.DeploymentStatus.HasHealth()
+	allocHealthSet := alloc.DeploymentStatus.HasHealth()
 	if existing == nil || existing.DeploymentID != alloc.DeploymentID {
 		placed++
 	} else if !existingHealthSet && allocHealthSet {
@@ -2883,6 +3365,20 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	state.HealthyAllocs += healthy
 	state.UnhealthyAllocs += unhealthy
 
+	// Update the progress deadline
+	if pd := state.ProgressDeadline; pd != 0 {
+		// If we are the first placed allocation for the deployment start the progress deadline.
+		if placed != 0 && state.RequireProgressBy.IsZero() {
+			// Use modify time instead of create time because we may in-place
+			// update the allocation to be part of a new deployment.
+			state.RequireProgressBy = time.Unix(0, alloc.ModifyTime).Add(pd)
+		} else if healthy != 0 {
+			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(state.RequireProgressBy) {
+				state.RequireProgressBy = d
+			}
+		}
+	}
+
 	// Upsert the deployment
 	if err := s.upsertDeploymentImpl(index, deploymentCopy, txn); err != nil {
 		return err
@@ -2900,8 +3396,9 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if alloc.Job == nil {
 		return nil
 	}
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if alloc.Namespace == "" {
-		panic("empty namespace")
+		alloc.Namespace = structs.DefaultNamespace
 	}
 
 	summaryRaw, err := txn.First("job_summary", "id", alloc.Namespace, alloc.JobID)
@@ -2942,8 +3439,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if existingAlloc == nil {
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.DesiredStatus)
+			s.logger.Error("new allocation inserted into state store with bad desired status",
+				"alloc_id", alloc.ID, "desired_status", alloc.DesiredStatus)
 		}
 		switch alloc.ClientStatus {
 		case structs.AllocClientStatusPending:
@@ -2954,8 +3451,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			summaryChanged = true
 		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
 			structs.AllocClientStatusComplete:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.ClientStatus)
+			s.logger.Error("new allocation inserted into state store with bad client status",
+				"alloc_id", alloc.ID, "client_status", alloc.ClientStatus)
 		}
 	} else if existingAlloc.ClientStatus != alloc.ClientStatus {
 		// Incrementing the client of the bin of the current state
@@ -2982,8 +3479,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			tgSummary.Lost -= 1
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
-			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
-				existingAlloc.ID, existingAlloc.ClientStatus)
+			s.logger.Error("invalid old client status for allocatio",
+				"alloc_id", existingAlloc.ID, "client_status", existingAlloc.ClientStatus)
 		}
 		summaryChanged = true
 	}
@@ -2991,6 +3488,11 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 
 	if summaryChanged {
 		jobSummary.ModifyIndex = index
+
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if jobSummary.Namespace == "" {
+			jobSummary.Namespace = structs.DefaultNamespace
+		}
 
 		// Update the indexes table for job summary
 		if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
@@ -3350,10 +3852,6 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	r.addEphemeralDiskToTaskGroups(job)
-
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -3370,19 +3868,6 @@ func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 
 // AllocRestore is used to restore an allocation
 func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
-	// Set the shared resources if it's not present
-	// COMPAT 0.4.1 -> 0.5
-	if alloc.SharedResources == nil {
-		alloc.SharedResources = &structs.Resources{
-			DiskMB: alloc.Resources.DiskMB,
-		}
-	}
-
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	if alloc.Job != nil {
-		r.addEphemeralDiskToTaskGroups(alloc.Job)
-	}
-
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}

@@ -1,27 +1,24 @@
 package scheduler
 
 import (
-	"log"
-	"os"
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	state := state.TestStateStore(t)
 	plan := &structs.Plan{
 		NodeUpdate:     make(map[string][]*structs.Allocation),
 		NodeAllocation: make(map[string][]*structs.Allocation),
 	}
 
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.HCLogger(t)
 
 	ctx := NewEvalContext(state, plan, logger)
 	return state, ctx
@@ -30,23 +27,31 @@ func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 func TestEvalContext_ProposedAlloc(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -55,30 +60,46 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 	// Add existing allocations
 	j1, j2 := mock.Job(), mock.Job()
 	alloc1 := &structs.Allocation{
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		Namespace: structs.DefaultNamespace,
-		EvalID:    structs.GenerateUUID(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
 		TaskGroup:     "web",
 	}
 	alloc2 := &structs.Allocation{
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		Namespace: structs.DefaultNamespace,
-		EvalID:    structs.GenerateUUID(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
-		Resources: &structs.Resources{
-			CPU:      1024,
-			MemoryMB: 1024,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -94,10 +115,18 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 
 	// Add a planned placement to node1
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
-			Resources: &structs.Resources{
-				CPU:      1024,
-				MemoryMB: 1024,
+		{
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 1024,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 1024,
+						},
+					},
+				},
 			},
 		},
 	}

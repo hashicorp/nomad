@@ -5,7 +5,9 @@ import (
 	"math"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -22,15 +24,17 @@ var (
 // as "_core". It is used to run various administrative work
 // across the cluster.
 type CoreScheduler struct {
-	srv  *Server
-	snap *state.StateSnapshot
+	srv    *Server
+	snap   *state.StateSnapshot
+	logger log.Logger
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
 func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Scheduler {
 	s := &CoreScheduler{
-		srv:  srv,
-		snap: snap,
+		srv:    srv,
+		snap:   snap,
+		logger: srv.logger.ResetNamed("core.sched"),
 	}
 	return s
 }
@@ -84,14 +88,14 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced job GC")
+		c.logger.Debug("forced job GC")
 	} else {
 		// Get the time table to calculate GC cutoffs.
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.JobGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: job GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.JobGCThreshold)
+		c.logger.Debug("job GC scanning before cutoff index",
+			"index", oldThreshold, "job_gc_threshold", c.srv.config.JobGCThreshold)
 	}
 
 	// Collect the allocations, evaluations and jobs to GC
@@ -110,7 +114,7 @@ OUTER:
 		ws := memdb.NewWatchSet()
 		evals, err := c.snap.EvalsByJob(ws, job.Namespace, job.ID)
 		if err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: failed to get evals for job %s: %v", job.ID, err)
+			c.logger.Error("job GC failed to get evals for job", "job", job.ID, "error", err)
 			continue
 		}
 
@@ -143,32 +147,68 @@ OUTER:
 	if len(gcEval) == 0 && len(gcAlloc) == 0 && len(gcJob) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: job GC: %d jobs, %d evaluations, %d allocs eligible",
-		len(gcJob), len(gcEval), len(gcAlloc))
+	c.logger.Debug("job GC found eligible objects",
+		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
 
 	// Reap the evals and allocs
 	if err := c.evalReap(gcEval, gcAlloc); err != nil {
 		return err
 	}
 
-	// Call to the leader to deregister the jobs.
-	for _, job := range gcJob {
-		req := structs.JobDeregisterRequest{
-			JobID: job.ID,
-			Purge: true,
-			WriteRequest: structs.WriteRequest{
-				Region:    c.srv.config.Region,
-				Namespace: job.Namespace,
-			},
-		}
-		var resp structs.JobDeregisterResponse
-		if err := c.srv.RPC("Job.Deregister", &req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: job deregister failed: %v", err)
+	// Reap the jobs
+	return c.jobReap(gcJob, eval.LeaderACL)
+}
+
+// jobReap contacts the leader and issues a reap on the passed jobs
+func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
+	// Call to the leader to issue the reap
+	for _, req := range c.partitionJobReap(jobs, leaderACL) {
+		var resp structs.JobBatchDeregisterResponse
+		if err := c.srv.RPC("Job.BatchDeregister", req, &resp); err != nil {
+			c.logger.Error("batch job reap failed", "error", err)
 			return err
 		}
 	}
 
 	return nil
+}
+
+// partitionJobReap returns a list of JobBatchDeregisterRequests to make,
+// ensuring a single request does not contain too many jobs. This is necessary
+// to ensure that the Raft transaction does not become too large.
+func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) []*structs.JobBatchDeregisterRequest {
+	option := &structs.JobDeregisterOptions{Purge: true}
+	var requests []*structs.JobBatchDeregisterRequest
+	submittedJobs := 0
+	for submittedJobs != len(jobs) {
+		req := &structs.JobBatchDeregisterRequest{
+			Jobs: make(map[structs.NamespacedID]*structs.JobDeregisterOptions),
+			WriteRequest: structs.WriteRequest{
+				Region:    c.srv.config.Region,
+				AuthToken: leaderACL,
+			},
+		}
+		requests = append(requests, req)
+		available := maxIdsPerReap
+
+		if remaining := len(jobs) - submittedJobs; remaining > 0 {
+			if remaining <= available {
+				for _, job := range jobs[submittedJobs:] {
+					jns := structs.NamespacedID{ID: job.ID, Namespace: job.Namespace}
+					req.Jobs[jns] = option
+				}
+				submittedJobs += remaining
+			} else {
+				for _, job := range jobs[submittedJobs : submittedJobs+available] {
+					jns := structs.NamespacedID{ID: job.ID, Namespace: job.Namespace}
+					req.Jobs[jns] = option
+				}
+				submittedJobs += available
+			}
+		}
+	}
+
+	return requests
 }
 
 // evalGC is used to garbage collect old evaluations
@@ -185,7 +225,7 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced eval GC")
+		c.logger.Debug("forced eval GC")
 	} else {
 		// Compute the old threshold limit for GC using the FSM
 		// time table.  This is a rough mapping of a time to the
@@ -193,8 +233,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.EvalGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: eval GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.EvalGCThreshold)
+		c.logger.Debug("eval GC scanning before cutoff index",
+			"index", oldThreshold, "eval_gc_threshold", c.srv.config.EvalGCThreshold)
 	}
 
 	// Collect the allocations and evaluations to GC
@@ -219,8 +259,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	if len(gcEval) == 0 && len(gcAlloc) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: eval GC: %d evaluations, %d allocs eligible",
-		len(gcEval), len(gcAlloc))
+	c.logger.Debug("eval GC found eligibile objects",
+		"evals", len(gcEval), "allocs", len(gcAlloc))
 
 	return c.evalReap(gcEval, gcAlloc)
 }
@@ -240,16 +280,18 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// Create a watchset
 	ws := memdb.NewWatchSet()
 
+	// Look up the job
+	job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
+	if err != nil {
+		return false, nil, err
+	}
+
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the
 	// allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
-		job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
-		if err != nil {
-			return false, nil, err
-		}
 
 		// Can collect if:
 		// Job doesn't exist
@@ -276,8 +318,8 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// Get the allocations by eval
 	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
 	if err != nil {
-		c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for eval %s: %v",
-			eval.ID, err)
+		c.logger.Error("failed to get allocs for eval",
+			"eval_id", eval.ID, "error", err)
 		return false, nil, err
 	}
 
@@ -285,7 +327,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if !alloc.TerminalStatus() || alloc.ModifyIndex > thresholdIndex {
+		if !allocGCEligible(alloc, job, time.Now(), thresholdIndex) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
@@ -305,7 +347,7 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	for _, req := range c.partitionEvalReap(evals, allocs) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Eval.Reap", req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: eval reap failed: %v", err)
+			c.logger.Error("eval reap failed", "error", err)
 			return err
 		}
 	}
@@ -372,7 +414,7 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced node GC")
+		c.logger.Debug("forced node GC")
 	} else {
 		// Compute the old threshold limit for GC using the FSM
 		// time table.  This is a rough mapping of a time to the
@@ -380,8 +422,8 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: node GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.NodeGCThreshold)
+		c.logger.Debug("node GC scanning before cutoff index",
+			"index", oldThreshold, "node_gc_threshold", c.srv.config.NodeGCThreshold)
 	}
 
 	// Collect the nodes to GC
@@ -403,8 +445,8 @@ OUTER:
 		ws := memdb.NewWatchSet()
 		allocs, err := c.snap.AllocsByNode(ws, node.ID)
 		if err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for node %s: %v",
-				eval.ID, err)
+			c.logger.Error("failed to get allocs for node",
+				"node_id", node.ID, "error", err)
 			continue
 		}
 
@@ -426,19 +468,20 @@ OUTER:
 	if len(gcNode) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: node GC: %d nodes eligible", len(gcNode))
+	c.logger.Debug("node GC found eligible nodes", "nodes", len(gcNode))
 
 	// Call to the leader to issue the reap
 	for _, nodeID := range gcNode {
 		req := structs.NodeDeregisterRequest{
 			NodeID: nodeID,
 			WriteRequest: structs.WriteRequest{
-				Region: c.srv.config.Region,
+				Region:    c.srv.config.Region,
+				AuthToken: eval.LeaderACL,
 			},
 		}
 		var resp structs.NodeUpdateResponse
 		if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: node '%s' reap failed: %v", nodeID, err)
+			c.logger.Error("node reap failed", "node_id", nodeID, err)
 			return err
 		}
 	}
@@ -459,7 +502,7 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced deployment GC")
+		c.logger.Debug("forced deployment GC")
 	} else {
 		// Compute the old threshold limit for GC using the FSM
 		// time table.  This is a rough mapping of a time to the
@@ -467,8 +510,8 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.DeploymentGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: deployment GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.DeploymentGCThreshold)
+		c.logger.Debug("deployment GC scanning before cutoff index",
+			"index", oldThreshold, "deployment_gc_threshold", c.srv.config.DeploymentGCThreshold)
 	}
 
 	// Collect the deployments to GC
@@ -490,8 +533,8 @@ OUTER:
 		// Ensure there are no allocs referencing this deployment.
 		allocs, err := c.snap.AllocsByDeployment(ws, deploy.ID)
 		if err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for deployment %s: %v",
-				deploy.ID, err)
+			c.logger.Error("failed to get allocs for deployment",
+				"deployment_id", deploy.ID, "error", err)
 			continue
 		}
 
@@ -510,7 +553,7 @@ OUTER:
 	if len(gcDeployment) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: deployment GC: %d deployments eligible", len(gcDeployment))
+	c.logger.Debug("deployment GC found eligible deployments", "deployments", len(gcDeployment))
 	return c.deploymentReap(gcDeployment)
 }
 
@@ -521,7 +564,7 @@ func (c *CoreScheduler) deploymentReap(deployments []string) error {
 	for _, req := range c.partitionDeploymentReap(deployments) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Deployment.Reap", req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: deployment reap failed: %v", err)
+			c.logger.Error("deployment reap failed", "error", err)
 			return err
 		}
 	}
@@ -556,4 +599,64 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 	}
 
 	return requests
+}
+
+// allocGCEligible returns if the allocation is eligible to be garbage collected
+// according to its terminal status and its reschedule trackers
+func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
+	// Not in a terminal status and old enough
+	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+		return false
+	}
+
+	// If the job is deleted, stopped or dead all allocs can be removed
+	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+		return true
+	}
+
+	// If the allocation's desired state is Stop, it can be GCed even if it
+	// has failed and hasn't been rescheduled. This can happen during job updates
+	if a.DesiredStatus == structs.AllocDesiredStatusStop {
+		return true
+	}
+
+	// If the alloc hasn't failed then we don't need to consider it for rescheduling
+	// Rescheduling needs to copy over information from the previous alloc so that it
+	// can enforce the reschedule policy
+	if a.ClientStatus != structs.AllocClientStatusFailed {
+		return true
+	}
+
+	var reschedulePolicy *structs.ReschedulePolicy
+	tg := job.LookupTaskGroup(a.TaskGroup)
+
+	if tg != nil {
+		reschedulePolicy = tg.ReschedulePolicy
+	}
+	// No reschedule policy or rescheduling is disabled
+	if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
+		return true
+	}
+	// Restart tracking information has been carried forward
+	if a.NextAllocation != "" {
+		return true
+	}
+
+	// This task has unlimited rescheduling and the alloc has not been replaced, so we can't GC it yet
+	if reschedulePolicy.Unlimited {
+		return false
+	}
+
+	// No restarts have been attempted yet
+	if a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0 {
+		return false
+	}
+
+	// Don't GC if most recent reschedule attempt is within time interval
+	interval := reschedulePolicy.Interval
+	lastIndex := len(a.RescheduleTracker.Events)
+	lastRescheduleEvent := a.RescheduleTracker.Events[lastIndex-1]
+	timeDiff := gcTime.UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
+
+	return timeDiff > interval.Nanoseconds()
 }

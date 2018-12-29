@@ -1,0 +1,82 @@
+.gutter {
+  height: 100%;
+  border-right: 1px solid $grey-blue;
+  overflow: hidden;
+
+  .collapsed-only {
+    display: none;
+  }
+
+  @media #{$mq-hidden-gutter} {
+    border-right: none;
+
+    &.is-open {
+      box-shadow: 0 0 30px darken($nomad-green-darker, 20%);
+    }
+
+    .collapsed-only {
+      display: inherit;
+    }
+  }
+
+  .collapsed-menu {
+    display: none;
+    position: relative;
+    height: 3.5rem;
+    width: $gutter-width;
+    transform: translateX($gutter-width);
+    z-index: $z-gutter;
+    transition: transform ease-in-out 0.2s;
+
+    &.is-open {
+      transform: translateX(0);
+    }
+
+    .gutter-toggle {
+      fill: $grey-light;
+    }
+
+    .nomad-logo {
+      fill: $grey-light;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0.5rem 1rem;
+      margin-left: 20px;
+    }
+
+    @media #{$mq-hidden-gutter} {
+      display: block;
+    }
+  }
+
+  .menu {
+    z-index: $z-gutter;
+  }
+}
+
+// Treated as an element of the gutter component despite not being nested within
+// for z-index reasons.
+.gutter-backdrop {
+  display: block;
+  position: fixed;
+  background: darken($nomad-green-darker, 10%);
+  opacity: 0;
+  width: calc(100vw + #{$gutter-width});
+  height: 100vh;
+  top: 0;
+  left: 0;
+  transform: translateY(-100%);
+  transition: opacity ease-in-out 0.2s;
+  z-index: $z-gutter-backdrop;
+
+  @media #{$mq-hidden-gutter} {
+    &.is-open {
+      transform: translateY(0);
+      opacity: 0.7;
+    }
+  }
+}

@@ -6,14 +6,19 @@ import (
 	"time"
 
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAllocEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -77,9 +82,65 @@ func TestAllocEndpoint_List(t *testing.T) {
 	}
 }
 
+func TestAllocEndpoint_List_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the alloc
+	alloc := mock.Alloc()
+	allocs := []*structs.Allocation{alloc}
+	summary := mock.JobSummary(alloc.JobID)
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
+	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
+
+	stubAllocs := []*structs.AllocListStub{alloc.Stub()}
+	stubAllocs[0].CreateIndex = 1000
+	stubAllocs[0].ModifyIndex = 1000
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	// Lookup the allocs without a token and expect failure
+	get := &structs.AllocListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	var resp structs.AllocListResponse
+	assert.NotNil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
+
+	// Try with a valid token
+	get.AuthToken = validToken.SecretID
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
+	assert.EqualValues(resp.Index, 1000, "resp.Index")
+	assert.Equal(stubAllocs, resp.Allocations, "Returned alloc list not equal")
+
+	// Try with a invalid token
+	get.AuthToken = invalidToken.SecretID
+	err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
+	assert.NotNil(err, "RPC")
+	assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+
+	// Try with a root token
+	get.AuthToken = root.SecretID
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp), "RPC")
+	assert.EqualValues(resp.Index, 1000, "resp.Index")
+	assert.Equal(stubAllocs, resp.Allocations, "Returned alloc list not equal")
+}
+
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -154,13 +215,19 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
+	prevAllocID := uuid.Generate()
 	alloc := mock.Alloc()
+	alloc.RescheduleTracker = &structs.RescheduleTracker{
+		Events: []*structs.RescheduleEvent{
+			{RescheduleTime: time.Now().UTC().UnixNano(), PrevNodeID: "boom", PrevAllocID: prevAllocID},
+		},
+	}
 	state := s1.fsm.State()
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
@@ -168,7 +235,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Lookup the jobs
+	// Lookup the alloc
 	get := &structs.AllocSpecificRequest{
 		AllocID:      alloc.ID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -186,9 +253,83 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	}
 }
 
+func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the alloc
+	alloc := mock.Alloc()
+	allocs := []*structs.Allocation{alloc}
+	summary := mock.JobSummary(alloc.JobID)
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
+	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
+
+	// Create the namespace policy and tokens
+	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+
+	get := &structs.AllocSpecificRequest{
+		AllocID:      alloc.ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	// Lookup the alloc without a token and expect failure
+	{
+		var resp structs.SingleAllocResponse
+		err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp)
+		assert.Equal(structs.ErrPermissionDenied.Error(), err.Error())
+	}
+
+	// Try with a valid ACL token
+	{
+		get.AuthToken = validToken.SecretID
+		var resp structs.SingleAllocResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
+		assert.EqualValues(resp.Index, 1000, "resp.Index")
+		assert.Equal(alloc, resp.Alloc, "Returned alloc not equal")
+	}
+
+	// Try with a valid Node.SecretID
+	{
+		node := mock.Node()
+		assert.Nil(state.UpsertNode(1005, node))
+		get.AuthToken = node.SecretID
+		var resp structs.SingleAllocResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
+		assert.EqualValues(resp.Index, 1000, "resp.Index")
+		assert.Equal(alloc, resp.Alloc, "Returned alloc not equal")
+	}
+
+	// Try with a invalid token
+	{
+		get.AuthToken = invalidToken.SecretID
+		var resp structs.SingleAllocResponse
+		err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp)
+		assert.NotNil(err, "RPC")
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a root token
+	{
+		get.AuthToken = root.SecretID
+		var resp structs.SingleAllocResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.GetAlloc", get, &resp), "RPC")
+		assert.EqualValues(resp.Index, 1000, "resp.Index")
+		assert.Equal(alloc, resp.Alloc, "Returned alloc not equal")
+	}
+}
+
 func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -243,7 +384,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -278,7 +419,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 		t.Fatalf("bad: %#v", resp.Allocs)
 	}
 
-	// Lookup non-existent allocs.
+	// Lookup nonexistent allocs.
 	get = &structs.AllocsGetRequest{
 		AllocIDs:     []string{"foo"},
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -290,7 +431,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -341,4 +482,88 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	if len(resp.Allocs) != 2 {
 		t.Fatalf("bad: %#v", resp.Allocs)
 	}
+}
+
+func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, _ := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	alloc := mock.Alloc()
+	alloc2 := mock.Alloc()
+	state := s1.fsm.State()
+	require.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2}))
+
+	t1 := &structs.DesiredTransition{
+		Migrate: helper.BoolToPtr(true),
+	}
+
+	// Update the allocs desired status
+	get := &structs.AllocUpdateDesiredTransitionRequest{
+		Allocs: map[string]*structs.DesiredTransition{
+			alloc.ID:  t1,
+			alloc2.ID: t1,
+		},
+		Evals: []*structs.Evaluation{
+			{
+				ID:             uuid.Generate(),
+				Namespace:      alloc.Namespace,
+				Priority:       alloc.Job.Priority,
+				Type:           alloc.Job.Type,
+				TriggeredBy:    structs.EvalTriggerNodeDrain,
+				JobID:          alloc.Job.ID,
+				JobModifyIndex: alloc.Job.ModifyIndex,
+				Status:         structs.EvalStatusPending,
+			},
+			{
+				ID:             uuid.Generate(),
+				Namespace:      alloc2.Namespace,
+				Priority:       alloc2.Job.Priority,
+				Type:           alloc2.Job.Type,
+				TriggeredBy:    structs.EvalTriggerNodeDrain,
+				JobID:          alloc2.Job.ID,
+				JobModifyIndex: alloc2.Job.ModifyIndex,
+				Status:         structs.EvalStatusPending,
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+
+	// Try without permissions
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransition", get, &resp)
+	require.NotNil(err)
+	require.True(structs.IsErrPermissionDenied(err))
+
+	// Try with permissions
+	get.WriteRequest.AuthToken = s1.getLeaderAcl()
+	var resp2 structs.GenericResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Alloc.UpdateDesiredTransition", get, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Look up the allocations
+	out1, err := state.AllocByID(nil, alloc.ID)
+	require.Nil(err)
+	out2, err := state.AllocByID(nil, alloc.ID)
+	require.Nil(err)
+	e1, err := state.EvalByID(nil, get.Evals[0].ID)
+	require.Nil(err)
+	e2, err := state.EvalByID(nil, get.Evals[1].ID)
+	require.Nil(err)
+
+	require.NotNil(out1.DesiredTransition.Migrate)
+	require.NotNil(out2.DesiredTransition.Migrate)
+	require.NotNil(e1)
+	require.NotNil(e2)
+	require.True(*out1.DesiredTransition.Migrate)
+	require.True(*out2.DesiredTransition.Migrate)
 }

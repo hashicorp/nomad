@@ -41,7 +41,10 @@ and the plugin can call back into the host process.
 **Built-in Logging.** Any plugins that use the `log` standard library
 will have log data automatically sent to the host process. The host
 process will mirror this output prefixed with the path to the plugin
-binary. This makes debugging with plugins simple.
+binary. This makes debugging with plugins simple. If the host system
+uses [hclog](https://github.com/hashicorp/go-hclog) then the log data
+will be structured. If the plugin also uses hclog, logs from the plugin
+will be sent to the host hclog and be structured.
 
 **Protocol Versioning.** A very basic "protocol version" is supported that
 can be incremented to invalidate any previous plugins. This is useful when
@@ -73,7 +76,7 @@ must be properly secured to protect this configuration.
 ## Architecture
 
 The HashiCorp plugin system works by launching subprocesses and communicating
-over RPC (using standard `net/rpc` or [gRPC](http://www.grpc.io). A single
+over RPC (using standard `net/rpc` or [gRPC](http://www.grpc.io)). A single
 connection is made between any plugin and the host process. For net/rpc-based
 plugins, we use a [connection multiplexing](https://github.com/hashicorp/yamux)
 library to multiplex any other connections on top. For gRPC-based plugins,

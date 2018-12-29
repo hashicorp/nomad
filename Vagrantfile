@@ -19,8 +19,31 @@ Vagrant.configure(2) do |config|
 			'/opt/gopath/src/github.com/hashicorp/nomad'
 
 		vmCfg.vm.provision "shell",
-			privileged: true,
+			privileged: false,
 			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
+	end
+
+	config.vm.define "linux-ui", autostart: false, primary: false do |vmCfg|
+		vmCfg.vm.box = LINUX_BASE_BOX
+		vmCfg.vm.hostname = "linux"
+		vmCfg = configureProviders vmCfg,
+			cpus: suggestedCPUCores()
+
+		vmCfg = configureLinuxProvisioners(vmCfg)
+
+		vmCfg.vm.synced_folder '.',
+			'/opt/gopath/src/github.com/hashicorp/nomad'
+
+		vmCfg.vm.provision "shell",
+			privileged: false,
+			path: './scripts/vagrant-linux-unpriv-bootstrap.sh'
+
+        # Expose the nomad api and ui to the host
+        vmCfg.vm.network "forwarded_port", guest: 4646, host: 4646, auto_correct: true
+
+        # Expose Ember ports to the host (one for the site, one for livereload)
+        vmCfg.vm.network :forwarded_port, guest: 4201, host: 4201, auto_correct: true
+        vmCfg.vm.network :forwarded_port, guest: 49153, host: 49153, auto_correct: true
 	end
 
 	config.vm.define "freebsd", autostart: false, primary: false do |vmCfg|
@@ -41,7 +64,7 @@ Vagrant.configure(2) do |config|
 		vmCfg.vm.provision "shell",
 			privileged: false,
 			path: './scripts/vagrant-freebsd-unpriv-bootstrap.sh'
-	end	
+	end
 
 	# Test Cluster (Linux)
 	1.upto(3) do |n|
@@ -59,25 +82,25 @@ Vagrant.configure(2) do |config|
 			vmCfg.vm.provider "virtualbox" do |_|
 				vmCfg.vm.network :private_network, ip: serverIP
 			end
-		
+
 			vmCfg.vm.synced_folder '.',
 				'/opt/gopath/src/github.com/hashicorp/nomad'
-	
+
 			vmCfg.vm.provision "shell",
 				privileged: true,
 				path: './scripts/vagrant-linux-priv-zeroconf.sh'
 		end
-		
+
 		config.vm.define clientName, autostart: false, primary: false do |vmCfg|
 			vmCfg.vm.box = LINUX_BASE_BOX
 			vmCfg.vm.hostname = clientName
 			vmCfg = configureProviders(vmCfg)
 			vmCfg = configureLinuxProvisioners(vmCfg)
-			
+
 			vmCfg.vm.provider "virtualbox" do |_|
 				vmCfg.vm.network :private_network, ip: clientIP
 			end
-			
+
 			vmCfg.vm.synced_folder '.',
 				'/opt/gopath/src/github.com/hashicorp/nomad'
 
@@ -113,11 +136,20 @@ def configureLinuxProvisioners(vmCfg)
 		privileged: true,
 		path: './scripts/vagrant-linux-priv-rkt.sh'
 
+	vmCfg.vm.provision "shell",
+		privileged: false,
+		path: './scripts/vagrant-linux-unpriv-ui.sh'
+
+	vmCfg.vm.provision "shell",
+		privileged: true,
+		path: './scripts/vagrant-linux-priv-protoc.sh'
+
 	return vmCfg
 end
 
 def configureProviders(vmCfg, cpus: "2", memory: "2048")
 	vmCfg.vm.provider "virtualbox" do |v|
+		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
 		v.memory = memory
 		v.cpus = cpus
 	end
@@ -131,6 +163,7 @@ def configureProviders(vmCfg, cpus: "2", memory: "2048")
 	end
 
 	vmCfg.vm.provider "virtualbox" do |v|
+		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
 		v.memory = memory
 		v.cpus = cpus
 	end
@@ -143,7 +176,7 @@ def suggestedCPUCores()
 	when /darwin/
 		Integer(`sysctl -n hw.ncpu`) / 2
 	when /linux/
-		Integer(`cat /proc/cpuinfo | grep processor | wc -l`) / 2
+		Integer(`grep -c ^processor /proc/cpuinfo`) / 2
 	else
 		2
 	end

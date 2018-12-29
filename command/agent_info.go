@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type AgentInfoCommand struct {
@@ -26,17 +28,28 @@ func (c *AgentInfoCommand) Synopsis() string {
 	return "Display status information about the local agent"
 }
 
+func (c *AgentInfoCommand) AutocompleteFlags() complete.Flags {
+	return c.Meta.AutocompleteFlags(FlagSetClient)
+}
+
+func (c *AgentInfoCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
+
+func (c *AgentInfoCommand) Name() string { return "agent-info" }
+
 func (c *AgentInfoCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("agent-info", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 
-	// Check that we either got no jobs or exactly one.
+	// Check that we got no arguments
 	args = flags.Args()
 	if len(args) > 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

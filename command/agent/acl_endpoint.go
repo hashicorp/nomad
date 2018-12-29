@@ -154,29 +154,35 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 }
 
 func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	accessor := strings.TrimPrefix(req.URL.Path, "/v1/acl/token")
+	path := req.URL.Path
 
-	// If there is no accessor, this must be a create
-	if len(accessor) == 0 {
+	switch path {
+	case "/v1/acl/token":
 		if !(req.Method == "PUT" || req.Method == "POST") {
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
 		return s.aclTokenUpdate(resp, req, "")
+	case "/v1/acl/token/self":
+		return s.aclTokenSelf(resp, req)
 	}
 
-	// Check if no accessor is given past the slash
-	accessor = accessor[1:]
-	if accessor == "" {
+	accessor := strings.TrimPrefix(path, "/v1/acl/token/")
+	return s.aclTokenCrud(resp, req, accessor)
+}
+
+func (s *HTTPServer) aclTokenCrud(resp http.ResponseWriter, req *http.Request,
+	tokenAccessor string) (interface{}, error) {
+	if tokenAccessor == "" {
 		return nil, CodedError(400, "Missing Token Accessor")
 	}
 
 	switch req.Method {
 	case "GET":
-		return s.aclTokenQuery(resp, req, accessor)
+		return s.aclTokenQuery(resp, req, tokenAccessor)
 	case "PUT", "POST":
-		return s.aclTokenUpdate(resp, req, accessor)
+		return s.aclTokenUpdate(resp, req, tokenAccessor)
 	case "DELETE":
-		return s.aclTokenDelete(resp, req, accessor)
+		return s.aclTokenDelete(resp, req, tokenAccessor)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -193,6 +199,29 @@ func (s *HTTPServer) aclTokenQuery(resp http.ResponseWriter, req *http.Request,
 
 	var out structs.SingleACLTokenResponse
 	if err := s.agent.RPC("ACL.GetToken", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Token == nil {
+		return nil, CodedError(404, "ACL token not found")
+	}
+	return out.Token, nil
+}
+
+func (s *HTTPServer) aclTokenSelf(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != "GET" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	args := structs.ResolveACLTokenRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	args.SecretID = args.AuthToken
+
+	var out structs.ResolveACLTokenResponse
+	if err := s.agent.RPC("ACL.ResolveToken", &args, &out); err != nil {
 		return nil, err
 	}
 

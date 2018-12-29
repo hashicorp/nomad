@@ -2,8 +2,8 @@
 
 set -o errexit
 
-VERSION=1.18.0
-DOWNLOAD=https://github.com/coreos/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
+VERSION=1.27.0
+DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
 
 function install_rkt() {
 	if [[ -e /usr/local/bin/rkt ]] ; then

@@ -2,9 +2,9 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 
-	"github.com/hashicorp/nomad/client/config"
+	log "github.com/hashicorp/go-hclog"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -12,67 +12,70 @@ import (
 // CPUFingerprint is used to fingerprint the CPU
 type CPUFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	logger log.Logger
 }
 
 // NewCPUFingerprint is used to create a CPU fingerprint
-func NewCPUFingerprint(logger *log.Logger) Fingerprint {
-	f := &CPUFingerprint{logger: logger}
+func NewCPUFingerprint(logger log.Logger) Fingerprint {
+	f := &CPUFingerprint{logger: logger.Named("cpu")}
 	return f
 }
 
-func (f *CPUFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	setResources := func(totalCompute int) {
-		if node.Resources == nil {
-			node.Resources = &structs.Resources{}
+func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
+	setResourcesCPU := func(totalCompute int) {
+		// COMPAT(0.10): Remove in 0.10
+		resp.Resources = &structs.Resources{
+			CPU: totalCompute,
 		}
 
-		node.Resources.CPU = totalCompute
+		resp.NodeResources = &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{
+				CpuShares: int64(totalCompute),
+			},
+		}
 	}
 
 	if err := stats.Init(); err != nil {
-		f.logger.Printf("[WARN] fingerprint.cpu: %v", err)
+		f.logger.Warn("failed initializing stats collector", "error", err)
 	}
 
 	if cfg.CpuCompute != 0 {
-		setResources(cfg.CpuCompute)
-		return true, nil
+		setResourcesCPU(cfg.CpuCompute)
+		return nil
 	}
 
 	if modelName := stats.CPUModelName(); modelName != "" {
-		node.Attributes["cpu.modelname"] = modelName
+		resp.AddAttribute("cpu.modelname", modelName)
 	}
 
 	if mhz := stats.CPUMHzPerCore(); mhz > 0 {
-		node.Attributes["cpu.frequency"] = fmt.Sprintf("%.0f", mhz)
-		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %.0f MHz", mhz)
+		resp.AddAttribute("cpu.frequency", fmt.Sprintf("%.0f", mhz))
+		f.logger.Debug("detected cpu frequency", "MHz", log.Fmt("%.0f", mhz))
 	}
 
 	if numCores := stats.CPUNumCores(); numCores > 0 {
-		node.Attributes["cpu.numcores"] = fmt.Sprintf("%d", numCores)
-		f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
+		resp.AddAttribute("cpu.numcores", fmt.Sprintf("%d", numCores))
+		f.logger.Debug("detected core count", "cores", numCores)
 	}
 
 	tt := int(stats.TotalTicksAvailable())
 	if cfg.CpuCompute > 0 {
-		f.logger.Printf("[DEBUG] fingerprint.cpu: Using specified cpu compute %d", cfg.CpuCompute)
+		f.logger.Debug("using user specified cpu compute", "cpu_compute", cfg.CpuCompute)
 		tt = cfg.CpuCompute
 	}
 
 	// Return an error if no cpu was detected or explicitly set as this
 	// node would be unable to receive any allocations.
 	if tt == 0 {
-		return false, fmt.Errorf("cannot detect cpu total compute. "+
+		return fmt.Errorf("cannot detect cpu total compute. "+
 			"CPU compute must be set manually using the client config option %q",
 			"cpu_total_compute")
 	}
 
-	node.Attributes["cpu.totalcompute"] = fmt.Sprintf("%d", tt)
+	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
+	setResourcesCPU(tt)
+	resp.Detected = true
 
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
-
-	node.Resources.CPU = tt
-	return true, nil
+	return nil
 }

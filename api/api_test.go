@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -173,7 +173,7 @@ func TestSetQueryOptions(t *testing.T) {
 		AllowStale: true,
 		WaitIndex:  1000,
 		WaitTime:   100 * time.Second,
-		SecretID:   "foobar",
+		AuthToken:  "foobar",
 	}
 	r.setQueryOptions(q)
 
@@ -206,7 +206,7 @@ func TestSetWriteOptions(t *testing.T) {
 	q := &WriteOptions{
 		Region:    "foo",
 		Namespace: "bar",
-		SecretID:  "foobar",
+		AuthToken: "foobar",
 	}
 	r.setWriteOptions(q)
 
@@ -230,7 +230,7 @@ func TestRequestToHTTP(t *testing.T) {
 	q := &QueryOptions{
 		Region:    "foo",
 		Namespace: "bar",
-		SecretID:  "foobar",
+		AuthToken: "foobar",
 	}
 	r.setQueryOptions(q)
 	req, err := r.toHTTP()
@@ -317,7 +317,7 @@ func TestClient_NodeClient(t *testing.T) {
 	http := "testdomain:4646"
 	tlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
 		return &Node{
-			ID:         structs.GenerateUUID(),
+			ID:         uuid.Generate(),
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: true,
@@ -325,7 +325,7 @@ func TestClient_NodeClient(t *testing.T) {
 	}
 	noTlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
 		return &Node{
-			ID:         structs.GenerateUUID(),
+			ID:         uuid.Generate(),
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: false,
@@ -426,7 +426,7 @@ func TestClient_NodeClient(t *testing.T) {
 		name := fmt.Sprintf("%s__%s__%s", c.ExpectedAddr, c.ExpectedRegion, c.ExpectedTLSServerName)
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
-			nodeClient, err := c.Client.getNodeClientImpl("testID", c.QueryOptions, c.Node)
+			nodeClient, err := c.Client.getNodeClientImpl("testID", -1, c.QueryOptions, c.Node)
 			assert.Nil(err)
 			assert.Equal(c.ExpectedRegion, nodeClient.config.Region)
 			assert.Equal(c.ExpectedAddr, nodeClient.config.Address)

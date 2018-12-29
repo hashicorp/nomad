@@ -3,13 +3,14 @@ package deploymentwatcher
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -19,9 +20,10 @@ const (
 	// second
 	LimitStateQueriesPerSecond = 100.0
 
-	// CrossDeploymentEvalBatchDuration is the duration in which evaluations are
-	// batched across all deployment watchers before committing to Raft.
-	CrossDeploymentEvalBatchDuration = 250 * time.Millisecond
+	// CrossDeploymentUpdateBatchDuration is the duration in which allocation
+	// desired transition and evaluation creation updates are batched across
+	// all deployment watchers before committing to Raft.
+	CrossDeploymentUpdateBatchDuration = 250 * time.Millisecond
 )
 
 var (
@@ -33,9 +35,6 @@ var (
 // DeploymentRaftEndpoints exposes the deployment watcher to a set of functions
 // to apply data transforms via Raft.
 type DeploymentRaftEndpoints interface {
-	// UpsertEvals is used to upsert a set of evaluations
-	UpsertEvals([]*structs.Evaluation) (uint64, error)
-
 	// UpsertJob is used to upsert a job
 	UpsertJob(job *structs.Job) (uint64, error)
 
@@ -49,21 +48,25 @@ type DeploymentRaftEndpoints interface {
 	// UpdateDeploymentAllocHealth is used to set the health of allocations in a
 	// deployment
 	UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error)
+
+	// UpdateAllocDesiredTransition is used to update the desired transition
+	// for allocations.
+	UpdateAllocDesiredTransition(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error)
 }
 
 // Watcher is used to watch deployments and their allocations created
 // by the scheduler and trigger the scheduler when allocation health
-// transistions.
+// transitions.
 type Watcher struct {
 	enabled bool
-	logger  *log.Logger
+	logger  log.Logger
 
 	// queryLimiter is used to limit the rate of blocking queries
 	queryLimiter *rate.Limiter
 
-	// evalBatchDuration is the duration to batch eval creation across all
-	// deployment watchers
-	evalBatchDuration time.Duration
+	// updateBatchDuration is the duration to batch allocation desired
+	// transition and eval creation across all deployment watchers
+	updateBatchDuration time.Duration
 
 	// raft contains the set of Raft endpoints that can be used by the
 	// deployments watcher
@@ -75,8 +78,9 @@ type Watcher struct {
 	// watchers is the set of active watchers, one per deployment
 	watchers map[string]*deploymentWatcher
 
-	// evalBatcher is used to batch the creation of evaluations
-	evalBatcher *EvalBatcher
+	// allocUpdateBatcher is used to batch the creation of evaluations and
+	// allocation desired transition updates
+	allocUpdateBatcher *AllocUpdateBatcher
 
 	// ctx and exitFn are used to cancel the watcher
 	ctx    context.Context
@@ -87,22 +91,22 @@ type Watcher struct {
 
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
-func NewDeploymentsWatcher(logger *log.Logger,
+func NewDeploymentsWatcher(logger log.Logger,
 	raft DeploymentRaftEndpoints, stateQueriesPerSecond float64,
-	evalBatchDuration time.Duration) *Watcher {
+	updateBatchDuration time.Duration) *Watcher {
 
 	return &Watcher{
-		raft:              raft,
-		queryLimiter:      rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
-		evalBatchDuration: evalBatchDuration,
-		logger:            logger,
+		raft:                raft,
+		queryLimiter:        rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
+		updateBatchDuration: updateBatchDuration,
+		logger:              logger.Named("deployments_watcher"),
 	}
 }
 
 // SetEnabled is used to control if the watcher is enabled. The watcher
 // should only be enabled on the active leader. When being enabled the state is
-// passsed in as it is no longer valid once a leader election has taken place.
-func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
+// passed in as it is no longer valid once a leader election has taken place.
+func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 	w.l.Lock()
 	defer w.l.Unlock()
 
@@ -120,8 +124,6 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) error {
 	if enabled && !wasEnabled {
 		go w.watchDeployments(w.ctx)
 	}
-
-	return nil
 }
 
 // flush is used to clear the state of the watcher
@@ -138,7 +140,7 @@ func (w *Watcher) flush() {
 
 	w.watchers = make(map[string]*deploymentWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
-	w.evalBatcher = NewEvalBatcher(w.evalBatchDuration, w.raft, w.ctx)
+	w.allocUpdateBatcher = NewAllocUpdateBatcher(w.updateBatchDuration, w.raft, w.ctx)
 }
 
 // watchDeployments is the long lived go-routine that watches for deployments to
@@ -153,7 +155,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 				return
 			}
 
-			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deploylements: %v", err)
+			w.logger.Error("failed to retrieve deployments", "error", err)
 		}
 
 		// Update the latest index
@@ -164,7 +166,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 		for _, d := range deployments {
 			if d.Active() {
 				if err := w.add(d); err != nil {
-					w.logger.Printf("[ERR] nomad.deployments_watcher: failed to track deployment %q: %v", d.ID, err)
+					w.logger.Error("failed to track deployment", "deployment_id", d.ID, "error", err)
 				}
 			} else {
 				w.remove(d)
@@ -230,8 +232,9 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 		return nil, fmt.Errorf("deployment %q is terminal", d.ID)
 	}
 
-	// Already watched so no-op
-	if _, ok := w.watchers[d.ID]; ok {
+	// Already watched so just update the deployment
+	if w, ok := w.watchers[d.ID]; ok {
+		w.updateDeployment(d)
 		return nil, nil
 	}
 
@@ -355,10 +358,10 @@ func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *struc
 	return watcher.FailDeployment(req, resp)
 }
 
-// createEvaluation commits the given evaluation to Raft but batches the commit
-// with other calls.
-func (w *Watcher) createEvaluation(eval *structs.Evaluation) (uint64, error) {
-	return w.evalBatcher.CreateEval(eval).Results()
+// createUpdate commits the given allocation desired transition and evaluation
+// to Raft but batches the commit with other calls.
+func (w *Watcher) createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error) {
+	return w.allocUpdateBatcher.CreateUpdate(allocs, eval).Results()
 }
 
 // upsertJob commits the given job to Raft

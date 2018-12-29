@@ -2,10 +2,10 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"reflect"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -92,6 +92,15 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 			continue
 		}
 
+		// If we have been marked for migration and aren't terminal, migrate
+		if !exist.TerminalStatus() && exist.DesiredTransition.ShouldMigrate() {
+			result.migrate = append(result.migrate, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
+		}
 		// If we are on a tainted node, we must migrate if we are a service or
 		// if the batch allocation did not finish
 		if node, ok := taintedNodes[exist.NodeID]; ok {
@@ -104,20 +113,16 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 				goto IGNORE
 			}
 
-			if node == nil || node.TerminalStatus() {
+			if !exist.TerminalStatus() && (node == nil || node.TerminalStatus()) {
 				result.lost = append(result.lost, allocTuple{
 					Name:      name,
 					TaskGroup: tg,
 					Alloc:     exist,
 				})
 			} else {
-				// This is the drain case
-				result.migrate = append(result.migrate, allocTuple{
-					Name:      name,
-					TaskGroup: tg,
-					Alloc:     exist,
-				})
+				goto IGNORE
 			}
+
 			continue
 		}
 
@@ -208,11 +213,6 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 			}
 		}
 
-		// Migrate does not apply to system jobs and instead should be marked as
-		// stop because if a node is tainted, the job is invalid on that node.
-		diff.stop = append(diff.stop, diff.migrate...)
-		diff.migrate = nil
-
 		result.Append(diff)
 	}
 
@@ -249,11 +249,14 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 		if node.Drain {
 			continue
 		}
+		if node.SchedulingEligibility != structs.NodeSchedulingEligible {
+			continue
+		}
 		if _, ok := dcMap[node.Datacenter]; !ok {
 			continue
 		}
 		out = append(out, node)
-		dcMap[node.Datacenter] += 1
+		dcMap[node.Datacenter]++
 	}
 	return out, dcMap, nil
 }
@@ -277,7 +280,7 @@ func retryMax(max int, cb func() (bool, error), reset func() bool) error {
 		if reset != nil && reset() {
 			attempts = 0
 		} else {
-			attempts += 1
+			attempts++
 		}
 	}
 	return &SetStatusError{
@@ -428,12 +431,12 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 }
 
 // setStatus is used to update the status of the evaluation
-func setStatus(logger *log.Logger, planner Planner,
+func setStatus(logger log.Logger, planner Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
 	tgMetrics map[string]*structs.AllocMetric, status, desc string,
 	queuedAllocs map[string]int, deploymentID string) error {
 
-	logger.Printf("[DEBUG] sched: %#v: setting status to %s", eval, status)
+	logger.Debug("setting eval status", "status", status)
 	newEval := eval.Copy()
 	newEval.Status = status
 	newEval.StatusDescription = desc
@@ -492,8 +495,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// Get the existing node
 		node, err := ctx.State().NodeByID(ws, update.Alloc.NodeID)
 		if err != nil {
-			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v",
-				eval, update.Alloc.NodeID, err)
+			ctx.Logger().Error("failed to get node", "node_id", update.Alloc.NodeID, "error", err)
 			continue
 		}
 		if node == nil {
@@ -504,14 +506,14 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		stack.SetNodes([]*structs.Node{node})
 
 		// Stage an eviction of the current allocation. This is done so that
-		// the current allocation is discounted when checking for feasability.
+		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
 		ctx.Plan().AppendUpdate(update.Alloc, structs.AllocDesiredStatusStop,
 			allocInPlace, "")
 
 		// Attempt to match the task group
-		option, _ := stack.Select(update.TaskGroup)
+		option := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(update.Alloc)
@@ -526,8 +528,17 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
-			existing := update.Alloc.TaskResources[task]
-			resources.Networks = existing.Networks
+			var networks structs.Networks
+			if update.Alloc.AllocatedResources != nil {
+				if tr, ok := update.Alloc.AllocatedResources.Tasks[task]; ok {
+					networks = tr.Networks
+				}
+			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
+				networks = tr.Networks
+			}
+
+			// Add thhe networks back
+			resources.Networks = networks
 		}
 
 		// Create a shallow copy
@@ -538,7 +549,12 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.EvalID = eval.ID
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
-		newAlloc.TaskResources = option.TaskResources
+		newAlloc.AllocatedResources = &structs.AllocatedResources{
+			Tasks: option.TaskResources,
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: int64(update.TaskGroup.EphemeralDisk.SizeMB),
+			},
+		}
 		newAlloc.Metrics = ctx.Metrics()
 		ctx.Plan().AppendAlloc(newAlloc)
 
@@ -547,7 +563,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 	}
 
 	if len(updates) > 0 {
-		ctx.Logger().Printf("[DEBUG] sched: %#v: %d in-place updates of %d", eval, inplaceCount, len(updates))
+		ctx.Logger().Debug("made in-place updates", "in-place", inplaceCount, "total_updates", len(updates))
 	}
 	return updates[:n], updates[n:]
 }
@@ -570,24 +586,6 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	return true
 }
 
-// markLostAndPlace is used to mark allocations as lost and add them to the
-// placement queue. evictAndPlace modifies both the diffResult and the
-// limit. It returns true if the limit has been reached.
-func markLostAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
-	n := len(allocs)
-	for i := 0; i < n && i < *limit; i++ {
-		a := allocs[i]
-		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc, structs.AllocClientStatusLost)
-		diff.place = append(diff.place, a)
-	}
-	if n <= *limit {
-		*limit -= n
-		return false
-	}
-	*limit = 0
-	return true
-}
-
 // tgConstrainTuple is used to store the total constraints of a task group.
 type tgConstrainTuple struct {
 	// Holds the combined constraints of the task group and all it's sub-tasks.
@@ -595,9 +593,6 @@ type tgConstrainTuple struct {
 
 	// The set of required drivers within the task group.
 	drivers map[string]struct{}
-
-	// The combined resources of all tasks within the task group.
-	size *structs.Resources
 }
 
 // taskGroupConstraints collects the constraints, drivers and resources required by each
@@ -606,14 +601,12 @@ func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
 	c := tgConstrainTuple{
 		constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
 		drivers:     make(map[string]struct{}),
-		size:        &structs.Resources{DiskMB: tg.EphemeralDisk.SizeMB},
 	}
 
 	c.constraints = append(c.constraints, tg.Constraints...)
 	for _, task := range tg.Tasks {
 		c.drivers[task.Driver] = struct{}{}
 		c.constraints = append(c.constraints, task.Constraints...)
-		c.size.Add(task.Resources)
 	}
 
 	return c
@@ -697,7 +690,7 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 
 // adjustQueuedAllocations decrements the number of allocations pending per task
 // group based on the number of allocations successfully placed
-func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
+func adjustQueuedAllocations(logger log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
 	if result == nil {
 		return
 	}
@@ -716,9 +709,9 @@ func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, que
 			}
 
 			if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
-				queuedAllocs[allocation.TaskGroup] -= 1
+				queuedAllocs[allocation.TaskGroup]--
 			} else {
-				logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
+				logger.Error("allocation placed but task group is not in list of unplaced allocations", "task_group", allocation.TaskGroup)
 			}
 		}
 	}
@@ -728,8 +721,19 @@ func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, que
 // to lost
 func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*structs.Node, allocs []*structs.Allocation) {
 	for _, alloc := range allocs {
-		if _, ok := tainted[alloc.NodeID]; ok &&
-			alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
+		node, ok := tainted[alloc.NodeID]
+		if !ok {
+			continue
+		}
+
+		// Only handle down nodes or nodes that are gone (node == nil)
+		if node != nil && node.Status != structs.NodeStatusDown {
+			continue
+		}
+
+		// If the scheduler has marked it as stop already but the alloc wasn't
+		// terminal on the client change the status to lost.
+		if alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
 			plan.AppendUpdate(alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
@@ -740,7 +744,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 // genericAllocUpdateFn is a factory for the scheduler to create an allocUpdateType
 // function to be passed into the reconciler. The factory takes objects that
 // exist only in the scheduler context and returns a function that can be used
-// by the reconciler to make decsions about how to update an allocation. The
+// by the reconciler to make decisions about how to update an allocation. The
 // factory allows the reconciler to be unaware of how to determine the type of
 // update necessary and can minimize the set of objects it is exposed to.
 func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
@@ -768,7 +772,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		ws := memdb.NewWatchSet()
 		node, err := ctx.State().NodeByID(ws, existing.NodeID)
 		if err != nil {
-			ctx.Logger().Printf("[ERR] sched: %#v failed to get node '%s': %v", evalID, existing.NodeID, err)
+			ctx.Logger().Error("failed to get node", "node_id", existing.NodeID, "error", err)
 			return true, false, nil
 		}
 		if node == nil {
@@ -779,13 +783,13 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		stack.SetNodes([]*structs.Node{node})
 
 		// Stage an eviction of the current allocation. This is done so that
-		// the current allocation is discounted when checking for feasability.
+		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
 		ctx.Plan().AppendUpdate(existing, structs.AllocDesiredStatusStop, allocInPlace, "")
 
 		// Attempt to match the task group
-		option, _ := stack.Select(newTG)
+		option := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(existing)
@@ -800,8 +804,17 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
-			existingResources := existing.TaskResources[task]
-			resources.Networks = existingResources.Networks
+			var networks structs.Networks
+			if existing.AllocatedResources != nil {
+				if tr, ok := existing.AllocatedResources.Tasks[task]; ok {
+					networks = tr.Networks
+				}
+			} else if tr, ok := existing.TaskResources[task]; ok {
+				networks = tr.Networks
+			}
+
+			// Add thhe networks back
+			resources.Networks = networks
 		}
 
 		// Create a shallow copy
@@ -812,7 +825,12 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.EvalID = evalID
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
-		newAlloc.TaskResources = option.TaskResources
+		newAlloc.AllocatedResources = &structs.AllocatedResources{
+			Tasks: option.TaskResources,
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
+			},
+		}
 		newAlloc.Metrics = ctx.Metrics()
 		return false, false, newAlloc
 	}

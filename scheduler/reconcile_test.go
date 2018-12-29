@@ -2,8 +2,6 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -11,66 +9,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-/*
-Basic Tests:
-√  Place when there is nothing in the cluster
-√  Place remainder when there is some in the cluster
-√  Scale down from n to n-m where n != m
-√  Scale down from n to zero
-√  Inplace upgrade test
-√  Inplace upgrade and scale up test
-√  Inplace upgrade and scale down test
-√  Destructive upgrade
-√  Destructive upgrade and scale up test
-√  Destructive upgrade and scale down test
-√  Handle lost nodes
-√  Handle lost nodes and scale up
-√  Handle lost nodes and scale down
-√  Handle draining nodes
-√  Handle draining nodes and scale up
-√  Handle draining nodes and scale down
-√  Handle task group being removed
-√  Handle job being stopped both as .Stopped and nil
-√  Place more that one group
-
-Update stanza Tests:
-√  Stopped job cancels any active deployment
-√  Stopped job doesn't cancel terminal deployment
-√  JobIndex change cancels any active deployment
-√  JobIndex change doens't cancels any terminal deployment
-√  Destructive changes create deployment and get rolled out via max_parallelism
-√  Don't create a deployment if there are no changes
-√  Deployment created by all inplace updates
-√  Paused or failed deployment doesn't create any more canaries
-√  Paused or failed deployment doesn't do any placements unless replacing lost allocs
-√  Paused or failed deployment doesn't do destructive updates
-√  Paused does do migrations
-√  Failed deployment doesn't do migrations
-√  Canary that is on a draining node
-√  Canary that is on a lost node
-√  Stop old canaries
-√  Create new canaries on job change
-√  Create new canaries on job change while scaling up
-√  Create new canaries on job change while scaling down
-√  Fill canaries if partial placement
-√  Promote canaries unblocks max_parallel
-√  Promote canaries when canaries == count
-√  Only place as many as are healthy in deployment
-√  Limit calculation accounts for healthy allocs on migrating/lost nodes
-√  Failed deployment should not place anything
-√  Run after canaries have been promoted, new allocs have been rolled out and there is no deployment
-√  Failed deployment cancels non-promoted task groups
-√  Failed deployment and updated job works
-√  Finished deployment gets marked as complete
-√  The stagger is correctly calculated when it is applied across multiple task groups.
-√  Change job change while scaling up
-√  Update the job when all allocations from the previous job haven't been placed yet.
-*/
 
 var (
 	canaryUpdate = &structs.UpdateStrategy{
@@ -91,10 +37,6 @@ var (
 	}
 )
 
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
-}
-
 func allocUpdateFnIgnore(*structs.Allocation, *structs.Job, *structs.TaskGroup) (bool, bool, *structs.Allocation) {
 	return true, false, nil
 }
@@ -105,15 +47,26 @@ func allocUpdateFnDestructive(*structs.Allocation, *structs.Job, *structs.TaskGr
 
 func allocUpdateFnInplace(existing *structs.Allocation, _ *structs.Job, newTG *structs.TaskGroup) (bool, bool, *structs.Allocation) {
 	// Create a shallow copy
-	newAlloc := new(structs.Allocation)
-	*newAlloc = *existing
-	newAlloc.TaskResources = make(map[string]*structs.Resources)
+	newAlloc := existing.CopySkipJob()
+	newAlloc.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: int64(newTG.EphemeralDisk.SizeMB),
+		},
+	}
 
 	// Use the new task resources but keep the network from the old
 	for _, task := range newTG.Tasks {
-		r := task.Resources.Copy()
-		r.Networks = existing.TaskResources[task.Name].Networks
-		newAlloc.TaskResources[task.Name] = r
+		networks := existing.AllocatedResources.Tasks[task.Name].Copy().Networks
+		newAlloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: int64(task.Resources.CPU),
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: int64(task.Resources.MemoryMB),
+			},
+			Networks: networks,
+		}
 	}
 
 	return false, false, newAlloc
@@ -150,6 +103,7 @@ func allocNameToIndex(name string) uint {
 }
 
 func assertNamesHaveIndexes(t *testing.T, indexes []int, names []string) {
+	t.Helper()
 	m := make(map[uint]int)
 	for _, i := range indexes {
 		m[uint(i)] += 1
@@ -177,6 +131,7 @@ func assertNamesHaveIndexes(t *testing.T, indexes []int, names []string) {
 }
 
 func assertNoCanariesStopped(t *testing.T, d *structs.Deployment, stop []allocStopResult) {
+	t.Helper()
 	canaryIndex := make(map[string]struct{})
 	for _, state := range d.TaskGroups {
 		for _, c := range state.PlacedCanaries {
@@ -192,6 +147,7 @@ func assertNoCanariesStopped(t *testing.T, d *structs.Deployment, stop []allocSt
 }
 
 func assertPlaceResultsHavePreviousAllocs(t *testing.T, numPrevious int, place []allocPlaceResult) {
+	t.Helper()
 	names := make(map[string]struct{}, numPrevious)
 
 	found := 0
@@ -212,6 +168,30 @@ func assertPlaceResultsHavePreviousAllocs(t *testing.T, numPrevious int, place [
 	}
 	if numPrevious != found {
 		t.Fatalf("wanted %d; got %d placements with previous allocs", numPrevious, found)
+	}
+}
+
+func assertPlacementsAreRescheduled(t *testing.T, numRescheduled int, place []allocPlaceResult) {
+	t.Helper()
+	names := make(map[string]struct{}, numRescheduled)
+
+	found := 0
+	for _, p := range place {
+		if _, ok := names[p.name]; ok {
+			t.Fatalf("Name %q already placed", p.name)
+		}
+		names[p.name] = struct{}{}
+
+		if p.previousAlloc == nil {
+			continue
+		}
+		if p.reschedule {
+			found++
+		}
+
+	}
+	if numRescheduled != found {
+		t.Fatalf("wanted %d; got %d placements that are rescheduled", numRescheduled, found)
 	}
 }
 
@@ -253,6 +233,14 @@ func stopResultsToNames(stop []allocStopResult) []string {
 	return names
 }
 
+func attributeUpdatesToNames(attributeUpdates map[string]*structs.Allocation) []string {
+	names := make([]string, 0, len(attributeUpdates))
+	for _, a := range attributeUpdates {
+		names = append(names, a.Name)
+	}
+	return names
+}
+
 func allocsToNames(allocs []*structs.Allocation) []string {
 	names := make([]string, 0, len(allocs))
 	for _, a := range allocs {
@@ -267,66 +255,42 @@ type resultExpectation struct {
 	place             int
 	destructive       int
 	inplace           int
+	attributeUpdates  int
 	stop              int
 	desiredTGUpdates  map[string]*structs.DesiredUpdates
-	followupEvalWait  time.Duration
 }
 
 func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
+	t.Helper()
+	assert := assert.New(t)
 
 	if exp.createDeployment != nil && r.deployment == nil {
-		t.Fatalf("Expect a created deployment got none")
+		t.Errorf("Expect a created deployment got none")
 	} else if exp.createDeployment == nil && r.deployment != nil {
-		t.Fatalf("Expect no created deployment; got %#v", r.deployment)
+		t.Errorf("Expect no created deployment; got %#v", r.deployment)
 	} else if exp.createDeployment != nil && r.deployment != nil {
 		// Clear the deployment ID
 		r.deployment.ID, exp.createDeployment.ID = "", ""
 		if !reflect.DeepEqual(r.deployment, exp.createDeployment) {
-			t.Fatalf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
+			t.Errorf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
 				r.deployment, exp.createDeployment, pretty.Diff(r.deployment, exp.createDeployment))
 		}
 	}
 
-	if !reflect.DeepEqual(r.deploymentUpdates, exp.deploymentUpdates) {
-		t.Fatalf("Unexpected deploymentUpdates: %v", pretty.Diff(r.deploymentUpdates, exp.deploymentUpdates))
-	}
-	if l := len(r.place); l != exp.place {
-		t.Fatalf("Expected %d placements; got %d", exp.place, l)
-	}
-	if l := len(r.destructiveUpdate); l != exp.destructive {
-		t.Fatalf("Expected %d destructive; got %d", exp.destructive, l)
-	}
-	if l := len(r.inplaceUpdate); l != exp.inplace {
-		t.Fatalf("Expected %d inplaceUpdate; got %d", exp.inplace, l)
-	}
-	if l := len(r.stop); l != exp.stop {
-		t.Fatalf("Expected %d stops; got %d", exp.stop, l)
-	}
-	if l := len(r.desiredTGUpdates); l != len(exp.desiredTGUpdates) {
-		t.Fatalf("Expected %d task group desired tg updates annotations; got %d", len(exp.desiredTGUpdates), l)
-	}
-	if r.followupEvalWait != exp.followupEvalWait {
-		t.Fatalf("Unexpected followup eval wait time. Got %v; want %v", r.followupEvalWait, exp.followupEvalWait)
-	}
-
-	// Check the desired updates happened
-	for group, desired := range exp.desiredTGUpdates {
-		act, ok := r.desiredTGUpdates[group]
-		if !ok {
-			t.Fatalf("Expected desired updates for group %q", group)
-		}
-
-		if !reflect.DeepEqual(act, desired) {
-			t.Fatalf("Unexpected annotations for group %q: %v", group, pretty.Diff(act, desired))
-		}
-	}
+	assert.EqualValues(exp.deploymentUpdates, r.deploymentUpdates, "Expected Deployment Updates")
+	assert.Len(r.place, exp.place, "Expected Placements")
+	assert.Len(r.destructiveUpdate, exp.destructive, "Expected Destructive")
+	assert.Len(r.inplaceUpdate, exp.inplace, "Expected Inplace Updates")
+	assert.Len(r.attributeUpdates, exp.attributeUpdates, "Expected Attribute Updates")
+	assert.Len(r.stop, exp.stop, "Expected Stops")
+	assert.EqualValues(exp.desiredTGUpdates, r.desiredTGUpdates, "Expected Desired TG Update Annotations")
 }
 
 // Tests the reconciler properly handles placements for a job that has no
 // existing allocations
 func TestReconciler_Place_NoExisting(t *testing.T) {
 	job := mock.Job()
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, nil, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, nil, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -357,12 +321,12 @@ func TestReconciler_Place_Existing(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -395,12 +359,12 @@ func TestReconciler_ScaleDown_Partial(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -434,12 +398,12 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -459,6 +423,46 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 19), stopResultsToNames(r.stop))
 }
 
+// Tests the reconciler properly handles stopping allocations for a job that has
+// scaled down to zero desired where allocs have duplicate names
+func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
+	// Set desired 0
+	job := mock.Job()
+	job.TaskGroups[0].Count = 0
+
+	// Create 20 existing allocations
+	var allocs []*structs.Allocation
+	var expectedStopped []int
+	for i := 0; i < 20; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%2))
+		allocs = append(allocs, alloc)
+		expectedStopped = append(expectedStopped, i%2)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              20,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Stop: 20,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, expectedStopped, stopResultsToNames(r.stop))
+}
+
 // Tests the reconciler properly handles inplace upgrading allocations
 func TestReconciler_Inplace(t *testing.T) {
 	job := mock.Job()
@@ -469,12 +473,12 @@ func TestReconciler_Inplace(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -507,12 +511,12 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -547,12 +551,12 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -584,12 +588,12 @@ func TestReconciler_Destructive(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -620,12 +624,12 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -659,12 +663,12 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -695,7 +699,7 @@ func TestReconciler_LostNode(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -709,7 +713,7 @@ func TestReconciler_LostNode(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -745,7 +749,7 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -759,7 +763,7 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -795,7 +799,7 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -809,7 +813,7 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -840,7 +844,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -850,11 +854,12 @@ func TestReconciler_DrainNode(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
+		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		n.Drain = true
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -875,6 +880,8 @@ func TestReconciler_DrainNode(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.place)
 }
 
 // Tests the reconciler properly handles draining nodes with allocations while
@@ -890,7 +897,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -900,11 +907,12 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
+		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		n.Drain = true
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -926,6 +934,8 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 1, 10, 14), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.place)
 }
 
 // Tests the reconciler properly handles draining nodes with allocations while
@@ -941,7 +951,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -951,11 +961,12 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
+		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		n.Drain = true
 		tainted[n.ID] = n
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -977,6 +988,8 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 2), stopResultsToNames(r.stop))
 	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
 	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	// These should not have the reschedule field set
+	assertPlacementsAreRescheduled(t, 0, r.place)
 }
 
 // Tests the reconciler properly handles a task group being removed
@@ -989,7 +1002,7 @@ func TestReconciler_RemovedTG(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
@@ -998,7 +1011,7 @@ func TestReconciler_RemovedTG(t *testing.T) {
 	newName := "different"
 	job.TaskGroups[0].Name = newName
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1054,13 +1067,13 @@ func TestReconciler_JobStopped(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = c.job
 				alloc.JobID = c.jobID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
 				alloc.TaskGroup = c.taskGroup
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -1082,6 +1095,68 @@ func TestReconciler_JobStopped(t *testing.T) {
 	}
 }
 
+// Tests the reconciler doesn't update allocs in terminal state
+// when job is stopped or nil
+func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
+	job := mock.Job()
+	job.Stop = true
+
+	cases := []struct {
+		name             string
+		job              *structs.Job
+		jobID, taskGroup string
+	}{
+		{
+			name:      "stopped job",
+			job:       job,
+			jobID:     job.ID,
+			taskGroup: job.TaskGroups[0].Name,
+		},
+		{
+			name:      "nil job",
+			job:       nil,
+			jobID:     "foo",
+			taskGroup: "bar",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Create 10 terminal allocations
+			var allocs []*structs.Allocation
+			for i := 0; i < 10; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = c.job
+				alloc.JobID = c.jobID
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
+				alloc.TaskGroup = c.taskGroup
+				if i%2 == 0 {
+					alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				} else {
+					alloc.ClientStatus = structs.AllocClientStatusFailed
+				}
+				allocs = append(allocs, alloc)
+			}
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
+			r := reconciler.Compute()
+			require.Len(t, r.stop, 0)
+			// Assert the correct results
+			assertResults(t, r, &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             0,
+				inplace:           0,
+				stop:              0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					c.taskGroup: {},
+				},
+			})
+		})
+	}
+}
+
 // Tests the reconciler properly handles jobs with multiple task groups
 func TestReconciler_MultiTG(t *testing.T) {
 	job := mock.Job()
@@ -1095,12 +1170,12 @@ func TestReconciler_MultiTG(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1122,6 +1197,1157 @@ func TestReconciler_MultiTG(t *testing.T) {
 	})
 
 	assertNamesHaveIndexes(t, intRange(2, 9, 0, 9), placeResultsToNames(r.place))
+}
+
+// Tests the reconciler properly handles jobs with multiple task groups with
+// only one having an update stanza and a deployment already being created
+func TestReconciler_MultiTG_SingleUpdateStanza(t *testing.T) {
+	job := mock.Job()
+	tg2 := job.TaskGroups[0].Copy()
+	tg2.Name = "foo"
+	job.TaskGroups = append(job.TaskGroups, tg2)
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create all the allocs
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 10; j++ {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = uuid.Generate()
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[i].Name, uint(j))
+			alloc.TaskGroup = job.TaskGroups[i].Name
+			allocs = append(allocs, alloc)
+		}
+	}
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 10,
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+			tg2.Name: {
+				Ignore: 10,
+			},
+		},
+	})
+}
+
+// Tests delayed rescheduling of failed batch allocations
+func TestReconciler_RescheduleLater_Batch(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 4
+	job := mock.Job()
+	job.TaskGroups[0].Count = 4
+	now := time.Now()
+
+	// Set up reschedule policy
+	delayDur := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: delayDur, DelayFunction: "constant"}
+	tgName := job.TaskGroups[0].Name
+
+	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 6; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark 3 as failed with restart tracking info
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].NextAllocation = allocs[1].ID
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].NextAllocation = allocs[2].ID
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now}}
+	allocs[2].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-2 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[1].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+
+	// Mark one as complete
+	allocs[5].ClientStatus = structs.AllocClientStatusComplete
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
+	r := reconciler.Compute()
+
+	// Two reschedule attempts were already made, one more can be made at a future time
+	// Verify that the follow up eval has the expected waitUntil time
+	evals := r.desiredFollowupEvals[tgName]
+	require.NotNil(evals)
+	require.Equal(1, len(evals))
+	require.Equal(now.Add(delayDur), evals[0].WaitUntil)
+
+	// Alloc 5 should not be replaced because it is terminal
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		attributeUpdates:  1,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         0,
+				InPlaceUpdate: 0,
+				Ignore:        4,
+			},
+		},
+	})
+	assertNamesHaveIndexes(t, intRange(2, 2), attributeUpdatesToNames(r.attributeUpdates))
+
+	// Verify that the followup evalID field is set correctly
+	var annotated *structs.Allocation
+	for _, a := range r.attributeUpdates {
+		annotated = a
+	}
+	require.Equal(evals[0].ID, annotated.FollowupEvalID)
+}
+
+// Tests delayed rescheduling of failed batch allocations and batching of allocs
+// with fail times that are close together
+func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 4
+	job := mock.Job()
+	job.TaskGroups[0].Count = 10
+	now := time.Now()
+
+	// Set up reschedule policy
+	delayDur := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: delayDur, DelayFunction: "constant"}
+	tgName := job.TaskGroups[0].Name
+
+	// Create 10 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark 5 as failed with fail times very close together
+	for i := 0; i < 5; i++ {
+		allocs[i].ClientStatus = structs.AllocClientStatusFailed
+		allocs[i].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+			StartedAt:  now.Add(-1 * time.Hour),
+			FinishedAt: now.Add(time.Duration(50*i) * time.Millisecond)}}
+	}
+
+	// Mark two more as failed several seconds later
+	for i := 5; i < 7; i++ {
+		allocs[i].ClientStatus = structs.AllocClientStatusFailed
+		allocs[i].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+			StartedAt:  now.Add(-1 * time.Hour),
+			FinishedAt: now.Add(10 * time.Second)}}
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, uuid.Generate())
+	r := reconciler.Compute()
+
+	// Verify that two follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.NotNil(evals)
+	require.Equal(2, len(evals))
+
+	// Verify expected WaitUntil values for both batched evals
+	require.Equal(now.Add(delayDur), evals[0].WaitUntil)
+	secondBatchDuration := delayDur + 10*time.Second
+	require.Equal(now.Add(secondBatchDuration), evals[1].WaitUntil)
+
+	// Alloc 5 should not be replaced because it is terminal
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		attributeUpdates:  7,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         0,
+				InPlaceUpdate: 0,
+				Ignore:        10,
+			},
+		},
+	})
+	assertNamesHaveIndexes(t, intRange(0, 6), attributeUpdatesToNames(r.attributeUpdates))
+
+	// Verify that the followup evalID field is set correctly
+	for _, alloc := range r.attributeUpdates {
+		if allocNameToIndex(alloc.Name) < 5 {
+			require.Equal(evals[0].ID, alloc.FollowupEvalID)
+		} else if allocNameToIndex(alloc.Name) < 7 {
+			require.Equal(evals[1].ID, alloc.FollowupEvalID)
+		} else {
+			t.Fatalf("Unexpected alloc name in Inplace results %v", alloc.Name)
+		}
+	}
+}
+
+// Tests rescheduling failed batch allocations
+func TestReconciler_RescheduleNow_Batch(t *testing.T) {
+	require := require.New(t)
+	// Set desired 4
+	job := mock.Job()
+	job.TaskGroups[0].Count = 4
+	now := time.Now()
+	// Set up reschedule policy
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 3, Interval: 24 * time.Hour, Delay: 5 * time.Second, DelayFunction: "constant"}
+	tgName := job.TaskGroups[0].Name
+	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 6; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+	// Mark 3 as failed with restart tracking info
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].NextAllocation = allocs[1].ID
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].NextAllocation = allocs[2].ID
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-5 * time.Second)}}
+	allocs[2].FollowupEvalID = uuid.Generate()
+	allocs[2].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-2 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[0].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: allocs[1].ID,
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	// Mark one as complete
+	allocs[5].ClientStatus = structs.AllocClientStatusComplete
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job.ID, job, nil, allocs, nil, "")
+	reconciler.now = now
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Two reschedule attempts were made, one more can be made now
+	// Alloc 5 should not be replaced because it is terminal
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 3,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(2, 2), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
+
+}
+
+// Tests rescheduling failed service allocations with desired state stop
+func TestReconciler_RescheduleLater_Service(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy
+	delayDur := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 1, Interval: 24 * time.Hour, Delay: delayDur, MaxDelay: 1 * time.Hour}
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark two as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one of them as already rescheduled once
+	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now}}
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one as desired state stop
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, uuid.Generate())
+	r := reconciler.Compute()
+
+	// Should place a new placement and create a follow up eval for the delayed reschedule
+	// Verify that the follow up eval has the expected waitUntil time
+	evals := r.desiredFollowupEvals[tgName]
+	require.NotNil(evals)
+	require.Equal(1, len(evals))
+	require.Equal(now.Add(delayDur), evals[0].WaitUntil)
+
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		attributeUpdates:  1,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         1,
+				InPlaceUpdate: 0,
+				Ignore:        4,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(4, 4), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(1, 1), attributeUpdatesToNames(r.attributeUpdates))
+
+	// Verify that the followup evalID field is set correctly
+	var annotated *structs.Allocation
+	for _, a := range r.attributeUpdates {
+		annotated = a
+	}
+	require.Equal(evals[0].ID, annotated.FollowupEvalID)
+}
+
+// Tests service allocations with client status complete
+func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	// Set up reschedule policy
+	delayDur := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 1,
+		Interval: 24 * time.Hour,
+		Delay:    delayDur,
+		MaxDelay: 1 * time.Hour,
+	}
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	}
+
+	// Mark one as client status complete
+	allocs[4].ClientStatus = structs.AllocClientStatusComplete
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Should place a new placement for the alloc that was marked complete
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         1,
+				InPlaceUpdate: 0,
+				Ignore:        4,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(4, 4), placeResultsToNames(r.place))
+
+}
+
+// Tests service job placement with desired stop and client status complete
+func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	// Set up reschedule policy
+	delayDur := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts: 1,
+		Interval: 24 * time.Hour,
+		Delay:    delayDur,
+		MaxDelay: 1 * time.Hour,
+	}
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	}
+
+	// Mark one as failed but with desired status stop
+	// Should not trigger rescheduling logic but should trigger a placement
+	allocs[4].ClientStatus = structs.AllocClientStatusFailed
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Should place a new placement for the alloc that was marked stopped
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:         1,
+				InPlaceUpdate: 0,
+				Ignore:        4,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(4, 4), placeResultsToNames(r.place))
+
+	// Should not have any follow up evals created
+	require := require.New(t)
+	require.Equal(0, len(r.desiredFollowupEvals))
+}
+
+// Tests rescheduling failed service allocations with desired state stop
+func TestReconciler_RescheduleNow_Service(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark two as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one of them as already rescheduled once
+	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one as desired state stop
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             2,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  2,
+				Ignore: 3,
+			},
+		},
+	})
+
+	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(1, 1, 4, 4), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
+}
+
+// Tests rescheduling failed service allocations when there's clock drift (upto a second)
+func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark one as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one of them as already rescheduled once
+	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	// Set fail time to 4 seconds ago which falls within the reschedule window
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-4 * time.Second)}}
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	reconciler.now = now
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Verify that one rescheduled alloc was placed
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 4,
+			},
+		},
+	})
+
+	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(1, 1), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
+}
+
+// Tests rescheduling failed service allocations when the eval ID matches and there's a large clock drift
+func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark one as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one of them as already rescheduled once
+	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	// Set fail time to 5 seconds ago and eval ID
+	evalID := uuid.Generate()
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-5 * time.Second)}}
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].FollowupEvalID = evalID
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, evalID)
+	reconciler.now = now.Add(-30 * time.Second)
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Verify that one rescheduled alloc was placed
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 4,
+			},
+		},
+	})
+
+	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(1, 1), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
+}
+
+// Tests rescheduling failed service allocations when there are canaries
+func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = canaryUpdate
+
+	job2 := job.Copy()
+	job2.Version++
+
+	d := structs.NewDeployment(job2)
+	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	s := &structs.DeploymentState{
+		DesiredCanaries: 2,
+		DesiredTotal:    5,
+	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark three as failed
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one of them as already rescheduled once
+	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+
+	// Mark one as desired state stop
+	allocs[4].ClientStatus = structs.AllocClientStatusFailed
+
+	// Create 2 canary allocations
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary:  true,
+			Healthy: helper.BoolToPtr(false),
+		}
+		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             2,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  2,
+				Ignore: 5,
+			},
+		},
+	})
+
+	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(1, 1, 4, 4), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
+	assertPlacementsAreRescheduled(t, 2, r.place)
+}
+
+// Tests rescheduling failed canary service allocations
+func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Delay:         5 * time.Second,
+		DelayFunction: "constant",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     true,
+	}
+	job.TaskGroups[0].Update = canaryUpdate
+
+	job2 := job.Copy()
+	job2.Version++
+
+	d := structs.NewDeployment(job2)
+	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	s := &structs.DeploymentState{
+		DesiredCanaries: 2,
+		DesiredTotal:    5,
+	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Create 2 healthy canary allocations
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary:  true,
+			Healthy: helper.BoolToPtr(false),
+		}
+		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
+		allocs = append(allocs, alloc)
+	}
+
+	// Mark the canaries as failed
+	allocs[5].ClientStatus = structs.AllocClientStatusFailed
+	allocs[5].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+
+	// Mark one of them as already rescheduled once
+	allocs[5].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+
+	allocs[6].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+	allocs[6].ClientStatus = structs.AllocClientStatusFailed
+	allocs[6].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+
+	// Create 4 unhealthy canary allocations that have already been replaced
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%2))
+		alloc.ClientStatus = structs.AllocClientStatusFailed
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary:  true,
+			Healthy: helper.BoolToPtr(false),
+		}
+		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
+	reconciler.now = now
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             2,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  2,
+				Ignore: 9,
+			},
+		},
+	})
+
+	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 2, r.place)
+	assertPlacementsAreRescheduled(t, 2, r.place)
+}
+
+// Tests rescheduling failed canary service allocations when one has reached its
+// reschedule limit
+func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = canaryUpdate
+
+	job2 := job.Copy()
+	job2.Version++
+
+	d := structs.NewDeployment(job2)
+	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	s := &structs.DeploymentState{
+		DesiredCanaries: 2,
+		DesiredTotal:    5,
+	}
+	d.TaskGroups[job.TaskGroups[0].Name] = s
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Create 2 healthy canary allocations
+	for i := 0; i < 2; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary:  true,
+			Healthy: helper.BoolToPtr(false),
+		}
+		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
+		allocs = append(allocs, alloc)
+	}
+
+	// Mark the canaries as failed
+	allocs[5].ClientStatus = structs.AllocClientStatusFailed
+	allocs[5].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+
+	// Mark one of them as already rescheduled once
+	allocs[5].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: now.Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+
+	allocs[6].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+	allocs[6].ClientStatus = structs.AllocClientStatusFailed
+	allocs[6].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+
+	// Create 4 unhealthy canary allocations that have already been replaced
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%2))
+		alloc.ClientStatus = structs.AllocClientStatusFailed
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Canary:  true,
+			Healthy: helper.BoolToPtr(false),
+		}
+		s.PlacedCanaries = append(s.PlacedCanaries, alloc.ID)
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job2, d, allocs, nil, "")
+	reconciler.now = now
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Verify that one rescheduled alloc and one replacement for terminal alloc were placed
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 10,
+			},
+		},
+	})
+
+	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(1, 1), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
+}
+
+// Tests failed service allocations that were already rescheduled won't be rescheduled again
+func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	// Set up reschedule policy
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{Attempts: 5, Interval: 24 * time.Hour}
+
+	// Create 7 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 7; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+	// Mark two as failed and rescheduled
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].ID = allocs[1].ID
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+	allocs[1].NextAllocation = allocs[2].ID
+
+	// Mark one as desired state stop
+	allocs[4].DesiredStatus = structs.AllocDesiredStatusStop
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Should place 1 - one is a new placement to make up the desired count of 5
+	// failing allocs are not rescheduled
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 4,
+			},
+		},
+	})
+
+	// name index 0 is used for the replacement because its
+	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
 }
 
 // Tests the reconciler cancels an old deployment when the job is being stopped
@@ -1182,13 +2408,13 @@ func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = c.job
 				alloc.JobID = c.jobID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
 				alloc.TaskGroup = c.taskGroup
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, c.jobID, c.job, c.deployment, allocs, nil)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, c.deployment, allocs, nil, "")
 			r := reconciler.Compute()
 
 			var updates []*structs.DeploymentStatusUpdate
@@ -1259,13 +2485,13 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, c.deployment, allocs, nil)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, c.deployment, allocs, nil, "")
 			r := reconciler.Compute()
 
 			var updates []*structs.DeploymentStatusUpdate
@@ -1308,13 +2534,13 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job)
@@ -1340,22 +2566,24 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 
 // Tests the reconciler creates a deployment for inplace updates
 func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
-	job := mock.Job()
+	jobOld := mock.Job()
+	job := jobOld.Copy()
+	job.Version++
 	job.TaskGroups[0].Update = noCanaryUpdate
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
 		alloc := mock.Alloc()
-		alloc.Job = job
+		alloc.Job = jobOld
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnInplace, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job)
@@ -1378,6 +2606,52 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 	})
 }
 
+// Tests the reconciler creates a deployment when the job has a newer create index
+func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
+	jobOld := mock.Job()
+	job := jobOld.Copy()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	job.CreateIndex += 100
+
+	// Create 5 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = jobOld
+		alloc.JobID = jobOld.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal: 5,
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  d,
+		deploymentUpdates: nil,
+		place:             5,
+		destructive:       0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				InPlaceUpdate:     0,
+				Ignore:            5,
+				Place:             5,
+				DestructiveUpdate: 0,
+			},
+		},
+	})
+}
+
 // Tests the reconciler doesn't creates a deployment if there are no changes
 func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 	job := mock.Job()
@@ -1389,13 +2663,13 @@ func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1455,7 +2729,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -1465,7 +2739,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 			canary := mock.Alloc()
 			canary.Job = job
 			canary.JobID = job.ID
-			canary.NodeID = structs.GenerateUUID()
+			canary.NodeID = uuid.Generate()
 			canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, 0)
 			canary.TaskGroup = job.TaskGroups[0].Name
 			canary.DeploymentID = d.ID
@@ -1473,7 +2747,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 			d.TaskGroups[canary.TaskGroup].PlacedCanaries = []string{canary.ID}
 
 			mockUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{canary.ID: allocUpdateFnIgnore}, allocUpdateFnDestructive)
-			reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -1532,13 +2806,13 @@ func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
 			}
 
-			reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -1595,7 +2869,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -1605,14 +2879,14 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 			newAlloc := mock.Alloc()
 			newAlloc.Job = job
 			newAlloc.JobID = job.ID
-			newAlloc.NodeID = structs.GenerateUUID()
+			newAlloc.NodeID = uuid.Generate()
 			newAlloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, 0)
 			newAlloc.TaskGroup = job.TaskGroups[0].Name
 			newAlloc.DeploymentID = d.ID
 			allocs = append(allocs, newAlloc)
 
 			mockUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{newAlloc.ID: allocUpdateFnIgnore}, allocUpdateFnDestructive)
-			reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -1625,95 +2899,6 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					job.TaskGroups[0].Name: {
 						Ignore: 10,
-					},
-				},
-			})
-		})
-	}
-}
-
-// Tests the reconciler handles migrations correctly when a deployment is paused
-// or failed
-func TestReconciler_PausedOrFailedDeployment_Migrations(t *testing.T) {
-	job := mock.Job()
-	job.TaskGroups[0].Update = noCanaryUpdate
-
-	cases := []struct {
-		name              string
-		deploymentStatus  string
-		place             int
-		stop              int
-		ignoreAnnotation  uint64
-		migrateAnnotation uint64
-		stopAnnotation    uint64
-	}{
-		{
-			name:             "paused deployment",
-			deploymentStatus: structs.DeploymentStatusPaused,
-			place:            0,
-			stop:             3,
-			ignoreAnnotation: 5,
-			stopAnnotation:   3,
-		},
-		{
-			name:              "failed deployment",
-			deploymentStatus:  structs.DeploymentStatusFailed,
-			place:             0,
-			stop:              3,
-			ignoreAnnotation:  5,
-			migrateAnnotation: 0,
-			stopAnnotation:    3,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			// Create a deployment that is paused and has placed some canaries
-			d := structs.NewDeployment(job)
-			d.Status = c.deploymentStatus
-			d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
-				Promoted:     false,
-				DesiredTotal: 10,
-				PlacedAllocs: 8,
-			}
-
-			// Create 8 allocations in the deployment
-			var allocs []*structs.Allocation
-			for i := 0; i < 8; i++ {
-				alloc := mock.Alloc()
-				alloc.Job = job
-				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
-				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
-				alloc.TaskGroup = job.TaskGroups[0].Name
-				alloc.DeploymentID = d.ID
-				allocs = append(allocs, alloc)
-			}
-
-			// Build a map of tainted nodes
-			tainted := make(map[string]*structs.Node, 3)
-			for i := 0; i < 3; i++ {
-				n := mock.Node()
-				n.ID = allocs[i].NodeID
-				n.Drain = true
-				tainted[n.ID] = n
-			}
-
-			reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, tainted)
-			r := reconciler.Compute()
-
-			// Assert the correct results
-			assertResults(t, r, &resultExpectation{
-				createDeployment:  nil,
-				deploymentUpdates: nil,
-				place:             c.place,
-				inplace:           0,
-				stop:              c.stop,
-				desiredTGUpdates: map[string]*structs.DesiredUpdates{
-					job.TaskGroups[0].Name: {
-						Migrate: c.migrateAnnotation,
-						Ignore:  c.ignoreAnnotation,
-						Stop:    c.stopAnnotation,
 					},
 				},
 			})
@@ -1742,7 +2927,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1755,7 +2940,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		canary.DeploymentID = d.ID
@@ -1768,11 +2953,12 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 	tainted := make(map[string]*structs.Node, 1)
 	n := mock.Node()
 	n.ID = allocs[11].NodeID
+	allocs[11].DesiredTransition.Migrate = helper.BoolToPtr(true)
 	n.Drain = true
 	tainted[n.ID] = n
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1814,7 +3000,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1827,7 +3013,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -1844,7 +3030,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 	tainted[n.ID] = n
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -1890,7 +3076,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -1902,7 +3088,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -1910,7 +3096,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		allocs = append(allocs, canary)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -1957,13 +3143,13 @@ func TestReconciler_NewCanaries(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -1991,6 +3177,55 @@ func TestReconciler_NewCanaries(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 }
 
+// Tests the reconciler creates new canaries when the job changes and the
+// canary count is greater than the task group count
+func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Update = canaryUpdate.Copy()
+	job.TaskGroups[0].Update.Canary = 7
+
+	// Create 3 allocations from the old job
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	newD := structs.NewDeployment(job)
+	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+	state := &structs.DeploymentState{
+		DesiredCanaries: 7,
+		DesiredTotal:    3,
+	}
+	newD.TaskGroups[job.TaskGroups[0].Name] = state
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  newD,
+		deploymentUpdates: nil,
+		place:             7,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Canary: 7,
+				Ignore: 3,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 2, 3, 6), placeResultsToNames(r.place))
+}
+
 // Tests the reconciler creates new canaries when the job changes for multiple
 // task groups
 func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
@@ -2006,14 +3241,14 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 			alloc := mock.Alloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
-			alloc.NodeID = structs.GenerateUUID()
+			alloc.NodeID = uuid.Generate()
 			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[j].Name, uint(i))
 			alloc.TaskGroup = job.TaskGroups[j].Name
 			allocs = append(allocs, alloc)
 		}
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -2060,13 +3295,13 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -2108,13 +3343,13 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	newD := structs.NewDeployment(job)
@@ -2171,7 +3406,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2183,7 +3418,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -2191,7 +3426,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 		allocs = append(allocs, canary)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -2234,7 +3469,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2247,7 +3482,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -2260,7 +3495,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -2298,6 +3533,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		DesiredTotal:    2,
 		DesiredCanaries: 2,
 		PlacedAllocs:    2,
+		HealthyAllocs:   2,
 	}
 	d.TaskGroups[job.TaskGroups[0].Name] = s
 
@@ -2307,7 +3543,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2320,7 +3556,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = structs.GenerateUUID()
+		canary.NodeID = uuid.Generate()
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		s.PlacedCanaries = append(s.PlacedCanaries, canary.ID)
@@ -2333,7 +3569,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -2406,7 +3642,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
-				alloc.NodeID = structs.GenerateUUID()
+				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.TaskGroup = job.TaskGroups[0].Name
 				allocs = append(allocs, alloc)
@@ -2418,7 +3654,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 				new := mock.Alloc()
 				new.Job = job
 				new.JobID = job.ID
-				new.NodeID = structs.GenerateUUID()
+				new.NodeID = uuid.Generate()
 				new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				new.TaskGroup = job.TaskGroups[0].Name
 				new.DeploymentID = d.ID
@@ -2432,7 +3668,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 			}
 
 			mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-			reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 			r := reconciler.Compute()
 
 			// Assert the correct results
@@ -2475,7 +3711,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2487,7 +3723,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
-		new.NodeID = structs.GenerateUUID()
+		new.NodeID = uuid.Generate()
 		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
@@ -2507,41 +3743,41 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 			n.Status = structs.NodeStatusDown
 		} else {
 			n.Drain = true
+			allocs[2+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             2,
+		place:             3,
 		destructive:       2,
-		stop:              2,
-		followupEvalWait:  31 * time.Second,
+		stop:              3,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Place:             1, // Place the lost
 				Stop:              1, // Stop the lost
-				Migrate:           1, // Migrate the tainted
+				Migrate:           2, // Migrate the tainted
 				DestructiveUpdate: 2,
-				Ignore:            6,
+				Ignore:            5,
 			},
 		},
 	})
 
 	assertNamesHaveIndexes(t, intRange(8, 9), destructiveResultsToNames(r.destructiveUpdate))
-	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(0, 2), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 2), stopResultsToNames(r.stop))
 }
 
-// Tests the reconciler handles a failed deployment and only replaces lost
-// deployments
-func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
+// Tests the reconciler handles a failed deployment with allocs on tainted
+// nodes
+func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
@@ -2560,7 +3796,7 @@ func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2572,7 +3808,7 @@ func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
-		new.NodeID = structs.GenerateUUID()
+		new.NodeID = uuid.Generate()
 		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
@@ -2592,32 +3828,33 @@ func TestReconciler_FailedDeployment_PlacementLost(t *testing.T) {
 			n.Status = structs.NodeStatusDown
 		} else {
 			n.Drain = true
+			allocs[6+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, tainted)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, tainted, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             1, // Only replace the lost node
+		place:             2,
 		inplace:           0,
 		stop:              2,
-		followupEvalWait:  0, // Since the deployment is failed, there should be no followup
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				Place:  1,
-				Stop:   2,
-				Ignore: 8,
+				Place:   1,
+				Migrate: 1,
+				Stop:    1,
+				Ignore:  8,
 			},
 		},
 	})
 
-	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
 }
 
@@ -2643,7 +3880,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		alloc.DeploymentID = d.ID
@@ -2653,13 +3890,76 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+		},
+	})
+}
+
+// Tests that the reconciler marks a deployment as complete once there is
+// nothing left to place even if there are failed allocations that are part of
+// the deployment.
+func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	d := structs.NewDeployment(job)
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal:  10,
+		PlacedAllocs:  20,
+		HealthyAllocs: 10,
+	}
+
+	// Create 10 healthy allocs and 10 allocs that are failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 20; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%10))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
+		if i < 10 {
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			alloc.DeploymentStatus.Healthy = helper.BoolToPtr(true)
+		} else {
+			alloc.DesiredStatus = structs.AllocDesiredStatusStop
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+			alloc.DeploymentStatus.Healthy = helper.BoolToPtr(false)
+		}
+
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: updates,
 		place:             0,
 		inplace:           0,
 		stop:              0,
@@ -2713,7 +4013,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 			new := mock.Alloc()
 			new.Job = job
 			new.JobID = job.ID
-			new.NodeID = structs.GenerateUUID()
+			new.NodeID = uuid.Generate()
 			new.Name = structs.AllocName(job.ID, job.TaskGroups[group].Name, uint(i))
 			new.TaskGroup = job.TaskGroups[group].Name
 			new.DeploymentID = d.ID
@@ -2732,7 +4032,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 			alloc := mock.Alloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
-			alloc.NodeID = structs.GenerateUUID()
+			alloc.NodeID = uuid.Generate()
 			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[group].Name, uint(i))
 			alloc.TaskGroup = job.TaskGroups[group].Name
 			allocs = append(allocs, alloc)
@@ -2740,7 +4040,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -2784,7 +4084,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2795,7 +4095,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		new := mock.Alloc()
 		new.Job = job
 		new.JobID = job.ID
-		new.NodeID = structs.GenerateUUID()
+		new.NodeID = uuid.Generate()
 		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		new.TaskGroup = job.TaskGroups[0].Name
 		new.DeploymentID = d.ID
@@ -2809,7 +4109,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 	jobNew := job.Copy()
 	jobNew.Version += 100
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, jobNew, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, jobNew, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	dnew := structs.NewDeployment(jobNew)
@@ -2852,7 +4152,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		alloc.DeploymentID = d.ID
@@ -2862,7 +4162,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	updates := []*structs.DeploymentStatusUpdate{
@@ -2888,72 +4188,6 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 	})
 }
 
-// Tests the reconciler picks the maximum of the staggers when multiple task
-// groups are under going node drains.
-func TestReconciler_TaintedNode_MultiGroups(t *testing.T) {
-	// Create a job with two task groups
-	job := mock.Job()
-	job.TaskGroups[0].Update = noCanaryUpdate
-	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
-	job.TaskGroups[1].Name = "two"
-	job.TaskGroups[1].Update.Stagger = 100 * time.Second
-
-	// Create the allocations
-	var allocs []*structs.Allocation
-	for j := 0; j < 2; j++ {
-		for i := 0; i < 10; i++ {
-			alloc := mock.Alloc()
-			alloc.Job = job
-			alloc.JobID = job.ID
-			alloc.NodeID = structs.GenerateUUID()
-			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[j].Name, uint(i))
-			alloc.TaskGroup = job.TaskGroups[j].Name
-			allocs = append(allocs, alloc)
-		}
-	}
-
-	// Build a map of tainted nodes
-	tainted := make(map[string]*structs.Node, 15)
-	for i := 0; i < 15; i++ {
-		n := mock.Node()
-		n.ID = allocs[i].NodeID
-		n.Drain = true
-		tainted[n.ID] = n
-	}
-
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, tainted)
-	r := reconciler.Compute()
-
-	// Assert the correct results
-	assertResults(t, r, &resultExpectation{
-		createDeployment:  nil,
-		deploymentUpdates: nil,
-		place:             8,
-		inplace:           0,
-		stop:              8,
-		followupEvalWait:  100 * time.Second,
-		desiredTGUpdates: map[string]*structs.DesiredUpdates{
-			job.TaskGroups[0].Name: {
-				Place:             0,
-				Stop:              0,
-				Migrate:           4,
-				DestructiveUpdate: 0,
-				Ignore:            6,
-			},
-			job.TaskGroups[1].Name: {
-				Place:             0,
-				Stop:              0,
-				Migrate:           4,
-				DestructiveUpdate: 0,
-				Ignore:            6,
-			},
-		},
-	})
-
-	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), placeResultsToNames(r.place))
-	assertNamesHaveIndexes(t, intRange(0, 3, 0, 3), stopResultsToNames(r.stop))
-}
-
 // Tests the reconciler handles changing a job such that a deployment is created
 // while doing a scale up but as the second eval.
 func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
@@ -2976,7 +4210,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2989,7 +4223,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 		alloc.Job = job
 		alloc.JobID = job.ID
 		alloc.DeploymentID = d.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
@@ -2997,7 +4231,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 	}
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
-	reconciler := NewAllocReconciler(testLogger(), mockUpdateFn, false, job.ID, job, d, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), mockUpdateFn, false, job.ID, job, d, allocs, nil, "")
 	r := reconciler.Compute()
 
 	// Assert the correct results
@@ -3026,13 +4260,13 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
-		alloc.NodeID = structs.GenerateUUID()
+		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		alloc.TaskGroup = job.TaskGroups[0].Name
 		allocs = append(allocs, alloc)
 	}
 
-	reconciler := NewAllocReconciler(testLogger(), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil)
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, nil, allocs, nil, "")
 	r := reconciler.Compute()
 
 	d := structs.NewDeployment(job)
@@ -3057,4 +4291,380 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 
 	assertNamesHaveIndexes(t, intRange(7, 9), placeResultsToNames(r.place))
 	assertNamesHaveIndexes(t, intRange(0, 0), destructiveResultsToNames(r.destructiveUpdate))
+}
+
+// Tests that the reconciler handles rerunning a batch job in the case that the
+// allocations are from an older instance of the job.
+func TestReconciler_Batch_Rerun(t *testing.T) {
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.TaskGroups[0].Update = nil
+
+	// Create 10 allocations from the old job and have them be complete
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.ClientStatus = structs.AllocClientStatusComplete
+		alloc.DesiredStatus = structs.AllocDesiredStatusStop
+		allocs = append(allocs, alloc)
+	}
+
+	// Create a copy of the job that is "new"
+	job2 := job.Copy()
+	job2.CreateIndex++
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, true, job2.ID, job2, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             10,
+		destructive:       0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:             10,
+				DestructiveUpdate: 0,
+				Ignore:            10,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 9), placeResultsToNames(r.place))
+}
+
+// Test that a failed deployment will not result in rescheduling failed allocations
+func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+	// Create an existing failed deployment that has some placed allocs
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusFailed
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     true,
+		DesiredTotal: 5,
+		PlacedAllocs: 4,
+	}
+
+	// Create 4 allocations and mark two as failed
+	var allocs []*structs.Allocation
+	for i := 0; i < 4; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		allocs = append(allocs, alloc)
+	}
+
+	//create some allocations that are reschedulable now
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+
+	allocs[3].ClientStatus = structs.AllocClientStatusFailed
+	allocs[3].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now.Add(-10 * time.Second)}}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert that no rescheduled placements were created
+	assertResults(t, r, &resultExpectation{
+		place:             0,
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 2,
+			},
+		},
+	})
+}
+
+// Test that a running deployment with failed allocs will not result in
+// rescheduling failed allocations unless they are marked as reschedulable.
+func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Mock deployment with failed allocs, but deployment watcher hasn't marked it as failed yet
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusRunning
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     false,
+		DesiredTotal: 10,
+		PlacedAllocs: 10,
+	}
+
+	// Create 10 allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		alloc.ClientStatus = structs.AllocClientStatusFailed
+		alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+			StartedAt:  now.Add(-1 * time.Hour),
+			FinishedAt: now.Add(-10 * time.Second)}}
+		allocs = append(allocs, alloc)
+	}
+
+	// Mark half of them as reschedulable
+	for i := 0; i < 5; i++ {
+		allocs[i].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert that no rescheduled placements were created
+	assertResults(t, r, &resultExpectation{
+		place:             5,
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  5,
+				Ignore: 5,
+			},
+		},
+	})
+}
+
+// Test that a failed deployment cancels non-promoted canaries
+func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Update = &structs.UpdateStrategy{
+		Canary:          3,
+		MaxParallel:     2,
+		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 10 * time.Minute,
+		Stagger:         31 * time.Second,
+	}
+
+	// Create v1 of the job
+	jobv1 := job.Copy()
+	jobv1.Version = 1
+	jobv1.TaskGroups[0].Meta = map[string]string{"version": "1"}
+
+	// Create v2 of the job
+	jobv2 := job.Copy()
+	jobv2.Version = 2
+	jobv2.TaskGroups[0].Meta = map[string]string{"version": "2"}
+
+	d := structs.NewDeployment(jobv2)
+	state := &structs.DeploymentState{
+		Promoted:      true,
+		DesiredTotal:  3,
+		PlacedAllocs:  3,
+		HealthyAllocs: 3,
+	}
+	d.TaskGroups[job.TaskGroups[0].Name] = state
+
+	// Create the original
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		new := mock.Alloc()
+		new.Job = jobv2
+		new.JobID = job.ID
+		new.NodeID = uuid.Generate()
+		new.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		new.TaskGroup = job.TaskGroups[0].Name
+		new.DeploymentID = d.ID
+		new.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+		}
+		new.ClientStatus = structs.AllocClientStatusRunning
+		allocs = append(allocs, new)
+
+	}
+	for i := 0; i < 3; i++ {
+		new := mock.Alloc()
+		new.Job = jobv1
+		new.JobID = jobv1.ID
+		new.NodeID = uuid.Generate()
+		new.Name = structs.AllocName(jobv1.ID, jobv1.TaskGroups[0].Name, uint(i))
+		new.TaskGroup = job.TaskGroups[0].Name
+		new.DeploymentID = uuid.Generate()
+		new.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(false),
+		}
+		new.DesiredStatus = structs.AllocDesiredStatusStop
+		new.ClientStatus = structs.AllocClientStatusFailed
+		allocs = append(allocs, new)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, jobv2, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	updates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      d.ID,
+			Status:            structs.DeploymentStatusSuccessful,
+			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+		},
+	}
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: updates,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Stop:          0,
+				InPlaceUpdate: 0,
+				Ignore:        3,
+			},
+		},
+	})
+}
+
+// Test that a successful deployment with failed allocs will result in
+// rescheduling failed allocations
+func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Update = noCanaryUpdate
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	// Mock deployment with failed allocs, but deployment watcher hasn't marked it as failed yet
+	d := structs.NewDeployment(job)
+	d.Status = structs.DeploymentStatusSuccessful
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		Promoted:     false,
+		DesiredTotal: 10,
+		PlacedAllocs: 10,
+	}
+
+	// Create 10 allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.TaskGroup = job.TaskGroups[0].Name
+		alloc.DeploymentID = d.ID
+		alloc.ClientStatus = structs.AllocClientStatusFailed
+		alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
+			StartedAt:  now.Add(-1 * time.Hour),
+			FinishedAt: now.Add(-10 * time.Second)}}
+		allocs = append(allocs, alloc)
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive, false, job.ID, job, d, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Assert that rescheduled placements were created
+	assertResults(t, r, &resultExpectation{
+		place:             10,
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  10,
+				Ignore: 0,
+			},
+		},
+	})
+	assertPlaceResultsHavePreviousAllocs(t, 10, r.place)
+}
+
+// Tests force rescheduling a failed alloc that is past its reschedule limit
+func TestReconciler_ForceReschedule_Service(t *testing.T) {
+	require := require.New(t)
+
+	// Set desired 5
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+	tgName := job.TaskGroups[0].Name
+
+	// Set up reschedule policy and update stanza
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     false,
+	}
+	job.TaskGroups[0].Update = noCanaryUpdate
+
+	// Create 5 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 5; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+	}
+
+	// Mark one as failed and past its reschedule limit so not eligible to reschedule
+	allocs[0].ClientStatus = structs.AllocClientStatusFailed
+	allocs[0].RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{
+		{RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+			PrevAllocID: uuid.Generate(),
+			PrevNodeID:  uuid.Generate(),
+		},
+	}}
+
+	// Mark DesiredTransition ForceReschedule
+	allocs[0].DesiredTransition = structs.DesiredTransition{ForceReschedule: helper.BoolToPtr(true)}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job, nil, allocs, nil, "")
+	r := reconciler.Compute()
+
+	// Verify that no follow up evals were created
+	evals := r.desiredFollowupEvals[tgName]
+	require.Nil(evals)
+
+	// Verify that one rescheduled alloc was created because of the forced reschedule
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  1,
+				Ignore: 4,
+			},
+		},
+	})
+
+	// Rescheduled allocs should have previous allocs
+	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.place))
+	assertPlaceResultsHavePreviousAllocs(t, 1, r.place)
+	assertPlacementsAreRescheduled(t, 1, r.place)
 }

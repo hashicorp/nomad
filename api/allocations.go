@@ -48,13 +48,9 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 }
 
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
-	if err != nil {
-		return nil, err
-	}
-
 	var resp AllocResourceUsage
-	_, err = nodeClient.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, nil)
+	path := fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID)
+	_, err := a.client.query(path, &resp, q)
 	return &resp, err
 }
 
@@ -81,20 +77,26 @@ type Allocation struct {
 	TaskGroup          string
 	Resources          *Resources
 	TaskResources      map[string]*Resources
+	AllocatedResources *AllocatedResources
 	Services           map[string]string
 	Metrics            *AllocationMetric
 	DesiredStatus      string
 	DesiredDescription string
+	DesiredTransition  DesiredTransition
 	ClientStatus       string
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
 	DeploymentID       string
 	DeploymentStatus   *AllocDeploymentStatus
+	FollowupEvalID     string
 	PreviousAllocation string
+	NextAllocation     string
+	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	AllocModifyIndex   uint64
 	CreateTime         int64
+	ModifyTime         int64
 }
 
 // AllocationMetric is used to deserialize allocation metrics.
@@ -107,9 +109,20 @@ type AllocationMetric struct {
 	NodesExhausted     int
 	ClassExhausted     map[string]int
 	DimensionExhausted map[string]int
-	Scores             map[string]float64
-	AllocationTime     time.Duration
-	CoalescedFailures  int
+	QuotaExhausted     []string
+	// Deprecated, replaced with ScoreMetaData
+	Scores            map[string]float64
+	AllocationTime    time.Duration
+	CoalescedFailures int
+	ScoreMetaData     []*NodeScoreMeta
+}
+
+// NodeScoreMeta is used to serialize node scoring metadata
+// displayed in the CLI during verbose mode
+type NodeScoreMeta struct {
+	NodeID    string
+	Scores    map[string]float64
+	NormScore float64
 }
 
 // AllocationListStub is used to return a subset of an allocation
@@ -128,17 +141,45 @@ type AllocationListStub struct {
 	ClientDescription  string
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
+	FollowupEvalID     string
+	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
+	ModifyTime         int64
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the
 // deployment. This can include things like if the allocation has been marked as
-// heatlhy.
+// healthy.
 type AllocDeploymentStatus struct {
 	Healthy     *bool
+	Timestamp   time.Time
+	Canary      bool
 	ModifyIndex uint64
+}
+
+type AllocatedResources struct {
+	Tasks  map[string]*AllocatedTaskResources
+	Shared AllocatedSharedResources
+}
+
+type AllocatedTaskResources struct {
+	Cpu      AllocatedCpuResources
+	Memory   AllocatedMemoryResources
+	Networks []*NetworkResource
+}
+
+type AllocatedSharedResources struct {
+	DiskMB int64
+}
+
+type AllocatedCpuResources struct {
+	CpuShares int64
+}
+
+type AllocatedMemoryResources struct {
+	MemoryMB int64
 }
 
 // AllocIndexSort reverse sorts allocs by CreateIndex.
@@ -154,4 +195,68 @@ func (a AllocIndexSort) Less(i, j int) bool {
 
 func (a AllocIndexSort) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
+}
+
+// RescheduleInfo is used to calculate remaining reschedule attempts
+// according to the given time and the task groups reschedule policy
+func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
+	var reschedulePolicy *ReschedulePolicy
+	for _, tg := range a.Job.TaskGroups {
+		if *tg.Name == a.TaskGroup {
+			reschedulePolicy = tg.ReschedulePolicy
+		}
+	}
+	if reschedulePolicy == nil {
+		return 0, 0
+	}
+	availableAttempts := *reschedulePolicy.Attempts
+	interval := *reschedulePolicy.Interval
+	attempted := 0
+
+	// Loop over reschedule tracker to find attempts within the restart policy's interval
+	if a.RescheduleTracker != nil && availableAttempts > 0 && interval > 0 {
+		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
+			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
+			timeDiff := t.UTC().UnixNano() - lastAttempt
+			if timeDiff < interval.Nanoseconds() {
+				attempted += 1
+			}
+		}
+	}
+	return attempted, availableAttempts
+}
+
+// RescheduleTracker encapsulates previous reschedule events
+type RescheduleTracker struct {
+	Events []*RescheduleEvent
+}
+
+// RescheduleEvent is used to keep track of previous attempts at rescheduling an allocation
+type RescheduleEvent struct {
+	// RescheduleTime is the timestamp of a reschedule attempt
+	RescheduleTime int64
+
+	// PrevAllocID is the ID of the previous allocation being restarted
+	PrevAllocID string
+
+	// PrevNodeID is the node ID of the previous allocation
+	PrevNodeID string
+}
+
+// DesiredTransition is used to mark an allocation as having a desired state
+// transition. This information can be used by the scheduler to make the
+// correct decision.
+type DesiredTransition struct {
+	// Migrate is used to indicate that this allocation should be stopped and
+	// migrated to another node.
+	Migrate *bool
+
+	// Reschedule is used to indicate that this allocation is eligible to be
+	// rescheduled.
+	Reschedule *bool
+}
+
+// ShouldMigrate returns whether the transition object dictates a migration.
+func (d DesiredTransition) ShouldMigrate() bool {
+	return d.Migrate != nil && *d.Migrate
 }

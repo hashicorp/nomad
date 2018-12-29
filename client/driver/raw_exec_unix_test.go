@@ -3,16 +3,59 @@
 package driver
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
+
+func TestRawExecDriver_User(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
+	task := &structs.Task{
+		Name:   "sleep",
+		Driver: "raw_exec",
+		User:   "alice",
+		Config: map[string]interface{}{
+			"command": testtask.Path(),
+			"args":    []string{"sleep", "45s"},
+		},
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      10,
+			MaxFileSizeMB: 10,
+		},
+		Resources: basicResources,
+	}
+	testtask.SetTaskEnv(task)
+
+	ctx := testDriverContexts(t, task)
+	defer ctx.Destroy()
+	d := NewRawExecDriver(ctx.DriverCtx)
+
+	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+		t.Fatalf("prestart err: %v", err)
+	}
+	resp, err := d.Start(ctx.ExecCtx, task)
+	if err == nil {
+		resp.Handle.Kill()
+		t.Fatalf("Should've failed")
+	}
+	msg := "unknown user alice"
+	if !strings.Contains(err.Error(), msg) {
+		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+	}
+}
 
 func TestRawExecDriver_Signal(t *testing.T) {
 	t.Parallel()
@@ -32,7 +75,7 @@ func TestRawExecDriver_Signal(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
 	testFile := filepath.Join(ctx.ExecCtx.TaskDir.Dir, "test.sh")
@@ -78,14 +121,17 @@ done
 
 	// Check the log file to see it exited because of the signal
 	outputFile := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "signal.stdout.0")
-	act, err := ioutil.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("Couldn't read expected output: %v", err)
-	}
-
 	exp := "Terminated."
-	if strings.TrimSpace(string(act)) != exp {
-		t.Logf("Read from %v", outputFile)
-		t.Fatalf("Command outputted %v; want %v", act, exp)
-	}
+	testutil.WaitForResult(func() (bool, error) {
+		act, err := ioutil.ReadFile(outputFile)
+		if err != nil {
+			return false, fmt.Errorf("Couldn't read expected output: %v", err)
+		}
+
+		if strings.TrimSpace(string(act)) != exp {
+			t.Logf("Read from %v", outputFile)
+			return false, fmt.Errorf("Command outputted %v; want %v", act, exp)
+		}
+		return true, nil
+	}, func(err error) { require.NoError(t, err) })
 }

@@ -1,10 +1,11 @@
 package scheduler
 
 import (
-	"log"
 	"regexp"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -18,7 +19,7 @@ type Context interface {
 	Plan() *structs.Plan
 
 	// Logger provides a way to log
-	Logger() *log.Logger
+	Logger() log.Logger
 
 	// Metrics returns the current metrics
 	Metrics() *structs.AllocMetric
@@ -34,8 +35,8 @@ type Context interface {
 	// RegexpCache is a cache of regular expressions
 	RegexpCache() map[string]*regexp.Regexp
 
-	// ConstraintCache is a cache of version constraints
-	ConstraintCache() map[string]version.Constraints
+	// VersionConstraintCache is a cache of version constraints
+	VersionConstraintCache() map[string]version.Constraints
 
 	// Eligibility returns a tracker for node eligibility in the context of the
 	// eval.
@@ -54,7 +55,8 @@ func (e *EvalCache) RegexpCache() map[string]*regexp.Regexp {
 	}
 	return e.reCache
 }
-func (e *EvalCache) ConstraintCache() map[string]version.Constraints {
+
+func (e *EvalCache) VersionConstraintCache() map[string]version.Constraints {
 	if e.constraintCache == nil {
 		e.constraintCache = make(map[string]version.Constraints)
 	}
@@ -66,13 +68,13 @@ type EvalContext struct {
 	EvalCache
 	state       State
 	plan        *structs.Plan
-	logger      *log.Logger
+	logger      log.Logger
 	metrics     *structs.AllocMetric
 	eligibility *EvalEligibility
 }
 
 // NewEvalContext constructs a new EvalContext
-func NewEvalContext(s State, p *structs.Plan, log *log.Logger) *EvalContext {
+func NewEvalContext(s State, p *structs.Plan, log log.Logger) *EvalContext {
 	ctx := &EvalContext{
 		state:   s,
 		plan:    p,
@@ -90,7 +92,7 @@ func (e *EvalContext) Plan() *structs.Plan {
 	return e.plan
 }
 
-func (e *EvalContext) Logger() *log.Logger {
+func (e *EvalContext) Logger() log.Logger {
 	return e.logger
 }
 
@@ -185,6 +187,10 @@ type EvalEligibility struct {
 	// tgEscapedConstraints is a map of task groups to whether constraints have
 	// escaped.
 	tgEscapedConstraints map[string]bool
+
+	// quotaReached marks that the quota limit has been reached for the given
+	// quota
+	quotaReached string
 }
 
 // NewEvalEligibility returns an eligibility tracker for the context of an evaluation.
@@ -327,4 +333,15 @@ func (e *EvalEligibility) SetTaskGroupEligibility(eligible bool, tg, class strin
 	} else {
 		e.taskGroups[tg] = map[string]ComputedClassFeasibility{class: eligibility}
 	}
+}
+
+// SetQuotaLimitReached marks that the quota limit has been reached for the
+// given quota
+func (e *EvalEligibility) SetQuotaLimitReached(quota string) {
+	e.quotaReached = quota
+}
+
+// QuotaLimitReached returns the quota name if the quota limit has been reached.
+func (e *EvalEligibility) QuotaLimitReached() string {
+	return e.quotaReached
 }

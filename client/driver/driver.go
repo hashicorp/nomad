@@ -88,7 +88,7 @@ func NewCreatedResources() *CreatedResources {
 // Add a new resource if it doesn't already exist.
 func (r *CreatedResources) Add(k, v string) {
 	if r.Resources == nil {
-		r.Resources = map[string][]string{k: []string{v}}
+		r.Resources = map[string][]string{k: {v}}
 		return
 	}
 	existing, ok := r.Resources[k]
@@ -126,7 +126,7 @@ func (r *CreatedResources) Remove(k, needle string) bool {
 	return false
 }
 
-// Copy returns a new deep copy of CreatedResrouces.
+// Copy returns a new deep copy of CreatedResources.
 func (r *CreatedResources) Copy() *CreatedResources {
 	if r == nil {
 		return nil
@@ -209,7 +209,7 @@ type Driver interface {
 	fingerprint.Fingerprint
 
 	// Prestart prepares the task environment and performs expensive
-	// intialization steps like downloading images.
+	// initialization steps like downloading images.
 	//
 	// CreatedResources may be non-nil even when an error occurs.
 	Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error)
@@ -257,13 +257,15 @@ type LogEventFn func(message string, args ...interface{})
 
 // DriverContext is a means to inject dependencies such as loggers, configs, and
 // node attributes into a Driver without having to change the Driver interface
-// each time we do it. Used in conjection with Factory, above.
+// each time we do it. Used in conjunction with Factory, above.
 type DriverContext struct {
-	taskName string
-	allocID  string
-	config   *config.Config
-	logger   *log.Logger
-	node     *structs.Node
+	jobName       string
+	taskGroupName string
+	taskName      string
+	allocID       string
+	config        *config.Config
+	logger        *log.Logger
+	node          *structs.Node
 
 	emitEvent LogEventFn
 }
@@ -278,15 +280,18 @@ func NewEmptyDriverContext() *DriverContext {
 // This enables other packages to create DriverContexts but keeps the fields
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
-func NewDriverContext(taskName, allocID string, config *config.Config, node *structs.Node,
+func NewDriverContext(jobName, taskGroupName, taskName, allocID string,
+	config *config.Config, node *structs.Node,
 	logger *log.Logger, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
-		taskName:  taskName,
-		allocID:   allocID,
-		config:    config,
-		node:      node,
-		logger:    logger,
-		emitEvent: eventEmitter,
+		jobName:       jobName,
+		taskGroupName: taskGroupName,
+		taskName:      taskName,
+		allocID:       allocID,
+		config:        config,
+		node:          node,
+		logger:        logger,
+		emitEvent:     eventEmitter,
 	}
 }
 
@@ -315,6 +320,10 @@ type DriverHandle interface {
 	// ScriptExecutor is an interface used to execute commands such as
 	// health check scripts in the a DriverHandle's context.
 	ScriptExecutor
+
+	// Network returns the driver's network or nil if the driver did not
+	// create a network.
+	Network() *cstructs.DriverNetwork
 }
 
 // ScriptExecutor is an interface that supports Exec()ing commands in the
@@ -330,6 +339,12 @@ type ExecContext struct {
 
 	// TaskEnv contains the task's environment variables.
 	TaskEnv *env.TaskEnv
+
+	// StdoutFifo is the path to the named pipe to write stdout to
+	StdoutFifo string
+
+	// StderrFifo is the path to the named pipe to write stderr to
+	StderrFifo string
 }
 
 // NewExecContext is used to create a new execution context
@@ -338,16 +353,6 @@ func NewExecContext(td *allocdir.TaskDir, te *env.TaskEnv) *ExecContext {
 		TaskDir: td,
 		TaskEnv: te,
 	}
-}
-
-func mapMergeStrInt(maps ...map[string]int) map[string]int {
-	out := map[string]int{}
-	for _, in := range maps {
-		for key, val := range in {
-			out[key] = val
-		}
-	}
-	return out
 }
 
 func mapMergeStrStr(maps ...map[string]string) map[string]string {

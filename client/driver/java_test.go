@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
@@ -41,21 +43,26 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		Resources: structs.DefaultResources(),
 	}
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 	node := &structs.Node{
 		Attributes: map[string]string{
 			"unique.cgroup.mountpoint": "/sys/fs/cgroups",
 		},
 	}
-	apply, err := d.Fingerprint(&config.Config{}, node)
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply != javaLocated() {
-		t.Fatalf("Fingerprinter should detect Java when it is installed")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
-	if node.Attributes["driver.java"] != "1" {
+
+	if response.Attributes["driver.java"] != "1" && javaLocated() {
 		if v, ok := osJavaDriverSupport[runtime.GOOS]; v && ok {
 			t.Fatalf("missing java driver")
 		} else {
@@ -63,7 +70,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		}
 	}
 	for _, key := range []string{"driver.java.version", "driver.java.runtime", "driver.java.vm"} {
-		if node.Attributes[key] == "" {
+		if response.Attributes[key] == "" {
 			t.Fatalf("missing driver key (%s)", key)
 		}
 	}
@@ -93,7 +100,7 @@ func TestJavaDriver_StartOpen_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -149,7 +156,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -174,7 +181,7 @@ func TestJavaDriver_Start_Wait(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	// Get the stdout of the process and assrt that it's not empty
+	// Get the stdout of the process and assert that it's not empty
 	stdout := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "demo-app.stdout.0")
 	fInfo, err := os.Stat(stdout)
 	if err != nil {
@@ -205,6 +212,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
+			"args":     []string{"5"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -214,7 +222,7 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -229,16 +237,19 @@ func TestJavaDriver_Start_Kill_Wait(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		err := resp.Handle.Kill()
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
 		}
 	}()
 
 	// Task should terminate quickly
 	select {
+	case err := <-errCh:
+		t.Fatalf("err: %v", err)
 	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatal("should err")
@@ -267,6 +278,7 @@ func TestJavaDriver_Signal(t *testing.T) {
 		Driver: "java",
 		Config: map[string]interface{}{
 			"jar_path": "demoapp.jar",
+			"args":     []string{"5"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -276,7 +288,7 @@ func TestJavaDriver_Signal(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -291,16 +303,19 @@ func TestJavaDriver_Signal(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		err := resp.Handle.Signal(syscall.SIGHUP)
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
 		}
 	}()
 
 	// Task should terminate quickly
 	select {
+	case err := <-errCh:
+		t.Fatalf("err: %v", err)
 	case res := <-resp.Handle.WaitCh():
 		if res.Successful() {
 			t.Fatal("should err")
@@ -342,7 +357,7 @@ func TestJavaDriver_User(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
@@ -384,7 +399,7 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 	}
 
 	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
+	defer ctx.Destroy()
 	d := NewJavaDriver(ctx.DriverCtx)
 
 	// Copy the test jar into the task's directory
@@ -409,7 +424,7 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	// Get the stdout of the process and assrt that it's not empty
+	// Get the stdout of the process and assert that it's not empty
 	stdout := filepath.Join(ctx.ExecCtx.TaskDir.LogDir, "demo-app.stdout.0")
 	fInfo, err := os.Stat(stdout)
 	if err != nil {
@@ -422,5 +437,87 @@ func TestJavaDriver_Start_Wait_Class(t *testing.T) {
 	// need to kill long lived process
 	if err := resp.Handle.Kill(); err != nil {
 		t.Fatalf("Error: %s", err)
+	}
+}
+
+func TestJavaDriver_Start_Kill(t *testing.T) {
+	assert := assert.New(t)
+
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if !javaLocated() {
+		t.Skip("Java not found; skipping")
+	}
+
+	// Test that a valid kill signal will successfully stop the process
+	{
+		ctestutils.JavaCompatible(t)
+		task := &structs.Task{
+			Name:       "demo-app",
+			Driver:     "java",
+			KillSignal: "SIGKILL",
+			Config: map[string]interface{}{
+				"jar_path": "demoapp.jar",
+				"args":     []string{"5"},
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: basicResources,
+		}
+
+		ctx := testDriverContexts(t, task)
+		defer ctx.Destroy()
+		d := NewJavaDriver(ctx.DriverCtx)
+
+		// Copy the test jar into the task's directory
+		dst := ctx.ExecCtx.TaskDir.Dir
+		copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
+
+		_, err := d.Prestart(ctx.ExecCtx, task)
+		assert.Nil(err)
+
+		resp, err := d.Start(ctx.ExecCtx, task)
+		assert.Nil(err)
+
+		assert.NotNil(resp.Handle)
+		err = resp.Handle.Kill()
+		assert.Nil(err)
+	}
+
+	// Test that an unsupported kill signal will return an error
+	{
+		ctestutils.JavaCompatible(t)
+		task := &structs.Task{
+			Name:       "demo-app",
+			Driver:     "java",
+			KillSignal: "ABCDEF",
+			Config: map[string]interface{}{
+				"jar_path": "demoapp.jar",
+				"args":     []string{"5"},
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: basicResources,
+		}
+
+		ctx := testDriverContexts(t, task)
+		defer ctx.Destroy()
+		d := NewJavaDriver(ctx.DriverCtx)
+
+		// Copy the test jar into the task's directory
+		dst := ctx.ExecCtx.TaskDir.Dir
+		copyFile("./test-resources/java/demoapp.jar", filepath.Join(dst, "demoapp.jar"), t)
+
+		_, err := d.Prestart(ctx.ExecCtx, task)
+		assert.Nil(err)
+
+		_, err = d.Start(ctx.ExecCtx, task)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), "Signal ABCDEF is not supported")
 	}
 }

@@ -1,0 +1,22 @@
+.error-container {
+  width: 100%;
+  height: 100%;
+  padding-top: 25vh;
+  display: flex;
+  justify-content: center;
+  background: $grey-lighter;
+
+  .error-message {
+    max-width: 600px;
+
+    .title,
+    .subtitle {
+      text-align: center;
+    }
+  }
+
+  .error-stack-trace {
+    border: 1px solid $grey-light;
+    border-radius: $radius;
+  }
+}

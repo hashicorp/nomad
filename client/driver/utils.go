@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul-template/signals"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -47,7 +49,7 @@ func createExecutor(w io.Writer, clientConfig *config.Config,
 		Cmd: exec.Command(bin, "executor", string(c)),
 	}
 	config.HandshakeConfig = HandshakeConfig
-	config.Plugins = GetPluginMap(w, clientConfig.LogLevel)
+	config.Plugins = GetPluginMap(w, hclog.LevelFromString(clientConfig.LogLevel), executorConfig.FSIsolation)
 	config.MaxPort = clientConfig.ClientMaxPort
 	config.MinPort = clientConfig.ClientMinPort
 
@@ -76,7 +78,7 @@ func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 
 	// Setting this to DEBUG since the log level at the executor server process
 	// is already set, and this effects only the executor client.
-	config.Plugins = GetPluginMap(w, "DEBUG")
+	config.Plugins = GetPluginMap(w, hclog.Debug, false)
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
@@ -92,11 +94,6 @@ func createExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (executo
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}
-	// 0.6 Upgrade path: Deregister services from the executor as the Nomad
-	// client agent now handles all Consul interactions. Ignore errors as
-	// this shouldn't cause the alloc to fail and there's nothing useful to
-	// do with them.
-	executorPlugin.DeregisterServices()
 	return executorPlugin, executorClient, nil
 }
 
@@ -177,7 +174,7 @@ func GetAbsolutePath(bin string) (string, error) {
 // dstructs.DefaultUnprivilegedUser if none was given.
 func getExecutorUser(task *structs.Task) string {
 	if task.User == "" {
-		return dstructs.DefaultUnpriviledgedUser
+		return dstructs.DefaultUnprivilegedUser
 	}
 	return task.User
 }
@@ -203,4 +200,19 @@ func SetEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allo
 		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
 		envBuilder.SetHostEnvvars(filter)
 	}
+}
+
+// getTaskKillSignal looks up the signal specified for the task if it has been
+// specified. If it is not supported on the platform, returns an error.
+func getTaskKillSignal(signal string) (os.Signal, error) {
+	if signal == "" {
+		return os.Interrupt, nil
+	}
+
+	taskKillSignal := signals.SignalLookup[signal]
+	if taskKillSignal == nil {
+		return nil, fmt.Errorf("Signal %s is not supported", signal)
+	}
+
+	return taskKillSignal, nil
 }

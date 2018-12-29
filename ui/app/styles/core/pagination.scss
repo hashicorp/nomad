@@ -1,0 +1,30 @@
+.pagination {
+  color: $grey;
+
+  .pagination-numbers {
+    padding: 0.75rem 0.5rem;
+    white-space: nowrap;
+    order: 2;
+  }
+
+  .pagination-previous,
+  .pagination-next,
+  .pagination-link {
+    color: $text;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0.75rem 0.5rem;
+    height: auto;
+    text-decoration: none;
+
+    &:hover {
+      box-shadow: none;
+      background-color: darken($white-ter, 5%);
+    }
+
+    &:active {
+      background-color: darken($white-ter, 10%);
+    }
+  }
+}

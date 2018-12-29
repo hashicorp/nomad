@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkServiceStack_With_ComputedClass(b *testing.B) {
@@ -47,8 +48,9 @@ func benchmarkServiceStack_MetaKeyConstraint(b *testing.B, key string, numNodes,
 	stack.SetJob(job)
 
 	b.ResetTimer()
+	selectOptions := &SelectOptions{}
 	for i := 0; i < b.N; i++ {
-		stack.Select(job.TaskGroups[0])
+		stack.Select(job.TaskGroups[0], selectOptions)
 	}
 }
 
@@ -104,16 +106,10 @@ func TestServiceStack_Select_Size(t *testing.T) {
 
 	job := mock.Job()
 	stack.SetJob(job)
-	node, size := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-	if size == nil {
-		t.Fatalf("missing size")
-	}
-
-	if size.CPU != 500 || size.MemoryMB != 256 {
-		t.Fatalf("bad: %#v", size)
 	}
 
 	// Note: On Windows time.Now currently has a best case granularity of 1ms.
@@ -138,7 +134,9 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 
 	// Create a preferred node
 	preferredNode := mock.Node()
-	option, _ := stack.SelectPreferringNodes(job.TaskGroups[0], []*structs.Node{preferredNode})
+	prefNodes := []*structs.Node{preferredNode}
+	selectOptions := &SelectOptions{PreferredNodes: prefNodes}
+	option := stack.Select(job.TaskGroups[0], selectOptions)
 	if option == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -146,12 +144,17 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 		t.Fatalf("expected: %v, actual: %v", option.Node.ID, preferredNode.ID)
 	}
 
+	// Make sure select doesn't have a side effect on preferred nodes
+	require.Equal(t, prefNodes, selectOptions.PreferredNodes)
+
 	// Change the preferred node's kernel to windows and ensure the allocations
 	// are placed elsewhere
 	preferredNode1 := preferredNode.Copy()
 	preferredNode1.Attributes["kernel.name"] = "windows"
 	preferredNode1.ComputeClass()
-	option, _ = stack.SelectPreferringNodes(job.TaskGroups[0], []*structs.Node{preferredNode1})
+	prefNodes1 := []*structs.Node{preferredNode1}
+	selectOptions = &SelectOptions{PreferredNodes: prefNodes1}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
 	if option == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -159,6 +162,7 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 	if option.Node.ID != nodes[0].ID {
 		t.Fatalf("expected: %#v, actual: %#v", nodes[0], option.Node)
 	}
+	require.Equal(t, prefNodes1, selectOptions.PreferredNodes)
 }
 
 func TestServiceStack_Select_MetricsReset(t *testing.T) {
@@ -174,7 +178,8 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 
 	job := mock.Job()
 	stack.SetJob(job)
-	n1, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	n1 := stack.Select(job.TaskGroups[0], selectOptions)
 	m1 := ctx.Metrics()
 	if n1 == nil {
 		t.Fatalf("missing node %#v", m1)
@@ -184,7 +189,7 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 		t.Fatalf("should only be 2")
 	}
 
-	n2, _ := stack.Select(job.TaskGroups[0])
+	n2 := stack.Select(job.TaskGroups[0], selectOptions)
 	m2 := ctx.Metrics()
 	if n2 == nil {
 		t.Fatalf("missing node %#v", m2)
@@ -215,7 +220,8 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	job.TaskGroups[0].Tasks[0].Driver = "foo"
 	stack.SetJob(job)
 
-	node, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -243,8 +249,8 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	job := mock.Job()
 	job.Constraints[0].RTarget = "freebsd"
 	stack.SetJob(job)
-
-	node, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -273,15 +279,20 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	}
 	zero := nodes[0]
 	one := nodes[1]
-	one.Reserved = one.Resources
+	one.ReservedResources = &structs.NodeReservedResources{
+		Cpu: structs.NodeReservedCpuResources{
+			CpuShares: one.NodeResources.Cpu.CpuShares,
+		},
+	}
 
 	stack := NewGenericStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
 	stack.SetJob(job)
-
-	node, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	ctx.Metrics().PopulateScoreMetaData()
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -297,7 +308,8 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	if met.ClassExhausted["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if len(met.Scores) != 1 {
+	// Expect score metadata for one node
+	if len(met.ScoreMetaData) != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }
@@ -347,16 +359,10 @@ func TestSystemStack_Select_Size(t *testing.T) {
 
 	job := mock.Job()
 	stack.SetJob(job)
-	node, size := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-	if size == nil {
-		t.Fatalf("missing size")
-	}
-
-	if size.CPU != 500 || size.MemoryMB != 256 {
-		t.Fatalf("bad: %#v", size)
 	}
 
 	// Note: On Windows time.Now currently has a best case granularity of 1ms.
@@ -381,7 +387,8 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 
 	job := mock.Job()
 	stack.SetJob(job)
-	n1, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	n1 := stack.Select(job.TaskGroups[0], selectOptions)
 	m1 := ctx.Metrics()
 	if n1 == nil {
 		t.Fatalf("missing node %#v", m1)
@@ -391,7 +398,7 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 		t.Fatalf("should only be 1")
 	}
 
-	n2, _ := stack.Select(job.TaskGroups[0])
+	n2 := stack.Select(job.TaskGroups[0], selectOptions)
 	m2 := ctx.Metrics()
 	if n2 == nil {
 		t.Fatalf("missing node %#v", m2)
@@ -418,7 +425,8 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	job.TaskGroups[0].Tasks[0].Driver = "foo"
 	stack.SetJob(job)
 
-	node, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -435,7 +443,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	stack = NewSystemStack(ctx)
 	stack.SetNodes(nodes)
 	stack.SetJob(job)
-	node, _ = stack.Select(job.TaskGroups[0])
+	node = stack.Select(job.TaskGroups[0], selectOptions)
 	if node != nil {
 		t.Fatalf("node not filtered %#v", node)
 	}
@@ -460,7 +468,8 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 	job.Constraints[0].RTarget = "freebsd"
 	stack.SetJob(job)
 
-	node, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -488,7 +497,11 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 		mock.Node(),
 	}
 	zero := nodes[0]
-	zero.Reserved = zero.Resources
+	zero.ReservedResources = &structs.NodeReservedResources{
+		Cpu: structs.NodeReservedCpuResources{
+			CpuShares: zero.NodeResources.Cpu.CpuShares,
+		},
+	}
 	one := nodes[1]
 
 	stack := NewSystemStack(ctx)
@@ -497,7 +510,9 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	job := mock.Job()
 	stack.SetJob(job)
 
-	node, _ := stack.Select(job.TaskGroups[0])
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	ctx.Metrics().PopulateScoreMetaData()
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
 	}
@@ -513,7 +528,8 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	if met.ClassExhausted["linux-medium-pci"] != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
-	if len(met.Scores) != 1 {
+	// Should have two scores, one from bin packing and one from normalization
+	if len(met.ScoreMetaData) != 1 {
 		t.Fatalf("bad: %#v", met)
 	}
 }

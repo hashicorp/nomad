@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"golang.org/x/sys/unix"
 )
 
@@ -21,7 +22,7 @@ func TestLinuxSpecialDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(allocDir)
 
-	td := newTaskDir(testLogger(), allocDir, "test")
+	td := newTaskDir(testlog.HCLogger(t), allocDir, "test")
 
 	// Despite the task dir not existing, unmountSpecialDirs should *not*
 	// return an error

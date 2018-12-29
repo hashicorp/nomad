@@ -94,14 +94,19 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   prevent a thundering herd problem where all task instances restart at the same
   time.
 
-- `vault_grace` `(string: "5m")` - Specifies the grace period between lease
-  renewal and secret re-acquisition. When renewing a secret, if the remaining
-  lease is less than or equal to the configured grace, the template will request
-  a new credential. This prevents Vault from revoking the secret at its
-  expiration and the task having a stale secret. If the grace is set to a value
-  that is higher than your default TTL or max TTL, the template will always read
-  a new secret. If the task defines several templates, the `vault_grace` will be
-  set to the lowest value across all the templates.
+-   `vault_grace` `(string: "15s")` - Specifies the grace period between lease
+    renewal and secret re-acquisition. When renewing a secret, if the remaining
+    lease is less than or equal to the configured grace, the template will request
+    a new credential. This prevents Vault from revoking the secret at its
+    expiration and the task having a stale secret.
+
+    If the grace is set to a value that is higher than your default TTL or max
+    TTL, the template will always read a new secret. **If secrets are being
+    renewed constantly, decrease the `vault_grace`.**
+
+    If the task defines several templates, the `vault_grace` will be set to the
+    lowest value across all the templates.
+
 
 ## `template` Examples
 
@@ -186,7 +191,7 @@ template {
 
 # Empty lines are also ignored
 LOG_LEVEL="{{key "service/geo-api/log-verbosity"}}"
-API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.key}}{{end}}"
+API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.value}}{{end}}"
 EOH
 
   destination = "secrets/file.env"
@@ -216,12 +221,64 @@ The parser will read the JSON string, so the `$CERT_PEM` environment variable
 will be identical to the contents of the file.
 
 For more details see [go-envparser's
-README](https://github.com/schmichael/go-envparse#readme).
+README](https://github.com/hashicorp/go-envparse#readme).
+
+## Vault Integration
+
+### PKI Certificate
+
+This example acquires a PKI certificate from Vault in PEM format and stores it into your application's secret directory.
+
+```hcl
+template {
+  data = <<EOH
+{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" "format=pem" }}
+{{ .Data.certificate }}
+{{ .Data.issuing_ca }}
+{{ .Data.private_key }}{{ end }}
+EOH
+  destination   = "${NOMAD_SECRETS_DIR}/bundle.pem"
+  change_mode   = "restart"
+}
+```
+
+### Vault KV API v1
+
+Under Vault KV API v1, paths start with `secret/`, and the response returns the
+raw key/value data. This secret was set using
+`vault kv put secret/aws/s3 aws_access_key_id=somekeyid`.
+
+```hcl
+  template {
+    data = <<EOF
+      AWS_ACCESS_KEY_ID = "{{with secret "secret/aws/s3"}}{{.Data.aws_access_key_id}}{{end}}"
+    EOF
+  }
+```
+
+### Vault KV API v2
+
+Under Vault KV API v2, paths start with `secret/data/`, and the response returns
+metadata in addition to key/value data. This secret was set using
+`vault kv put secret/aws/s3 aws_access_key_id=somekeyid`.
+
+```hcl
+  template {
+    data = <<EOF
+      AWS_ACCESS_KEY_ID = "{{with secret "secret/data/aws/s3"}}{{.Data.data.aws_access_key_id}}{{end}}"
+    EOF
+  }
+```
+
+Notice the addition of `data` in both the path and the field accessor string.
+Additionally, when using the Vault v2 API, the Vault policies applied to your
+Nomad jobs will need to grant permissions to `read` under `secret/data/...`
+rather than `secret/...`.
 
 ## Client Configuration
 
 The `template` block has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `template.allow_host_source` - Allows templates to specify their source
   template as an absolute path referencing host directories. Defaults to `true`.

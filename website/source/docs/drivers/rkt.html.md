@@ -10,7 +10,7 @@ description: |-
 
 Name: `rkt`
 
-The `rkt` driver provides an interface for using CoreOS rkt for running
+The `rkt` driver provides an interface for using rkt for running
 application containers.
 
 ## Task Configuration
@@ -114,6 +114,10 @@ The `rkt` driver supports the following configuration in the job spec:
     }
     ```
 
+* `group` - (Optional) Specifies the group that will run the task. Sets the
+  `--group` flag and overrides the group specified by the image. The
+  [`user`][user] may be specified at the task level.
+
 ## Networking
 
 The `rkt` can specify `--net` and `--port` for the rkt client. Hence, there are two ways to use host ports by
@@ -167,7 +171,7 @@ over HTTP.
 ## Client Configuration
 
 The `rkt` driver has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `rkt.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container. Binding relative paths is always allowed
@@ -180,8 +184,8 @@ The `rkt` driver will set the following client attributes:
 
 * `driver.rkt` - Set to `1` if rkt is found on the host node. Nomad determines
   this by executing `rkt version` on the host and parsing the output
-* `driver.rkt.version` - Version of `rkt` e.g.: `1.1.0`. Note that the minimum required
-  version is `1.0.0`
+* `driver.rkt.version` - Version of `rkt` e.g.: `1.27.0`. Note that the minimum required
+  version is `1.27.0`
 * `driver.rkt.appc.version` - Version of `appc` that `rkt` is using e.g.: `1.1.0`
 
 Here is an example of using these properties in a job file:
@@ -201,3 +205,6 @@ job "docs" {
 
 This driver supports CPU and memory isolation by delegating to `rkt`. Network
 isolation is not supported as of now.
+
+
+[user]: /docs/job-specification/task.html#user

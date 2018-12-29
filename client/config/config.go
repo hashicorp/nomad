@@ -8,10 +8,13 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/version"
 )
 
@@ -21,12 +24,11 @@ var (
 	DefaultEnvBlacklist = strings.Join([]string{
 		"CONSUL_TOKEN",
 		"VAULT_TOKEN",
-		"ATLAS_TOKEN",
 		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
 
-	// DefaulUserBlacklist is the default set of users that tasks are not
+	// DefaultUserBlacklist is the default set of users that tasks are not
 	// allowed to run as when using a driver in "user.checked_drivers"
 	DefaultUserBlacklist = strings.Join([]string{
 		"root",
@@ -78,6 +80,9 @@ type Config struct {
 	// LogOutput is the destination for logs
 	LogOutput io.Writer
 
+	// Logger provides a logger to thhe client
+	Logger log.Logger
+
 	// Region is the clients region
 	Region string
 
@@ -91,6 +96,10 @@ type Config struct {
 	// CpuCompute is the default total CPU compute if they can not be determined
 	// dynamically. It should be given as Cores * MHz (2 Cores * 2 Ghz = 4000)
 	CpuCompute int
+
+	// MemoryMB is the default node total memory in megabytes if it cannot be
+	// determined dynamically.
+	MemoryMB int
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
 	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
@@ -114,10 +123,6 @@ type Config struct {
 	// ClientMinPort is the lower range of the ports that the client uses for
 	// communicating with plugin subsystems over loopback
 	ClientMinPort uint
-
-	// GloballyReservedPorts are ports that are reserved across all network
-	// devices and IPs.
-	GloballyReservedPorts []int
 
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
@@ -194,8 +199,22 @@ type Config struct {
 	DisableTaggedMetrics bool
 
 	// BackwardsCompatibleMetrics determines whether to show methods of
-	// displaying metrics for older verions, or to only show the new format
+	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
+
+	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
+	// This is used to paper over a loss of leadership by instead holding RPCs,
+	// so that the caller experiences a slow response rather than an error.
+	// This period is meant to be long enough for a leader election to take
+	// place, and a small jitter is applied to avoid a thundering herd.
+	RPCHoldTimeout time.Duration
+
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
 }
 
 func (c *Config) Copy() *Config {
@@ -204,7 +223,6 @@ func (c *Config) Copy() *Config {
 	nc.Node = nc.Node.Copy()
 	nc.Servers = helper.CopySliceString(nc.Servers)
 	nc.Options = helper.CopyMapStringString(nc.Options)
-	nc.GloballyReservedPorts = helper.CopySliceInt(c.GloballyReservedPorts)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	return nc
@@ -229,6 +247,7 @@ func DefaultConfig() *Config {
 		NoHostUUID:                 true,
 		DisableTaggedMetrics:       false,
 		BackwardsCompatibleMetrics: false,
+		RPCHoldTimeout:             5 * time.Second,
 	}
 }
 
@@ -348,15 +367,12 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 	return list
 }
 
-// TLSConfig returns a TLSUtil Config based on the client configuration
-func (c *Config) TLSConfiguration() *tlsutil.Config {
-	tlsConf := &tlsutil.Config{
-		VerifyIncoming:       true,
-		VerifyOutgoing:       true,
-		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
-		CAFile:               c.TLSConfig.CAFile,
-		CertFile:             c.TLSConfig.CertFile,
-		KeyFile:              c.TLSConfig.KeyFile,
+// NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
+func (c *Config) NomadPluginConfig() *base.ClientAgentConfig {
+	return &base.ClientAgentConfig{
+		Driver: &base.ClientDriverConfig{
+			ClientMinPort: c.ClientMinPort,
+			ClientMaxPort: c.ClientMaxPort,
+		},
 	}
-	return tlsConf
 }

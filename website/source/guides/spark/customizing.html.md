@@ -66,7 +66,7 @@ An alternative to using the default template is to set the
 containing a custom job template. There are two important considerations:
 
   * The template must use the JSON format. You can convert an HCL jobspec to 
-  JSON by running `nomad run -output <job.nomad>`.
+  JSON by running `nomad job run -output <job.nomad>`.
 
   * `spark.nomad.job.template` should be set to a path on the submitting 
   machine, not to a URL (even in cluster mode). The template does not need to 

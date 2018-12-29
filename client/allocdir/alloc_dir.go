@@ -2,19 +2,21 @@ package allocdir
 
 import (
 	"archive/tar"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
-	"gopkg.in/tomb.v1"
-
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
+	tomb "gopkg.in/tomb.v1"
 )
 
 const (
@@ -24,6 +26,10 @@ const (
 )
 
 var (
+	// SnapshotErrorTime is the sentinel time that will be used on the
+	// error file written by Snapshot when it encounters as error.
+	SnapshotErrorTime = time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
+
 	// The name of the directory that is shared across tasks in a task group.
 	SharedAllocName = "alloc"
 
@@ -38,7 +44,7 @@ var (
 	// task.
 	TmpDirName = "tmp"
 
-	// The set of directories that exist inside eache shared alloc directory.
+	// The set of directories that exist inside each shared alloc directory.
 	SharedAllocDirs = []string{LogDirName, TmpDirName, SharedDataDir}
 
 	// The name of the directory that exists inside each task directory
@@ -53,6 +59,8 @@ var (
 	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
 )
 
+// AllocDir allows creating, destroying, and accessing an allocation's
+// directory. All methods are safe for concurrent use.
 type AllocDir struct {
 	// AllocDir is the directory used for storing any state
 	// of this allocation. It will be purged on alloc destroy.
@@ -68,31 +76,25 @@ type AllocDir struct {
 	// built is true if Build has successfully run
 	built bool
 
-	logger *log.Logger
-}
+	mu sync.RWMutex
 
-// AllocFileInfo holds information about a file inside the AllocDir
-type AllocFileInfo struct {
-	Name     string
-	IsDir    bool
-	Size     int64
-	FileMode string
-	ModTime  time.Time
+	logger hclog.Logger
 }
 
 // AllocDirFS exposes file operations on the alloc dir
 type AllocDirFS interface {
-	List(path string) ([]*AllocFileInfo, error)
-	Stat(path string) (*AllocFileInfo, error)
+	List(path string) ([]*cstructs.AllocFileInfo, error)
+	Stat(path string) (*cstructs.AllocFileInfo, error)
 	ReadAt(path string, offset int64) (io.ReadCloser, error)
 	Snapshot(w io.Writer) error
-	BlockUntilExists(path string, t *tomb.Tomb) (chan error, error)
-	ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error)
+	BlockUntilExists(ctx context.Context, path string) (chan error, error)
+	ChangeEvents(ctx context.Context, path string, curOffset int64) (*watch.FileChanges, error)
 }
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory.
-func NewAllocDir(logger *log.Logger, allocDir string) *AllocDir {
+func NewAllocDir(logger hclog.Logger, allocDir string) *AllocDir {
+	logger = logger.Named("alloc_dir")
 	return &AllocDir{
 		AllocDir:  allocDir,
 		SharedDir: filepath.Join(allocDir, SharedAllocName),
@@ -104,6 +106,9 @@ func NewAllocDir(logger *log.Logger, allocDir string) *AllocDir {
 // Copy an AllocDir and all of its TaskDirs. Returns nil if AllocDir is
 // nil.
 func (d *AllocDir) Copy() *AllocDir {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	if d == nil {
 		return nil
 	}
@@ -121,6 +126,9 @@ func (d *AllocDir) Copy() *AllocDir {
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
 func (d *AllocDir) NewTaskDir(name string) *TaskDir {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	td := newTaskDir(d.logger, d.AllocDir, name)
 	d.TaskDirs[name] = td
 	return td
@@ -128,7 +136,14 @@ func (d *AllocDir) NewTaskDir(name string) *TaskDir {
 
 // Snapshot creates an archive of the files and directories in the data dir of
 // the allocation and the task local directories
+//
+// Since a valid tar may have been written even when an error occurs, a special
+// file "NOMAD-${ALLOC_ID}-ERROR.log" will be appended to the tar with the
+// error message as the contents.
 func (d *AllocDir) Snapshot(w io.Writer) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	allocDataDir := filepath.Join(d.SharedDir, SharedDataDir)
 	rootPaths := []string{allocDataDir}
 	for _, taskdir := range d.TaskDirs {
@@ -139,6 +154,10 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	defer tw.Close()
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
 		relPath, err := filepath.Rel(d.AllocDir, path)
@@ -158,7 +177,9 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 			return fmt.Errorf("error creating file header: %v", err)
 		}
 		hdr.Name = relPath
-		tw.WriteHeader(hdr)
+		if err := tw.WriteHeader(hdr); err != nil {
+			return err
+		}
 
 		// If it's a directory or symlink we just write the header into the tar
 		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
@@ -182,7 +203,16 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 	// directories in the archive
 	for _, path := range rootPaths {
 		if err := filepath.Walk(path, walkFn); err != nil {
-			return err
+			allocID := filepath.Base(d.AllocDir)
+			if writeErr := writeError(tw, allocID, err); writeErr != nil {
+				// This could be bad; other side won't know
+				// snapshotting failed. It could also just mean
+				// the snapshotting side closed the connect
+				// prematurely and won't try to use the tar
+				// anyway.
+				d.logger.Warn("snapshotting failed and unable to write error marker", "error", writeErr)
+			}
+			return fmt.Errorf("failed to snapshot %s: %v", path, err)
 		}
 	}
 
@@ -191,10 +221,15 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 
 // Move other alloc directory's shared path and local dir to this alloc dir.
 func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
+	d.mu.RLock()
 	if !d.built {
 		// Enforce the invariant that Build is called before Move
+		d.mu.RUnlock()
 		return fmt.Errorf("unable to move to %q - alloc dir is not built", d.AllocDir)
 	}
+
+	// Moving is slow and only reads immutable fields, so unlock during heavy IO
+	d.mu.RUnlock()
 
 	// Move the data directory
 	otherDataDir := filepath.Join(other.SharedDir, SharedDataDir)
@@ -231,7 +266,6 @@ func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
 
 // Tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
-
 	// Unmount all mounted shared alloc dirs.
 	var mErr multierror.Error
 	if err := d.UnmountAll(); err != nil {
@@ -242,11 +276,18 @@ func (d *AllocDir) Destroy() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to remove alloc dir %q: %v", d.AllocDir, err))
 	}
 
+	// Unset built since the alloc dir has been destroyed.
+	d.mu.Lock()
+	d.built = false
+	d.mu.Unlock()
 	return mErr.ErrorOrNil()
 }
 
 // UnmountAll linked/mounted directories in task dirs.
 func (d *AllocDir) UnmountAll() error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	var mErr multierror.Error
 	for _, dir := range d.TaskDirs {
 		// Check if the directory has the shared alloc mounted.
@@ -305,12 +346,14 @@ func (d *AllocDir) Build() error {
 	}
 
 	// Mark as built
+	d.mu.Lock()
 	d.built = true
+	d.mu.Unlock()
 	return nil
 }
 
 // List returns the list of files at a path relative to the alloc dir
-func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
+func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
@@ -320,11 +363,11 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 	p := filepath.Join(d.AllocDir, path)
 	finfos, err := ioutil.ReadDir(p)
 	if err != nil {
-		return []*AllocFileInfo{}, err
+		return []*cstructs.AllocFileInfo{}, err
 	}
-	files := make([]*AllocFileInfo, len(finfos))
+	files := make([]*cstructs.AllocFileInfo, len(finfos))
 	for idx, info := range finfos {
-		files[idx] = &AllocFileInfo{
+		files[idx] = &cstructs.AllocFileInfo{
 			Name:     info.Name(),
 			IsDir:    info.IsDir(),
 			Size:     info.Size(),
@@ -336,7 +379,7 @@ func (d *AllocDir) List(path string) ([]*AllocFileInfo, error) {
 }
 
 // Stat returns information about the file at a path relative to the alloc dir
-func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
+func (d *AllocDir) Stat(path string) (*cstructs.AllocFileInfo, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
@@ -349,7 +392,7 @@ func (d *AllocDir) Stat(path string) (*AllocFileInfo, error) {
 		return nil, err
 	}
 
-	return &AllocFileInfo{
+	return &cstructs.AllocFileInfo{
 		Size:     info.Size(),
 		Name:     info.Name(),
 		IsDir:    info.IsDir(),
@@ -369,11 +412,14 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 	p := filepath.Join(d.AllocDir, path)
 
 	// Check if it is trying to read into a secret directory
+	d.mu.RLock()
 	for _, dir := range d.TaskDirs {
 		if filepath.HasPrefix(p, dir.SecretsDir) {
+			d.mu.RUnlock()
 			return nil, fmt.Errorf("Reading secret file prohibited: %s", path)
 		}
 	}
+	d.mu.RUnlock()
 
 	f, err := os.Open(p)
 	if err != nil {
@@ -386,8 +432,8 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 }
 
 // BlockUntilExists blocks until the passed file relative the allocation
-// directory exists. The block can be cancelled with the passed tomb.
-func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, error) {
+// directory exists. The block can be cancelled with the passed context.
+func (d *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan error, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
@@ -398,6 +444,11 @@ func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, erro
 	p := filepath.Join(d.AllocDir, path)
 	watcher := getFileWatcher(p)
 	returnCh := make(chan error, 1)
+	t := &tomb.Tomb{}
+	go func() {
+		<-ctx.Done()
+		t.Kill(nil)
+	}()
 	go func() {
 		returnCh <- watcher.BlockUntilExists(t)
 		close(returnCh)
@@ -406,14 +457,20 @@ func (d *AllocDir) BlockUntilExists(path string, t *tomb.Tomb) (chan error, erro
 }
 
 // ChangeEvents watches for changes to the passed path relative to the
-// allocation directory. The offset should be the last read offset. The tomb is
+// allocation directory. The offset should be the last read offset. The context is
 // used to clean up the watch.
-func (d *AllocDir) ChangeEvents(path string, curOffset int64, t *tomb.Tomb) (*watch.FileChanges, error) {
+func (d *AllocDir) ChangeEvents(ctx context.Context, path string, curOffset int64) (*watch.FileChanges, error) {
 	if escapes, err := structs.PathEscapesAllocDir("", path); err != nil {
 		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %v", err)
 	} else if escapes {
 		return nil, fmt.Errorf("Path escapes the alloc directory")
 	}
+
+	t := &tomb.Tomb{}
+	go func() {
+		<-ctx.Done()
+		t.Kill(nil)
+	}()
 
 	// Get the path relative to the alloc directory
 	p := filepath.Join(d.AllocDir, path)
@@ -556,4 +613,32 @@ func splitPath(path string) ([]fileInfo, error) {
 		currentDir = dir
 	}
 	return dirs, nil
+}
+
+// SnapshotErrorFilename returns the filename which will exist if there was an
+// error snapshotting a tar.
+func SnapshotErrorFilename(allocID string) string {
+	return fmt.Sprintf("NOMAD-%s-ERROR.log", allocID)
+}
+
+// writeError writes a special file to a tar archive with the error encountered
+// during snapshotting. See Snapshot().
+func writeError(tw *tar.Writer, allocID string, err error) error {
+	contents := []byte(fmt.Sprintf("Error snapshotting: %v", err))
+	hdr := tar.Header{
+		Name:       SnapshotErrorFilename(allocID),
+		Mode:       0666,
+		Size:       int64(len(contents)),
+		AccessTime: SnapshotErrorTime,
+		ChangeTime: SnapshotErrorTime,
+		ModTime:    SnapshotErrorTime,
+		Typeflag:   tar.TypeReg,
+	}
+
+	if err := tw.WriteHeader(&hdr); err != nil {
+		return err
+	}
+
+	_, err = tw.Write(contents)
+	return err
 }

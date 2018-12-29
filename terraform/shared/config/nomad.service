@@ -1,0 +1,15 @@
+[Unit]
+Description=Nomad Agent
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+ExecStart=/usr/local/bin/nomad agent -config="/etc/nomad.d/nomad.hcl"
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGTERM
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

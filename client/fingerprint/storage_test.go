@@ -4,26 +4,31 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestStorageFingerprint(t *testing.T) {
-	fp := NewStorageFingerprint(testLogger())
+	fp := NewStorageFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 
-	assertFingerprintOK(t, fp, node)
+	response := assertFingerprintOK(t, fp, node)
 
-	assertNodeAttributeContains(t, node, "unique.storage.volume")
-	assertNodeAttributeContains(t, node, "unique.storage.bytestotal")
-	assertNodeAttributeContains(t, node, "unique.storage.bytesfree")
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
+	}
 
-	total, err := strconv.ParseInt(node.Attributes["unique.storage.bytestotal"], 10, 64)
+	assertNodeAttributeContains(t, response.Attributes, "unique.storage.volume")
+	assertNodeAttributeContains(t, response.Attributes, "unique.storage.bytestotal")
+	assertNodeAttributeContains(t, response.Attributes, "unique.storage.bytesfree")
+
+	total, err := strconv.ParseInt(response.Attributes["unique.storage.bytestotal"], 10, 64)
 	if err != nil {
 		t.Fatalf("Failed to parse unique.storage.bytestotal: %s", err)
 	}
-	free, err := strconv.ParseInt(node.Attributes["unique.storage.bytesfree"], 10, 64)
+	free, err := strconv.ParseInt(response.Attributes["unique.storage.bytesfree"], 10, 64)
 	if err != nil {
 		t.Fatalf("Failed to parse unique.storage.bytesfree: %s", err)
 	}
@@ -32,10 +37,15 @@ func TestStorageFingerprint(t *testing.T) {
 		t.Fatalf("unique.storage.bytesfree %d is larger than unique.storage.bytestotal %d", free, total)
 	}
 
-	if node.Resources == nil {
+	// COMPAT(0.10): Remove in 0.10
+	if response.Resources == nil {
 		t.Fatalf("Node Resources was nil")
 	}
-	if node.Resources.DiskMB == 0 {
+	if response.Resources.DiskMB == 0 {
+		t.Errorf("Expected node.Resources.DiskMB to be non-zero")
+	}
+
+	if response.NodeResources == nil || response.NodeResources.Disk.DiskMB == 0 {
 		t.Errorf("Expected node.Resources.DiskMB to be non-zero")
 	}
 }

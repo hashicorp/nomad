@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
-	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,10 +12,12 @@ import (
 	"gopkg.in/tomb.v2"
 
 	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	vapi "github.com/hashicorp/vault/api"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	vapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/mapstructure"
 
 	"golang.org/x/sync/errgroup"
@@ -59,9 +59,6 @@ const (
 	// vaultTokenLookupPath is the path used to lookup a token
 	vaultTokenLookupPath = "auth/token/lookup"
 
-	// vaultTokenLookupSelfPath is the path used to lookup self token
-	vaultTokenLookupSelfPath = "auth/token/lookup-self"
-
 	// vaultTokenRevokePath is the path used to revoke a token
 	vaultTokenRevokePath = "auth/token/revoke-accessor"
 
@@ -73,9 +70,6 @@ const (
 )
 
 var (
-	// vaultUnrecoverableError matches unrecoverable errors
-	vaultUnrecoverableError = regexp.MustCompile(`Code:\s+40(0|3|4)`)
-
 	// vaultCapabilitiesCapability is the expected capability of Nomad's Vault
 	// token on the the path. The token must have at least one of the
 	// capabilities.
@@ -90,11 +84,6 @@ var (
 	// Vault token should have on the path. The token must have at least one of
 	// the capabilities.
 	vaultTokenLookupCapability = []string{"update", "root"}
-
-	// vaultTokenLookupSelfCapability is the expected capability Nomad's
-	// Vault token should have on the path. The token must have at least one of
-	// the capabilities.
-	vaultTokenLookupSelfCapability = []string{"update", "root"}
 
 	// vaultTokenRevokeCapability is the expected capability Nomad's
 	// Vault token should have on the path. The token must have at least one of
@@ -218,7 +207,7 @@ type vaultClient struct {
 	lastRenewed time.Time
 
 	tomb   *tomb.Tomb
-	logger *log.Logger
+	logger log.Logger
 
 	// stats stores the stats
 	stats     *VaultStats
@@ -231,7 +220,7 @@ type vaultClient struct {
 
 // NewVaultClient returns a Vault client from the given config. If the client
 // couldn't be made an error is returned.
-func NewVaultClient(c *config.VaultConfig, logger *log.Logger, purgeFn PurgeVaultAccessorFn) (*vaultClient, error) {
+func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVaultAccessorFn) (*vaultClient, error) {
 	if c == nil {
 		return nil, fmt.Errorf("must pass valid VaultConfig")
 	}
@@ -242,7 +231,7 @@ func NewVaultClient(c *config.VaultConfig, logger *log.Logger, purgeFn PurgeVaul
 
 	v := &vaultClient{
 		config:   c,
-		logger:   logger,
+		logger:   logger.Named("vault"),
 		limiter:  rate.NewLimiter(requestRateLimit, int(requestRateLimit)),
 		revoking: make(map[*structs.VaultAccessor]time.Time),
 		purgeFn:  purgeFn,
@@ -328,7 +317,12 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	v.l.Lock()
 	defer v.l.Unlock()
 
-	// Kill any background routintes
+	// If reloading the same config, no-op
+	if v.config.IsEqual(config) {
+		return nil
+	}
+
+	// Kill any background routines
 	if v.running {
 		// Stop accepting any new request
 		v.connEstablished = false
@@ -394,7 +388,7 @@ func (v *vaultClient) buildClient() error {
 	// Create the Vault API client
 	client, err := vapi.NewClient(apiConf)
 	if err != nil {
-		v.logger.Printf("[ERR] vault: failed to create Vault client. Not retrying: %v", err)
+		v.logger.Error("failed to create Vault client and not retrying", "error", err)
 		return err
 	}
 
@@ -407,14 +401,14 @@ func (v *vaultClient) buildClient() error {
 }
 
 // establishConnection is used to make first contact with Vault. This should be
-// called in a go-routine since the connection is retried til the Vault Client
+// called in a go-routine since the connection is retried until the Vault Client
 // is stopped or the connection is successfully made at which point the renew
 // loop is started.
 func (v *vaultClient) establishConnection() {
 	// Create the retry timer and set initial duration to zero so it fires
 	// immediately
 	retryTimer := time.NewTimer(0)
-
+	initStatus := false
 OUTER:
 	for {
 		select {
@@ -422,25 +416,26 @@ OUTER:
 			return
 		case <-retryTimer.C:
 			// Ensure the API is reachable
-			if _, err := v.client.Sys().InitStatus(); err != nil {
-				v.logger.Printf("[WARN] vault: failed to contact Vault API. Retrying in %v: %v",
-					v.config.ConnectionRetryIntv, err)
+			if !initStatus {
+				if _, err := v.client.Sys().InitStatus(); err != nil {
+					v.logger.Warn("failed to contact Vault API", "retry", v.config.ConnectionRetryIntv, "error", err)
+					retryTimer.Reset(v.config.ConnectionRetryIntv)
+					continue OUTER
+				}
+				initStatus = true
+			}
+			// Retry validating the token till success
+			if err := v.parseSelfToken(); err != nil {
+				v.logger.Error("failed to validate self token/role", "retry", v.config.ConnectionRetryIntv, "error", err)
 				retryTimer.Reset(v.config.ConnectionRetryIntv)
+				v.l.Lock()
+				v.connEstablished = true
+				v.connEstablishedErr = fmt.Errorf("Nomad Server failed to establish connections to Vault: %v", err)
+				v.l.Unlock()
 				continue OUTER
 			}
-
 			break OUTER
 		}
-	}
-
-	// Retrieve our token, validate it and parse the lease duration
-	if err := v.parseSelfToken(); err != nil {
-		v.logger.Printf("[ERR] vault: failed to validate self token/role and not retrying: %v", err)
-		v.l.Lock()
-		v.connEstablished = false
-		v.connEstablishedErr = err
-		v.l.Unlock()
-		return
 	}
 
 	// Set the wrapping function such that token creation is wrapped now
@@ -449,10 +444,9 @@ OUTER:
 
 	// If we are given a non-root token, start renewing it
 	if v.tokenData.Root && v.tokenData.CreationTTL == 0 {
-		v.logger.Printf("[DEBUG] vault: not renewing token as it is root")
+		v.logger.Debug("not renewing token as it is root")
 	} else {
-		v.logger.Printf("[DEBUG] vault: token lease duration is %v",
-			time.Duration(v.tokenData.CreationTTL)*time.Second)
+		v.logger.Debug("starting renewal loop", "creation_ttl", time.Duration(v.tokenData.CreationTTL)*time.Second)
 		v.tomb.Go(wrapNilError(v.renewalLoop))
 	}
 
@@ -489,7 +483,7 @@ func (v *vaultClient) renewalLoop() {
 				// Set the timer to poke us after half of that time is up.
 				durationUntilRenew := currentExpiration.Sub(time.Now()) / 2
 
-				v.logger.Printf("[INFO] vault: renewing token in %v", durationUntilRenew)
+				v.logger.Info("successfully renewed token", "next_renewal", durationUntilRenew)
 				authRenewTimer.Reset(durationUntilRenew)
 
 				// Reset any backoff
@@ -509,7 +503,7 @@ func (v *vaultClient) renewalLoop() {
 
 			// Set base values and add some backoff
 
-			v.logger.Printf("[WARN] vault: got error or bad auth, so backing off: %v", err)
+			v.logger.Warn("got error or bad auth, so backing off", "error", err)
 			switch {
 			case backoff < 5:
 				backoff = 5
@@ -526,7 +520,7 @@ func (v *vaultClient) renewalLoop() {
 			if maxBackoff < 0 {
 				// We have failed to renew the token past its expiration. Stop
 				// renewing with Vault.
-				v.logger.Printf("[ERR] vault: failed to renew Vault token before lease expiration. Shutting down Vault client")
+				v.logger.Error("failed to renew Vault token before lease expiration. Shutting down Vault client")
 				v.l.Lock()
 				v.connEstablished = false
 				v.connEstablishedErr = err
@@ -538,7 +532,7 @@ func (v *vaultClient) renewalLoop() {
 			}
 
 			durationUntilRetry := time.Duration(backoff) * time.Second
-			v.logger.Printf("[INFO] vault: backing off for %v", durationUntilRetry)
+			v.logger.Info("backing off renewal", "retry", durationUntilRetry)
 
 			authRenewTimer.Reset(durationUntilRetry)
 		}
@@ -562,7 +556,7 @@ func (v *vaultClient) renew() error {
 	}
 
 	v.lastRenewed = time.Now()
-	v.logger.Printf("[DEBUG] vault: successfully renewed server token")
+	v.logger.Debug("successfully renewed server token")
 	return nil
 }
 
@@ -631,10 +625,9 @@ func (v *vaultClient) parseSelfToken() error {
 	//   a) Must have read capability for "auth/token/roles/<role_name" (Can just attempt a read)
 	//   b) Must have update capability for path "auth/token/create/<role_name>"
 	//   c) Role must:
-	//     1) Not allow orphans
-	//     2) Must allow tokens to be renewed
-	//     3) Must not have an explicit max TTL
-	//     4) Must have non-zero period
+	//     1) Must allow tokens to be renewed
+	//     2) Must not have an explicit max TTL
+	//     3) Must have non-zero period
 	// 5) If not configured against a role, the token must be root
 
 	var mErr multierror.Error
@@ -702,15 +695,15 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 	_, _, err := v.hasCapability(vaultCapabilitiesLookupPath, vaultCapabilitiesCapability)
 	if err != nil {
 		// Check if there is a permission denied
-		if vaultUnrecoverableError.MatchString(err.Error()) {
+		if structs.VaultUnrecoverableError.MatchString(err.Error()) {
 			// Since we can't read permissions, we just log a warning that we
 			// can't tell if the Vault token will work
-			msg := fmt.Sprintf("Can not lookup token capabilities. "+
+			msg := fmt.Sprintf("can not lookup token capabilities. "+
 				"As such certain operations may fail in the future. "+
 				"Please give Nomad a Vault token with one of the following "+
 				"capabilities %q on %q so that the required capabilities can be verified",
 				vaultCapabilitiesCapability, vaultCapabilitiesLookupPath)
-			v.logger.Printf("[WARN] vault: %s", msg)
+			v.logger.Warn(msg)
 			return nil
 		} else {
 			multierror.Append(&mErr, err)
@@ -799,10 +792,6 @@ func (v *vaultClient) validateRole(role string) error {
 
 	// Validate the role is acceptable
 	var mErr multierror.Error
-	if data.Orphan {
-		multierror.Append(&mErr, fmt.Errorf("Role must not allow orphans"))
-	}
-
 	if !data.Renewable {
 		multierror.Append(&mErr, fmt.Errorf("Role must allow tokens to be renewed"))
 	}
@@ -852,8 +841,8 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	// Check if we have established a connection with Vault
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
 		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
-	} else if !established {
-		return nil, fmt.Errorf("Connection to Vault failed: %v", err)
+	} else if err != nil {
+		return nil, err
 	}
 
 	// Track how long the request takes
@@ -905,7 +894,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 
 	// Determine whether it is unrecoverable
 	if err != nil {
-		if vaultUnrecoverableError.MatchString(err.Error()) {
+		if structs.VaultUnrecoverableError.MatchString(err.Error()) {
 			return secret, err
 		}
 
@@ -913,6 +902,21 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, structs.NewRecoverableError(err, true)
 	}
 
+	// Validate the response
+	var validationErr error
+	if secret == nil {
+		validationErr = fmt.Errorf("Vault returned nil Secret")
+	} else if secret.WrapInfo == nil {
+		validationErr = fmt.Errorf("Vault returned Secret with nil WrapInfo. Secret warnings: %v", secret.Warnings)
+	} else if secret.WrapInfo.WrappedAccessor == "" {
+		validationErr = fmt.Errorf("Vault returned WrapInfo without WrappedAccessor. Secret warnings: %v", secret.Warnings)
+	}
+	if validationErr != nil {
+		v.logger.Warn("ailed to CreateToken", "error", err)
+		return nil, structs.NewRecoverableError(validationErr, true)
+	}
+
+	// Got a valid response
 	return secret, nil
 }
 
@@ -930,8 +934,8 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 	// Check if we have established a connection with Vault
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
 		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
-	} else if !established {
-		return nil, fmt.Errorf("Connection to Vault failed: %v", err)
+	} else if err != nil {
+		return nil, err
 	}
 
 	// Track how long the request takes
@@ -1000,7 +1004,7 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 			return nil
 		}
 
-		v.logger.Printf("[WARN] vault: failed to revoke tokens. Will reattempt til TTL: %v", err)
+		v.logger.Warn("failed to revoke tokens. Will reattempt until TTL", "error", err)
 		v.storeForRevocation(accessors)
 		return nil
 	} else if !committed {
@@ -1010,7 +1014,7 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 	}
 
 	if err := v.purgeFn(accessors); err != nil {
-		v.logger.Printf("[ERR] vault: failed to purge Vault accessors: %v", err)
+		v.logger.Error("failed to purge Vault accessors", "error", err)
 		v.storeForRevocation(accessors)
 		return nil
 	}
@@ -1022,7 +1026,7 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 }
 
 // storeForRevocation stores the passed set of accessors for revocation. It
-// captrues their effective TTL by storing their create TTL plus the current
+// captures their effective TTL by storing their create TTL plus the current
 // time.
 func (v *vaultClient) storeForRevocation(accessors []*structs.VaultAccessor) {
 	v.revLock.Lock()
@@ -1049,8 +1053,8 @@ func (v *vaultClient) parallelRevoke(ctx context.Context, accessors []*structs.V
 	// Check if we have established a connection with Vault
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
 		return structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
-	} else if !established {
-		return fmt.Errorf("Connection to Vault failed: %v", err)
+	} else if err != nil {
+		return err
 	}
 
 	g, pCtx := errgroup.WithContext(ctx)
@@ -1133,7 +1137,7 @@ func (v *vaultClient) revokeDaemon() {
 			}
 
 			if err := v.parallelRevoke(context.Background(), revoking); err != nil {
-				v.logger.Printf("[WARN] vault: background token revocation errored: %v", err)
+				v.logger.Warn("background token revocation errored", "error", err)
 				v.revLock.Unlock()
 				continue
 			}
@@ -1144,7 +1148,7 @@ func (v *vaultClient) revokeDaemon() {
 			// Call the passed in token revocation function
 			if err := v.purgeFn(revoking); err != nil {
 				// Can continue since revocation is idempotent
-				v.logger.Printf("[ERR] vault: token revocation errored: %v", err)
+				v.logger.Error("token revocation errored", "error", err)
 				continue
 			}
 
@@ -1170,7 +1174,7 @@ func (v *vaultClient) revokeDaemon() {
 func (s *Server) purgeVaultAccessors(accessors []*structs.VaultAccessor) error {
 	// Commit this update via Raft
 	req := structs.VaultAccessorsRequest{Accessors: accessors}
-	_, _, err := s.raftApply(structs.VaultAccessorDegisterRequestType, req)
+	_, _, err := s.raftApply(structs.VaultAccessorDeregisterRequestType, req)
 	return err
 }
 

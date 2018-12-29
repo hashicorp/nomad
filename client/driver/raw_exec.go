@@ -7,11 +7,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"syscall"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
@@ -23,8 +25,11 @@ import (
 )
 
 const (
-	// The option that enables this driver in the Config.Options map.
-	rawExecConfigOption = "driver.raw_exec.enable"
+	// rawExecEnableOption is the option that enables this driver in the Config.Options map.
+	rawExecEnableOption = "driver.raw_exec.enable"
+
+	// rawExecNoCgroupOption forces no cgroups.
+	rawExecNoCgroupOption = "driver.raw_exec.no_cgroups"
 
 	// The key populated in Node Attributes to indicate presence of the Raw Exec
 	// driver
@@ -37,6 +42,10 @@ const (
 type RawExecDriver struct {
 	DriverContext
 	fingerprint.StaticFingerprinter
+
+	// useCgroup tracks whether we should use a cgroup to manage the process
+	// tree
+	useCgroup bool
 }
 
 // rawExecHandle is returned from Start/Open as a handle to the PID
@@ -47,6 +56,7 @@ type rawExecHandle struct {
 	executor       executor.Executor
 	killTimeout    time.Duration
 	maxKillTimeout time.Duration
+	shutdownSignal string
 	logger         *log.Logger
 	waitCh         chan *dstructs.WaitResult
 	doneCh         chan struct{}
@@ -64,11 +74,11 @@ func (d *RawExecDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"command": &fields.FieldSchema{
+			"command": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -92,21 +102,30 @@ func (d *RawExecDriver) FSIsolation() cstructs.FSIsolation {
 	return cstructs.FSIsolationNone
 }
 
-func (d *RawExecDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (d *RawExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	// Check that the user has explicitly enabled this executor.
-	enabled := cfg.ReadBoolDefault(rawExecConfigOption, false)
+	enabled := req.Config.ReadBoolDefault(rawExecEnableOption, false)
 
-	if enabled || cfg.DevMode {
+	if enabled || req.Config.DevMode {
 		d.logger.Printf("[WARN] driver.raw_exec: raw exec is enabled. Only enable if needed")
-		node.Attributes[rawExecDriverAttr] = "1"
-		return true, nil
+		resp.AddAttribute(rawExecDriverAttr, "1")
+		resp.Detected = true
+		return nil
 	}
 
-	delete(node.Attributes, rawExecDriverAttr)
-	return false, nil
+	resp.RemoveAttribute(rawExecDriverAttr)
+	return nil
 }
 
 func (d *RawExecDriver) Prestart(*ExecContext, *structs.Task) (*PrestartResponse, error) {
+	// If we are on linux, running as root, cgroups are mounted, and cgroups
+	// aren't disabled by the operator use cgroups for pid management.
+	forceDisable := d.DriverContext.config.ReadBoolDefault(rawExecNoCgroupOption, false)
+	if !forceDisable && runtime.GOOS == "linux" &&
+		syscall.Geteuid() == 0 && cgroupsMounted(d.DriverContext.node) {
+		d.useCgroup = true
+	}
+
 	return nil, nil
 }
 
@@ -132,25 +151,23 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 	if err != nil {
 		return nil, err
 	}
-	executorCtx := &executor.ExecutorContext{
-		TaskEnv: ctx.TaskEnv,
-		Driver:  "raw_exec",
-		AllocID: d.DriverContext.allocID,
-		Task:    task,
-		TaskDir: ctx.TaskDir.Dir,
-		LogDir:  ctx.TaskDir.LogDir,
-	}
-	if err := exec.SetContext(executorCtx); err != nil {
-		pluginClient.Kill()
-		return nil, fmt.Errorf("failed to set executor context: %v", err)
+
+	_, err = getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:  command,
-		Args: driverConfig.Args,
-		User: task.User,
+		Cmd:                command,
+		Args:               ctx.TaskEnv.ParseAndReplace(driverConfig.Args),
+		User:               task.User,
+		BasicProcessCgroup: d.useCgroup,
+		Env:                ctx.TaskEnv.List(),
+		TaskDir:            ctx.TaskDir.Dir,
+		StdoutPath:         ctx.StdoutFifo,
+		StderrPath:         ctx.StderrFifo,
 	}
-	ps, err := exec.LaunchCmd(execCmd)
+	ps, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, err
@@ -163,6 +180,7 @@ func (d *RawExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespo
 		pluginClient:   pluginClient,
 		executor:       exec,
 		userPid:        ps.Pid,
+		shutdownSignal: task.KillSignal,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		version:        d.config.Version.VersionNumber(),
@@ -184,6 +202,7 @@ type rawExecId struct {
 	MaxKillTimeout time.Duration
 	UserPid        int
 	PluginConfig   *PluginReattachConfig
+	ShutdownSignal string
 }
 
 func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, error) {
@@ -197,11 +216,13 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 	}
 	exec, pluginClient, err := createExecutorWithConfig(pluginConfig, d.config.LogOutput)
 	if err != nil {
+		merrs := new(multierror.Error)
+		merrs.Errors = append(merrs.Errors, err)
 		d.logger.Println("[ERR] driver.raw_exec: error connecting to plugin so destroying plugin pid and user pid")
 		if e := destroyPlugin(id.PluginConfig.Pid, id.UserPid); e != nil {
-			d.logger.Printf("[ERR] driver.raw_exec: error destroying plugin and userpid: %v", e)
+			merrs.Errors = append(merrs.Errors, fmt.Errorf("error destroying plugin and userpid: %v", e))
 		}
-		return nil, fmt.Errorf("error connecting to plugin: %v", err)
+		return nil, fmt.Errorf("error connecting to plugin: %v", merrs.ErrorOrNil())
 	}
 
 	ver, _ := exec.Version()
@@ -213,6 +234,7 @@ func (d *RawExecDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, e
 		executor:       exec,
 		userPid:        id.UserPid,
 		logger:         d.logger,
+		shutdownSignal: id.ShutdownSignal,
 		killTimeout:    id.KillTimeout,
 		maxKillTimeout: id.MaxKillTimeout,
 		version:        id.Version,
@@ -232,6 +254,7 @@ func (h *rawExecHandle) ID() string {
 		MaxKillTimeout: h.maxKillTimeout,
 		PluginConfig:   NewPluginReattachConfig(h.pluginClient.ReattachConfig()),
 		UserPid:        h.userPid,
+		ShutdownSignal: h.shutdownSignal,
 	}
 
 	data, err := json.Marshal(id)
@@ -248,22 +271,25 @@ func (h *rawExecHandle) WaitCh() chan *dstructs.WaitResult {
 func (h *rawExecHandle) Update(task *structs.Task) error {
 	// Store the updated kill timeout.
 	h.killTimeout = GetKillTimeout(task.KillTimeout, h.maxKillTimeout)
-	h.executor.UpdateTask(task)
 
 	// Update is not possible
 	return nil
 }
 
 func (h *rawExecHandle) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
-	return executor.ExecScript(ctx, h.taskDir.Dir, h.taskEnv, nil, cmd, args)
+	return executor.ExecScript(ctx, h.taskDir.Dir, h.taskEnv.List(), nil, h.taskEnv.ReplaceEnv(cmd), h.taskEnv.ParseAndReplace(args))
 }
 
 func (h *rawExecHandle) Signal(s os.Signal) error {
 	return h.executor.Signal(s)
 }
 
+func (d *rawExecHandle) Network() *cstructs.DriverNetwork {
+	return nil
+}
+
 func (h *rawExecHandle) Kill() error {
-	if err := h.executor.ShutDown(); err != nil {
+	if err := h.executor.Signal(os.Interrupt); err != nil {
 		if h.pluginClient.Exited() {
 			return nil
 		}
@@ -277,7 +303,7 @@ func (h *rawExecHandle) Kill() error {
 		if h.pluginClient.Exited() {
 			return nil
 		}
-		if err := h.executor.Exit(); err != nil {
+		if err := h.executor.Shutdown(h.shutdownSignal, h.killTimeout); err != nil {
 			return fmt.Errorf("executor Exit failed: %v", err)
 		}
 
@@ -298,8 +324,8 @@ func (h *rawExecHandle) run() {
 		}
 	}
 
-	// Exit the executor
-	if err := h.executor.Exit(); err != nil {
+	// Destroy the executor
+	if err := h.executor.Shutdown(h.shutdownSignal, 0); err != nil {
 		h.logger.Printf("[ERR] driver.raw_exec: error killing executor: %v", err)
 	}
 	h.pluginClient.Kill()

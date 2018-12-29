@@ -3,12 +3,12 @@ package vaultclient
 import (
 	"container/heap"
 	"fmt"
-	"log"
 	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -65,9 +65,6 @@ type vaultClient struct {
 	// running indicates if the renewal loop is active or not
 	running bool
 
-	// tokenData is the data of the passed VaultClient token
-	token *tokenData
-
 	// client is the API client to interact with vault
 	client *vaultapi.Client
 
@@ -85,18 +82,7 @@ type vaultClient struct {
 	config *config.VaultConfig
 
 	lock   sync.RWMutex
-	logger *log.Logger
-}
-
-// tokenData holds the relevant information about the Vault token passed to the
-// client.
-type tokenData struct {
-	CreationTTL int      `mapstructure:"creation_ttl"`
-	TTL         int      `mapstructure:"ttl"`
-	Renewable   bool     `mapstructure:"renewable"`
-	Policies    []string `mapstructure:"policies"`
-	Role        string   `mapstructure:"role"`
-	Root        bool
+	logger hclog.Logger
 }
 
 // vaultClientRenewalRequest is a request object for renewal of both tokens and
@@ -123,7 +109,7 @@ type vaultClientHeapEntry struct {
 	index int
 }
 
-// Wrapper around the actual heap to provide additional symantics on top of
+// Wrapper around the actual heap to provide additional semantics on top of
 // functions provided by the heap interface. In order to achieve that, an
 // additional map is placed beside the actual heap. This map can be used to
 // check if an entry is already present in the heap.
@@ -136,14 +122,12 @@ type vaultClientHeap struct {
 type vaultDataHeapImp []*vaultClientHeapEntry
 
 // NewVaultClient returns a new vault client from the given config.
-func NewVaultClient(config *config.VaultConfig, logger *log.Logger, tokenDeriver TokenDeriverFunc) (*vaultClient, error) {
+func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDeriver TokenDeriverFunc) (*vaultClient, error) {
 	if config == nil {
 		return nil, fmt.Errorf("nil vault config")
 	}
 
-	if logger == nil {
-		return nil, fmt.Errorf("nil logger")
-	}
+	logger = logger.Named("vault")
 
 	c := &vaultClient{
 		config: config,
@@ -162,14 +146,14 @@ func NewVaultClient(config *config.VaultConfig, logger *log.Logger, tokenDeriver
 	// Get the Vault API configuration
 	apiConf, err := config.ApiConfig()
 	if err != nil {
-		logger.Printf("[ERR] client.vault: failed to create vault API config: %v", err)
+		logger.Error("error creating vault API config", "error", err)
 		return nil, err
 	}
 
 	// Create the Vault API client
 	client, err := vaultapi.NewClient(apiConf)
 	if err != nil {
-		logger.Printf("[ERR] client.vault: failed to create Vault client. Not retrying: %v", err)
+		logger.Error("error creating vault client", "error", err)
 		return nil, err
 	}
 
@@ -251,7 +235,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 
 	tokens, err := c.tokenDeriver(alloc, taskNames, c.client)
 	if err != nil {
-		c.logger.Printf("[ERR] client.vault: failed to derive token for allocation %q and tasks %v: %v", alloc.ID, taskNames, err)
+		c.logger.Error("error deriving token", "error", err, "alloc_id", alloc.ID, "task_names", taskNames)
 		return nil, err
 	}
 
@@ -313,7 +297,7 @@ func (c *vaultClient) RenewToken(token string, increment int) (<-chan error, err
 	// Perform the renewal of the token and send any error to the dedicated
 	// error channel.
 	if err := c.renew(renewalReq); err != nil {
-		c.logger.Printf("[ERR] client.vault: renewal of token failed: %v", err)
+		c.logger.Error("error during renewal of token", "error", err)
 		return nil, err
 	}
 
@@ -350,7 +334,7 @@ func (c *vaultClient) RenewLease(leaseId string, increment int) (<-chan error, e
 
 	// Renew the secret and send any error to the dedicated error channel
 	if err := c.renew(renewalReq); err != nil {
-		c.logger.Printf("[ERR] client.vault: renewal of lease failed: %v", err)
+		c.logger.Error("error during renewal of lease", "error", err)
 		return nil, err
 	}
 
@@ -442,12 +426,14 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	fatal := false
 	if renewalErr != nil &&
 		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
+			strings.Contains(renewalErr.Error(), "lease is not renewable") ||
 			strings.Contains(renewalErr.Error(), "token not found") ||
 			strings.Contains(renewalErr.Error(), "permission denied")) {
 		fatal = true
 	} else if renewalErr != nil {
-		c.logger.Printf("[DEBUG] client.vault: req.increment: %d, leaseDuration: %d, duration: %d", req.increment, leaseDuration, duration)
-		c.logger.Printf("[ERR] client.vault: renewal of lease or token failed due to a non-fatal error. Retrying at %v: %v", next.String(), renewalErr)
+		c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "duration", duration)
+		c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
+			"error", renewalErr, "period", next)
 	}
 
 	if c.isTracked(req.id) {
@@ -544,12 +530,12 @@ func (c *vaultClient) run() {
 		select {
 		case <-renewalCh:
 			if err := c.renew(renewalReq); err != nil {
-				c.logger.Printf("[ERR] client.vault: renewal of token failed: %v", err)
+				c.logger.Error("error renewing token", "error", err)
 			}
 		case <-c.updateCh:
 			continue
 		case <-c.stopCh:
-			c.logger.Printf("[DEBUG] client.vault: stopped")
+			c.logger.Debug("stopped")
 			return
 		}
 	}

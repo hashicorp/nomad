@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Periodic endpoint is used for periodic job interactions
 type Periodic struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // Force is used to force a new instance of a periodic job
@@ -20,6 +24,13 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "periodic", "force"}, time.Now())
+
+	// Check for write-job permissions
+	if aclObj, err := p.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate the arguments
 	if args.JobID == "" {

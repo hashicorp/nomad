@@ -2,6 +2,7 @@ region = "foobar"
 datacenter = "dc2"
 name = "my-web"
 data_dir = "/tmp/nomad"
+plugin_dir = "/tmp/nomad-plugins"
 log_level = "ERR"
 bind_addr = "192.168.0.1"
 enable_debug = true
@@ -19,6 +20,7 @@ advertise {
 	rpc = "127.0.0.3"
 	serf = "127.0.0.4"
 }
+
 client {
 	enabled = true
 	state_dir = "/tmp/client-state"
@@ -28,6 +30,11 @@ client {
 	meta {
 		foo = "bar"
 		baz = "zip"
+	}
+	server_join {
+		retry_join = [ "1.1.1.1", "2.2.2.2" ]
+		retry_max = 3
+		retry_interval = "15s"
 	}
 	options {
 		foo = "bar"
@@ -49,17 +56,17 @@ client {
 	}
 	client_min_port = 1000
 	client_max_port = 2000
-    max_kill_timeout = "10s"
-    stats {
-        data_points = 35
-        collection_interval = "5s"
-    }
-    gc_interval = "6s"
-    gc_parallel_destroys = 6
-    gc_disk_usage_threshold = 82
-    gc_inode_usage_threshold = 91
-    gc_max_allocs = 50
-    no_host_uuid = false
+	max_kill_timeout = "10s"
+	stats {
+		data_points = 35
+		collection_interval = "5s"
+	}
+	gc_interval = "6s"
+	gc_parallel_destroys = 6
+	gc_disk_usage_threshold = 82
+	gc_inode_usage_threshold = 91
+	gc_max_allocs = 50
+	no_host_uuid = false
 }
 server {
 	enabled = true
@@ -67,6 +74,7 @@ server {
 	bootstrap_expect = 5
 	data_dir = "/tmp/data"
 	protocol_version = 3
+	raft_protocol = 3
 	num_schedulers = 2
 	enabled_schedulers = ["test"]
 	node_gc_threshold = "12h"
@@ -81,23 +89,32 @@ server {
 	retry_max = 3
 	retry_interval = "15s"
 	rejoin_after_leave = true
-    encrypt = "abc"
+	non_voting_server = true
+	redundancy_zone = "foo"
+	upgrade_version = "0.8.0"
+	encrypt = "abc"
+	server_join {
+		retry_join = [ "1.1.1.1", "2.2.2.2" ]
+		retry_max = 3
+		retry_interval = "15s"
+	}
 }
 acl {
-    enabled = true
-    token_ttl = "60s"
-    policy_ttl = "60s"
-    replication_token = "foobar"
+	enabled = true
+	token_ttl = "60s"
+	policy_ttl = "60s"
+	replication_token = "foobar"
 }
 telemetry {
 	statsite_address = "127.0.0.1:1234"
 	statsd_address = "127.0.0.1:2345"
+	prometheus_metrics = true
 	disable_hostname = true
-    collection_interval = "3s"
-    publish_allocation_metrics = true
-    publish_node_metrics = true
-    disable_tagged_metrics = true
-    backwards_compatible_metrics = true
+	collection_interval = "3s"
+	publish_allocation_metrics = true
+	publish_node_metrics = true
+	disable_tagged_metrics = true
+	backwards_compatible_metrics = true
 }
 leave_on_interrupt = true
 leave_on_terminate = true
@@ -105,51 +122,86 @@ enable_syslog = true
 syslog_facility = "LOCAL1"
 disable_update_check = true
 disable_anonymous_signature = true
-atlas {
-	infrastructure = "armon/test"
-	token = "abcd"
-	join = true
-	endpoint = "127.0.0.1:1234"
-}
 http_api_response_headers {
 	Access-Control-Allow-Origin = "*"
 }
 consul {
-    server_service_name = "nomad"
-    client_service_name = "nomad-client"
-    address = "127.0.0.1:9500"
-    token = "token1"
-    auth = "username:pass"
-    ssl = true
-    verify_ssl = true
-    ca_file = "/path/to/ca/file"
-    cert_file = "/path/to/cert/file"
-    key_file = "/path/to/key/file"
-    server_auto_join = true
-    client_auto_join = true
-    auto_advertise = true
-    checks_use_advertise = true
+	server_service_name = "nomad"
+	server_http_check_name = "nomad-server-http-health-check"
+	server_serf_check_name = "nomad-server-serf-health-check"
+	server_rpc_check_name = "nomad-server-rpc-health-check"
+	client_service_name = "nomad-client"
+	client_http_check_name = "nomad-client-http-health-check"
+	address = "127.0.0.1:9500"
+	token = "token1"
+	auth = "username:pass"
+	ssl = true
+	verify_ssl = true
+	ca_file = "/path/to/ca/file"
+	cert_file = "/path/to/cert/file"
+	key_file = "/path/to/key/file"
+	server_auto_join = true
+	client_auto_join = true
+	auto_advertise = true
+	checks_use_advertise = true
 }
 vault {
-    address = "127.0.0.1:9500"
-    allow_unauthenticated = true
-    task_token_ttl = "1s"
-    enabled = false
-    token = "12345"
-    ca_file = "/path/to/ca/file"
-    ca_path = "/path/to/ca"
-    cert_file = "/path/to/cert/file"
-    key_file = "/path/to/key/file"
-    tls_server_name = "foobar"
-    tls_skip_verify = true
-    create_from_role = "test_role"
+	address = "127.0.0.1:9500"
+	allow_unauthenticated = true
+	task_token_ttl = "1s"
+	enabled = false
+	token = "12345"
+	ca_file = "/path/to/ca/file"
+	ca_path = "/path/to/ca"
+	cert_file = "/path/to/cert/file"
+	key_file = "/path/to/key/file"
+	tls_server_name = "foobar"
+	tls_skip_verify = true
+	create_from_role = "test_role"
 }
 tls {
-    http = true
-    rpc = true
-    verify_server_hostname = true
-    ca_file = "foo"
-    cert_file = "bar"
-    key_file = "pipe"
-    verify_https_client = true
+	http = true
+	rpc = true
+	verify_server_hostname = true
+	ca_file = "foo"
+	cert_file = "bar"
+	key_file = "pipe"
+	rpc_upgrade_mode = true
+	verify_https_client = true
+	tls_prefer_server_cipher_suites = true
+	tls_cipher_suites = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+	tls_min_version = "tls12"
+}
+sentinel {
+	import "foo" {
+		path = "foo"
+		args = ["a", "b", "c"]
+	}
+	import "bar" {
+		path = "bar"
+		args = ["x", "y", "z"]
+	}
+}
+autopilot {
+	cleanup_dead_servers = true
+	disable_upgrade_migration = true
+	last_contact_threshold = "12705s"
+	max_trailing_logs = 17849
+	enable_redundancy_zones = true
+	server_stabilization_time = "23057s"
+	enable_custom_upgrades = true
+}
+plugin "docker" {
+  args = ["foo", "bar"]
+  config {
+    foo = "bar"
+    nested {
+      bam = 2
+    }
+  }
+}
+plugin "exec" {
+  config {
+    foo = true
+  }
 }

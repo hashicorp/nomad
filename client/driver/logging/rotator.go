@@ -2,9 +2,9 @@ package logging
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,11 +12,25 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 const (
-	bufSize  = 32768
-	flushDur = 100 * time.Millisecond
+	// logBufferSize is the size of the buffer.
+	logBufferSize = 32 * 1024
+
+	// bufferFlushDuration is the duration at which we flush the buffer.
+	bufferFlushDuration = 100 * time.Millisecond
+
+	// lineScanLimit is the number of bytes we will attempt to scan for new
+	// lines when approaching the end of the file to avoid a log line being
+	// split between two files. Any single line that is greater than this limit
+	// may be split.
+	lineScanLimit = 16 * 1024
+
+	// newLineDelimiter is the delimiter used for new lines.
+	newLineDelimiter = '\n'
 )
 
 // FileRotator writes bytes to a rotated set of files
@@ -35,7 +49,7 @@ type FileRotator struct {
 	bufLock     sync.Mutex
 
 	flushTicker *time.Ticker
-	logger      *log.Logger
+	logger      hclog.Logger
 	purgeCh     chan struct{}
 	doneCh      chan struct{}
 
@@ -45,7 +59,8 @@ type FileRotator struct {
 
 // NewFileRotator returns a new file rotator
 func NewFileRotator(path string, baseFile string, maxFiles int,
-	fileSize int64, logger *log.Logger) (*FileRotator, error) {
+	fileSize int64, logger hclog.Logger) (*FileRotator, error) {
+	logger = logger.Named("rotator")
 	rotator := &FileRotator{
 		MaxFiles: maxFiles,
 		FileSize: fileSize,
@@ -53,11 +68,12 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		path:         path,
 		baseFileName: baseFile,
 
-		flushTicker: time.NewTicker(flushDur),
+		flushTicker: time.NewTicker(bufferFlushDuration),
 		logger:      logger,
 		purgeCh:     make(chan struct{}, 1),
 		doneCh:      make(chan struct{}, 1),
 	}
+
 	if err := rotator.lastFile(); err != nil {
 		return nil, err
 	}
@@ -70,28 +86,52 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 // equal to the maximum size the user has defined.
 func (f *FileRotator) Write(p []byte) (n int, err error) {
 	n = 0
-	var nw int
+	var forceRotate bool
 
 	for n < len(p) {
 		// Check if we still have space in the current file, otherwise close and
 		// open the next file
-		if f.currentWr >= f.FileSize {
+		if forceRotate || f.currentWr >= f.FileSize {
+			forceRotate = false
 			f.flushBuffer()
 			f.currentFile.Close()
 			if err := f.nextFile(); err != nil {
-				f.logger.Printf("[ERROR] driver.rotator: error creating next file: %v", err)
+				f.logger.Error("error creating next file", "err", err)
 				return 0, err
 			}
 		}
-		// Calculate the remaining size on this file
-		remainingSize := f.FileSize - f.currentWr
+		// Calculate the remaining size on this file and how much we have left
+		// to write
+		remainingSpace := f.FileSize - f.currentWr
+		remainingToWrite := int64(len(p[n:]))
 
-		// Check if the number of bytes that we have to write is less than the
-		// remaining size of the file
-		if remainingSize < int64(len(p[n:])) {
-			// Write the number of bytes that we can write on the current file
-			li := int64(n) + remainingSize
-			nw, err = f.writeToBuffer(p[n:li])
+		// Check if we are near the end of the file. If we are we attempt to
+		// avoid a log line being split between two files.
+		var nw int
+		if (remainingSpace - lineScanLimit) < remainingToWrite {
+			// Scan for new line and if the data up to new line fits in current
+			// file, write to buffer
+			idx := bytes.IndexByte(p[n:], newLineDelimiter)
+			if idx >= 0 && (remainingSpace-int64(idx)-1) >= 0 {
+				// We have space so write it to buffer
+				nw, err = f.writeToBuffer(p[n : n+idx+1])
+			} else if idx >= 0 {
+				// We found a new line but don't have space so just force rotate
+				forceRotate = true
+			} else if remainingToWrite > f.FileSize || f.FileSize-lineScanLimit < 0 {
+				// There is no new line remaining but there is no point in
+				// rotating since the remaining data will not even fit in the
+				// next file either so just fill this one up.
+				li := int64(n) + remainingSpace
+				if remainingSpace > remainingToWrite {
+					li = int64(n) + remainingToWrite
+				}
+				nw, err = f.writeToBuffer(p[n:li])
+			} else {
+				// There is no new line in the data remaining for us to write
+				// and it will fit in the next file so rotate.
+				forceRotate = true
+			}
 		} else {
 			// Write all the bytes in the current file
 			nw, err = f.writeToBuffer(p[n:])
@@ -104,7 +144,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		// Increment the total number of bytes in the file
 		f.currentWr += int64(n)
 		if err != nil {
-			f.logger.Printf("[ERROR] driver.rotator: error writing to file: %v", err)
+			f.logger.Error("error writing to file", "err", err)
 			return
 		}
 	}
@@ -173,10 +213,11 @@ func (f *FileRotator) lastFile() error {
 // createFile opens a new or existing file for writing
 func (f *FileRotator) createFile() error {
 	logFileName := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, f.logFileIdx))
-	cFile, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	cFile, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
+
 	f.currentFile = cFile
 	fi, err := f.currentFile.Stat()
 	if err != nil {
@@ -190,7 +231,7 @@ func (f *FileRotator) createFile() error {
 // flushPeriodically flushes the buffered writer every 100ms to the underlying
 // file
 func (f *FileRotator) flushPeriodically() {
-	for _ = range f.flushTicker.C {
+	for range f.flushTicker.C {
 		f.flushBuffer()
 	}
 }
@@ -220,7 +261,7 @@ func (f *FileRotator) purgeOldFiles() {
 			var fIndexes []int
 			files, err := ioutil.ReadDir(f.path)
 			if err != nil {
-				f.logger.Printf("[ERROR] driver.rotator: error getting directory listing: %v", err)
+				f.logger.Error("error getting directory listing", "err", err)
 				return
 			}
 			// Inserting all the rotated files in a slice
@@ -229,7 +270,7 @@ func (f *FileRotator) purgeOldFiles() {
 					fileIdx := strings.TrimPrefix(fi.Name(), fmt.Sprintf("%s.", f.baseFileName))
 					n, err := strconv.Atoi(fileIdx)
 					if err != nil {
-						f.logger.Printf("[ERROR] driver.rotator: error extracting file index: %v", err)
+						f.logger.Error("error extracting file index", "err", err)
 						continue
 					}
 					fIndexes = append(fIndexes, n)
@@ -250,7 +291,7 @@ func (f *FileRotator) purgeOldFiles() {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
 				err := os.RemoveAll(fname)
 				if err != nil {
-					f.logger.Printf("[ERROR] driver.rotator: error removing file: %v", err)
+					f.logger.Error("error removing file", "filename", fname, "err", err)
 				}
 			}
 			f.oldestLogFileIdx = fIndexes[0]
@@ -283,7 +324,7 @@ func (f *FileRotator) createOrResetBuffer() {
 	f.bufLock.Lock()
 	defer f.bufLock.Unlock()
 	if f.bufw == nil {
-		f.bufw = bufio.NewWriterSize(f.currentFile, bufSize)
+		f.bufw = bufio.NewWriterSize(f.currentFile, logBufferSize)
 	} else {
 		f.bufw.Reset(f.currentFile)
 	}

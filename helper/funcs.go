@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/hcl/hcl/ast"
 )
 
 // validUUID is used to check if a given string looks like a UUID
@@ -54,8 +57,13 @@ func Int64ToPtr(i int64) *int64 {
 	return &i
 }
 
-// UintToPtr returns the pointer to an uint
+// Uint64ToPtr returns the pointer to an uint64
 func Uint64ToPtr(u uint64) *uint64 {
+	return &u
+}
+
+// UintToPtr returns the pointer to an uint
+func UintToPtr(u uint) *uint {
 	return &u
 }
 
@@ -67,6 +75,11 @@ func StringToPtr(str string) *string {
 // TimeToPtr returns the pointer to a time stamp
 func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
+}
+
+// Float64ToPtr returns the pointer to an float64
+func Float64ToPtr(f float64) *float64 {
+	return &f
 }
 
 func IntMin(a, b int) int {
@@ -159,6 +172,38 @@ func SliceSetDisjoint(first, second []string) (bool, []string) {
 	return false, flattened
 }
 
+// CompareMapStringString returns true if the maps are equivalent. A nil and
+// empty map are considered not equal.
+func CompareMapStringString(a, b map[string]string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for k, v := range a {
+		v2, ok := b[k]
+		if !ok {
+			return false
+		}
+		if v != v2 {
+			return false
+		}
+	}
+
+	// Already compared all known values in a so only test that keys from b
+	// exist in a
+	for k := range b {
+		if _, ok := a[k]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Helpers for copying generic structures.
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)
@@ -180,7 +225,7 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	}
 
 	c := make(map[string]struct{}, l)
-	for k, _ := range m {
+	for k := range m {
 		c[k] = struct{}{}
 	}
 	return c
@@ -260,6 +305,7 @@ func CleanEnvVar(s string, r byte) string {
 	for i, c := range b {
 		switch {
 		case c == '_':
+		case c == '.':
 		case c >= 'a' && c <= 'z':
 		case c >= 'A' && c <= 'Z':
 		case i > 0 && c >= '0' && c <= '9':
@@ -269,4 +315,32 @@ func CleanEnvVar(s string, r byte) string {
 		}
 	}
 	return string(b)
+}
+
+func CheckHCLKeys(node ast.Node, valid []string) error {
+	var list *ast.ObjectList
+	switch n := node.(type) {
+	case *ast.ObjectList:
+		list = n
+	case *ast.ObjectType:
+		list = n.List
+	default:
+		return fmt.Errorf("cannot check HCL keys of type %T", n)
+	}
+
+	validMap := make(map[string]struct{}, len(valid))
+	for _, v := range valid {
+		validMap[v] = struct{}{}
+	}
+
+	var result error
+	for _, item := range list.Items {
+		key := item.Keys[0].Token.Value().(string)
+		if _, ok := validMap[key]; !ok {
+			result = multierror.Append(result, fmt.Errorf(
+				"invalid key: %s", key))
+		}
+	}
+
+	return result
 }

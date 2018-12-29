@@ -11,6 +11,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -136,11 +137,117 @@ func TestEnvironment_AsList(t *testing.T) {
 		"metaKey": "metaVal",
 	}
 	a := mock.Alloc()
-	a.Resources.Networks[0].ReservedPorts = append(a.Resources.Networks[0].ReservedPorts,
-		structs.Port{Label: "ssh", Value: 22},
-		structs.Port{Label: "other", Value: 1234},
+	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
+		Device:        "eth0",
+		IP:            "127.0.0.1",
+		ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
+		MBits:         50,
+		DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
+	}
+	a.AllocatedResources.Tasks["ssh"] = &structs.AllocatedTaskResources{
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				IP:     "192.168.0.100",
+				MBits:  50,
+				ReservedPorts: []structs.Port{
+					{Label: "ssh", Value: 22},
+					{Label: "other", Value: 1234},
+				},
+			},
+		},
+	}
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Env = map[string]string{
+		"taskEnvKey": "taskEnvVal",
+	}
+	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
+		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
-	a.TaskResources["web"].Networks[0].DynamicPorts[0].Value = 2000
+
+	act := env.Build().List()
+	exp := []string{
+		"taskEnvKey=taskEnvVal",
+		"NOMAD_ADDR_http=127.0.0.1:80",
+		"NOMAD_PORT_http=80",
+		"NOMAD_IP_http=127.0.0.1",
+		"NOMAD_ADDR_https=127.0.0.1:8080",
+		"NOMAD_PORT_https=443",
+		"NOMAD_IP_https=127.0.0.1",
+		"NOMAD_HOST_PORT_http=80",
+		"NOMAD_HOST_PORT_https=8080",
+		"NOMAD_TASK_NAME=web",
+		"NOMAD_GROUP_NAME=web",
+		"NOMAD_ADDR_ssh_other=192.168.0.100:1234",
+		"NOMAD_ADDR_ssh_ssh=192.168.0.100:22",
+		"NOMAD_IP_ssh_other=192.168.0.100",
+		"NOMAD_IP_ssh_ssh=192.168.0.100",
+		"NOMAD_PORT_ssh_other=1234",
+		"NOMAD_PORT_ssh_ssh=22",
+		"NOMAD_CPU_LIMIT=500",
+		"NOMAD_DC=dc1",
+		"NOMAD_REGION=global",
+		"NOMAD_MEMORY_LIMIT=256",
+		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
+		"NOMAD_META_ELB_CHECK_MIN=3",
+		"NOMAD_META_ELB_CHECK_TYPE=http",
+		"NOMAD_META_FOO=bar",
+		"NOMAD_META_OWNER=armon",
+		"NOMAD_META_elb_check_interval=30s",
+		"NOMAD_META_elb_check_min=3",
+		"NOMAD_META_elb_check_type=http",
+		"NOMAD_META_foo=bar",
+		"NOMAD_META_owner=armon",
+		"NOMAD_JOB_NAME=my-job",
+		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
+		"NOMAD_ALLOC_INDEX=0",
+	}
+	sort.Strings(act)
+	sort.Strings(exp)
+	require.Equal(t, exp, act)
+}
+
+// COMPAT(0.11): Remove in 0.11
+func TestEnvironment_AsList_Old(t *testing.T) {
+	n := mock.Node()
+	n.Meta = map[string]string{
+		"metaKey": "metaVal",
+	}
+	a := mock.Alloc()
+	a.AllocatedResources = nil
+	a.Resources = &structs.Resources{
+		CPU:      500,
+		MemoryMB: 256,
+		DiskMB:   150,
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				IP:     "192.168.0.100",
+				ReservedPorts: []structs.Port{
+					{Label: "admin", Value: 5000},
+					{Label: "ssh", Value: 22},
+					{Label: "other", Value: 1234},
+				},
+				MBits:        50,
+				DynamicPorts: []structs.Port{{Label: "http"}},
+			},
+		},
+	}
+	a.TaskResources = map[string]*structs.Resources{
+		"web": {
+			CPU:      500,
+			MemoryMB: 256,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http", Value: 2000}},
+				},
+			},
+		},
+	}
 	a.TaskResources["ssh"] = &structs.Resources{
 		Networks: []*structs.NetworkResource{
 			{
@@ -159,7 +266,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"taskEnvKey": "taskEnvVal",
 	}
 	task.Resources.Networks = []*structs.NetworkResource{
-		&structs.NetworkResource{
+		{
 			IP:            "127.0.0.1",
 			ReservedPorts: []structs.Port{{Label: "http", Value: 80}},
 			DynamicPorts:  []structs.Port{{Label: "https", Value: 8080}},
@@ -208,15 +315,7 @@ func TestEnvironment_AsList(t *testing.T) {
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
-	if len(act) != len(exp) {
-		t.Fatalf("expected %d vars != %d actual, actual:\n%s\n\nexpected:\n%s\n",
-			len(act), len(exp), strings.Join(act, "\n"), strings.Join(exp, "\n"))
-	}
-	for i := range act {
-		if act[i] != exp[i] {
-			t.Errorf("%d actual %q != %q expected", i, act[i], exp[i])
-		}
-	}
+	require.Equal(t, exp, act)
 }
 
 func TestEnvironment_VaultToken(t *testing.T) {
@@ -371,4 +470,21 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 	if v, ok := newMap["NOMAD_META_taskmeta"]; ok {
 		t.Errorf("Expected NOMAD_META_taskmeta to be unset but found: %q", v)
 	}
+}
+
+// TestEnvironment_InterpolateEmptyOptionalMeta asserts that in a parameterized
+// job, if an optional meta field is not set, it will get interpolated as an
+// empty string.
+func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
+	require := require.New(t)
+	a := mock.Alloc()
+	a.Job.ParameterizedJob = &structs.ParameterizedJobConfig{
+		MetaOptional: []string{"metaopt1", "metaopt2"},
+	}
+	a.Job.Dispatched = true
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Meta = map[string]string{"metaopt1": "metaopt1val"}
+	env := NewBuilder(mock.Node(), a, task, "global").Build()
+	require.Equal("metaopt1val", env.ReplaceEnv("${NOMAD_META_metaopt1}"))
+	require.Empty(env.ReplaceEnv("${NOMAD_META_metaopt2}"))
 }

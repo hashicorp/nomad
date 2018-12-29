@@ -1,21 +1,23 @@
 package nomad
 
 import (
-	"os"
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestResolveACLToken(t *testing.T) {
+	t.Parallel()
+
 	// Create mock state store and cache
-	state, err := state.NewStateStore(os.Stderr)
-	assert.Nil(t, err)
+	state := state.TestStateStore(t)
 	cache, err := lru.New2Q(16)
 	assert.Nil(t, err)
 
@@ -41,7 +43,7 @@ func TestResolveACLToken(t *testing.T) {
 	assert.NotNil(t, aclObj)
 
 	// Attempt resolution of unknown token. Should fail.
-	randID := structs.GenerateUUID()
+	randID := uuid.Generate()
 	aclObj, err = resolveTokenFromSnapshotCache(snap, cache, randID)
 	assert.Equal(t, structs.ErrTokenNotFound, err)
 	assert.Nil(t, aclObj)
@@ -87,5 +89,21 @@ func TestResolveACLToken(t *testing.T) {
 	assert.NotNil(t, aclObj3)
 	if aclObj == aclObj3 {
 		t.Fatalf("unexpected cached value")
+	}
+}
+
+func TestResolveACLToken_LeaderToken(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	s1, _ := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	leaderAcl := s1.getLeaderAcl()
+	assert.NotEmpty(leaderAcl)
+	token, err := s1.ResolveToken(leaderAcl)
+	assert.Nil(err)
+	if assert.NotNil(token) {
+		assert.True(token.IsManagement())
 	}
 }

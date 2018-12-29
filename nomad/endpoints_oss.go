@@ -2,6 +2,8 @@
 
 package nomad
 
+import "net/rpc"
+
 // EnterpriseEndpoints holds the set of enterprise only endpoints to register
 type EnterpriseEndpoints struct{}
 
@@ -12,4 +14,4 @@ func NewEnterpriseEndpoints(s *Server) *EnterpriseEndpoints {
 }
 
 // Register is a no-op in oss.
-func (e *EnterpriseEndpoints) Register(s *Server) {}
+func (e *EnterpriseEndpoints) Register(s *rpc.Server) {}

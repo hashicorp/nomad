@@ -4,45 +4,75 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func Node() *structs.Node {
 	node := &structs.Node{
-		ID:         structs.GenerateUUID(),
-		SecretID:   structs.GenerateUUID(),
+		ID:         uuid.Generate(),
+		SecretID:   uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
-			"kernel.name":   "linux",
-			"arch":          "x86",
-			"nomad.version": "0.5.0",
-			"driver.exec":   "1",
+			"kernel.name":        "linux",
+			"arch":               "x86",
+			"nomad.version":      "0.5.0",
+			"driver.exec":        "1",
+			"driver.mock_driver": "1",
 		},
+
+		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{
 			CPU:      4000,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
 			IOPS:     150,
-			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
 		},
 		Reserved: &structs.Resources{
 			CPU:      100,
 			MemoryMB: 256,
 			DiskMB:   4 * 1024,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 22}},
+					ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
 					MBits:         1,
 				},
+			},
+		},
+
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{
+				CpuShares: 4000,
+			},
+			Memory: structs.NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: structs.NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
+			Networks: []*structs.NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		ReservedResources: &structs.NodeReservedResources{
+			Cpu: structs.NodeReservedCpuResources{
+				CpuShares: 100,
+			},
+			Memory: structs.NodeReservedMemoryResources{
+				MemoryMB: 256,
+			},
+			Disk: structs.NodeReservedDiskResources{
+				DiskMB: 4 * 1024,
+			},
+			Networks: structs.NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
 			},
 		},
 		Links: map[string]string{
@@ -53,17 +83,50 @@ func Node() *structs.Node {
 			"database": "mysql",
 			"version":  "5.6",
 		},
-		NodeClass: "linux-medium-pci",
-		Status:    structs.NodeStatusReady,
+		NodeClass:             "linux-medium-pci",
+		Status:                structs.NodeStatusReady,
+		SchedulingEligibility: structs.NodeSchedulingEligible,
 	}
 	node.ComputeClass()
 	return node
 }
 
+func HCL() string {
+	return `job "my-job" {
+	datacenters = ["dc1"]
+	type = "service"
+	constraint {
+		attribute = "${attr.kernel.name}"
+		value = "linux"
+	}
+
+	group "web" {
+		count = 10
+		restart {
+			attempts = 3
+			interval = "10m"
+			delay = "1m"
+			mode = "delay"
+		}
+		task "web" {
+			driver = "exec"
+			config {
+				command = "/bin/date"
+			}
+			resources {
+				cpu = 500
+				memory = 256
+			}
+		}
+	}
+}
+`
+}
+
 func Job() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
-		ID:          structs.GenerateUUID(),
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeService,
@@ -71,14 +134,14 @@ func Job() *structs.Job {
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
-			&structs.Constraint{
+			{
 				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
 		TaskGroups: []*structs.TaskGroup{
-			&structs.TaskGroup{
+			{
 				Name:  "web",
 				Count: 10,
 				EphemeralDisk: &structs.EphemeralDisk{
@@ -90,8 +153,15 @@ func Job() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeDelay,
 				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts:      2,
+					Interval:      10 * time.Minute,
+					Delay:         5 * time.Second,
+					DelayFunction: "constant",
+				},
+				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
-					&structs.Task{
+					{
 						Name:   "web",
 						Driver: "exec",
 						Config: map[string]interface{}{
@@ -126,9 +196,12 @@ func Job() *structs.Job {
 							CPU:      500,
 							MemoryMB: 256,
 							Networks: []*structs.NetworkResource{
-								&structs.NetworkResource{
-									MBits:        50,
-									DynamicPorts: []structs.Port{{Label: "http"}, {Label: "admin"}},
+								{
+									MBits: 50,
+									DynamicPorts: []structs.Port{
+										{Label: "http"},
+										{Label: "admin"},
+									},
 								},
 							},
 						},
@@ -157,25 +230,91 @@ func Job() *structs.Job {
 	return job
 }
 
+func BatchJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-batch-%s", uuid.Generate()),
+		Name:        "batch-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeBatch,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "worker",
+				Count: 10,
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB: 150,
+				},
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeDelay,
+				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts:      2,
+					Interval:      10 * time.Minute,
+					Delay:         5 * time.Second,
+					DelayFunction: "constant",
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "worker",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "500ms",
+						},
+						Env: map[string]string{
+							"FOO": "bar",
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      100,
+							MemoryMB: 100,
+							Networks: []*structs.NetworkResource{
+								{
+									MBits: 50,
+								},
+							},
+						},
+						Meta: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    43,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+
 func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		Namespace:   structs.DefaultNamespace,
-		ID:          structs.GenerateUUID(),
+		ID:          fmt.Sprintf("mock-system-%s", uuid.Generate()),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
 		Priority:    100,
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
-			&structs.Constraint{
+			{
 				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
 		TaskGroups: []*structs.TaskGroup{
-			&structs.TaskGroup{
+			{
 				Name:  "web",
 				Count: 1,
 				RestartPolicy: &structs.RestartPolicy{
@@ -186,7 +325,7 @@ func SystemJob() *structs.Job {
 				},
 				EphemeralDisk: structs.DefaultEphemeralDisk(),
 				Tasks: []*structs.Task{
-					&structs.Task{
+					{
 						Name:   "web",
 						Driver: "exec",
 						Config: map[string]interface{}{
@@ -197,7 +336,7 @@ func SystemJob() *structs.Job {
 							CPU:      500,
 							MemoryMB: 256,
 							Networks: []*structs.NetworkResource{
-								&structs.NetworkResource{
+								{
 									MBits:        50,
 									DynamicPorts: []structs.Port{{Label: "http"}},
 								},
@@ -228,16 +367,17 @@ func PeriodicJob() *structs.Job {
 		Spec:     "*/30 * * * *",
 	}
 	job.Status = structs.JobStatusRunning
+	job.TaskGroups[0].Migrate = nil
 	return job
 }
 
 func Eval() *structs.Evaluation {
 	eval := &structs.Evaluation{
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		Namespace: structs.DefaultNamespace,
 		Priority:  50,
 		Type:      structs.JobTypeService,
-		JobID:     structs.GenerateUUID(),
+		JobID:     uuid.Generate(),
 		Status:    structs.EvalStatusPending,
 	}
 	return eval
@@ -259,42 +399,69 @@ func JobSummary(jobID string) *structs.JobSummary {
 
 func Alloc() *structs.Allocation {
 	alloc := &structs.Allocation{
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
 			DiskMB:   150,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 					MBits:         50,
 					DynamicPorts:  []structs.Port{{Label: "http"}},
 				},
 			},
 		},
 		TaskResources: map[string]*structs.Resources{
-			"web": &structs.Resources{
+			"web": {
 				CPU:      500,
 				MemoryMB: 256,
 				Networks: []*structs.NetworkResource{
-					&structs.NetworkResource{
+					{
 						Device:        "eth0",
 						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http"}},
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
 					},
 				},
 			},
 		},
 		SharedResources: &structs.Resources{
 			DiskMB: 150,
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 500,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: 150,
+			},
 		},
 		Job:           Job(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
@@ -304,11 +471,159 @@ func Alloc() *structs.Allocation {
 	return alloc
 }
 
+func BatchAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "worker",
+
+		// TODO Remove once clientv2 gets merged
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+			DiskMB:   150,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http"}},
+				},
+			},
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": {
+				CPU:      500,
+				MemoryMB: 256,
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+						MBits:         50,
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 500,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: 150,
+			},
+		},
+		Job:           BatchJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+func SystemAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+			DiskMB:   150,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http"}},
+				},
+			},
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": {
+				CPU:      500,
+				MemoryMB: 256,
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+						MBits:         50,
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 500,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: 150,
+			},
+		},
+		Job:           SystemJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
 func VaultAccessor() *structs.VaultAccessor {
 	return &structs.VaultAccessor{
-		Accessor:    structs.GenerateUUID(),
-		NodeID:      structs.GenerateUUID(),
-		AllocID:     structs.GenerateUUID(),
+		Accessor:    uuid.Generate(),
+		NodeID:      uuid.Generate(),
+		AllocID:     uuid.Generate(),
 		CreationTTL: 86400,
 		Task:        "foo",
 	}
@@ -316,14 +631,14 @@ func VaultAccessor() *structs.VaultAccessor {
 
 func Deployment() *structs.Deployment {
 	return &structs.Deployment{
-		ID:             structs.GenerateUUID(),
-		JobID:          structs.GenerateUUID(),
+		ID:             uuid.Generate(),
+		JobID:          uuid.Generate(),
 		Namespace:      structs.DefaultNamespace,
 		JobVersion:     2,
 		JobModifyIndex: 20,
 		JobCreateIndex: 18,
 		TaskGroups: map[string]*structs.DeploymentState{
-			"web": &structs.DeploymentState{
+			"web": {
 				DesiredTotal: 10,
 			},
 		},
@@ -346,7 +661,7 @@ func PlanResult() *structs.PlanResult {
 
 func ACLPolicy() *structs.ACLPolicy {
 	ap := &structs.ACLPolicy{
-		Name:        fmt.Sprintf("policy-%s", structs.GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
@@ -368,9 +683,9 @@ func ACLPolicy() *structs.ACLPolicy {
 
 func ACLToken() *structs.ACLToken {
 	tk := &structs.ACLToken{
-		AccessorID:  structs.GenerateUUID(),
-		SecretID:    structs.GenerateUUID(),
-		Name:        "my cool token " + structs.GenerateUUID(),
+		AccessorID:  uuid.Generate(),
+		SecretID:    uuid.Generate(),
+		Name:        "my cool token " + uuid.Generate(),
 		Type:        "client",
 		Policies:    []string{"foo", "bar"},
 		Global:      false,
@@ -384,9 +699,9 @@ func ACLToken() *structs.ACLToken {
 
 func ACLManagementToken() *structs.ACLToken {
 	return &structs.ACLToken{
-		AccessorID:  structs.GenerateUUID(),
-		SecretID:    structs.GenerateUUID(),
-		Name:        "management " + structs.GenerateUUID(),
+		AccessorID:  uuid.Generate(),
+		SecretID:    uuid.Generate(),
+		Name:        "management " + uuid.Generate(),
 		Type:        "management",
 		Global:      true,
 		CreateTime:  time.Now().UTC(),

@@ -53,8 +53,8 @@ func TestNamespace_Info(t *testing.T) {
 
 	// Trying to retrieve a namespace before it exists returns an error
 	_, _, err := namespaces.Info("foo", nil)
-	assert.Nil(err)
-	assert.Contains("not found", err.Error())
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "not found")
 
 	// Register the namespace
 	ns := testNamespace()

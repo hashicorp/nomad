@@ -17,7 +17,7 @@ func TestEvaluatePool(t *testing.T) {
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
 		NodeAllocation: map[string][]*structs.Allocation{
-			node.ID: []*structs.Allocation{alloc},
+			node.ID: {alloc},
 		},
 	}
 

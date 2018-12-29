@@ -1,29 +1,61 @@
-sudo: required
-dist: trusty
-
 services:
     - docker
 
 language: go
 
 go:
-  -  1.9.x
+  -  "1.x"
 
-branches:
-  only:
-    - master
-    - f-acl
+addons:
+  chrome: stable
+
+git:
+  depth: 300
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: ENABLE_RACE=1
+    - os: linux
+      dist: trusty
+      sudo: false
+      env: RUN_WEBSITE_TESTS=1 SKIP_NOMAD_TESTS=1
+    - os: linux
+      dist: trusty
+      sudo: false
+      env: RUN_UI_TESTS=1 SKIP_NOMAD_TESTS=1
+    - os: linux
+      dist: trusty
+      sudo: false
+      env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
+    - os: osx
+      osx_image: xcode9.1
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: RUN_E2E_TESTS=1 SKIP_NOMAD_TESTS=1
+  allow_failures:
+    # Allow osx to fail as its flaky
+    - os: osx
+    #FIXME Allow race enabled builds to fail for now.
+    - env: ENABLE_RACE=1
+  fast_finish: true
 
 before_install:
-    - sudo apt-get update
-    - sudo apt-get install -y liblxc1 lxc-dev lxc shellcheck
-    - sudo apt-get install -y qemu
-    - sudo bash ./scripts/travis-rkt.sh
-    - sudo bash ./scripts/travis-consul.sh
-    - sudo bash ./scripts/travis-vault.sh
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-mac-priv.sh ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.0.1 ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then export PATH="$HOME/.yarn/bin:$PATH" ; fi
 
 install:
-  - make bootstrap
+  - if [[ -z "$SKIP_NOMAD_TESTS" ]]; then make deps ; fi
+  - if [[ "$RUN_STATIC_CHECKS" ]]; then make lint-deps ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then . $HOME/.nvm/nvm.sh && cd ui && nvm use && cd .. ; fi
 
 script:
   - sudo -E "PATH=$PATH" make travis

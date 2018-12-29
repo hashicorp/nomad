@@ -13,7 +13,7 @@ func TestAgent_LoadKeyrings(t *testing.T) {
 	key := "tbLJg26ZJyJ9pK3qhc9jig=="
 
 	// Should be no configured keyring file by default
-	agent1 := NewTestAgent(t.Name(), nil)
+	agent1 := NewTestAgent(t, t.Name(), nil)
 	defer agent1.Shutdown()
 
 	c := agent1.server.GetConfig()
@@ -26,6 +26,7 @@ func TestAgent_LoadKeyrings(t *testing.T) {
 
 	// Server should auto-load WAN keyring files
 	agent2 := &TestAgent{
+		T:    t,
 		Name: t.Name() + "2",
 		Key:  key,
 	}

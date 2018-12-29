@@ -3,11 +3,13 @@ package structs
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 func testNode() *Node {
 	return &Node{
-		ID:         GenerateUUID(),
+		ID:         uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
@@ -16,15 +18,21 @@ func testNode() *Node {
 			"version":     "0.1.0",
 			"driver.exec": "1",
 		},
-		Resources: &Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-			IOPS:     150,
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				CpuShares: 4000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
+					IP:     "192.168.0.100",
 					MBits:  1000,
 				},
 			},

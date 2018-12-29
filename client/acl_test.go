@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -16,7 +17,7 @@ func TestClient_ACL_resolveTokenValue(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
@@ -65,7 +66,7 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
@@ -105,7 +106,7 @@ func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -121,7 +122,7 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 		c.ACLEnabled = true
 	})
@@ -160,7 +161,7 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	}
 
 	// Test bad token
-	out4, err := c1.ResolveToken(structs.GenerateUUID())
+	out4, err := c1.ResolveToken(uuid.Generate())
 	assert.Equal(t, structs.ErrTokenNotFound, err)
 	assert.Nil(t, out4)
 }

@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -16,7 +17,7 @@ func (c *NamespaceListCommand) Help() string {
 	helpText := `
 Usage: nomad namespace list [options]
 
-List is used to list available namespaces.
+  List is used to list available namespaces.
 
 General Options:
 
@@ -49,11 +50,13 @@ func (c *NamespaceListCommand) Synopsis() string {
 	return "List namespaces"
 }
 
+func (c *NamespaceListCommand) Name() string { return "namespace list" }
+
 func (c *NamespaceListCommand) Run(args []string) int {
 	var json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("namespace list", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
@@ -65,7 +68,8 @@ func (c *NamespaceListCommand) Run(args []string) int {
 	// Check that we got no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -101,6 +105,9 @@ func formatNamespaces(namespaces []*api.Namespace) string {
 	if len(namespaces) == 0 {
 		return "No namespaces found"
 	}
+
+	// Sort the output by namespace name
+	sort.Slice(namespaces, func(i, j int) bool { return namespaces[i].Name < namespaces[j].Name })
 
 	rows := make([]string, len(namespaces)+1)
 	rows[0] = "Name|Description"

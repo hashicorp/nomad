@@ -3,8 +3,10 @@ package scheduler
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	require "github.com/stretchr/testify/require"
 )
 
 func TestFeasibleRankIterator(t *testing.T) {
@@ -26,42 +28,66 @@ func TestFeasibleRankIterator(t *testing.T) {
 func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
-				Reserved: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Overloaded
-				Resources: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 1024,
+					},
 				},
-				Reserved: &structs.Resources{
-					CPU:      512,
-					MemoryMB: 512,
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 512,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 512,
+					},
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// 50% fit
-				Resources: &structs.Resources{
-					CPU:      4096,
-					MemoryMB: 4096,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
 				},
-				Reserved: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
 				},
 			},
 		},
@@ -83,7 +109,9 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
 
-	out := collectRanked(binp)
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
 	if len(out) != 2 {
 		t.Fatalf("Bad: %v", out)
 	}
@@ -91,34 +119,42 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 		t.Fatalf("Bad: %v", out)
 	}
 
-	if out[0].Score != 18 {
-		t.Fatalf("Bad: %v", out[0])
+	if out[0].FinalScore != 1.0 {
+		t.Fatalf("Bad Score: %v", out[0].FinalScore)
 	}
-	if out[1].Score < 10 || out[1].Score > 16 {
-		t.Fatalf("Bad: %v", out[1])
+	if out[1].FinalScore < 0.75 || out[1].FinalScore > 0.95 {
+		t.Fatalf("Bad Score: %v", out[1].FinalScore)
 	}
 }
 
 func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -128,20 +164,36 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	// Add a planned alloc to node1 that fills it
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
-			Resources: &structs.Resources{
-				CPU:      2048,
-				MemoryMB: 2048,
+		{
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 2048,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 2048,
+						},
+					},
+				},
 			},
 		},
 	}
 
 	// Add a planned alloc to node2 that half fills it
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
-			Resources: &structs.Resources{
-				CPU:      1024,
-				MemoryMB: 1024,
+		{
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 1024,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 1024,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -162,39 +214,49 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
 
-	out := collectRanked(binp)
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
 	if len(out) != 1 {
 		t.Fatalf("Bad: %#v", out)
 	}
 	if out[0] != nodes[1] {
-		t.Fatalf("Bad: %v", out)
+		t.Fatalf("Bad Score: %v", out)
 	}
 
-	if out[0].Score != 18 {
-		t.Fatalf("Bad: %v", out[0])
+	if out[0].FinalScore != 1.0 {
+		t.Fatalf("Bad Score: %v", out[0].FinalScore)
 	}
 }
 
 func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -205,14 +267,22 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	j1, j2 := mock.Job(), mock.Job()
 	alloc1 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -220,14 +290,22 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	}
 	alloc2 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
-		Resources: &structs.Resources{
-			CPU:      1024,
-			MemoryMB: 1024,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -252,38 +330,48 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
 
-	out := collectRanked(binp)
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
 	if len(out) != 1 {
 		t.Fatalf("Bad: %#v", out)
 	}
 	if out[0] != nodes[1] {
 		t.Fatalf("Bad: %v", out)
 	}
-	if out[0].Score != 18 {
-		t.Fatalf("Bad: %v", out[0])
+	if out[0].FinalScore != 1.0 {
+		t.Fatalf("Bad Score: %v", out[0].FinalScore)
 	}
 }
 
 func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
 				// Perfect fit
-				ID: structs.GenerateUUID(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -294,14 +382,22 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	j1, j2 := mock.Job(), mock.Job()
 	alloc1 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -309,14 +405,22 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	}
 	alloc2 := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
-		EvalID:    structs.GenerateUUID(),
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
-		Resources: &structs.Resources{
-			CPU:      1024,
-			MemoryMB: 1024,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -346,75 +450,89 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
 
-	out := collectRanked(binp)
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
 	if len(out) != 2 {
 		t.Fatalf("Bad: %#v", out)
 	}
 	if out[0] != nodes[0] || out[1] != nodes[1] {
 		t.Fatalf("Bad: %v", out)
 	}
-	if out[0].Score < 10 || out[0].Score > 16 {
-		t.Fatalf("Bad: %v", out[0])
+	if out[0].FinalScore < 0.50 || out[0].FinalScore > 0.95 {
+		t.Fatalf("Bad Score: %v", out[0].FinalScore)
 	}
-	if out[1].Score != 18 {
-		t.Fatalf("Bad: %v", out[1])
+	if out[1].FinalScore != 1 {
+		t.Fatalf("Bad Score: %v", out[1].FinalScore)
 	}
 }
 
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node: &structs.Node{
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 			},
 		},
-		&RankedNode{
+		{
 			Node: &structs.Node{
-				ID: structs.GenerateUUID(),
+				ID: uuid.Generate(),
 			},
 		},
 	}
 	static := NewStaticRankIterator(ctx, nodes)
 
+	job := mock.Job()
+	job.ID = "foo"
+	tg := job.TaskGroups[0]
+	tg.Count = 4
+
 	// Add a planned alloc to node1 that fills it
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
-			ID:    structs.GenerateUUID(),
-			JobID: "foo",
+		{
+			ID:        uuid.Generate(),
+			JobID:     "foo",
+			TaskGroup: tg.Name,
 		},
-		&structs.Allocation{
-			ID:    structs.GenerateUUID(),
-			JobID: "foo",
+		{
+			ID:        uuid.Generate(),
+			JobID:     "foo",
+			TaskGroup: tg.Name,
 		},
 	}
 
 	// Add a planned alloc to node2 that half fills it
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
-		&structs.Allocation{
+		{
 			JobID: "bar",
 		},
 	}
 
-	binp := NewJobAntiAffinityIterator(ctx, static, 5.0, "foo")
+	jobAntiAff := NewJobAntiAffinityIterator(ctx, static, "foo")
+	jobAntiAff.SetJob(job)
+	jobAntiAff.SetTaskGroup(tg)
 
-	out := collectRanked(binp)
+	scoreNorm := NewScoreNormalizationIterator(ctx, jobAntiAff)
+
+	out := collectRanked(scoreNorm)
 	if len(out) != 2 {
 		t.Fatalf("Bad: %#v", out)
 	}
 	if out[0] != nodes[0] {
 		t.Fatalf("Bad: %v", out)
 	}
-	if out[0].Score != -10.0 {
-		t.Fatalf("Bad: %#v", out[0])
+	// Score should be -(#collissions+1/desired_count) => -(3/4)
+	if out[0].FinalScore != -0.75 {
+		t.Fatalf("Bad Score: %#v", out[0].FinalScore)
 	}
 
 	if out[1] != nodes[1] {
 		t.Fatalf("Bad: %v", out)
 	}
-	if out[1].Score != 0.0 {
-		t.Fatalf("Bad: %v", out[1])
+	if out[1].FinalScore != 0.0 {
+		t.Fatalf("Bad Score: %v", out[1].FinalScore)
 	}
 }
 
@@ -427,4 +545,180 @@ func collectRanked(iter RankIterator) (out []*RankedNode) {
 		out = append(out, next)
 	}
 	return
+}
+
+func TestNodeAntiAffinity_PenaltyNodes(t *testing.T) {
+	_, ctx := testContext(t)
+	node1 := &structs.Node{
+		ID: uuid.Generate(),
+	}
+	node2 := &structs.Node{
+		ID: uuid.Generate(),
+	}
+
+	nodes := []*RankedNode{
+		{
+			Node: node1,
+		},
+		{
+			Node: node2,
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	nodeAntiAffIter := NewNodeReschedulingPenaltyIterator(ctx, static)
+	nodeAntiAffIter.SetPenaltyNodes(map[string]struct{}{node1.ID: {}})
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, nodeAntiAffIter)
+
+	out := collectRanked(scoreNorm)
+
+	require := require.New(t)
+	require.Equal(2, len(out))
+	require.Equal(node1.ID, out[0].Node.ID)
+	require.Equal(-1.0, out[0].FinalScore)
+
+	require.Equal(node2.ID, out[1].Node.ID)
+	require.Equal(0.0, out[1].FinalScore)
+
+}
+
+func TestScoreNormalizationIterator(t *testing.T) {
+	// Test normalized scores when there is more than one scorer
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+			},
+		},
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	job := mock.Job()
+	job.ID = "foo"
+	tg := job.TaskGroups[0]
+	tg.Count = 4
+
+	// Add a planned alloc to node1 that fills it
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+		{
+			ID:        uuid.Generate(),
+			JobID:     "foo",
+			TaskGroup: tg.Name,
+		},
+		{
+			ID:        uuid.Generate(),
+			JobID:     "foo",
+			TaskGroup: tg.Name,
+		},
+	}
+
+	// Add a planned alloc to node2 that half fills it
+	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
+		{
+			JobID: "bar",
+		},
+	}
+
+	jobAntiAff := NewJobAntiAffinityIterator(ctx, static, "foo")
+	jobAntiAff.SetJob(job)
+	jobAntiAff.SetTaskGroup(tg)
+
+	nodeReschedulePenaltyIter := NewNodeReschedulingPenaltyIterator(ctx, jobAntiAff)
+	nodeReschedulePenaltyIter.SetPenaltyNodes(map[string]struct{}{nodes[0].Node.ID: {}})
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, nodeReschedulePenaltyIter)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+
+	require.Equal(2, len(out))
+	require.Equal(out[0], nodes[0])
+	// Score should be averaged between both scorers
+	// -0.75 from job anti affinity and -1 from node rescheduling penalty
+	require.Equal(-0.875, out[0].FinalScore)
+	require.Equal(out[1], nodes[1])
+	require.Equal(out[1].FinalScore, 0.0)
+}
+
+func TestNodeAffinityIterator(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{Node: mock.Node()},
+		{Node: mock.Node()},
+		{Node: mock.Node()},
+		{Node: mock.Node()},
+	}
+
+	nodes[0].Node.Attributes["kernel.version"] = "4.9"
+	nodes[1].Node.Datacenter = "dc2"
+	nodes[2].Node.Datacenter = "dc2"
+	nodes[2].Node.NodeClass = "large"
+
+	affinities := []*structs.Affinity{
+		{
+			Operand: "=",
+			LTarget: "${node.datacenter}",
+			RTarget: "dc1",
+			Weight:  200,
+		},
+		{
+			Operand: "=",
+			LTarget: "${node.datacenter}",
+			RTarget: "dc2",
+			Weight:  -100,
+		},
+		{
+			Operand: "version",
+			LTarget: "${attr.kernel.version}",
+			RTarget: ">4.0",
+			Weight:  50,
+		},
+		{
+			Operand: "is",
+			LTarget: "${node.class}",
+			RTarget: "large",
+			Weight:  50,
+		},
+	}
+
+	static := NewStaticRankIterator(ctx, nodes)
+
+	job := mock.Job()
+	job.ID = "foo"
+	tg := job.TaskGroups[0]
+	tg.Affinities = affinities
+
+	nodeAffinity := NewNodeAffinityIterator(ctx, static)
+	nodeAffinity.SetTaskGroup(tg)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, nodeAffinity)
+
+	out := collectRanked(scoreNorm)
+	expectedScores := make(map[string]float64)
+	// Total weight = 400
+	// Node 0 matches two affinities(dc and kernel version), total weight =250
+	expectedScores[nodes[0].Node.ID] = 0.625
+
+	// Node 1 matches an anti affinity, weight = -100
+	expectedScores[nodes[1].Node.ID] = -0.25
+
+	// Node 2 matches one affinity(node class) with weight 50
+	expectedScores[nodes[2].Node.ID] = -0.125
+
+	// Node 3 matches one affinity (dc) with weight = 200
+	expectedScores[nodes[3].Node.ID] = 0.5
+
+	require := require.New(t)
+	for _, n := range out {
+		require.Equal(expectedScores[n.Node.ID], n.FinalScore)
+	}
+
 }

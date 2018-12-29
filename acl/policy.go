@@ -21,12 +21,14 @@ const (
 	// The Policy stanza is a short hand for granting several of these. When capabilities are
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
-	NamespaceCapabilityDeny      = "deny"
-	NamespaceCapabilityListJobs  = "list-jobs"
-	NamespaceCapabilityReadJob   = "read-job"
-	NamespaceCapabilitySubmitJob = "submit-job"
-	NamespaceCapabilityReadLogs  = "read-logs"
-	NamespaceCapabilityReadFS    = "read-fs"
+	NamespaceCapabilityDeny             = "deny"
+	NamespaceCapabilityListJobs         = "list-jobs"
+	NamespaceCapabilityReadJob          = "read-job"
+	NamespaceCapabilitySubmitJob        = "submit-job"
+	NamespaceCapabilityDispatchJob      = "dispatch-job"
+	NamespaceCapabilityReadLogs         = "read-logs"
+	NamespaceCapabilityReadFS           = "read-fs"
+	NamespaceCapabilitySentinelOverride = "sentinel-override"
 )
 
 var (
@@ -39,7 +41,18 @@ type Policy struct {
 	Agent      *AgentPolicy       `hcl:"agent"`
 	Node       *NodePolicy        `hcl:"node"`
 	Operator   *OperatorPolicy    `hcl:"operator"`
+	Quota      *QuotaPolicy       `hcl:"quota"`
 	Raw        string             `hcl:"-"`
+}
+
+// IsEmpty checks to make sure that at least one policy has been set and is not
+// comprised of only a raw policy.
+func (p *Policy) IsEmpty() bool {
+	return len(p.Namespaces) == 0 &&
+		p.Agent == nil &&
+		p.Node == nil &&
+		p.Operator == nil &&
+		p.Quota == nil
 }
 
 // NamespacePolicy is the policy for a specific namespace
@@ -61,6 +74,10 @@ type OperatorPolicy struct {
 	Policy string
 }
 
+type QuotaPolicy struct {
+	Policy string
+}
+
 // isPolicyValid makes sure the given string matches one of the valid policies.
 func isPolicyValid(policy string) bool {
 	switch policy {
@@ -75,7 +92,11 @@ func isPolicyValid(policy string) bool {
 func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
 	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
-		NamespaceCapabilitySubmitJob, NamespaceCapabilityReadLogs, NamespaceCapabilityReadFS:
+		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
+		NamespaceCapabilityReadFS:
+		return true
+	// Separate the enterprise-only capabilities
+	case NamespaceCapabilitySentinelOverride:
 		return true
 	default:
 		return false
@@ -98,6 +119,7 @@ func expandNamespacePolicy(policy string) []string {
 			NamespaceCapabilityListJobs,
 			NamespaceCapabilityReadJob,
 			NamespaceCapabilitySubmitJob,
+			NamespaceCapabilityDispatchJob,
 			NamespaceCapabilityReadLogs,
 			NamespaceCapabilityReadFS,
 		}
@@ -120,6 +142,12 @@ func Parse(rules string) (*Policy, error) {
 	// Attempt to parse
 	if err := hcl.Decode(p, rules); err != nil {
 		return nil, fmt.Errorf("Failed to parse ACL Policy: %v", err)
+	}
+
+	// At least one valid policy must be specified, we don't want to store only
+	// raw data
+	if p.IsEmpty() {
+		return nil, fmt.Errorf("Invalid policy: %s", p.Raw)
 	}
 
 	// Validate the policy
@@ -154,6 +182,10 @@ func Parse(rules string) (*Policy, error) {
 
 	if p.Operator != nil && !isPolicyValid(p.Operator.Policy) {
 		return nil, fmt.Errorf("Invalid operator policy: %#v", p.Operator)
+	}
+
+	if p.Quota != nil && !isPolicyValid(p.Quota.Policy) {
+		return nil, fmt.Errorf("Invalid quota policy: %#v", p.Quota)
 	}
 	return p, nil
 }

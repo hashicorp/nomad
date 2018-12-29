@@ -5,16 +5,21 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"strconv"
+	"strings"
 	"time"
+
+	assetfs "github.com/elazarl/go-bindata-assetfs"
+	log "github.com/hashicorp/go-hclog"
 
 	"github.com/NYTimes/gziphandler"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/rs/cors"
 	"github.com/ugorji/go/codec"
 )
 
@@ -22,20 +27,34 @@ const (
 	// ErrInvalidMethod is used if the HTTP method is not supported
 	ErrInvalidMethod = "Invalid method"
 
-	// scadaHTTPAddr is the address associated with the
-	// HTTPServer. When populating an ACL token for a request,
-	// this is checked to switch between the ACLToken and
-	// AtlasACLToken
-	scadaHTTPAddr = "SCADA"
+	// ErrEntOnly is the error returned if accessing an enterprise only
+	// endpoint
+	ErrEntOnly = "Nomad Enterprise only endpoint"
+)
+
+var (
+	// Set to false by stub_asset if the ui build tag isn't enabled
+	uiEnabled = true
+
+	// Overridden if the ui build tag isn't enabled
+	stubHTML = ""
+
+	// allowCORS sets permissive CORS headers for a handler
+	allowCORS = cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"HEAD", "GET"},
+		AllowedHeaders: []string{"*"},
+	})
 )
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
-	agent    *Agent
-	mux      *http.ServeMux
-	listener net.Listener
-	logger   *log.Logger
-	Addr     string
+	agent      *Agent
+	mux        *http.ServeMux
+	listener   net.Listener
+	listenerCh chan struct{}
+	logger     log.Logger
+	Addr       string
 }
 
 // NewHTTPServer starts new HTTP server over the agent
@@ -52,14 +71,11 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// If TLS is enabled, wrap the listener with a TLS listener
 	if config.TLSConfig.EnableHTTP {
-		tlsConf := &tlsutil.Config{
-			VerifyIncoming:       config.TLSConfig.VerifyHTTPSClient,
-			VerifyOutgoing:       true,
-			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
-			CAFile:               config.TLSConfig.CAFile,
-			CertFile:             config.TLSConfig.CertFile,
-			KeyFile:              config.TLSConfig.KeyFile,
+		tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
+		if err != nil {
+			return nil, err
 		}
+
 		tlsConfig, err := tlsConf.IncomingTLSConfig()
 		if err != nil {
 			return nil, err
@@ -72,38 +88,27 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// Create the server
 	srv := &HTTPServer{
-		agent:    agent,
-		mux:      mux,
-		listener: ln,
-		logger:   agent.logger,
-		Addr:     ln.Addr().String(),
+		agent:      agent,
+		mux:        mux,
+		listener:   ln,
+		listenerCh: make(chan struct{}),
+		logger:     agent.httpLogger,
+		Addr:       ln.Addr().String(),
 	}
 	srv.registerHandlers(config.EnableDebug)
 
-	// Start the server
-	go http.Serve(ln, gziphandler.GzipHandler(mux))
-	return srv, nil
-}
-
-// newScadaHttp creates a new HTTP server wrapping the SCADA
-// listener such that HTTP calls can be sent from the brokers.
-func newScadaHttp(agent *Agent, list net.Listener) *HTTPServer {
-	// Create the mux
-	mux := http.NewServeMux()
-
-	// Create the server
-	srv := &HTTPServer{
-		agent:    agent,
-		mux:      mux,
-		listener: list,
-		logger:   agent.logger,
-		Addr:     scadaHTTPAddr,
+	// Handle requests with gzip compression
+	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
+	if err != nil {
+		return nil, err
 	}
-	srv.registerHandlers(false) // Never allow debug for SCADA
 
-	// Start the server
-	go http.Serve(list, gziphandler.GzipHandler(mux))
-	return srv
+	go func() {
+		defer close(srv.listenerCh)
+		http.Serve(ln, gzip(mux))
+	}()
+
+	return srv, nil
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
@@ -126,14 +131,16 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 // Shutdown is used to shutdown the HTTP server
 func (s *HTTPServer) Shutdown() {
 	if s != nil {
-		s.logger.Printf("[DEBUG] http: Shutting down http server")
+		s.logger.Debug("shutting down http server")
 		s.listener.Close()
+		<-s.listenerCh // block until http.Serve has returned.
 	}
 }
 
 // registerHandlers is used to attach our handlers to the mux
 func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
+	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
 
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))
@@ -156,10 +163,10 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/token", s.wrap(s.ACLTokenSpecificRequest))
 	s.mux.HandleFunc("/v1/acl/token/", s.wrap(s.ACLTokenSpecificRequest))
 
-	s.mux.HandleFunc("/v1/client/fs/", s.wrap(s.FsRequest))
-	s.mux.HandleFunc("/v1/client/stats", s.wrap(s.ClientStatsRequest))
-	s.mux.HandleFunc("/v1/client/allocation/", s.wrap(s.ClientAllocRequest))
+	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
+	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
+	s.mux.Handle("/v1/client/allocation/", wrapCORS(s.wrap(s.ClientAllocRequest)))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
@@ -167,6 +174,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/force-leave", s.wrap(s.AgentForceLeaveRequest))
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
+	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 
 	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
 
@@ -179,10 +187,22 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
 
-	s.mux.HandleFunc("/v1/operator/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
+	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
+	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
 
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
+
+	if uiEnabled {
+		s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+	} else {
+		// Write the stubHTML
+		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(stubHTML))
+		})
+	}
+	s.mux.Handle("/", handleRootRedirect())
 
 	if enableDebug {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -202,6 +222,22 @@ type HTTPCodedError interface {
 	Code() int
 }
 
+type UIAssetWrapper struct {
+	FileSystem *assetfs.AssetFS
+}
+
+func (fs *UIAssetWrapper) Open(name string) (http.File, error) {
+	if file, err := fs.FileSystem.Open(name); err == nil {
+		return file, nil
+	} else {
+		// serve index.html instead of 404ing
+		if err == os.ErrNotExist {
+			return fs.FileSystem.Open("index.html")
+		}
+		return nil, err
+	}
+}
+
 func CodedError(c int, s string) HTTPCodedError {
 	return &codedError{s, c}
 }
@@ -219,6 +255,22 @@ func (e *codedError) Code() int {
 	return e.code
 }
 
+func handleUI(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		header := w.Header()
+		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
+		h.ServeHTTP(w, req)
+		return
+	})
+}
+
+func handleRootRedirect() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, "/ui/", 307)
+		return
+	})
+}
+
 // wrap is used to wrap functions to make them more convenient
 func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
@@ -227,20 +279,31 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Printf("[DEBUG] http: Request %v (%v)", reqURL, time.Now().Sub(start))
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
 		}()
 		obj, err := handler(resp, req)
 
 		// Check for an error
 	HAS_ERR:
 		if err != nil {
-			s.logger.Printf("[ERR] http: Request %v, error: %v", reqURL, err)
 			code := 500
+			errMsg := err.Error()
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
+			} else {
+				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
+				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
+					errMsg = structs.ErrPermissionDenied.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
+					errMsg = structs.ErrTokenNotFound.Error()
+					code = 403
+				}
 			}
+
 			resp.WriteHeader(code)
-			resp.Write([]byte(err.Error()))
+			resp.Write([]byte(errMsg))
+			s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
 			return
 		}
 
@@ -384,17 +447,22 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 // parse is a convenience method for endpoints that need to parse multiple flags
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
-	s.parseToken(req, &b.SecretID)
+	s.parseToken(req, &b.AuthToken)
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
 	return parseWait(resp, req, b)
 }
 
-// parseWriteRequest is a convience method for endpoints that need to parse a
+// parseWriteRequest is a convenience method for endpoints that need to parse a
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
 	parseNamespace(req, &w.Namespace)
-	s.parseToken(req, &w.SecretID)
+	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
+}
+
+// wrapCORS wraps a HandlerFunc in allowCORS and returns a http.Handler
+func wrapCORS(f func(http.ResponseWriter, *http.Request)) http.Handler {
+	return allowCORS.Handler(http.HandlerFunc(f))
 }

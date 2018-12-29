@@ -23,8 +23,8 @@ func TestSliceStringIsSubset(t *testing.T) {
 
 func TestMapStringStringSliceValueSet(t *testing.T) {
 	m := map[string][]string{
-		"foo": []string{"1", "2"},
-		"bar": []string{"3"},
+		"foo": {"1", "2"},
+		"bar": {"3"},
 		"baz": nil,
 	}
 
@@ -38,8 +38,8 @@ func TestMapStringStringSliceValueSet(t *testing.T) {
 
 func TestCopyMapStringSliceString(t *testing.T) {
 	m := map[string][]string{
-		"x": []string{"a", "b", "c"},
-		"y": []string{"1", "2", "3"},
+		"x": {"a", "b", "c"},
+		"y": {"1", "2", "3"},
 		"z": nil,
 	}
 
@@ -66,7 +66,8 @@ func TestClearEnvVar(t *testing.T) {
 		{"asd0", "asd0"},
 		{"_asd", "_asd"},
 		{"-asd", "_asd"},
-		{"A~!@#$%^&*()_+-={}[]|\\;:'\"<,>.?/Z", "A_______________________________Z"},
+		{"asd.fgh", "asd.fgh"},
+		{"A~!@#$%^&*()_+-={}[]|\\;:'\"<,>?/Z", "A______________________________Z"},
 		{"A\U0001f4a9Z", "A____Z"},
 	}
 	for _, c := range cases {

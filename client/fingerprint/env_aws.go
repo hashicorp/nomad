@@ -3,7 +3,6 @@ package fingerprint
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,8 +10,10 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -51,36 +52,35 @@ var ec2InstanceSpeedMap = map[*regexp.Regexp]int{
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
 	timeout time.Duration
-	logger  *log.Logger
+	logger  log.Logger
 }
 
 // NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
-func NewEnvAWSFingerprint(logger *log.Logger) Fingerprint {
+func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
 	f := &EnvAWSFingerprint{
-		logger:  logger,
+		logger:  logger.Named("env_aws"),
 		timeout: AwsMetadataTimeout,
 	}
 	return f
 }
 
-func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (f *EnvAWSFingerprint) Fingerprint(request *cstructs.FingerprintRequest, response *cstructs.FingerprintResponse) error {
+	cfg := request.Config
+
 	// Check if we should tighten the timeout
 	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
 		f.timeout = 1 * time.Millisecond
 	}
 
 	if !f.isAWS() {
-		return false, nil
+		return nil
 	}
 
-	// newNetwork is populated and addded to the Nodes resources
+	// newNetwork is populated and added to the Nodes resources
 	newNetwork := &structs.NetworkResource{
 		Device: "eth0",
 	}
 
-	if node.Links == nil {
-		node.Links = make(map[string]string)
-	}
 	metadataURL := os.Getenv("AWS_ENV_URL")
 	if metadataURL == "" {
 		metadataURL = DEFAULT_AWS_URL
@@ -108,22 +108,22 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	for k, unique := range keys {
 		res, err := client.Get(metadataURL + k)
 		if res.StatusCode != http.StatusOK {
-			f.logger.Printf("[WARN]: fingerprint.env_aws: Could not read value for attribute %q", k)
+			f.logger.Debug("could not read attribute value", "attribute", k)
 			continue
 		}
 		if err != nil {
 			// if it's a URL error, assume we're not in an AWS environment
 			// TODO: better way to detect AWS? Check xen virtualization?
 			if _, ok := err.(*url.Error); ok {
-				return false, nil
+				return nil
 			}
 			// not sure what other errors it would return
-			return false, err
+			return err
 		}
 		resp, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
 		if err != nil {
-			f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for AWS %s", k)
+			f.logger.Error("error reading response body for AWS attribute", "attribute", k, "error", err)
 		}
 
 		// assume we want blank entries
@@ -132,12 +132,12 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 			key = structs.UniqueNamespace(key)
 		}
 
-		node.Attributes[key] = strings.Trim(string(resp), "\n")
+		response.AddAttribute(key, strings.Trim(string(resp), "\n"))
 	}
 
 	// copy over network specific information
-	if val := node.Attributes["unique.platform.aws.local-ipv4"]; val != "" {
-		node.Attributes["unique.network.ip-address"] = val
+	if val, ok := response.Attributes["unique.platform.aws.local-ipv4"]; ok && val != "" {
+		response.AddAttribute("unique.network.ip-address", val)
 		newNetwork.IP = val
 		newNetwork.CIDR = newNetwork.IP + "/32"
 	}
@@ -149,8 +149,8 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 	} else if throughput == 0 {
 		// Failed to determine speed. Check if the network fingerprint got it
 		found := false
-		if node.Resources != nil && len(node.Resources.Networks) > 0 {
-			for _, n := range node.Resources.Networks {
+		if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
+			for _, n := range request.Node.Resources.Networks {
 				if n.IP == newNetwork.IP {
 					throughput = n.MBits
 					found = true
@@ -165,19 +165,18 @@ func (f *EnvAWSFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) 
 		}
 	}
 
-	// populate Node Network Resources
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
 	newNetwork.MBits = throughput
-	node.Resources.Networks = []*structs.NetworkResource{newNetwork}
+	response.NodeResources = &structs.NodeResources{
+		Networks: []*structs.NetworkResource{newNetwork},
+	}
 
 	// populate Links
-	node.Links["aws.ec2"] = fmt.Sprintf("%s.%s",
-		node.Attributes["platform.aws.placement.availability-zone"],
-		node.Attributes["unique.platform.aws.instance-id"])
+	response.AddLink("aws.ec2", fmt.Sprintf("%s.%s",
+		response.Attributes["platform.aws.placement.availability-zone"],
+		response.Attributes["unique.platform.aws.instance-id"]))
+	response.Detected = true
 
-	return true, nil
+	return nil
 }
 
 func (f *EnvAWSFingerprint) isAWS() bool {
@@ -193,10 +192,10 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 		Transport: cleanhttp.DefaultTransport(),
 	}
 
-	// Query the metadata url for the ami-id, to veryify we're on AWS
+	// Query the metadata url for the ami-id, to verify we're on AWS
 	resp, err := client.Get(metadataURL + "ami-id")
 	if err != nil {
-		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error querying AWS Metadata URL, skipping")
+		f.logger.Debug("error querying AWS Metadata URL, skipping")
 		return false
 	}
 	defer resp.Body.Close()
@@ -208,7 +207,7 @@ func (f *EnvAWSFingerprint) isAWS() bool {
 
 	instanceID, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		f.logger.Printf("[DEBUG] fingerprint.env_aws: Error reading AWS Instance ID, skipping")
+		f.logger.Debug("error reading AWS Instance ID, skipping")
 		return false
 	}
 
@@ -236,10 +235,15 @@ func (f *EnvAWSFingerprint) linkSpeed() int {
 	}
 
 	res, err := client.Get(metadataURL + "instance-type")
+	if err != nil {
+		f.logger.Error("error reading instance-type", "error", err)
+		return 0
+	}
+
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		f.logger.Printf("[ERR]: fingerprint.env_aws: Error reading response body for instance-type")
+		f.logger.Error("error reading response body for instance-type", "error", err)
 		return 0
 	}
 
