@@ -1,6 +1,6 @@
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide } from '../utils';
-import { DATACENTERS, HOSTS } from '../common';
+import { DATACENTERS, HOSTS, generateResources } from '../common';
 import moment from 'moment';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
@@ -64,6 +64,8 @@ export default Factory.extend({
   drainStrategy: null,
 
   drivers: makeDrivers,
+
+  resources: generateResources,
 
   attributes() {
     // TODO add variability to these

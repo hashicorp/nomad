@@ -523,7 +523,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -556,7 +556,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -597,7 +597,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -607,7 +607,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 					},
 				},
 			},
-			DeviceScore: 0.9,
+			DeviceScore: 1.0,
 		},
 		{
 			Name: "single request over count, no match",
@@ -677,7 +677,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -712,7 +712,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				},
 			},
 			ExpectedPlacements: map[string]map[structs.DeviceIdTuple]devPlacementTuple{
-				"web": map[structs.DeviceIdTuple]devPlacementTuple{
+				"web": {
 					{
 						Vendor: "nvidia",
 						Type:   "gpu",
@@ -751,7 +751,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				require.NoError(state.UpsertAllocs(1000, c.ExistingAllocs))
 			}
 
-			static := NewStaticRankIterator(ctx, []*RankedNode{&RankedNode{Node: c.Node}})
+			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
 			binp := NewBinPackIterator(ctx, static, false, 0)
 			binp.SetTaskGroup(c.TaskGroup)
 
@@ -784,7 +784,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			// Check potential affinity scores
 			if c.DeviceScore != 0.0 {
 				require.Len(out.Scores, 2)
-				require.Equal(out.Scores[1], c.DeviceScore)
+				require.Equal(c.DeviceScore, out.Scores[1])
 			}
 		})
 	}

@@ -375,9 +375,10 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 		return multierror.Prefix(&mErr, "failed converting config schema:")
 	}
 
-	// If there is no config there is nothing to do
+	// If there is no config, initialize it to an empty map so we can still
+	// handle defaults
 	if info.config == nil {
-		return nil
+		info.config = map[string]interface{}{}
 	}
 
 	// Parse the config using the spec

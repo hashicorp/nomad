@@ -1,6 +1,7 @@
 package java
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -20,9 +21,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -69,11 +70,11 @@ var (
 		// It's required for either `class` or `jar_path` to be set,
 		// but that's not expressable in hclspec.  Marking both as optional
 		// and setting checking explicitly later
-		"class":     hclspec.NewAttr("class", "string", false),
-		"classpath": hclspec.NewAttr("classpath", "string", false),
-		"jar_path":  hclspec.NewAttr("jar_path", "string", false),
-		"java_opts": hclspec.NewAttr("java_opts", "list(string)", false),
-		"args":      hclspec.NewAttr("args", "list(string)", false),
+		"class":       hclspec.NewAttr("class", "string", false),
+		"class_path":  hclspec.NewAttr("class_path", "string", false),
+		"jar_path":    hclspec.NewAttr("jar_path", "string", false),
+		"jvm_options": hclspec.NewAttr("jvm_options", "list(string)", false),
+		"args":        hclspec.NewAttr("args", "list(string)", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -96,9 +97,9 @@ func init() {
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
 	Class     string   `codec:"class"`
-	ClassPath string   `codec:"classpath"`
+	ClassPath string   `codec:"class_path"`
 	JarPath   string   `codec:"jar_path"`
-	JvmOpts   []string `codec:"java_opts"`
+	JvmOpts   []string `codec:"jvm_options"`
 	Args      []string `codec:"args"` // extra arguments to java executable
 }
 
@@ -106,7 +107,7 @@ type TaskConfig struct {
 // StartTask. This information is needed to rebuild the taskConfig state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *utils.ReattachConfig
+	ReattachConfig *shared.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -259,7 +260,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
 	}
 
-	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from taskConfig state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
@@ -361,7 +362,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	driverState := TaskState{
-		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,

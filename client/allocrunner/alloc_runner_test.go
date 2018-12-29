@@ -106,7 +106,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.KillTimeout = 10 * time.Millisecond
 	task.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -114,7 +114,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task2.Driver = "mock_driver"
 	task2.Leader = true
 	task2.Config = map[string]interface{}{
-		"run_for": 1 * time.Second,
+		"run_for": "1s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
 	alloc.TaskResources[task2.Name] = task2.Resources
@@ -189,7 +189,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	task.Name = "follower1"
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -197,14 +197,14 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	task2.Driver = "mock_driver"
 	task2.Leader = true
 	task2.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 
 	task3 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	task3.Name = "follower2"
 	task3.Driver = "mock_driver"
 	task3.Config = map[string]interface{}{
-		"run_for": 10 * time.Second,
+		"run_for": "10s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2, task3)
 	alloc.TaskResources[task2.Name] = task2.Resources

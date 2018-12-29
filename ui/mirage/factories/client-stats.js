@@ -23,7 +23,7 @@ export default Factory.extend({
       })),
   ],
 
-  CPUTicksConsumed: 1000000,
+  CPUTicksConsumed: faker.random.number({ min: 100, max: 1000 }),
 
   diskStats: () => [
     Array(faker.random.number({ min: 1, max: 5 }))
@@ -46,6 +46,6 @@ export default Factory.extend({
     Used: 10000000000,
   }),
 
-  timestamp: 149000000000,
+  timestamp: Date.now() * 1000000,
   uptime: 193838,
 });

@@ -223,7 +223,7 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	}
 
 	// Loose task
-	d.(*ExecDriver).tasks.Delete(task.ID)
+	d.(*Driver).tasks.Delete(task.ID)
 	_, err = harness.InspectTask(task.ID)
 	require.Error(err)
 

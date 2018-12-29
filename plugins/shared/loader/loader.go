@@ -54,6 +54,13 @@ func (id PluginID) String() string {
 	return fmt.Sprintf("%q (%v)", id.Name, id.PluginType)
 }
 
+func PluginInfoID(resp *base.PluginInfoResponse) PluginID {
+	return PluginID{
+		Name:       resp.Name,
+		PluginType: resp.Type,
+	}
+}
+
 // PluginLoaderConfig configures a plugin loader.
 type PluginLoaderConfig struct {
 	// Logger is the logger used by the plugin loader

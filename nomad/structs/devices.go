@@ -129,3 +129,14 @@ func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision b
 
 	return
 }
+
+// FreeCount returns the number of free device instances
+func (i *DeviceAccounterInstance) FreeCount() int {
+	count := 0
+	for _, c := range i.Instances {
+		if c == 0 {
+			count++
+		}
+	}
+	return count
+}

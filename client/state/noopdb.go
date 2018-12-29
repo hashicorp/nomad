@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
+	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -38,6 +39,14 @@ func (n NoopDB) DeleteTaskBucket(allocID, taskName string) error {
 
 func (n NoopDB) DeleteAllocationBucket(allocID string) error {
 	return nil
+}
+
+func (n NoopDB) PutDevicePluginState(ps *dmstate.PluginState) error {
+	return nil
+}
+
+func (n NoopDB) GetDevicePluginState() (*dmstate.PluginState, error) {
+	return nil, nil
 }
 
 func (n NoopDB) Close() error {

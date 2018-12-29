@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -14,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
-	"golang.org/x/net/context"
 )
 
 // DriverPlugin is the interface with drivers will implement. It is also

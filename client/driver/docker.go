@@ -1173,6 +1173,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	if len(driverConfig.Logging) == 0 {
 		if runtime.GOOS == "darwin" {
 			d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
+		} else if syslogAddr == "" {
+			d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker default logger, no syslog is set")
 		} else {
 			d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
 			driverConfig.Logging = []DockerLoggingOpts{
@@ -1852,7 +1854,7 @@ func (h *DockerHandle) Signal(s os.Signal) error {
 // Kill is used to terminate the task. This uses `docker stop -t killTimeout`
 func (h *DockerHandle) Kill() error {
 	// Stop the container
-	err := h.client.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
+	err := h.waitClient.StopContainer(h.containerID, uint(h.killTimeout.Seconds()))
 	if err != nil {
 
 		// Container has already been removed.
@@ -2024,7 +2026,7 @@ func loadDockerConfig(file string) (*configfile.ConfigFile, error) {
 // parseRepositoryInfo takes a repo and returns the Docker RepositoryInfo. This
 // is useful for interacting with a Docker config object.
 func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
-	name, err := reference.ParseNamed(repo)
+	name, err := reference.ParseNormalizedNamed(repo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
 	}

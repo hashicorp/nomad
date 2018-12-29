@@ -1,15 +1,12 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
 	"time"
-
-	"github.com/mitchellh/go-testing-interface"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -21,6 +18,8 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/mitchellh/go-testing-interface"
+	"github.com/stretchr/testify/require"
 )
 
 type DriverHarness struct {

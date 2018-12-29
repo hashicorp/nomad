@@ -7,12 +7,15 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// Txn is a transaction against a state store.
+// This can be a read or write transaction.
+type Txn = *memdb.Txn
 
 const (
 	// NodeRegisterEventReregistered is the message used when the node becomes
@@ -923,6 +926,12 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
+// UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) UpsertJobTxn(index uint64, job *structs.Job, txn Txn) error {
+	return s.upsertJobImpl(index, job, false, txn)
+}
+
 // upsertJobImpl is the implementation for registering a job or updating a job definition
 func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
@@ -1006,6 +1015,16 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.DeleteJobTxn(index, namespace, jobID, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// DeleteJobTxn is used to deregister a job, like DeleteJob,
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1092,7 +1111,6 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1190,7 +1208,12 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 // version.
 func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
+	return s.JobByIDTxn(ws, namespace, id, txn)
+}
 
+// JobByIDTxn is used to lookup a job by its ID, like  JobByID. JobByID returns the job version
+// accessible through in the transaction
+func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn) (*structs.Job, error) {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1511,6 +1534,16 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.DeletePeriodicLaunchTxn(index, namespace, jobID, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// DeletePeriodicLaunchTxn is used to delete the periodic launch, like DeletePeriodicLaunch
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) DeletePeriodicLaunchTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1533,7 +1566,6 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1580,6 +1612,16 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.UpsertEvalsTxn(index, evals, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// UpsertEvals is used to upsert a set of evaluations, like UpsertEvals
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
 	// Do a nested upsert
 	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
@@ -1599,7 +1641,6 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1962,11 +2003,24 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
 
-	// Merge the deployment status taking only what the client should set
-	oldDeploymentStatus := copyAlloc.DeploymentStatus
-	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
-	if oldDeploymentStatus != nil && oldDeploymentStatus.Canary {
-		copyAlloc.DeploymentStatus.Canary = true
+	// The client can only set its deployment health and timestamp, so just take
+	// those
+	if copyAlloc.DeploymentStatus != nil && alloc.DeploymentStatus != nil {
+		oldHasHealthy := copyAlloc.DeploymentStatus.HasHealth()
+		newHasHealthy := alloc.DeploymentStatus.HasHealth()
+
+		// We got new health information from the client
+		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
+			// Updated deployment health and timestamp
+			copyAlloc.DeploymentStatus.Healthy = helper.BoolToPtr(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
+			copyAlloc.DeploymentStatus.ModifyIndex = index
+		}
+	} else if alloc.DeploymentStatus != nil {
+		// First time getting a deployment status so copy everything and just
+		// set the index
+		copyAlloc.DeploymentStatus = alloc.DeploymentStatus.Copy()
+		copyAlloc.DeploymentStatus.ModifyIndex = index
 	}
 
 	// Update the modify index
@@ -2734,7 +2788,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 
 		// Ensure the canaries are healthy
-		if !alloc.DeploymentStatus.IsHealthy() {
+		if alloc.TerminalStatus() || !alloc.DeploymentStatus.IsHealthy() {
 			continue
 		}
 
@@ -3889,6 +3943,20 @@ func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerCon
 	return nil
 }
 
+// WithWriteTransaction executes the passed function within a write transaction,
+// and returns its result.  If the invocation returns no error, the transaction
+// is committed; otherwise, it's aborted.
+func (s *StateStore) WithWriteTransaction(fn func(Txn) error) error {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	err := fn(tx)
+	if err == nil {
+		tx.Commit()
+	}
+	return err
+}
+
 // SchedulerCASConfig is used to update the scheduler configuration with a
 // given Raft index. If the CAS index specified is not equal to the last observed index
 // for the config, then the call is a noop.
@@ -3906,7 +3974,7 @@ func (s *StateStore) SchedulerCASConfig(idx, cidx uint64, config *structs.Schedu
 	// index arg, then we shouldn't update anything and can safely
 	// return early here.
 	e, ok := existing.(*structs.SchedulerConfiguration)
-	if !ok || e.ModifyIndex != cidx {
+	if !ok || (e != nil && e.ModifyIndex != cidx) {
 		return false, nil
 	}
 

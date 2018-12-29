@@ -3,16 +3,15 @@
 package rkt
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
-
-	"os"
-
-	"bytes"
 
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
@@ -26,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 var _ drivers.DriverPlugin = (*Driver)(nil)

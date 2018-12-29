@@ -118,6 +118,7 @@ func (c *Command) readConfig() *Config {
 	}), "consul-auto-advertise", "")
 	flags.StringVar(&cmdConfig.Consul.CAFile, "consul-ca-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.CertFile, "consul-cert-file", "", "")
+	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.ChecksUseAdvertise = &b
 		return nil
@@ -128,7 +129,6 @@ func (c *Command) readConfig() *Config {
 	}), "consul-client-auto-join", "")
 	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
@@ -454,7 +454,59 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		complete.PredictFiles("*.hcl"))
 
 	return map[string]complete.Predictor{
-		"-config": configFilePredictor,
+		"-dev":                           complete.PredictNothing,
+		"-server":                        complete.PredictNothing,
+		"-client":                        complete.PredictNothing,
+		"-bootstrap-expect":              complete.PredictAnything,
+		"-encrypt":                       complete.PredictAnything,
+		"-raft-protocol":                 complete.PredictAnything,
+		"-rejoin":                        complete.PredictNothing,
+		"-join":                          complete.PredictAnything,
+		"-retry-join":                    complete.PredictAnything,
+		"-retry-max":                     complete.PredictAnything,
+		"-state-dir":                     complete.PredictDirs("*"),
+		"-alloc-dir":                     complete.PredictDirs("*"),
+		"-node-class":                    complete.PredictAnything,
+		"-servers":                       complete.PredictAnything,
+		"-meta":                          complete.PredictAnything,
+		"-config":                        configFilePredictor,
+		"-bind":                          complete.PredictAnything,
+		"-region":                        complete.PredictAnything,
+		"-data-dir":                      complete.PredictDirs("*"),
+		"-plugin-dir":                    complete.PredictDirs("*"),
+		"-dc":                            complete.PredictAnything,
+		"-log-level":                     complete.PredictAnything,
+		"-node":                          complete.PredictAnything,
+		"-consul-auth":                   complete.PredictAnything,
+		"-consul-auto-advertise":         complete.PredictNothing,
+		"-consul-ca-file":                complete.PredictAnything,
+		"-consul-cert-file":              complete.PredictAnything,
+		"-consul-key-file":               complete.PredictAnything,
+		"-consul-checks-use-advertise":   complete.PredictNothing,
+		"-consul-client-auto-join":       complete.PredictNothing,
+		"-consul-client-service-name":    complete.PredictAnything,
+		"-consul-client-http-check-name": complete.PredictAnything,
+		"-consul-server-service-name":    complete.PredictAnything,
+		"-consul-server-http-check-name": complete.PredictAnything,
+		"-consul-server-serf-check-name": complete.PredictAnything,
+		"-consul-server-rpc-check-name":  complete.PredictAnything,
+		"-consul-server-auto-join":       complete.PredictNothing,
+		"-consul-ssl":                    complete.PredictNothing,
+		"-consul-verify-ssl":             complete.PredictNothing,
+		"-consul-address":                complete.PredictAnything,
+		"-vault-enabled":                 complete.PredictNothing,
+		"-vault-allow-unauthenticated":   complete.PredictNothing,
+		"-vault-token":                   complete.PredictAnything,
+		"-vault-address":                 complete.PredictAnything,
+		"-vault-create-from-role":        complete.PredictAnything,
+		"-vault-ca-file":                 complete.PredictAnything,
+		"-vault-ca-path":                 complete.PredictAnything,
+		"-vault-cert-file":               complete.PredictAnything,
+		"-vault-key-file":                complete.PredictAnything,
+		"-vault-tls-skip-verify":         complete.PredictNothing,
+		"-vault-tls-server-name":         complete.PredictAnything,
+		"-acl-enabled":                   complete.PredictNothing,
+		"-acl-replication-token":         complete.PredictAnything,
 	}
 }
 

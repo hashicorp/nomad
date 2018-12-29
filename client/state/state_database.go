@@ -5,12 +5,13 @@ import (
 	"path/filepath"
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
+	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 /*
-The client has a boltDB backed state store. The schema as of 0.6 looks as follows:
+The client has a boltDB backed state store. The schema as of 0.9 looks as follows:
 
 allocations/ (bucket)
 |--> <alloc-id>/ (bucket)
@@ -18,6 +19,9 @@ allocations/ (bucket)
     |--> alloc_runner persisted objects (k/v)
 	|--> <task-name>/ (bucket)
         |--> task_runner persisted objects (k/v)
+
+devicemanager/
+|--> plugin-state -> *dmstate.PluginState
 */
 
 var (
@@ -36,6 +40,14 @@ var (
 	// allocations -> $allocid -> $taskname -> the keys below
 	taskLocalStateKey = []byte("local_state")
 	taskStateKey      = []byte("task_state")
+
+	// devManagerBucket is the bucket name containing all device manager related
+	// data
+	devManagerBucket = []byte("devicemanager")
+
+	// devManagerPluginStateKey is the key serialized device manager
+	// plugin state is stored at
+	devManagerPluginStateKey = []byte("plugin_state")
 )
 
 // NewStateDBFunc creates a StateDB given a state directory.
@@ -353,4 +365,51 @@ func getTaskBucket(tx *boltdd.Tx, allocID, taskName string) (*boltdd.Bucket, err
 	}
 
 	return task, nil
+}
+
+// PutDevicePluginState stores the device manager's plugin state or returns an
+// error.
+func (s *BoltStateDB) PutDevicePluginState(ps *dmstate.PluginState) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		// Retrieve the root device manager bucket
+		devBkt, err := tx.CreateBucketIfNotExists(devManagerBucket)
+		if err != nil {
+			return err
+		}
+
+		return devBkt.Put(devManagerPluginStateKey, ps)
+	})
+}
+
+// GetDevicePluginState stores the device manager's plugin state or returns an
+// error.
+func (s *BoltStateDB) GetDevicePluginState() (*dmstate.PluginState, error) {
+	var ps *dmstate.PluginState
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		devBkt := tx.Bucket(devManagerBucket)
+		if devBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		// Restore Plugin State if it exists
+		ps = &dmstate.PluginState{}
+		if err := devBkt.Get(devManagerPluginStateKey, ps); err != nil {
+			if !boltdd.IsErrNotFound(err) {
+				return fmt.Errorf("failed to read device manager plugin state: %v", err)
+			}
+
+			// Key not found, reset ps to nil
+			ps = nil
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ps, nil
 }

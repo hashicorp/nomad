@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"io"
 
-	"golang.org/x/net/context"
-
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
+	context "golang.org/x/net/context"
 )
 
 type driverPluginServer struct {

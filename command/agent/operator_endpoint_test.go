@@ -264,12 +264,12 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/operator/scheduler/config", body)
+		req, _ := http.NewRequest("GET", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(err)
 		require.Equal(200, resp.Code)
-		out, ok := obj.(api.SchedulerConfigurationResponse)
+		out, ok := obj.(structs.SchedulerConfigurationResponse)
 		require.True(ok)
 		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	})
@@ -282,11 +282,14 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
                      "SystemSchedulerEnabled": true
         }}`))
-		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/config", body)
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
-		_, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(err)
 		require.Equal(200, resp.Code)
+		schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+		require.True(ok)
+		require.NotZero(schedSetResp.Index)
 
 		args := structs.GenericRequest{
 			QueryOptions: structs.QueryOptions{
@@ -308,11 +311,14 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
                      "SystemSchedulerEnabled": true
         }}`))
-		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/config", body)
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
-		_, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(err)
 		require.Equal(200, resp.Code)
+		schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+		require.True(ok)
+		require.NotZero(schedSetResp.Index)
 
 		args := structs.GenericRequest{
 			QueryOptions: structs.QueryOptions{
@@ -331,11 +337,15 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 			buf := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
                      "SystemSchedulerEnabled": false
         }}`))
-			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/config?cas=%d", reply.ModifyIndex-1), buf)
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index-1), buf)
 			resp := httptest.NewRecorder()
-			obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+			setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 			require.Nil(err)
-			require.False(obj.(bool))
+			// Verify that the response has Updated=false
+			schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+			require.True(ok)
+			require.NotZero(schedSetResp.Index)
+			require.False(schedSetResp.Updated)
 		}
 
 		// Create a CAS request, good index
@@ -343,11 +353,15 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 			buf := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
                      "SystemSchedulerEnabled": false
         }}`))
-			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/config?cas=%d", reply.ModifyIndex), buf)
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index), buf)
 			resp := httptest.NewRecorder()
-			obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+			setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 			require.Nil(err)
-			require.True(obj.(bool))
+			// Verify that the response has Updated=true
+			schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+			require.True(ok)
+			require.NotZero(schedSetResp.Index)
+			require.True(schedSetResp.Updated)
 		}
 
 		// Verify the update

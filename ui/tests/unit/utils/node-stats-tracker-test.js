@@ -6,6 +6,7 @@ import sinon from 'sinon';
 import Pretender from 'pretender';
 import NodeStatsTracker, { stats } from 'nomad-ui/utils/classes/node-stats-tracker';
 import fetch from 'nomad-ui/utils/fetch';
+import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
 
 module('Unit | Util | NodeStatsTracker');
 
@@ -220,4 +221,26 @@ test('changing the value of the nodeProp constructs a new NodeStatsTracker', fun
     stats1 === stats2,
     'Changing the value of the node results in creating a new NodeStatsTracker instance'
   );
+});
+
+statsTrackerFrameMissingBehavior({
+  resourceName: 'node',
+  ResourceConstructor: MockNode,
+  TrackerConstructor: NodeStatsTracker,
+  mockFrame,
+  compileResources(frame) {
+    const timestamp = makeDate(frame.Timestamp);
+    return [
+      {
+        timestamp,
+        used: frame.CPUTicksConsumed,
+        percent: frame.CPUTicksConsumed / 2000,
+      },
+      {
+        timestamp,
+        used: frame.Memory.Used,
+        percent: frame.Memory.Used / 1024 / 1024 / 4096,
+      },
+    ];
+  },
 });

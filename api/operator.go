@@ -122,11 +122,19 @@ type SchedulerConfiguration struct {
 // SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration
 type SchedulerConfigurationResponse struct {
 	// SchedulerConfig contains scheduler config options
-	SchedulerConfig SchedulerConfiguration
+	SchedulerConfig *SchedulerConfiguration
 
-	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
-	CreateIndex uint64
-	ModifyIndex uint64
+	QueryMeta
+}
+
+// SchedulerSetConfigurationResponse is the response object used
+// when updating scheduler configuration
+type SchedulerSetConfigurationResponse struct {
+	// Updated returns whether the config was actually updated
+	// Only set when the request uses CAS
+	Updated bool
+
+	WriteMeta
 }
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
@@ -137,7 +145,7 @@ type PreemptionConfig struct {
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.
 func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfigurationResponse, *QueryMeta, error) {
 	var resp SchedulerConfigurationResponse
-	qm, err := op.c.query("/v1/operator/scheduler/config", &resp, q)
+	qm, err := op.c.query("/v1/operator/scheduler/configuration", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -145,24 +153,24 @@ func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfig
 }
 
 // SchedulerSetConfiguration is used to set the current Scheduler configuration.
-func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*WriteMeta, error) {
-	var out bool
-	wm, err := op.c.write("/v1/operator/scheduler/config", conf, &out, q)
+func (op *Operator) SchedulerSetConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
+	var out SchedulerSetConfigurationResponse
+	wm, err := op.c.write("/v1/operator/scheduler/configuration", conf, &out, q)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return wm, nil
+	return &out, wm, nil
 }
 
 // SchedulerCASConfiguration is used to perform a Check-And-Set update on the
 // Scheduler configuration. The ModifyIndex value will be respected. Returns
 // true on success or false on failures.
-func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (bool, *WriteMeta, error) {
-	var out bool
-	wm, err := op.c.write("/v1/operator/scheduler/config?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
+func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *WriteOptions) (*SchedulerSetConfigurationResponse, *WriteMeta, error) {
+	var out SchedulerSetConfigurationResponse
+	wm, err := op.c.write("/v1/operator/scheduler/configuration?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
 	if err != nil {
-		return false, nil, err
+		return nil, nil, err
 	}
 
-	return out, wm, nil
+	return &out, wm, nil
 }

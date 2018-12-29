@@ -197,7 +197,7 @@ OUTER:
 
 		// Track the affinities of the devices
 		totalDeviceAffinityWeight := 0.0
-		deviceAffinityScore := 0.0
+		sumMatchingAffinities := 0.0
 
 		// Assign the resources for each task
 		total := &structs.AllocatedResources{
@@ -211,7 +211,7 @@ OUTER:
 		var allocsToPreempt []*structs.Allocation
 
 		// Initialize preemptor with node
-		preemptor := NewPreemptor(iter.priority)
+		preemptor := NewPreemptor(iter.priority, iter.ctx)
 		preemptor.SetNode(option.Node)
 
 		// Count the number of existing preemptions
@@ -251,7 +251,7 @@ OUTER:
 
 					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
-						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unable to meet network resource %v after preemption", ask))
+						iter.ctx.Logger().Named("binpack").Error("preemption not possible ", "network_resource", ask)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -268,7 +268,7 @@ OUTER:
 
 					offer, err = netIdx.AssignNetwork(ask)
 					if offer == nil {
-						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("unexpected error, unable to create offer after preempting:%v", err))
+						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create network offer after considering preemption", "error", err)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -283,10 +283,38 @@ OUTER:
 
 			// Check if we need to assign devices
 			for _, req := range task.Resources.Devices {
-				offer, score, err := devAllocator.AssignDevice(req)
+				offer, sumAffinities, err := devAllocator.AssignDevice(req)
 				if offer == nil {
-					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
-					continue OUTER
+					// If eviction is not enabled, mark this node as exhausted and continue
+					if !iter.evict {
+						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
+						continue OUTER
+					}
+
+					// Attempt preemption
+					preemptor.SetCandidates(proposed)
+					devicePreemptions := preemptor.PreemptForDevice(req, devAllocator)
+
+					if devicePreemptions == nil {
+						iter.ctx.Logger().Named("binpack").Error("preemption not possible", "requested_device", req)
+						netIdx.Release()
+						continue OUTER
+					}
+					allocsToPreempt = append(allocsToPreempt, devicePreemptions...)
+
+					// First subtract out preempted allocations
+					proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
+
+					// Reset the device allocator with new set of proposed allocs
+					devAllocator := newDeviceAllocator(iter.ctx, option.Node)
+					devAllocator.AddAllocs(proposed)
+
+					// Try offer again
+					offer, sumAffinities, err = devAllocator.AssignDevice(req)
+					if offer == nil {
+						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create device offer after considering preemption", "error", err)
+						continue OUTER
+					}
 				}
 
 				// Store the resource
@@ -296,9 +324,9 @@ OUTER:
 				// Add the scores
 				if len(req.Affinities) != 0 {
 					for _, a := range req.Affinities {
-						totalDeviceAffinityWeight += a.Weight
+						totalDeviceAffinityWeight += math.Abs(a.Weight)
 					}
-					deviceAffinityScore += score
+					sumMatchingAffinities += sumAffinities
 				}
 			}
 
@@ -353,9 +381,9 @@ OUTER:
 
 		// Score the device affinity
 		if totalDeviceAffinityWeight != 0 {
-			deviceAffinityScore /= totalDeviceAffinityWeight
-			option.Scores = append(option.Scores, deviceAffinityScore)
-			iter.ctx.Metrics().ScoreNode(option.Node, "devices", deviceAffinityScore)
+			sumMatchingAffinities /= totalDeviceAffinityWeight
+			option.Scores = append(option.Scores, sumMatchingAffinities)
+			iter.ctx.Metrics().ScoreNode(option.Node, "devices", sumMatchingAffinities)
 		}
 
 		return option

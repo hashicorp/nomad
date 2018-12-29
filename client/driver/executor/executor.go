@@ -135,7 +135,7 @@ func (nopCloser) Close() error { return nil }
 // Stdout returns a writer for the configured file descriptor
 func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 	if c.stdout == nil {
-		if c.StderrPath != "" {
+		if c.StdoutPath != "" {
 			f, err := fifo.Open(c.StdoutPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create stdout: %v", err)

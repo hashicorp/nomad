@@ -1,4 +1,4 @@
-package utils
+package shared
 
 import (
 	"fmt"
@@ -19,6 +19,10 @@ type ReattachConfig struct {
 // ReattachConfigToGoPlugin converts a ReattachConfig wrapper struct into a go
 // plugin ReattachConfig struct
 func ReattachConfigToGoPlugin(rc *ReattachConfig) (*plugin.ReattachConfig, error) {
+	if rc == nil {
+		return nil, fmt.Errorf("nil ReattachConfig cannot be converted")
+	}
+
 	plug := &plugin.ReattachConfig{
 		Protocol: plugin.Protocol(rc.Protocol),
 		Pid:      rc.Pid,
@@ -53,6 +57,10 @@ func ReattachConfigToGoPlugin(rc *ReattachConfig) (*plugin.ReattachConfig, error
 // ReattachConfigFromGoPlugin converts a go plugin ReattachConfig into a
 // ReattachConfig wrapper struct
 func ReattachConfigFromGoPlugin(plug *plugin.ReattachConfig) *ReattachConfig {
+	if plug == nil {
+		return nil
+	}
+
 	rc := &ReattachConfig{
 		Protocol: string(plug.Protocol),
 		Network:  plug.Addr.Network(),

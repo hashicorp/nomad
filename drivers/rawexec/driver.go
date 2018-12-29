@@ -1,10 +1,13 @@
 package rawexec
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -17,9 +20,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -109,7 +112,7 @@ type Driver struct {
 	// nomadConfig is the client config from nomad
 	nomadConfig *base.ClientDriverConfig
 
-	// tasks is the in memory datastore mapping taskIDs to rawExecDriverHandles
+	// tasks is the in memory datastore mapping taskIDs to driverHandles
 	tasks *taskStore
 
 	// ctx is the context for the driver. It is passed to other subsystems to
@@ -144,7 +147,7 @@ type TaskConfig struct {
 // StartTask. This information is needed to rebuild the task state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *utils.ReattachConfig
+	ReattachConfig *shared.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -261,7 +264,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode task state from handle: %v", err)
 	}
 
-	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from task state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from task state: %v", err)
@@ -319,12 +322,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
+	// Only use cgroups when running as root on linux - Doing so in other cases
+	// will cause an error.
+	useCgroups := !d.config.NoCgroups && runtime.GOOS == "linux" && syscall.Geteuid() == 0
+
 	execCmd := &executor.ExecCommand{
 		Cmd:                driverConfig.Command,
 		Args:               driverConfig.Args,
 		Env:                cfg.EnvList(),
 		User:               cfg.User,
-		BasicProcessCgroup: !d.config.NoCgroups,
+		BasicProcessCgroup: useCgroups,
 		TaskDir:            cfg.TaskDir().Dir,
 		StdoutPath:         cfg.StdoutPath,
 		StderrPath:         cfg.StderrPath,
@@ -347,7 +354,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	driverState := TaskState{
-		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,

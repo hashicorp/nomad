@@ -114,6 +114,11 @@ func (h *taskHandle) handleLogging(errCh chan<- error) {
 		errCh <- err
 		return
 	}
+	if _, err := io.WriteString(stdout, h.stdoutString); err != nil {
+		h.logger.Error("failed to write to stdout", "error", err)
+		errCh <- err
+		return
+	}
 
 	for i := 0; i < h.stdoutRepeat; i++ {
 		select {

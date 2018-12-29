@@ -191,9 +191,20 @@ checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
 	@shellcheck ./scripts/*
 
-generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-generate: ## Update generated code
+.PHONY: generate-all
+generate-all: generate-structs proto
+
+.PHONY: generate-structs
+generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+generate-structs: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
+
+.PHONY: proto
+proto:
+	@for file in $$(git ls-files "*.proto" | grep -v "vendor\/.*.proto"); do \
+		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
+	done
+
 
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
@@ -224,7 +235,7 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 
 .PHONY: prerelease
 prerelease: GO_TAGS=ui release
-prerelease: check generate ember-dist static-assets ## Generate all the static assets for a Nomad release
+prerelease: check generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
 release: GO_TAGS=ui release
@@ -253,7 +264,7 @@ test-nomad: dev ## Run Nomad test suites
 	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") go test \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
-		-timeout=900s \
+		-timeout=30m \
 		-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
@@ -280,7 +291,7 @@ clean: ## Remove build artifacts
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
 	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
-		make generate; \
+		make generate-structs; \
 	fi
 	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
 
