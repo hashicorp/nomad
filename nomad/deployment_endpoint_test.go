@@ -16,7 +16,7 @@ import (
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -47,7 +47,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 
 func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -100,7 +100,7 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -149,7 +149,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -198,7 +198,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -273,7 +273,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -293,6 +293,8 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
 	j2.Stable = false
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
 
 	d := mock.Deployment()
 	d.TaskGroups["web"].AutoRevert = true
@@ -348,7 +350,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 
 func TestDeploymentEndpoint_Pause(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -390,7 +392,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 
 func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -458,7 +460,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Promote(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -470,9 +472,9 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
-	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.Canary = 1
 	d := mock.Deployment()
-	d.TaskGroups["web"].DesiredCanaries = 2
+	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
@@ -522,7 +524,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 
 func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -534,9 +536,9 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
-	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.Canary = 1
 	d := mock.Deployment()
-	d.TaskGroups["web"].DesiredCanaries = 2
+	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
@@ -612,7 +614,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -679,7 +681,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -772,7 +774,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -792,7 +794,8 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
 	j2.Stable = false
-
+	// Modify the job to make its specification different
+	j2.Meta["foo"] = "bar"
 	d := mock.Deployment()
 	d.TaskGroups["web"].AutoRevert = true
 	d.JobID = j2.ID
@@ -857,9 +860,96 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	assert.EqualValues(2, jout.Version, "reverted job version")
 }
 
+// tests rollback upon alloc health failure to job with identical spec does not succeed
+func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+	state := s1.fsm.State()
+
+	// Create the original job
+	j := mock.Job()
+	j.Stable = true
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.AutoRevert = true
+	assert.Nil(state.UpsertJob(998, j), "UpsertJob")
+
+	// Create the second job, deployment and alloc. Job has same spec as original
+	j2 := j.Copy()
+	j2.Stable = false
+
+	d := mock.Deployment()
+	d.TaskGroups["web"].AutoRevert = true
+	d.JobID = j2.ID
+	d.JobVersion = j2.Version
+
+	a := mock.Alloc()
+	a.JobID = j.ID
+	a.DeploymentID = d.ID
+
+	assert.Nil(state.UpsertJob(999, j2), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(1001, []*structs.Allocation{a}), "UpsertAllocs")
+
+	// Set the alloc as unhealthy
+	req := &structs.DeploymentAllocHealthRequest{
+		DeploymentID:           d.ID,
+		UnhealthyAllocationIDs: []string{a.ID},
+		WriteRequest:           structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.DeploymentUpdateResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.SetAllocHealth", req, &resp), "RPC")
+	assert.NotZero(resp.Index, "bad response index")
+	assert.Nil(resp.RevertedJobVersion, "revert version must be nil")
+
+	// Lookup the evaluation
+	ws := memdb.NewWatchSet()
+	eval, err := state.EvalByID(ws, resp.EvalID)
+	assert.Nil(err, "EvalByID failed")
+	assert.NotNil(eval, "Expect eval")
+	assert.Equal(eval.CreateIndex, resp.EvalCreateIndex, "eval index mismatch")
+	assert.Equal(eval.TriggeredBy, structs.EvalTriggerDeploymentWatcher, "eval trigger")
+	assert.Equal(eval.JobID, d.JobID, "eval job id")
+	assert.Equal(eval.DeploymentID, d.ID, "eval deployment id")
+	assert.Equal(eval.Status, structs.EvalStatusPending, "eval status")
+
+	// Lookup the deployment
+	expectedDesc := structs.DeploymentStatusDescriptionRollbackNoop(structs.DeploymentStatusDescriptionFailedAllocations, 0)
+	dout, err := state.DeploymentByID(ws, d.ID)
+	assert.Nil(err, "DeploymentByID failed")
+	assert.Equal(dout.Status, structs.DeploymentStatusFailed, "wrong status")
+	assert.Equal(dout.StatusDescription, expectedDesc, "wrong status description")
+	assert.Equal(resp.DeploymentModifyIndex, dout.ModifyIndex, "wrong modify index")
+	assert.Len(dout.TaskGroups, 1, "should have one group")
+	assert.Contains(dout.TaskGroups, "web", "should have web group")
+	assert.Equal(1, dout.TaskGroups["web"].UnhealthyAllocs, "should have one healthy")
+
+	// Lookup the allocation
+	aout, err := state.AllocByID(ws, a.ID)
+	assert.Nil(err, "AllocByID")
+	assert.NotNil(aout, "alloc")
+	assert.NotNil(aout.DeploymentStatus, "alloc deployment status")
+	assert.NotNil(aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+	assert.False(*aout.DeploymentStatus.Healthy, "alloc deployment healthy")
+
+	// Lookup the job, its version should not have changed
+	jout, err := state.JobByID(ws, j.Namespace, j.ID)
+	assert.Nil(err, "JobByID")
+	assert.NotNil(jout, "job")
+	assert.EqualValues(1, jout.Version, "original job version")
+}
+
 func TestDeploymentEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -905,7 +995,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -973,7 +1063,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -1030,7 +1120,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1067,7 +1157,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1141,7 +1231,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -1190,7 +1280,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	a2.ClientStatus = structs.AllocClientStatusRunning
 	time.AfterFunc(100*time.Millisecond, func() {
 		assert.Nil(state.UpsertJobSummary(5, mock.JobSummary(a2.JobID)), "UpsertJobSummary")
-		assert.Nil(state.UpdateAllocsFromClient(6, []*structs.Allocation{a2}), "bpdateAllocsFromClient")
+		assert.Nil(state.UpdateAllocsFromClient(6, []*structs.Allocation{a2}), "updateAllocsFromClient")
 	})
 
 	req.MinQueryIndex = 4
@@ -1208,7 +1298,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Reap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)

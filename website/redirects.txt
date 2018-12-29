@@ -36,17 +36,20 @@
 # - Items are case-sensitive (please use all lowercase)
 #
 
+# Website
+/community.html                               /resources.html
+
 # Docs
 /docs/agent/config.html                       /docs/agent/configuration/index.html
-/docs/jobops                                  /docs/operating-a-job/index.html
-/docs/jobops/                                 /docs/operating-a-job/index.html
-/docs/jobops/index.html                       /docs/operating-a-job/index.html
-/docs/jobops/taskconfig.html                  /docs/operating-a-job/configuring-tasks.html
-/docs/jobops/inspecting.html                  /docs/operating-a-job/inspecting-state.html
-/docs/jobops/resources.html                   /docs/operating-a-job/resource-utilization.html
+/docs/jobops                                  /guides/operating-a-job/index.html
+/docs/jobops/                                 /guides/operating-a-job/index.html
+/docs/jobops/index.html                       /guides/operating-a-job/index.html
+/docs/jobops/taskconfig.html                  /guides/operating-a-job/configuring-tasks.html
+/docs/jobops/inspecting.html                  /guides/operating-a-job/inspecting-state.html
+/docs/jobops/resources.html                   /guides/operating-a-job/resource-utilization.html
+/docs/jobops/logs.html                        /guides/operating-a-job/accessing-logs.html
+/docs/jobops/updating.html                    /guides/operating-a-job/update-strategies/index.html
 /docs/jobops/servicediscovery.html            /docs/service-discovery/index.html
-/docs/jobops/logs.html                        /docs/operating-a-job/accessing-logs.html
-/docs/jobops/updating.html                    /docs/operating-a-job/update-strategies/index.html
 /docs/jobspec                                 /docs/job-specification/index.html
 /docs/jobspec/                                /docs/job-specification/index.html
 /docs/jobspec/index.html                      /docs/job-specification/index.html
@@ -64,6 +67,48 @@
 /docs/commands/operator-raft-list-peers.html  /docs/commands/operator/raft-list-peers.html
 /docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer.html
 /docs/commands/job-dispatch.html              /docs/commands/job/dispatch.html
+/docs/commands/alloc-status.html              /docs/commands/alloc/status.html
+/docs/commands/fs.html                        /docs/commands/alloc/fs.html
+/docs/commands/logs.html                      /docs/commands/alloc/logs.html
+/docs/commands/init.html                      /docs/commands/job/init.html
+/docs/commands/inspect.html                   /docs/commands/job/inspect.html
+/docs/commands/run.html                       /docs/commands/job/run.html
+/docs/commands/stop.html                      /docs/commands/job/stop.html
+/docs/commands/plan.html                      /docs/commands/job/plan.html
+/docs/commands/validate.html                  /docs/commands/job/validate.html
+/docs/commands/client-config.html             /docs/commands/node/config.html
+/docs/commands/node-drain.html                /docs/commands/node/drain.html
+/docs/commands/node-status.html               /docs/commands/node/status.html
+/docs/commands/keygen.html                    /docs/commands/operator/keygen.html
+/docs/commands/keyring.html                   /docs/commands/operator/keyring.html
+/docs/commands/server-force-leave.html        /docs/commands/server/force-leave.html
+/docs/commands/server-join.html               /docs/commands/server/join.html
+/docs/commands/server-members.html            /docs/commands/server/members.html
+
+# Moved /docs/operating-a-job/ -> /guides/operating-a-job/
+/docs/operating-a-job                           /guides/operating-a-job/index.html
+/docs/operating-a-job/                          /guides/operating-a-job/index.html
+/docs/operating-a-job/index.html                /guides/operating-a-job/index.html
+/docs/operating-a-job/accessing-logs.html       /guides/operating-a-job/accessing-logs.html
+/docs/operating-a-job/inspecting-state.html     /guides/operating-a-job/inspecting-state.html
+/docs/operating-a-job/resource-utilization.html /guides/operating-a-job/resource-utilization.html
+/docs/operating-a-job/configuring-tasks.html    /guides/operating-a-job/configuring-tasks.html
+/docs/operating-a-job/submitting-jobs.html      /guides/operating-a-job/submitting-jobs.html
+
+/docs/operating-a-job/failure-handling-strategies                    /guides/operating-a-job/failure-handling-strategies/index.html
+/docs/operating-a-job/failure-handling-strategies/                   /guides/operating-a-job/failure-handling-strategies/index.html
+/docs/operating-a-job/failure-handling-strategies/index.html         /guides/operating-a-job/failure-handling-strategies/index.html
+/docs/operating-a-job/failure-handling-strategies/check-restart.html /guides/operating-a-job/failure-handling-strategies/check-restart.html
+/docs/operating-a-job/failure-handling-strategies/reschedule.html    /guides/operating-a-job/failure-handling-strategies/reschedule.html
+/docs/operating-a-job/failure-handling-strategies/restart.html       /guides/operating-a-job/failure-handling-strategies/restart.html
+
+/docs/operating-a-job/update-strategies                                        /guides/operating-a-job/update-strategies/index.html
+/docs/operating-a-job/update-strategies/                                       /guides/operating-a-job/update-strategies/index.html
+/docs/operating-a-job/update-strategies/index.html                             /guides/operating-a-job/update-strategies/index.html
+/docs/operating-a-job/update-strategies/blue-green-and-canary-deployments.html /guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html
+/docs/operating-a-job/update-strategies/handling-signals.html                  /guides/operating-a-job/update-strategies/handling-signals.html
+/docs/operating-a-job/update-strategies/rolling-upgrades.html                  /guides/operating-a-job/update-strategies/rolling-upgrades.html
+
 
 # API
 /docs/http/index.html                   /api/index.html

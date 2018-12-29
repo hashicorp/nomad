@@ -72,7 +72,7 @@ vault {
   `tls_key_file`.
 
 - `key_file` `(string: "")` - Specifies the path to the private key used for
-  Vault communication. If this is set then you need to also set `tls_cert_file`.
+  Vault communication. If this is set then you need to also set `cert_file`.
 
 - `tls_server_name` `(string: "")` - Specifies an optional string used to set
   the SNI host when connecting to Vault via TLS.

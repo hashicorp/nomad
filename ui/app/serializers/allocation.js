@@ -1,9 +1,10 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 
-const { get } = Ember;
-
 export default ApplicationSerializer.extend({
+  system: service(),
+
   attrs: {
     taskGroupName: 'TaskGroup',
     states: 'TaskStates',
@@ -22,8 +23,26 @@ export default ApplicationSerializer.extend({
 
     hash.JobVersion = hash.JobVersion != null ? hash.JobVersion : get(hash, 'Job.Version');
 
-    // TEMPORARY: https://github.com/emberjs/data/issues/5209
-    hash.OriginalJobId = hash.JobID;
+    hash.PlainJobId = hash.JobID;
+    hash.Namespace =
+      hash.Namespace ||
+      get(hash, 'Job.Namespace') ||
+      this.get('system.activeNamespace.id') ||
+      'default';
+    hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
+
+    hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
+    hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
+
+    hash.CreateTimeNanos = hash.CreateTime % 1000000;
+    hash.CreateTime = Math.floor(hash.CreateTime / 1000000);
+
+    hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
+
+    // API returns empty strings instead of null
+    hash.PreviousAllocationID = hash.PreviousAllocation ? hash.PreviousAllocation : null;
+    hash.NextAllocationID = hash.NextAllocation ? hash.NextAllocation : null;
+    hash.FollowUpEvaluationID = hash.FollowupEvalID ? hash.FollowupEvalID : null;
 
     return this._super(typeHash, hash);
   },

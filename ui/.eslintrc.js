@@ -10,11 +10,20 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2017,
     sourceType: 'module',
+    ecmaFeatures: {
+      experimentalObjectRestSpread: true,
+    },
   },
   rules: {
     indent: ['error', 2, { SwitchCase: 1 }],
     'linebreak-style': ['error', 'unix'],
     quotes: ['error', 'single', 'avoid-escape'],
     semi: ['error', 'always'],
+    'no-constant-condition': [
+      'error',
+      {
+        checkLoops: false,
+      },
+    ],
   },
 };

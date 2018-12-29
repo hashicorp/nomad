@@ -72,14 +72,15 @@ does not automatically enable service discovery.
 - `check` <code>([Check](#check-parameters): nil)</code> - Specifies a health
   check associated with the service. This can be specified multiple times to
   define multiple checks for the service. At this time, Nomad supports the
-  `script`<sup><small>1</small></sup>, `http` and `tcp` checks.
+  `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
 
-- `name` `(string: "<job>-<group>-<task>")` - Specifies the name of this
-  service. If not supplied, this will default to the name of the job, group, and
-  task concatenated together with a dash, like `"docs-example-server"`. Each
-  service must have a unique name within the cluster. Names must adhere to
-  [RFC-1123 §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are limited
-  to alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be less than 64
+- `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
+  will be advertised as in Consul.  If not supplied, this will default to the
+  name of the job, group, and task concatenated together with a dash, like
+  `"docs-example-server"`. Each service must have a unique name within the
+  cluster. Names must adhere to [RFC-1123
+  §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are limited to
+  alphanumeric and hyphen characters (i.e. `[a-z0-9\-]`), and be less than 64
   characters in length.
 
     In addition to the standard [Nomad interpolation][interpolation], the
@@ -89,23 +90,51 @@ does not automatically enable service discovery.
     - `${GROUP}` - the name of the group
     - `${TASK}` - the name of the task
     - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
+    
+    Validation of the name occurs in two parts. When the job is registered, an initial validation pass checks that
+    the service name adheres to RFC-1123 §2.1 and the length limit, excluding any variables requiring interpolation. 
+    Once the client receives the service and all interpretable values are available, the service name will be 
+    interpolated and revalidated. This can cause certain service names to pass validation at submit time but fail 
+    at runtime.
+    
+- `port` `(string: <optional>)` - Specifies the port to advertise for this
+  service. The value of `port` depends on which [`address_mode`](#address_mode)
+  is being used:
 
-- `port` `(string: <required>)` - Specifies the label of the port on which this
-  service is running. Note this is the _label_ of the port and not the port
-  number. The port label must match one defined in the [`network`][network]
-  stanza.
+  - `driver` - Advertise the port determined by the driver (eg Docker or rkt).
+    The `port` may be a numeric port or a port label specified in the driver's
+    `port_map`.
+
+  - `host` - Advertise the host port for this service. `port` must match a port
+    _label_ specified in the [`network`][network] stanza.
 
 - `tags` `(array<string>: [])` - Specifies the list of tags to associate with
   this service. If this is not supplied, no tags will be assigned to the service
   when it is registered.
 
+- `canary_tags` `(array<string>: [])` - Specifies the list of tags to associate with
+  this service when the service is part of an allocation that is currently a
+  canary. Once the canary is promoted, the registered tags will be updated to
+  those specified in the `tags` parameter. If this is not supplied, the
+  registered tags will be equal to that of the `tags parameter.
+
 - `address_mode` `(string: "auto")` - Specifies what address (host or
-  driver-specific) this service should advertise. `host` indicates the host IP
-  and port. `driver` advertises the IP used in the driver (e.g. Docker's internal
-  IP) and uses the ports specified in the port map. The default is `auto` which
-  behaves the same as `host` unless the driver determines its IP should be used.
-  This setting supported Docker since Nomad 0.6 and rkt since Nomad 0.7. It
-  will advertise the container IP if a network plugin is used (e.g. weave).
+  driver-specific) this service should advertise.  This setting is supported in
+  Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
+  examples.](#using-driver-address-mode) Valid options are:
+
+  - `auto` - Allows the driver to determine whether the host or driver address
+    should be used. Defaults to `host` and only implemented by Docker. If you
+    use a Docker network plugin such as weave, Docker will automatically use
+    its address.
+
+  - `driver` - Use the IP specified by the driver, and the port specified in a
+    port map. A numeric port may be specified since port maps aren't required
+    by all network plugins. Useful for advertising SDN and overlay network
+    addresses. Task will fail if driver network cannot be determined. Only
+    implemented for Docker and rkt.
+
+  - `host` - Use the host IP and port.
 
 ### `check` Parameters
 
@@ -113,6 +142,13 @@ Note that health checks run inside the task. If your task is a Docker container,
 the script will run inside the Docker container. If your task is running in a
 chroot, it will run in the chroot. Please keep this in mind when authoring check
 scripts.
+
+- `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
+  Unlike services, checks do not have an `auto` address mode as there's no way
+  for Nomad to know which is the best address to use for checks. Consul needs
+  access to the address for any HTTP or TCP checks. Added in Nomad 0.7.1. See
+  [below for details.](#using-driver-address-mode) Unlike `port`, this setting
+  is *not* inherited from the `service`.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
@@ -130,6 +166,12 @@ scripts.
     parameter. To achieve the behavior of shell operators, specify the command
     as a shell, like `/bin/bash` and then use `args` to run the check.
 
+- `grpc_service` `(string: <optional>)` - What service, if any, to specify in
+  the gRPC health check. gRPC health checks require Consul 1.0.5 or later.
+
+- `grpc_use_tls` `(bool: false)` - Use TLS to perform a gRPC health check. May
+  be used with `tls_skip_verify` to use TLS but skip certificate verification.
+
 - `initial_status` `(string: <enum>)` - Specifies the originating status of the
   service. Valid options are the empty string, `passing`, `warning`, and
   `critical`.
@@ -142,20 +184,24 @@ scripts.
   checks.
 
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
-  check.
+  check. If the name is not specified Nomad generates one based on the service name.
+  If you have more than one check you must specify the name.
 
 - `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
   Consul will query to query the health of a service. Nomad will automatically
   add the IP of the service and the port, so this is just the relative URL to
   the health check endpoint. This is required for http-based health checks.
 
-- `port` `(string: <required>)` - Specifies the label of the port on which the
+- `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
-  number. The port label must match one defined in the [`network`][network]
-  stanza. If a port value was declared on the `service`, this will inherit from
-  that value if not supplied. If supplied, this value takes precedence over the
-  `service.port` value. This is useful for services which operate on multiple
-  ports. Checks will *always use the host IP and ports*.
+  number unless `address_mode = driver`. The port label must match one defined
+  in the [`network`][network] stanza. If a port value was declared on the
+  `service`, this will inherit from that value if not supplied. If supplied,
+  this value takes precedence over the `service.port` value. This is useful for
+  services which operate on multiple ports. `grpc`, `http`, and `tcp` checks
+  require a port while `script` checks do not. Checks will use the host IP and
+  ports by default. In Nomad 0.7.1 or later numeric ports may be used if
+  `address_mode="driver"` is set on the check.
 
 - `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
@@ -165,7 +211,8 @@ scripts.
   "30s" or "1h". This must be greater than or equal to "1s"
 
 - `type` `(string: <required>)` - This indicates the check types supported by
-  Nomad. Valid options are `script`, `http`, and `tcp`.
+  Nomad. Valid options are `grpc`, `http`, `script`, and `tcp`. gRPC health
+  checks require Consul 1.0.5 or later.
 
 - `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
   checks. Requires Consul >= 0.7.2.
@@ -291,6 +338,7 @@ checks must be passing in order for the service to register as healthy.
 ```hcl
 service {
   check {
+    name     = "HTTP Check"
     type     = "http"
     port     = "lb"
     path     = "/_healthz"
@@ -299,6 +347,7 @@ service {
   }
 
   check {
+    name     = "HTTPS Check"
     type     = "http"
     protocol = "https"
     port     = "lb"
@@ -309,6 +358,7 @@ service {
   }
 
   check {
+    name     = "Postgres Check"
     type     = "script"
     command  = "/usr/local/bin/pg-tools"
     args     = ["verify", "database" "prod", "up"]
@@ -318,6 +368,252 @@ service {
 }
 ```
 
+### gRPC Health Check
+
+gRPC health checks use the same host and port behavior as `http` and `tcp`
+checks, but gRPC checks also have an optional gRPC service to health check. Not
+all gRPC applications require a service to health check. gRPC health checks
+require Consul 1.0.5 or later.
+
+```hcl
+service {
+  check {
+    type            = "grpc"
+    port            = "rpc"
+    interval        = "5s"
+    timeout         = "2s"
+    grpc_service    = "example.Service"
+    grpc_use_tls    = true
+    tls_skip_verify = true
+  }
+}
+```
+
+In this example Consul would health check the `example.Service` service on the
+`rpc` port defined in the task's [network resources][network] stanza.  See
+[Using Driver Address Mode](#using-driver-address-mode) for details on address
+selection.
+
+### Using Driver Address Mode
+
+The [Docker](/docs/drivers/docker.html#network_mode) and
+[rkt](/docs/drivers/rkt.html#net) drivers support the `driver` setting for the
+`address_mode` parameter in both `service` and `check` stanzas. The driver
+address mode allows advertising and health checking the IP and port assigned to
+a task by the driver. This way if you're using a network plugin like Weave with
+Docker, you can advertise the Weave address in Consul instead of the host's
+address.
+
+For example if you were running the example Redis job in an environment with
+Weave but Consul was running on the host you could use the following
+configuration:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        network_mode = "weave"
+        port_map {
+          db = 6379
+        }
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+          port "db" {}
+        }
+      }
+
+      service {
+        name = "weave-redis"
+        port = "db"
+        check {
+          name     = "host-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+
+No explicit `address_mode` required!
+
+Services default to the `auto` address mode. When a Docker network mode other
+than "host" or "bridge" is used, services will automatically advertise the
+driver's address (in this case Weave's). The service will advertise the
+container's port: 6379.
+
+However since Consul is often run on the host without access to the Weave
+network, `check` stanzas default to `host` address mode. The TCP check will run
+against the host's IP and the dynamic host port assigned by Nomad.
+
+Note that the `check` still inherits the `service` stanza's `db` port label,
+but each will resolve the port label according to their address mode.
+
+If Consul has access to the Weave network the job could be configured like
+this:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        network_mode = "weave"
+        # No port map required!
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+        }
+      }
+
+      service {
+        name = "weave-redis"
+        port = 6379
+        address_mode = "driver"
+        check {
+          name     = "host-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+          port     = 6379
+          
+          address_mode = "driver"
+        }
+      }
+    }
+  }
+}
+```
+
+In this case Nomad doesn't need to assign Redis any host ports. The `service`
+and `check` stanzas can both specify the port number to advertise and check
+directly since Nomad isn't managing any port assignments.
+
+### IPv6 Docker containers
+
+The [Docker](/docs/drivers/docker.html#advertise_ipv6_address) driver supports the
+`advertise_ipv6_address` parameter in it's configuration.
+
+Services will automatically advertise the IPv6 address when `advertise_ipv6_address` 
+is used.
+
+Unlike services, checks do not have an `auto` address mode as there's no way
+for Nomad to know which is the best address to use for checks. Consul needs
+access to the address for any HTTP or TCP checks.
+
+So you have to set `address_mode` parameter in the `check` stanza to `driver`. 
+
+For example using `auto` address mode:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        advertise_ipv6_address = true
+        port_map {
+          db = 6379
+        }
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+          port "db" {}
+        }
+      }
+
+      service {
+        name = "ipv6-redis"
+        port = db
+        check {
+          name     = "ipv6-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+          port     = db
+          address_mode = "driver"
+        }
+      }
+    }
+  }
+}
+```
+
+Or using `address_mode=driver` for `service` and `check` with numeric ports:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        advertise_ipv6_address = true
+        # No port map required!
+      }
+
+      resources {
+        cpu    = 500 # 500 MHz
+        memory = 256 # 256MB
+        network {
+          mbits = 10
+        }
+      }
+
+      service {
+        name = "ipv6-redis"
+        port = 6379
+        address_mode = "driver"
+        check {
+          name     = "ipv6-redis-check"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+          port     = 6379
+          address_mode = "driver"
+        }
+      }
+    }
+  }
+}
+```
+
+The `service` and `check` stanzas can both specify the port number to 
+advertise and check directly since Nomad isn't managing any port assignments.
+
+
 - - -
 
 <sup><small>1</small></sup><small> Script checks are not supported for the
@@ -325,6 +621,7 @@ service {
 system of a task for that driver.</small>
 
 [check_restart_stanza]: /docs/job-specification/check_restart.html "check_restart stanza"
+[consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
 [service-discovery]: /docs/service-discovery/index.html "Nomad Service Discovery"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"

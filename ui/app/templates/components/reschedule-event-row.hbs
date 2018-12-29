@@ -1,0 +1,46 @@
+<li class="timeline-note">
+  {{#if label}}
+    <strong data-test-reschedule-label>{{label}}</strong>
+  {{/if}}
+  {{moment-format time "MMMM D, YYYY HH:mm:ss"}}
+</li>
+<li class="timeline-object" data-test-allocation={{allocation.id}}>
+  <div class="boxed-section">
+    {{#unless linkToAllocation}}
+      <div class="boxed-section-head" data-test-row-heading>
+        This Allocation
+      </div>
+    {{/unless}}
+    <div class="boxed-section-body inline-definitions">
+      <div class="columns">
+        <div class="column is-centered is-minimum">
+          <span data-test-allocation-status class="tag {{allocation.statusClass}}">
+            {{allocation.clientStatus}}
+          </span>
+        </div>
+        <div class="column">
+          <div class="boxed-section-row">
+            <span class="pair">
+              <span class="term">Allocation</span>
+              {{#if linkToAllocation}}
+                {{#link-to "allocations.allocation" allocation.id}}
+                  <code data-test-allocation-link>{{allocation.shortId}}</code>
+                {{/link-to}}
+              {{else}}
+                <code data-test-allocation-link>{{allocation.shortId}}</code>
+              {{/if}}
+            </span>
+            <span class="pair">
+              <span class="term">Client</span>
+              <span>
+                {{#link-to "clients.client" data-test-node-link allocation.node.id}}
+                  <code>{{allocation.node.id}}</code>
+                {{/link-to}}
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</li>

@@ -19,6 +19,12 @@ func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolveToken"}, time.Now())
 
+	// Check if the secret ID is the leader secret ID, in which case treat it as
+	// a management token.
+	if leaderAcl := s.getLeaderAcl(); leaderAcl != "" && secretID == leaderAcl {
+		return acl.ManagementACL, nil
+	}
+
 	// Snapshot the state
 	snap, err := s.fsm.State().Snapshot()
 	if err != nil {

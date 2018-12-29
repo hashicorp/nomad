@@ -1,9 +1,10 @@
-import Ember from 'ember';
-
-const { Component, inject, computed } = Ember;
+import { inject as service } from '@ember/service';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
 
 export default Component.extend({
-  system: inject.service(),
+  system: service(),
+  router: service(),
 
   sortedNamespaces: computed('system.namespaces.@each.name', function() {
     const namespaces = this.get('system.namespaces').toArray() || [];
@@ -31,5 +32,13 @@ export default Component.extend({
     });
   }),
 
-  onNamespaceChange() {},
+  onHamburgerClick() {},
+
+  gotoJobsForNamespace(namespace) {
+    if (!namespace || !namespace.get('id')) return;
+
+    this.get('router').transitionTo('jobs', {
+      queryParams: { namespace: namespace.get('id') },
+    });
+  },
 });

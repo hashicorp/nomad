@@ -53,7 +53,7 @@ type checkRestart struct {
 	logger *log.Logger
 }
 
-// apply restart state for check and restart task if necessary. Currrent
+// apply restart state for check and restart task if necessary. Current
 // timestamp is passed in so all check updates have the same view of time (and
 // to ease testing).
 //

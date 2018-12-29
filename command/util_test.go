@@ -10,7 +10,7 @@ import (
 
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
 	// Make a new test server
-	a := agent.NewTestAgent(t.Name(), func(config *agent.Config) {
+	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
 		config.Client.Enabled = runClient
 
 		if cb != nil {

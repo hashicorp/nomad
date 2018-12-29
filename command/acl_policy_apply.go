@@ -47,9 +47,11 @@ func (c *ACLPolicyApplyCommand) Synopsis() string {
 	return "Create or update an ACL policy"
 }
 
+func (c *ACLPolicyApplyCommand) Name() string { return "acl policy apply" }
+
 func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	var description string
-	flags := c.Meta.FlagSet("acl policy apply", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
 	if err := flags.Parse(args); err != nil {
@@ -59,7 +61,8 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	// Check that we got two arguments
 	args = flags.Args()
 	if l := len(args); l != 2 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes two arguments: <name> and <path>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

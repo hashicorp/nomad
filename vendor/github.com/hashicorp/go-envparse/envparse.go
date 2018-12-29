@@ -5,7 +5,7 @@
 //
 //	KEY=value
 //
-// While extraneous characters are discouraged, an "export" prefix, preceeding
+// While extraneous characters are discouraged, an "export" prefix, preceding
 // whitespace, and trailing whitespace are all removed:
 //
 //	KEY = This is ok! # Parses to {"KEY": "This is ok!"}
@@ -135,11 +135,12 @@ func parseLine(ln []byte) ([]byte, []byte, error) {
 	for _, v := range key[1:] {
 		switch {
 		case v == '_':
+		case v == '.':
 		case v >= 'A' && v <= 'Z':
 		case v >= 'a' && v <= 'z':
 		case v >= '0' && v <= '9':
 		default:
-			return nil, nil, fmt.Errorf("key characters must be [A-Za-z0-9_] but found %q", v)
+			return nil, nil, fmt.Errorf("key characters must be [A-Za-z0-9_.] but found %q", v)
 		}
 	}
 
@@ -152,7 +153,7 @@ func parseLine(ln []byte) ([]byte, []byte, error) {
 	// Scratch buffer for unescaped value
 	newv := make([]byte, len(value))
 	newi := 0
-	// Track last significant character for trimming unquoted whitespace preceeding a trailing comment
+	// Track last significant character for trimming unquoted whitespace preceding a trailing comment
 	lastSig := 0
 
 	// Parser State

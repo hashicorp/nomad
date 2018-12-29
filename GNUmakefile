@@ -1,10 +1,11 @@
+SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname)
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
-GO_LDFLAGS := "-X main.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
+GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
 default: help
@@ -20,6 +21,13 @@ ifeq (Linux,$(THIS_OS))
 ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
 HAS_LXC="true"
 endif
+
+ifeq ($(TRAVIS),true)
+$(info Running in Travis, verbose mode is disabled)
+else
+VERBOSE="true"
+endif
+
 
 ALL_TARGETS += linux_386 \
 	linux_amd64 \
@@ -132,24 +140,25 @@ endef
 # Reify the package targets
 $(foreach t,$(ALL_TARGETS),$(eval $(call makePackageTarget,$(t))))
 
-# Only for Travis CI compliance
 .PHONY: bootstrap
-bootstrap: deps
+bootstrap: deps lint-deps # Install all dependencies
 
 .PHONY: deps
-deps: ## Install build and development dependencies
+deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
+	go get -u github.com/kardianos/govendor
+	go get -u github.com/ugorji/go/codec/codecgen
+	go get -u github.com/hashicorp/go-bindata/...
+	go get -u github.com/elazarl/go-bindata-assetfs/...
+	go get -u github.com/a8m/tree/cmd/tree
+	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+	go get -u github.com/golang/protobuf/protoc-gen-go
+
+.PHONY: lint-deps
+lint-deps: ## Install linter dependencies
+	@echo "==> Updating linter dependencies..."
 	go get -u github.com/alecthomas/gometalinter
 	gometalinter --install
-	go get -u github.com/kardianos/govendor
-	go get -u golang.org/x/tools/cmd/cover
-	go get -u github.com/axw/gocov/gocov
-	go get -u gopkg.in/matm/v1/gocov-html
-	go get -u github.com/ugorji/go/codec/codecgen
-	go get -u github.com/jteeuwen/go-bindata/...
-	go get -u github.com/elazarl/go-bindata-assetfs/...
-	go get -u github.com/hashicorp/vault
-	go get -u github.com/a8m/tree/cmd/tree
 
 .PHONY: check
 check: ## Lint the source code
@@ -172,7 +181,6 @@ check: ## Lint the source code
 		--enable ineffassign \
 		--enable structcheck \
 		--enable unconvert \
-		--enable gas \
 		--enable gofmt \
 		./...
 	@echo "==> Spell checking website..."
@@ -187,27 +195,40 @@ generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate: ## Update generated code
 	@go generate $(LOCAL_PACKAGES)
 
+vendorfmt:
+	@echo "--> Formatting vendor/vendor.json"
+	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+		vendorfmt
+changelogfmt:
+	@echo "--> Making [GH-xxxx] references clickable..."
+	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+
+
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
-dev: ## Build for the current development platform
+dev: vendorfmt changelogfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
-		GO_TAGS="nomad_test $(NOMAD_UI_TAG)"
+		GO_TAGS="$(NOMAD_UI_TAG)"
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
+.PHONY: prerelease
+prerelease: GO_TAGS=ui release
+prerelease: check generate ember-dist static-assets ## Generate all the static assets for a Nomad release
+
 .PHONY: release
-release: GO_TAGS="ui"
-release: clean ember-dist static-assets check $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
+release: GO_TAGS=ui release
+release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
@@ -221,15 +242,15 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 		fi
 
 .PHONY: test-nomad
-test-nomad: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
-	@NOMAD_TEST_RKT=1 \
-		go test \
+	@go test $(if $(VERBOSE),-v) \
 			-cover \
 			-timeout=900s \
-			-tags="nomad_test $(if $(HAS_LXC),lxc)" \
-			$(LOCAL_PACKAGES)
+			-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	@if [ $(VERBOSE) ] ; then \
+		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
+	fi
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
@@ -241,6 +262,9 @@ clean: ## Remove build artifacts
 
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make generate; \
+	fi
 	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
 
 .PHONY: testcluster
@@ -256,22 +280,21 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 .PHONY: static-assets
 static-assets: ## Compile the static routes to serve alongside the API
 	@echo "--> Generating static assets"
-	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui ./ui/dist/...
+	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
 .PHONY: test-ui
-test-ui: ## Run Noma UI test suite
+test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
+	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
-	@cd ui && npm install phantomjs-prebuilt
 	@echo "--> Running ember tests"
-	@cd ui && phantomjs --version
 	@cd ui && npm test
 
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
 	@echo "--> Installing JavaScript assets"
-	@cd ui && yarn install
+	@cd ui && yarn install --silent
 	@cd ui && npm rebuild node-sass
 	@echo "--> Building Ember application"
 	@cd ui && npm run build
@@ -288,5 +311,6 @@ help: ## Display this usage information
 		sort | \
 		awk 'BEGIN {FS = ":.*?## "}; \
 			{printf $(HELP_FORMAT), $$1, $$2}'
-	@echo "\nThis host will build the following targets if 'make release' is invoked:"
+	@echo ""
+	@echo "This host will build the following targets if 'make release' is invoked:"
 	@echo $(ALL_TARGETS) | sed 's/^/    /'

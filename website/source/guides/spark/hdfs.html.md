@@ -121,10 +121,10 @@ Another viable option for DataNode task group is to use a dedicated
 This will deploy a DataNode to every client node in the system, which may or may 
 not be desirable depending on your use case. 
 
-The HDFS job can be deployed using the `nomad run` command:
+The HDFS job can be deployed using the `nomad job run` command:
 
 ```shell
-$ nomad run hdfs.nomad
+$ nomad job run hdfs.nomad
 ```
 
 ## Production Deployment Considerations

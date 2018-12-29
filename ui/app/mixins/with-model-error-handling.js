@@ -1,7 +1,5 @@
-import Ember from 'ember';
+import Mixin from '@ember/object/mixin';
 import notifyError from 'nomad-ui/utils/notify-error';
-
-const { Mixin } = Ember;
 
 export default Mixin.create({
   model() {

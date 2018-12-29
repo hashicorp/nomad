@@ -7,58 +7,62 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// EvalBatcher is used to batch the creation of evaluations
-type EvalBatcher struct {
+// AllocUpdateBatcher is used to batch the updates to the desired transitions
+// of allocations and the creation of evals.
+type AllocUpdateBatcher struct {
 	// batch is the batching duration
 	batch time.Duration
 
-	// raft is used to actually commit the evaluations
+	// raft is used to actually commit the updates
 	raft DeploymentRaftEndpoints
 
 	// workCh is used to pass evaluations to the daemon process
-	workCh chan *evalWrapper
+	workCh chan *updateWrapper
 
 	// ctx is used to exit the daemon batcher
 	ctx context.Context
 }
 
-// NewEvalBatcher returns an EvalBatcher that uses the passed raft endpoints to
-// create the evaluations and exits the batcher when the passed exit channel is
-// closed.
-func NewEvalBatcher(batchDuration time.Duration, raft DeploymentRaftEndpoints, ctx context.Context) *EvalBatcher {
-	b := &EvalBatcher{
+// NewAllocUpdateBatcher returns an AllocUpdateBatcher that uses the passed raft endpoints to
+// create the allocation desired transition updates and new evaluations and
+// exits the batcher when the passed exit channel is closed.
+func NewAllocUpdateBatcher(batchDuration time.Duration, raft DeploymentRaftEndpoints, ctx context.Context) *AllocUpdateBatcher {
+	b := &AllocUpdateBatcher{
 		batch:  batchDuration,
 		raft:   raft,
 		ctx:    ctx,
-		workCh: make(chan *evalWrapper, 10),
+		workCh: make(chan *updateWrapper, 10),
 	}
 
 	go b.batcher()
 	return b
 }
 
-// CreateEval batches the creation of the evaluation and returns a future that
-// tracks the evaluations creation.
-func (b *EvalBatcher) CreateEval(e *structs.Evaluation) *EvalFuture {
-	wrapper := &evalWrapper{
-		e: e,
-		f: make(chan *EvalFuture, 1),
+// CreateUpdate batches the allocation desired transition update and returns a
+// future that tracks the completion of the request.
+func (b *AllocUpdateBatcher) CreateUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) *BatchFuture {
+	wrapper := &updateWrapper{
+		allocs: allocs,
+		e:      eval,
+		f:      make(chan *BatchFuture, 1),
 	}
 
 	b.workCh <- wrapper
 	return <-wrapper.f
 }
 
-type evalWrapper struct {
-	e *structs.Evaluation
-	f chan *EvalFuture
+type updateWrapper struct {
+	allocs map[string]*structs.DesiredTransition
+	e      *structs.Evaluation
+	f      chan *BatchFuture
 }
 
 // batcher is the long lived batcher goroutine
-func (b *EvalBatcher) batcher() {
+func (b *AllocUpdateBatcher) batcher() {
 	var timerCh <-chan time.Time
+	allocs := make(map[string]*structs.DesiredTransition)
 	evals := make(map[string]*structs.Evaluation)
-	future := NewEvalFuture()
+	future := NewBatchFuture()
 	for {
 		select {
 		case <-b.ctx.Done():
@@ -68,59 +72,68 @@ func (b *EvalBatcher) batcher() {
 				timerCh = time.After(b.batch)
 			}
 
-			// Store the eval and attach the future
+			// Store the eval and alloc updates, and attach the future
 			evals[w.e.DeploymentID] = w.e
+			for id, upd := range w.allocs {
+				allocs[id] = upd
+			}
+
 			w.f <- future
 		case <-timerCh:
 			// Capture the future and create a new one
 			f := future
-			future = NewEvalFuture()
+			future = NewBatchFuture()
 
 			// Shouldn't be possible
 			if f == nil {
 				panic("no future")
 			}
 
-			// Capture the evals
-			all := make([]*structs.Evaluation, 0, len(evals))
+			// Create the request
+			req := &structs.AllocUpdateDesiredTransitionRequest{
+				Allocs: allocs,
+				Evals:  make([]*structs.Evaluation, 0, len(evals)),
+			}
+
 			for _, e := range evals {
-				all = append(all, e)
+				req.Evals = append(req.Evals, e)
 			}
 
 			// Upsert the evals in a go routine
-			go f.Set(b.raft.UpsertEvals(all))
+			go f.Set(b.raft.UpdateAllocDesiredTransition(req))
 
 			// Reset the evals list and timer
 			evals = make(map[string]*structs.Evaluation)
+			allocs = make(map[string]*structs.DesiredTransition)
 			timerCh = nil
 		}
 	}
 }
 
-// EvalFuture is a future that can be used to retrieve the index the eval was
+// BatchFuture is a future that can be used to retrieve the index the eval was
 // created at or any error in the creation process
-type EvalFuture struct {
+type BatchFuture struct {
 	index  uint64
 	err    error
 	waitCh chan struct{}
 }
 
-// NewEvalFuture returns a new EvalFuture
-func NewEvalFuture() *EvalFuture {
-	return &EvalFuture{
+// NewBatchFuture returns a new BatchFuture
+func NewBatchFuture() *BatchFuture {
+	return &BatchFuture{
 		waitCh: make(chan struct{}),
 	}
 }
 
 // Set sets the results of the future, unblocking any client.
-func (f *EvalFuture) Set(index uint64, err error) {
+func (f *BatchFuture) Set(index uint64, err error) {
 	f.index = index
 	f.err = err
 	close(f.waitCh)
 }
 
 // Results returns the creation index and any error.
-func (f *EvalFuture) Results() (uint64, error) {
+func (f *BatchFuture) Results() (uint64, error) {
 	<-f.waitCh
 	return f.index, f.err
 }

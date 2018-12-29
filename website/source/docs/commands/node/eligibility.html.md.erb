@@ -1,0 +1,71 @@
+---
+layout: "docs"
+page_title: "Commands: node eligibility"
+sidebar_current: "docs-commands-node-eligibility"
+description: >
+  The node eligibility command is used to configure a node's scheduling
+  eligibility.
+---
+
+# Command: node eligibility
+
+The `node eligibility` command is used to toggle scheduling eligibility for a
+given node. By default node's are eligible for scheduling meaning they can
+receive placements and run new allocations. Node's that have their scheduling
+elegibility disabled are ineligibile for new placements.
+
+The [`node drain`][drain] command automatically disables eligibility. Disabling
+a drain restore eligibility by default.
+
+Disable scheduling eligibility is useful when draining a set of nodes: first
+disable eligibility on each node that will be drained. Then drain each node.
+If you just drain each node allocations may get rescheduled multiple times as
+they get placed on node's about to be drained!
+
+Disabling scheduling eligibility may also be useful when investigating poorly
+behaved nodes. It allows operators to investigate the current state of a node
+without the risk of additional work being assigned to it.
+
+## Usage
+
+```
+nomad node eligibility [options] <node>
+```
+
+A `-self` flag can be used to toggle eligibility of the local node. If this is
+not supplied, a node ID or prefix must be provided. If there is an exact match,
+the eligibility will be adjusted for that node. Otherwise, a list of matching
+nodes and information will be displayed.
+
+It is also required to pass one of `-enable` or `-disable`, depending on which
+operation is desired.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Drain Options
+
+* `-enable`: Enable scheduling eligbility.
+* `-disable`: Disable scheduling eligibility.
+* `-self`: Set eligibility for the local node.
+* `-yes`: Automatic yes to prompts.
+
+## Examples
+
+Enable scheduling eligibility on node with ID prefix "574545c5":
+
+```
+$ nomad node eligibility -enable 574545c5
+Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: eligible for scheduling
+```
+
+Disable scheduling eligibility on the local node:
+
+```
+$ nomad node eligibility -disable -self
+Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: ineligible for scheduling
+```
+
+
+[drain]: /docs/commands/node/drain.html

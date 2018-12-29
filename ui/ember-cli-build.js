@@ -12,6 +12,20 @@ module.exports = function(defaults) {
     svg: {
       paths: ['public/images/icons'],
     },
+    codemirror: {
+      themes: ['solarized'],
+      modes: ['javascript'],
+    },
+    funnel: {
+      enabled: isProd,
+      exclude: [
+        `${defaults.project.pkg.name}/components/freestyle/**/*`,
+        `${defaults.project.pkg.name}/templates/components/freestyle/**/*`,
+      ],
+    },
+    babel: {
+      plugins: ['transform-object-rest-spread'],
+    },
   });
 
   // Use `app.import` to add additional libraries to the generated

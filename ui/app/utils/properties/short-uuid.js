@@ -1,6 +1,4 @@
-import Ember from 'ember';
-
-const { computed } = Ember;
+import { computed } from '@ember/object';
 
 // An Ember.Computed property for taking the first segment
 // of a uuid.

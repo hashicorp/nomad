@@ -50,11 +50,12 @@ func (c *QuotaListCommand) Synopsis() string {
 	return "List quota specifications"
 }
 
+func (c *QuotaListCommand) Name() string { return "quota list" }
 func (c *QuotaListCommand) Run(args []string) int {
 	var json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("quota list", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
@@ -66,7 +67,8 @@ func (c *QuotaListCommand) Run(args []string) int {
 	// Check that we got no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

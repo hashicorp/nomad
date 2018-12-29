@@ -37,8 +37,10 @@ func (c *ACLPolicyInfoCommand) Synopsis() string {
 	return "Fetch info on an existing ACL policy"
 }
 
+func (c *ACLPolicyInfoCommand) Name() string { return "acl policy info" }
+
 func (c *ACLPolicyInfoCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("acl policy info", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -47,7 +49,8 @@ func (c *ACLPolicyInfoCommand) Run(args []string) int {
 	// Check that we got exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <name>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

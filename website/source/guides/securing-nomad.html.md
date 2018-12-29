@@ -70,7 +70,7 @@ distributed to every node that requires access.
 
 ### Node Certificates
 
-Once you have a CA certifacte and key you can generate and sign the
+Once you have a CA certificate and key you can generate and sign the
 certificates Nomad will use directly. TLS certificates commonly use the
 fully-qualified domain name of the system being identified as the certificate's
 Common Name (CN). However, hosts (and therefore hostnames and IPs) are often
@@ -113,7 +113,7 @@ $ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -config=cf
     -hostname="client.global.nomad,localhost,127.0.0.1" - | cfssljson -bare client
 
 # Generate a certificate for the CLI
-$ echo '{}' | cfssl gencert -ca nomad-ca.pem -ca-key nomad-ca-key.pem -profile=client \
+$ echo '{}' | cfssl gencert -ca=nomad-ca.pem -ca-key=nomad-ca-key.pem -profile=client \
     - | cfssljson -bare cli
 ```
 
@@ -217,16 +217,16 @@ tls {
 
 These two settings are important for ensuring all of Nomad's mTLS security
 properties are met. If [`verify_server_hostname`][verify_server_hostname] is
-set to `false` the node's cerificate will be checked to ensure it is signed by
+set to `false` the node's certificate will be checked to ensure it is signed by
 the same CA, but its role and region will not be verified. This means any
 service with a certificate signed by same CA as Nomad can act as a client or
 server of any region.
 
 [`verify_https_client`][verify_https_client] requires HTTP API clients to
 present a certificate signed by the same CA as Nomad's certificate. It may be
-disabled to allow HTTP API clients (eg Nomad CLI, Consul, or curl) to
+disabled to allow HTTP API clients (e.g. Nomad CLI, Consul, or curl) to
 communicate with the HTTPS API without presenting a client-side certificate. If
-`verify_https_client` is enabled ony HTTP API clients presenting a certificate
+`verify_https_client` is enabled only HTTP API clients presenting a certificate
 signed by the same CA as Nomad's certificate are allowed to access Nomad.
 
 ~> Enabling `verify_https_client` effectively protects Nomad from unauthorized
@@ -288,7 +288,7 @@ $ # ...and in another
 $ nomad agent -config client1.hcl
 ```
 
-If you run `nomad node-status` now, you'll get an error, like:
+If you run `nomad node status` now, you'll get an error, like:
 
 ```text
 Error querying node status: Get http://127.0.0.1:4646/v1/nodes: malformed HTTP response "\x15\x03\x01\x00\x02\x02"
@@ -299,7 +299,7 @@ HTTPS. We can configure the local Nomad client to connect using TLS and specify
 our custom keys and certificates using the command line:
 
 ```shell
-$ nomad node-status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -addr=https://127.0.0.1:4646
+$ nomad node status -ca-cert=nomad-ca.pem -client-cert=cli.pem -client-key=cli-key.pem -address=https://127.0.0.1:4646
 ```
 
 This process can be cumbersome to type each time, so the Nomad CLI also
@@ -325,13 +325,13 @@ After these environment variables are correctly configured, the CLI will
 respond as expected:
 
 ```text
-$ nomad node-status
-ID        DC   Name   Class   Drain  Status
-237cd4c5  dc1  nomad  <none>  false  ready
+$ nomad node status
+ID        DC   Name   Class   Drain  Eligibility  Status
+237cd4c5  dc1  nomad  <none>  false  eligible     ready
 
-$ nomad init
+$ nomad job init
 Example job file written to example.nomad
-vagrant@nomad:~$ nomad run example.nomad
+vagrant@nomad:~$ nomad job run example.nomad
 ==> Monitoring evaluation "e9970e1d"
     Evaluation triggered by job "example"
     Allocation "a1f6c3e7" created: node "237cd4c5", group "cache"
@@ -355,11 +355,11 @@ This encryption key must be added to every server's configuration using the
 [`encrypt`](/docs/agent/configuration/server.html#encrypt) parameter or with
 the [`-encrypt` command line option](/docs/commands/agent.html).
 
-The Nomad CLI includes a `keygen` command for generating a new secure gossip
+The Nomad CLI includes a `operator keygen` command for generating a new secure gossip
 encryption key:
 
 ```text
-$ nomad keygen
+$ nomad operator keygen
 cg8StVXbQJ0gPvMd9o7yrg==
 ```
 
@@ -431,6 +431,72 @@ Jobs running in the cluster will _not_ be affected and will continue running
 throughout the switch as long as all clients can restart within their heartbeat
 TTL.
 
+## Changing Nomad certificates on the fly
+
+As of 0.7.1, Nomad supports dynamic certificate reloading via SIGHUP.
+
+Given a prior TLS configuration as follows:
+
+```hcl
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "nomad-ca.pem"
+  cert_file = "server.pem"
+  key_file  = "server-key.pem"
+
+  verify_server_hostname = true
+  verify_https_client    = true
+}
+```
+
+Nomad's cert_file and key_file can be reloaded via SIGHUP simply by
+updating the TLS stanza to:
+
+```hcl
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "nomad-ca.pem"
+  cert_file = "new_server.pem"
+  key_file  = "new_server_key.pem"
+
+  verify_server_hostname = true
+  verify_https_client    = true
+}
+```
+## Migrating a cluster to TLS
+
+### Reloading TLS configuration via SIGHUP
+
+Nomad supports dynamically reloading both client and server TLS configuration.
+To reload an agent's TLS  configuration, first update the TLS block in the
+agent's configuration file and then send the Nomad agent a SIGHUP signal.
+Note that this will only reload a subset of the configuration file,
+including the TLS configuration.
+
+The agent reloads all its network connections when there are changes to its TLS
+configuration during a config reload via SIGHUP. Any new connections
+established will use the updated configuration, and any outstanding old
+connections will be closed. This process works when upgrading to TLS,
+downgrading from it, as well as rolling certificates. We recommend upgrading
+to TLS.
+
+### RPC Upgrade Mode for Nomad Servers
+
+When migrating to TLS, the [ `rpc_upgrade_mode` ][rpc_upgrade_mode] option
+(defaults to `false`) in the TLS configuration for a Nomad server can be set
+to true. When set to true, servers will accept both TLS and non-TLS
+connections. By accepting non-TLS connections, operators can upgrade clients
+to TLS without the clients being marked as lost because the server is
+rejecting the client connection due to the connection not being over TLS.
+However, it is important to note that `rpc_upgrade_mode` should be used as a
+temporary solution in the process of migration, and this option should be
+re-set to false (meaning that the server will strictly accept only TLS
+connections) once the entire cluster has been migrated.
+
 [cfssl]: https://cfssl.org/
 [cfssl.json]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/cfssl.json
 [guide-install]: https://www.nomadproject.io/intro/getting-started/install.html
@@ -438,6 +504,7 @@ TTL.
 [guide-server]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/server.hcl
 [heartbeat_grace]: /docs/agent/configuration/server.html#heartbeat_grace
 [letsencrypt]: https://letsencrypt.org/
+[rpc_upgrade_mode]: https://www.nomadproject.io/docs/agent/configuration/tls.html#rpc_upgrade_mode/
 [tls]: https://en.wikipedia.org/wiki/Transport_Layer_Security
 [tls_block]: /docs/agent/configuration/tls.html
 [vagrantfile]: https://raw.githubusercontent.com/hashicorp/nomad/master/demo/vagrant/Vagrantfile

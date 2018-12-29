@@ -5,7 +5,6 @@ package driver
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -46,8 +45,8 @@ func (RktDriver) FSIsolation() cstructs.FSIsolation {
 	panic("not implemented")
 }
 
-func (RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-	return false, nil
+func (RktDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	return nil
 }
 
 func (RktDriver) Periodic() (bool, time.Duration) {

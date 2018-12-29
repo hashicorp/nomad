@@ -1,6 +1,10 @@
 .boxed-section {
   margin-bottom: 1.5em;
 
+  &:last-child {
+    margin-bottom: 0;
+  }
+
   .boxed-section-head,
   .boxed-section-foot {
     padding: 0.75em 1.5em;
@@ -22,6 +26,15 @@
 
     &.is-light {
       background: $white;
+    }
+
+    &.is-hollow {
+      border-bottom: none;
+      background: transparent;
+
+      & + .boxed-section-body {
+        border-top: none;
+      }
     }
 
     & + .boxed-section-body {
@@ -52,7 +65,7 @@
     }
 
     &.is-dark {
-      background: darken($dark, 5%);
+      background: $dark-2;
       border-color: lighten($dark, 30%);
       color: $white;
     }

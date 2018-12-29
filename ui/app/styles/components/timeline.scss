@@ -4,7 +4,7 @@
   z-index: $z-base;
 
   &::before {
-    content: " ";
+    content: ' ';
     position: absolute;
     display: block;
     top: 0;
@@ -32,7 +32,7 @@
     }
 
     &::before {
-      content: " ";
+      content: ' ';
       position: absolute;
       display: block;
       width: 10px;

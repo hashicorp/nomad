@@ -21,7 +21,7 @@ We recommend exploring the following resources as next steps.
   * [Creating a Cluster](/guides/cluster/bootstrapping.html) - Additional details on
     creating a production worthy Nomad Cluster.
 
-  * [Operating a Job](/docs/operating-a-job/index.html) - Additional details on how to
+  * [Operating a Job](/guides/operating-a-job/index.html) - Additional details on how to
     run a job in production.
 
   * [Example Terraform configuration](https://github.com/hashicorp/nomad/tree/master/terraform) - 

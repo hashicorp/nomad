@@ -18,7 +18,7 @@ type testFn func() (bool, error)
 type errorFn func(error)
 
 func WaitForResult(test testFn, error errorFn) {
-	WaitForResultRetries(2000*TestMultiplier(), test, error)
+	WaitForResultRetries(500*TestMultiplier(), test, error)
 }
 
 func WaitForResultRetries(retries int64, test testFn, error errorFn) {
@@ -56,10 +56,15 @@ func AssertUntil(until time.Duration, test testFn, error errorFn) {
 // the tests are being run under.
 func TestMultiplier() int64 {
 	if IsTravis() {
-		return 3
+		return 4
 	}
 
 	return 1
+}
+
+// Timeout takes the desired timeout and increases it if running in Travis
+func Timeout(original time.Duration) time.Duration {
+	return original * time.Duration(TestMultiplier())
 }
 
 func IsTravis() bool {

@@ -147,7 +147,7 @@ job "email-blast" {
       config {
         command = "emailer"
 
-        # The campagain ID is interpolated and injected into the task's
+        # The campaign ID is interpolated and injected into the task's
         # arguments
         args = ["-campaign=${NOMAD_META_CAMPAIGN_ID}"]
       }

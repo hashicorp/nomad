@@ -65,10 +65,12 @@ func (c *DeploymentFailCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *DeploymentFailCommand) Name() string { return "deployment fail" }
+
 func (c *DeploymentFailCommand) Run(args []string) int {
 	var detach, verbose bool
 
-	flags := c.Meta.FlagSet("deployment fail", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -80,7 +82,8 @@ func (c *DeploymentFailCommand) Run(args []string) int {
 	// Check that we got no arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

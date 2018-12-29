@@ -1,60 +1,28 @@
 // Utils
+@import "./utils/reset.scss";
 @import "./utils/z-indices";
+@import "./utils/product-colors";
+@import "./utils/bumper";
 
 // Start with Bulma variables as a foundation
 @import "bulma/sass/utilities/initial-variables";
 
 // Override variables where appropriate
-@import "./utils/product-colors";
-
-$orange: #fa8e23;
-$green: #2eb039;
-$blue: $vagrant-blue;
-$purple: $terraform-purple;
-$red: #c84034;
-$grey-blue: #bbc4d1;
-
-$primary: $nomad-green;
-$warning: $orange;
-$warning-invert: $white;
-$danger: $red;
-$dark: #234;
-
-$radius: 2px;
-
-$body-size: 14px;
-$title-size: 1.75rem;
-$size-5: 1.15rem;
-$size-4: 1.3rem;
-$size-7: 0.85rem;
-
-$title-weight: $weight-semibold;
-
-$family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-  Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-
-$text: $black;
-
-$header-height: 112px;
-$gutter-width: 250px;
-
-$icon-dimensions: 1.25rem;
-$icon-dimensions-small: 1rem;
-$icon-dimensions-medium: 1.5rem;
-$icon-dimensions-large: 2.5rem;
+@import "./core/variables.scss";
 
 // Bring in the rest of Bulma
 @import "bulma/bulma";
 
 // Override Bulma details where appropriate
 @import "./core/buttons";
+@import "./core/breadcrumb";
 @import "./core/columns";
 @import "./core/forms";
 @import "./core/icon";
 @import "./core/level";
 @import "./core/menu";
 @import "./core/message";
-@import "./core/nav";
+@import "./core/navbar";
 @import "./core/notification";
 @import "./core/pagination";
 @import "./core/progress";
@@ -64,7 +32,3 @@ $icon-dimensions-large: 2.5rem;
 @import "./core/tag";
 @import "./core/title";
 @import "./core/typography";
-
-// Add unique core extensions
-@import "./core/page-layout";
-@import "./core/bumper";

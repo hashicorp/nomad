@@ -35,12 +35,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/allocations
+    https://localhost:4646/v1/allocations
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/allocations?prefix=a8198d79
+    https://localhost:4646/v1/allocations?prefix=a8198d79
 ```
 
 ### Sample Response
@@ -52,6 +52,18 @@ $ curl \
     "EvalID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
     "Name": "example.cache[0]",
     "NodeID": "fb2170a8-257d-3c64-b14d-bc06cc94e34c",
+    "PreviousAllocation": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
+    "NextAllocation": "cd13d9b9-4f97-7184-c88b-7b451981616b",
+    "RescheduleTracker": {
+       "Events": [
+          {
+            "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
+            "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
+            "RescheduleTime": 1517434161192946200,
+            "Delay":"5000000000"
+           },
+         ]
+    },
     "JobID": "example",
     "TaskGroup": "cache",
     "DesiredStatus": "run",
@@ -141,7 +153,8 @@ $ curl \
     },
     "CreateIndex": 54,
     "ModifyIndex": 57,
-    "CreateTime": 1495747371794276400
+    "CreateTime": 1495747371794276400,
+    "ModifyTime": 1495747371794276400
   }
 ]
 ```
@@ -172,7 +185,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/allocation/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/allocation/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response
@@ -183,6 +196,18 @@ $ curl \
   "EvalID": "5456bd7a-9fc0-c0dd-6131-cbee77f57577",
   "Name": "example.cache[0]",
   "NodeID": "fb2170a8-257d-3c64-b14d-bc06cc94e34c",
+  "PreviousAllocation": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
+  "NextAllocation": "cd13d9b9-4f97-7184-c88b-7b451981616b",
+  "RescheduleTracker": {
+     "Events": [
+       {
+         "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
+         "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
+         "RescheduleTime": 1517434161192946200,
+         "Delay":"5000000000"
+        },
+      ]
+  },
   "JobID": "example",
   "Job": {
     "Region": "global",
@@ -223,7 +248,7 @@ $ curl \
             "Env": null,
             "Services": [
               {
-                "Name": "global-redis-check",
+                "Name": "redis-cache",
                 "PortLabel": "db",
                 "Tags": [
                   "global",
@@ -461,7 +486,8 @@ $ curl \
   "CreateIndex": 54,
   "ModifyIndex": 57,
   "AllocModifyIndex": 54,
-  "CreateTime": 1495747371794276400
+  "CreateTime": 1495747371794276400,
+  "ModifyTime": 1495747371794276400
 }
 ```
 

@@ -12,6 +12,12 @@ export default Factory.extend({
   jobId: null,
   version: 0,
 
+  // ID is used for record tracking within Mirage,
+  // but Nomad uses the JobID as the version ID.
+  tempVersionId() {
+    return this.job.id;
+  },
+
   // Directive to restrict any related deployments from having a 'running' status
   noActiveDeployment: false,
 
@@ -25,6 +31,7 @@ export default Factory.extend({
       version.activeDeployment && 'active',
       {
         jobId: version.jobId,
+        namespace: version.job.namespace,
         versionNumber: version.version,
       },
     ].compact();
@@ -160,8 +167,8 @@ function generateDiff(version) {
                   {
                     Annotations: null,
                     Name: 'Name',
-                    New: 'global-redis-check',
-                    Old: 'global-redis-check',
+                    New: 'redis-cache',
+                    Old: 'redis-cache',
                     Type: 'None',
                   },
                   {

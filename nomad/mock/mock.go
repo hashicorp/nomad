@@ -15,10 +15,11 @@ func Node() *structs.Node {
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
-			"kernel.name":   "linux",
-			"arch":          "x86",
-			"nomad.version": "0.5.0",
-			"driver.exec":   "1",
+			"kernel.name":        "linux",
+			"arch":               "x86",
+			"nomad.version":      "0.5.0",
+			"driver.exec":        "1",
+			"driver.mock_driver": "1",
 		},
 		Resources: &structs.Resources{
 			CPU:      4000,
@@ -41,7 +42,7 @@ func Node() *structs.Node {
 				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 22}},
+					ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
 					MBits:         1,
 				},
 			},
@@ -54,17 +55,50 @@ func Node() *structs.Node {
 			"database": "mysql",
 			"version":  "5.6",
 		},
-		NodeClass: "linux-medium-pci",
-		Status:    structs.NodeStatusReady,
+		NodeClass:             "linux-medium-pci",
+		Status:                structs.NodeStatusReady,
+		SchedulingEligibility: structs.NodeSchedulingEligible,
 	}
 	node.ComputeClass()
 	return node
 }
 
+func HCL() string {
+	return `job "my-job" {
+	datacenters = ["dc1"]
+	type = "service"
+	constraint {
+		attribute = "${attr.kernel.name}"
+		value = "linux"
+	}
+
+	group "web" {
+		count = 10
+		restart {
+			attempts = 3
+			interval = "10m"
+			delay = "1m"
+			mode = "delay"
+		}
+		task "web" {
+			driver = "exec"
+			config {
+				command = "/bin/date"
+			}
+			resources {
+				cpu = 500
+				memory = 256
+			}
+		}
+	}
+}
+`
+}
+
 func Job() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
-		ID:          uuid.Generate(),
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeService,
@@ -91,6 +125,13 @@ func Job() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeDelay,
 				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts:      2,
+					Interval:      10 * time.Minute,
+					Delay:         5 * time.Second,
+					DelayFunction: "constant",
+				},
+				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
@@ -128,8 +169,11 @@ func Job() *structs.Job {
 							MemoryMB: 256,
 							Networks: []*structs.NetworkResource{
 								{
-									MBits:        50,
-									DynamicPorts: []structs.Port{{Label: "http"}, {Label: "admin"}},
+									MBits: 50,
+									DynamicPorts: []structs.Port{
+										{Label: "http"},
+										{Label: "admin"},
+									},
 								},
 							},
 						},
@@ -158,11 +202,77 @@ func Job() *structs.Job {
 	return job
 }
 
+func BatchJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-batch-%s", uuid.Generate()),
+		Name:        "batch-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeBatch,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "worker",
+				Count: 10,
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB: 150,
+				},
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeDelay,
+				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Attempts:      2,
+					Interval:      10 * time.Minute,
+					Delay:         5 * time.Second,
+					DelayFunction: "constant",
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "worker",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "500ms",
+						},
+						Env: map[string]string{
+							"FOO": "bar",
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      100,
+							MemoryMB: 100,
+							Networks: []*structs.NetworkResource{
+								{
+									MBits: 50,
+								},
+							},
+						},
+						Meta: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    43,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+
 func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
+		ID:          fmt.Sprintf("mock-system-%s", uuid.Generate()),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
 		Priority:    100,
@@ -229,6 +339,7 @@ func PeriodicJob() *structs.Job {
 		Spec:     "*/30 * * * *",
 	}
 	job.Status = structs.JobStatusRunning
+	job.TaskGroups[0].Migrate = nil
 	return job
 }
 
@@ -273,7 +384,7 @@ func Alloc() *structs.Allocation {
 				{
 					Device:        "eth0",
 					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 					MBits:         50,
 					DynamicPorts:  []structs.Port{{Label: "http"}},
 				},
@@ -287,9 +398,9 @@ func Alloc() *structs.Allocation {
 					{
 						Device:        "eth0",
 						IP:            "192.168.0.100",
-						ReservedPorts: []structs.Port{{Label: "main", Value: 5000}},
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
 						MBits:         50,
-						DynamicPorts:  []structs.Port{{Label: "http"}},
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
 					},
 				},
 			},
@@ -298,6 +409,98 @@ func Alloc() *structs.Allocation {
 			DiskMB: 150,
 		},
 		Job:           Job(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+func BatchAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "worker",
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+			DiskMB:   150,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http"}},
+				},
+			},
+		},
+		TaskResources: map[string]*structs.Resources{
+			"worker": {
+				CPU:      100,
+				MemoryMB: 100,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  50,
+					},
+				},
+			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
+		},
+		Job:           BatchJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
+func SystemAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "web",
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+			DiskMB:   150,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http"}},
+				},
+			},
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": {
+				CPU:      500,
+				MemoryMB: 256,
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+						MBits:         50,
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+		SharedResources: &structs.Resources{
+			DiskMB: 150,
+		},
+		Job:           SystemJob(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
 	}

@@ -47,13 +47,14 @@ func TestParse(t *testing.T) {
 				},
 
 				Update: &api.UpdateStrategy{
-					Stagger:         helper.TimeToPtr(60 * time.Second),
-					MaxParallel:     helper.IntToPtr(2),
-					HealthCheck:     helper.StringToPtr("manual"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(10 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(true),
-					Canary:          helper.IntToPtr(1),
+					Stagger:          helper.TimeToPtr(60 * time.Second),
+					MaxParallel:      helper.IntToPtr(2),
+					HealthCheck:      helper.StringToPtr("manual"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(10 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(true),
+					Canary:           helper.IntToPtr(1),
 				},
 
 				TaskGroups: []*api.TaskGroup{
@@ -94,17 +95,28 @@ func TestParse(t *testing.T) {
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Mode:     helper.StringToPtr("delay"),
 						},
+						ReschedulePolicy: &api.ReschedulePolicy{
+							Interval: helper.TimeToPtr(12 * time.Hour),
+							Attempts: helper.IntToPtr(5),
+						},
 						EphemeralDisk: &api.EphemeralDisk{
 							Sticky: helper.BoolToPtr(true),
 							SizeMB: helper.IntToPtr(150),
 						},
 						Update: &api.UpdateStrategy{
-							MaxParallel:     helper.IntToPtr(3),
-							HealthCheck:     helper.StringToPtr("checks"),
-							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(1 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(false),
-							Canary:          helper.IntToPtr(2),
+							MaxParallel:      helper.IntToPtr(3),
+							HealthCheck:      helper.StringToPtr("checks"),
+							MinHealthyTime:   helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(1 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(1 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(false),
+							Canary:           helper.IntToPtr(2),
+						},
+						Migrate: &api.MigrateStrategy{
+							MaxParallel:     helper.IntToPtr(2),
+							HealthCheck:     helper.StringToPtr("task_states"),
+							MinHealthyTime:  helper.TimeToPtr(11 * time.Second),
+							HealthyDeadline: helper.TimeToPtr(11 * time.Minute),
 						},
 						Tasks: []*api.Task{
 							{
@@ -121,15 +133,18 @@ func TestParse(t *testing.T) {
 								},
 								Services: []*api.Service{
 									{
-										Tags:      []string{"foo", "bar"},
-										PortLabel: "http",
+										Tags:       []string{"foo", "bar"},
+										CanaryTags: []string{"canary", "bam"},
+										PortLabel:  "http",
 										Checks: []api.ServiceCheck{
 											{
-												Name:      "check-name",
-												Type:      "tcp",
-												PortLabel: "admin",
-												Interval:  10 * time.Second,
-												Timeout:   2 * time.Second,
+												Name:        "check-name",
+												Type:        "tcp",
+												PortLabel:   "admin",
+												Interval:    10 * time.Second,
+												Timeout:     2 * time.Second,
+												GRPCService: "foo.Bar",
+												GRPCUseTLS:  true,
 												CheckRestart: &api.CheckRestart{
 													Limit:          3,
 													Grace:          helper.TimeToPtr(10 * time.Second),
@@ -202,7 +217,8 @@ func TestParse(t *testing.T) {
 										RightDelim: helper.StringToPtr("__"),
 									},
 								},
-								Leader: true,
+								Leader:     true,
+								KillSignal: "",
 							},
 							{
 								Name:   "storagelocker",
@@ -551,6 +567,215 @@ func TestParse(t *testing.T) {
 								Driver: "docker",
 								DispatchPayload: &api.DispatchPayloadConfig{
 									File: "foo/bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"job-with-kill-signal.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("foo"),
+				Name: helper.StringToPtr("foo"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("bar"),
+						Tasks: []*api.Task{
+							{
+								Name:       "bar",
+								Driver:     "docker",
+								KillSignal: "SIGQUIT",
+								Config: map[string]interface{}{
+									"image": "hashicorp/image",
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-check-driver-address.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("address_mode_driver"),
+				Name: helper.StringToPtr("address_mode_driver"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name: "task",
+								Services: []*api.Service{
+									{
+										Name:        "http-service",
+										PortLabel:   "http",
+										AddressMode: "auto",
+										Checks: []api.ServiceCheck{
+											{
+												Name:        "http-check",
+												Type:        "http",
+												Path:        "/",
+												PortLabel:   "http",
+												AddressMode: "driver",
+											},
+										},
+									},
+									{
+										Name:        "random-service",
+										PortLabel:   "9000",
+										AddressMode: "driver",
+										Checks: []api.ServiceCheck{
+											{
+												Name:        "random-check",
+												Type:        "tcp",
+												PortLabel:   "9001",
+												AddressMode: "driver",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"service-check-restart.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service_check_restart"),
+				Name: helper.StringToPtr("service_check_restart"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name: "task",
+								Services: []*api.Service{
+									{
+										Name: "http-service",
+										CheckRestart: &api.CheckRestart{
+											Limit:          3,
+											Grace:          helper.TimeToPtr(10 * time.Second),
+											IgnoreWarnings: true,
+										},
+										Checks: []api.ServiceCheck{
+											{
+												Name:      "random-check",
+												Type:      "tcp",
+												PortLabel: "9001",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"reschedule-job.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Type:        helper.StringToPtr("batch"),
+				Datacenters: []string{"dc1"},
+				Reschedule: &api.ReschedulePolicy{
+					Attempts:      helper.IntToPtr(15),
+					Interval:      helper.TimeToPtr(30 * time.Minute),
+					DelayFunction: helper.StringToPtr("constant"),
+					Delay:         helper.TimeToPtr(10 * time.Second),
+				},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"reschedule-job-unlimited.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Type:        helper.StringToPtr("batch"),
+				Datacenters: []string{"dc1"},
+				Reschedule: &api.ReschedulePolicy{
+					DelayFunction: helper.StringToPtr("exponential"),
+					Delay:         helper.TimeToPtr(10 * time.Second),
+					MaxDelay:      helper.TimeToPtr(120 * time.Second),
+					Unlimited:     helper.BoolToPtr(true),
+				},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"migrate-job.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Type:        helper.StringToPtr("batch"),
+				Datacenters: []string{"dc1"},
+				Migrate: &api.MigrateStrategy{
+					MaxParallel:     helper.IntToPtr(2),
+					HealthCheck:     helper.StringToPtr("task_states"),
+					MinHealthyTime:  helper.TimeToPtr(11 * time.Second),
+					HealthyDeadline: helper.TimeToPtr(11 * time.Minute),
+				},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Migrate: &api.MigrateStrategy{
+							MaxParallel:     helper.IntToPtr(3),
+							HealthCheck:     helper.StringToPtr("checks"),
+							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline: helper.TimeToPtr(1 * time.Minute),
+						},
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
 								},
 							},
 						},

@@ -1,7 +1,6 @@
-import Ember from 'ember';
+import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
-
-const { get, assign } = Ember;
+import queryString from 'query-string';
 
 export default ApplicationSerializer.extend({
   attrs: {
@@ -9,52 +8,90 @@ export default ApplicationSerializer.extend({
   },
 
   normalize(typeHash, hash) {
-    // Transform the map-based JobSummary object into an array-based
-    // JobSummary fragment list
-    hash.TaskGroupSummaries = Object.keys(get(hash, 'JobSummary.Summary')).map(key => {
-      const allocStats = get(hash, `JobSummary.Summary.${key}`);
-      const summary = { Name: key };
+    hash.NamespaceID = hash.Namespace;
 
-      Object.keys(allocStats).forEach(
-        allocKey => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
-      );
+    // ID is a composite of both the job ID and the namespace the job is in
+    hash.PlainId = hash.ID;
+    hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
 
-      return summary;
-    });
+    // ParentID comes in as "" instead of null
+    if (!hash.ParentID) {
+      hash.ParentID = null;
+    } else {
+      hash.ParentID = JSON.stringify([hash.ParentID, hash.NamespaceID || 'default']);
+    }
 
-    // Lift the children stats out of the JobSummary object
-    const childrenStats = get(hash, 'JobSummary.Children');
-    if (childrenStats) {
-      Object.keys(childrenStats).forEach(
-        childrenKey => (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
-      );
+    // Job Summary is always at /:job-id/summary, but since it can also come from
+    // the job list, it's better for Ember Data to be linked by ID association.
+    hash.SummaryID = hash.ID;
+
+    // Periodic is a boolean on list and an object on single
+    if (hash.Periodic instanceof Object) {
+      hash.PeriodicDetails = hash.Periodic;
+      hash.Periodic = true;
+    }
+
+    // Parameterized behaves like Periodic
+    if (hash.ParameterizedJob instanceof Object) {
+      hash.ParameterizedDetails = hash.ParameterizedJob;
+      hash.ParameterizedJob = true;
+    }
+
+    // If the hash contains summary information, push it into the store
+    // as a job-summary model.
+    if (hash.JobSummary) {
+      this.store.pushPayload('job-summary', {
+        'job-summary': [hash.JobSummary],
+      });
     }
 
     return this._super(typeHash, hash);
   },
 
   extractRelationships(modelClass, hash) {
+    const namespace =
+      !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
     const { modelName } = modelClass;
-    const jobURL = this.store
+
+    const [jobURL] = this.store
       .adapterFor(modelName)
-      .buildURL(modelName, this.extractId(modelClass, hash), hash, 'findRecord');
+      .buildURL(modelName, hash.ID, hash, 'findRecord')
+      .split('?');
 
     return assign(this._super(...arguments), {
       allocations: {
         links: {
-          related: `${jobURL}/allocations`,
+          related: buildURL(`${jobURL}/allocations`, { namespace }),
         },
       },
       versions: {
         links: {
-          related: `${jobURL}/versions?diffs=true`,
+          related: buildURL(`${jobURL}/versions`, { namespace, diffs: true }),
         },
       },
       deployments: {
         links: {
-          related: `${jobURL}/deployments`,
+          related: buildURL(`${jobURL}/deployments`, { namespace }),
+        },
+      },
+      latestDeployment: {
+        links: {
+          related: buildURL(`${jobURL}/deployment`, { namespace }),
+        },
+      },
+      evaluations: {
+        links: {
+          related: buildURL(`${jobURL}/evaluations`, { namespace }),
         },
       },
     });
   },
 });
+
+function buildURL(path, queryParams) {
+  const qpString = queryString.stringify(queryParams);
+  if (qpString) {
+    return `${path}?${qpString}`;
+  }
+  return path;
+}

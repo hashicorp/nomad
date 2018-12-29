@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"runtime"
@@ -24,7 +25,7 @@ type HostStats struct {
 	CPUTicksConsumed float64
 }
 
-// MemoryStats represnts stats related to virtual memory usage
+// MemoryStats represents stats related to virtual memory usage
 type MemoryStats struct {
 	Total     uint64
 	Available uint64
@@ -52,7 +53,7 @@ type DiskStats struct {
 	InodesUsedPercent float64
 }
 
-// NodeStatsCollector is an interface which is used for the puproses of mocking
+// NodeStatsCollector is an interface which is used for the purposes of mocking
 // the HostStatsCollector in the tests
 type NodeStatsCollector interface {
 	Collect() error
@@ -93,7 +94,12 @@ func NewHostStatsCollector(logger *log.Logger, allocDir string) *HostStatsCollec
 func (h *HostStatsCollector) Collect() error {
 	h.hostStatsLock.Lock()
 	defer h.hostStatsLock.Unlock()
+	return h.collectLocked()
+}
 
+// collectLocked collects stats related to resource usage of the host but should
+// be called with the lock held.
+func (h *HostStatsCollector) collectLocked() error {
 	hs := &HostStats{Timestamp: time.Now().UTC().UnixNano()}
 
 	// Determine up-time
@@ -128,7 +134,7 @@ func (h *HostStatsCollector) Collect() error {
 	// Getting the disk stats for the allocation directory
 	usage, err := disk.Usage(h.allocDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find disk usage of alloc_dir %q: %v", h.allocDir, err)
 	}
 	hs.AllocDirStats = h.toDiskStats(usage, nil)
 
@@ -185,14 +191,18 @@ func (h *HostStatsCollector) collectDiskStats() ([]*DiskStats, error) {
 func (h *HostStatsCollector) Stats() *HostStats {
 	h.hostStatsLock.RLock()
 	defer h.hostStatsLock.RUnlock()
+
+	if h.hostStats == nil {
+		if err := h.collectLocked(); err != nil {
+			h.logger.Printf("[WARN] client: error fetching host resource usage stats: %v", err)
+		}
+	}
+
 	return h.hostStats
 }
 
 // toDiskStats merges UsageStat and PartitionStat to create a DiskStat
 func (h *HostStatsCollector) toDiskStats(usage *disk.UsageStat, partitionStat *disk.PartitionStat) *DiskStats {
-	if usage == nil {
-		return nil
-	}
 	ds := DiskStats{
 		Size:              usage.Total,
 		Used:              usage.Used,

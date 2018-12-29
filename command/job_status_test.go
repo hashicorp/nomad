@@ -1,15 +1,20 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJobStatusCommand_Implements(t *testing.T) {
@@ -113,8 +118,11 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "Allocations") {
 		t.Fatalf("should dump allocations")
 	}
-	if !strings.Contains(out, "Created At") {
+	if !strings.Contains(out, "Created") {
 		t.Fatal("should have created header")
+	}
+	if !strings.Contains(out, "Modified") {
+		t.Fatal("should have modified header")
 	}
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
@@ -137,6 +145,14 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	out = ui.OutputWriter.String()
 	if !strings.Contains(out, "job1_sfx") || strings.Contains(out, "job2_sfx") {
 		t.Fatalf("expected only job1_sfx, got: %s", out)
+	}
+
+	if !strings.Contains(out, "Created") {
+		t.Fatal("should have created header")
+	}
+
+	if !strings.Contains(out, "Modified") {
+		t.Fatal("should have modified header")
 	}
 	ui.OutputWriter.Reset()
 
@@ -178,7 +194,7 @@ func TestJobStatusCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
@@ -263,6 +279,59 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 	if !strings.Contains(out, *j.ID) {
 		t.Fatalf("should contain full identifiers, got %s", out)
 	}
+}
+
+func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	require := require.New(t)
+	state := srv.Agent.Server().State()
+
+	// Create state store objects for job, alloc and followup eval with a future WaitUntil value
+	j := mock.Job()
+	require.Nil(state.UpsertJob(900, j))
+
+	e := mock.Eval()
+	e.WaitUntil = time.Now().Add(1 * time.Hour)
+	require.Nil(state.UpsertEvals(902, []*structs.Evaluation{e}))
+	a := mock.Alloc()
+	a.Job = j
+	a.JobID = j.ID
+	a.TaskGroup = j.TaskGroups[0].Name
+	a.FollowupEvalID = e.ID
+	a.Metrics = &structs.AllocMetric{}
+	a.DesiredStatus = structs.AllocDesiredStatusRun
+	a.ClientStatus = structs.AllocClientStatusRunning
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+
+	// Query jobs with prefix match
+	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+	require.Contains(out, "Future Rescheduling Attempts")
+	require.Contains(out, e.ID[:8])
 }
 
 func waitForSuccess(ui cli.Ui, client *api.Client, length int, t *testing.T, evalId string) int {

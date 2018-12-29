@@ -29,9 +29,10 @@ task "webservice" {
   driver = "qemu"
 
   config {
-    image_path  = "/path/to/my/linux.img"
-    accelerator = "kvm"
-    args        = ["-nodefaults", "-nodefconfig"]
+    image_path        = "/path/to/my/linux.img"
+    accelerator       = "kvm"
+    graceful_shutdown = true
+    args              = ["-nodefaults", "-nodefconfig"]
   }
 }  
 ```
@@ -46,6 +47,21 @@ The `qemu` driver supports the following configuration in the job spec:
 * `accelerator` - (Optional) The type of accelerator to use in the invocation.
   If the host machine has `qemu` installed with KVM support, users can specify
   `kvm` for the `accelerator`. Default is `tcg`.
+
+* `graceful_shutdown` `(bool: false)` - Using the [qemu
+  monitor](https://en.wikibooks.org/wiki/QEMU/Monitor), send an ACPI shutdown
+  signal to virtual machines rather than simply terminating them. This emulates
+  a physical power button press, and gives instances a chance to shut down
+  cleanly. If the VM is still running after ``kill_timeout``, it will be
+  forcefully terminated. (Note that
+  [prior to qemu 2.10.1](https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6),
+  the monitor socket path is limited to 108 characters. Graceful shutdown will
+  be disabled if qemu is < 2.10.1 and the generated monitor path exceeds this
+  length. You may encounter this issue if you set long
+  [data_dir](https://www.nomadproject.io/docs/agent/configuration/index.html#data_dir)
+  or
+  [alloc_dir](https://www.nomadproject.io/docs/agent/configuration/client.html#alloc_dir)
+  paths.) This feature is currently not supported on Windows.
 
 * `port_map` - (Optional) A key-value map of port labels.
 

@@ -3,19 +3,19 @@ layout: "guides"
 page_title: "Sentinel Policies"
 sidebar_current: "guides-sentinel"
 description: |-
- Nomad integrates with Sentinel for fine grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the ACL System.
+ Nomad integrates with Sentinel for fine-grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the ACL System.
 ---
 
 # Sentinel Policies
 
-Nomad integrates with [HashiCorp Sentinel](https://docs.hashicorp.com/sentinel) for fine grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/acl.html).
+[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) integrates with [HashiCorp Sentinel](https://docs.hashicorp.com/sentinel) for fine-grained policy enforcement. Sentinel allows operators to express their policies as code, and have their policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with policy. The Sentinel integration builds on the [ACL System](/guides/acl.html).
 
 ~> **Enterprise Only!** This functionality only exists in Nomad Enterprise.
 This is not present in the open source version of Nomad.
 
 # Sentinel Overview
 
-Sentinel integrates with the ACL system, and provides the ability to do fine grained policy enforcment. Users must have appropriate permissions to perform an action, and then are subject to any applicable Sentinel policies:
+Sentinel integrates with the ACL system, and provides the ability to do fine grained policy enforcement. Users must have appropriate permissions to perform an action, and then are subject to any applicable Sentinel policies:
 
 ![Sentinel Overview](/assets/images/sentinel.jpg)
 
@@ -88,13 +88,13 @@ $ nomad sentinel apply -level=advisory test-policy test.sentinel
 Successfully wrote "test-policy" Sentinel policy!
 ```
 
-Use `nomad init` to create a job file and attempt to submit it:
+Use `nomad job init` to create a job file and attempt to submit it:
 
 ```
-$ nomad init
+$ nomad job init
 Example job file written to example.nomad
 
-$ nomad run example.nomad
+$ nomad job run example.nomad
 Job Warnings:
 1 warning(s):
 
@@ -161,7 +161,7 @@ Because our policy is failing, the job was rejected. Since this is a `soft-manda
 submit with the `-policy-override` flag set:
 
 ```
-$ nomad run -policy-override example.nomad
+$ nomad job run -policy-override example.nomad
 Job Warnings:
 1 warning(s):
 
@@ -188,9 +188,11 @@ This time, the job was accepted but with a warning that our policy is failing bu
 
 # Policy Specification
 
-Sentinel policies are specified in the [Sentinel Language](#). The language is designed to be easy to read and write,
-while being fast to evaluate. There is no limitation on how complex policies can be, but they are in the execution path so
-care should be taken to avoid adversely impacting performance.
+Sentinel policies are specified in the [Sentinel
+Language](https://docs.hashicorp.com/sentinel/). The language is designed to be
+easy to read and write, while being fast to evaluate. There is no limitation on
+how complex policies can be, but they are in the execution path so care should
+be taken to avoid adversely impacting performance.
 
 In each scope, there are different objects made available for introspection, such a job being submitted. Policies can
 inspect these objects to apply fine-grained policies.

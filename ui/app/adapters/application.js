@@ -1,15 +1,17 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import { computed, get } from '@ember/object';
 import RESTAdapter from 'ember-data/adapters/rest';
 import codesForError from '../utils/codes-for-error';
-
-const { get, computed, inject } = Ember;
+import removeRecord from '../utils/remove-record';
+import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
 
 export const namespace = 'v1';
 
 export default RESTAdapter.extend({
   namespace,
 
-  token: inject.service(),
+  system: service(),
+  token: service(),
 
   headers: computed('token.secret', function() {
     const token = this.get('token.secret');
@@ -20,19 +22,54 @@ export default RESTAdapter.extend({
     }
   }),
 
+  handleResponse(status, headers, payload) {
+    if (status === 500 && payload === NO_LEADER) {
+      return new NoLeaderError();
+    }
+    return this._super(...arguments);
+  },
+
   findAll() {
     return this._super(...arguments).catch(error => {
       const errorCodes = codesForError(error);
 
-      const isNotAuthorized = errorCodes.includes('403');
       const isNotImplemented = errorCodes.includes('501');
 
-      if (isNotAuthorized || isNotImplemented) {
+      if (isNotImplemented) {
         return [];
       }
 
       // Rethrow to be handled downstream
       throw error;
+    });
+  },
+
+  ajaxOptions(url, type, options = {}) {
+    options.data || (options.data = {});
+    if (this.get('system.shouldIncludeRegion')) {
+      const region = this.get('system.activeRegion');
+      if (region) {
+        options.data.region = region;
+      }
+    }
+    return this._super(url, type, options);
+  },
+
+  // In order to remove stale records from the store, findHasMany has to unload
+  // all records related to the request in question.
+  findHasMany(store, snapshot, link, relationship) {
+    return this._super(...arguments).then(payload => {
+      const relationshipType = relationship.type;
+      const inverse = snapshot.record.inverseFor(relationship.key);
+      if (inverse) {
+        store
+          .peekAll(relationshipType)
+          .filter(record => record.get(`${inverse.name}.id`) === snapshot.id)
+          .forEach(record => {
+            removeRecord(store, record);
+          });
+      }
+      return payload;
     });
   },
 

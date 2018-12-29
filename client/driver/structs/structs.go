@@ -7,7 +7,7 @@ import (
 
 const (
 	// The default user that the executor uses to run tasks
-	DefaultUnpriviledgedUser = "nobody"
+	DefaultUnprivilegedUser = "nobody"
 
 	// CheckBufSize is the size of the check output result
 	CheckBufSize = 4 * 1024

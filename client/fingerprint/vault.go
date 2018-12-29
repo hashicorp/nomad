@@ -7,8 +7,7 @@ import (
 	"strings"
 	"time"
 
-	client "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -29,9 +28,11 @@ func NewVaultFingerprint(logger *log.Logger) Fingerprint {
 	return &VaultFingerprint{logger: logger, lastState: vaultUnavailable}
 }
 
-func (f *VaultFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
+func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	config := req.Config
+
 	if config.VaultConfig == nil || !config.VaultConfig.IsEnabled() {
-		return false, nil
+		return nil
 	}
 
 	// Only create the client once to avoid creating too many connections to
@@ -39,35 +40,33 @@ func (f *VaultFingerprint) Fingerprint(config *client.Config, node *structs.Node
 	if f.client == nil {
 		vaultConfig, err := config.VaultConfig.ApiConfig()
 		if err != nil {
-			return false, fmt.Errorf("Failed to initialize the Vault client config: %v", err)
+			return fmt.Errorf("Failed to initialize the Vault client config: %v", err)
 		}
 
 		f.client, err = vapi.NewClient(vaultConfig)
 		if err != nil {
-			return false, fmt.Errorf("Failed to initialize Vault client: %s", err)
+			return fmt.Errorf("Failed to initialize Vault client: %s", err)
 		}
 	}
 
 	// Connect to vault and parse its information
 	status, err := f.client.Sys().SealStatus()
 	if err != nil {
-		// Clear any attributes set by a previous fingerprint.
-		f.clearVaultAttributes(node)
-
+		f.clearVaultAttributes(resp)
 		// Print a message indicating that Vault is not available anymore
 		if f.lastState == vaultAvailable {
 			f.logger.Printf("[INFO] fingerprint.vault: Vault is unavailable")
 		}
 		f.lastState = vaultUnavailable
-		return false, nil
+		return nil
 	}
 
-	node.Attributes["vault.accessible"] = strconv.FormatBool(true)
+	resp.AddAttribute("vault.accessible", strconv.FormatBool(true))
 	// We strip the Vault prefix because < 0.6.2 the version looks like:
 	// status.Version = "Vault v0.6.1"
-	node.Attributes["vault.version"] = strings.TrimPrefix(status.Version, "Vault ")
-	node.Attributes["vault.cluster_id"] = status.ClusterID
-	node.Attributes["vault.cluster_name"] = status.ClusterName
+	resp.AddAttribute("vault.version", strings.TrimPrefix(status.Version, "Vault "))
+	resp.AddAttribute("vault.cluster_id", status.ClusterID)
+	resp.AddAttribute("vault.cluster_name", status.ClusterName)
 
 	// If Vault was previously unavailable print a message to indicate the Agent
 	// is available now
@@ -75,16 +74,17 @@ func (f *VaultFingerprint) Fingerprint(config *client.Config, node *structs.Node
 		f.logger.Printf("[INFO] fingerprint.vault: Vault is available")
 	}
 	f.lastState = vaultAvailable
-	return true, nil
-}
-
-func (f *VaultFingerprint) clearVaultAttributes(n *structs.Node) {
-	delete(n.Attributes, "vault.accessible")
-	delete(n.Attributes, "vault.version")
-	delete(n.Attributes, "vault.cluster_id")
-	delete(n.Attributes, "vault.cluster_name")
+	resp.Detected = true
+	return nil
 }
 
 func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
+}
+
+func (f *VaultFingerprint) clearVaultAttributes(r *cstructs.FingerprintResponse) {
+	r.RemoveAttribute("vault.accessible")
+	r.RemoveAttribute("vault.version")
+	r.RemoveAttribute("vault.cluster_id")
+	r.RemoveAttribute("vault.cluster_name")
 }

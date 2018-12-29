@@ -1,6 +1,7 @@
-import { findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import Definition from 'nomad-ui/tests/pages/jobs/job/definition';
 
 let job;
 
@@ -9,7 +10,7 @@ moduleForAcceptance('Acceptance | job definition', {
     server.create('node');
     server.create('job');
     job = server.db.jobs[0];
-    visit(`/jobs/${job.id}/definition`);
+    Definition.visit({ id: job.id });
   },
 });
 
@@ -18,11 +19,13 @@ test('visiting /jobs/:job_id/definition', function(assert) {
 });
 
 test('the job definition page contains a json viewer component', function(assert) {
-  assert.ok(findAll('.json-viewer').length, 'JSON viewer found');
+  assert.ok(Definition.jsonViewer, 'JSON viewer found');
 });
 
 test('the job definition page requests the job to display in an unmutated form', function(assert) {
   const jobURL = `/v1/job/${job.id}`;
-  const jobRequests = server.pretender.handledRequests.filter(req => req.url === jobURL);
+  const jobRequests = server.pretender.handledRequests
+    .map(req => req.url.split('?')[0])
+    .filter(url => url === jobURL);
   assert.ok(jobRequests.length === 2, 'Two requests for the job were made');
 });

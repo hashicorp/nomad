@@ -26,7 +26,7 @@ func TestNamespaceInspectCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, cmd.Help()) {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
 		t.Fatalf("expected help output, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
@@ -91,4 +91,46 @@ func TestNamespaceInspectCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
 	assert.Equal(ns.Name, res[0])
+}
+
+// This test should demonstrate the behavior of a namespace
+// and prefix collision.  In that case, the Namespace status
+// command should pull the matching namespace rather than
+// displaying the multiple match error
+func TestNamespaceInspectCommand_NamespaceMatchesPrefix(t *testing.T) {
+	t.Parallel()
+
+	// Create a server
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &NamespaceInspectCommand{Meta: Meta{Ui: ui}}
+
+	// Create a namespace that uses foo as a prefix
+	ns := &api.Namespace{Name: "fooBar"}
+	_, err := client.Namespaces().Register(ns, nil)
+	assert.Nil(t, err)
+
+	// Create a foo namespace
+	ns2 := &api.Namespace{Name: "foo"}
+	_, err = client.Namespaces().Register(ns2, nil)
+	assert.Nil(t, err)
+
+	// Adding a NS after to prevent sort from creating
+	// false successes
+	ns = &api.Namespace{Name: "fooBaz"}
+	_, err = client.Namespaces().Register(ns, nil)
+	assert.Nil(t, err)
+
+	// Check status on namespace
+	code := cmd.Run([]string{"-address=" + url, ns2.Name})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	}
+	// Check to ensure we got the proper foo
+	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "\"foo\",\n") {
+		t.Fatalf("expected namespace foo, got: %s", out)
+	}
 }

@@ -1,17 +1,38 @@
-import Ember from 'ember';
+import { inject as service } from '@ember/service';
+import Route from '@ember/routing/route';
+import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
+import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
-const { Route, inject } = Ember;
+export default Route.extend(WithForbiddenState, {
+  system: service(),
+  store: service(),
 
-export default Route.extend({
-  system: inject.service(),
-  store: inject.service(),
+  breadcrumbs: [
+    {
+      label: 'Jobs',
+      args: ['jobs.index'],
+    },
+  ],
 
-  beforeModel() {
-    return this.get('system.namespaces');
+  queryParams: {
+    jobNamespace: {
+      refreshModel: true,
+    },
+  },
+
+  beforeModel(transition) {
+    return this.get('system.namespaces').then(namespaces => {
+      const queryParam = transition.queryParams.namespace;
+      this.set('system.activeNamespace', queryParam || 'default');
+
+      return namespaces;
+    });
   },
 
   model() {
-    return this.get('store').findAll('job');
+    return this.get('store')
+      .findAll('job', { reload: true })
+      .catch(notifyForbidden(this));
   },
 
   actions: {

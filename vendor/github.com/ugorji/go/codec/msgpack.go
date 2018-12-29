@@ -569,9 +569,6 @@ func (d *msgpackDecDriver) uncacheRead() {
 }
 
 func (d *msgpackDecDriver) ContainerType() (vt valueType) {
-	if !d.bdRead {
-		d.readNextBd()
-	}
 	bd := d.bd
 	if bd == mpNil {
 		return valueTypeNil
@@ -624,16 +621,10 @@ func (d *msgpackDecDriver) readContainerLen(ct msgpackContainerType) (clen int) 
 }
 
 func (d *msgpackDecDriver) ReadMapStart() int {
-	if !d.bdRead {
-		d.readNextBd()
-	}
 	return d.readContainerLen(msgpackContainerMap)
 }
 
 func (d *msgpackDecDriver) ReadArrayStart() int {
-	if !d.bdRead {
-		d.readNextBd()
-	}
 	return d.readContainerLen(msgpackContainerList)
 }
 

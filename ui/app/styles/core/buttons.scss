@@ -4,16 +4,28 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
   font-weight: $weight-bold;
   box-shadow: $button-box-shadow-standard;
   border: 1px solid transparent;
+  text-decoration: none;
+
+  &:hover,
+  &.is-hovered {
+    text-decoration: none;
+  }
 
   &:active,
   &.is-active,
   &:focus,
   &.is-focused {
     box-shadow: $button-box-shadow-standard;
+    text-decoration: none;
   }
 
   &.is-inverted.is-outlined {
     box-shadow: none;
+    background: transparent;
+  }
+
+  &.is-inline {
+    vertical-align: middle;
   }
 
   &.is-compact {
@@ -90,12 +102,29 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
 
         &:active,
         &.is-active {
-          background-color: rgba($color-invert, 0.2);
+          background-color: rgba($color-invert, 0.1);
           border-color: $color-invert;
           color: $color-invert;
           box-shadow: none;
         }
       }
+    }
+  }
+
+  // When an icon in a button should be treated like text,
+  // override the default Bulma behavior
+  .icon.is-text {
+    &:first-child:not(:last-child) {
+      margin-left: 0;
+      margin-right: 0;
+    }
+    &:last-child:not(:first-child) {
+      margin-left: 0;
+      margin-right: 0;
+    }
+    &:first-child:last-child {
+      margin-left: 0;
+      margin-right: 0;
     }
   }
 }

@@ -181,3 +181,55 @@ func (c *VaultConfig) Copy() *VaultConfig {
 	*nc = *c
 	return nc
 }
+
+// IsEqual compares two Vault configurations and returns a boolean indicating
+// if they are equal.
+func (a *VaultConfig) IsEqual(b *VaultConfig) bool {
+	if a == nil && b != nil {
+		return false
+	}
+	if a != nil && b == nil {
+		return false
+	}
+
+	if a.Token != b.Token {
+		return false
+	}
+	if a.Role != b.Role {
+		return false
+	}
+	if a.TaskTokenTTL != b.TaskTokenTTL {
+		return false
+	}
+	if a.Addr != b.Addr {
+		return false
+	}
+	if a.ConnectionRetryIntv.Nanoseconds() != b.ConnectionRetryIntv.Nanoseconds() {
+		return false
+	}
+	if a.TLSCaFile != b.TLSCaFile {
+		return false
+	}
+	if a.TLSCaPath != b.TLSCaPath {
+		return false
+	}
+	if a.TLSCertFile != b.TLSCertFile {
+		return false
+	}
+	if a.TLSKeyFile != b.TLSKeyFile {
+		return false
+	}
+	if a.TLSServerName != b.TLSServerName {
+		return false
+	}
+	if a.AllowUnauthenticated != b.AllowUnauthenticated {
+		return false
+	}
+	if a.TLSSkipVerify != b.TLSSkipVerify {
+		return false
+	}
+	if a.Enabled != b.Enabled {
+		return false
+	}
+	return true
+}

@@ -1,9 +1,7 @@
-import Ember from 'ember';
+import { collect, sum } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
-
-const { computed } = Ember;
 
 export default Fragment.extend({
   job: fragmentOwner(),
@@ -16,7 +14,7 @@ export default Fragment.extend({
   failedAllocs: attr('number'),
   lostAllocs: attr('number'),
 
-  allocsList: computed.collect(
+  allocsList: collect(
     'queuedAllocs',
     'startingAllocs',
     'runningAllocs',
@@ -25,5 +23,5 @@ export default Fragment.extend({
     'lostAllocs'
   ),
 
-  totalAllocs: computed.sum('allocsList'),
+  totalAllocs: sum('allocsList'),
 });

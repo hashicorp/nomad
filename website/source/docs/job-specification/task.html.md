@@ -9,6 +9,14 @@ description: |-
 
 # `task` Stanza
 
+<table class="table table-bordered table-striped">
+  <tr>
+    <th width="120">Placement</th>
+    <td>
+      <code>job -> group -> **task**</code>
+    </td>
+  </tr>
+</table>
 The `task` stanza creates an individual unit of work, such as a Docker
 container, web application, or batch processing.
 
@@ -53,6 +61,10 @@ job "docs" {
   the task. Note that the value set here is capped at the value set for
   [`max_kill_timeout`][max_kill] on the agent running the task, which has a
   default value of 30 seconds.
+
+- `kill_signal` `(string)` - Specifies a configurable kill signal for a task,
+  where the default is SIGINT. Note that this is only supported for drivers
+  sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
 
 - `leader` `(bool: false)` - Specifies whether the task is the leader task of
   the task group. If set to true, when the leader task completes, all other

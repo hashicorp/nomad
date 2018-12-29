@@ -1,6 +1,4 @@
-import Ember from 'ember';
-
-const { Helper } = Ember;
+import Helper from '@ember/component/helper';
 
 export function isObject([value]) {
   const isObject = !Array.isArray(value) && value !== null && typeof value === 'object';

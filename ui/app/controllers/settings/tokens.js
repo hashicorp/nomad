@@ -1,12 +1,14 @@
-import Ember from 'ember';
-
-const { Controller, inject, computed, getOwner } = Ember;
+import { inject as service } from '@ember/service';
+import { reads } from '@ember/object/computed';
+import Controller from '@ember/controller';
+import { getOwner } from '@ember/application';
 
 export default Controller.extend({
-  token: inject.service(),
-  store: inject.service(),
+  token: service(),
+  system: service(),
+  store: service(),
 
-  secret: computed.reads('token.secret'),
+  secret: reads('token.secret'),
 
   tokenIsValid: false,
   tokenIsInvalid: false,
@@ -42,6 +44,7 @@ export default Controller.extend({
 
           // Clear out all data to ensure only data the new token is privileged to
           // see is shown
+          this.get('system').reset();
           this.resetStore();
 
           // Immediately refetch the token now that the store is empty

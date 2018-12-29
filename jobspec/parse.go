@@ -104,10 +104,12 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	}
 	delete(m, "constraint")
 	delete(m, "meta")
-	delete(m, "update")
-	delete(m, "periodic")
-	delete(m, "vault")
+	delete(m, "migrate")
 	delete(m, "parameterized")
+	delete(m, "periodic")
+	delete(m, "reschedule")
+	delete(m, "update")
+	delete(m, "vault")
 
 	// Set the ID and name to the object key
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
@@ -131,15 +133,17 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"all_at_once",
 		"constraint",
 		"datacenters",
-		"parameterized",
 		"group",
 		"id",
 		"meta",
+		"migrate",
 		"name",
 		"namespace",
+		"parameterized",
 		"periodic",
 		"priority",
 		"region",
+		"reschedule",
 		"task",
 		"type",
 		"update",
@@ -175,6 +179,20 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	if o := listVal.Filter("parameterized"); len(o.Items) > 0 {
 		if err := parseParameterizedJob(&result.ParameterizedJob, o); err != nil {
 			return multierror.Prefix(err, "parameterized ->")
+		}
+	}
+
+	// If we have a reschedule stanza, then parse that
+	if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
+		if err := parseReschedulePolicy(&result.Reschedule, o); err != nil {
+			return multierror.Prefix(err, "reschedule ->")
+		}
+	}
+
+	// If we have a migration strategy, then parse that
+	if o := listVal.Filter("migrate"); len(o.Items) > 0 {
+		if err := parseMigrate(&result.Migrate, o); err != nil {
+			return multierror.Prefix(err, "migrate ->")
 		}
 	}
 
@@ -274,7 +292,9 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"task",
 			"ephemeral_disk",
 			"update",
+			"reschedule",
 			"vault",
+			"migrate",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -291,6 +311,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "ephemeral_disk")
 		delete(m, "update")
 		delete(m, "vault")
+		delete(m, "migrate")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -313,6 +334,12 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			}
 		}
 
+		// Parse reschedule policy
+		if o := listVal.Filter("reschedule"); len(o.Items) > 0 {
+			if err := parseReschedulePolicy(&g.ReschedulePolicy, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', reschedule ->", n))
+			}
+		}
 		// Parse ephemeral disk
 		if o := listVal.Filter("ephemeral_disk"); len(o.Items) > 0 {
 			g.EphemeralDisk = &api.EphemeralDisk{}
@@ -325,6 +352,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("update"); len(o.Items) > 0 {
 			if err := parseUpdate(&g.Update, o); err != nil {
 				return multierror.Prefix(err, "update ->")
+			}
+		}
+
+		// If we have a migration strategy, then parse that
+		if o := listVal.Filter("migrate"); len(o.Items) > 0 {
+			if err := parseMigrate(&g.Migrate, o); err != nil {
+				return multierror.Prefix(err, "migrate ->")
 			}
 		}
 
@@ -401,6 +435,50 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 	}
 
 	var result api.RestartPolicy
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &result,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*final = &result
+	return nil
+}
+
+func parseReschedulePolicy(final **api.ReschedulePolicy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'reschedule' block allowed")
+	}
+
+	// Get our job object
+	obj := list.Items[0]
+
+	// Check for invalid keys
+	valid := []string{
+		"attempts",
+		"interval",
+		"unlimited",
+		"delay",
+		"max_delay",
+		"delay_function",
+	}
+	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+		return err
+	}
+
+	var result api.ReschedulePolicy
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 		WeaklyTypedInput: true,
@@ -591,6 +669,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"template",
 			"user",
 			"vault",
+			"kill_signal",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -623,6 +702,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			WeaklyTypedInput: true,
 			Result:           &t,
 		})
+
 		if err != nil {
 			return err
 		}
@@ -907,9 +987,11 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 		valid := []string{
 			"name",
 			"tags",
+			"canary_tags",
 			"port",
 			"check",
 			"address_mode",
+			"check_restart",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -979,6 +1061,9 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"header",
 			"method",
 			"check_restart",
+			"address_mode",
+			"grpc_service",
+			"grpc_use_tls",
 		}
 		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
@@ -1238,8 +1323,45 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"health_check",
 		"min_healthy_time",
 		"healthy_deadline",
+		"progress_deadline",
 		"auto_revert",
 		"canary",
+	}
+	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		return err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           result,
+	})
+	if err != nil {
+		return err
+	}
+	return dec.Decode(m)
+}
+
+func parseMigrate(result **api.MigrateStrategy, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'migrate' block allowed")
+	}
+
+	// Get our resource object
+	o := list.Items[0]
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return err
+	}
+
+	// Check for invalid keys
+	valid := []string{
+		"max_parallel",
+		"health_check",
+		"min_healthy_time",
+		"healthy_deadline",
 	}
 	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 		return err

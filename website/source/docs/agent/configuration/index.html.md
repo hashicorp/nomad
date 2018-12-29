@@ -37,13 +37,12 @@ Here is an example Nomad agent configuration that runs in both client and server
 mode.
 
 ```hcl
-bind_addr = "0.0.0.0" # the default
-
 data_dir  = "/var/lib/nomad"
 
+bind_addr = "0.0.0.0" # the default
+
 advertise {
-  # Defaults to the node's hostname. If the hostname resolves to a loopback
-  # address you must manually configure advertise addresses.
+  # Defaults to the first private IP address.
   http = "1.2.3.4"
   rpc  = "1.2.3.4"
   serf = "1.2.3.4:5648" # non-default ports may be specified
@@ -97,7 +96,9 @@ testing.
   configurations such as NAT. This configuration is optional, and defaults to
   the bind address of the specific network service if it is not provided. Any
   values configured in this stanza take precedence over the default
-  [bind_addr](#bind_addr). If the bind address is `0.0.0.0` then the first
+  [bind_addr](#bind_addr).
+
+    If the bind address is `0.0.0.0` then the address
   private IP found is advertised. You may advertise an alternate port as well.
   The values support [go-sockaddr/template format][go-sockaddr/template].
 
@@ -105,12 +106,14 @@ testing.
     reachable by all the nodes from which end users are going to use the Nomad
     CLI tools.
 
-  - `rpc` - The address to advertise for the RPC interface. This address should
-    be reachable by all of the agents in the cluster.
+  - `rpc` - The address advertised to Nomad client nodes. This allows
+    advertising a different RPC address than is used by Nomad Servers such that
+    the clients can connect to the Nomad servers if they are behind a NAT.
 
   - `serf` - The address advertised for the gossip layer. This address must be
     reachable from all server nodes. It is not required that clients can reach
-    this address.
+    this address. Nomad servers will communicate to each other over RPC using
+    the advertised Serf IP and advertised RPC Port.
 
 - `bind_addr` `(string: "0.0.0.0")` - Specifies which address the Nomad
   agent should bind to for network services, including the HTTP interface as
@@ -134,6 +137,8 @@ testing.
   allocation data as well as cluster information. Server nodes use this
   directory to store cluster state, including the replicated log and snapshot
   data. This must be specified as an absolute path.
+  
+      ~> **WARNING**: This directory **must not** be set to a directory that is [included in the chroot](/docs/drivers/exec.html#chroot) if you use the [`exec`](/docs/drivers/exec.html) driver.
 
 - `disable_anonymous_signature` `(bool: false)` - Specifies if Nomad should
   provide an anonymous signature for de-duplication with the update check.
@@ -152,19 +157,23 @@ testing.
 
 - `leave_on_interrupt` `(bool: false)` - Specifies if the agent should
   gracefully leave when receiving the interrupt signal. By default, the agent
-  will exit forcefully on any signal.
+  will exit forcefully on any signal. This value should only be set to true on
+  server agents if it is expected that a terminated server instance will never
+  join the cluster again.
 
 - `leave_on_terminate` `(bool: false)` - Specifies if the agent should
   gracefully leave when receiving the terminate signal. By default, the agent
-  will exit forcefully on any signal.
+  will exit forcefully on any signal. This value should only be set to true on
+  server agents if it is expected that a terminated server instance will never
+  join the cluster again.
 
 - `log_level` `(string: "INFO")` - Specifies  the verbosity of logs the Nomad
   agent will output. Valid log levels include `WARN`, `INFO`, or `DEBUG` in
   increasing order of verbosity.
 
 - `name` `(string: [hostname])` - Specifies the name of the local node. This
-  value is used to identify individual nodes in a given datacenter and must be
-  unique per-datacenter.
+  value is used to identify individual agents. When specified on a server, the
+  name must be unique within the region.
 
 - `ports` `(Port: see below)` - Specifies the network ports used for different
   services required by the Nomad agent.

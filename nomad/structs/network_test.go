@@ -41,7 +41,7 @@ func TestNetworkIndex_Overcommitted(t *testing.T) {
 		t.Fatalf("have resources")
 	}
 
-	// Double up our ussage
+	// Double up our usage
 	idx.AddReserved(reserved)
 	if !idx.Overcommitted() {
 		t.Fatalf("should be overcommitted")

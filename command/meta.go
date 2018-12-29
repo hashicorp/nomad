@@ -181,7 +181,8 @@ func generalOptionsUsage() string {
     Defaults to the "default" namespace.
 
   -no-color
-    Disables colored command output.
+    Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
+    set.
 
   -ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the

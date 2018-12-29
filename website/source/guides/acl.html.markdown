@@ -22,7 +22,7 @@ The ACL system is designed to be easy to use and fast to enforce while providing
 
  * **ACL Tokens**. Requests to Nomad are authenticated by using bearer token. Each ACL token has a public Accessor ID which is used to name a token, and a Secret ID which is used to make requests to Nomad. The Secret ID is provided using a request header (`X-Nomad-Token`) and is used to authenticate the caller. Tokens are either `management` or `client` types. The `management` tokens are effectively "root" in the system, and can perform any operation. The `client` tokens are associated with one or more ACL policies which grant specific capabilities.
 
- * **Capabilities**. Capabilties are the set of actions that can be performed. This includes listing jobs, submitting jobs, querying nodes, etc. A `management` token is granted all capabilities, while `client` tokens are granted specific capabilties via ACL Policies. The full set of capabilities is discussed below in the rule specifications.
+ * **Capabilities**. Capabilities are the set of actions that can be performed. This includes listing jobs, submitting jobs, querying nodes, etc. A `management` token is granted all capabilities, while `client` tokens are granted specific capabilities via ACL Policies. The full set of capabilities is discussed below in the rule specifications.
 
 ### ACL Policies
 
@@ -56,7 +56,7 @@ Constructing rules from these policies is covered in detail in the Rule Specific
 
 Nomad supports multi-datacenter and multi-region configurations. A single region is able to service multiple datacenters, and all servers in a region replicate their state between each other. In a multi-region configuration, there is a set of servers per region. Each region operates independently and is loosely coupled to allow jobs to be scheduled in any region and requests to flow transparently to the correct region.
 
-When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies and global ACL tokens. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single a single authoritative source. Any ACL policies or global ACL tokens are created in the authoritative region first. All other regions replicate ACL policies and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
+When ACLs are enabled, Nomad depends on an "authoritative region" to act as a single source of truth for ACL policies and global ACL tokens. The authoritative region is configured in the [`server` stanza](/docs/agent/configuration/server.html) of agents, and all regions must share a single authoritative source. Any ACL policies or global ACL tokens are created in the authoritative region first. All other regions replicate ACL policies and global ACL tokens to act as local mirrors. This allows policies to be administered centrally, and for enforcement to be local to each region for low latency.
 
 Global ACL tokens are used to allow cross region requests. Standard ACL tokens are created in a single target region and not replicated. This means if a request takes place between regions, global tokens must be used so that both regions will have the token registered.
 
@@ -72,7 +72,7 @@ Bootstrapping ACLs on a new cluster requires a few steps, outlined below:
 
 ### Enable ACLs on Nomad Servers
 
-The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritiative region should be enabled first. For each server:
+The APIs needed to manage policies and tokens are not enabled until ACLs are enabled. To begin, we need to enable the ACLs on the servers. If a multi-region setup is used, the authoritative region should be enabled first. For each server:
 
 1. Set `enabled = true` in the [`acl` stanza](/docs/agent/configuration/acl.html#enabled).
 1. Set `authoritative_region` in the [`server` stanza](/docs/agent/configuration/server.html#authoritative_region).
@@ -141,10 +141,10 @@ EOF
 $ curl --request POST \
     --data @payload.json \
     -H "X-Nomad-Token: $NOMAD_TOKEN" \
-    https://nomad.rocks/v1/acl/policy/anonymous
+    https://localhost:4646/v1/acl/policy/anonymous
 
 # Verify anonymous request works
-$ curl https://nomad.rocks/v1/jobs
+$ curl https://localhost:4646/v1/jobs
 ```
 
 # Rule Specification
@@ -225,7 +225,7 @@ namespace "sensitive" {
 }
 ```
 
-Namespace rules are keyed by the namespace name they apply to. When no namespace is specified, the "default" namespace is the one used. For example, the above policy grants writeaccess to the default namespace, and read access to the sensitive namespace. In addition to the coarse grained `policy` specification, the `namespace` stanza allows setting a more fine grained list of `capabilities`. This includes:
+Namespace rules are keyed by the namespace name they apply to. When no namespace is specified, the "default" namespace is the one used. For example, the above policy grants write access to the default namespace, and read access to the sensitive namespace. In addition to the coarse grained `policy` specification, the `namespace` stanza allows setting a more fine grained list of `capabilities`. This includes:
 
 * `deny` - When multiple policies are associated with a token, deny will take precedence and prevent any capabilities.
 * `list-jobs` - Allows listing the jobs and seeing coarse grain status.
@@ -307,7 +307,7 @@ There's only one quota policy allowed per rule set, and its value is set to one 
 
 # Advanced Topics
 
-### Outages and Mulit-Region Replication
+### Outages and Multi-Region Replication
 
 The ACL system takes some steps to ensure operation during outages. Clients nodes maintain a limited
 cache of ACL tokens and ACL policies that have recently or frequently been used, associated with a time-to-live (TTL).
@@ -321,12 +321,12 @@ quorum is lost. The tokens and policies may become stale during this period as d
 replicating, but will be automatically fixed when the outage has been resolved.
 
 In a multi-region setup, there is a single authoritative region which is the source of truth for
-ACL policies and global ACL tokens. All other regions asychronously replicate from the authoritative
+ACL policies and global ACL tokens. All other regions asynchronously replicate from the authoritative
 region. When replication is interrupted, the existing data is used for request processing and may
 become stale. When the authoritative region is reachable, replication will resume and repair any
 inconsistency.
 
-### Reseting ACL Bootstrap
+### Resetting ACL Bootstrap
 
 If all management tokens are lost, it is possible to reset the ACL bootstrap so that it can be performed again.
 First, we need to determine the reset index, this can be done by calling the reset endpoint:
@@ -370,3 +370,150 @@ Error bootstrapping: Unexpected response code: 500 (Invalid bootstrap reset inde
 This is because the reset file is in place, but with the incorrect index.
 The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
+## Vault Integration
+HashiCorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of
+authentication backends, it could provide a workflow where a user or orchestration system authenticates
+using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived
+Nomad token.
+
+~> HashiCorp Vault is a standalone product with it's own set of deployment and
+   configuration best practices. Please review [Vault's
+   documentation](https://www.vaultproject.io/docs/index.html) before deploying it
+   in production.
+
+For evaluation purposes, a Vault server in "dev" mode can be used.
+
+```
+$ vault server -dev
+==> Vault server configuration:
+
+                     Cgo: disabled
+         Cluster Address: https://127.0.0.1:8201
+              Listener 1: tcp (addr: "127.0.0.1:8200", cluster address: "127.0.0.1:8201", tls: "disabled")
+               Log Level: info
+                   Mlock: supported: false, enabled: false
+        Redirect Address: http://127.0.0.1:8200
+                 Storage: inmem
+                 Version: Vault v0.8.3
+             Version Sha: a393b20cb6d96c73e52eb5af776c892b8107a45d
+
+==> WARNING: Dev mode is enabled!
+
+In this mode, Vault is completely in-memory and unsealed.
+Vault is configured to only have a single unseal key. The root
+token has already been authenticated with the CLI, so you can
+immediately begin using the Vault CLI.
+
+The only step you need to take is to set the following
+environment variables:
+
+    export VAULT_ADDR='http://127.0.0.1:8200'
+
+The unseal key and root token are reproduced below in case you
+want to seal/unseal the Vault or play with authentication.
+
+Unseal Key: YzFfPgnLl9R1f6bLU7tGqi/PIDhDaAV/tlNDMV5Rrq0=
+Root Token: f84b587e-5882-bba1-a3f0-d1a3d90ca105
+```
+
+### Pre-requisites
+- Nomad ACL system bootstrapped.
+- A management token (the bootstrap token can be used, but for production
+  systems it's recommended to have a separate token)
+- A set of policies created in Nomad
+- An unsealed Vault server (Vault running in `dev` mode is unsealed
+  automatically upon startup)
+  - Vault must be version 0.9.3 or later to have the Nomad plugin
+
+### Configuration
+Mount the [`nomad`][nomad_backend] secret backend in Vault:
+
+```
+$ vault mount nomad
+Successfully mounted 'nomad' at 'nomad'!
+```
+
+Configure access with Nomad's address and management token:
+
+```
+$ vault write nomad/config/access \
+    address=http://127.0.0.1:4646 \
+    token=adf4238a-882b-9ddc-4a9d-5b6758e4159e
+Success! Data written to: nomad/config/access
+```
+
+Vault secret backends have the concept of roles, which are configuration units that group one or more 
+Vault policies to a potential identity attribute, (e.g. LDAP Group membership). The name of the role 
+is specified on the path, while the mapping to policies is done by naming them in a comma separated list, 
+for example:
+
+```
+$ vault write nomad/role/role-name policies=policyone,policytwo
+Success! Data written to: nomad/role/role-name
+```
+
+Similarly, to create management tokens, or global tokens:
+
+```
+$ vault write nomad/role/role-name type=management global=true
+Success! Data written to: nomad/role/role-name
+```
+
+Create a Vault policy to allow different identities to get tokens associated with a particular
+role:
+
+```
+$ echo 'path "nomad/creds/role-name" {
+  capabilities = ["read"]
+}' | vault policy write nomad-user-policy -
+Policy 'nomad-user-policy' written.
+```
+
+If you have an existing authentication backend (like LDAP), follow the relevant instructions to create
+a role available on the [Authentication backends page](https://www.vaultproject.io/docs/auth/index.html).
+Otherwise, for testing purposes, a Vault token can be generated associated with the policy:
+
+```
+$ vault token create -policy=nomad-user-policy
+Key             Value
+---             -----
+token           deedfa83-99b5-34a1-278d-e8fb76809a5b
+token_accessor  fd185371-7d80-8011-4f45-1bb3af2c2733
+token_duration  768h0m0s
+token_renewable true
+token_policies  [default nomad-user-policy]
+```
+
+Finally obtain a Nomad Token using the existing Vault Token:
+
+```
+$ vault read nomad/creds/role-name
+Key             Value
+---             -----
+lease_id        nomad/creds/role-name/6fb22e25-0cd1-b4c9-494e-aba330c317b9
+lease_duration  768h0m0s
+lease_renewable true
+accessor_id     10b8fb49-7024-2126-8683-ab355b581db2
+secret_id       8898d19c-e5b3-35e4-649e-4153d63fbea9
+```
+
+Verify that the token is created correctly in Nomad, looking it up by its accessor:
+
+```
+$ nomad acl token info 10b8fb49-7024-2126-8683-ab355b581db2
+Accessor ID  = 10b8fb49-7024-2126-8683-ab355b581db2
+Secret ID    = 8898d19c-e5b3-35e4-649e-4153d63fbea9
+Name         = Vault test root 1507307164169530060
+Type         = management
+Global       = true
+Policies     = n/a
+Create Time  = 2017-10-06 16:26:04.170633207 +0000 UTC
+Create Index = 228
+Modify Index = 228
+```
+
+Any user or process with access to Vault can now obtain short lived Nomad Tokens in order to
+carry out operations, thus centralising the access to Nomad tokens.
+
+
+[nomad_backend]: https://www.vaultproject.io/docs/secrets/nomad/index.html

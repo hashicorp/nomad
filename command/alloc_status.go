@@ -12,7 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/client"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/posener/complete"
 )
 
@@ -22,7 +22,7 @@ type AllocStatusCommand struct {
 
 func (c *AllocStatusCommand) Help() string {
 	helpText := `
-Usage: nomad alloc-status [options] <allocation>
+Usage: nomad alloc status [options] <allocation>
 
   Display information about existing allocations and its tasks. This command can
   be used to inspect the current status of an allocation, including its running
@@ -83,11 +83,13 @@ func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *AllocStatusCommand) Name() string { return "alloc status" }
+
 func (c *AllocStatusCommand) Run(args []string) int {
 	var short, displayStats, verbose, json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("alloc-status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -128,7 +130,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	if len(args) != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one of the following argument conditions:")
+		c.Ui.Error(" * A single <allocation>")
+		c.Ui.Error(" * No arguments, with output format specified")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 	allocID := args[0]
@@ -145,7 +150,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	allocID = sanatizeUUIDPrefix(allocID)
+	allocID = sanitizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
@@ -196,7 +201,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		if statsErr != nil {
 			c.Ui.Output("")
 			if statsErr != api.NodeDownErr {
-				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats (HINT: ensure Client.Advertise.HTTP is set): %v", statsErr))
+				c.Ui.Error(fmt.Sprintf("Couldn't retrieve stats: %v", statsErr))
 			} else {
 				c.Ui.Output("Omitting resource statistics since the node is down.")
 			}
@@ -214,6 +219,16 @@ func (c *AllocStatusCommand) Run(args []string) int {
 }
 
 func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength int, verbose bool) (string, error) {
+	var formattedCreateTime, formattedModifyTime string
+
+	if verbose {
+		formattedCreateTime = formatUnixNanoTime(alloc.CreateTime)
+		formattedModifyTime = formatUnixNanoTime(alloc.ModifyTime)
+	} else {
+		formattedCreateTime = prettyTimeDiff(time.Unix(0, alloc.CreateTime), time.Now())
+		formattedModifyTime = prettyTimeDiff(time.Unix(0, alloc.ModifyTime), time.Now())
+	}
+
 	basic := []string{
 		fmt.Sprintf("ID|%s", limit(alloc.ID, uuidLength)),
 		fmt.Sprintf("Eval ID|%s", limit(alloc.EvalID, uuidLength)),
@@ -225,41 +240,50 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		fmt.Sprintf("Client Description|%s", alloc.ClientDescription),
 		fmt.Sprintf("Desired Status|%s", alloc.DesiredStatus),
 		fmt.Sprintf("Desired Description|%s", alloc.DesiredDescription),
-		fmt.Sprintf("Created At|%s", formatUnixNanoTime(alloc.CreateTime)),
+		fmt.Sprintf("Created|%s", formattedCreateTime),
+		fmt.Sprintf("Modified|%s", formattedModifyTime),
 	}
 
 	if alloc.DeploymentID != "" {
 		health := "unset"
-		if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil {
-			if *alloc.DeploymentStatus.Healthy {
-				health = "healthy"
-			} else {
-				health = "unhealthy"
+		canary := false
+		if alloc.DeploymentStatus != nil {
+			if alloc.DeploymentStatus.Healthy != nil {
+				if *alloc.DeploymentStatus.Healthy {
+					health = "healthy"
+				} else {
+					health = "unhealthy"
+				}
 			}
+
+			canary = alloc.DeploymentStatus.Canary
 		}
 
 		basic = append(basic,
 			fmt.Sprintf("Deployment ID|%s", limit(alloc.DeploymentID, uuidLength)),
 			fmt.Sprintf("Deployment Health|%s", health))
-
-		// Check if this allocation is a canary
-		deployment, _, err := client.Deployments().Info(alloc.DeploymentID, nil)
-		if err != nil {
-			return "", fmt.Errorf("Error querying deployment %q: %s", alloc.DeploymentID, err)
-		}
-
-		canary := false
-		if state, ok := deployment.TaskGroups[alloc.TaskGroup]; ok {
-			for _, id := range state.PlacedCanaries {
-				if id == alloc.ID {
-					canary = true
-					break
-				}
-			}
-		}
-
 		if canary {
 			basic = append(basic, fmt.Sprintf("Canary|%v", true))
+		}
+	}
+
+	if alloc.RescheduleTracker != nil && len(alloc.RescheduleTracker.Events) > 0 {
+		attempts, total := alloc.RescheduleInfo(time.Unix(0, alloc.ModifyTime))
+		// Show this section only if the reschedule policy limits the number of attempts
+		if total > 0 {
+			reschedInfo := fmt.Sprintf("Reschedule Attempts|%d/%d", attempts, total)
+			basic = append(basic, reschedInfo)
+		}
+	}
+	if alloc.NextAllocation != "" {
+		basic = append(basic,
+			fmt.Sprintf("Replacement Alloc ID|%s", limit(alloc.NextAllocation, uuidLength)))
+	}
+	if alloc.FollowupEvalID != "" {
+		nextEvalTime := futureEvalTimePretty(alloc.FollowupEvalID, client)
+		if nextEvalTime != "" {
+			basic = append(basic,
+				fmt.Sprintf("Reschedule Eligibility|%s", nextEvalTime))
 		}
 	}
 
@@ -273,6 +297,18 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 	}
 
 	return formatKV(basic), nil
+}
+
+// futureEvalTimePretty returns when the eval is eligible to reschedule
+// relative to current time, based on the WaitUntil field
+func futureEvalTimePretty(evalID string, client *api.Client) string {
+	evaluation, _, err := client.Evaluations().Info(evalID, nil)
+	// Eval time is not a critical output,
+	// don't return it on errors, if its not set or already in the past
+	if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
+		return ""
+	}
+	return prettyTimeDiff(evaluation.WaitUntil, time.Now())
 }
 
 // outputTaskDetails prints task details for each task in the allocation,
@@ -314,120 +350,126 @@ func (c *AllocStatusCommand) outputTaskStatus(state *api.TaskState) {
 
 	size := len(state.Events)
 	for i, event := range state.Events {
-		formatedTime := formatUnixNanoTime(event.Time)
-
-		// Build up the description based on the event type.
-		var desc string
-		switch event.Type {
-		case api.TaskSetup:
-			desc = event.Message
-		case api.TaskStarted:
-			desc = "Task started by client"
-		case api.TaskReceived:
-			desc = "Task received by client"
-		case api.TaskFailedValidation:
-			if event.ValidationError != "" {
-				desc = event.ValidationError
-			} else {
-				desc = "Validation of task failed"
-			}
-		case api.TaskSetupFailure:
-			if event.SetupError != "" {
-				desc = event.SetupError
-			} else {
-				desc = "Task setup failed"
-			}
-		case api.TaskDriverFailure:
-			if event.DriverError != "" {
-				desc = event.DriverError
-			} else {
-				desc = "Failed to start task"
-			}
-		case api.TaskDownloadingArtifacts:
-			desc = "Client is downloading artifacts"
-		case api.TaskArtifactDownloadFailed:
-			if event.DownloadError != "" {
-				desc = event.DownloadError
-			} else {
-				desc = "Failed to download artifacts"
-			}
-		case api.TaskKilling:
-			if event.KillReason != "" {
-				desc = fmt.Sprintf("Killing task: %v", event.KillReason)
-			} else if event.KillTimeout != 0 {
-				desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
-			} else {
-				desc = "Sent interrupt"
-			}
-		case api.TaskKilled:
-			if event.KillError != "" {
-				desc = event.KillError
-			} else {
-				desc = "Task successfully killed"
-			}
-		case api.TaskTerminated:
-			var parts []string
-			parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
-
-			if event.Signal != 0 {
-				parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
-			}
-
-			if event.Message != "" {
-				parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
-			}
-			desc = strings.Join(parts, ", ")
-		case api.TaskRestarting:
-			in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
-			if event.RestartReason != "" && event.RestartReason != client.ReasonWithinPolicy {
-				desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
-			} else {
-				desc = in
-			}
-		case api.TaskNotRestarting:
-			if event.RestartReason != "" {
-				desc = event.RestartReason
-			} else {
-				desc = "Task exceeded restart policy"
-			}
-		case api.TaskSiblingFailed:
-			if event.FailedSibling != "" {
-				desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
-			} else {
-				desc = "Task's sibling failed"
-			}
-		case api.TaskSignaling:
-			sig := event.TaskSignal
-			reason := event.TaskSignalReason
-
-			if sig == "" && reason == "" {
-				desc = "Task being sent a signal"
-			} else if sig == "" {
-				desc = reason
-			} else if reason == "" {
-				desc = fmt.Sprintf("Task being sent signal %v", sig)
-			} else {
-				desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
-			}
-		case api.TaskRestartSignal:
-			if event.RestartReason != "" {
-				desc = event.RestartReason
-			} else {
-				desc = "Task signaled to restart"
-			}
-		case api.TaskDriverMessage:
-			desc = event.DriverMessage
-		case api.TaskLeaderDead:
-			desc = "Leader Task in Group dead"
-		case api.TaskGenericMessage:
-			event.Type = event.GenericSource
-			desc = event.Message
+		msg := event.DisplayMessage
+		if msg == "" {
+			msg = buildDisplayMessage(event)
 		}
-
+		formattedTime := formatUnixNanoTime(event.Time)
+		events[size-i] = fmt.Sprintf("%s|%s|%s", formattedTime, event.Type, msg)
 		// Reverse order so we are sorted by time
-		events[size-i] = fmt.Sprintf("%s|%s|%s", formatedTime, event.Type, desc)
 	}
 	c.Ui.Output(formatList(events))
+}
+
+func buildDisplayMessage(event *api.TaskEvent) string {
+	// Build up the description based on the event type.
+	var desc string
+	switch event.Type {
+	case api.TaskSetup:
+		desc = event.Message
+	case api.TaskStarted:
+		desc = "Task started by client"
+	case api.TaskReceived:
+		desc = "Task received by client"
+	case api.TaskFailedValidation:
+		if event.ValidationError != "" {
+			desc = event.ValidationError
+		} else {
+			desc = "Validation of task failed"
+		}
+	case api.TaskSetupFailure:
+		if event.SetupError != "" {
+			desc = event.SetupError
+		} else {
+			desc = "Task setup failed"
+		}
+	case api.TaskDriverFailure:
+		if event.DriverError != "" {
+			desc = event.DriverError
+		} else {
+			desc = "Failed to start task"
+		}
+	case api.TaskDownloadingArtifacts:
+		desc = "Client is downloading artifacts"
+	case api.TaskArtifactDownloadFailed:
+		if event.DownloadError != "" {
+			desc = event.DownloadError
+		} else {
+			desc = "Failed to download artifacts"
+		}
+	case api.TaskKilling:
+		if event.KillReason != "" {
+			desc = fmt.Sprintf("Killing task: %v", event.KillReason)
+		} else if event.KillTimeout != 0 {
+			desc = fmt.Sprintf("Sent interrupt. Waiting %v before force killing", event.KillTimeout)
+		} else {
+			desc = "Sent interrupt"
+		}
+	case api.TaskKilled:
+		if event.KillError != "" {
+			desc = event.KillError
+		} else {
+			desc = "Task successfully killed"
+		}
+	case api.TaskTerminated:
+		var parts []string
+		parts = append(parts, fmt.Sprintf("Exit Code: %d", event.ExitCode))
+
+		if event.Signal != 0 {
+			parts = append(parts, fmt.Sprintf("Signal: %d", event.Signal))
+		}
+
+		if event.Message != "" {
+			parts = append(parts, fmt.Sprintf("Exit Message: %q", event.Message))
+		}
+		desc = strings.Join(parts, ", ")
+	case api.TaskRestarting:
+		in := fmt.Sprintf("Task restarting in %v", time.Duration(event.StartDelay))
+		if event.RestartReason != "" && event.RestartReason != restarts.ReasonWithinPolicy {
+			desc = fmt.Sprintf("%s - %s", event.RestartReason, in)
+		} else {
+			desc = in
+		}
+	case api.TaskNotRestarting:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task exceeded restart policy"
+		}
+	case api.TaskSiblingFailed:
+		if event.FailedSibling != "" {
+			desc = fmt.Sprintf("Task's sibling %q failed", event.FailedSibling)
+		} else {
+			desc = "Task's sibling failed"
+		}
+	case api.TaskSignaling:
+		sig := event.TaskSignal
+		reason := event.TaskSignalReason
+
+		if sig == "" && reason == "" {
+			desc = "Task being sent a signal"
+		} else if sig == "" {
+			desc = reason
+		} else if reason == "" {
+			desc = fmt.Sprintf("Task being sent signal %v", sig)
+		} else {
+			desc = fmt.Sprintf("Task being sent signal %v: %v", sig, reason)
+		}
+	case api.TaskRestartSignal:
+		if event.RestartReason != "" {
+			desc = event.RestartReason
+		} else {
+			desc = "Task signaled to restart"
+		}
+	case api.TaskDriverMessage:
+		desc = event.DriverMessage
+	case api.TaskLeaderDead:
+		desc = "Leader Task in Group dead"
+	default:
+		desc = event.Message
+	}
+
+	return desc
 }
 
 // outputTaskResources prints the task resources for the passed task and if

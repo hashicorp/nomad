@@ -12,14 +12,14 @@ description: |-
 ## Resources (RAM, CPU, etc.)
 
 **Nomad servers** may need to be run on large machine instances. We suggest
-having between 4-8+ cores, 16-32 GB+ of memory, 40-80 GB+ of disk and
+having between 4-8+ cores, 16-32 GB+ of memory, 40-80 GB+ of **fast** disk and
 significant network bandwidth. The core count and network recommendations are to
 ensure high throughput as Nomad heavily relies on network communication and as
 the Servers are managing all the nodes in the region and performing scheduling.
 The memory and disk requirements are due to the fact that Nomad stores all state
-in memory and will store two snapshots of this data onto disk. Thus disk should
+in memory and will store two snapshots of this data onto disk, which causes high IO in busy clusters with lots of writes. Thus disk should
 be at least 2 times the memory available to the server when deploying a high
-load cluster.
+load cluster. When running on AWS prefer NVME or Provisioned IOPS SSD storage for data dir.
 
 These recommendations are guidelines and operators should always monitor the
 resource usage of Nomad to determine if the machines are under or over-sized.

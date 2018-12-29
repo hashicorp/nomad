@@ -108,9 +108,15 @@ These `telemetry` parameters apply to
 - `datadog_address` `(string: "")` - Specifies the address of a DataDog statsd
   server to forward metrics to.
 
+- `datadog_tags` `(list: [])` - Specifies a list of global tags that will be
+  added to all telemetry packets sent to DogStatsD. It is a list of strings,
+  where each string looks like "my_tag_name:my_tag_value".
+
+
 ```hcl
 telemetry {
   datadog_address = "dogstatsd.company.local:8125"
+  datadog_tags = ["my_tag_name:my_tag_value"]
 }
 ```
 

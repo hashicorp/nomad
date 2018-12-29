@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -9,8 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -30,10 +34,10 @@ func TestConfig_Merge(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Atlas:          &AtlasConfig{},
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
+		Autopilot:      &config.AutopilotConfig{},
 	}
 
 	c2 := &Config{
@@ -47,13 +51,14 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               false,
 		EnableSyslog:              false,
 		SyslogFacility:            "local0.info",
-		DisableUpdateCheck:        false,
+		DisableUpdateCheck:        helper.BoolToPtr(false),
 		DisableAnonymousSignature: false,
 		BindAddr:                  "127.0.0.1",
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.1:8125",
 			StatsdAddr:                         "127.0.0.1:8125",
 			DataDogAddr:                        "127.0.0.1:8125",
+			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    false,
 			DisableTaggedMetrics:               true,
@@ -82,6 +87,7 @@ func TestConfig_Merge(t *testing.T) {
 			},
 			NetworkSpeed:   100,
 			CpuCompute:     100,
+			MemoryMB:       100,
 			MaxKillTimeout: "20s",
 			ClientMaxPort:  19996,
 			Reserved: &Resources{
@@ -99,11 +105,14 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        1,
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
-			NumSchedulers:          1,
+			RaftProtocol:           1,
+			NumSchedulers:          helper.IntToPtr(1),
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
 			MinHeartbeatTTL:        30 * time.Second,
 			MaxHeartbeatsPerSecond: 30.0,
+			RedundancyZone:         "foo",
+			UpgradeVersion:         "foo",
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -124,12 +133,6 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.1",
 			Serf: "127.0.0.1",
-		},
-		Atlas: &AtlasConfig{
-			Infrastructure: "hashicorp/test1",
-			Token:          "abc",
-			Join:           false,
-			Endpoint:       "foo",
 		},
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin": "*",
@@ -163,6 +166,15 @@ func TestConfig_Merge(t *testing.T) {
 			ClientAutoJoin:     &falseValue,
 			ChecksUseAdvertise: &falseValue,
 		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &falseValue,
+			ServerStabilizationTime: 1 * time.Second,
+			LastContactThreshold:    1 * time.Second,
+			MaxTrailingLogs:         1,
+			EnableRedundancyZones:   &falseValue,
+			DisableUpgradeMigration: &falseValue,
+			EnableCustomUpgrades:    &falseValue,
+		},
 	}
 
 	c3 := &Config{
@@ -176,13 +188,14 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               true,
 		EnableSyslog:              true,
 		SyslogFacility:            "local0.debug",
-		DisableUpdateCheck:        true,
+		DisableUpdateCheck:        helper.BoolToPtr(true),
 		DisableAnonymousSignature: true,
 		BindAddr:                  "127.0.0.2",
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.2:8125",
 			StatsdAddr:                         "127.0.0.2:8125",
 			DataDogAddr:                        "127.0.0.1:8125",
+			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    true,
 			PublishNodeMetrics:                 true,
@@ -221,6 +234,7 @@ func TestConfig_Merge(t *testing.T) {
 			ClientMinPort:  22000,
 			NetworkSpeed:   105,
 			CpuCompute:     105,
+			MemoryMB:       105,
 			MaxKillTimeout: "50s",
 			Reserved: &Resources{
 				CPU:                 15,
@@ -241,7 +255,8 @@ func TestConfig_Merge(t *testing.T) {
 			BootstrapExpect:        2,
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
-			NumSchedulers:          2,
+			RaftProtocol:           2,
+			NumSchedulers:          helper.IntToPtr(2),
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
 			HeartbeatGrace:         2 * time.Minute,
@@ -250,8 +265,10 @@ func TestConfig_Merge(t *testing.T) {
 			RejoinAfterLeave:       true,
 			StartJoin:              []string{"1.1.1.1"},
 			RetryJoin:              []string{"1.1.1.1"},
-			RetryInterval:          "10s",
-			retryInterval:          time.Second * 10,
+			RetryInterval:          time.Second * 10,
+			NonVotingServer:        true,
+			RedundancyZone:         "bar",
+			UpgradeVersion:         "bar",
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -272,12 +289,6 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.2",
 			Serf: "127.0.0.2",
-		},
-		Atlas: &AtlasConfig{
-			Infrastructure: "hashicorp/test2",
-			Token:          "xyz",
-			Join:           true,
-			Endpoint:       "bar",
 		},
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin":  "*",
@@ -320,6 +331,15 @@ func TestConfig_Merge(t *testing.T) {
 					Args: []string{"a", "b", "c"},
 				},
 			},
+		},
+		Autopilot: &config.AutopilotConfig{
+			CleanupDeadServers:      &trueValue,
+			ServerStabilizationTime: 2 * time.Second,
+			LastContactThreshold:    2 * time.Second,
+			MaxTrailingLogs:         2,
+			EnableRedundancyZones:   &trueValue,
+			DisableUpgradeMigration: &trueValue,
+			EnableCustomUpgrades:    &trueValue,
 		},
 	}
 
@@ -532,7 +552,8 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ln, err := config.Listener("tcp", "127.0.0.1", 24000)
+	ports := freeport.GetT(t, 2)
+	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -541,20 +562,22 @@ func TestConfig_Listener(t *testing.T) {
 	if net := ln.Addr().Network(); net != "tcp" {
 		t.Fatalf("expected tcp, got: %q", net)
 	}
-	if addr := ln.Addr().String(); addr != "127.0.0.1:24000" {
-		t.Fatalf("expected 127.0.0.1:4646, got: %q", addr)
+	want := fmt.Sprintf("127.0.0.1:%d", ports[0])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 
 	// Falls back to default bind address if non provided
 	config.BindAddr = "0.0.0.0"
-	ln, err = config.Listener("tcp4", "", 24000)
+	ln, err = config.Listener("tcp4", "", ports[1])
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	ln.Close()
 
-	if addr := ln.Addr().String(); addr != "0.0.0.0:24000" {
-		t.Fatalf("expected 0.0.0.0:24000, got: %q", addr)
+	want = fmt.Sprintf("0.0.0.0:%d", ports[1])
+	if addr := ln.Addr().String(); addr != want {
+		t.Fatalf("expected %q, got: %q", want, addr)
 	}
 }
 
@@ -882,5 +905,111 @@ func TestIsMissingPort(t *testing.T) {
 	_, _, err = net.SplitHostPort("localhost:9000")
 	if missing := isMissingPort(err); missing {
 		t.Errorf("expected no error, but got %v", err)
+	}
+}
+
+func TestMergeServerJoin(t *testing.T) {
+	require := require.New(t)
+
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+		b := &ServerJoin{}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{}
+		b := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		var a *ServerJoin
+		b := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+		var b *ServerJoin
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{
+			RetryJoin: retryJoin,
+			StartJoin: startJoin,
+		}
+		b := &ServerJoin{
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
 	}
 }

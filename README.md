@@ -21,29 +21,36 @@ The key features of Nomad are:
   installed, scale up and down based on the number of instances requested, and
   automatically recover from failures.
 
-* **Multi-Datacenter and Multi-Region Aware**: Nomad is designed to be
-  a global-scale scheduler. Multiple datacenters can be managed as part
-  of a larger region, and jobs can be scheduled across datacenters if
-  requested. Multiple regions join together and federate jobs making it
-  easy to run jobs anywhere.
-
 * **Operationally Simple**: Nomad runs as a single binary that can be
   either a client or server, and is completely self contained. Nomad does
   not require any external services for storage or coordination. This means
   Nomad combines the features of a resource manager and scheduler in a single
   system.
 
-* **Distributed and Highly-Available**: Nomad servers cluster together and
-  perform leader election and state replication to provide high availability
-  in the face of failure. The Nomad scheduling engine is optimized for
-  optimistic concurrency allowing all servers to make scheduling decisions to
-  maximize throughput.
+* **Multi-Datacenter and Multi-Region Aware**: Nomad is designed to be
+  a global-scale scheduler. Multiple datacenters can be managed as part
+  of a larger region, and jobs can be scheduled across datacenters if
+  requested. Multiple regions join together and federate jobs making it
+  easy to run jobs anywhere.
 
-* **HashiCorp Ecosystem**: Nomad integrates with the entire HashiCorp
-  ecosystem of tools. Along with all HashiCorp tools, Nomad is designed
-  in the unix philosophy of doing something specific and doing it well.
-  Nomad integrates with tools like Packer, Consul, and Terraform to support
-  building artifacts, service discovery, monitoring and capacity management.
+* **Flexible Workloads**: Nomad has extensible support for task drivers, allowing it to run
+  containerized, virtualized, and standalone applications. Users can easily start Docker
+  containers, VMs, or application runtimes like Java. Nomad supports Linux, Windows, BSD, and OSX,
+  providing the flexibility to run any workload.
+
+* **Built for Scale**: Nomad was designed from the ground up to support global scale
+  infrastructure. Nomad is distributed and highly available, using both
+  leader election and state replication to provide availability in the face
+  of failures. Nomad is optimistically concurrent, enabling all servers to participate
+  in scheduling decisions which increases the total throughput and reduces latency
+  to support demanding workloads. Nomad has been proven to scale to cluster sizes that
+  exceed 10k nodes in real-world production environments.
+
+* **HashiCorp Ecosystem**: HashiCorp Ecosystem: Nomad integrates with the 
+entire HashiCorp ecosystem of tools. Like all HashiCorp tools, Nomad follows 
+the UNIX design philosophy of doing something specific and doing it well. 
+Nomad integrates with Terraform, Consul, and Vault for provisioning, service 
+discovery, and secrets management.
 
 For more information, see the [introduction section](https://www.nomadproject.io/intro)
 of the Nomad website.
@@ -58,7 +65,7 @@ Developing Nomad
 
 If you wish to work on Nomad itself or any of its built-in systems,
 you will first need [Go](https://www.golang.org) installed on your
-machine (version 1.9+ is *required*).
+machine (version 1.10.2+ is *required*).
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
@@ -102,9 +109,18 @@ Nomad binary in the `bin` and `$GOPATH/bin` folders:
 
 ```sh
 $ make dev
-...
-$ bin/nomad
-...
+```
+
+Optionally run Consul to enable service discovery and health checks:
+
+```sh
+$ sudo consul agent -dev
+```
+
+And finally start the nomad agent:
+
+```sh
+$ sudo bin/nomad agent -dev
 ```
 
 If the Nomad UI is desired in the development version, run `make dev-ui`. This will build the UI from source and compile it into the dev binary.
@@ -114,6 +130,9 @@ $ make dev-ui
 ...
 $ bin/nomad
 ...
+
+To compile protobuf files, installing protoc is required: See
+https://github.com/google/protobuf for more information.
 ```
 
 **Note:** Building the Nomad UI from source requires Node, Yarn, and Ember CLI. These tools are already in the Vagrant VM. Read the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for more info.

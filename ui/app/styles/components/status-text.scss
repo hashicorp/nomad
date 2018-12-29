@@ -1,4 +1,6 @@
 .status-text {
+  font-weight: $weight-semibold;
+
   &.node-ready {
     color: $nomad-green-dark;
   }
@@ -9,5 +11,14 @@
 
   &.node-initializing {
     color: $grey;
+  }
+
+  @each $name, $pair in $colors {
+    $color: nth($pair, 1);
+    $color-invert: nth($pair, 2);
+
+    &.is-#{$name} {
+      color: $color;
+    }
   }
 }

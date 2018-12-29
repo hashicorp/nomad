@@ -1,10 +1,13 @@
 {{!-- Job heading --}}
-<div class="{{if diff.Type
-  (concat
-    "diff-section-label is-"
-    (lowercase diff.Type)
-  )
-}}">
+<div
+  data-test-diff-section-label="job"
+  data-test-diff-field="{{lowercase diff.Type}}"
+  class="{{if diff.Type
+    (concat
+      "diff-section-label is-"
+      (lowercase diff.Type)
+    )
+  }}">
   <span class="marker {{concat "is-" (lowercase diff.Type)}}">
     {{#if (eq (lowercase diff.Type) "added")}}
       +
@@ -19,14 +22,14 @@
 
 {{!-- Show job field and object diffs if the job is edited --}}
 {{#if (or verbose (eq (lowercase diff.Type) "edited"))}}
-  <div class="diff-section-label">
+  <div data-test-diff-section-label="job-diff" class="diff-section-label">
     {{job-diff-fields-and-objects fields=diff.Fields objects=diff.Objects}}
   </div>
 {{/if}}
 
 {{!-- Each task group --}}
 {{#each diff.TaskGroups as |group|}}
-  <div class="{{if group.Type
+  <div data-test-diff-section-label="task-group" class="{{if group.Type
     (concat
       "diff-section-label is-"
       (lowercase group.Type)
@@ -50,19 +53,22 @@
 
     {{!-- Show task group field and object diffs if the task group is edited --}}
     {{#if (or (eq (lowercase group.Type) "edited") verbose)}}
-      <div class="diff-section-label">
+      <div data-test-diff-section-label="task-group-diff" class="diff-section-label">
         {{job-diff-fields-and-objects fields=group.Fields objects=group.Objects}}
       </div>
     {{/if}}
 
     {{!-- Each task --}}
     {{#each group.Tasks as |task|}}
-      <div class="{{if task.Type
-        (concat
-          "diff-section-label is-"
-          (lowercase task.Type)
-        )
-      }}">
+      <div
+        data-test-diff-section-label="task"
+        data-test-diff-field="{{lowercase task.Type}}"
+        class="{{if task.Type
+          (concat
+            "diff-section-label is-"
+            (lowercase task.Type)
+          )
+        }}">
       <span class="marker {{concat "is-" (lowercase task.Type)}}">
         {{#if (eq (lowercase task.Type) "added")}}
           +

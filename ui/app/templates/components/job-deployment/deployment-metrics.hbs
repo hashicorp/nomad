@@ -3,37 +3,37 @@
     <div class="metric-group">
       <div class="metric {{if (eq deployment.placedCanaries deployment.desiredCanaries) "is-primary"}} {{if (eq deployment.desiredCanaries 0) "is-faded"}}">
         <h3 class="label">Canaries</h3>
-        <p class="value">{{deployment.placedCanaries}} / {{deployment.desiredCanaries}}</p>
+        <p data-test-deployment-metric="canaries" class="value">{{deployment.placedCanaries}} / {{deployment.desiredCanaries}}</p>
       </div>
     </div>
 
     <div class="metric-group">
       <div class="metric">
         <h3 class="label">Placed</h3>
-        <p class="value">{{deployment.placedAllocs}}</p>
+        <p data-test-deployment-metric="placed" class="value">{{deployment.placedAllocs}}</p>
       </div>
       <div class="metric">
         <h3 class="label">Desired</h3>
-        <p class="value">{{deployment.desiredTotal}}</p>
+        <p data-test-deployment-metric="desired" class="value">{{deployment.desiredTotal}}</p>
       </div>
     </div>
 
     <div class="metric-group">
       <div class="metric {{if (gt deployment.healthyAllocs 0) "is-primary" "is-faded"}}">
         <h3 class="label">Healthy</h3>
-        <p class="value">{{deployment.healthyAllocs}}</p>
+        <p data-test-deployment-metric="healthy" class="value">{{deployment.healthyAllocs}}</p>
       </div>
     </div>
 
     <div class="metric-group">
       <div class="metric {{if (gt deployment.unhealthyAllocs 0) "is-danger" "is-faded"}}">
         <h3 class="label">Unhealthy</h3>
-        <p class="value">{{deployment.unhealthyAllocs}}</p>
+        <p data-test-deployment-metric="unhealthy" class="value">{{deployment.unhealthyAllocs}}</p>
       </div>
     </div>
   </div>
   <div class="column">
-    <div class="notification {{deployment.statusClass}}">
+    <div data-test-deployment-notification class="notification {{deployment.statusClass}}">
       {{deployment.statusDescription}}
     </div>
   </div>

@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-ps"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	cgroupConfig "github.com/opencontainers/runc/libcontainer/configs"
 
@@ -36,7 +35,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 		}
 	}
 
-	if e.command.ResourceLimits {
+	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
 		if err := e.configureCgroups(e.ctx.Task.Resources); err != nil {
 			return fmt.Errorf("error creating cgroups: %v", err)
 		}
@@ -46,7 +45,7 @@ func (e *UniversalExecutor) configureIsolation() error {
 
 // applyLimits puts a process in a pre-configured cgroup
 func (e *UniversalExecutor) applyLimits(pid int) error {
-	if !e.command.ResourceLimits {
+	if !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
 		return nil
 	}
 
@@ -56,7 +55,60 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 		e.logger.Printf("[ERR] executor: error applying pid to cgroup: %v", err)
 		return err
 	}
+
 	e.resConCtx.cgPaths = manager.GetPaths()
+
+	// Don't enter all the cgroups since we will inherit resources limits. Only
+	// use devices (required by libcontainer) and freezer. Freezer allows us to
+	// capture all pids and stop any fork/execs from happening while we are
+	// cleaning up.
+	if !e.command.ResourceLimits {
+		// Move the executor into the global cgroup so that the task specific
+		// cgroup can be destroyed.
+		nilGroup := &cgroupConfig.Cgroup{}
+		nilGroup.Path = "/"
+		nilGroup.Resources = e.resConCtx.groups.Resources
+		nilManager := getCgroupManager(nilGroup, nil)
+		err := nilManager.Apply(pid)
+		if err != nil {
+			return fmt.Errorf("failed to remove executor pid %d: %v", pid, err)
+		}
+
+		// Grab the freezer and devices cgroup paths. We do this from the old
+		// manager after the executor pid has been applied since there is no
+		// other way to determine what the proper cgroup paths would be.
+		freezer := &cgroupFs.FreezerGroup{}
+		devices := &cgroupFs.DevicesGroup{}
+		freezerName, devicesName := freezer.Name(), devices.Name()
+		newPath := map[string]string{
+			freezerName: e.resConCtx.cgPaths[freezerName],
+			devicesName: e.resConCtx.cgPaths[devicesName],
+		}
+
+		// Clear the cgroups paths so that everything is properly cleaned except
+		// the groups we want our process to stay in. This will delete the
+		// directories from disk.
+		manager.Cgroups.Paths = nil
+		delete(manager.Paths, freezerName)
+		delete(manager.Paths, devicesName)
+		if err := manager.Destroy(); err != nil {
+			e.logger.Printf("[ERR] executor: failed to destroy original: %v", err)
+			return err
+		}
+
+		// Update our context such that the new cgroup manager only is tracking
+		// the paths we care about now.
+		e.resConCtx.cgPaths = newPath
+		e.resConCtx.groups.Paths = newPath
+
+		// Apply just the freezer and devices now
+		manager = getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
+		if err := manager.Apply(pid); err != nil {
+			e.logger.Printf("[ERR] executor: error applying pid to cgroup subset %v: %v", e.resConCtx.cgPaths, err)
+			return err
+		}
+	}
+
 	cgConfig := cgroupConfig.Config{Cgroups: e.resConCtx.groups}
 	if err := manager.Set(&cgConfig); err != nil {
 		e.logger.Printf("[ERR] executor: error setting cgroup config: %v", err)
@@ -76,14 +128,20 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 	cgroupName := uuid.Generate()
 	e.resConCtx.groups.Path = filepath.Join("/nomad", cgroupName)
 
-	// TODO: verify this is needed for things like network access
+	// Allow access to /dev/
 	e.resConCtx.groups.Resources.AllowAllDevices = true
+
+	// Use a cgroup but don't apply limits
+	if !e.command.ResourceLimits {
+		return nil
+	}
 
 	if resources.MemoryMB > 0 {
 		// Total amount of memory allowed to consume
 		e.resConCtx.groups.Resources.Memory = int64(resources.MemoryMB * 1024 * 1024)
 		// Disable swap to avoid issues on the machine
-		e.resConCtx.groups.Resources.MemorySwap = int64(-1)
+		var memSwappiness int64 = 0
+		e.resConCtx.groups.Resources.MemorySwappiness = &memSwappiness
 	}
 
 	if resources.CPU < 2 {
@@ -109,6 +167,9 @@ func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error
 // isolation we aggregate the resource utilization of all the pids launched by
 // the executor.
 func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+	// If we don't use full resource limits fallback to normal collection. It is
+	// not enough to be in the Cgroup since you must be in the memory, cpu, and
+	// cpuacct cgroup to gather the correct statistics.
 	if !e.command.ResourceLimits {
 		pidStats, err := e.pidStats()
 		if err != nil {
@@ -233,7 +294,7 @@ func (e *UniversalExecutor) configureChroot() error {
 // isolation and we scan the entire process table if the user is not using any
 // isolation
 func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
-	if e.command.ResourceLimits {
+	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
 		manager := getCgroupManager(e.resConCtx.groups, e.resConCtx.cgPaths)
 		pids, err := manager.GetAllPids()
 		if err != nil {
@@ -323,6 +384,9 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, execu
 		proc.Wait()
 	}
 
+	// Clear the cgroups paths so that everything is properly cleaned
+	manager.Cgroups.Paths = nil
+
 	// Remove the cgroup.
 	if err := manager.Destroy(); err != nil {
 		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
@@ -331,6 +395,6 @@ func DestroyCgroup(groups *cgroupConfig.Cgroup, cgPaths map[string]string, execu
 }
 
 // getCgroupManager returns the correct libcontainer cgroup manager.
-func getCgroupManager(groups *cgroupConfig.Cgroup, paths map[string]string) cgroups.Manager {
+func getCgroupManager(groups *cgroupConfig.Cgroup, paths map[string]string) *cgroupFs.Manager {
 	return &cgroupFs.Manager{Cgroups: groups, Paths: paths}
 }

@@ -16,4 +16,6 @@ When a quota is attached to a namespace, the jobs within the namespace may not
 consume more resources than the quota specification allows.
 
 This allows operators to partition a shared cluster and ensure that no single
-actor can consume the whole resources of the cluster. 
+actor can consume the whole resources of the cluster.
+
+See the [Resource Quotas Guide](/guides/quotas.html) for more details.

@@ -7,28 +7,29 @@ CONFIGDIR=/ops/shared/config
 CONSULCONFIGDIR=/etc/consul.d
 VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
-HADOOP_VERSION=hadoop-2.7.3
+HADOOP_VERSION=hadoop-2.7.6
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
 
 # Wait for network
 sleep 15
 
-IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
+# IP_ADDRESS=$(curl http://instance-data/latest/meta-data/local-ipv4)
+IP_ADDRESS="$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
 DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print $2}'|sed 's/addr://'`)
-SERVER_COUNT=$1
-REGION=$2
-CLUSTER_TAG_VALUE=$3
+CLOUD=$1
+SERVER_COUNT=$2
+RETRY_JOIN=$3
+NOMAD_BINARY=$4
 
 # Consul
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul.json
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/consul.json
-sed -i "s/REGION/$REGION/g" $CONFIGDIR/consul.json
-sed -i "s/CLUSTER_TAG_VALUE/$CLUSTER_TAG_VALUE/g" $CONFIGDIR/consul.json
+sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul.json
 sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
-sudo cp $CONFIGDIR/consul_upstart.conf /etc/init/consul.conf
+sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
 
-sudo service consul start
+sudo systemctl start consul.service
 sleep 10
 export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
@@ -36,17 +37,25 @@ export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 # Vault
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/vault.hcl
 sudo cp $CONFIGDIR/vault.hcl $VAULTCONFIGDIR
-sudo cp $CONFIGDIR/vault_upstart.conf /etc/init/vault.conf
+sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
 
-sudo service vault start
+sudo systemctl start vault.service
 
 # Nomad
-sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/nomad.hcl
+
+## Replace existing Nomad binary if remote file exists
+if [[ `wget -S --spider $NOMAD_BINARY  2>&1 | grep 'HTTP/1.1 200 OK'` ]]; then
+  curl -L $NOMAD_BINARY > nomad.zip
+  sudo unzip -o nomad.zip -d /usr/local/bin
+  sudo chmod 0755 /usr/local/bin/nomad
+  sudo chown root:root /usr/local/bin/nomad
+fi
+
 sed -i "s/SERVER_COUNT/$SERVER_COUNT/g" $CONFIGDIR/nomad.hcl
 sudo cp $CONFIGDIR/nomad.hcl $NOMADCONFIGDIR
-sudo cp $CONFIGDIR/nomad_upstart.conf /etc/init/nomad.conf
+sudo cp $CONFIGDIR/nomad.service /etc/systemd/system/nomad.service
 
-sudo service nomad start
+sudo systemctl start nomad.service
 sleep 10
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 

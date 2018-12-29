@@ -8,8 +8,11 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -57,7 +60,7 @@ type EvalBroker struct {
 	jobEvals map[structs.NamespacedID]string
 
 	// blocked tracks the blocked evaluations by JobID in a priority queue
-	blocked map[string]PendingEvaluations
+	blocked map[structs.NamespacedID]PendingEvaluations
 
 	// ready tracks the ready jobs by scheduler in a priority queue
 	ready map[string]PendingEvaluations
@@ -77,7 +80,19 @@ type EvalBroker struct {
 	// timeWait has evaluations that are waiting for time to elapse
 	timeWait map[string]*time.Timer
 
-	// initialNackDelay is the delay applied before reenqueuing a
+	// delayedEvalCancelFunc is used to stop the long running go routine
+	// that processes delayed evaluations
+	delayedEvalCancelFunc context.CancelFunc
+
+	// delayHeap is a heap used to track incoming evaluations that are
+	// not eligible to enqueue until their WaitTime
+	delayHeap *lib.DelayHeap
+
+	// delayedEvalsUpdateCh is used to trigger notifications for updates
+	// to the delayHeap
+	delayedEvalsUpdateCh chan struct{}
+
+	// initialNackDelay is the delay applied before re-enqueuing a
 	// Nacked evaluation for the first time.
 	initialNackDelay time.Duration
 
@@ -105,7 +120,7 @@ type PendingEvaluations []*structs.Evaluation
 // with the timeout used for messages that are not acknowledged before we
 // assume a Nack and attempt to redeliver as well as the deliveryLimit
 // which prevents a failing eval from being endlessly delivered. The
-// initialNackDelay is the delay before making a Nacked evalution available
+// initialNackDelay is the delay before making a Nacked evaluation available
 // again for the first Nack and subsequentNackDelay is the compounding delay
 // after the first Nack.
 func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration, deliveryLimit int) (*EvalBroker, error) {
@@ -113,22 +128,25 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		return nil, fmt.Errorf("timeout cannot be negative")
 	}
 	b := &EvalBroker{
-		nackTimeout:         timeout,
-		deliveryLimit:       deliveryLimit,
-		enabled:             false,
-		stats:               new(BrokerStats),
-		evals:               make(map[string]int),
-		jobEvals:            make(map[structs.NamespacedID]string),
-		blocked:             make(map[string]PendingEvaluations),
-		ready:               make(map[string]PendingEvaluations),
-		unack:               make(map[string]*unackEval),
-		waiting:             make(map[string]chan struct{}),
-		requeue:             make(map[string]*structs.Evaluation),
-		timeWait:            make(map[string]*time.Timer),
-		initialNackDelay:    initialNackDelay,
-		subsequentNackDelay: subsequentNackDelay,
+		nackTimeout:          timeout,
+		deliveryLimit:        deliveryLimit,
+		enabled:              false,
+		stats:                new(BrokerStats),
+		evals:                make(map[string]int),
+		jobEvals:             make(map[structs.NamespacedID]string),
+		blocked:              make(map[structs.NamespacedID]PendingEvaluations),
+		ready:                make(map[string]PendingEvaluations),
+		unack:                make(map[string]*unackEval),
+		waiting:              make(map[string]chan struct{}),
+		requeue:              make(map[string]*structs.Evaluation),
+		timeWait:             make(map[string]*time.Timer),
+		initialNackDelay:     initialNackDelay,
+		subsequentNackDelay:  subsequentNackDelay,
+		delayHeap:            lib.NewDelayHeap(),
+		delayedEvalsUpdateCh: make(chan struct{}, 1),
 	}
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
+
 	return b, nil
 }
 
@@ -143,10 +161,17 @@ func (b *EvalBroker) Enabled() bool {
 // should only be enabled on the active leader.
 func (b *EvalBroker) SetEnabled(enabled bool) {
 	b.l.Lock()
+	prevEnabled := b.enabled
 	b.enabled = enabled
+	if !prevEnabled && enabled {
+		// start the go routine for delayed evals
+		ctx, cancel := context.WithCancel(context.Background())
+		b.delayedEvalCancelFunc = cancel
+		go b.runDelayedEvalsWatcher(ctx)
+	}
 	b.l.Unlock()
 	if !enabled {
-		b.Flush()
+		b.flush()
 	}
 }
 
@@ -160,7 +185,7 @@ func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
 // EnqueueAll is used to enqueue many evaluations. The map allows evaluations
 // that are being re-enqueued to include their token.
 //
-// When requeueing an evaluation that potentially may be already
+// When requeuing an evaluation that potentially may be already
 // enqueued. The evaluation is handled in one of the following ways:
 // * Evaluation not outstanding: Process as a normal Enqueue
 // * Evaluation outstanding: Do not allow the evaluation to be dequeued til:
@@ -180,7 +205,7 @@ func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 
 // processEnqueue deduplicates evals and either enqueue immediately or enforce
 // the evals wait time. If the token is passed, and the evaluation ID is
-// outstanding, the evaluation is blocked til an Ack/Nack is received.
+// outstanding, the evaluation is blocked until an Ack/Nack is received.
 // processEnqueue must be called with the lock held.
 func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 	// Check if already enqueued
@@ -206,11 +231,22 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 		return
 	}
 
+	if !eval.WaitUntil.IsZero() {
+		b.delayHeap.Push(&evalWrapper{eval}, eval.WaitUntil)
+		b.stats.TotalWaiting += 1
+		// Signal an update.
+		select {
+		case b.delayedEvalsUpdateCh <- struct{}{}:
+		default:
+		}
+		return
+	}
+
 	b.enqueueLocked(eval, eval.Type)
 }
 
 // processWaitingEnqueue waits the given duration on the evaluation before
-// enqueueing.
+// enqueuing.
 func (b *EvalBroker) processWaitingEnqueue(eval *structs.Evaluation) {
 	timer := time.AfterFunc(eval.Wait, func() {
 		b.enqueueWaiting(eval)
@@ -236,17 +272,17 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 	}
 
 	// Check if there is an evaluation for this JobID pending
-	tuple := structs.NamespacedID{
+	namespacedID := structs.NamespacedID{
 		ID:        eval.JobID,
 		Namespace: eval.Namespace,
 	}
-	pendingEval := b.jobEvals[tuple]
+	pendingEval := b.jobEvals[namespacedID]
 	if pendingEval == "" {
-		b.jobEvals[tuple] = eval.ID
+		b.jobEvals[namespacedID] = eval.ID
 	} else if pendingEval != eval.ID {
-		blocked := b.blocked[eval.JobID]
+		blocked := b.blocked[namespacedID]
 		heap.Push(&blocked, eval)
-		b.blocked[eval.JobID] = blocked
+		b.blocked[namespacedID] = blocked
 		b.stats.TotalBlocked += 1
 		return
 	}
@@ -519,19 +555,19 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	delete(b.unack, evalID)
 	delete(b.evals, evalID)
 
-	tuple := structs.NamespacedID{
+	namespacedID := structs.NamespacedID{
 		ID:        jobID,
 		Namespace: unack.Eval.Namespace,
 	}
-	delete(b.jobEvals, tuple)
+	delete(b.jobEvals, namespacedID)
 
 	// Check if there are any blocked evaluations
-	if blocked := b.blocked[jobID]; len(blocked) != 0 {
+	if blocked := b.blocked[namespacedID]; len(blocked) != 0 {
 		raw := heap.Pop(&blocked)
 		if len(blocked) > 0 {
-			b.blocked[jobID] = blocked
+			b.blocked[namespacedID] = blocked
 		} else {
-			delete(b.blocked, jobID)
+			delete(b.blocked, namespacedID)
 		}
 		eval := raw.(*structs.Evaluation)
 		b.stats.TotalBlocked -= 1
@@ -643,7 +679,7 @@ func (b *EvalBroker) ResumeNackTimeout(evalID, token string) error {
 }
 
 // Flush is used to clear the state of the broker
-func (b *EvalBroker) Flush() {
+func (b *EvalBroker) flush() {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -663,6 +699,14 @@ func (b *EvalBroker) Flush() {
 		wait.Stop()
 	}
 
+	// Cancel the delayed evaluations goroutine
+	if b.delayedEvalCancelFunc != nil {
+		b.delayedEvalCancelFunc()
+	}
+
+	// Clear out the update channel for delayed evaluations
+	b.delayedEvalsUpdateCh = make(chan struct{}, 1)
+
 	// Reset the broker
 	b.stats.TotalReady = 0
 	b.stats.TotalUnacked = 0
@@ -671,10 +715,79 @@ func (b *EvalBroker) Flush() {
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	b.evals = make(map[string]int)
 	b.jobEvals = make(map[structs.NamespacedID]string)
-	b.blocked = make(map[string]PendingEvaluations)
+	b.blocked = make(map[structs.NamespacedID]PendingEvaluations)
 	b.ready = make(map[string]PendingEvaluations)
 	b.unack = make(map[string]*unackEval)
 	b.timeWait = make(map[string]*time.Timer)
+	b.delayHeap = lib.NewDelayHeap()
+}
+
+// evalWrapper satisfies the HeapNode interface
+type evalWrapper struct {
+	eval *structs.Evaluation
+}
+
+func (d *evalWrapper) Data() interface{} {
+	return d.eval
+}
+
+func (d *evalWrapper) ID() string {
+	return d.eval.ID
+}
+
+func (d *evalWrapper) Namespace() string {
+	return d.eval.Namespace
+}
+
+// runDelayedEvalsWatcher is a long-lived function that waits till a time deadline is met for
+// pending evaluations before enqueuing them
+func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
+	var timerChannel <-chan time.Time
+	var delayTimer *time.Timer
+	for {
+		eval, waitUntil := b.nextDelayedEval()
+		if waitUntil.IsZero() {
+			timerChannel = nil
+		} else {
+			launchDur := waitUntil.Sub(time.Now().UTC())
+			if delayTimer == nil {
+				delayTimer = time.NewTimer(launchDur)
+			} else {
+				delayTimer.Reset(launchDur)
+			}
+			timerChannel = delayTimer.C
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-timerChannel:
+			// remove from the heap since we can enqueue it now
+			b.delayHeap.Remove(&evalWrapper{eval})
+			b.l.Lock()
+			b.stats.TotalWaiting -= 1
+			b.enqueueLocked(eval, eval.Type)
+			b.l.Unlock()
+		case <-b.delayedEvalsUpdateCh:
+			continue
+		}
+	}
+}
+
+// nextDelayedEval returns the next delayed eval to launch and when it should be enqueued.
+// This peeks at the heap to return the top. If the heap is empty, this returns nil and zero time.
+func (b *EvalBroker) nextDelayedEval() (*structs.Evaluation, time.Time) {
+	// If there is nothing wait for an update.
+	if b.delayHeap.Length() == 0 {
+		return nil, time.Time{}
+	}
+	nextEval := b.delayHeap.Peek()
+
+	if nextEval == nil {
+		return nil, time.Time{}
+	}
+	eval := nextEval.Node.Data().(*structs.Evaluation)
+	return eval, nextEval.WaitUntil
 }
 
 // Stats is used to query the state of the broker
@@ -755,7 +868,7 @@ func (p PendingEvaluations) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-// Push is used to add a new evalution to the slice
+// Push is used to add a new evaluation to the slice
 func (p *PendingEvaluations) Push(e interface{}) {
 	*p = append(*p, e.(*structs.Evaluation))
 }

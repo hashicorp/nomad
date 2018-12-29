@@ -51,10 +51,12 @@ func (c *NamespaceApplyCommand) Synopsis() string {
 	return "Create or update a namespace"
 }
 
+func (c *NamespaceApplyCommand) Name() string { return "namespace apply" }
+
 func (c *NamespaceApplyCommand) Run(args []string) int {
 	var description, quota *string
 
-	flags := c.Meta.FlagSet("namespace apply", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.Var((flaghelper.FuncVar)(func(s string) error {
 		description = &s
@@ -72,7 +74,8 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 	// Check that we get exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <namespace>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
