@@ -71,11 +71,7 @@ func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv prot
 		select {
 		case <-ctx.Done():
 			return nil
-		case f, ok := <-ch:
-
-			if !ok {
-				return nil
-			}
+		case f := <-ch:
 			resp := &proto.FingerprintResponse{
 				Attributes:        dstructs.ConvertStructAttributeMap(f.Attributes),
 				Health:            healthStateToProto(f.Health),
