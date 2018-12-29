@@ -205,7 +205,7 @@ func (l *PluginLoader) dispensePlugin(
 
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig:  base.Handshake,
-		Plugins:          getPluginMap(pluginType),
+		Plugins:          l.getPluginMap(pluginType),
 		Cmd:              pluginCmd,
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Logger:           logger,
@@ -259,7 +259,7 @@ func (l *PluginLoader) dispensePlugin(
 }
 
 // getPluginMap returns a plugin map based on the type of plugin being launched.
-func getPluginMap(pluginType string) map[string]plugin.Plugin {
+func (l *PluginLoader) getPluginMap(pluginType string) map[string]plugin.Plugin {
 	pmap := map[string]plugin.Plugin{
 		base.PluginTypeBase: &base.PluginBase{},
 	}
@@ -268,7 +268,7 @@ func getPluginMap(pluginType string) map[string]plugin.Plugin {
 	case base.PluginTypeDevice:
 		pmap[base.PluginTypeDevice] = &device.PluginDevice{}
 	case base.PluginTypeDriver:
-		pmap[base.PluginTypeDriver] = &drivers.PluginDriver{}
+		pmap[base.PluginTypeDriver] = drivers.NewDriverPlugin(nil, l.logger).(*drivers.PluginDriver)
 	}
 
 	return pmap
