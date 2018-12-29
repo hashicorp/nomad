@@ -70,15 +70,11 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// If TLS is enabled, wrap the listener with a TLS listener
 	if config.TLSConfig.EnableHTTP {
-		tlsConf := &tlsutil.Config{
-			VerifyIncoming:       config.TLSConfig.VerifyHTTPSClient,
-			VerifyOutgoing:       true,
-			VerifyServerHostname: config.TLSConfig.VerifyServerHostname,
-			CAFile:               config.TLSConfig.CAFile,
-			CertFile:             config.TLSConfig.CertFile,
-			KeyFile:              config.TLSConfig.KeyFile,
-			KeyLoader:            config.TLSConfig.GetKeyLoader(),
+		tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
+		if err != nil {
+			return nil, err
 		}
+
 		tlsConfig, err := tlsConf.IncomingTLSConfig()
 		if err != nil {
 			return nil, err
@@ -143,6 +139,7 @@ func (s *HTTPServer) Shutdown() {
 // registerHandlers is used to attach our handlers to the mux
 func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
+	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
 
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))

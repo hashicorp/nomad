@@ -987,6 +987,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 		valid := []string{
 			"name",
 			"tags",
+			"canary_tags",
 			"port",
 			"check",
 			"address_mode",
@@ -1061,6 +1062,8 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"method",
 			"check_restart",
 			"address_mode",
+			"grpc_service",
+			"grpc_use_tls",
 		}
 		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
@@ -1320,6 +1323,7 @@ func parseUpdate(result **api.UpdateStrategy, list *ast.ObjectList) error {
 		"health_check",
 		"min_healthy_time",
 		"healthy_deadline",
+		"progress_deadline",
 		"auto_revert",
 		"canary",
 	}

@@ -68,7 +68,7 @@ type NodeDrainUpdateResponse struct {
 
 // UpdateDrain is used to update the drain strategy for a given node. If
 // markEligible is true and the drain is being removed, the node will be marked
-// as having its scheduling being elibile
+// as having its scheduling being eligible
 func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*NodeDrainUpdateResponse, error) {
 	req := &NodeUpdateDrainRequest{
 		NodeID:       nodeID,
@@ -193,6 +193,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 	defer close(nodeCh)
 
 	var lastStrategy *DrainStrategy
+	var strategyChanged bool
 	q := QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
@@ -209,7 +210,12 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		}
 
 		if node.DrainStrategy == nil {
-			msg := Messagef(MonitorMsgLevelInfo, "Node %q drain complete", nodeID)
+			var msg *MonitorMessage
+			if strategyChanged {
+				msg = Messagef(MonitorMsgLevelInfo, "Node %q has marked all allocations for migration", nodeID)
+			} else {
+				msg = Messagef(MonitorMsgLevelInfo, "No drain strategy set for node %s", nodeID)
+			}
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():
@@ -236,6 +242,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string, index uint6
 		}
 
 		lastStrategy = node.DrainStrategy
+		strategyChanged = true
 
 		// Drain still ongoing, update index and block for updates
 		q.WaitIndex = meta.LastIndex
@@ -553,6 +560,7 @@ type NodeListStub struct {
 	SchedulingEligibility string
 	Status                string
 	StatusDescription     string
+	Drivers               map[string]*DriverInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }

@@ -6,10 +6,9 @@
   {{/each}}
 {{/global-header}}
 {{#job-page/parts/body job=job onNamespaceChange=onNamespaceChange}}
-  <h1 class="title">
-    {{job.name}}
-    <span class="bumper-left tag {{job.statusClass}}" data-test-job-status>{{job.status}}</span>
-  </h1>
+  {{job-page/parts/error errorMessage=errorMessage onDismiss=(action "clearErrorMessage")}}
+
+  {{job-page/parts/title job=job handleError=(action "handleError")}}
 
   <div class="boxed-section job-stats">
     <div class="boxed-section-body">

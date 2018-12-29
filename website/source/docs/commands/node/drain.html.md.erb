@@ -57,6 +57,7 @@ operation is desired.
   node. Remaining allocations after the deadline are force removed from the
   node. Defaults to 1 hour.
 * `-detach`: Return immediately instead of entering monitor mode.
+* `-monitor`: Enter monitor mode directly without modifying the drain status.
 * `-force`: Force remove allocations off the node immediately.
 * `-no-deadline`: No deadline allows the allocations to drain off the node
   without being force stopped after a certain deadline.
@@ -86,7 +87,7 @@ Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda
 2018-03-30T23:13:30Z: Alloc "3fce5308-818c-369e-0bb7-f61f0a1be9ed" status running -> complete
 2018-03-30T23:13:41Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" marked for migration
 2018-03-30T23:13:41Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" draining
-2018-03-30T23:13:41Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" drain complete
+2018-03-30T23:13:41Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" has marked all allocations for migration
 2018-03-30T23:13:42Z: Alloc "9a98c5aa-a719-2f34-ecfc-0e6268b5d537" status running -> complete
 2018-03-30T23:13:42Z: All allocations on node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" have stopped.
 ```
@@ -114,6 +115,14 @@ $ nomad node drain -disable -keep-ineligible 4d2ba53b
 ...
 ```
 
+Enable drain mode and detach from monitoring, then reattach later:
+
+```
+$ nomad node drain -enable -detach -self
+...
+$ nomad node drain -self -monitor
+...
+```
 
 [eligibility]: /docs/commands/node/eligibility.html
 [migrate]: /docs/job-specification/migrate.html

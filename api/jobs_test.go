@@ -47,6 +47,43 @@ func TestJobs_Register(t *testing.T) {
 	}
 }
 
+func TestJobs_Parse(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+
+	jobs := c.Jobs()
+
+	checkJob := func(job *Job, expectedRegion string) {
+		if job == nil {
+			t.Fatal("job should not be nil")
+		}
+
+		region := job.Region
+
+		if region == nil {
+			if expectedRegion != "" {
+				t.Fatalf("expected job region to be '%s' but was unset", expectedRegion)
+			}
+		} else {
+			if expectedRegion != *region {
+				t.Fatalf("expected job region '%s', but got '%s'", expectedRegion, *region)
+			}
+		}
+	}
+	job, err := jobs.ParseHCL(mock.HCL(), true)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	checkJob(job, "global")
+
+	job, err = jobs.ParseHCL(mock.HCL(), false)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	checkJob(job, "")
+}
+
 func TestJobs_Validate(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
@@ -267,9 +304,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Services: []*Service{
 									{
-										Name:      "redis-cache",
-										Tags:      []string{"global", "cache"},
-										PortLabel: "db",
+										Name:       "redis-cache",
+										Tags:       []string{"global", "cache"},
+										CanaryTags: []string{"canary", "global", "cache"},
+										PortLabel:  "db",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",
@@ -317,13 +355,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 				JobModifyIndex:    helper.Uint64ToPtr(0),
 				Datacenters:       []string{"dc1"},
 				Update: &UpdateStrategy{
-					Stagger:         helper.TimeToPtr(30 * time.Second),
-					MaxParallel:     helper.IntToPtr(1),
-					HealthCheck:     helper.StringToPtr("checks"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(false),
-					Canary:          helper.IntToPtr(0),
+					Stagger:          helper.TimeToPtr(30 * time.Second),
+					MaxParallel:      helper.IntToPtr(1),
+					HealthCheck:      helper.StringToPtr("checks"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(false),
+					Canary:           helper.IntToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -350,13 +389,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 
 						Update: &UpdateStrategy{
-							Stagger:         helper.TimeToPtr(30 * time.Second),
-							MaxParallel:     helper.IntToPtr(1),
-							HealthCheck:     helper.StringToPtr("checks"),
-							MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(false),
-							Canary:          helper.IntToPtr(0),
+							Stagger:          helper.TimeToPtr(30 * time.Second),
+							MaxParallel:      helper.IntToPtr(1),
+							HealthCheck:      helper.StringToPtr("checks"),
+							MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(false),
+							Canary:           helper.IntToPtr(0),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -388,6 +428,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 									{
 										Name:        "redis-cache",
 										Tags:        []string{"global", "cache"},
+										CanaryTags:  []string{"canary", "global", "cache"},
 										PortLabel:   "db",
 										AddressMode: "auto",
 										Checks: []ServiceCheck{
@@ -478,13 +519,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ID:       helper.StringToPtr("bar"),
 				ParentID: helper.StringToPtr("lol"),
 				Update: &UpdateStrategy{
-					Stagger:         helper.TimeToPtr(1 * time.Second),
-					MaxParallel:     helper.IntToPtr(1),
-					HealthCheck:     helper.StringToPtr("checks"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(false),
-					Canary:          helper.IntToPtr(0),
+					Stagger:          helper.TimeToPtr(1 * time.Second),
+					MaxParallel:      helper.IntToPtr(1),
+					HealthCheck:      helper.StringToPtr("checks"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(false),
+					Canary:           helper.IntToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -532,13 +574,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ModifyIndex:       helper.Uint64ToPtr(0),
 				JobModifyIndex:    helper.Uint64ToPtr(0),
 				Update: &UpdateStrategy{
-					Stagger:         helper.TimeToPtr(1 * time.Second),
-					MaxParallel:     helper.IntToPtr(1),
-					HealthCheck:     helper.StringToPtr("checks"),
-					MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(false),
-					Canary:          helper.IntToPtr(0),
+					Stagger:          helper.TimeToPtr(1 * time.Second),
+					MaxParallel:      helper.IntToPtr(1),
+					HealthCheck:      helper.StringToPtr("checks"),
+					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+					HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(false),
+					Canary:           helper.IntToPtr(0),
 				},
 				TaskGroups: []*TaskGroup{
 					{
@@ -564,13 +607,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:         helper.TimeToPtr(2 * time.Second),
-							MaxParallel:     helper.IntToPtr(2),
-							HealthCheck:     helper.StringToPtr("manual"),
-							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(true),
-							Canary:          helper.IntToPtr(1),
+							Stagger:          helper.TimeToPtr(2 * time.Second),
+							MaxParallel:      helper.IntToPtr(2),
+							HealthCheck:      helper.StringToPtr("manual"),
+							MinHealthyTime:   helper.TimeToPtr(1 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(true),
+							Canary:           helper.IntToPtr(1),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -605,13 +649,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Unlimited:     helper.BoolToPtr(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:         helper.TimeToPtr(1 * time.Second),
-							MaxParallel:     helper.IntToPtr(1),
-							HealthCheck:     helper.StringToPtr("checks"),
-							MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(6 * time.Minute),
-							AutoRevert:      helper.BoolToPtr(false),
-							Canary:          helper.IntToPtr(0),
+							Stagger:          helper.TimeToPtr(1 * time.Second),
+							MaxParallel:      helper.IntToPtr(1),
+							HealthCheck:      helper.StringToPtr("checks"),
+							MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
+							HealthyDeadline:  helper.TimeToPtr(6 * time.Minute),
+							ProgressDeadline: helper.TimeToPtr(7 * time.Minute),
+							AutoRevert:       helper.BoolToPtr(false),
+							Canary:           helper.IntToPtr(0),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{

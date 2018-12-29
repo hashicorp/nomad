@@ -15,6 +15,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -435,7 +436,10 @@ func TestHTTP_AllocSnapshot_WithMigrateToken(t *testing.T) {
 // snapshotting a valid tar is not returned.
 func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 	t.Parallel()
-	httpTest(t, nil, func(s *TestAgent) {
+	httpTest(t, func(c *Config) {
+		// Disable the schedulers
+		c.Server.NumSchedulers = helper.IntToPtr(0)
+	}, func(s *TestAgent) {
 		// Create an alloc
 		state := s.server.State()
 		alloc := mock.Alloc()
@@ -697,7 +701,7 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 			s.server = srv
 		}
 
-		// no client, server resp
+		// client stats from server, should not error
 		{
 			c := s.client
 			s.client = nil
@@ -717,10 +721,7 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientGCRequest(respW, req)
-			require.NotNil(err)
-
-			// The dev agent uses in-mem RPC so just assert the no route error
-			require.Contains(err.Error(), structs.ErrNoNodeConn.Error())
+			require.Nil(err)
 
 			s.client = c
 		}

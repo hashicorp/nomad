@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,30 @@ import (
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
+
+// Test that we do not enable exec on non-linux machines
+func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+	if runtime.GOOS == "linux" {
+		t.Skip("Test only available not on Linux")
+	}
+
+	d := NewExecDriver(&DriverContext{})
+	node := &structs.Node{}
+
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if response.Detected {
+		t.Fatalf("Should not be detected on non-linux platforms")
+	}
+}
 
 func TestExecDriver_Fingerprint(t *testing.T) {
 	if !testutil.IsTravis() {
@@ -331,7 +356,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	handle := resp.Handle
 
 	// Exec a command that should work and dump the environment
-	out, code, err := handle.Exec(context.Background(), "/bin/sh", []string{"-c", "env | grep NOMAD"})
+	out, code, err := handle.Exec(context.Background(), "/bin/sh", []string{"-c", "env | grep ^NOMAD"})
 	if err != nil {
 		t.Fatalf("error exec'ing stat: %v", err)
 	}

@@ -116,6 +116,28 @@ export default Model.extend({
   evaluations: hasMany('evaluations'),
   namespace: belongsTo('namespace'),
 
+  drivers: computed('taskGroups.@each.drivers', function() {
+    return this.get('taskGroups')
+      .mapBy('drivers')
+      .reduce((all, drivers) => {
+        all.push(...drivers);
+        return all;
+      }, [])
+      .uniq();
+  }),
+
+  // Getting all unhealthy drivers for a job can be incredibly expensive if the job
+  // has many allocations. This can lead to making an API request for many nodes.
+  unhealthyDrivers: computed('allocations.@each.unhealthyDrivers.[]', function() {
+    return this.get('allocations')
+      .mapBy('unhealthyDrivers')
+      .reduce((all, drivers) => {
+        all.push(...drivers);
+        return all;
+      }, [])
+      .uniq();
+  }),
+
   hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
     return this.get('evaluations')
       .toArray()
@@ -160,6 +182,10 @@ export default Model.extend({
 
   forcePeriodic() {
     return this.store.adapterFor('job').forcePeriodic(this);
+  },
+
+  stop() {
+    return this.store.adapterFor('job').stop(this);
   },
 
   statusClass: computed('status', function() {

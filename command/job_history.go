@@ -54,7 +54,7 @@ func (c *JobHistoryCommand) Synopsis() string {
 	return "Display all tracked versions of a job"
 }
 
-func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
+func (c *JobHistoryCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-p":       complete.PredictNothing,

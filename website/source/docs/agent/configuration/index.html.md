@@ -97,8 +97,8 @@ testing.
   the bind address of the specific network service if it is not provided. Any
   values configured in this stanza take precedence over the default
   [bind_addr](#bind_addr).
-    
-    If the bind address is `0.0.0.0` then the address 
+
+    If the bind address is `0.0.0.0` then the address
   private IP found is advertised. You may advertise an alternate port as well.
   The values support [go-sockaddr/template format][go-sockaddr/template].
 
@@ -155,11 +155,15 @@ testing.
 
 - `leave_on_interrupt` `(bool: false)` - Specifies if the agent should
   gracefully leave when receiving the interrupt signal. By default, the agent
-  will exit forcefully on any signal.
+  will exit forcefully on any signal. This value should only be set to true on
+  server agents if it is expected that a terminated server instance will never
+  join the cluster again.
 
 - `leave_on_terminate` `(bool: false)` - Specifies if the agent should
   gracefully leave when receiving the terminate signal. By default, the agent
-  will exit forcefully on any signal.
+  will exit forcefully on any signal. This value should only be set to true on
+  server agents if it is expected that a terminated server instance will never
+  join the cluster again.
 
 - `log_level` `(string: "INFO")` - Specifies  the verbosity of logs the Nomad
   agent will output. Valid log levels include `WARN`, `INFO`, or `DEBUG` in

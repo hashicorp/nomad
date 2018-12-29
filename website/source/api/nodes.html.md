@@ -52,6 +52,62 @@ $ curl \
     "CreateIndex": 6,
     "Datacenter": "dc1",
     "Drain": false,
+    "Drivers": {
+      "java": {
+        "Attributes": {
+          "driver.java.runtime": "OpenJDK Runtime Environment (build 1.8.0_162-8u162-b12-1~deb9u1-b12)",
+          "driver.java.vm": "OpenJDK 64-Bit Server VM (build 25.162-b12, mixed mode)",
+          "driver.java.version": "openjdk version \"1.8.0_162"
+        },
+        "Detected": true,
+        "HealthDescription": "",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:33:48.781948669Z"
+      },
+      "qemu": {
+        "Attributes": null,
+        "Detected": false,
+        "HealthDescription": "",
+        "Healthy": false,
+        "UpdateTime": "2018-04-11T23:33:48.7819898Z"
+      },
+      "rkt": {
+        "Attributes": {
+          "driver.rkt.appc.version": "0.8.11",
+          "driver.rkt.volumes.enabled": "1",
+          "driver.rkt.version": "1.29.0"
+        },
+        "Detected": true,
+        "HealthDescription": "Driver rkt is detected: true",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.81079772Z"
+      },
+      "docker": {
+        "Attributes": {
+          "driver.docker.bridge_ip": "172.17.0.1",
+          "driver.docker.version": "18.03.0-ce",
+          "driver.docker.volumes.enabled": "1"
+        },
+        "Detected": true,
+        "HealthDescription": "Driver is available and responsive",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.713720323Z"
+      },
+      "exec": {
+        "Attributes": {},
+        "Detected": true,
+        "HealthDescription": "Driver exec is detected: true",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.711026521Z"
+      },
+      "raw_exec": {
+        "Attributes": {},
+        "Detected": true,
+        "HealthDescription": "",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:33:48.710448534Z"
+      }
+    },
     "ID": "f7476465-4d6e-c0de-26d0-e383c49be941",
     "ModifyIndex": 2526,
     "Name": "nomad-4",
@@ -201,7 +257,7 @@ $ curl \
     {
       "CreateIndex": 0,
       "Details": null,
-      "Message": "Node Registered",
+      "Message": "Node registered",
       "Subsystem": "Cluster",
       "Timestamp": "2018-04-10T23:43:17Z"
     }

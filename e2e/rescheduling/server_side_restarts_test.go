@@ -6,7 +6,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
-	_ "github.com/hashicorp/nomad/jobspec"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -169,11 +168,11 @@ var _ = Describe("Server Side Restart Tests", func() {
 					ConsistOf([]string{"running", "running", "running"}))
 			})
 			Context("Updating job to make allocs fail", func() {
-				It("Should have no rescheduled allocs", func() {
+				It("Should have rescheduled allocs until progress deadline", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+					Eventually(allocStatusesRescheduled, 5*time.Second, time.Second).ShouldNot(BeEmpty())
 				})
 			})
 
@@ -193,22 +192,23 @@ var _ = Describe("Server Side Restart Tests", func() {
 			})
 
 			Context("Updating job to make allocs fail", func() {
-				It("Should have no rescheduled allocs", func() {
+				It("Should have rescheduled allocs until progress deadline", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+					Eventually(allocStatusesRescheduled, 5*time.Second, time.Second).ShouldNot(BeEmpty())
 
 					// Verify new deployment and its status
+					// Deployment status should be running (because of progress deadline)
 					time.Sleep(3 * time.Second) //TODO(preetha) figure out why this wasn't working with ginkgo constructs
 					Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
-						ContainElement(structs.DeploymentStatusFailed))
+						ContainElement(structs.DeploymentStatusRunning))
 				})
 			})
 
 		})
 
-		Context("Reschedule with canary and auto revert ", func() {
+		Context("Reschedule with canary, auto revert with short progress deadline ", func() {
 			BeforeEach(func() {
 				specFile = "input/rescheduling_canary_autorevert.hcl"
 			})
@@ -229,11 +229,10 @@ var _ = Describe("Server Side Restart Tests", func() {
 				// Wait for the revert
 				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
 					ConsistOf([]string{"failed", "failed", "failed", "running", "running", "running"}))
-
 				// Verify new deployment and its status
 				// There should be one successful, one failed, and one more successful (after revert)
 				time.Sleep(5 * time.Second) //TODO(preetha) figure out why this wasn't working with ginkgo constructs
-				Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
+				Eventually(deploymentStatus(), 5*time.Second, time.Second).Should(
 					ConsistOf(structs.DeploymentStatusSuccessful, structs.DeploymentStatusFailed, structs.DeploymentStatusSuccessful))
 			})
 
@@ -253,11 +252,11 @@ var _ = Describe("Server Side Restart Tests", func() {
 			})
 
 			Context("Updating job to make allocs fail", func() {
-				It("Should have no rescheduled allocs", func() {
+				It("Should have rescheduled allocs till progress deadline", func() {
 					job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 					_, _, err := jobs.Register(job, nil)
 					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
+					Eventually(allocStatusesRescheduled, 3*time.Second, time.Second).ShouldNot(BeEmpty())
 
 					// Should have 1 failed from max_parallel
 					Eventually(allocStatuses, 3*time.Second, time.Second).Should(
@@ -266,13 +265,13 @@ var _ = Describe("Server Side Restart Tests", func() {
 					// Verify new deployment and its status
 					time.Sleep(2 * time.Second)
 					Eventually(deploymentStatus(), 2*time.Second, time.Second).Should(
-						ContainElement(structs.DeploymentStatusFailed))
+						ContainElement(structs.DeploymentStatusRunning))
 				})
 			})
 
 		})
 
-		Context("Reschedule with max parallel and auto revert true ", func() {
+		Context("Reschedule with max parallel, auto revert true and short progress deadline", func() {
 			BeforeEach(func() {
 				specFile = "input/rescheduling_maxp_autorevert.hcl"
 			})
@@ -291,7 +290,7 @@ var _ = Describe("Server Side Restart Tests", func() {
 				Eventually(allocStatusesRescheduled, 2*time.Second, time.Second).Should(BeEmpty())
 
 				// Wait for the revert
-				Eventually(allocStatuses, 3*time.Second, time.Second).Should(
+				Eventually(allocStatuses, 5*time.Second, time.Second).Should(
 					ConsistOf([]string{"complete", "failed", "running", "running", "running"}))
 
 				// Verify new deployment and its status

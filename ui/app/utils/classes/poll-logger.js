@@ -30,11 +30,15 @@ export default EmberObject.extend(AbstractLogger, {
 
       if (text) {
         const lines = text.replace(/\}\{/g, '}\n{').split('\n');
-        const frames = lines.map(line => JSON.parse(line));
-        frames.forEach(frame => (frame.Data = window.atob(frame.Data)));
+        const frames = lines
+          .map(line => JSON.parse(line))
+          .filter(frame => frame.Data != null && frame.Offset != null);
 
-        this.set('endOffset', frames[frames.length - 1].Offset);
-        this.get('write')(frames.mapBy('Data').join(''));
+        if (frames.length) {
+          frames.forEach(frame => (frame.Data = window.atob(frame.Data)));
+          this.set('endOffset', frames[frames.length - 1].Offset);
+          this.get('write')(frames.mapBy('Data').join(''));
+        }
       }
 
       yield timeout(interval);

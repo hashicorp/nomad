@@ -102,7 +102,12 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 			}
 		}
 
-		index, err := n.raft.NodesDrainComplete([]string{node.ID})
+		// Create the node event
+		event := structs.NewNodeEvent().
+			SetSubsystem(structs.NodeEventSubsystemDrain).
+			SetMessage(NodeDrainEventComplete)
+
+		index, err := n.raft.NodesDrainComplete([]string{node.ID}, event)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for node %q: %v", node.ID, err)
 		} else {

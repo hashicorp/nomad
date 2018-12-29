@@ -1,0 +1,14 @@
+.two-step-button {
+  display: inline;
+  position: relative;
+
+  .confirmation-text {
+    position: absolute;
+    left: 0;
+    top: -1.2em;
+    font-size: $body-size;
+    font-weight: $weight-normal;
+    color: darken($grey-blue, 20%);
+    white-space: nowrap;
+  }
+}

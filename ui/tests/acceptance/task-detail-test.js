@@ -2,7 +2,6 @@ import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helper
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
-import ipParts from 'nomad-ui/utils/ip-parts';
 
 let allocation;
 let task;
@@ -120,10 +119,10 @@ test('the addresses table lists all reserved and dynamic ports', function(assert
 });
 
 test('each address row shows the label and value of the address', function(assert) {
-  const node = server.db.nodes.find(allocation.nodeId);
   const taskResources = allocation.taskResourcesIds
     .map(id => server.db.taskResources.find(id))
     .findBy('name', task.name);
+  const networkAddress = taskResources.resources.Networks[0].IP;
   const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
   const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
   const address = reservedPorts.concat(dynamicPorts).sortBy('Label')[0];
@@ -141,7 +140,7 @@ test('each address row shows the label and value of the address', function(asser
   );
   assert.equal(
     addressRow.querySelector('[data-test-task-address-address]').textContent.trim(),
-    `${ipParts(node.httpAddr).address}:${address.Value}`,
+    `${networkAddress}:${address.Value}`,
     'Value'
   );
 });

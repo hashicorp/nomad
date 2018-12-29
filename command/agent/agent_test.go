@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1055,5 +1057,129 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 		require.False(shouldReloadAgent)
 		require.False(shouldReloadHTTP)
 		require.False(shouldReloadRPC)
+	}
+}
+
+func TestServer_ShouldReload_ReturnTrueForVaultConfigChanges(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	agent := &Agent{
+		logger: log.New(ioutil.Discard, "", 0),
+		config: DevConfig(),
+	}
+
+	vaultConfig := &sconfig.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Addr:    "http://127.0.0.1:8200",
+		Role:    "nomad-cluster",
+		Token:   "4f7cece4-5035-f5e6-ba8f-18314a7a0333",
+	}
+	agent.config.Vault = vaultConfig
+
+	newConfig := DevConfig()
+	newVaultConfig := &sconfig.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Addr:    "http://127.0.0.1:8200",
+		Role:    "nomad-cluster",
+		Token:   "7c17ef0b-83df-b6f0-5401-d419",
+	}
+	newConfig.Vault = newVaultConfig
+
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(newConfig)
+	require.True(shouldReloadAgent)
+	require.False(shouldReloadHTTP)
+	require.True(shouldReloadRPC)
+}
+
+func TestServer_ShouldReload_ForVaultConfigUpgradeOrDowngrade(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Test downgrading a vault configuration
+	{
+		agent := &Agent{
+			logger: log.New(ioutil.Discard, "", 0),
+			config: DevConfig(),
+		}
+
+		vaultConfig := &sconfig.VaultConfig{
+			Enabled: helper.BoolToPtr(true),
+			Addr:    "http://127.0.0.1:8200",
+			Role:    "nomad-cluster",
+			Token:   "4f7cece4-5035-f5e6-ba8f-18314a7a0333",
+		}
+		agent.config.Vault = vaultConfig
+
+		newConfig := DevConfig()
+		newConfig.Vault = nil
+
+		shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(newConfig)
+		require.True(shouldReloadAgent)
+		require.False(shouldReloadHTTP)
+		require.True(shouldReloadRPC)
+	}
+
+	// Test upgrading a vault configuration
+	{
+		agent := &Agent{
+			logger: log.New(ioutil.Discard, "", 0),
+			config: DevConfig(),
+		}
+		agent.config.Vault = nil
+
+		vaultConfig := &sconfig.VaultConfig{
+			Enabled: helper.BoolToPtr(true),
+			Addr:    "http://127.0.0.1:8200",
+			Role:    "nomad-cluster",
+			Token:   "4f7cece4-5035-f5e6-ba8f-18314a7a0333",
+		}
+
+		newConfig := DevConfig()
+		newConfig.Vault = vaultConfig
+
+		shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(newConfig)
+		require.True(shouldReloadAgent)
+		require.False(shouldReloadHTTP)
+		require.True(shouldReloadRPC)
+	}
+
+	// Test neither upgrade nor downgrade returns false
+	{
+		agent := &Agent{
+			logger: log.New(ioutil.Discard, "", 0),
+			config: DevConfig(),
+		}
+		agent.config.Vault = nil
+
+		newConfig := DevConfig()
+		newConfig.Vault = nil
+
+		shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(newConfig)
+		require.False(shouldReloadAgent)
+		require.False(shouldReloadHTTP)
+		require.False(shouldReloadRPC)
+	}
+
+}
+
+func TestAgent_ProxyRPC_Dev(t *testing.T) {
+	t.Parallel()
+	agent := NewTestAgent(t, t.Name(), nil)
+	defer agent.Shutdown()
+
+	id := agent.client.NodeID()
+	req := &structs.NodeSpecificRequest{
+		NodeID: id,
+		QueryOptions: structs.QueryOptions{
+			Region: agent.server.Region(),
+		},
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	var resp cstructs.ClientStatsResponse
+	if err := agent.RPC("ClientStats.Stats", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
 	}
 }

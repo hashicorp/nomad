@@ -249,6 +249,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 
 func TestFSM_UpdateNodeStatus(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -257,43 +258,39 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 		Node: node,
 	}
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
 	fsm.blockedEvals.Block(eval)
 
+	event := &structs.NodeEvent{
+		Message:   "Node ready foo",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
+	}
 	req2 := structs.NodeUpdateStatusRequest{
-		NodeID: node.ID,
-		Status: structs.NodeStatusReady,
+		NodeID:    node.ID,
+		Status:    structs.NodeStatusReady,
+		NodeEvent: event,
 	}
 	buf, err = structs.Encode(structs.NodeUpdateStatusRequestType, req2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	resp = fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	// Verify the status is ready.
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if node.Status != structs.NodeStatusReady {
-		t.Fatalf("bad node: %#v", node)
-	}
+	require.NoError(err)
+	require.Equal(structs.NodeStatusReady, node.Status)
+	require.Len(node.Events, 2)
+	require.Equal(event.Message, node.Events[1].Message)
 
 	// Verify the eval was unblocked.
 	testutil.WaitForResult(func() (bool, error) {
@@ -327,11 +324,19 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 			Deadline: 10 * time.Second,
 		},
 	}
+	event := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
 	req2 := structs.BatchNodeUpdateDrainRequest{
 		Updates: map[string]*structs.DrainUpdate{
 			node.ID: {
 				DrainStrategy: strategy,
 			},
+		},
+		NodeEvents: map[string]*structs.NodeEvent{
+			node.ID: event,
 		},
 	}
 	buf, err = structs.Encode(structs.BatchNodeUpdateDrainRequestType, req2)
@@ -346,6 +351,7 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	require.Nil(err)
 	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
+	require.Len(node.Events, 2)
 }
 
 func TestFSM_UpdateNodeDrain(t *testing.T) {
@@ -371,6 +377,11 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	req2 := structs.NodeUpdateDrainRequest{
 		NodeID:        node.ID,
 		DrainStrategy: strategy,
+		NodeEvent: &structs.NodeEvent{
+			Message:   "Drain strategy enabled",
+			Subsystem: structs.NodeEventSubsystemDrain,
+			Timestamp: time.Now(),
+		},
 	}
 	buf, err = structs.Encode(structs.NodeUpdateDrainRequestType, req2)
 	require.Nil(err)
@@ -384,6 +395,7 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	require.Nil(err)
 	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
+	require.Len(node.Events, 2)
 }
 
 func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
@@ -436,10 +448,17 @@ func TestFSM_UpdateNodeEligibility(t *testing.T) {
 	resp := fsm.Apply(makeLog(buf))
 	require.Nil(resp)
 
+	event := &structs.NodeEvent{
+		Message:   "Node marked as ineligible",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
+	}
+
 	// Set the eligibility
 	req2 := structs.NodeUpdateEligibilityRequest{
 		NodeID:      node.ID,
 		Eligibility: structs.NodeSchedulingIneligible,
+		NodeEvent:   event,
 	}
 	buf, err = structs.Encode(structs.NodeUpdateEligibilityRequestType, req2)
 	require.Nil(err)
@@ -451,6 +470,8 @@ func TestFSM_UpdateNodeEligibility(t *testing.T) {
 	node, err = fsm.State().NodeByID(nil, req.Node.ID)
 	require.Nil(err)
 	require.Equal(node.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	require.Len(node.Events, 2)
+	require.Equal(event.Message, node.Events[1].Message)
 
 	// Update the drain
 	strategy := &structs.DrainStrategy{
@@ -2549,6 +2570,12 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	state := fsm.State()
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
+
+	j := mock.Job()
+	d1.JobID = j.ID
+	d2.JobID = j.ID
+
+	state.UpsertJob(999, j)
 	state.UpsertDeployment(1000, d1)
 	state.UpsertDeployment(1001, d2)
 
@@ -2717,6 +2744,24 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	if !reflect.DeepEqual(&expected, out2) {
 		t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
 	}
+}
+
+func TestFSM_LeakedDeployments(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	d := mock.Deployment()
+	require.NoError(state.UpsertDeployment(1000, d))
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out, _ := state2.DeploymentByID(nil, d.ID)
+	require.NotNil(out)
+	require.Equal(structs.DeploymentStatusCancelled, out.Status)
 }
 
 func TestFSM_Autopilot(t *testing.T) {

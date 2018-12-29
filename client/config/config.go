@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
@@ -357,18 +356,4 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 		}
 	}
 	return list
-}
-
-// TLSConfiguration returns a TLSUtil Config based on the existing client
-// configuration
-func (c *Config) TLSConfiguration() *tlsutil.Config {
-	return &tlsutil.Config{
-		VerifyIncoming:       true,
-		VerifyOutgoing:       true,
-		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
-		CAFile:               c.TLSConfig.CAFile,
-		CertFile:             c.TLSConfig.CertFile,
-		KeyFile:              c.TLSConfig.KeyFile,
-		KeyLoader:            c.TLSConfig.GetKeyLoader(),
-	}
 }

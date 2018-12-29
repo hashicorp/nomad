@@ -30,7 +30,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	syslog "github.com/RackSec/srslog"
-	
+
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
@@ -40,6 +40,11 @@ const (
 	// tree for finding out the pids that the executor and it's child processes
 	// have forked
 	pidScanInterval = 5 * time.Second
+
+	// processOutputCloseTolerance is the length of time we will wait for the
+	// launched process to close its stdout/stderr before we force close it. If
+	// data is written after this tolerance, we will not capture it.
+	processOutputCloseTolerance = 2 * time.Second
 )
 
 var (
@@ -113,6 +118,11 @@ type ExecCommand struct {
 	// ResourceLimits determines whether resource limits are enforced by the
 	// executor.
 	ResourceLimits bool
+
+	// Cgroup marks whether we put the process in a cgroup. Setting this field
+	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
+	// Using the cgroup does allow more precise cleanup of processes.
+	BasicProcessCgroup bool
 }
 
 // ProcessState holds information about the state of a user process.
@@ -162,8 +172,8 @@ type UniversalExecutor struct {
 	processExited       chan interface{}
 	fsIsolationEnforced bool
 
-	lre         *logging.FileRotator
-	lro         *logging.FileRotator
+	lre         *logRotatorWrapper
+	lro         *logRotatorWrapper
 	rotatorLock sync.Mutex
 
 	syslogServer *logging.SyslogServer
@@ -252,8 +262,8 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	if err := e.configureLoggers(); err != nil {
 		return nil, err
 	}
-	e.cmd.Stdout = e.lro
-	e.cmd.Stderr = e.lre
+	e.cmd.Stdout = e.lro.processOutWriter
+	e.cmd.Stderr = e.lre.processOutWriter
 
 	// Look up the binary path and make it executable
 	absPath, err := e.lookupBin(e.ctx.TaskEnv.ReplaceEnv(command.Cmd))
@@ -285,6 +295,11 @@ func (e *UniversalExecutor) LaunchCmd(command *ExecCommand) (*ProcessState, erro
 	if err := e.cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.cmd.Args, err)
 	}
+
+	// Close the files. This is copied from the os/exec package.
+	e.lro.processOutWriter.Close()
+	e.lre.processOutWriter.Close()
+
 	go e.collectPids()
 	go e.wait()
 	ic := e.resConCtx.getIsolationConfig()
@@ -348,7 +363,12 @@ func (e *UniversalExecutor) configureLoggers() error {
 		if err != nil {
 			return fmt.Errorf("error creating new stdout log file for %q: %v", e.ctx.Task.Name, err)
 		}
-		e.lro = lro
+
+		r, err := NewLogRotatorWrapper(lro)
+		if err != nil {
+			return err
+		}
+		e.lro = r
 	}
 
 	if e.lre == nil {
@@ -357,7 +377,12 @@ func (e *UniversalExecutor) configureLoggers() error {
 		if err != nil {
 			return fmt.Errorf("error creating new stderr log file for %q: %v", e.ctx.Task.Name, err)
 		}
-		e.lre = lre
+
+		r, err := NewLogRotatorWrapper(lre)
+		if err != nil {
+			return err
+		}
+		e.lre = r
 	}
 	return nil
 }
@@ -375,14 +400,14 @@ func (e *UniversalExecutor) UpdateLogConfig(logConfig *structs.LogConfig) error 
 	if e.lro == nil {
 		return fmt.Errorf("log rotator for stdout doesn't exist")
 	}
-	e.lro.MaxFiles = logConfig.MaxFiles
-	e.lro.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+	e.lro.rotatorWriter.MaxFiles = logConfig.MaxFiles
+	e.lro.rotatorWriter.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
 
 	if e.lre == nil {
 		return fmt.Errorf("log rotator for stderr doesn't exist")
 	}
-	e.lre.MaxFiles = logConfig.MaxFiles
-	e.lre.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
+	e.lre.rotatorWriter.MaxFiles = logConfig.MaxFiles
+	e.lre.rotatorWriter.FileSize = int64(logConfig.MaxFileSizeMB * 1024 * 1024)
 	return nil
 }
 
@@ -393,10 +418,10 @@ func (e *UniversalExecutor) UpdateTask(task *structs.Task) error {
 	e.rotatorLock.Lock()
 	if e.lro != nil && e.lre != nil {
 		fileSize := int64(task.LogConfig.MaxFileSizeMB * 1024 * 1024)
-		e.lro.MaxFiles = task.LogConfig.MaxFiles
-		e.lro.FileSize = fileSize
-		e.lre.MaxFiles = task.LogConfig.MaxFiles
-		e.lre.FileSize = fileSize
+		e.lro.rotatorWriter.MaxFiles = task.LogConfig.MaxFiles
+		e.lro.rotatorWriter.FileSize = fileSize
+		e.lre.rotatorWriter.MaxFiles = task.LogConfig.MaxFiles
+		e.lre.rotatorWriter.FileSize = fileSize
 	}
 	e.rotatorLock.Unlock()
 	return nil
@@ -477,7 +502,7 @@ func (e *UniversalExecutor) Exit() error {
 	}
 
 	// Prefer killing the process via the resource container.
-	if e.cmd.Process != nil && !e.command.ResourceLimits {
+	if e.cmd.Process != nil && !(e.command.ResourceLimits || e.command.BasicProcessCgroup) {
 		proc, err := os.FindProcess(e.cmd.Process.Pid)
 		if err != nil {
 			e.logger.Printf("[ERR] executor: can't find process with pid: %v, err: %v",
@@ -488,7 +513,7 @@ func (e *UniversalExecutor) Exit() error {
 		}
 	}
 
-	if e.command.ResourceLimits {
+	if e.command.ResourceLimits || e.command.BasicProcessCgroup {
 		if err := e.resConCtx.executorCleanup(); err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
@@ -799,7 +824,7 @@ func (e *UniversalExecutor) LaunchSyslogServer() (*SyslogServerState, error) {
 
 	e.syslogServer = logging.NewSyslogServer(l, e.syslogChan, e.logger)
 	go e.syslogServer.Start()
-	go e.collectLogs(e.lre, e.lro)
+	go e.collectLogs(e.lre.rotatorWriter, e.lro.rotatorWriter)
 	syslogAddr := fmt.Sprintf("%s://%s", l.Addr().Network(), l.Addr().String())
 	return &SyslogServerState{Addr: syslogAddr}, nil
 }
@@ -809,11 +834,63 @@ func (e *UniversalExecutor) collectLogs(we io.Writer, wo io.Writer) {
 		// If the severity of the log line is err then we write to stderr
 		// otherwise all messages go to stdout
 		if logParts.Severity == syslog.LOG_ERR {
-			e.lre.Write(logParts.Message)
-			e.lre.Write([]byte{'\n'})
+			we.Write(logParts.Message)
+			we.Write([]byte{'\n'})
 		} else {
-			e.lro.Write(logParts.Message)
-			e.lro.Write([]byte{'\n'})
+			wo.Write(logParts.Message)
+			wo.Write([]byte{'\n'})
 		}
 	}
+}
+
+// logRotatorWrapper wraps our log rotator and exposes a pipe that can feed the
+// log rotator data. The processOutWriter should be attached to the process and
+// data will be copied from the reader to the rotator.
+type logRotatorWrapper struct {
+	processOutWriter  *os.File
+	processOutReader  *os.File
+	rotatorWriter     *logging.FileRotator
+	hasFinishedCopied chan struct{}
+}
+
+// NewLogRotatorWrapper takes a rotator and returns a wrapper that has the
+// processOutWriter to attach to the processes stdout or stderr.
+func NewLogRotatorWrapper(rotator *logging.FileRotator) (*logRotatorWrapper, error) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create os.Pipe for extracting logs: %v", err)
+	}
+
+	wrap := &logRotatorWrapper{
+		processOutWriter:  w,
+		processOutReader:  r,
+		rotatorWriter:     rotator,
+		hasFinishedCopied: make(chan struct{}, 1),
+	}
+	wrap.start()
+	return wrap, nil
+}
+
+// start starts a go-routine that copies from the pipe into the rotator. This is
+// called by the constructor and not the user of the wrapper.
+func (l *logRotatorWrapper) start() {
+	go func() {
+		io.Copy(l.rotatorWriter, l.processOutReader)
+		l.processOutReader.Close() // in case io.Copy stopped due to write error
+		close(l.hasFinishedCopied)
+	}()
+	return
+}
+
+// Close closes the rotator and the process writer to ensure that the Wait
+// command exits.
+func (l *logRotatorWrapper) Close() error {
+	// Wait up to the close tolerance before we force close
+	select {
+	case <-l.hasFinishedCopied:
+	case <-time.After(processOutputCloseTolerance):
+	}
+	err := l.processOutReader.Close()
+	l.rotatorWriter.Close()
+	return err
 }

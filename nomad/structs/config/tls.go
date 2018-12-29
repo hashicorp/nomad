@@ -55,6 +55,20 @@ type TLSConfig struct {
 	// Checksum is a MD5 hash of the certificate CA File, Certificate file, and
 	// key file.
 	Checksum string
+
+	// TLSCipherSuites are operator-defined ciphers to be used in Nomad TLS
+	// connections
+	TLSCipherSuites string `mapstructure:"tls_cipher_suites"`
+
+	// TLSMinVersion is used to set the minimum TLS version used for TLS
+	// connections. Should be either "tls10", "tls11", or "tls12".
+	TLSMinVersion string `mapstructure:"tls_min_version"`
+
+	// TLSPreferServerCipherSuites controls whether the server selects the
+	// client's most preferred ciphersuite, or the server's most preferred
+	// ciphersuite. If true then the server's preference, as expressed in
+	// the order of elements in CipherSuites, is used.
+	TLSPreferServerCipherSuites bool `mapstructure:"tls_prefer_server_cipher_suites"`
 }
 
 type KeyLoader struct {
@@ -147,6 +161,11 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	new.RPCUpgradeMode = t.RPCUpgradeMode
 	new.VerifyHTTPSClient = t.VerifyHTTPSClient
 
+	new.TLSCipherSuites = t.TLSCipherSuites
+	new.TLSMinVersion = t.TLSMinVersion
+
+	new.TLSPreferServerCipherSuites = t.TLSPreferServerCipherSuites
+
 	new.SetChecksum()
 
 	return new
@@ -193,6 +212,15 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 	}
 	if b.RPCUpgradeMode {
 		result.RPCUpgradeMode = true
+	}
+	if b.TLSCipherSuites != "" {
+		result.TLSCipherSuites = b.TLSCipherSuites
+	}
+	if b.TLSMinVersion != "" {
+		result.TLSMinVersion = b.TLSMinVersion
+	}
+	if b.TLSPreferServerCipherSuites {
+		result.TLSPreferServerCipherSuites = true
 	}
 	return result
 }

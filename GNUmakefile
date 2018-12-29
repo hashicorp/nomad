@@ -243,8 +243,7 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 .PHONY: test-nomad
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
-	@NOMAD_TEST_RKT=1 \
-		go test $(if $(VERBOSE),-v) \
+	@go test $(if $(VERBOSE),-v) \
 			-cover \
 			-timeout=900s \
 			-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
@@ -262,6 +261,9 @@ clean: ## Remove build artifacts
 
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
+	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
+		make generate; \
+	fi
 	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
 
 .PHONY: testcluster

@@ -12,8 +12,12 @@ export default Factory.extend({
     return faker.random.number(Math.floor(this.desiredTotal / 2));
   },
 
+  // PlacedCanaries is an array of allocation IDs. Since the IDs aren't currently
+  // used for associating allocations, any random value will do for now.
   placedCanaries() {
-    return faker.random.number(this.desiredCanaries);
+    return Array(faker.random.number(this.desiredCanaries))
+      .fill(null)
+      .map(() => faker.random.uuid());
   },
 
   placedAllocs() {

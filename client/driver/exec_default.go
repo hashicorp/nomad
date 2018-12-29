@@ -9,6 +9,6 @@ import (
 
 func (d *ExecDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	d.fingerprintSuccess = helper.BoolToPtr(false)
-	resp.Detected = true
+	resp.Detected = false
 	return nil
 }

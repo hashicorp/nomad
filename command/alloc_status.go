@@ -246,34 +246,22 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 
 	if alloc.DeploymentID != "" {
 		health := "unset"
-		if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Healthy != nil {
-			if *alloc.DeploymentStatus.Healthy {
-				health = "healthy"
-			} else {
-				health = "unhealthy"
+		canary := false
+		if alloc.DeploymentStatus != nil {
+			if alloc.DeploymentStatus.Healthy != nil {
+				if *alloc.DeploymentStatus.Healthy {
+					health = "healthy"
+				} else {
+					health = "unhealthy"
+				}
 			}
+
+			canary = alloc.DeploymentStatus.Canary
 		}
 
 		basic = append(basic,
 			fmt.Sprintf("Deployment ID|%s", limit(alloc.DeploymentID, uuidLength)),
 			fmt.Sprintf("Deployment Health|%s", health))
-
-		// Check if this allocation is a canary
-		deployment, _, err := client.Deployments().Info(alloc.DeploymentID, nil)
-		if err != nil {
-			return "", fmt.Errorf("Error querying deployment %q: %s", alloc.DeploymentID, err)
-		}
-
-		canary := false
-		if state, ok := deployment.TaskGroups[alloc.TaskGroup]; ok {
-			for _, id := range state.PlacedCanaries {
-				if id == alloc.ID {
-					canary = true
-					break
-				}
-			}
-		}
-
 		if canary {
 			basic = append(basic, fmt.Sprintf("Canary|%v", true))
 		}

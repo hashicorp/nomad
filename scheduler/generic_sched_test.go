@@ -1814,6 +1814,11 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	if len(planned) != desiredUpdates {
 		t.Fatalf("bad: %#v", plan)
 	}
+	for _, canary := range planned {
+		if canary.DeploymentStatus == nil || !canary.DeploymentStatus.Canary {
+			t.Fatalf("expected canary field to be set on canary alloc %q", canary.ID)
+		}
+	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
@@ -3108,67 +3113,92 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 
 }
 
-// Tests that deployments with failed allocs don't result in placements
-func TestDeployment_FailedAllocs_NoReschedule(t *testing.T) {
-	h := NewHarness(t)
-	require := require.New(t)
-	// Create some nodes
-	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
-		node := mock.Node()
-		nodes = append(nodes, node)
-		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+// Tests that deployments with failed allocs result in placements as long as the
+// deployment is running.
+func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
+	for _, failedDeployment := range []bool{false, true} {
+		t.Run(fmt.Sprintf("Failed Deployment: %v", failedDeployment), func(t *testing.T) {
+			h := NewHarness(t)
+			require := require.New(t)
+			// Create some nodes
+			var nodes []*structs.Node
+			for i := 0; i < 10; i++ {
+				node := mock.Node()
+				nodes = append(nodes, node)
+				noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+			}
+
+			// Generate a fake job with allocations and a reschedule policy.
+			job := mock.Job()
+			job.TaskGroups[0].Count = 2
+			job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+				Attempts: 1,
+				Interval: 15 * time.Minute,
+			}
+			jobIndex := h.NextIndex()
+			require.Nil(h.State.UpsertJob(jobIndex, job))
+
+			deployment := mock.Deployment()
+			deployment.JobID = job.ID
+			deployment.JobCreateIndex = jobIndex
+			deployment.JobVersion = job.Version
+			if failedDeployment {
+				deployment.Status = structs.DeploymentStatusFailed
+			}
+
+			require.Nil(h.State.UpsertDeployment(h.NextIndex(), deployment))
+
+			var allocs []*structs.Allocation
+			for i := 0; i < 2; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = job
+				alloc.JobID = job.ID
+				alloc.NodeID = nodes[i].ID
+				alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+				alloc.DeploymentID = deployment.ID
+				allocs = append(allocs, alloc)
+			}
+			// Mark one of the allocations as failed in the past
+			allocs[1].ClientStatus = structs.AllocClientStatusFailed
+			allocs[1].TaskStates = map[string]*structs.TaskState{"web": {State: "start",
+				StartedAt:  time.Now().Add(-12 * time.Hour),
+				FinishedAt: time.Now().Add(-10 * time.Hour)}}
+			allocs[1].DesiredTransition.Reschedule = helper.BoolToPtr(true)
+
+			require.Nil(h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+			// Create a mock evaluation
+			eval := &structs.Evaluation{
+				Namespace:   structs.DefaultNamespace,
+				ID:          uuid.Generate(),
+				Priority:    50,
+				TriggeredBy: structs.EvalTriggerNodeUpdate,
+				JobID:       job.ID,
+				Status:      structs.EvalStatusPending,
+			}
+			require.Nil(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+			// Process the evaluation
+			require.Nil(h.Process(NewServiceScheduler, eval))
+
+			if failedDeployment {
+				// Verify no plan created
+				require.Len(h.Plans, 0)
+			} else {
+				require.Len(h.Plans, 1)
+				plan := h.Plans[0]
+
+				// Ensure the plan allocated
+				var planned []*structs.Allocation
+				for _, allocList := range plan.NodeAllocation {
+					planned = append(planned, allocList...)
+				}
+				if len(planned) != 1 {
+					t.Fatalf("bad: %#v", plan)
+				}
+			}
+		})
 	}
-
-	// Generate a fake job with allocations and a reschedule policy.
-	job := mock.Job()
-	job.TaskGroups[0].Count = 2
-	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
-		Attempts: 1,
-		Interval: 15 * time.Minute,
-	}
-	jobIndex := h.NextIndex()
-	require.Nil(h.State.UpsertJob(jobIndex, job))
-
-	deployment := mock.Deployment()
-	deployment.JobID = job.ID
-	deployment.JobCreateIndex = jobIndex
-	deployment.JobVersion = job.Version
-
-	require.Nil(h.State.UpsertDeployment(h.NextIndex(), deployment))
-
-	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.NodeID = nodes[i].ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DeploymentID = deployment.ID
-		allocs = append(allocs, alloc)
-	}
-	// Mark one of the allocations as failed
-	allocs[1].ClientStatus = structs.AllocClientStatusFailed
-
-	require.Nil(h.State.UpsertAllocs(h.NextIndex(), allocs))
-
-	// Create a mock evaluation
-	eval := &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    50,
-		TriggeredBy: structs.EvalTriggerNodeUpdate,
-		JobID:       job.ID,
-		Status:      structs.EvalStatusPending,
-	}
-	require.Nil(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
-
-	// Process the evaluation
-	require.Nil(h.Process(NewServiceScheduler, eval))
-
-	// Verify no plan created
-	require.Equal(0, len(h.Plans))
-
 }
 
 func TestBatchSched_Run_CompleteAlloc(t *testing.T) {

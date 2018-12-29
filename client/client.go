@@ -197,11 +197,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
-		tw, err := cfg.TLSConfiguration().OutgoingTLSWrapper()
+		tw, err := tlsutil.NewTLSConfiguration(cfg.TLSConfig, true, true)
 		if err != nil {
 			return nil, err
 		}
-		tlsWrap = tw
+		tlsWrap, err = tw.OutgoingTLSWrapper()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Create the client
@@ -280,7 +283,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
-		if err := c.setServersImpl(c.configCopy.Servers, true); err != nil {
+		if _, err := c.setServersImpl(c.configCopy.Servers, true); err != nil {
 			logger.Printf("[WARN] client: None of the configured servers are valid: %v", err)
 		}
 	}
@@ -399,11 +402,16 @@ func (c *Client) init() error {
 func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
-		tw, err := tlsutil.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
+		tw, err := tlsutil.NewTLSConfiguration(newConfig, true, true)
 		if err != nil {
 			return err
 		}
-		tlsWrap = tw
+
+		twWrap, err := tw.OutgoingTLSWrapper()
+		if err != nil {
+			return err
+		}
+		tlsWrap = twWrap
 	}
 
 	// Store the new tls wrapper.
@@ -615,7 +623,7 @@ func (c *Client) GetServers() []string {
 
 // SetServers sets a new list of nomad servers to connect to. As long as one
 // server is resolvable no error is returned.
-func (c *Client) SetServers(in []string) error {
+func (c *Client) SetServers(in []string) (int, error) {
 	return c.setServersImpl(in, false)
 }
 
@@ -625,7 +633,7 @@ func (c *Client) SetServers(in []string) error {
 //
 // Force should be used when setting the servers from the initial configuration
 // since the server may be starting up in parallel and initial pings may fail.
-func (c *Client) setServersImpl(in []string, force bool) error {
+func (c *Client) setServersImpl(in []string, force bool) (int, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	var merr multierror.Error
@@ -665,13 +673,13 @@ func (c *Client) setServersImpl(in []string, force bool) error {
 	// Only return errors if no servers are valid
 	if len(endpoints) == 0 {
 		if len(merr.Errors) > 0 {
-			return merr.ErrorOrNil()
+			return 0, merr.ErrorOrNil()
 		}
-		return noServersErr
+		return 0, noServersErr
 	}
 
 	c.servers.SetServers(endpoints)
-	return nil
+	return len(endpoints), nil
 }
 
 // restoreState is used to restore our state from the data dir

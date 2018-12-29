@@ -3,6 +3,7 @@ package nomad
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/hashicorp/serf/serf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1111,4 +1113,89 @@ func TestLeader_RevokeLeadership_MultipleTimes(t *testing.T) {
 	require.Nil(t, s1.revokeLeadership())
 	require.Nil(t, s1.revokeLeadership())
 	require.Nil(t, s1.revokeLeadership())
+}
+
+// Test doing an inplace upgrade on a server from raft protocol 2 to 3
+// This verifies that removing the server and adding it back with a uuid works
+// even if the server's address stays the same.
+func TestServer_ReconcileMember(t *testing.T) {
+	// Create a three node cluster
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s2.Shutdown()
+
+	s3 := TestServer(t, func(c *Config) {
+		c.DevDisableBootstrap = true
+		c.RaftConfig.ProtocolVersion = 2
+	})
+	defer s3.Shutdown()
+	TestJoin(t, s1, s2, s3)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a memberlist object for s3, with raft protocol upgraded to 3
+	upgradedS3Member := serf.Member{
+		Name:   s3.config.NodeName,
+		Addr:   s3.config.RPCAddr.IP,
+		Status: serf.StatusAlive,
+		Tags:   make(map[string]string),
+	}
+	upgradedS3Member.Tags["role"] = "nomad"
+	upgradedS3Member.Tags["id"] = s3.config.NodeID
+	upgradedS3Member.Tags["region"] = s3.config.Region
+	upgradedS3Member.Tags["dc"] = s3.config.Datacenter
+	upgradedS3Member.Tags["rpc_addr"] = "127.0.0.1"
+	upgradedS3Member.Tags["port"] = strconv.Itoa(s3.config.RPCAddr.Port)
+	upgradedS3Member.Tags["build"] = "0.8.0"
+	upgradedS3Member.Tags["vsn"] = "2"
+	upgradedS3Member.Tags["mvn"] = "1"
+	upgradedS3Member.Tags["raft_vsn"] = "3"
+
+	// Find the leader so that we can call reconcile member on it
+	var leader *Server
+	for _, s := range []*Server{s1, s2, s3} {
+		if s.IsLeader() {
+			leader = s
+		}
+	}
+	leader.reconcileMember(upgradedS3Member)
+	// This should remove s3 from the config and potentially cause a leader election
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Figure out the new leader and call reconcile again, this should add s3 with the new ID format
+	for _, s := range []*Server{s1, s2, s3} {
+		if s.IsLeader() {
+			leader = s
+		}
+	}
+	leader.reconcileMember(upgradedS3Member)
+	testutil.WaitForLeader(t, s1.RPC)
+	future := s2.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		t.Fatal(err)
+	}
+	addrs := 0
+	ids := 0
+	for _, server := range future.Configuration().Servers {
+		if string(server.ID) == string(server.Address) {
+			addrs++
+		} else {
+			ids++
+		}
+	}
+	// After this, all three servers should have IDs in raft
+	if got, want := addrs, 0; got != want {
+		t.Fatalf("got %d server addresses want %d", got, want)
+	}
+	if got, want := ids, 3; got != want {
+		t.Fatalf("got %d server ids want %d", got, want)
+	}
 }

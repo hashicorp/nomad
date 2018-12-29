@@ -270,6 +270,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job eval": func() (cli.Command, error) {
+			return &JobEvalCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job history": func() (cli.Command, error) {
 			return &JobHistoryCommand{
 				Meta: meta,

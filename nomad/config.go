@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -387,17 +386,4 @@ func DefaultConfig() *Config {
 	c.RaftConfig.ProtocolVersion = 2
 
 	return c
-}
-
-// tlsConfig returns a TLSUtil Config based on the server configuration
-func (c *Config) tlsConfig() *tlsutil.Config {
-	return &tlsutil.Config{
-		VerifyIncoming:       true,
-		VerifyOutgoing:       true,
-		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
-		CAFile:               c.TLSConfig.CAFile,
-		CertFile:             c.TLSConfig.CertFile,
-		KeyFile:              c.TLSConfig.KeyFile,
-		KeyLoader:            c.TLSConfig.GetKeyLoader(),
-	}
 }

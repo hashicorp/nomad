@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -105,7 +106,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
 			RaftProtocol:           1,
-			NumSchedulers:          1,
+			NumSchedulers:          helper.IntToPtr(1),
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
 			MinHeartbeatTTL:        30 * time.Second,
@@ -255,7 +256,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
 			RaftProtocol:           2,
-			NumSchedulers:          2,
+			NumSchedulers:          helper.IntToPtr(2),
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
 			HeartbeatGrace:         2 * time.Minute,
@@ -264,8 +265,7 @@ func TestConfig_Merge(t *testing.T) {
 			RejoinAfterLeave:       true,
 			StartJoin:              []string{"1.1.1.1"},
 			RetryJoin:              []string{"1.1.1.1"},
-			RetryInterval:          "10s",
-			retryInterval:          time.Second * 10,
+			RetryInterval:          time.Second * 10,
 			NonVotingServer:        true,
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
@@ -905,5 +905,111 @@ func TestIsMissingPort(t *testing.T) {
 	_, _, err = net.SplitHostPort("localhost:9000")
 	if missing := isMissingPort(err); missing {
 		t.Errorf("expected no error, but got %v", err)
+	}
+}
+
+func TestMergeServerJoin(t *testing.T) {
+	require := require.New(t)
+
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+		b := &ServerJoin{}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{}
+		b := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		var a *ServerJoin
+		b := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{
+			RetryJoin:        retryJoin,
+			StartJoin:        startJoin,
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+		var b *ServerJoin
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
+	}
+	{
+		retryJoin := []string{"127.0.0.1", "127.0.0.2"}
+		startJoin := []string{"127.0.0.1", "127.0.0.2"}
+		retryMaxAttempts := 1
+		retryInterval := time.Duration(0)
+
+		a := &ServerJoin{
+			RetryJoin: retryJoin,
+			StartJoin: startJoin,
+		}
+		b := &ServerJoin{
+			RetryMaxAttempts: retryMaxAttempts,
+			RetryInterval:    time.Duration(retryInterval),
+		}
+
+		result := a.Merge(b)
+		require.Equal(result.RetryJoin, retryJoin)
+		require.Equal(result.StartJoin, startJoin)
+		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
+		require.Equal(result.RetryInterval, retryInterval)
 	}
 }

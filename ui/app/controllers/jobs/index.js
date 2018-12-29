@@ -25,6 +25,8 @@ export default Controller.extend(Sortable, Searchable, {
   sortDescending: true,
 
   searchProps: computed(() => ['id', 'name']),
+  fuzzySearchProps: computed(() => ['name']),
+  fuzzySearchEnabled: true,
 
   /**
     Filtered jobs are those that match the selected namespace and aren't children

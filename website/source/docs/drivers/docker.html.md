@@ -329,7 +329,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
   [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
-  The whitelist can be customized using the `docker.cap.whitelist` key in the client node's configuration.
+  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
   For example:
 
 
@@ -367,6 +367,9 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
+
+* `pids_limit` - (Optional) An integer value that specifies the pid limit for
+  the container. Defaults to unlimited.
 
 ### Container Name
 

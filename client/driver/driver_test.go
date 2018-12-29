@@ -145,7 +145,7 @@ func testDriverContexts(t *testing.T, task *structs.Task) *testContext {
 	emitter := func(m string, args ...interface{}) {
 		logger.Printf("[EVENT] "+m, args...)
 	}
-	driverCtx := NewDriverContext(task.Name, alloc.ID, cfg, cfg.Node, logger, emitter)
+	driverCtx := NewDriverContext(alloc.Job.Name, alloc.TaskGroup, task.Name, alloc.ID, cfg, cfg.Node, logger, emitter)
 
 	return &testContext{allocDir, driverCtx, execCtx, eb}
 }

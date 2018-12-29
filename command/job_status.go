@@ -185,10 +185,12 @@ func (c *JobStatusCommand) Run(args []string) int {
 			location, err := job.Periodic.GetLocation()
 			if err == nil {
 				now := time.Now().In(location)
-				next := job.Periodic.Next(now)
-				basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
-					fmt.Sprintf("%s (%s from now)",
-						formatTime(next), formatTimeDifference(now, next, time.Second))))
+				next, err := job.Periodic.Next(now)
+				if err == nil {
+					basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
+						fmt.Sprintf("%s (%s from now)",
+							formatTime(next), formatTimeDifference(now, next, time.Second))))
+				}
 			}
 		}
 	}

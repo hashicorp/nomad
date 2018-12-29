@@ -1,4 +1,4 @@
-import { Factory, faker, trait } from 'ember-cli-mirage';
+import { Factory, faker } from 'ember-cli-mirage';
 import { provide } from '../utils';
 
 const REF_TIME = new Date();

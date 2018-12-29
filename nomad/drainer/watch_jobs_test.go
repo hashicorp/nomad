@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -649,6 +650,78 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 	require.Nil(handleTaskGroup(snap, true, job.TaskGroups[0], allocs, 101, res))
 	require.Empty(res.drain)
 	require.Len(res.migrated, 10)
+	require.True(res.done)
+
+	res = newJobResult()
+	require.Nil(handleTaskGroup(snap, false, job.TaskGroups[0], allocs, 103, res))
+	require.Empty(res.drain)
+	require.Empty(res.migrated)
+	require.True(res.done)
+
+	res = newJobResult()
+	require.Nil(handleTaskGroup(snap, true, job.TaskGroups[0], allocs, 103, res))
+	require.Empty(res.drain)
+	require.Empty(res.migrated)
+	require.True(res.done)
+}
+
+// This test asserts that handle task group works when an allocation is on a
+// garbage collected node
+func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Create a draining node
+	state := state.TestStateStore(t)
+	n := mock.Node()
+	n.DrainStrategy = &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 5 * time.Minute,
+		},
+		ForceDeadline: time.Now().Add(1 * time.Minute),
+	}
+	require.Nil(state.UpsertNode(100, n))
+
+	job := mock.Job()
+	require.Nil(state.UpsertJob(101, job))
+
+	// Create 10 done allocs
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		a := mock.Alloc()
+		a.Job = job
+		a.TaskGroup = job.TaskGroups[0].Name
+		a.NodeID = n.ID
+		a.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(false),
+		}
+
+		if i%2 == 0 {
+			a.DesiredStatus = structs.AllocDesiredStatusStop
+		} else {
+			a.ClientStatus = structs.AllocClientStatusFailed
+		}
+		allocs = append(allocs, a)
+	}
+
+	// Make the first one be on a GC'd node
+	allocs[0].NodeID = uuid.Generate()
+	require.Nil(state.UpsertAllocs(102, allocs))
+
+	snap, err := state.Snapshot()
+	require.Nil(err)
+
+	// Handle before and after indexes as both service and batch
+	res := newJobResult()
+	require.Nil(handleTaskGroup(snap, false, job.TaskGroups[0], allocs, 101, res))
+	require.Empty(res.drain)
+	require.Len(res.migrated, 9)
+	require.True(res.done)
+
+	res = newJobResult()
+	require.Nil(handleTaskGroup(snap, true, job.TaskGroups[0], allocs, 101, res))
+	require.Empty(res.drain)
+	require.Len(res.migrated, 9)
 	require.True(res.done)
 
 	res = newJobResult()

@@ -106,6 +106,12 @@ export default function() {
     return new Response(200, {}, '{}');
   });
 
+  this.delete('/job/:id', function(schema, { params }) {
+    const job = schema.jobs.find(params.id);
+    job.update({ status: 'dead' });
+    return new Response(204, {}, '');
+  });
+
   this.get('/deployment/:id');
 
   this.get('/job/:id/evaluations', function({ evaluations }, { params }) {
@@ -131,6 +137,8 @@ export default function() {
   this.get('/node/:id/allocations', function({ allocations }, { params }) {
     return this.serialize(allocations.where({ nodeId: params.id }));
   });
+
+  this.get('/allocations');
 
   this.get('/allocation/:id');
 

@@ -24,6 +24,16 @@ export default Controller.extend(Sortable, Searchable, {
   listToSearch: alias('listSorted'),
   sortedAllocations: alias('listSearched'),
 
+  sortedEvents: computed('model.events.@each.time', function() {
+    return this.get('model.events')
+      .sortBy('time')
+      .reverse();
+  }),
+
+  sortedDrivers: computed('model.drivers.@each.name', function() {
+    return this.get('model.drivers').sortBy('name');
+  }),
+
   actions: {
     gotoAllocation(allocation) {
       this.transitionToRoute('allocations.allocation', allocation);

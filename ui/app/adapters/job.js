@@ -47,11 +47,12 @@ export default Watchable.extend({
   },
 
   xhrKey(url, method, options = {}) {
+    const plainKey = this._super(...arguments);
     const namespace = options.data && options.data.namespace;
     if (namespace) {
-      return `${url}?namespace=${namespace}`;
+      return `${plainKey}?namespace=${namespace}`;
     }
-    return url;
+    return plainKey;
   },
 
   relationshipFallbackLinks: {
@@ -74,14 +75,24 @@ export default Watchable.extend({
 
   forcePeriodic(job) {
     if (job.get('periodic')) {
-      const [path, params] = this.buildURL('job', job.get('id'), job, 'findRecord').split('?');
-      let url = `${path}/periodic/force`;
-
-      if (params) {
-        url += `?${params}`;
-      }
-
+      const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/periodic/force');
       return this.ajax(url, 'POST');
     }
   },
+
+  stop(job) {
+    const url = this.urlForFindRecord(job.get('id'), 'job');
+    return this.ajax(url, 'DELETE');
+  },
 });
+
+function addToPath(url, extension = '') {
+  const [path, params] = url.split('?');
+  let newUrl = `${path}${extension}`;
+
+  if (params) {
+    newUrl += `?${params}`;
+  }
+
+  return newUrl;
+}

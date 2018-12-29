@@ -302,6 +302,61 @@ func TestHTTP_NodeDrain(t *testing.T) {
 	})
 }
 
+// Tests backwards compatibility code to support pre 0.8 clients
+func TestHTTP_NodeDrain_Compat(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the node
+		node := mock.Node()
+		args := structs.NodeRegisterRequest{
+			Node:         node,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.NodeUpdateResponse
+		require.Nil(s.Agent.RPC("Node.Register", &args, &resp))
+
+		// Make the HTTP request
+		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/drain?enable=true", nil)
+		require.Nil(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.NodeSpecificRequest(respW, req)
+		require.Nil(err)
+
+		// Check for the index
+		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
+
+		// Check the response
+		_, ok := obj.(structs.NodeDrainUpdateResponse)
+		require.True(ok)
+
+		// Check that the node has been updated
+		state := s.Agent.server.State()
+		out, err := state.NodeByID(nil, node.ID)
+		require.Nil(err)
+		require.True(out.Drain)
+		require.NotNil(out.DrainStrategy)
+		require.Equal(-1*time.Second, out.DrainStrategy.Deadline)
+
+		// Make the HTTP request to unset drain
+		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/drain?enable=false", nil)
+		require.Nil(err)
+		respW = httptest.NewRecorder()
+
+		// Make the request
+		_, err = s.Server.NodeSpecificRequest(respW, req)
+		require.Nil(err)
+
+		out, err = state.NodeByID(nil, node.ID)
+		require.Nil(err)
+		require.False(out.Drain)
+		require.Nil(out.DrainStrategy)
+		require.Equal(structs.NodeSchedulingEligible, out.SchedulingEligibility)
+	})
+}
+
 func TestHTTP_NodeEligible(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -468,7 +523,7 @@ func TestHTTP_NodeQuery(t *testing.T) {
 		if len(n.Events) < 1 {
 			t.Fatalf("Expected node registration event to be populated: %#v", n)
 		}
-		if n.Events[0].Message != "Node Registered" {
+		if n.Events[0].Message != "Node registered" {
 			t.Fatalf("Expected node registration event to be first node event: %#v", n)
 		}
 	})

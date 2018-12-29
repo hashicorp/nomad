@@ -29,7 +29,7 @@ to match the default.
 
 The Raft protocol must be stepped up in this way; only adjacent version numbers are
 compatible (for example, version 1 cannot talk to version 3). Here is a table of the
-Raft Protocol versions supported by each Consul version:
+Raft Protocol versions supported by each Nomad version:
 
 <table class="table table-bordered table-striped">
   <tr>
@@ -52,6 +52,17 @@ Raft Protocol versions supported by each Consul version:
 
 In order to enable all [Autopilot](/guides/cluster/autopilot.html) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
+
+#### Upgrading to Raft Protocol 3
+
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](/guides/outage.html#manual-recovery-using-peers-json) for a description of the required format.
+
+Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
+
+The easiest way to upgrade servers is to have each server leave the cluster, upgrade its `raft_protocol` version in the `server` stanza, and then add it back. Make sure the new server joins successfully and that the cluster is stable before rolling the upgrade forward to the next server. It's also possible to stand up a new set of servers, and then slowly stand down each of the older servers in a similar fashion.
+
+When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](/docs/guides/outage.html#manual-recovery-using-peers-json) to map the server to its node ID in the Raft quorum configuration.
+
 
 ### Node Draining Improvements
 

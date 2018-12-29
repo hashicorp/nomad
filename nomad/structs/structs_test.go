@@ -1267,7 +1267,34 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
+	t.Parallel()
+	// Bad (no port)
+	invalidGRPC := &ServiceCheck{
+		Type:     ServiceCheckGRPC,
+		Interval: time.Second,
+		Timeout:  time.Second,
+	}
+	service := &Service{
+		Name:   "test",
+		Checks: []*ServiceCheck{invalidGRPC},
+	}
+
+	assert.Error(t, service.Validate())
+
+	// Good
+	service.Checks[0] = &ServiceCheck{
+		Type:      ServiceCheckGRPC,
+		Interval:  time.Second,
+		Timeout:   time.Second,
+		PortLabel: "some-port-label",
+	}
+
+	assert.NoError(t, service.Validate())
+}
+
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
+	t.Parallel()
 	invalidCheckRestart := &CheckRestart{
 		Limit: -1,
 		Grace: -1,
@@ -1538,12 +1565,13 @@ func TestConstraint_Validate(t *testing.T) {
 
 func TestUpdateStrategy_Validate(t *testing.T) {
 	u := &UpdateStrategy{
-		MaxParallel:     0,
-		HealthCheck:     "foo",
-		MinHealthyTime:  -10,
-		HealthyDeadline: -15,
-		AutoRevert:      false,
-		Canary:          -1,
+		MaxParallel:      0,
+		HealthCheck:      "foo",
+		MinHealthyTime:   -10,
+		HealthyDeadline:  -15,
+		ProgressDeadline: -25,
+		AutoRevert:       false,
+		Canary:           -1,
 	}
 
 	err := u.Validate()
@@ -1563,7 +1591,13 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
 		t.Fatalf("err: %s", err)
 	}
-	if !strings.Contains(mErr.Errors[5].Error(), "Minimum healthy time must be less than healthy deadline") {
+	if !strings.Contains(mErr.Errors[5].Error(), "Progress deadline must be zero or greater") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[6].Error(), "Minimum healthy time must be less than healthy deadline") {
+		t.Fatalf("err: %s", err)
+	}
+	if !strings.Contains(mErr.Errors[7].Error(), "Healthy deadline must be less than progress deadline") {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -2009,15 +2043,44 @@ func TestPeriodicConfig_ValidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_NextCron(t *testing.T) {
+	require := require.New(t)
+
+	type testExpectation struct {
+		Time     time.Time
+		HasError bool
+		ErrorMsg string
+	}
+
 	from := time.Date(2009, time.November, 10, 23, 22, 30, 0, time.UTC)
-	specs := []string{"0 0 29 2 * 1980", "*/5 * * * *"}
-	expected := []time.Time{{}, time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC)}
+	specs := []string{"0 0 29 2 * 1980",
+		"*/5 * * * *",
+		"1 15-0 * * 1-5"}
+	expected := []*testExpectation{
+		{
+			Time:     time.Time{},
+			HasError: false,
+		},
+		{
+			Time:     time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC),
+			HasError: false,
+		},
+		{
+			Time:     time.Time{},
+			HasError: true,
+			ErrorMsg: "failed parsing cron expression",
+		},
+	}
+
 	for i, spec := range specs {
 		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
 		p.Canonicalize()
-		n := p.Next(from)
-		if expected[i] != n {
-			t.Fatalf("Next(%v) returned %v; want %v", from, n, expected[i])
+		n, err := p.Next(from)
+		nextExpected := expected[i]
+
+		require.Equal(nextExpected.Time, n)
+		require.Equal(err != nil, nextExpected.HasError)
+		if err != nil {
+			require.True(strings.Contains(err.Error(), nextExpected.ErrorMsg))
 		}
 	}
 }
@@ -2034,6 +2097,8 @@ func TestPeriodicConfig_ValidTimeZone(t *testing.T) {
 }
 
 func TestPeriodicConfig_DST(t *testing.T) {
+	require := require.New(t)
+
 	// On Sun, Mar 12, 2:00 am 2017: +1 hour UTC
 	p := &PeriodicConfig{
 		Enabled:  true,
@@ -2050,15 +2115,14 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	e1 := time.Date(2017, time.March, 11, 10, 0, 0, 0, time.UTC)
 	e2 := time.Date(2017, time.March, 12, 9, 0, 0, 0, time.UTC)
 
-	n1 := p.Next(t1).UTC()
-	n2 := p.Next(t2).UTC()
+	n1, err := p.Next(t1)
+	require.Nil(err)
 
-	if !reflect.DeepEqual(e1, n1) {
-		t.Fatalf("Got %v; want %v", n1, e1)
-	}
-	if !reflect.DeepEqual(e2, n2) {
-		t.Fatalf("Got %v; want %v", n1, e1)
-	}
+	n2, err := p.Next(t2)
+	require.Nil(err)
+
+	require.Equal(e1, n1.UTC())
+	require.Equal(e2, n2.UTC())
 }
 
 func TestRestartPolicy_Validate(t *testing.T) {

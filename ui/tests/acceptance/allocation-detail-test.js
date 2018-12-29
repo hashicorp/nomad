@@ -1,5 +1,6 @@
 import $ from 'jquery';
-import { click, findAll, currentURL, find, visit, waitFor } from 'ember-native-dom-helpers';
+import { assign } from '@ember/polyfills';
+import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
@@ -13,8 +14,23 @@ moduleForAcceptance('Acceptance | allocation detail', {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupCount: 0 });
+    job = server.create('job', { groupCount: 0, createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts');
+
+    // Make sure the node has an unhealthy driver
+    node.update({
+      driver: assign(node.drivers, {
+        docker: {
+          detected: true,
+          healthy: false,
+        },
+      }),
+    });
+
+    // Make sure a task for the allocation depends on the unhealthy driver
+    server.schema.tasks.first().update({
+      driver: 'docker',
+    });
 
     visit(`/allocations/${allocation.id}`);
   },
@@ -121,6 +137,14 @@ test('each task row should list high-level information for the task', function(a
   });
 });
 
+test('tasks with an unhealthy driver have a warning icon', function(assert) {
+  assert.ok(find('[data-test-task-row] [data-test-icon="unhealthy-driver"]'), 'Warning is shown');
+});
+
+test('when the allocation has not been rescheduled, the reschedule events section is not rendered', function(assert) {
+  assert.notOk(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
+});
+
 test('when the allocation is not found, an error message is shown, but the URL persists', function(assert) {
   visit('/allocations/not-a-real-allocation');
 
@@ -140,48 +164,18 @@ test('when the allocation is not found, an error message is shown, but the URL p
   });
 });
 
-moduleForAcceptance('Acceptance | allocation detail (loading states)', {
+moduleForAcceptance('Acceptance | allocation detail (rescheduled)', {
   beforeEach() {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupCount: 0 });
-    allocation = server.create('allocation', 'withTaskWithPorts');
+    job = server.create('job', { createAllocations: false });
+    allocation = server.create('allocation', 'rescheduled');
+
+    visit(`/allocations/${allocation.id}`);
   },
 });
 
-test('when the node the allocation is on has yet to load, address links are in a loading state', function(assert) {
-  server.get('/node/:id', { timing: true });
-
-  visit(`/allocations/${allocation.id}`);
-
-  waitFor('[data-test-port]').then(() => {
-    assert.ok(
-      find('[data-test-port]')
-        .textContent.trim()
-        .endsWith('...'),
-      'The address is in a loading state'
-    );
-    assert.notOk(
-      find('[data-test-port]').querySelector('a'),
-      'While in the loading state, there is no link to the address'
-    );
-
-    server.pretender.requestReferences.forEach(({ request }) => {
-      server.pretender.resolve(request);
-    });
-
-    andThen(() => {
-      const taskResources = allocation.taskResourcesIds
-        .map(id => server.db.taskResources.find(id))
-        .sortBy('name')[0];
-      const port = taskResources.resources.Networks[0].ReservedPorts[0];
-      const addressText = find('[data-test-port]').textContent.trim();
-
-      assert.ok(addressText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressText.includes(port.Value), `Found value ${port.Value}`);
-      assert.ok(addressText.includes(node.httpAddr.match(/(.+):.+$/)[1]), 'Found the node address');
-      assert.ok(find('[data-test-port]').querySelector('a'), 'Link to address found');
-    });
-  });
+test('when the allocation has been rescheduled, the reschedule events section is rendered', function(assert) {
+  assert.ok(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
 });

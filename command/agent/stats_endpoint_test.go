@@ -34,7 +34,7 @@ func TestClientStatsRequest(t *testing.T) {
 			}
 		}
 
-		// Local node, server resp
+		// client stats from server, should not error
 		{
 			srv := s.server
 			s.server = nil
@@ -70,11 +70,7 @@ func TestClientStatsRequest(t *testing.T) {
 
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientStatsRequest(respW, req)
-			require.NotNil(err)
-
-			// The dev agent uses in-mem RPC so just assert the no route error
-			require.Contains(err.Error(), structs.ErrNoNodeConn.Error())
-
+			require.Nil(err)
 			s.client = c
 		}
 	})

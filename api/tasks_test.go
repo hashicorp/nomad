@@ -252,13 +252,14 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	job := &Job{
 		ID: helper.StringToPtr("test"),
 		Update: &UpdateStrategy{
-			AutoRevert:      helper.BoolToPtr(false),
-			Canary:          helper.IntToPtr(0),
-			HealthCheck:     helper.StringToPtr(""),
-			HealthyDeadline: helper.TimeToPtr(0),
-			MaxParallel:     helper.IntToPtr(0),
-			MinHealthyTime:  helper.TimeToPtr(0),
-			Stagger:         helper.TimeToPtr(0),
+			AutoRevert:       helper.BoolToPtr(false),
+			Canary:           helper.IntToPtr(0),
+			HealthCheck:      helper.StringToPtr(""),
+			HealthyDeadline:  helper.TimeToPtr(0),
+			ProgressDeadline: helper.TimeToPtr(0),
+			MaxParallel:      helper.IntToPtr(0),
+			MinHealthyTime:   helper.TimeToPtr(0),
+			Stagger:          helper.TimeToPtr(0),
 		},
 	}
 	job.Canonicalize()

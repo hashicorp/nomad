@@ -499,10 +499,14 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				}
 
 				// If we are placing a canary and we found a match, add the canary
-				// to the deployment state object.
+				// to the deployment state object and mark it as a canary.
 				if missing.Canary() {
 					if state, ok := s.deployment.TaskGroups[tg.Name]; ok {
 						state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
+					}
+
+					alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+						Canary: true,
 					}
 				}
 

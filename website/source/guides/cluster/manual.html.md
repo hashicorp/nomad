@@ -31,7 +31,9 @@ server {
   bootstrap_expect = 3
 
   # This is the IP address of the first server we provisioned
-  retry_join = ["<known-address>:4648"]
+  server_join {
+    retry_join = ["<known-address>:4648"]
+  }
 }
 ```
 

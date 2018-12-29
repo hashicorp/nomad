@@ -27,6 +27,7 @@ _testmain.go
 *.test
 *.prof
 
+tags
 bin/
 /pkg/
 .vagrant/

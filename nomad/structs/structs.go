@@ -293,7 +293,8 @@ type WriteMeta struct {
 // NodeRegisterRequest is used for Node.Register endpoint
 // to register a node as being a schedulable entity.
 type NodeRegisterRequest struct {
-	Node *Node
+	Node      *Node
+	NodeEvent *NodeEvent
 	WriteRequest
 }
 
@@ -326,8 +327,9 @@ type NodeServerInfo struct {
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
-	NodeID string
-	Status string
+	NodeID    string
+	Status    string
+	NodeEvent *NodeEvent
 	WriteRequest
 }
 
@@ -344,6 +346,10 @@ type NodeUpdateDrainRequest struct {
 
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
+
+	// NodeEvent is the event added to the node
+	NodeEvent *NodeEvent
+
 	WriteRequest
 }
 
@@ -352,6 +358,10 @@ type NodeUpdateDrainRequest struct {
 type BatchNodeUpdateDrainRequest struct {
 	// Updates is a mapping of nodes to their updated drain strategy
 	Updates map[string]*DrainUpdate
+
+	// NodeEvents is a mapping of the node to the event to add to the node
+	NodeEvents map[string]*NodeEvent
+
 	WriteRequest
 }
 
@@ -368,6 +378,10 @@ type DrainUpdate struct {
 type NodeUpdateEligibilityRequest struct {
 	NodeID      string
 	Eligibility string
+
+	// NodeEvent is the event added to the node
+	NodeEvent *NodeEvent
+
 	WriteRequest
 }
 
@@ -465,8 +479,14 @@ type JobDeregisterOptions struct {
 
 // JobEvaluateRequest is used when we just need to re-evaluate a target job
 type JobEvaluateRequest struct {
-	JobID string
+	JobID       string
+	EvalOptions EvalOptions
 	WriteRequest
+}
+
+// EvalOptions is used to encapsulate options when forcing a job evaluation
+type EvalOptions struct {
+	ForceReschedule bool
 }
 
 // JobSpecificRequest is used when we just need to specify a target job
@@ -787,6 +807,9 @@ type DeploymentAllocHealthRequest struct {
 // ApplyDeploymentAllocHealthRequest is used to apply an alloc health request via Raft
 type ApplyDeploymentAllocHealthRequest struct {
 	DeploymentAllocHealthRequest
+
+	// Timestamp is the timestamp to use when setting the allocations health.
+	Timestamp time.Time
 
 	// An optional field to update the status of a deployment
 	DeploymentUpdate *DeploymentStatusUpdate
@@ -1218,6 +1241,39 @@ func (ne *NodeEvent) Copy() *NodeEvent {
 	return c
 }
 
+// NewNodeEvent generates a new node event storing the current time as the
+// timestamp
+func NewNodeEvent() *NodeEvent {
+	return &NodeEvent{Timestamp: time.Now()}
+}
+
+// SetMessage is used to set the message on the node event
+func (ne *NodeEvent) SetMessage(msg string) *NodeEvent {
+	ne.Message = msg
+	return ne
+}
+
+// SetSubsystem is used to set the subsystem on the node event
+func (ne *NodeEvent) SetSubsystem(sys string) *NodeEvent {
+	ne.Subsystem = sys
+	return ne
+}
+
+// SetTimestamp is used to set the timestamp on the node event
+func (ne *NodeEvent) SetTimestamp(ts time.Time) *NodeEvent {
+	ne.Timestamp = ts
+	return ne
+}
+
+// AddDetail is used to add a detail to the node event
+func (ne *NodeEvent) AddDetail(k, v string) *NodeEvent {
+	if ne.Details == nil {
+		ne.Details = make(map[string]string, 1)
+	}
+	ne.Details[k] = v
+	return ne
+}
+
 const (
 	NodeStatusInit  = "initializing"
 	NodeStatusReady = "ready"
@@ -1520,6 +1576,7 @@ func (n *Node) Stub() *NodeListStub {
 		SchedulingEligibility: n.SchedulingEligibility,
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
+		Drivers:               n.Drivers,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -1538,6 +1595,7 @@ type NodeListStub struct {
 	SchedulingEligibility string
 	Status                string
 	StatusDescription     string
+	Drivers               map[string]*DriverInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -1995,6 +2053,14 @@ type Job struct {
 	CreateIndex    uint64
 	ModifyIndex    uint64
 	JobModifyIndex uint64
+}
+
+// NamespacedID returns the namespaced id useful for logging
+func (j *Job) NamespacedID() *NamespacedID {
+	return &NamespacedID{
+		ID:        j.ID,
+		Namespace: j.Namespace,
+	}
 }
 
 // Canonicalize is used to canonicalize fields in the Job. This should be called
@@ -2470,13 +2536,14 @@ var (
 	// DefaultUpdateStrategy provides a baseline that can be used to upgrade
 	// jobs with the old policy or for populating field defaults.
 	DefaultUpdateStrategy = &UpdateStrategy{
-		Stagger:         30 * time.Second,
-		MaxParallel:     1,
-		HealthCheck:     UpdateStrategyHealthCheck_Checks,
-		MinHealthyTime:  10 * time.Second,
-		HealthyDeadline: 5 * time.Minute,
-		AutoRevert:      false,
-		Canary:          0,
+		Stagger:          30 * time.Second,
+		MaxParallel:      1,
+		HealthCheck:      UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:   10 * time.Second,
+		HealthyDeadline:  5 * time.Minute,
+		ProgressDeadline: 10 * time.Minute,
+		AutoRevert:       false,
+		Canary:           0,
 	}
 )
 
@@ -2502,6 +2569,12 @@ type UpdateStrategy struct {
 	// healthy before it is automatically transitioned to unhealthy. This time
 	// period doesn't count against the MinHealthyTime.
 	HealthyDeadline time.Duration
+
+	// ProgressDeadline is the time in which an allocation as part of the
+	// deployment must transition to healthy. If no allocation becomes healthy
+	// after the deadline, the deployment is marked as failed. If the deadline
+	// is zero, the first failure causes the deployment to fail.
+	ProgressDeadline time.Duration
 
 	// AutoRevert declares that if a deployment fails because of unhealthy
 	// allocations, there should be an attempt to auto-revert the job to a
@@ -2547,8 +2620,14 @@ func (u *UpdateStrategy) Validate() error {
 	if u.HealthyDeadline <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
 	}
+	if u.ProgressDeadline < 0 {
+		multierror.Append(&mErr, fmt.Errorf("Progress deadline must be zero or greater: %v", u.ProgressDeadline))
+	}
 	if u.MinHealthyTime >= u.HealthyDeadline {
 		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time must be less than healthy deadline: %v > %v", u.MinHealthyTime, u.HealthyDeadline))
+	}
+	if u.ProgressDeadline != 0 && u.HealthyDeadline >= u.ProgressDeadline {
+		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be less than progress deadline: %v > %v", u.HealthyDeadline, u.ProgressDeadline))
 	}
 	if u.Stagger <= 0 {
 		multierror.Append(&mErr, fmt.Errorf("Stagger must be greater than zero: %v", u.Stagger))
@@ -2649,20 +2728,33 @@ func (p *PeriodicConfig) Canonicalize() {
 	p.location = l
 }
 
+// CronParseNext is a helper that parses the next time for the given expression
+// but captures any panic that may occur in the underlying library.
+func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
+	defer func() {
+		if recover() != nil {
+			t = time.Time{}
+			err = fmt.Errorf("failed parsing cron expression: %q", spec)
+		}
+	}()
+
+	return e.Next(fromTime), nil
+}
+
 // Next returns the closest time instant matching the spec that is after the
 // passed time. If no matching instance exists, the zero value of time.Time is
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
-func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
+func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		if e, err := cronexpr.Parse(p.Spec); err == nil {
-			return e.Next(fromTime)
+			return CronParseNext(e, fromTime, p.Spec)
 		}
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")
 		if len(split) == 1 && split[0] == "" {
-			return time.Time{}
+			return time.Time{}, nil
 		}
 
 		// Parse the times
@@ -2670,7 +2762,7 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 		for i, s := range split {
 			unix, err := strconv.Atoi(s)
 			if err != nil {
-				return time.Time{}
+				return time.Time{}, nil
 			}
 
 			times[i] = time.Unix(int64(unix), 0)
@@ -2679,12 +2771,12 @@ func (p *PeriodicConfig) Next(fromTime time.Time) time.Time {
 		// Find the next match
 		for _, next := range times {
 			if fromTime.Before(next) {
-				return next
+				return next, nil
 			}
 		}
 	}
 
-	return time.Time{}
+	return time.Time{}, nil
 }
 
 // GetLocation returns the location to use for determining the time zone to run
@@ -2951,13 +3043,17 @@ func (r *ReschedulePolicy) Copy() *ReschedulePolicy {
 	return nrp
 }
 
+func (r *ReschedulePolicy) Enabled() bool {
+	enabled := r != nil && (r.Attempts > 0 || r.Unlimited)
+	return enabled
+}
+
 // Validate uses different criteria to validate the reschedule policy
 // Delay must be a minimum of 5 seconds
 // Delay Ceiling is ignored if Delay Function is "constant"
 // Number of possible attempts is validated, given the interval, delay and delay function
 func (r *ReschedulePolicy) Validate() error {
-	enabled := r != nil && (r.Attempts > 0 || r.Unlimited)
-	if !enabled {
+	if !r.Enabled() {
 		return nil
 	}
 	var mErr multierror.Error
@@ -3494,6 +3590,7 @@ const (
 	ServiceCheckHTTP   = "http"
 	ServiceCheckTCP    = "tcp"
 	ServiceCheckScript = "script"
+	ServiceCheckGRPC   = "grpc"
 
 	// minCheckInterval is the minimum check interval permitted.  Consul
 	// currently has its MinInterval set to 1s.  Mirror that here for
@@ -3523,6 +3620,8 @@ type ServiceCheck struct {
 	Method        string              // HTTP Method to use (GET by default)
 	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
 	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
+	GRPCService   string              // Service for GRPC checks
+	GRPCUseTLS    bool                // Whether or not to use TLS for GRPC checks
 }
 
 func (sc *ServiceCheck) Copy() *ServiceCheck {
@@ -3563,6 +3662,7 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 func (sc *ServiceCheck) validate() error {
 	// Validate Type
 	switch strings.ToLower(sc.Type) {
+	case ServiceCheckGRPC:
 	case ServiceCheckTCP:
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
@@ -3580,6 +3680,7 @@ func (sc *ServiceCheck) validate() error {
 		if sc.Command == "" {
 			return fmt.Errorf("script type must have a valid script path")
 		}
+
 	default:
 		return fmt.Errorf(`invalid type (%+q), must be one of "http", "tcp", or "script" type`, sc.Type)
 	}
@@ -3624,7 +3725,7 @@ func (sc *ServiceCheck) validate() error {
 // RequiresPort returns whether the service check requires the task has a port.
 func (sc *ServiceCheck) RequiresPort() bool {
 	switch sc.Type {
-	case ServiceCheckHTTP, ServiceCheckTCP:
+	case ServiceCheckGRPC, ServiceCheckHTTP, ServiceCheckTCP:
 		return true
 	default:
 		return false
@@ -3675,6 +3776,14 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 		io.WriteString(h, sc.AddressMode)
 	}
 
+	// Only include GRPC if set to maintain ID stability with Nomad <0.8.4
+	if sc.GRPCService != "" {
+		io.WriteString(h, sc.GRPCService)
+	}
+	if sc.GRPCUseTLS {
+		io.WriteString(h, "true")
+	}
+
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -3700,8 +3809,9 @@ type Service struct {
 	// this service.
 	AddressMode string
 
-	Tags   []string        // List of tags for the service
-	Checks []*ServiceCheck // List of checks associated with the service
+	Tags       []string        // List of tags for the service
+	CanaryTags []string        // List of tags for the service when it is a canary
+	Checks     []*ServiceCheck // List of checks associated with the service
 }
 
 func (s *Service) Copy() *Service {
@@ -3711,6 +3821,7 @@ func (s *Service) Copy() *Service {
 	ns := new(Service)
 	*ns = *s
 	ns.Tags = helper.CopySliceString(ns.Tags)
+	ns.CanaryTags = helper.CopySliceString(ns.CanaryTags)
 
 	if s.Checks != nil {
 		checks := make([]*ServiceCheck, len(ns.Checks))
@@ -3730,6 +3841,9 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	// using DeepEquals
 	if len(s.Tags) == 0 {
 		s.Tags = nil
+	}
+	if len(s.CanaryTags) == 0 {
+		s.CanaryTags = nil
 	}
 	if len(s.Checks) == 0 {
 		s.Checks = nil
@@ -3798,7 +3912,7 @@ func (s *Service) ValidateName(name string) error {
 
 // Hash returns a base32 encoded hash of a Service's contents excluding checks
 // as they're hashed independently.
-func (s *Service) Hash(allocID, taskName string) string {
+func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	h := sha1.New()
 	io.WriteString(h, allocID)
 	io.WriteString(h, taskName)
@@ -3807,6 +3921,14 @@ func (s *Service) Hash(allocID, taskName string) string {
 	io.WriteString(h, s.AddressMode)
 	for _, tag := range s.Tags {
 		io.WriteString(h, tag)
+	}
+	for _, tag := range s.CanaryTags {
+		io.WriteString(h, tag)
+	}
+
+	// Vary ID on whether or not CanaryTags will be used
+	if canary {
+		h.Write([]byte("Canary"))
 	}
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
@@ -5266,6 +5388,7 @@ const (
 	DeploymentStatusDescriptionStoppedJob            = "Cancelled because job is stopped"
 	DeploymentStatusDescriptionNewerJob              = "Cancelled due to newer version of job"
 	DeploymentStatusDescriptionFailedAllocations     = "Failed due to unhealthy allocations"
+	DeploymentStatusDescriptionProgressDeadline      = "Failed due to progress deadline"
 	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
 )
 
@@ -5302,8 +5425,13 @@ type Deployment struct {
 	// JobVersion is the version of the job at which the deployment is tracking
 	JobVersion uint64
 
-	// JobModifyIndex is the modify index of the job at which the deployment is tracking
+	// JobModifyIndex is the ModifyIndex of the job which the deployment is
+	// tracking.
 	JobModifyIndex uint64
+
+	// JobSpecModifyIndex is the JobModifyIndex of the job which the
+	// deployment is tracking.
+	JobSpecModifyIndex uint64
 
 	// JobCreateIndex is the create index of the job which the deployment is
 	// tracking. It is needed so that if the job gets stopped and reran we can
@@ -5328,15 +5456,16 @@ type Deployment struct {
 // NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job) *Deployment {
 	return &Deployment{
-		ID:                uuid.Generate(),
-		Namespace:         job.Namespace,
-		JobID:             job.ID,
-		JobVersion:        job.Version,
-		JobModifyIndex:    job.ModifyIndex,
-		JobCreateIndex:    job.CreateIndex,
-		Status:            DeploymentStatusRunning,
-		StatusDescription: DeploymentStatusDescriptionRunning,
-		TaskGroups:        make(map[string]*DeploymentState, len(job.TaskGroups)),
+		ID:                 uuid.Generate(),
+		Namespace:          job.Namespace,
+		JobID:              job.ID,
+		JobVersion:         job.Version,
+		JobModifyIndex:     job.ModifyIndex,
+		JobSpecModifyIndex: job.JobModifyIndex,
+		JobCreateIndex:     job.CreateIndex,
+		Status:             DeploymentStatusRunning,
+		StatusDescription:  DeploymentStatusDescriptionRunning,
+		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
 	}
 }
 
@@ -5417,6 +5546,14 @@ type DeploymentState struct {
 	// AutoRevert marks whether the task group has indicated the job should be
 	// reverted on failure
 	AutoRevert bool
+
+	// ProgressDeadline is the deadline by which an allocation must transition
+	// to healthy before the deployment is considered failed.
+	ProgressDeadline time.Duration
+
+	// RequireProgressBy is the time by which an allocation must transition
+	// to healthy before the deployment is considered failed.
+	RequireProgressBy time.Time
 
 	// Promoted marks whether the canaries have been promoted
 	Promoted bool
@@ -5529,6 +5666,18 @@ type DesiredTransition struct {
 	// Migrate is used to indicate that this allocation should be stopped and
 	// migrated to another node.
 	Migrate *bool
+
+	// Reschedule is used to indicate that this allocation is eligible to be
+	// rescheduled. Most allocations are automatically eligible for
+	// rescheduling, so this field is only required when an allocation is not
+	// automatically eligible. An example is an allocation that is part of a
+	// deployment.
+	Reschedule *bool
+
+	// ForceReschedule is used to indicate that this allocation must be rescheduled.
+	// This field is only used when operators want to force a placement even if
+	// a failed allocation is not eligible to be rescheduled
+	ForceReschedule *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -5537,11 +5686,34 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 	if o.Migrate != nil {
 		d.Migrate = o.Migrate
 	}
+
+	if o.Reschedule != nil {
+		d.Reschedule = o.Reschedule
+	}
+
+	if o.ForceReschedule != nil {
+		d.ForceReschedule = o.ForceReschedule
+	}
 }
 
 // ShouldMigrate returns whether the transition object dictates a migration.
 func (d *DesiredTransition) ShouldMigrate() bool {
 	return d.Migrate != nil && *d.Migrate
+}
+
+// ShouldReschedule returns whether the transition object dictates a
+// rescheduling.
+func (d *DesiredTransition) ShouldReschedule() bool {
+	return d.Reschedule != nil && *d.Reschedule
+}
+
+// ShouldForceReschedule returns whether the transition object dictates a
+// forced rescheduling.
+func (d *DesiredTransition) ShouldForceReschedule() bool {
+	if d == nil {
+		return false
+	}
+	return d.ForceReschedule != nil && *d.ForceReschedule
 }
 
 const (
@@ -5963,9 +6135,11 @@ func (a *Allocation) Stub() *AllocListStub {
 		DesiredDescription: a.DesiredDescription,
 		ClientStatus:       a.ClientStatus,
 		ClientDescription:  a.ClientDescription,
+		DesiredTransition:  a.DesiredTransition,
 		TaskStates:         a.TaskStates,
 		DeploymentStatus:   a.DeploymentStatus,
 		FollowupEvalID:     a.FollowupEvalID,
+		RescheduleTracker:  a.RescheduleTracker,
 		CreateIndex:        a.CreateIndex,
 		ModifyIndex:        a.ModifyIndex,
 		CreateTime:         a.CreateTime,
@@ -5986,9 +6160,11 @@ type AllocListStub struct {
 	DesiredDescription string
 	ClientStatus       string
 	ClientDescription  string
+	DesiredTransition  DesiredTransition
 	TaskStates         map[string]*TaskState
 	DeploymentStatus   *AllocDeploymentStatus
 	FollowupEvalID     string
+	RescheduleTracker  *RescheduleTracker
 	CreateIndex        uint64
 	ModifyIndex        uint64
 	CreateTime         int64
@@ -6136,6 +6312,13 @@ type AllocDeploymentStatus struct {
 	// healthy or unhealthy.
 	Healthy *bool
 
+	// Timestamp is the time at which the health status was set.
+	Timestamp time.Time
+
+	// Canary marks whether the allocation is a canary or not. A canary that has
+	// been promoted will have this field set to false.
+	Canary bool
+
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
@@ -6164,6 +6347,15 @@ func (a *AllocDeploymentStatus) IsUnhealthy() bool {
 	}
 
 	return a.Healthy != nil && !*a.Healthy
+}
+
+// IsCanary returns if the allocation is marked as a canary
+func (a *AllocDeploymentStatus) IsCanary() bool {
+	if a == nil {
+		return false
+	}
+
+	return a.Canary
 }
 
 func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {

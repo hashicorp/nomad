@@ -259,11 +259,13 @@ type LogEventFn func(message string, args ...interface{})
 // node attributes into a Driver without having to change the Driver interface
 // each time we do it. Used in conjunction with Factory, above.
 type DriverContext struct {
-	taskName string
-	allocID  string
-	config   *config.Config
-	logger   *log.Logger
-	node     *structs.Node
+	jobName       string
+	taskGroupName string
+	taskName      string
+	allocID       string
+	config        *config.Config
+	logger        *log.Logger
+	node          *structs.Node
 
 	emitEvent LogEventFn
 }
@@ -278,15 +280,18 @@ func NewEmptyDriverContext() *DriverContext {
 // This enables other packages to create DriverContexts but keeps the fields
 // private to the driver. If we want to change this later we can gorename all of
 // the fields in DriverContext.
-func NewDriverContext(taskName, allocID string, config *config.Config, node *structs.Node,
+func NewDriverContext(jobName, taskGroupName, taskName, allocID string,
+	config *config.Config, node *structs.Node,
 	logger *log.Logger, eventEmitter LogEventFn) *DriverContext {
 	return &DriverContext{
-		taskName:  taskName,
-		allocID:   allocID,
-		config:    config,
-		node:      node,
-		logger:    logger,
-		emitEvent: eventEmitter,
+		jobName:       jobName,
+		taskGroupName: taskGroupName,
+		taskName:      taskName,
+		allocID:       allocID,
+		config:        config,
+		node:          node,
+		logger:        logger,
+		emitEvent:     eventEmitter,
 	}
 }
 

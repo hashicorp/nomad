@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -299,6 +300,26 @@ func nodeDrivers(n *api.Node) []string {
 	return drivers
 }
 
+func formatDrain(n *api.Node) string {
+	if n.DrainStrategy != nil {
+		b := new(strings.Builder)
+		b.WriteString("true")
+
+		if n.DrainStrategy.ForceDeadline.IsZero() {
+			b.WriteString("; no deadline")
+		} else {
+			fmt.Fprintf(b, "; %s deadline", formatTime(n.DrainStrategy.ForceDeadline))
+		}
+
+		if n.DrainStrategy.IgnoreSystemJobs {
+			b.WriteString("; ignoring system jobs")
+		}
+		return b.String()
+	}
+
+	return strconv.FormatBool(n.Drain)
+}
+
 func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// Format the header output
 	basic := []string{
@@ -306,7 +327,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		fmt.Sprintf("Name|%s", node.Name),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
-		fmt.Sprintf("Drain|%v", node.Drain),
+		fmt.Sprintf("Drain|%v", formatDrain(node)),
 		fmt.Sprintf("Eligibility|%s", node.SchedulingEligibility),
 		fmt.Sprintf("Status|%s", node.Status),
 	}
@@ -409,6 +430,7 @@ func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string
 			drivers = append(drivers, driverName)
 		}
 	}
+	sort.Strings(drivers)
 	return strings.Trim(strings.Join(drivers, ","), ", ")
 }
 

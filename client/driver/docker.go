@@ -17,12 +17,13 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -234,6 +235,7 @@ type DockerDriverConfig struct {
 	ReadonlyRootfs       bool                `mapstructure:"readonly_rootfs"`        // Mount the container’s root filesystem as read only
 	AdvertiseIPv6Address bool                `mapstructure:"advertise_ipv6_address"` // Flag to use the GlobalIPv6Address from the container as the detected IP
 	CPUHardLimit         bool                `mapstructure:"cpu_hard_limit"`         // Enforce CPU hard limit.
+	PidsLimit            int64               `mapstructure:"pids_limit"`             // Enforce Docker Pids limit
 }
 
 func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
@@ -478,6 +480,9 @@ type DockerHandle struct {
 	client            *docker.Client
 	waitClient        *docker.Client
 	logger            *log.Logger
+	jobName           string
+	taskGroupName     string
+	taskName          string
 	Image             string
 	ImageID           string
 	containerID       string
@@ -736,6 +741,9 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 			"cpu_hard_limit": {
 				Type: fields.TypeBool,
 			},
+			"pids_limit": {
+				Type: fields.TypeInt,
+			},
 		},
 	}
 
@@ -898,6 +906,9 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		executor:       exec,
 		pluginClient:   pluginClient,
 		logger:         d.logger,
+		jobName:        d.DriverContext.jobName,
+		taskGroupName:  d.DriverContext.taskGroupName,
+		taskName:       d.DriverContext.taskName,
 		Image:          d.driverConfig.ImageName,
 		ImageID:        d.imageID,
 		containerID:    container.ID,
@@ -1099,7 +1110,7 @@ func (d *DockerDriver) newDockerClient(timeout time.Duration) (*docker.Client, e
 		}
 	}
 
-	if timeout != 0 {
+	if timeout != 0 && newClient != nil {
 		newClient.SetTimeout(timeout)
 	}
 	return newClient, merr.ErrorOrNil()
@@ -1216,6 +1227,8 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		Binds: binds,
 
 		VolumeDriver: driverConfig.VolumeDriver,
+
+		PidsLimit: driverConfig.PidsLimit,
 	}
 
 	// Calculate CPU Quota
@@ -1500,10 +1513,7 @@ func (d *DockerDriver) Periodic() (bool, time.Duration) {
 // loading it from the file system
 func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *docker.Client, taskDir *allocdir.TaskDir) (string, error) {
 	image := driverConfig.ImageName
-	repo, tag := docker.ParseRepositoryTag(image)
-	if tag == "" {
-		tag = "latest"
-	}
+	repo, tag := parseDockerImage(image)
 
 	coordinator, callerID := d.getDockerCoordinator(client)
 
@@ -1511,7 +1521,7 @@ func (d *DockerDriver) createImage(driverConfig *DockerDriverConfig, client *doc
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
 	// bother to check and cache the id here. We'll download first, then cache.
 	if driverConfig.ForcePull {
-		d.logger.Printf("[DEBUG] driver.docker: force pull image '%s:%s' instead of inspecting local", repo, tag)
+		d.logger.Printf("[DEBUG] driver.docker: force pull image '%s' instead of inspecting local", dockerImageRef(repo, tag))
 	} else if tag != "latest" {
 		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
 			// Image exists so just increment its reference count
@@ -1544,9 +1554,10 @@ func (d *DockerDriver) pullImage(driverConfig *DockerDriverConfig, client *docke
 		d.logger.Printf("[DEBUG] driver.docker: did not find docker auth for repo %q", repo)
 	}
 
-	d.emitEvent("Downloading image %s:%s", repo, tag)
+	d.emitEvent("Downloading image %s", dockerImageRef(repo, tag))
 	coordinator, callerID := d.getDockerCoordinator(client)
-	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID)
+
+	return coordinator.PullImage(driverConfig.ImageName, authOptions, callerID, d.emitEvent)
 }
 
 // authBackend encapsulates a function that resolves registry credentials.
@@ -1771,6 +1782,9 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 		executor:       exec,
 		pluginClient:   pluginClient,
 		logger:         d.logger,
+		jobName:        d.DriverContext.jobName,
+		taskGroupName:  d.DriverContext.taskGroupName,
+		taskName:       d.DriverContext.taskName,
 		Image:          pid.Image,
 		ImageID:        pid.ImageID,
 		containerID:    pid.ContainerID,
@@ -1924,6 +1938,21 @@ func (h *DockerHandle) run() {
 		h.logger.Printf("[ERR] driver.docker: failed to inspect container %s: %v", h.containerID, ierr)
 	} else if container.State.OOMKilled {
 		werr = fmt.Errorf("OOM Killed")
+		labels := []metrics.Label{
+			{
+				Name:  "job",
+				Value: h.jobName,
+			},
+			{
+				Name:  "task_group",
+				Value: h.taskGroupName,
+			},
+			{
+				Name:  "task",
+				Value: h.taskName,
+			},
+		}
+		metrics.IncrCounterWithLabels([]string{"driver", "docker", "oom"}, 1, labels)
 	}
 
 	close(h.doneCh)
@@ -2129,13 +2158,15 @@ func authFromHelper(helperName string) authBackend {
 		helper := dockerAuthHelperPrefix + helperName
 		cmd := exec.Command(helper, "get")
 
-		// Ensure that the HTTPs prefix exists
-		if !strings.HasPrefix(repo, "https://") {
-			repo = fmt.Sprintf("https://%s", repo)
+		repoParsed, err := reference.ParseNamed(repo)
+		if err != nil {
+			return nil, err
 		}
 
-		cmd.Stdin = strings.NewReader(repo)
+		// Ensure that the HTTPs prefix exists
+		repoAddr := fmt.Sprintf("https://%s", repoParsed.Hostname())
 
+		cmd.Stdin = strings.NewReader(repoAddr)
 		output, err := cmd.Output()
 		if err != nil {
 			switch err.(type) {
@@ -2181,4 +2212,26 @@ type createContainerClient interface {
 	InspectContainer(id string) (*docker.Container, error)
 	ListContainers(docker.ListContainersOptions) ([]docker.APIContainers, error)
 	RemoveContainer(opts docker.RemoveContainerOptions) error
+}
+
+func parseDockerImage(image string) (repo, tag string) {
+	repo, tag = docker.ParseRepositoryTag(image)
+	if tag != "" {
+		return repo, tag
+	}
+	if i := strings.IndexRune(image, '@'); i > -1 { // Has digest (@sha256:...)
+		// when pulling images with a digest, the repository contains the sha hash, and the tag is empty
+		// see: https://github.com/fsouza/go-dockerclient/blob/master/image_test.go#L471
+		repo = image
+	} else {
+		tag = "latest"
+	}
+	return repo, tag
+}
+
+func dockerImageRef(repo string, tag string) string {
+	if tag == "" {
+		return repo
+	}
+	return fmt.Sprintf("%s:%s", repo, tag)
 }

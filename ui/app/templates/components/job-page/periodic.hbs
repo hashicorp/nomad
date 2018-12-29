@@ -6,25 +6,12 @@
   {{/each}}
 {{/global-header}}
 {{#job-page/parts/body job=job onNamespaceChange=onNamespaceChange}}
-  {{#if errorMessage}}
-    <div class="notification is-danger">
-      <div class="columns">
-        <div class="column">
-          <h3 data-test-force-error-title class="title is-4">Could Not Force Launch</h3>
-          <p data-test-force-error-body>Your ACL token does not grant permission to submit jobs.</p>
-        </div>
-        <div class="column is-centered is-minimum">
-          <button data-test-force-error-close class="button is-danger" {{action "clearErrorMessage"}}>Okay</button>
-        </div>
-      </div>
-    </div>
-  {{/if}}
-  <h1 class="title">
-    {{job.name}}
-    <span class="bumper-left tag {{job.statusClass}}" data-test-job-status>{{job.status}}</span>
+  {{job-page/parts/error errorMessage=errorMessage onDismiss=(action "clearErrorMessage")}}
+
+  {{#job-page/parts/title job=job title=job.trimmedName handleError=(action "handleError")}}
     <span class="tag is-hollow">periodic</span>
     <button data-test-force-launch class="button is-warning is-small is-inline" onclick={{action "forceLaunch"}}>Force Launch</button>
-  </h1>
+  {{/job-page/parts/title}}
 
   <div class="boxed-section job-stats">
     <div class="boxed-section-body">

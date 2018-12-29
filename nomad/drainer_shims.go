@@ -8,15 +8,19 @@ type drainerShim struct {
 	s *Server
 }
 
-func (d drainerShim) NodesDrainComplete(nodes []string) (uint64, error) {
+func (d drainerShim) NodesDrainComplete(nodes []string, event *structs.NodeEvent) (uint64, error) {
 	args := &structs.BatchNodeUpdateDrainRequest{
 		Updates:      make(map[string]*structs.DrainUpdate, len(nodes)),
+		NodeEvents:   make(map[string]*structs.NodeEvent, len(nodes)),
 		WriteRequest: structs.WriteRequest{Region: d.s.config.Region},
 	}
 
 	update := &structs.DrainUpdate{}
 	for _, node := range nodes {
 		args.Updates[node] = update
+		if event != nil {
+			args.NodeEvents[node] = event
+		}
 	}
 
 	resp, index, err := d.s.raftApply(structs.BatchNodeUpdateDrainRequestType, args)

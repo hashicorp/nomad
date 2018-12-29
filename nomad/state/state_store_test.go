@@ -551,54 +551,45 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 }
 
 func TestStateStore_UpsertNode_Node(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
 	node := mock.Node()
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
 	_, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(err)
 
-	err = state.UpsertNode(1000, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(state.UpsertNode(1000, node))
+	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	out2, err := state.NodeBySecretID(ws, node.SecretID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(node, out2) {
-		t.Fatalf("bad: %#v %#v", node, out2)
-	}
-
-	if !reflect.DeepEqual(node, out) {
-		t.Fatalf("bad: %#v %#v", node, out)
-	}
+	require.NoError(err)
+	require.EqualValues(node, out)
+	require.EqualValues(node, out2)
+	require.Len(out.Events, 1)
+	require.Equal(NodeRegisterEventRegistered, out.Events[0].Message)
 
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1000 {
-		t.Fatalf("bad: %d", index)
-	}
+	require.NoError(err)
+	require.EqualValues(1000, index)
+	require.False(watchFired(ws))
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	// Transition the node to down and then up and ensure we get a re-register
+	// event
+	down := out.Copy()
+	down.Status = structs.NodeStatusDown
+	require.NoError(state.UpsertNode(1001, down))
+	require.NoError(state.UpsertNode(1002, out))
+
+	out, err = state.NodeByID(ws, node.ID)
+	require.NoError(err)
+	require.Len(out.Events, 2)
+	require.Equal(NodeRegisterEventReregistered, out.Events[1].Message)
 }
 
 func TestStateStore_DeleteNode_Node(t *testing.T) {
@@ -649,53 +640,38 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 }
 
 func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.UpsertNode(800, node)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(state.UpsertNode(800, node))
 
 	// Create a watchset so we can test that update node status fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.NodeByID(ws, node.ID); err != nil {
-		t.Fatalf("bad: %v", err)
+	_, err := state.NodeByID(ws, node.ID)
+	require.NoError(err)
+
+	event := &structs.NodeEvent{
+		Message:   "Node ready foo",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
 	}
 
-	err = state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, event))
+	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if out.Status != structs.NodeStatusReady {
-		t.Fatalf("bad: %#v", out)
-	}
-	if out.ModifyIndex != 801 {
-		t.Fatalf("bad: %#v", out)
-	}
+	require.NoError(err)
+	require.Equal(structs.NodeStatusReady, out.Status)
+	require.EqualValues(801, out.ModifyIndex)
+	require.Len(out.Events, 2)
+	require.Equal(event.Message, out.Events[1].Message)
 
 	index, err := state.Index("nodes")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 801 {
-		t.Fatalf("bad: %d", index)
-	}
-
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.NoError(err)
+	require.EqualValues(801, index)
+	require.False(watchFired(ws))
 }
 
 func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
@@ -726,7 +702,17 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		},
 	}
 
-	require.Nil(state.BatchUpdateNodeDrain(1002, update))
+	event := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	events := map[string]*structs.NodeEvent{
+		n1.ID: event,
+		n2.ID: event,
+	}
+
+	require.Nil(state.BatchUpdateNodeDrain(1002, update, events))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -736,6 +722,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		require.True(out.Drain)
 		require.NotNil(out.DrainStrategy)
 		require.Equal(out.DrainStrategy, expectedDrain)
+		require.Len(out.Events, 2)
 		require.EqualValues(1002, out.ModifyIndex)
 	}
 
@@ -763,7 +750,12 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 		},
 	}
 
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false))
+	event := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, expectedDrain, false, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -772,6 +764,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	require.True(out.Drain)
 	require.NotNil(out.DrainStrategy)
 	require.Equal(out.DrainStrategy, expectedDrain)
+	require.Len(out.Events, 2)
 	require.EqualValues(1001, out.ModifyIndex)
 
 	index, err := state.Index("nodes")
@@ -792,7 +785,7 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 
 	require.Equal(1, len(node.Events))
 	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
-	require.Equal("Node Registered", node.Events[0].Message)
+	require.Equal(NodeRegisterEventRegistered, node.Events[0].Message)
 
 	// Create a watchset so we can test that AddNodeEvent fires the watch
 	ws := memdb.NewWatchSet()
@@ -834,7 +827,7 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 	}
 	require.Equal(1, len(node.Events))
 	require.Equal(structs.NodeEventSubsystemCluster, node.Events[0].Subsystem)
-	require.Equal("Node Registered", node.Events[0].Message)
+	require.Equal(NodeRegisterEventRegistered, node.Events[0].Message)
 
 	var out *structs.Node
 	for i := 1; i <= 20; i++ {
@@ -886,11 +879,21 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		},
 	}
 
-	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false))
+	event1 := &structs.NodeEvent{
+		Message:   "Drain strategy enabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeDrain(1001, node.ID, drain, false, event1))
 	require.True(watchFired(ws))
 
 	// Remove the drain
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true))
+	event2 := &structs.NodeEvent{
+		Message:   "Drain strategy disabled",
+		Subsystem: structs.NodeEventSubsystemDrain,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, nil, true, event2))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
@@ -898,6 +901,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 	require.False(out.Drain)
 	require.Nil(out.DrainStrategy)
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	require.Len(out.Events, 3)
 	require.EqualValues(1002, out.ModifyIndex)
 
 	index, err := state.Index("nodes")
@@ -924,13 +928,20 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility))
+	event := &structs.NodeEvent{
+		Message:   "Node marked as ineligible",
+		Subsystem: structs.NodeEventSubsystemCluster,
+		Timestamp: time.Now(),
+	}
+	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 	require.Equal(out.SchedulingEligibility, expectedEligibility)
+	require.Len(out.Events, 2)
+	require.Equal(out.Events[1], event)
 	require.EqualValues(1001, out.ModifyIndex)
 
 	index, err := state.Index("nodes")
@@ -944,10 +955,10 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 			Deadline: -1 * time.Second,
 		},
 	}
-	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false))
+	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, nil))
 
 	// Try to set the node to eligible
-	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible)
+	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), "while it is draining")
 }
@@ -3536,6 +3547,86 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+
+	alloc := mock.Alloc()
+	now := time.Now()
+	alloc.CreateTime = now.UnixNano()
+	pdeadline := 5 * time.Minute
+	deployment := mock.Deployment()
+	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
+	alloc.DeploymentID = deployment.ID
+
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertDeployment(1000, deployment))
+	require.Nil(state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	healthy := now.Add(time.Second)
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+		DeploymentStatus: &structs.AllocDeploymentStatus{
+			Healthy:   helper.BoolToPtr(true),
+			Timestamp: healthy,
+		},
+	}
+	require.Nil(state.UpdateAllocsFromClient(1001, []*structs.Allocation{update}))
+
+	// Check that the deployment state was updated because the healthy
+	// deployment
+	dout, err := state.DeploymentByID(nil, deployment.ID)
+	require.Nil(err)
+	require.NotNil(dout)
+	require.Len(dout.TaskGroups, 1)
+	dstate := dout.TaskGroups[alloc.TaskGroup]
+	require.NotNil(dstate)
+	require.Equal(1, dstate.PlacedAllocs)
+	require.True(healthy.Add(pdeadline).Equal(dstate.RequireProgressBy))
+}
+
+// This tests that the deployment state is merged correctly
+func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
+	require := require.New(t)
+	state := testStateStore(t)
+
+	alloc := mock.Alloc()
+	now := time.Now()
+	alloc.CreateTime = now.UnixNano()
+	pdeadline := 5 * time.Minute
+	deployment := mock.Deployment()
+	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
+	alloc.DeploymentID = deployment.ID
+	alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Canary: true,
+	}
+
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertDeployment(1000, deployment))
+	require.Nil(state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+
+	update := &structs.Allocation{
+		ID:           alloc.ID,
+		ClientStatus: structs.AllocClientStatusRunning,
+		JobID:        alloc.JobID,
+		TaskGroup:    alloc.TaskGroup,
+		DeploymentStatus: &structs.AllocDeploymentStatus{
+			Healthy: helper.BoolToPtr(true),
+			Canary:  false,
+		},
+	}
+	require.Nil(state.UpdateAllocsFromClient(1001, []*structs.Allocation{update}))
+
+	// Check that the merging of the deployment status was correct
+	out, err := state.AllocByID(nil, alloc.ID)
+	require.Nil(err)
+	require.NotNil(out)
+	require.True(out.DeploymentStatus.Canary)
+}
+
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
@@ -3610,28 +3701,26 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 }
 
 func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
+	require := require.New(t)
 	state := testStateStore(t)
-	deployment := mock.Deployment()
 	alloc := mock.Alloc()
+	now := time.Now()
+	alloc.CreateTime = now.UnixNano()
+	alloc.ModifyTime = now.UnixNano()
+	pdeadline := 5 * time.Minute
+	deployment := mock.Deployment()
+	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
 	alloc.DeploymentID = deployment.ID
 
-	if err := state.UpsertJob(999, alloc.Job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := state.UpsertDeployment(1000, deployment); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(state.UpsertJob(999, alloc.Job))
+	require.Nil(state.UpsertDeployment(1000, deployment))
 
 	// Create a watch set so we can test that update fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.AllocsByDeployment(ws, alloc.DeploymentID); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.AllocsByDeployment(ws, alloc.DeploymentID))
 
 	err := state.UpsertAllocs(1001, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	if !watchFired(ws) {
 		t.Fatalf("watch not fired")
@@ -3639,29 +3728,26 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 
 	ws = memdb.NewWatchSet()
 	allocs, err := state.AllocsByDeployment(ws, alloc.DeploymentID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if len(allocs) != 1 {
-		t.Fatalf("bad: %#v", allocs)
-	}
-
-	if !reflect.DeepEqual(alloc, allocs[0]) {
-		t.Fatalf("bad: %#v %#v", alloc, allocs[0])
-	}
+	require.Nil(err)
+	require.Len(allocs, 1)
+	require.EqualValues(alloc, allocs[0])
 
 	index, err := state.Index("allocs")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index != 1001 {
-		t.Fatalf("bad: %d", index)
-	}
-
+	require.Nil(err)
+	require.EqualValues(1001, index)
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+
+	// Check that the deployment state was updated
+	dout, err := state.DeploymentByID(nil, deployment.ID)
+	require.Nil(err)
+	require.NotNil(dout)
+	require.Len(dout.TaskGroups, 1)
+	dstate := dout.TaskGroups[alloc.TaskGroup]
+	require.NotNil(dstate)
+	require.Equal(1, dstate.PlacedAllocs)
+	require.True(now.Add(pdeadline).Equal(dstate.RequireProgressBy))
 }
 
 // Testing to ensure we keep issue
@@ -3980,6 +4066,11 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	index, err := state.Index("allocs")
 	require.Nil(err)
 	require.EqualValues(1001, index)
+
+	// Check the eval is created
+	eout, err := state.EvalByID(nil, eval.ID)
+	require.Nil(err)
+	require.NotNil(eout)
 
 	m = map[string]*structs.DesiredTransition{alloc.ID: t2}
 	require.Nil(state.UpdateAllocsDesiredTransitions(1002, m, evals))
@@ -4653,6 +4744,15 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 
 	require.Equal(allocs, out)
 	require.False(watchFired(ws))
+
+	// Insert another alloc, verify index of previous alloc also got updated
+	alloc := mock.Alloc()
+	alloc.PreviousAllocation = allocs[0].ID
+	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+	require.Nil(err)
+	alloc0, err := state.AllocByID(nil, allocs[0].ID)
+	require.Nil(err)
+	require.Equal(alloc0.ModifyIndex, uint64(1001))
 }
 
 func TestStateStore_RestoreAlloc(t *testing.T) {
@@ -5485,19 +5585,17 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 // Test promoting unhealthy canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	state := testStateStore(t)
+	require := require.New(t)
 
 	// Create a job
 	j := mock.Job()
-	if err := state.UpsertJob(1, j); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertJob(1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
 	d.JobID = j.ID
-	if err := state.UpsertDeployment(2, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	d.TaskGroups["web"].DesiredCanaries = 2
+	require.Nil(state.UpsertDeployment(2, d))
 
 	// Create a set of allocations
 	c1 := mock.Alloc()
@@ -5509,9 +5607,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c2.DeploymentID = d.ID
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 
-	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(state.UpsertAllocs(3, []*structs.Allocation{c1, c2}))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -5521,33 +5617,24 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 		},
 	}
 	err := state.UpdateDeploymentPromotion(4, req)
-	if err == nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if !strings.Contains(err.Error(), c1.ID) {
-		t.Fatalf("expect canary %q to be listed as unhealth: %v", c1.ID, err)
-	}
-	if !strings.Contains(err.Error(), c2.ID) {
-		t.Fatalf("expect canary %q to be listed as unhealth: %v", c2.ID, err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
 
 // Test promoting a deployment with no canaries
 func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 	state := testStateStore(t)
+	require := require.New(t)
 
 	// Create a job
 	j := mock.Job()
-	if err := state.UpsertJob(1, j); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertJob(1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
+	d.TaskGroups["web"].DesiredCanaries = 2
 	d.JobID = j.ID
-	if err := state.UpsertDeployment(2, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertDeployment(2, d))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -5557,12 +5644,8 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 		},
 	}
 	err := state.UpdateDeploymentPromotion(4, req)
-	if err == nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if !strings.Contains(err.Error(), "no canaries to promote") {
-		t.Fatalf("expect error promoting nonexistent canaries: %v", err)
-	}
+	require.NotNil(err)
+	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
 
 // Test promoting all canaries in a deployment.
@@ -5665,6 +5748,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 // Test promoting a subset of canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	state := testStateStore(t)
+	require := require.New(t)
 
 	// Create a job with two task groups
 	j := mock.Job()
@@ -5672,9 +5756,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(1, j); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertJob(1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
@@ -5689,18 +5771,19 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	if err := state.UpsertDeployment(2, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpsertDeployment(2, d))
 
-	// Create a set of allocations
+	// Create a set of allocations for both groups, including an unhealthy one
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
+		Canary:  true,
 	}
+
+	// Should still be a canary
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
 	c2.DeploymentID = d.ID
@@ -5708,11 +5791,19 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: helper.BoolToPtr(true),
+		Canary:  true,
 	}
 
-	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
-		t.Fatalf("err: %v", err)
+	c3 := mock.Alloc()
+	c3.JobID = j.ID
+	c3.DeploymentID = d.ID
+	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
+	c3.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(false),
+		Canary:  true,
 	}
+
+	require.Nil(state.UpsertAllocs(3, []*structs.Allocation{c1, c2, c3}))
 
 	// Create an eval
 	e := mock.Eval()
@@ -5725,36 +5816,34 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpdateDeploymentPromotion(4, req)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.Nil(state.UpdateDeploymentPromotion(4, req))
 
 	// Check that the status per task group was updated properly
 	ws := memdb.NewWatchSet()
 	dout, err := state.DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if len(dout.TaskGroups) != 2 {
-		t.Fatalf("bad: %#v", dout.TaskGroups)
-	}
-	stateout, ok := dout.TaskGroups["web"]
-	if !ok {
-		t.Fatalf("bad: no state for task group web")
-	}
-	if !stateout.Promoted {
-		t.Fatalf("bad: task group web not promoted: %#v", stateout)
-	}
+	require.Nil(err)
+	require.Len(dout.TaskGroups, 2)
+	require.Contains(dout.TaskGroups, "web")
+	require.True(dout.TaskGroups["web"].Promoted)
 
 	// Check that the evaluation was created
-	eout, _ := state.EvalByID(ws, e.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if eout == nil {
-		t.Fatalf("bad: %#v", eout)
-	}
+	eout, err := state.EvalByID(ws, e.ID)
+	require.Nil(err)
+	require.NotNil(eout)
+
+	// Check the canary field was set properly
+	aout1, err1 := state.AllocByID(ws, c1.ID)
+	aout2, err2 := state.AllocByID(ws, c2.ID)
+	aout3, err3 := state.AllocByID(ws, c3.ID)
+	require.Nil(err1)
+	require.Nil(err2)
+	require.Nil(err3)
+	require.NotNil(aout1)
+	require.NotNil(aout2)
+	require.NotNil(aout3)
+	require.False(aout1.DeploymentStatus.Canary)
+	require.True(aout2.DeploymentStatus.Canary)
+	require.True(aout3.DeploymentStatus.Canary)
 }
 
 // Test that allocation health can't be set against a nonexistent deployment
@@ -5863,6 +5952,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 
 	// Insert a deployment
 	d := mock.Deployment()
+	d.TaskGroups["web"].ProgressDeadline = 5 * time.Minute
 	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -5890,6 +5980,9 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 		StatusDescription: desc,
 	}
 
+	// Capture the time for the update
+	ts := time.Now()
+
 	// Set health against the deployment
 	req := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
@@ -5900,6 +5993,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 		Job:              j,
 		Eval:             e,
 		DeploymentUpdate: u,
+		Timestamp:        ts,
 	}
 	err := state.UpdateDeploymentAllocHealth(3, req)
 	if err != nil {
@@ -5949,6 +6043,13 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 	}
 	if !out2.DeploymentStatus.IsUnhealthy() {
 		t.Fatalf("bad: alloc %q not unhealthy", out2.ID)
+	}
+
+	if !out1.DeploymentStatus.Timestamp.Equal(ts) {
+		t.Fatalf("bad: alloc %q had timestamp %v; want %v", out1.ID, out1.DeploymentStatus.Timestamp, ts)
+	}
+	if !out2.DeploymentStatus.Timestamp.Equal(ts) {
+		t.Fatalf("bad: alloc %q had timestamp %v; want %v", out2.ID, out2.DeploymentStatus.Timestamp, ts)
 	}
 }
 

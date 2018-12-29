@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type ServerForceLeaveCommand struct {
@@ -26,6 +28,14 @@ General Options:
 
 func (c *ServerForceLeaveCommand) Synopsis() string {
 	return "Force a server into the 'left' state"
+}
+
+func (c *ServerForceLeaveCommand) AutocompleteFlags() complete.Flags {
+	return c.Meta.AutocompleteFlags(FlagSetClient)
+}
+
+func (c *ServerForceLeaveCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *ServerForceLeaveCommand) Name() string { return "server force-leave" }

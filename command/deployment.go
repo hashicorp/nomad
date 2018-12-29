@@ -26,13 +26,13 @@ Usage: nomad deployment <subcommand> [options] [args]
   Promote the canaries to allow the remaining allocations to be updated in a
   rolling deployment fashion:
 
-      $ nomad deployment promote <depoloyment-id>
+      $ nomad deployment promote <deployment-id>
 
   Mark a deployment as failed. This will stop new allocations from being placed
   and if the job's upgrade stanza specifies auto_revert, causes the job to
   revert back to the last stable version of the job:
 
-      $ nomad deployment fail <depoloyment-id>
+      $ nomad deployment fail <deployment-id>
 
   Please see the individual subcommand help for detailed usage information.
 `

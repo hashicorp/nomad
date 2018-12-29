@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 const (
@@ -26,6 +28,11 @@ Alias: nomad init
 
   Creates an example job file that can be used as a starting
   point to customize further.
+
+Init Options:
+
+  -short
+    If the short flag is set, a minimal jobspec without comments is emitted.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -34,11 +41,32 @@ func (c *JobInitCommand) Synopsis() string {
 	return "Create an example job file"
 }
 
+func (c *JobInitCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-short": complete.PredictNothing,
+		})
+}
+
+func (c *JobInitCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
+
 func (c *JobInitCommand) Name() string { return "job init" }
 
 func (c *JobInitCommand) Run(args []string) int {
+	var short bool
+
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&short, "short", false, "")
+
+	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
 	// Check for misuse
-	if len(args) != 0 {
+	if len(flags.Args()) != 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))
 		return 1
@@ -55,8 +83,16 @@ func (c *JobInitCommand) Run(args []string) int {
 		return 1
 	}
 
+	var jobSpec []byte
+
+	if short {
+		jobSpec = []byte(shortJob)
+	} else {
+		jobSpec = []byte(defaultJob)
+	}
+
 	// Write out the example
-	err = ioutil.WriteFile(DefaultInitName, []byte(defaultJob), 0660)
+	err = ioutil.WriteFile(DefaultInitName, jobSpec, 0660)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to write '%s': %v", DefaultInitName, err))
 		return 1
@@ -66,6 +102,46 @@ func (c *JobInitCommand) Run(args []string) int {
 	c.Ui.Output(fmt.Sprintf("Example job file written to %s", DefaultInitName))
 	return 0
 }
+
+var shortJob = strings.TrimSpace(`
+job "example" {
+  datacenters = ["dc1"]
+
+  group "cache" {
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:3.2"
+        port_map {
+          db = 6379
+        }
+      }
+
+      resources {
+        cpu    = 500
+        memory = 256
+        network {
+          mbits = 10
+          port "db" {}
+        }
+      }
+
+      service {
+        name = "redis-cache"
+        tags = ["global", "cache"]
+        port = "db"
+        check {
+          name     = "alive"
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+`)
 
 var defaultJob = strings.TrimSpace(`
 # There can only be a single job definition per file. This job is named

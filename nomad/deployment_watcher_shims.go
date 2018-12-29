@@ -25,14 +25,6 @@ func (d *deploymentWatcherRaftShim) convertApplyErrors(applyResp interface{}, in
 	return index, err
 }
 
-func (d *deploymentWatcherRaftShim) UpsertEvals(evals []*structs.Evaluation) (uint64, error) {
-	update := &structs.EvalUpdateRequest{
-		Evals: evals,
-	}
-	fsmErrIntf, index, raftErr := d.apply(structs.EvalUpdateRequestType, update)
-	return d.convertApplyErrors(fsmErrIntf, index, raftErr)
-}
-
 func (d *deploymentWatcherRaftShim) UpsertJob(job *structs.Job) (uint64, error) {
 	job.SetSubmitTime()
 	update := &structs.JobRegisterRequest{
@@ -54,5 +46,10 @@ func (d *deploymentWatcherRaftShim) UpdateDeploymentPromotion(req *structs.Apply
 
 func (d *deploymentWatcherRaftShim) UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
 	fsmErrIntf, index, raftErr := d.apply(structs.DeploymentAllocHealthRequestType, req)
+	return d.convertApplyErrors(fsmErrIntf, index, raftErr)
+}
+
+func (d *deploymentWatcherRaftShim) UpdateAllocDesiredTransition(req *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
+	fsmErrIntf, index, raftErr := d.apply(structs.AllocUpdateDesiredTransitionRequestType, req)
 	return d.convertApplyErrors(fsmErrIntf, index, raftErr)
 }

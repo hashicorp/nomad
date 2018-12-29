@@ -4,6 +4,7 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
+import intersection from 'npm:lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import AllocationStats from '../utils/classes/allocation-stats';
 
@@ -37,6 +38,13 @@ export default Model.extend({
     return STATUS_ORDER[this.get('clientStatus')] || 100;
   }),
 
+  // When allocations are server-side rescheduled, a paper trail
+  // is left linking all reschedule attempts.
+  previousAllocation: belongsTo('allocation', { inverse: 'nextAllocation' }),
+  nextAllocation: belongsTo('allocation', { inverse: 'previousAllocation' }),
+
+  followUpEvaluation: belongsTo('evaluation'),
+
   statusClass: computed('clientStatus', function() {
     const classMap = {
       pending: 'is-pending',
@@ -54,6 +62,17 @@ export default Model.extend({
     return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
   }),
 
+  unhealthyDrivers: computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]', function() {
+    const taskGroupUnhealthyDrivers = this.get('taskGroup.drivers');
+    const nodeUnhealthyDrivers = this.get('node.unhealthyDriverNames');
+
+    if (taskGroupUnhealthyDrivers && nodeUnhealthyDrivers) {
+      return intersection(taskGroupUnhealthyDrivers, nodeUnhealthyDrivers);
+    }
+
+    return [];
+  }),
+
   fetchStats() {
     return this.get('token')
       .authorizedRequest(`/v1/client/allocation/${this.get('id')}/stats`)
@@ -67,4 +86,22 @@ export default Model.extend({
   },
 
   states: fragmentArray('task-state'),
+  rescheduleEvents: fragmentArray('reschedule-event'),
+
+  hasRescheduleEvents: computed('rescheduleEvents.length', 'nextAllocation', function() {
+    return this.get('rescheduleEvents.length') > 0 || this.get('nextAllocation');
+  }),
+
+  hasStoppedRescheduling: computed(
+    'nextAllocation',
+    'clientStatus',
+    'followUpEvaluation',
+    function() {
+      return (
+        !this.get('nextAllocation.content') &&
+        !this.get('followUpEvaluation.content') &&
+        this.get('clientStatus') === 'failed'
+      );
+    }
+  ),
 });

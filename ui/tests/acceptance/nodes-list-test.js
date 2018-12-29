@@ -2,7 +2,6 @@ import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helper
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { findLeader } from '../../mirage/config';
-import ipParts from 'nomad-ui/utils/ip-parts';
 
 function minimumSetup() {
   server.createList('node', 1);
@@ -47,7 +46,6 @@ test('each client record should show high-level info of the client', function(as
   andThen(() => {
     const nodeRow = find('[data-test-client-node-row]');
     const allocations = server.db.allocations.where({ nodeId: node.id });
-    const { address, port } = ipParts(node.httpAddr);
 
     assert.equal(
       nodeRow.querySelector('[data-test-client-id]').textContent.trim(),
@@ -65,11 +63,19 @@ test('each client record should show high-level info of the client', function(as
       'Status'
     );
     assert.equal(
-      nodeRow.querySelector('[data-test-client-address]').textContent.trim(),
-      address,
-      'Address'
+      nodeRow.querySelector('[data-test-client-drain]').textContent.trim(),
+      node.drain + '',
+      'Draining'
     );
-    assert.equal(nodeRow.querySelector('[data-test-client-port]').textContent.trim(), port, 'Port');
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-eligibility]').textContent.trim(),
+      node.schedulingEligibility,
+      'Eligibility'
+    );
+    assert.equal(
+      nodeRow.querySelector('[data-test-client-address]').textContent.trim(),
+      node.httpAddr
+    );
     assert.equal(
       nodeRow.querySelector('[data-test-client-datacenter]').textContent.trim(),
       node.datacenter,
@@ -108,9 +114,7 @@ test('when there are no clients, there is an empty message', function(assert) {
   });
 });
 
-test('when there are clients, but no matches for a search term, there is an empty message', function(
-  assert
-) {
+test('when there are clients, but no matches for a search term, there is an empty message', function(assert) {
   server.createList('agent', 1);
   server.create('node', { name: 'node' });
 
@@ -126,9 +130,7 @@ test('when there are clients, but no matches for a search term, there is an empt
   });
 });
 
-test('when accessing clients is forbidden, show a message with a link to the tokens page', function(
-  assert
-) {
+test('when accessing clients is forbidden, show a message with a link to the tokens page', function(assert) {
   server.create('agent');
   server.create('node', { name: 'node' });
   server.pretender.get('/v1/nodes', () => [403, {}, null]);
@@ -236,9 +238,7 @@ test('each server should link to the server detail page', function(assert) {
   });
 });
 
-test('when accessing servers is forbidden, show a message with a link to the tokens page', function(
-  assert
-) {
+test('when accessing servers is forbidden, show a message with a link to the tokens page', function(assert) {
   server.create('agent');
   server.pretender.get('/v1/agent/members', () => [403, {}, null]);
 

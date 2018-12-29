@@ -112,7 +112,7 @@ $ nomad node drain -enable -yes 46f1
 2018-04-11T23:42:27Z: Alloc "78b6b393-d29c-d8f8-e8e8-28931c0013ee" status running -> complete
 2018-04-11T23:42:29Z: Alloc "9a51a484-8c43-aa4e-d60a-46cfd1450780" marked for migration
 2018-04-11T23:42:29Z: Alloc "9a51a484-8c43-aa4e-d60a-46cfd1450780" draining
-2018-04-11T23:42:29Z: Node "46f1c6c4-a0e5-21f6-fd5c-d76c3d84e806" drain complete
+2018-04-11T23:42:29Z: Node "46f1c6c4-a0e5-21f6-fd5c-d76c3d84e806" has marked all allocations for migration
 2018-04-11T23:42:34Z: Alloc "9a51a484-8c43-aa4e-d60a-46cfd1450780" status running -> complete
 2018-04-11T23:42:34Z: All allocations on node "46f1c6c4-a0e5-21f6-fd5c-d76c3d84e806" have stopped.
 ```
@@ -298,7 +298,7 @@ f7476465  dc1  nomad-1  <none>  false  ineligible   ready
 ```
 
 Then drain each node in `dc1`. For this example we will only monitor the final
-ode that is draining. Watching `nomad node status -allocs` is also a good way
+node that is draining. Watching `nomad node status -allocs` is also a good way
 to monitor the status of drains.
 
 ```text
@@ -322,7 +322,7 @@ $ nomad node drain -enable -yes 9ccb3306
 2018-04-12T22:09:14Z: Alloc "d572d7a3-024b-fcb7-128b-1932a49c8d79" status running -> complete
 2018-04-12T22:09:33Z: Alloc "f3f24277-4435-56a3-7ee1-1b1eff5e3aa1" marked for migration
 2018-04-12T22:09:33Z: Alloc "f3f24277-4435-56a3-7ee1-1b1eff5e3aa1" draining
-2018-04-12T22:09:33Z: Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" drain complete
+2018-04-12T22:09:33Z: Node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" has marked all allocations for migration
 2018-04-12T22:09:39Z: Alloc "f3f24277-4435-56a3-7ee1-1b1eff5e3aa1" status running -> complete
 2018-04-12T22:09:39Z: All allocations on node "96b52ad8-e9ad-1084-c14f-0e11f10772e4" have stopped.
 ```

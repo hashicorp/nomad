@@ -194,20 +194,8 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Detect if the deployment is paused
 	if a.deployment != nil {
-		// Detect if any allocs associated with this deploy have failed
-		// Failed allocations could edge trigger an evaluation before the deployment watcher
-		// runs and marks the deploy as failed. This block makes sure that is still
-		// considered a failed deploy
-		failedAllocsInDeploy := false
-		for _, as := range m {
-			for _, alloc := range as {
-				if alloc.DeploymentID == a.deployment.ID && alloc.ClientStatus == structs.AllocClientStatusFailed {
-					failedAllocsInDeploy = true
-				}
-			}
-		}
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
-		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed || failedAllocsInDeploy
+		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
 
 	// Reconcile each group
@@ -334,12 +322,10 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		dstate, existingDeployment = a.deployment.TaskGroups[group]
 	}
 	if !existingDeployment {
-		autorevert := false
-		if tg.Update != nil && tg.Update.AutoRevert {
-			autorevert = true
-		}
-		dstate = &structs.DeploymentState{
-			AutoRevert: autorevert,
+		dstate = &structs.DeploymentState{}
+		if tg.Update != nil {
+			dstate.AutoRevert = tg.Update.AutoRevert
+			dstate.ProgressDeadline = tg.Update.ProgressDeadline
 		}
 	}
 
@@ -348,13 +334,15 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	all, ignore := a.filterOldTerminalAllocs(all)
 	desiredChanges.Ignore += uint64(len(ignore))
 
+	// canaries is the set of canaries for the current deployment and all is all
+	// allocs including the canaries
 	canaries, all := a.handleGroupCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost := all.filterByTainted(a.taintedNodes)
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
@@ -371,14 +359,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
-	// Having stopped un-needed allocations, append the canaries to the existing
-	// set of untainted because they are promoted. This will cause them to be
-	// treated like non-canaries
-	if !canaryState {
-		untainted = untainted.union(canaries)
-		nameIndex.Set(canaries)
-	}
-
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
 	ignore, inplace, destructive := a.computeUpdates(tg, untainted)
@@ -386,6 +366,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
 		dstate.DesiredTotal += len(destructive) + len(inplace)
+	}
+
+	// Remove the canaries now that we have handled rescheduling so that we do
+	// not consider them when making placement decisions.
+	if canaryState {
+		untainted = untainted.difference(canaries)
 	}
 
 	// The fact that we have destructive updates and have less canaries than is
@@ -396,7 +382,6 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	requireCanary := numDestructive != 0 && strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
 	if requireCanary && !a.deploymentPaused && !a.deploymentFailed {
 		number := strategy.Canary - len(canaries)
-		number = helper.IntMin(numDestructive, number)
 		desiredChanges.Canary += uint64(number)
 		if !existingDeployment {
 			dstate.DesiredCanaries = strategy.Canary
@@ -436,16 +421,29 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 		min := helper.IntMin(len(place), limit)
 		limit -= min
-	} else if !deploymentPlaceReady && len(lost) != 0 {
-		// We are in a situation where we shouldn't be placing more than we need
-		// to but we have lost allocations. It is a very weird user experience
-		// if you have a node go down and Nomad doesn't replace the allocations
-		// because the deployment is paused/failed so we only place to recover
-		// the lost allocations.
-		allowed := helper.IntMin(len(lost), len(place))
-		desiredChanges.Place += uint64(allowed)
-		for _, p := range place[:allowed] {
-			a.result.place = append(a.result.place, p)
+	} else if !deploymentPlaceReady {
+		// We do not want to place additional allocations but in the case we
+		// have lost allocations or allocations that require rescheduling now,
+		// we do so regardless to avoid odd user experiences.
+		if len(lost) != 0 {
+			allowed := helper.IntMin(len(lost), len(place))
+			desiredChanges.Place += uint64(allowed)
+			for _, p := range place[:allowed] {
+				a.result.place = append(a.result.place, p)
+			}
+		}
+
+		// Handle rescheduling of failed allocations even if the deployment is
+		// failed. We do not reschedule if the allocation is part of the failed
+		// deployment.
+		if now := len(rescheduleNow); now != 0 {
+			for _, p := range place {
+				prev := p.PreviousAllocation()
+				if p.IsRescheduling() && !(a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID) {
+					a.result.place = append(a.result.place, p)
+					desiredChanges.Place++
+				}
+			}
 		}
 	}
 
@@ -522,16 +520,15 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// deploymentComplete is whether the deployment is complete which largely
 	// means that no placements were made or desired to be made
-	deploymentComplete := len(destructive)+len(inplace)+len(place)+len(migrate) == 0 && !requireCanary
+	deploymentComplete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 && !requireCanary
 
 	// Final check to see if the deployment is complete is to ensure everything
 	// is healthy
 	if deploymentComplete && a.deployment != nil {
-		partOf, _ := untainted.filterByDeployment(a.deployment.ID)
-		for _, alloc := range partOf {
-			if !alloc.DeploymentStatus.IsHealthy() {
+		if dstate, ok := a.deployment.TaskGroups[group]; ok {
+			if dstate.HealthyAllocs < helper.IntMax(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+				(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 				deploymentComplete = false
-				break
 			}
 		}
 	}
@@ -663,26 +660,24 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet) []allocPlaceResult {
 
-	// Hot path the nothing to do case
-	existing := len(untainted) + len(migrate)
-	if existing >= group.Count {
-		return nil
-	}
-	var place []allocPlaceResult
 	// Add rescheduled placement results
-	// Any allocations being rescheduled will remain at DesiredStatusRun ClientStatusFailed
+	var place []allocPlaceResult
 	for _, alloc := range reschedule {
 		place = append(place, allocPlaceResult{
 			name:          alloc.Name,
 			taskGroup:     group,
 			previousAlloc: alloc,
 			reschedule:    true,
+			canary:        alloc.DeploymentStatus.IsCanary(),
 		})
-		existing += 1
-		if existing == group.Count {
-			break
-		}
 	}
+
+	// Hot path the nothing to do case
+	existing := len(untainted) + len(migrate) + len(reschedule)
+	if existing >= group.Count {
+		return place
+	}
+
 	// Add remaining placement results
 	if existing < group.Count {
 		for _, name := range nameIndex.Next(uint(group.Count - existing)) {

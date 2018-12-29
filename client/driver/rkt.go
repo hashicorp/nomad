@@ -194,7 +194,10 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 					return nil, lastErr
 				}
 
-				// This is a successful landing.
+				// This is a successful landing; log if its not the first attempt.
+				if try > 1 {
+					logger.Printf("[DEBUG] driver.rkt: retrieved network info for pod UUID %s on attempt %d", uuid, try)
+				}
 				return &cstructs.DriverNetwork{
 					PortMap: portmap,
 					IP:      status.Networks[0].IP.String(),
@@ -211,7 +214,7 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 		}
 
 		waitTime := getJitteredNetworkRetryTime()
-		logger.Printf("[DEBUG] driver.rkt: getting network info for pod UUID %s failed attempt %d: %v. Sleeping for %v", uuid, try, lastErr, waitTime)
+		logger.Printf("[DEBUG] driver.rkt: failed getting network info for pod UUID %s attempt %d: %v. Sleeping for %v", uuid, try, lastErr, waitTime)
 		time.Sleep(waitTime)
 	}
 	return nil, fmt.Errorf("timed out, last error: %v", lastErr)
@@ -665,9 +668,13 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
+	// Enable ResourceLimits to place the executor in a parent cgroup of
+	// the rkt container. This allows stats collection via the executor to
+	// work just like it does for exec.
 	execCmd := &executor.ExecCommand{
-		Cmd:  absPath,
-		Args: runArgs,
+		Cmd:            absPath,
+		Args:           runArgs,
+		ResourceLimits: true,
 	}
 	ps, err := execIntf.LaunchCmd(execCmd)
 	if err != nil {
@@ -818,7 +825,7 @@ func (h *rktHandle) Kill() error {
 }
 
 func (h *rktHandle) Stats() (*cstructs.TaskResourceUsage, error) {
-	return nil, DriverStatsNotImplemented
+	return h.executor.Stats()
 }
 
 func (h *rktHandle) run() {

@@ -272,6 +272,38 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsParse(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
+		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.JobsParseRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if obj == nil {
+			t.Fatal("response should not be nil")
+		}
+
+		job := obj.(*api.Job)
+		expected := mock.Job()
+		if job.Name == nil || *job.Name != expected.Name {
+			t.Fatalf("job name is '%s', expected '%s'", *job.Name, expected.Name)
+		}
+
+		if job.Datacenters == nil ||
+			job.Datacenters[0] != expected.Datacenters[0] {
+			t.Fatalf("job datacenters is '%s', expected '%s'",
+				job.Datacenters[0], expected.Datacenters[0])
+		}
+	})
+}
 func TestHTTP_JobQuery(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -553,6 +585,57 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 
 		// Make the HTTP request
 		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		reg := obj.(structs.JobRegisterResponse)
+		if reg.EvalID == "" {
+			t.Fatalf("bad: %v", reg)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+	})
+}
+
+func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		jobEvalReq := api.JobEvaluateRequest{
+			JobID: job.ID,
+			EvalOptions: api.EvalOptions{
+				ForceReschedule: true,
+			},
+		}
+
+		buf := encodeReq(jobEvalReq)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1129,13 +1212,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 		Update: &api.UpdateStrategy{
-			Stagger:         helper.TimeToPtr(1 * time.Second),
-			MaxParallel:     helper.IntToPtr(5),
-			HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
-			MinHealthyTime:  helper.TimeToPtr(1 * time.Minute),
-			HealthyDeadline: helper.TimeToPtr(3 * time.Minute),
-			AutoRevert:      helper.BoolToPtr(false),
-			Canary:          helper.IntToPtr(1),
+			Stagger:          helper.TimeToPtr(1 * time.Second),
+			MaxParallel:      helper.IntToPtr(5),
+			HealthCheck:      helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
+			MinHealthyTime:   helper.TimeToPtr(1 * time.Minute),
+			HealthyDeadline:  helper.TimeToPtr(3 * time.Minute),
+			ProgressDeadline: helper.TimeToPtr(3 * time.Minute),
+			AutoRevert:       helper.BoolToPtr(false),
+			Canary:           helper.IntToPtr(1),
 		},
 		Periodic: &api.PeriodicConfig{
 			Enabled:         helper.BoolToPtr(true),
@@ -1190,10 +1274,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Migrate: helper.BoolToPtr(true),
 				},
 				Update: &api.UpdateStrategy{
-					HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks),
-					MinHealthyTime:  helper.TimeToPtr(2 * time.Minute),
-					HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(true),
+					HealthCheck:      helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks),
+					MinHealthyTime:   helper.TimeToPtr(2 * time.Minute),
+					HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(5 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(true),
 				},
 
 				Meta: map[string]string{
@@ -1221,10 +1306,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 						Services: []*api.Service{
 							{
-								Id:        "id",
-								Name:      "serviceA",
-								Tags:      []string{"1", "2"},
-								PortLabel: "foo",
+								Id:         "id",
+								Name:       "serviceA",
+								Tags:       []string{"1", "2"},
+								CanaryTags: []string{"3", "4"},
+								PortLabel:  "foo",
 								CheckRestart: &api.CheckRestart{
 									Limit: 4,
 									Grace: helper.TimeToPtr(11 * time.Second),
@@ -1240,6 +1326,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Protocol:      "http",
 										PortLabel:     "foo",
 										AddressMode:   "driver",
+										GRPCService:   "foo.Bar",
+										GRPCUseTLS:    true,
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
@@ -1412,13 +1500,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Migrate: true,
 				},
 				Update: &structs.UpdateStrategy{
-					Stagger:         1 * time.Second,
-					MaxParallel:     5,
-					HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
-					MinHealthyTime:  2 * time.Minute,
-					HealthyDeadline: 5 * time.Minute,
-					AutoRevert:      true,
-					Canary:          1,
+					Stagger:          1 * time.Second,
+					MaxParallel:      5,
+					HealthCheck:      structs.UpdateStrategyHealthCheck_Checks,
+					MinHealthyTime:   2 * time.Minute,
+					HealthyDeadline:  5 * time.Minute,
+					ProgressDeadline: 5 * time.Minute,
+					AutoRevert:       true,
+					Canary:           1,
 				},
 				Meta: map[string]string{
 					"key": "value",
@@ -1446,6 +1535,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							{
 								Name:        "serviceA",
 								Tags:        []string{"1", "2"},
+								CanaryTags:  []string{"3", "4"},
 								PortLabel:   "foo",
 								AddressMode: "auto",
 								Checks: []*structs.ServiceCheck{
@@ -1461,6 +1551,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
+										GRPCService:   "foo.Bar",
+										GRPCUseTLS:    true,
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
 											Grace:          11 * time.Second,

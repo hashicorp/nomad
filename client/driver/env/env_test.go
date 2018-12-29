@@ -11,6 +11,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -371,4 +372,19 @@ func TestEnvironment_UpdateTask(t *testing.T) {
 	if v, ok := newMap["NOMAD_META_taskmeta"]; ok {
 		t.Errorf("Expected NOMAD_META_taskmeta to be unset but found: %q", v)
 	}
+}
+
+// TestEnvironment_InterpolateEmptyOptionalMeta asserts that in a parameterized
+// job, if an optional meta field is not set, it will get interpolated as an
+// empty string.
+func TestEnvironment_InterpolateEmptyOptionalMeta(t *testing.T) {
+	a := mock.Alloc()
+	a.Job.ParameterizedJob = &structs.ParameterizedJobConfig{
+		MetaOptional: []string{"metaopt1", "metaopt2"},
+	}
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Meta = map[string]string{"metaopt1": "metaopt1val"}
+	env := NewBuilder(mock.Node(), a, task, "global").Build()
+	require.Equal(t, "metaopt1val", env.ReplaceEnv("${NOMAD_META_metaopt1}"))
+	require.Empty(t, env.ReplaceEnv("${NOMAD_META_metaopt2}"))
 }

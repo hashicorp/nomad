@@ -1,3 +1,15 @@
+<td data-test-indicators class="is-narrow">
+  {{#if allocation.unhealthyDrivers.length}}
+    <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="Allocation depends on unhealthy drivers">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{/if}}
+  {{#if allocation.nextAllocation}}
+    <span data-test-icon="reschedule" class="tooltip text-center" aria-label="Allocation was rescheduled">
+      {{x-icon "history" class="is-faded"}}
+    </span>
+  {{/if}}
+</td>
 <td data-test-short-id>
   {{#link-to "allocations.allocation" allocation class="is-primary"}}
     {{allocation.shortId}}

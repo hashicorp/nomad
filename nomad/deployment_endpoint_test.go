@@ -472,9 +472,9 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
-	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.Canary = 1
 	d := mock.Deployment()
-	d.TaskGroups["web"].DesiredCanaries = 2
+	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
@@ -536,9 +536,9 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
-	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.Canary = 1
 	d := mock.Deployment()
-	d.TaskGroups["web"].DesiredCanaries = 2
+	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}

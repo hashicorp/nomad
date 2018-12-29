@@ -143,7 +143,7 @@ type Server struct {
 
 	// nodeConns is the set of multiplexed node connections we have keyed by
 	// NodeID
-	nodeConns     map[string]*nodeConnState
+	nodeConns     map[string][]*nodeConnState
 	nodeConnsLock sync.RWMutex
 
 	// peers is used to track the known Nomad servers. This is
@@ -273,7 +273,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 	}
 
 	// Configure TLS
-	tlsConf := config.tlsConfig()
+	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
+	if err != nil {
+		return nil, err
+	}
 	incomingTLS, tlsWrap, err := getTLSConf(config.TLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		return nil, err
@@ -294,7 +297,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		tlsWrap:       tlsWrap,
 		rpcServer:     rpc.NewServer(),
 		streamingRpcs: structs.NewStreamingRpcRegistry(),
-		nodeConns:     make(map[string]*nodeConnState),
+		nodeConns:     make(map[string][]*nodeConnState),
 		peers:         make(map[string][]*serverParts),
 		localPeers:    make(map[raft.ServerAddress]*serverParts),
 		reconcileCh:   make(chan serf.Member, 32),
@@ -450,7 +453,12 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 		return fmt.Errorf("can't reload uninitialized RPC listener")
 	}
 
-	tlsConf := tlsutil.NewTLSConfiguration(newTLSConfig)
+	tlsConf, err := tlsutil.NewTLSConfiguration(newTLSConfig, true, true)
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: unable to create TLS configuration %s", err)
+		return err
+	}
+
 	incomingTLS, tlsWrap, err := getTLSConf(newTLSConfig.EnableRPC, tlsConf)
 	if err != nil {
 		s.logger.Printf("[ERR] nomad: unable to reset TLS context %s", err)
@@ -665,6 +673,7 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
+		s.logger.Printf("[INFO] nomad: Reloading Vault Configuration")
 		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
 			multierror.Append(&mErr, err)
 		}
@@ -893,7 +902,7 @@ func (s *Server) setupDeploymentWatcher() error {
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
 		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
-		deploymentwatcher.CrossDeploymentEvalBatchDuration)
+		deploymentwatcher.CrossDeploymentUpdateBatchDuration)
 
 	return nil
 }
@@ -1245,6 +1254,10 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	}
 	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
 	conf.RejoinAfterLeave = true
+	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
+	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
+	// allow for convergence in 99.9% of nodes in a 10 node cluster
+	conf.LeavePropagateDelay = 1 * time.Second
 	conf.Merge = &serfMergeDelegate{}
 
 	// Until Nomad supports this fully, we disable automatic resolution.

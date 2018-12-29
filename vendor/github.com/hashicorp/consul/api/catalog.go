@@ -22,6 +22,7 @@ type CatalogService struct {
 	ServiceName              string
 	ServiceAddress           string
 	ServiceTags              []string
+	ServiceMeta              map[string]string
 	ServicePort              int
 	ServiceEnableTagOverride bool
 	CreateIndex              uint64
@@ -42,6 +43,7 @@ type CatalogRegistration struct {
 	Datacenter      string
 	Service         *AgentService
 	Check           *AgentCheck
+	SkipNodeUpdate  bool
 }
 
 type CatalogDeregistration struct {

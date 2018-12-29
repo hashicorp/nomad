@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
@@ -249,4 +251,27 @@ func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
 	assert.Equal(nodeID, res[0])
+}
+
+func TestNodeStatusCommand_FormatDrain(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	node := &api.Node{}
+
+	assert.Equal("false", formatDrain(node))
+
+	node.DrainStrategy = &api.DrainStrategy{}
+
+	assert.Equal("true; no deadline", formatDrain(node))
+
+	// formatTime special cases Unix(0, 0), so increment by 1
+	node.DrainStrategy.ForceDeadline = time.Unix(1, 0)
+	t.Logf(node.DrainStrategy.ForceDeadline.String())
+
+	assert.Equal("true; 1970-01-01T00:00:01Z deadline", formatDrain(node))
+
+	node.DrainStrategy.IgnoreSystemJobs = true
+
+	assert.Equal("true; 1970-01-01T00:00:01Z deadline; ignoring system jobs", formatDrain(node))
 }
