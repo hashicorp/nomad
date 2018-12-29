@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -409,6 +410,7 @@ func (n *Nodes) Stats(nodeID string, q *QueryOptions) (*HostStats, error) {
 	if _, err := n.client.query(path, &resp, q); err != nil {
 		return nil, err
 	}
+
 	return &resp, nil
 }
 
@@ -446,6 +448,8 @@ type Node struct {
 	Attributes            map[string]string
 	Resources             *Resources
 	Reserved              *Resources
+	NodeResources         *NodeResources
+	ReservedResources     *NodeReservedResources
 	Links                 map[string]string
 	Meta                  map[string]string
 	NodeClass             string
@@ -459,6 +463,49 @@ type Node struct {
 	Drivers               map[string]*DriverInfo
 	CreateIndex           uint64
 	ModifyIndex           uint64
+}
+
+type NodeResources struct {
+	Cpu      NodeCpuResources
+	Memory   NodeMemoryResources
+	Disk     NodeDiskResources
+	Networks []*NetworkResource
+	Devices  []*NodeDeviceResource
+}
+
+type NodeCpuResources struct {
+	CpuShares int64
+}
+
+type NodeMemoryResources struct {
+	MemoryMB int64
+}
+
+type NodeDiskResources struct {
+	DiskMB int64
+}
+
+type NodeReservedResources struct {
+	Cpu      NodeReservedCpuResources
+	Memory   NodeReservedMemoryResources
+	Disk     NodeReservedDiskResources
+	Networks NodeReservedNetworkResources
+}
+
+type NodeReservedCpuResources struct {
+	CpuShares uint64
+}
+
+type NodeReservedMemoryResources struct {
+	MemoryMB uint64
+}
+
+type NodeReservedDiskResources struct {
+	DiskMB uint64
+}
+
+type NodeReservedNetworkResources struct {
+	ReservedHostPorts string
 }
 
 // DrainStrategy describes a Node's drain behavior.
@@ -529,6 +576,7 @@ type HostStats struct {
 	Memory           *HostMemoryStats
 	CPU              []*HostCPUStats
 	DiskStats        []*HostDiskStats
+	DeviceStats      []*DeviceGroupStats
 	Uptime           uint64
 	CPUTicksConsumed float64
 }
@@ -555,6 +603,99 @@ type HostDiskStats struct {
 	Available         uint64
 	UsedPercent       float64
 	InodesUsedPercent float64
+}
+
+// DeviceGroupStats contains statistics for each device of a particular
+// device group, identified by the vendor, type and name of the device.
+type DeviceGroupStats struct {
+	Vendor string
+	Type   string
+	Name   string
+
+	// InstanceStats is a mapping of each device ID to its statistics.
+	InstanceStats map[string]*DeviceStats
+}
+
+// DeviceStats is the statistics for an individual device
+type DeviceStats struct {
+	// Summary exposes a single summary metric that should be the most
+	// informative to users.
+	Summary *StatValue
+
+	// Stats contains the verbose statistics for the device.
+	Stats *StatObject
+
+	// Timestamp is the time the statistics were collected.
+	Timestamp time.Time
+}
+
+// StatObject is a collection of statistics either exposed at the top
+// level or via nested StatObjects.
+type StatObject struct {
+	// Nested is a mapping of object name to a nested stats object.
+	Nested map[string]*StatObject
+
+	// Attributes is a mapping of statistic name to its value.
+	Attributes map[string]*StatValue
+}
+
+// StatValue exposes the values of a particular statistic. The value may be of
+// type float, integer, string or boolean. Numeric types can be exposed as a
+// single value or as a fraction.
+type StatValue struct {
+	// FloatNumeratorVal exposes a floating point value. If denominator is set
+	// it is assumed to be a fractional value, otherwise it is a scalar.
+	FloatNumeratorVal   *float64 `json:",omitempty"`
+	FloatDenominatorVal *float64 `json:",omitempty"`
+
+	// IntNumeratorVal exposes a int value. If denominator is set it is assumed
+	// to be a fractional value, otherwise it is a scalar.
+	IntNumeratorVal   *int64 `json:",omitempty"`
+	IntDenominatorVal *int64 `json:",omitempty"`
+
+	// StringVal exposes a string value. These are likely annotations.
+	StringVal *string `json:",omitempty"`
+
+	// BoolVal exposes a boolean statistic.
+	BoolVal *bool `json:",omitempty"`
+
+	// Unit gives the unit type: °F, %, MHz, MB, etc.
+	Unit string `json:",omitempty"`
+
+	// Desc provides a human readable description of the statistic.
+	Desc string `json:",omitempty"`
+}
+
+func (v *StatValue) String() string {
+	switch {
+	case v.BoolVal != nil:
+		return strconv.FormatBool(*v.BoolVal)
+	case v.StringVal != nil:
+		return *v.StringVal
+	case v.FloatNumeratorVal != nil:
+		str := strconv.FormatFloat(*v.FloatNumeratorVal, 'f', -1, 64)
+		if v.FloatDenominatorVal != nil {
+			str += " / " + strconv.FormatFloat(*v.FloatDenominatorVal, 'f', -1, 64)
+		}
+
+		if v.Unit != "" {
+			str += " " + v.Unit
+		}
+		return str
+	case v.IntNumeratorVal != nil:
+
+		str := strconv.FormatInt(*v.IntNumeratorVal, 10)
+		if v.IntDenominatorVal != nil {
+			str += " / " + strconv.FormatInt(*v.IntDenominatorVal, 10)
+		}
+
+		if v.Unit != "" {
+			str += " " + v.Unit
+		}
+		return str
+	default:
+		return "<unknown>"
+	}
 }
 
 // NodeListStub is a subset of information returned during

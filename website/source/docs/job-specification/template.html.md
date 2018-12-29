@@ -242,6 +242,10 @@ EOH
 }
 ```
 
+Most users should set `generate_lease=true` on the `pki/issue/foo` role in Vault's
+PKI backend. If this value is not set, the template stanza will frequently render a new
+certificate, approximately every minute, which is probably not what you want.
+
 ### Vault KV API v1
 
 Under Vault KV API v1, paths start with `secret/`, and the response returns the
@@ -278,7 +282,7 @@ rather than `secret/...`.
 ## Client Configuration
 
 The `template` block has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `template.allow_host_source` - Allows templates to specify their source
   template as an absolute path referencing host directories. Defaults to `true`.

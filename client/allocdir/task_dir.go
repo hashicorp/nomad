@@ -3,16 +3,19 @@ package allocdir
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 
+	hclog "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // TaskDir contains all of the paths relevant to a task. All paths are on the
 // host system so drivers should mount/link into task containers as necessary.
 type TaskDir struct {
+	// AllocDir is the path to the alloc directory on the host
+	AllocDir string
+
 	// Dir is the path to Task directory on the host
 	Dir string
 
@@ -37,16 +40,20 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // newTaskDir creates a TaskDir struct with paths set. Call Build() to
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
+func newTaskDir(logger hclog.Logger, allocDir, taskName string) *TaskDir {
 	taskDir := filepath.Join(allocDir, taskName)
+
+	logger = logger.Named("task_dir").With("task_name", taskName)
+
 	return &TaskDir{
+		AllocDir:       allocDir,
 		Dir:            taskDir,
 		SharedAllocDir: filepath.Join(allocDir, SharedAllocName),
 		LogDir:         filepath.Join(allocDir, SharedAllocName, LogDirName),
@@ -141,16 +148,8 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 func (t *TaskDir) buildChroot(chrootCreated bool, entries map[string]string) error {
 	if !chrootCreated {
 		// Link/copy chroot entries
-		if err := t.embedDirs(entries); err != nil {
-			return err
-		}
+		return t.embedDirs(entries)
 	}
-
-	// Mount special dirs
-	if err := t.mountSpecialDirs(); err != nil {
-		return err
-	}
-
 	return nil
 }
 

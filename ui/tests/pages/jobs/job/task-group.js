@@ -9,6 +9,9 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import allocations from 'nomad-ui/tests/pages/components/allocations';
+import error from 'nomad-ui/tests/pages/components/error';
+
 export default create({
   pageSize: 10,
 
@@ -31,29 +34,11 @@ export default create({
     return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
   },
 
-  allocations: collection('[data-test-allocation]', {
-    id: attribute('data-test-allocation'),
-    shortId: text('[data-test-short-id]'),
-    modifyTime: text('[data-test-modify-time]'),
-    name: text('[data-test-name]'),
-    status: text('[data-test-client-status]'),
-    jobVersion: text('[data-test-job-version]'),
-    client: text('[data-test-client]'),
-    cpu: text('[data-test-cpu]'),
-    cpuTooltip: attribute('aria-label', '[data-test-cpu] .tooltip'),
-    mem: text('[data-test-mem]'),
-    memTooltip: attribute('aria-label', '[data-test-mem] .tooltip'),
-    rescheduled: isPresent('[data-test-indicators] [data-test-icon="reschedule"]'),
-
-    visit: clickable('[data-test-short-id] a'),
-    visitClient: clickable('[data-test-client] a'),
-  }),
-
-  allocationFor(id) {
-    return this.allocations.toArray().find(allocation => allocation.id === id);
-  },
+  ...allocations(),
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
+
+  error: error(),
 
   emptyState: {
     headline: text('[data-test-empty-allocations-list-headline]'),

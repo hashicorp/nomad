@@ -5,8 +5,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/stretchr/testify/require"
 )
 
+// TODO Test
 func testNode() *Node {
 	return &Node{
 		ID:         uuid.Generate(),
@@ -18,15 +21,21 @@ func testNode() *Node {
 			"version":     "0.1.0",
 			"driver.exec": "1",
 		},
-		Resources: &Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-			IOPS:     150,
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				CpuShares: 4000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
 			Networks: []*NetworkResource{
 				{
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
+					IP:     "192.168.0.100",
 					MBits:  1000,
 				},
 			},
@@ -43,61 +52,73 @@ func testNode() *Node {
 }
 
 func TestNode_ComputedClass(t *testing.T) {
+	require := require.New(t)
+
 	// Create a node and gets it computed class
 	n := testNode()
-	if err := n.ComputeClass(); err != nil {
-		t.Fatalf("ComputeClass() failed: %v", err)
-	}
-	if n.ComputedClass == "" {
-		t.Fatal("ComputeClass() didn't set computed class")
-	}
+	require.NoError(n.ComputeClass())
+	require.NotEmpty(n.ComputedClass)
 	old := n.ComputedClass
 
 	// Compute again to ensure determinism
-	if err := n.ComputeClass(); err != nil {
-		t.Fatalf("ComputeClass() failed: %v", err)
-	}
-	if old != n.ComputedClass {
-		t.Fatalf("ComputeClass() should have returned same class; got %v; want %v", n.ComputedClass, old)
-	}
+	require.NoError(n.ComputeClass())
+	require.Equal(n.ComputedClass, old)
 
 	// Modify a field and compute the class again.
 	n.Datacenter = "New DC"
-	if err := n.ComputeClass(); err != nil {
-		t.Fatalf("ComputeClass() failed: %v", err)
-	}
-	if n.ComputedClass == "" {
-		t.Fatal("ComputeClass() didn't set computed class")
-	}
+	require.NoError(n.ComputeClass())
+	require.NotEqual(n.ComputedClass, old)
+	old = n.ComputedClass
 
-	if old == n.ComputedClass {
-		t.Fatal("ComputeClass() returned same computed class")
-	}
+	// Add a device
+	n.NodeResources.Devices = append(n.NodeResources.Devices, &NodeDeviceResource{
+		Vendor: "foo",
+		Type:   "gpu",
+		Name:   "bam",
+	})
+	require.NoError(n.ComputeClass())
+	require.NotEqual(n.ComputedClass, old)
 }
 
 func TestNode_ComputedClass_Ignore(t *testing.T) {
+	require := require.New(t)
+
 	// Create a node and gets it computed class
 	n := testNode()
-	if err := n.ComputeClass(); err != nil {
-		t.Fatalf("ComputeClass() failed: %v", err)
-	}
-	if n.ComputedClass == "" {
-		t.Fatal("ComputeClass() didn't set computed class")
-	}
+	require.NoError(n.ComputeClass())
+	require.NotEmpty(n.ComputedClass)
 	old := n.ComputedClass
 
 	// Modify an ignored field and compute the class again.
 	n.ID = "New ID"
-	if err := n.ComputeClass(); err != nil {
-		t.Fatalf("ComputeClass() failed: %v", err)
-	}
-	if n.ComputedClass == "" {
-		t.Fatal("ComputeClass() didn't set computed class")
-	}
+	require.NoError(n.ComputeClass())
+	require.NotEmpty(n.ComputedClass)
+	require.Equal(n.ComputedClass, old)
 
-	if old != n.ComputedClass {
-		t.Fatal("ComputeClass() should have ignored field")
+}
+
+func TestNode_ComputedClass_Device_Attr(t *testing.T) {
+	require := require.New(t)
+
+	// Create a node and gets it computed class
+	n := testNode()
+	d := &NodeDeviceResource{
+		Vendor: "foo",
+		Type:   "gpu",
+		Name:   "bam",
+		Attributes: map[string]*psstructs.Attribute{
+			"foo": psstructs.NewBoolAttribute(true),
+		},
 	}
+	n.NodeResources.Devices = append(n.NodeResources.Devices, d)
+	require.NoError(n.ComputeClass())
+	require.NotEmpty(n.ComputedClass)
+	old := n.ComputedClass
+
+	// Update the attributes to be have a unique value
+	d.Attributes["unique.bar"] = psstructs.NewBoolAttribute(false)
+	require.NoError(n.ComputeClass())
+	require.Equal(n.ComputedClass, old)
 }
 
 func TestNode_ComputedClass_Attr(t *testing.T) {

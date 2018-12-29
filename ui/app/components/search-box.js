@@ -12,6 +12,9 @@ export default Component.extend({
   // Used to throttle sets to searchTerm
   debounce: 150,
 
+  // A hook that's called when the search value changes
+  onChange() {},
+
   classNames: ['search-box', 'field', 'has-addons'],
 
   actions: {
@@ -23,5 +26,7 @@ export default Component.extend({
 });
 
 function updateSearch() {
-  this.set('searchTerm', this.get('_searchTerm'));
+  const newTerm = this.get('_searchTerm');
+  this.onChange(newTerm);
+  this.set('searchTerm', newTerm);
 }

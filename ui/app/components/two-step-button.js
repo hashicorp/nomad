@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { equal } from '@ember/object/computed';
+import RSVP from 'rsvp';
 
 export default Component.extend({
   classNames: ['two-step-button'],
@@ -8,6 +9,7 @@ export default Component.extend({
   cancelText: '',
   confirmText: '',
   confirmationMessage: '',
+  awaitingConfirmation: false,
   onConfirm() {},
   onCancel() {},
 
@@ -21,6 +23,11 @@ export default Component.extend({
     },
     promptForConfirmation() {
       this.set('state', 'prompt');
+    },
+    confirm() {
+      RSVP.resolve(this.get('onConfirm')()).then(() => {
+        this.send('setToIdle');
+      });
     },
   },
 });

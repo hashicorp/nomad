@@ -2,8 +2,9 @@ package nomad
 
 import (
 	"context"
-	"log"
 	"sync"
+
+	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/nomad/helper/pool"
@@ -18,7 +19,7 @@ import (
 // a single in-flight RPC to any given server, so goroutines don't accumulate
 // as we run the health check fairly frequently.
 type StatsFetcher struct {
-	logger       *log.Logger
+	logger       log.Logger
 	pool         *pool.ConnPool
 	region       string
 	inflight     map[string]struct{}
@@ -26,9 +27,9 @@ type StatsFetcher struct {
 }
 
 // NewStatsFetcher returns a stats fetcher.
-func NewStatsFetcher(logger *log.Logger, pool *pool.ConnPool, region string) *StatsFetcher {
+func NewStatsFetcher(logger log.Logger, pool *pool.ConnPool, region string) *StatsFetcher {
 	return &StatsFetcher{
-		logger:   logger,
+		logger:   logger.Named("stats_fetcher"),
 		pool:     pool,
 		region:   region,
 		inflight: make(map[string]struct{}),
@@ -44,8 +45,7 @@ func (f *StatsFetcher) fetch(server *serverParts, replyCh chan *autopilot.Server
 	var reply autopilot.ServerStats
 	err := f.pool.RPC(f.region, server.Addr, server.MajorVersion, "Status.RaftStats", &args, &reply)
 	if err != nil {
-		f.logger.Printf("[WARN] nomad: error getting server health from %q: %v",
-			server.Name, err)
+		f.logger.Warn("failed retrieving server health", "server", server.Name, "error", err)
 	} else {
 		replyCh <- &reply
 	}
@@ -73,8 +73,7 @@ func (f *StatsFetcher) Fetch(ctx context.Context, members []serf.Member) map[str
 	f.inflightLock.Lock()
 	for _, server := range servers {
 		if _, ok := f.inflight[server.ID]; ok {
-			f.logger.Printf("[WARN] nomad: error getting server health from %q: last request still outstanding",
-				server.Name)
+			f.logger.Warn("failed retrieving server health; last request still outstanding", "server", server.Name)
 		} else {
 			workItem := &workItem{
 				server:  server,
@@ -96,8 +95,7 @@ func (f *StatsFetcher) Fetch(ctx context.Context, members []serf.Member) map[str
 			replies[workItem.server.ID] = reply
 
 		case <-ctx.Done():
-			f.logger.Printf("[WARN] nomad: error getting server health from %q: %v",
-				workItem.server.Name, ctx.Err())
+			f.logger.Warn("failed retrieving server health", "server", workItem.server.Name, "error", ctx.Err())
 		}
 	}
 	return replies

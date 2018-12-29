@@ -1332,6 +1332,42 @@ func TestJobs_Constrain(t *testing.T) {
 	}
 }
 
+func TestJobs_AddAffinity(t *testing.T) {
+	t.Parallel()
+	job := &Job{Affinities: nil}
+
+	// Create and add an affinity
+	out := job.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
+	if n := len(job.Affinities); n != 1 {
+		t.Fatalf("expected 1 affinity, got: %d", n)
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Adding another affinity preserves the original
+	job.AddAffinity(NewAffinity("${node.datacenter}", "=", "dc2", 50))
+	expect := []*Affinity{
+		{
+			LTarget: "kernel.version",
+			RTarget: "4.6",
+			Operand: "=",
+			Weight:  100,
+		},
+		{
+			LTarget: "${node.datacenter}",
+			RTarget: "dc2",
+			Operand: "=",
+			Weight:  50,
+		},
+	}
+	if !reflect.DeepEqual(job.Affinities, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Affinities)
+	}
+}
+
 func TestJobs_Sort(t *testing.T) {
 	t.Parallel()
 	jobs := []*JobListStub{
@@ -1348,6 +1384,57 @@ func TestJobs_Sort(t *testing.T) {
 	}
 	if !reflect.DeepEqual(jobs, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", jobs, expect)
+	}
+}
+
+func TestJobs_AddSpread(t *testing.T) {
+	t.Parallel()
+	job := &Job{Spreads: nil}
+
+	// Create and add a Spread
+	spreadTarget := NewSpreadTarget("r1", 50)
+
+	spread := NewSpread("${meta.rack}", 100, []*SpreadTarget{spreadTarget})
+	out := job.AddSpread(spread)
+	if n := len(job.Spreads); n != 1 {
+		t.Fatalf("expected 1 spread, got: %d", n)
+	}
+
+	// Check that the job was returned
+	if job != out {
+		t.Fatalf("expect: %#v, got: %#v", job, out)
+	}
+
+	// Adding another spread preserves the original
+	spreadTarget2 := NewSpreadTarget("dc1", 100)
+
+	spread2 := NewSpread("${node.datacenter}", 100, []*SpreadTarget{spreadTarget2})
+	job.AddSpread(spread2)
+
+	expect := []*Spread{
+		{
+			Attribute: "${meta.rack}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "r1",
+					Percent: 50,
+				},
+			},
+		},
+		{
+			Attribute: "${node.datacenter}",
+			Weight:    100,
+			SpreadTarget: []*SpreadTarget{
+				{
+					Value:   "dc1",
+					Percent: 100,
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(job.Spreads, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job.Spreads)
 	}
 }
 

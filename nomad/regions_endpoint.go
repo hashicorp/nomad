@@ -1,10 +1,15 @@
 package nomad
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	log "github.com/hashicorp/go-hclog"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 // Region is used to query and list the known regions
 type Region struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // List is used to list all of the known regions. No leader forwarding is

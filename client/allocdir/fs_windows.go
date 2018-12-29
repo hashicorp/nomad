@@ -55,11 +55,6 @@ func MountSpecialDirs(taskDir string) error {
 	return nil
 }
 
-// unmountSpecialDirs unmounts the dev and proc file system from the chroot
-func unmountSpecialDirs(taskDir string) error {
-	return nil
-}
-
 // getOwner doesn't work on Windows as Windows doesn't use int user IDs
 func getOwner(os.FileInfo) (int, int) {
 	return idUnsupported, idUnsupported

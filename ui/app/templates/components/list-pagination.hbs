@@ -1,9 +1,9 @@
 {{#if source.length}}
   {{yield (hash
-    first=(component "list-pagination/list-pager" page=1 visible=(not (eq page 1)))
-    prev=(component "list-pagination/list-pager" page=(dec page) visible=(not (eq page 1)))
-    next=(component "list-pagination/list-pager" page=(inc page) visible=(not (eq page lastPage)))
-    last=(component "list-pagination/list-pager" page=lastPage visible=(not (eq page lastPage)))
+    first=(component "list-pagination/list-pager" test="first" page=1 visible=(not (eq page 1)))
+    prev=(component "list-pagination/list-pager" test="prev" page=(dec page) visible=(not (eq page 1)))
+    next=(component "list-pagination/list-pager" test="next" page=(inc page) visible=(not (eq page lastPage)))
+    last=(component "list-pagination/list-pager" test="last" page=lastPage visible=(not (eq page lastPage)))
     pageLinks=pageLinks
     currentPage=page
     totalPages=lastPage

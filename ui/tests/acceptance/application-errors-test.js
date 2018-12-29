@@ -52,3 +52,43 @@ test('the 403 error page links to the ACL tokens page', function(assert) {
     );
   });
 });
+
+test('the no leader error state gets its own error message', function(assert) {
+  server.pretender.get('/v1/jobs', () => [500, {}, 'No cluster leader']);
+
+  JobsList.visit();
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    assert.equal(
+      JobsList.error.title,
+      'No Cluster Leader',
+      'The error is specifically for the lack of a cluster leader'
+    );
+  });
+});
+
+test('error pages include links to the jobs and clients pages', function(assert) {
+  visit('/a/non-existent/page');
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    JobsList.error.gotoJobs();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs', 'Now on the jobs page');
+    assert.notOk(JobsList.error.isPresent, 'The error is gone now');
+    visit('/a/non-existent/page');
+  });
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    JobsList.error.gotoClients();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/clients', 'Now on the clients page');
+    assert.notOk(JobsList.error.isPresent, 'The error is gone now');
+  });
+});

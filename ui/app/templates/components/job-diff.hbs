@@ -80,12 +80,12 @@
       </span>
       Task: "{{task.Name}}"
         {{#if task.Annotations}}
-          ({{#each task.Annotations as |annotation index|}}
+          ({{~#each task.Annotations as |annotation index|}}
             <span class="{{css-class annotation}}">{{annotation}}</span>
-            {{#unless (eq index (dec annotations.length))}},{{/unless}}
-          {{/each}})
+            {{#unless (eq index (dec task.Annotations.length))}},{{/unless}}
+          {{/each~}})
         {{/if}}
-        {{#if (or verbose (eq (lowercase task.Type "edited")))}}
+        {{#if (or verbose (eq (lowercase task.Type) "edited"))}}
           {{job-diff-fields-and-objects fields=task.Fields objects=task.Objects}}
         {{/if}}
       </div>

@@ -93,6 +93,16 @@ test('/clients/:id should list additional detail for the node below the title', 
   });
 });
 
+test('/clients/:id should include resource utilization graphs', function(assert) {
+  ClientDetail.visit({ id: node.id });
+
+  andThen(() => {
+    assert.equal(ClientDetail.resourceCharts.length, 2, 'Two resource utilization graphs');
+    assert.equal(ClientDetail.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
+    assert.equal(ClientDetail.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+  });
+});
+
 test('/clients/:id should list all allocations on the node', function(assert) {
   const allocationsCount = server.db.allocations.where({ nodeId: node.id }).length;
 
@@ -128,13 +138,17 @@ test('each allocation should have high-level details for the allocation', functi
   andThen(() => {
     const allocationRow = ClientDetail.allocations.objectAt(0);
 
-    assert.equal(allocationRow.id, allocation.id.split('-')[0], 'Allocation short ID');
+    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short ID');
+    assert.equal(
+      allocationRow.createTime,
+      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      'Allocation create time'
+    );
     assert.equal(
       allocationRow.modifyTime,
-      moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
+      moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
-    assert.equal(allocationRow.name, allocation.name, 'Allocation name');
     assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
     assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
     assert.ok(allocationRow.taskGroup, 'Task group name');

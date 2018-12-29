@@ -69,6 +69,18 @@ test('each job row should link to the corresponding job', function(assert) {
   });
 });
 
+test('the new job button transitions to the new job page', function(assert) {
+  JobsList.visit();
+
+  andThen(() => {
+    JobsList.runJob();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs/run');
+  });
+});
+
 test('when there are no jobs, there is an empty message', function(assert) {
   JobsList.visit();
 
@@ -91,6 +103,24 @@ test('when there are jobs, but no matches for a search result, there is an empty
   andThen(() => {
     assert.ok(JobsList.isEmpty, 'The empty message is shown');
     assert.equal(JobsList.emptyState.headline, 'No Matches', 'The message is appropriate');
+  });
+});
+
+test('searching resets the current page', function(assert) {
+  server.createList('job', JobsList.pageSize + 1, { createAllocations: false });
+  JobsList.visit();
+
+  andThen(() => {
+    JobsList.nextPage();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs?page=2', 'Page query param captures page=2');
+    JobsList.search('foobar');
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
   });
 });
 

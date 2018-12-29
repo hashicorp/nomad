@@ -46,6 +46,32 @@ func TestParse(t *testing.T) {
 					},
 				},
 
+				Affinities: []*api.Affinity{
+					{
+						LTarget: "${meta.team}",
+						RTarget: "mobile",
+						Operand: "=",
+						Weight:  50,
+					},
+				},
+
+				Spreads: []*api.Spread{
+					{
+						Attribute: "${meta.rack}",
+						Weight:    100,
+						SpreadTarget: []*api.SpreadTarget{
+							{
+								Value:   "r1",
+								Percent: 40,
+							},
+							{
+								Value:   "r2",
+								Percent: 60,
+							},
+						},
+					},
+				},
+
 				Update: &api.UpdateStrategy{
 					Stagger:          helper.TimeToPtr(60 * time.Second),
 					MaxParallel:      helper.IntToPtr(2),
@@ -84,6 +110,14 @@ func TestParse(t *testing.T) {
 								Operand: "=",
 							},
 						},
+						Affinities: []*api.Affinity{
+							{
+								LTarget: "${node.datacenter}",
+								RTarget: "dc2",
+								Operand: "=",
+								Weight:  100,
+							},
+						},
 						Meta: map[string]string{
 							"elb_mode":     "tcp",
 							"elb_interval": "10",
@@ -94,6 +128,26 @@ func TestParse(t *testing.T) {
 							Attempts: helper.IntToPtr(5),
 							Delay:    helper.TimeToPtr(15 * time.Second),
 							Mode:     helper.StringToPtr("delay"),
+						},
+						Spreads: []*api.Spread{
+							{
+								Attribute: "${node.datacenter}",
+								Weight:    50,
+								SpreadTarget: []*api.SpreadTarget{
+									{
+										Value:   "dc1",
+										Percent: 50,
+									},
+									{
+										Value:   "dc2",
+										Percent: 25,
+									},
+									{
+										Value:   "dc3",
+										Percent: 25,
+									},
+								},
+							},
 						},
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: helper.TimeToPtr(12 * time.Hour),
@@ -131,6 +185,14 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
+								Affinities: []*api.Affinity{
+									{
+										LTarget: "${meta.foo}",
+										RTarget: "a,b,c",
+										Operand: "set_contains",
+										Weight:  25,
+									},
+								},
 								Services: []*api.Service{
 									{
 										Tags:       []string{"foo", "bar"},
@@ -166,6 +228,31 @@ func TestParse(t *testing.T) {
 											MBits:         helper.IntToPtr(100),
 											ReservedPorts: []api.Port{{Label: "one", Value: 1}, {Label: "two", Value: 2}, {Label: "three", Value: 3}},
 											DynamicPorts:  []api.Port{{Label: "http", Value: 0}, {Label: "https", Value: 0}, {Label: "admin", Value: 0}},
+										},
+									},
+									Devices: []*api.RequestedDevice{
+										{
+											Name:  "nvidia/gpu",
+											Count: helper.Uint64ToPtr(10),
+											Constraints: []*api.Constraint{
+												{
+													LTarget: "${driver.attr.memory}",
+													RTarget: "2GB",
+													Operand: ">",
+												},
+											},
+											Affinities: []*api.Affinity{
+												{
+													LTarget: "${driver.model}",
+													RTarget: "1080ti",
+													Operand: "=",
+													Weight:  50,
+												},
+											},
+										},
+										{
+											Name:  "intel/gpu",
+											Count: nil,
 										},
 									},
 								},

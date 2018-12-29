@@ -5,14 +5,17 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/nomad/client/structs"
+	log "github.com/hashicorp/go-hclog"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
+
+	"github.com/hashicorp/nomad/client/structs"
 )
 
 // ClientStats is used to forward RPC requests to the targed Nomad client's
 // ClientStats endpoint.
 type ClientStats struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.ClientStatsResponse) error {

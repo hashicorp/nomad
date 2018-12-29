@@ -333,7 +333,7 @@ func TestAget_Client_TelemetryConfiguration(t *testing.T) {
 // API health check depending on configuration.
 func TestAgent_HTTPCheck(t *testing.T) {
 	t.Parallel()
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	agent := func() *Agent {
 		return &Agent{
 			logger: logger,
@@ -414,7 +414,7 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
 		config: DevConfig(),
-		logger: testlog.Logger(t),
+		logger: testlog.HCLogger(t),
 	}
 	if err := a.config.normalizeAddrs(); err != nil {
 		t.Fatalf("error normalizing config: %v", err)
@@ -632,7 +632,7 @@ func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 
 	agent := &Agent{
 		logger: logger,
@@ -656,7 +656,7 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{},
@@ -698,7 +698,7 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
@@ -930,7 +930,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 		key    = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 
 	agentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{

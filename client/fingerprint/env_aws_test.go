@@ -9,20 +9,19 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
-	f := NewEnvAWSFingerprint(testlog.Logger(t))
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -34,7 +33,7 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 }
 
 func TestEnvAWSFingerprint_aws(t *testing.T) {
-	f := NewEnvAWSFingerprint(testlog.Logger(t))
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -55,8 +54,8 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	defer ts.Close()
 	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -168,13 +167,13 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 	defer ts.Close()
 	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
 
-	f := NewEnvAWSFingerprint(testlog.Logger(t))
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -182,12 +181,12 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 
 	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-	if response.Resources == nil || len(response.Resources.Networks) == 0 {
+	if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
 		t.Fatal("Expected to find Network Resources")
 	}
 
 	// Test at least the first Network Resource
-	net := response.Resources.Networks[0]
+	net := response.NodeResources.Networks[0]
 	if net.IP == "" {
 		t.Fatal("Expected Network Resource to have an IP")
 	}
@@ -217,14 +216,14 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 	defer ts.Close()
 	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
 
-	f := NewEnvAWSFingerprint(testlog.Logger(t))
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
 	{
 		node := &structs.Node{
 			Attributes: make(map[string]string),
 		}
 
-		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -236,12 +235,12 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 
 		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-		if response.Resources == nil || len(response.Resources.Networks) == 0 {
+		if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
 			t.Fatal("Expected to find Network Resources")
 		}
 
 		// Test at least the first Network Resource
-		net := response.Resources.Networks[0]
+		net := response.NodeResources.Networks[0]
 		if net.IP == "" {
 			t.Fatal("Expected Network Resource to have an IP")
 		}
@@ -266,8 +265,8 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 			NetworkSpeed: 10,
 		}
 
-		request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: cfg, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -275,12 +274,12 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 
 		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-		if response.Resources == nil || len(response.Resources.Networks) == 0 {
+		if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
 			t.Fatal("Expected to find Network Resources")
 		}
 
 		// Test at least the first Network Resource
-		net := response.Resources.Networks[0]
+		net := response.NodeResources.Networks[0]
 		if net.IP == "" {
 			t.Fatal("Expected Network Resource to have an IP")
 		}
@@ -298,13 +297,13 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 
 func TestNetworkFingerprint_notAWS(t *testing.T) {
 	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
-	f := NewEnvAWSFingerprint(testlog.Logger(t))
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)

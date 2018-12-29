@@ -1,4 +1,12 @@
-import { clickable, create, collection, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  attribute,
+  clickable,
+  create,
+  collection,
+  isPresent,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 export default create({
   visit: visitable('/allocations/:id'),
@@ -14,6 +22,11 @@ export default create({
     client: text('[data-test-client-link]'),
     visitClient: clickable('[data-test-client-link]'),
   },
+
+  resourceCharts: collection('[data-test-primary-metric]', {
+    name: text('[data-test-primary-metric-title]'),
+    chartClass: attribute('class', '[data-test-percentage-chart] progress'),
+  }),
 
   tasks: collection('[data-test-task-row]', {
     name: text('[data-test-name]'),
@@ -33,6 +46,8 @@ export default create({
   },
 
   hasRescheduleEvents: isPresent('[data-test-reschedule-events]'),
+
+  isEmpty: isPresent('[data-test-empty-tasks-list]'),
 
   error: {
     isShown: isPresent('[data-test-error]'),

@@ -24,6 +24,7 @@ func TestConfig_Parse(t *testing.T) {
 				Datacenter:  "dc2",
 				NodeName:    "my-web",
 				DataDir:     "/tmp/nomad",
+				PluginDir:   "/tmp/nomad-plugins",
 				LogLevel:    "ERR",
 				BindAddr:    "192.168.0.1",
 				EnableDebug: true,
@@ -72,12 +73,11 @@ func TestConfig_Parse(t *testing.T) {
 					ClientMinPort:    1000,
 					ClientMaxPort:    2000,
 					Reserved: &Resources{
-						CPU:                 10,
-						MemoryMB:            10,
-						DiskMB:              10,
-						IOPS:                10,
-						ReservedPorts:       "1,100,10-12",
-						ParsedReservedPorts: []int{1, 10, 11, 12, 100},
+						CPU:           10,
+						MemoryMB:      10,
+						DiskMB:        10,
+						IOPS:          10,
+						ReservedPorts: "1,100,10-12",
 					},
 					GCInterval:            6 * time.Second,
 					GCParallelDestroys:    6,
@@ -215,6 +215,26 @@ func TestConfig_Parse(t *testing.T) {
 					DisableUpgradeMigration: &trueValue,
 					EnableCustomUpgrades:    &trueValue,
 				},
+				Plugins: []*config.PluginConfig{
+					{
+						Name: "docker",
+						Args: []string{"foo", "bar"},
+						Config: map[string]interface{}{
+							"foo": "bar",
+							"nested": []map[string]interface{}{
+								{
+									"bam": 2,
+								},
+							},
+						},
+					},
+					{
+						Name: "exec",
+						Config: map[string]interface{}{
+							"foo": true,
+						},
+					},
+				},
 			},
 			false,
 		},
@@ -225,6 +245,7 @@ func TestConfig_Parse(t *testing.T) {
 				Datacenter:     "",
 				NodeName:       "",
 				DataDir:        "",
+				PluginDir:      "",
 				LogLevel:       "",
 				BindAddr:       "",
 				EnableDebug:    false,
@@ -264,19 +285,19 @@ func TestConfig_Parse(t *testing.T) {
 				SyslogFacility:            "",
 				DisableUpdateCheck:        nil,
 				DisableAnonymousSignature: false,
-				Consul:                 nil,
-				Vault:                  nil,
-				TLSConfig:              nil,
-				HTTPAPIResponseHeaders: nil,
-				Sentinel:               nil,
+				Consul:                    nil,
+				Vault:                     nil,
+				TLSConfig:                 nil,
+				HTTPAPIResponseHeaders:    nil,
+				Sentinel:                  nil,
 			},
 			false,
 		},
 	}
 
 	for _, tc := range cases {
-		require := require.New(t)
 		t.Run(tc.File, func(t *testing.T) {
+			require := require.New(t)
 			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
 			if err != nil {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
@@ -286,7 +307,19 @@ func TestConfig_Parse(t *testing.T) {
 			if (err != nil) != tc.Err {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
-			require.EqualValues(actual, tc.Result)
+
+			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
+			require.EqualValues(removeHelperAttributes(actual), tc.Result)
 		})
 	}
+}
+
+// In order to compare the Config struct after parsing, and from generating what
+// is expected in the test, we need to remove helper attributes that are
+// instantiated in the process of parsing the configuration
+func removeHelperAttributes(c *Config) *Config {
+	if c.TLSConfig != nil {
+		c.TLSConfig.KeyLoader = nil
+	}
+	return c
 }

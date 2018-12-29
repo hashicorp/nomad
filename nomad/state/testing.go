@@ -7,8 +7,8 @@ import (
 
 func TestStateStore(t testing.T) *StateStore {
 	config := &StateStoreConfig{
-		LogOutput: testlog.NewWriter(t),
-		Region:    "global",
+		Logger: testlog.HCLogger(t),
+		Region: "global",
 	}
 	state, err := NewStateStore(config)
 	if err != nil {

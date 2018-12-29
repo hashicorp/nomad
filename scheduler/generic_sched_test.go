@@ -241,6 +241,10 @@ func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 		t.Fatalf("bad: %#v", h.CreateEvals)
 	}
 
+	if h.CreateEvals[0].TriggeredBy != structs.EvalTriggerQueuedAllocs {
+		t.Fatalf("bad: %#v", h.CreateEvals[0])
+	}
+
 	// Ensure the plan allocated only one allocation
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
@@ -602,6 +606,174 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+// Test job registration with spread configured
+func TestServiceSched_Spread(t *testing.T) {
+	assert := assert.New(t)
+
+	start := uint32(100)
+	step := uint32(10)
+
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("%d%% in dc1", start)
+		t.Run(name, func(t *testing.T) {
+			h := NewHarness(t)
+			remaining := uint32(100 - start)
+			// Create a job that uses spread over data center
+			job := mock.Job()
+			job.Datacenters = []string{"dc1", "dc2"}
+			job.TaskGroups[0].Count = 10
+			job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
+				&structs.Spread{
+					Attribute: "${node.datacenter}",
+					Weight:    100,
+					SpreadTarget: []*structs.SpreadTarget{
+						{
+							Value:   "dc1",
+							Percent: start,
+						},
+						{
+							Value:   "dc2",
+							Percent: remaining,
+						},
+					},
+				})
+			assert.Nil(h.State.UpsertJob(h.NextIndex(), job), "UpsertJob")
+			// Create some nodes, half in dc2
+			var nodes []*structs.Node
+			nodeMap := make(map[string]*structs.Node)
+			for i := 0; i < 10; i++ {
+				node := mock.Node()
+				if i%2 == 0 {
+					node.Datacenter = "dc2"
+				}
+				nodes = append(nodes, node)
+				assert.Nil(h.State.UpsertNode(h.NextIndex(), node), "UpsertNode")
+				nodeMap[node.ID] = node
+			}
+
+			// Create a mock evaluation to register the job
+			eval := &structs.Evaluation{
+				Namespace:   structs.DefaultNamespace,
+				ID:          uuid.Generate(),
+				Priority:    job.Priority,
+				TriggeredBy: structs.EvalTriggerJobRegister,
+				JobID:       job.ID,
+				Status:      structs.EvalStatusPending,
+			}
+			noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+			// Process the evaluation
+			assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
+
+			// Ensure a single plan
+			assert.Len(h.Plans, 1, "Number of plans")
+			plan := h.Plans[0]
+
+			// Ensure the plan doesn't have annotations.
+			assert.Nil(plan.Annotations, "Plan.Annotations")
+
+			// Ensure the eval hasn't spawned blocked eval
+			assert.Len(h.CreateEvals, 0, "Created Evals")
+
+			// Ensure the plan allocated
+			var planned []*structs.Allocation
+			dcAllocsMap := make(map[string]int)
+			for nodeId, allocList := range plan.NodeAllocation {
+				planned = append(planned, allocList...)
+				dc := nodeMap[nodeId].Datacenter
+				c := dcAllocsMap[dc]
+				c += len(allocList)
+				dcAllocsMap[dc] = c
+			}
+			assert.Len(planned, 10, "Planned Allocations")
+
+			expectedCounts := make(map[string]int)
+			expectedCounts["dc1"] = 10 - i
+			if i > 0 {
+				expectedCounts["dc2"] = i
+			}
+			require.Equal(t, expectedCounts, dcAllocsMap)
+
+			h.AssertEvalStatus(t, structs.EvalStatusComplete)
+		})
+		start = start - step
+	}
+}
+
+// Test job registration with even spread across dc
+func TestServiceSched_EvenSpread(t *testing.T) {
+	assert := assert.New(t)
+
+	h := NewHarness(t)
+	// Create a job that uses even spread over data center
+	job := mock.Job()
+	job.Datacenters = []string{"dc1", "dc2"}
+	job.TaskGroups[0].Count = 10
+	job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
+		&structs.Spread{
+			Attribute: "${node.datacenter}",
+			Weight:    100,
+		})
+	assert.Nil(h.State.UpsertJob(h.NextIndex(), job), "UpsertJob")
+	// Create some nodes, half in dc2
+	var nodes []*structs.Node
+	nodeMap := make(map[string]*structs.Node)
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		if i%2 == 0 {
+			node.Datacenter = "dc2"
+		}
+		nodes = append(nodes, node)
+		assert.Nil(h.State.UpsertNode(h.NextIndex(), node), "UpsertNode")
+		nodeMap[node.ID] = node
+	}
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	assert.Nil(h.Process(NewServiceScheduler, eval), "Process")
+
+	// Ensure a single plan
+	assert.Len(h.Plans, 1, "Number of plans")
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	assert.Nil(plan.Annotations, "Plan.Annotations")
+
+	// Ensure the eval hasn't spawned blocked eval
+	assert.Len(h.CreateEvals, 0, "Created Evals")
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	dcAllocsMap := make(map[string]int)
+	for nodeId, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+		dc := nodeMap[nodeId].Datacenter
+		c := dcAllocsMap[dc]
+		c += len(allocList)
+		dcAllocsMap[dc] = c
+	}
+	assert.Len(planned, 10, "Planned Allocations")
+
+	// Expect even split allocs across datacenter
+	expectedCounts := make(map[string]int)
+	expectedCounts["dc1"] = 5
+	expectedCounts["dc2"] = 5
+
+	require.Equal(t, expectedCounts, dcAllocsMap)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	h := NewHarness(t)
 
@@ -809,7 +981,11 @@ func TestServiceSched_JobRegister_CreateBlockedEval(t *testing.T) {
 
 	// Create a full node
 	node := mock.Node()
-	node.Reserved = node.Resources
+	node.ReservedResources = &structs.NodeReservedResources{
+		Cpu: structs.NodeReservedCpuResources{
+			CpuShares: node.NodeResources.Cpu.CpuShares,
+		},
+	}
 	node.ComputeClass()
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
@@ -1336,7 +1512,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 
 	// Create one node
 	node := mock.Node()
-	node.Resources.CPU = 1000
+	node.NodeResources.Cpu.CpuShares = 1000
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
 	// Generate a fake job with one allocation
@@ -1351,7 +1527,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	alloc.Resources.CPU = 256
+	alloc.AllocatedResources.Tasks["web"].Cpu.CpuShares = 256
 	allocs = append(allocs, alloc)
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
 
@@ -1632,24 +1808,41 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	h := NewHarness(t)
 
-	// Create a node
+	// Create a node and clear the reserved resources
 	node := mock.Node()
+	node.ReservedResources = nil
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
 
-	resourceAsk := node.Resources.Copy()
-	resourceAsk.CPU -= node.Reserved.CPU
-	resourceAsk.MemoryMB -= node.Reserved.MemoryMB
-	resourceAsk.DiskMB -= node.Reserved.DiskMB
-	resourceAsk.Networks = nil
+	// Create a resource ask that is the same as the resources available on the
+	// node
+	cpu := node.NodeResources.Cpu.CpuShares
+	mem := node.NodeResources.Memory.MemoryMB
+
+	request := &structs.Resources{
+		CPU:      int(cpu),
+		MemoryMB: int(mem),
+	}
+	allocated := &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: cpu,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: mem,
+				},
+			},
+		},
+	}
 
 	// Generate a fake job with one alloc that consumes the whole node
 	job := mock.Job()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Resources = resourceAsk
+	job.TaskGroups[0].Tasks[0].Resources = request
 	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
 
 	alloc := mock.Alloc()
-	alloc.Resources = resourceAsk
+	alloc.AllocatedResources = allocated
 	alloc.Job = job
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
@@ -1666,7 +1859,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 		MinHealthyTime:  10 * time.Second,
 		HealthyDeadline: 10 * time.Minute,
 	}
-	job2.TaskGroups[0].Tasks[0].Resources = mock.Alloc().Resources
+	job2.TaskGroups[0].Tasks[0].Resources = mock.Job().TaskGroups[0].Tasks[0].Resources
 
 	// Update the task, such that it cannot be done in-place
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
@@ -1708,7 +1901,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 1 {
+	if len(planned) != 5 {
 		t.Fatalf("bad: %#v", plan)
 	}
 
@@ -1727,7 +1920,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	if !ok {
 		t.Fatalf("bad: %#v", plan)
 	}
-	if state.DesiredTotal != 1 && state.DesiredCanaries != 0 {
+	if state.DesiredTotal != 5 || state.DesiredCanaries != 0 {
 		t.Fatalf("bad: %#v", state)
 	}
 }
@@ -4189,11 +4382,18 @@ func Test_updateRescheduleTracker(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			desc:                     "No past events",
-			prevAllocEvents:          nil,
-			reschedPolicy:            &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second},
-			reschedTime:              t1,
-			expectedRescheduleEvents: []*structs.RescheduleEvent{{t1.UnixNano(), prevAlloc.ID, prevAlloc.NodeID, 5 * time.Second}},
+			desc:            "No past events",
+			prevAllocEvents: nil,
+			reschedPolicy:   &structs.ReschedulePolicy{Unlimited: false, Interval: 24 * time.Hour, Attempts: 2, Delay: 5 * time.Second},
+			reschedTime:     t1,
+			expectedRescheduleEvents: []*structs.RescheduleEvent{
+				{
+					RescheduleTime: t1.UnixNano(),
+					PrevAllocID:    prevAlloc.ID,
+					PrevNodeID:     prevAlloc.NodeID,
+					Delay:          5 * time.Second,
+				},
+			},
 		},
 		{
 			desc: "one past event, linear delay",

@@ -227,6 +227,19 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `shm_size` - (Optional) The size (bytes) of /dev/shm for the container.
 
+* `storage_opt` - (Optional) A key-value map of storage options set to the containers on start.
+  This overrides the [host dockerd configuration](https://docs.docker.com/engine/reference/commandline/dockerd/#options-per-storage-driver).
+  For example:
+
+
+    ```hcl
+    config {
+      storage_opt = {
+        size = "40G"
+      }
+    }
+    ```
+
 * `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
   repository. The default value is `true`. **Deprecated as of 0.5.3**
 
@@ -280,12 +293,14 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `mounts` - (Optional) A list of
   [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-or-volumes)
-  to be mounted into the container. Only volume type mounts are supported.
+  to be mounted into the container. Volume, bind, and tmpfs type mounts are supported.
 
     ```hcl
     config {
       mounts = [
+        # sample volume mount
         {
+          type = "volume"
           target = "/path/in/container"
           source = "name-of-volume"
           readonly = false
@@ -300,6 +315,25 @@ The `docker` driver supports the following configuration in the job spec.  Only
                 foo = "bar"
               }
             }
+          }
+        },
+        # sample bind mount
+        {
+          type = "bind"
+          target = "/path/in/container"
+          source = "/path/in/host"
+          readonly = false
+          bind_options {
+            propagation = "rshared"
+          }
+        },
+        # sample tmpfs mount
+        {
+          type = "tmpfs"
+          target = "/path/in/container"
+          readonly = false
+          tmpfs_options {
+            size = 100000 # size in bytes
           }
         }
       ]
@@ -583,7 +617,7 @@ of the Linux Kernel and Docker daemon.
 ## Client Configuration
 
 The `docker` driver has the following [client configuration
-options](/docs/agent/configuration/client.html#options):
+options](/docs/configuration/client.html#options):
 
 * `docker.endpoint` - If using a non-standard socket, HTTP or another location,
   or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will

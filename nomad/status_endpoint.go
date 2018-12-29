@@ -1,19 +1,20 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
-	"errors"
+	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Status endpoint is used to check on server status
 type Status struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // Version is used to allow clients to determine the capabilities

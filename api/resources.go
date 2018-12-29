@@ -10,6 +10,7 @@ type Resources struct {
 	DiskMB   *int `mapstructure:"disk"`
 	IOPS     *int
 	Networks []*NetworkResource
+	Devices  []*RequestedDevice
 }
 
 // Canonicalize will supply missing values in the cases
@@ -27,6 +28,9 @@ func (r *Resources) Canonicalize() {
 	}
 	for _, n := range r.Networks {
 		n.Canonicalize()
+	}
+	for _, d := range r.Devices {
+		d.Canonicalize()
 	}
 }
 
@@ -75,6 +79,9 @@ func (r *Resources) Merge(other *Resources) {
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
 	}
+	if len(other.Devices) != 0 {
+		r.Devices = other.Devices
+	}
 }
 
 type Port struct {
@@ -96,5 +103,98 @@ type NetworkResource struct {
 func (n *NetworkResource) Canonicalize() {
 	if n.MBits == nil {
 		n.MBits = helper.IntToPtr(10)
+	}
+}
+
+// NodeDeviceResource captures a set of devices sharing a common
+// vendor/type/device_name tuple.
+type NodeDeviceResource struct {
+
+	// Vendor specifies the vendor of device
+	Vendor string
+
+	// Type specifies the type of the device
+	Type string
+
+	// Name specifies the specific model of the device
+	Name string
+
+	// Instances are list of the devices matching the vendor/type/name
+	Instances []*NodeDevice
+
+	Attributes map[string]*Attribute
+}
+
+// NodeDevice is an instance of a particular device.
+type NodeDevice struct {
+	// ID is the ID of the device.
+	ID string
+
+	// Healthy captures whether the device is healthy.
+	Healthy bool
+
+	// HealthDescription is used to provide a human readable description of why
+	// the device may be unhealthy.
+	HealthDescription string
+
+	// Locality stores HW locality information for the node to optionally be
+	// used when making placement decisions.
+	Locality *NodeDeviceLocality
+}
+
+// Attribute is used to describe the value of an attribute, optionally
+// specifying units
+type Attribute struct {
+	// Float is the float value for the attribute
+	Float *float64
+
+	// Int is the int value for the attribute
+	Int *int64
+
+	// String is the string value for the attribute
+	String *string
+
+	// Bool is the bool value for the attribute
+	Bool *bool
+
+	// Unit is the optional unit for the set int or float value
+	Unit string
+}
+
+// NodeDeviceLocality stores information about the devices hardware locality on
+// the node.
+type NodeDeviceLocality struct {
+	// PciBusID is the PCI Bus ID for the device.
+	PciBusID string
+}
+
+// RequestedDevice is used to request a device for a task.
+type RequestedDevice struct {
+	// Name is the request name. The possible values are as follows:
+	// * <type>: A single value only specifies the type of request.
+	// * <vendor>/<type>: A single slash delimiter assumes the vendor and type of device is specified.
+	// * <vendor>/<type>/<name>: Two slash delimiters assume vendor, type and specific model are specified.
+	//
+	// Examples are as follows:
+	// * "gpu"
+	// * "nvidia/gpu"
+	// * "nvidia/gpu/GTX2080Ti"
+	Name string
+
+	// Count is the number of requested devices
+	Count *uint64
+
+	// Constraints are a set of constraints to apply when selecting the device
+	// to use.
+	Constraints []*Constraint
+
+	// Affinities are a set of affinites to apply when selecting the device
+	// to use.
+	Affinities []*Affinity
+}
+
+func (d *RequestedDevice) Canonicalize() {
+	if d.Count == nil {
+		d.Count = helper.Uint64ToPtr(1)
 	}
 }

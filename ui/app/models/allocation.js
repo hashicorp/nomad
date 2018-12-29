@@ -6,7 +6,6 @@ import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
-import AllocationStats from '../utils/classes/allocation-stats';
 
 const STATUS_ORDER = {
   pending: 1,
@@ -25,9 +24,13 @@ export default Model.extend({
   name: attr('string'),
   taskGroupName: attr('string'),
   resources: fragment('resources'),
+  jobVersion: attr('number'),
+
   modifyIndex: attr('number'),
   modifyTime: attr('date'),
-  jobVersion: attr('number'),
+
+  createIndex: attr('number'),
+  createTime: attr('date'),
 
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
@@ -69,18 +72,6 @@ export default Model.extend({
 
     return [];
   }),
-
-  fetchStats() {
-    return this.get('token')
-      .authorizedRequest(`/v1/client/allocation/${this.get('id')}/stats`)
-      .then(res => res.json())
-      .then(json => {
-        return new AllocationStats({
-          stats: json,
-          allocation: this,
-        });
-      });
-  },
 
   states: fragmentArray('task-state'),
   rescheduleEvents: fragmentArray('reschedule-event'),

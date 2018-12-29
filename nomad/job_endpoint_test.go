@@ -178,6 +178,7 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 }
 
 func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
+	t.Skip("Driver config validation is disabled")
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -3917,6 +3918,7 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 }
 
 func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
+	t.Skip("Driver config validation is disabled")
 	t.Parallel()
 	// Create a mock job with an invalid config
 	job := mock.Job()
@@ -3935,6 +3937,7 @@ func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
 }
 
 func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
+	t.Skip("Driver signals validation is disabled")
 	t.Parallel()
 	// Create a mock job that wants to send a signal to a driver that can't
 	job := mock.Job()
@@ -3956,6 +3959,7 @@ func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
 }
 
 func TestJobEndpoint_ValidateJob_KillSignal(t *testing.T) {
+	t.Skip("Driver signals validation is disabled")
 	require := require.New(t)
 	t.Parallel()
 

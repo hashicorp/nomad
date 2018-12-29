@@ -8,6 +8,9 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import allocations from 'nomad-ui/tests/pages/components/allocations';
+import error from 'nomad-ui/tests/pages/components/error';
+
 export default create({
   visit: visitable('/jobs/:id/deployments'),
 
@@ -46,9 +49,9 @@ export default create({
       progress: text('[data-test-deployment-task-group-progress-deadline]'),
     }),
 
+    ...allocations('[data-test-deployment-allocation]'),
     hasAllocations: isPresent('[data-test-deployment-allocations]'),
-    allocations: collection('[data-test-deployment-allocation]', {
-      id: text('[data-test-short-id]'),
-    }),
   }),
+
+  error: error(),
 });

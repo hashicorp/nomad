@@ -622,7 +622,7 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 
 func TestSetStatus(t *testing.T) {
 	h := NewHarness(t)
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
@@ -736,9 +736,17 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 		NodeID:    node.ID,
 		JobID:     job.ID,
 		Job:       job,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		TaskGroup:     "web",
@@ -750,7 +758,10 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	// Create a new task group that prevents in-place updates.
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
-	task := &structs.Task{Name: "FOO"}
+	task := &structs.Task{
+		Name:      "FOO",
+		Resources: &structs.Resources{},
+	}
 	tg.Tasks = nil
 	tg.Tasks = append(tg.Tasks, task)
 
@@ -785,9 +796,17 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 		NodeID:    node.ID,
 		JobID:     job.ID,
 		Job:       job,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		TaskGroup:     "web",
@@ -834,9 +853,17 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		JobID:     job.ID,
 		Job:       job,
 		TaskGroup: job.TaskGroups[0].Name,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
@@ -975,10 +1002,6 @@ func TestTaskGroupConstraints(t *testing.T) {
 	// Build the expected values.
 	expConstr := []*structs.Constraint{constr, constr2, constr3}
 	expDrivers := map[string]struct{}{"exec": {}, "docker": {}}
-	expSize := &structs.Resources{
-		CPU:      1000,
-		MemoryMB: 512,
-	}
 
 	actConstrains := taskGroupConstraints(tg)
 	if !reflect.DeepEqual(actConstrains.constraints, expConstr) {
@@ -987,10 +1010,6 @@ func TestTaskGroupConstraints(t *testing.T) {
 	if !reflect.DeepEqual(actConstrains.drivers, expDrivers) {
 		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers)
 	}
-	if !reflect.DeepEqual(actConstrains.size, expSize) {
-		t.Fatalf("taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.size, expSize)
-	}
-
 }
 
 func TestProgressMade(t *testing.T) {
@@ -1079,7 +1098,7 @@ func TestDesiredUpdates(t *testing.T) {
 }
 
 func TestUtil_AdjustQueuedAllocations(t *testing.T) {
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.CreateIndex = 4

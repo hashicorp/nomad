@@ -3,12 +3,14 @@ import { computed, get } from '@ember/object';
 import RESTAdapter from 'ember-data/adapters/rest';
 import codesForError from '../utils/codes-for-error';
 import removeRecord from '../utils/remove-record';
+import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
 
 export const namespace = 'v1';
 
 export default RESTAdapter.extend({
   namespace,
 
+  system: service(),
   token: service(),
 
   headers: computed('token.secret', function() {
@@ -19,6 +21,13 @@ export default RESTAdapter.extend({
       };
     }
   }),
+
+  handleResponse(status, headers, payload) {
+    if (status === 500 && payload === NO_LEADER) {
+      return new NoLeaderError();
+    }
+    return this._super(...arguments);
+  },
 
   findAll() {
     return this._super(...arguments).catch(error => {
@@ -33,6 +42,17 @@ export default RESTAdapter.extend({
       // Rethrow to be handled downstream
       throw error;
     });
+  },
+
+  ajaxOptions(url, type, options = {}) {
+    options.data || (options.data = {});
+    if (this.get('system.shouldIncludeRegion')) {
+      const region = this.get('system.activeRegion');
+      if (region) {
+        options.data.region = region;
+      }
+    }
+    return this._super(url, type, options);
   },
 
   // In order to remove stale records from the store, findHasMany has to unload
@@ -61,32 +81,35 @@ export default RESTAdapter.extend({
   //
   // This is the original implementation of _buildURL
   // without the pluralization of modelName
-  urlForFindRecord(id, modelName) {
-    let path;
-    let url = [];
-    let host = get(this, 'host');
-    let prefix = this.urlPrefix();
-
-    if (modelName) {
-      path = modelName.camelize();
-      if (path) {
-        url.push(path);
-      }
-    }
-
-    if (id) {
-      url.push(encodeURIComponent(id));
-    }
-
-    if (prefix) {
-      url.unshift(prefix);
-    }
-
-    url = url.join('/');
-    if (!host && url && url.charAt(0) !== '/') {
-      url = '/' + url;
-    }
-
-    return url;
-  },
+  urlForFindRecord: urlForRecord,
+  urlForUpdateRecord: urlForRecord,
 });
+
+function urlForRecord(id, modelName) {
+  let path;
+  let url = [];
+  let host = get(this, 'host');
+  let prefix = this.urlPrefix();
+
+  if (modelName) {
+    path = modelName.camelize();
+    if (path) {
+      url.push(path);
+    }
+  }
+
+  if (id) {
+    url.push(encodeURIComponent(id));
+  }
+
+  if (prefix) {
+    url.unshift(prefix);
+  }
+
+  url = url.join('/');
+  if (!host && url && url.charAt(0) !== '/') {
+    url = '/' + url;
+  }
+
+  return url;
+}

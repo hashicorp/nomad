@@ -139,7 +139,7 @@ type RenderEvent struct {
 	UpdatedAt time.Time
 
 	// Used is the full list of dependencies seen in the template. Because of
-	// the n-pass evaluation, this number can change over time. The dependecnies
+	// the n-pass evaluation, this number can change over time. The dependencies
 	// in this list may or may not have data. This just contains the list of all
 	// dependencies parsed out of the template with the current data.
 	UsedDeps *dep.Set
@@ -496,12 +496,12 @@ func (r *Runner) Signal(s os.Signal) error {
 // Run iterates over each template in this Runner and conditionally executes
 // the template rendering and command execution.
 //
-// The template is rendered atomicly. If and only if the template render
+// The template is rendered atomically. If and only if the template render
 // completes successfully, the optional commands will be executed, if given.
 // Please note that all templates are rendered **and then** any commands are
 // executed.
 func (r *Runner) Run() error {
-	log.Printf("[INFO] (runner) initiating run")
+	log.Printf("[DEBUG] (runner) initiating run")
 
 	var newRenderEvent, wouldRenderAny, renderedAny bool
 	runCtx := &templateRunCtx{
@@ -719,7 +719,7 @@ func (r *Runner) runTemplate(tmpl *template.Template, runCtx *templateRunCtx) (*
 		return event, nil
 	}
 
-	// Trigger an update of the de-duplicaiton manager
+	// Trigger an update of the de-duplication manager
 	if r.dedup != nil && isLeader {
 		if err := r.dedup.UpdateDeps(tmpl, used.List()); err != nil {
 			log.Printf("[ERR] (runner) failed to update dependency data for de-duplication: %v", err)
@@ -1011,7 +1011,7 @@ func (r *Runner) childEnv() []string {
 		m["VAULT_TLS_SERVER_NAME"] = config.StringVal(r.config.Vault.SSL.ServerName)
 	}
 
-	// Append runner-supplied env (this is supplied programatically).
+	// Append runner-supplied env (this is supplied programmatically).
 	for k, v := range r.Env {
 		m[k] = v
 	}

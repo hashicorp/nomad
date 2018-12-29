@@ -3,7 +3,6 @@ package nomad
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -48,11 +48,12 @@ func testStateStore(t *testing.T) *state.StateStore {
 func testFSM(t *testing.T) *nomadFSM {
 	broker := testBroker(t, 0)
 	dispatcher, _ := testPeriodicDispatcher(t)
+	logger := testlog.HCLogger(t)
 	fsmConfig := &FSMConfig{
 		EvalBroker: broker,
 		Periodic:   dispatcher,
-		Blocked:    NewBlockedEvals(broker),
-		LogOutput:  os.Stderr,
+		Blocked:    NewBlockedEvals(broker, logger),
+		Logger:     logger,
 		Region:     "global",
 	}
 	fsm, err := NewFSM(fsmConfig)
@@ -1173,6 +1174,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	req := structs.AllocUpdateRequest{
 		Alloc: []*structs.Allocation{alloc},
@@ -1231,6 +1233,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 	job := alloc.Job
 	alloc.Job = nil
@@ -1260,9 +1263,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 
 	// Job should be re-attached
 	alloc.Job = job
-	if !reflect.DeepEqual(alloc, out) {
-		t.Fatalf("bad: %#v %#v", alloc, out)
-	}
+	require.Equal(t, alloc, out)
 
 	// Ensure that the original job is used
 	evictAlloc := new(structs.Allocation)
@@ -1299,11 +1300,44 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 	}
 }
 
+// COMPAT(0.11): Remove in 0.11
 func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{
+		CPU:      500,
+		MemoryMB: 256,
+		DiskMB:   150,
+		Networks: []*structs.NetworkResource{
+			{
+				Device:        "eth0",
+				IP:            "192.168.0.100",
+				ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+				MBits:         50,
+				DynamicPorts:  []structs.Port{{Label: "http"}},
+			},
+		},
+	}
+	alloc.TaskResources = map[string]*structs.Resources{
+		"web": {
+			CPU:      500,
+			MemoryMB: 256,
+			Networks: []*structs.NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+				},
+			},
+		},
+	}
+	alloc.SharedResources = &structs.Resources{
+		DiskMB: 150,
+	}
 
 	// Need to remove mock dynamic port from alloc as it won't be computed
 	// in this test
@@ -1631,9 +1665,10 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 func TestFSM_ApplyPlanResults(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
-
+	fsm.evalBroker.SetEnabled(true)
 	// Create the request and create a deployment
 	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	job := alloc.Job
 	alloc.Job = nil
 
@@ -1649,13 +1684,39 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	fsm.State().UpsertEvals(1, []*structs.Evaluation{eval})
 
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+
+	// set up preempted jobs and allocs
+	job1 := mock.Job()
+	job2 := mock.Job()
+
+	alloc1 := mock.Alloc()
+	alloc1.Job = job1
+	alloc1.JobID = job1.ID
+	alloc1.PreemptedByAllocation = alloc.ID
+
+	alloc2 := mock.Alloc()
+	alloc2.Job = job2
+	alloc2.JobID = job2.ID
+	alloc2.PreemptedByAllocation = alloc.ID
+
+	fsm.State().UpsertAllocs(1, []*structs.Allocation{alloc1, alloc2})
+
+	// evals for preempted jobs
+	eval1 := mock.Eval()
+	eval1.JobID = job1.ID
+
+	eval2 := mock.Eval()
+	eval2.JobID = job2.ID
+
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
 			Job:   job,
 			Alloc: []*structs.Allocation{alloc},
 		},
-		Deployment: d,
-		EvalID:     eval.ID,
+		Deployment:      d,
+		EvalID:          eval.ID,
+		NodePreemptions: []*structs.Allocation{alloc1, alloc2},
+		PreemptionEvals: []*structs.Evaluation{eval1, eval2},
 	}
 	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
 	if err != nil {
@@ -1679,6 +1740,23 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	// Job should be re-attached
 	alloc.Job = job
 	assert.Equal(alloc, out)
+
+	// Verify that evals for preempted jobs have been created
+	e1, err := fsm.State().EvalByID(ws, eval1.ID)
+	require := require.New(t)
+	require.Nil(err)
+	require.NotNil(e1)
+
+	e2, err := fsm.State().EvalByID(ws, eval2.ID)
+	require.Nil(err)
+	require.NotNil(e2)
+
+	// Verify that eval broker has both evals
+	_, ok := fsm.evalBroker.evals[e1.ID]
+	require.True(ok)
+
+	_, ok = fsm.evalBroker.evals[e1.ID]
+	require.True(ok)
 
 	dout, err := fsm.State().DeploymentByID(ws, d.ID)
 	assert.Nil(err)
@@ -2375,37 +2453,6 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	}
 }
 
-func TestFSM_SnapshotRestore_Allocs_NoSharedResources(t *testing.T) {
-	t.Parallel()
-	// Add some state
-	fsm := testFSM(t)
-	state := fsm.State()
-	alloc1 := mock.Alloc()
-	alloc2 := mock.Alloc()
-	alloc1.SharedResources = nil
-	alloc2.SharedResources = nil
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
-	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
-
-	// Verify the contents
-	fsm2 := testSnapshotRestore(t, fsm)
-	state2 := fsm2.State()
-	ws := memdb.NewWatchSet()
-	out1, _ := state2.AllocByID(ws, alloc1.ID)
-	out2, _ := state2.AllocByID(ws, alloc2.ID)
-	alloc1.SharedResources = &structs.Resources{DiskMB: 150}
-	alloc2.SharedResources = &structs.Resources{DiskMB: 150}
-
-	if !reflect.DeepEqual(alloc1, out1) {
-		t.Fatalf("bad: \n%#v\n%#v", out1, alloc1)
-	}
-	if !reflect.DeepEqual(alloc2, out2) {
-		t.Fatalf("bad: \n%#v\n%#v", out2, alloc2)
-	}
-}
-
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	t.Parallel()
 	// Add some state
@@ -2631,6 +2678,29 @@ func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
 	assert.Equal(t, tk2, out2)
 }
 
+func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	schedConfig := &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: true,
+		},
+	}
+	state.SchedulerSetConfig(1000, schedConfig)
+
+	// Verify the contents
+	require := require.New(t)
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	index, out, err := state2.SchedulerConfig()
+	require.Nil(err)
+	require.EqualValues(1000, index)
+	require.Equal(schedConfig, out)
+
+}
+
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	t.Parallel()
 	// Add some state
@@ -2821,4 +2891,50 @@ func TestFSM_Autopilot(t *testing.T) {
 	if !config.CleanupDeadServers {
 		t.Fatalf("bad: %v", config.CleanupDeadServers)
 	}
+}
+
+func TestFSM_SchedulerConfig(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	require := require.New(t)
+
+	// Set the autopilot config using a request.
+	req := structs.SchedulerSetConfigRequest{
+		Config: structs.SchedulerConfiguration{
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled: true,
+			},
+		},
+	}
+	buf, err := structs.Encode(structs.SchedulerConfigRequestType, req)
+	require.Nil(err)
+
+	resp := fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	// Verify key is set directly in the state store.
+	_, config, err := fsm.state.SchedulerConfig()
+	require.Nil(err)
+
+	require.Equal(config.PreemptionConfig.SystemSchedulerEnabled, req.Config.PreemptionConfig.SystemSchedulerEnabled)
+
+	// Now use CAS and provide an old index
+	req.CAS = true
+	req.Config.PreemptionConfig = structs.PreemptionConfig{SystemSchedulerEnabled: false}
+	req.Config.ModifyIndex = config.ModifyIndex - 1
+	buf, err = structs.Encode(structs.SchedulerConfigRequestType, req)
+	require.Nil(err)
+
+	resp = fsm.Apply(makeLog(buf))
+	if _, ok := resp.(error); ok {
+		t.Fatalf("bad: %v", resp)
+	}
+
+	_, config, err = fsm.state.SchedulerConfig()
+	require.Nil(err)
+	// Verify that preemption is still enabled
+	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
 }

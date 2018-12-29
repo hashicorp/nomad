@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
@@ -332,4 +333,158 @@ func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByID", &arg, &reply)
 		assert.Nil(err)
 	}
+}
+
+func TestOperator_SchedulerGetConfiguration(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	arg := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: s1.config.Region,
+		},
+	}
+	var reply structs.SchedulerConfigurationResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerGetConfiguration", &arg, &reply); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	require := require.New(t)
+	require.NotZero(reply.Index)
+	require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+}
+
+func TestOperator_SchedulerSetConfiguration(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	require := require.New(t)
+
+	// Disable preemption
+	arg := structs.SchedulerSetConfigRequest{
+		Config: structs.SchedulerConfiguration{
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled: false,
+			},
+		},
+	}
+	arg.Region = s1.config.Region
+
+	var setResponse structs.SchedulerSetConfigurationResponse
+	err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
+	require.Nil(err)
+	require.NotZero(setResponse.Index)
+
+	// Read and verify that preemption is disabled
+	readConfig := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: s1.config.Region,
+		},
+	}
+	var reply structs.SchedulerConfigurationResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerGetConfiguration", &readConfig, &reply); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	require.NotZero(reply.Index)
+	require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+}
+
+func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create ACL token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+	arg := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: s1.config.Region,
+		},
+	}
+	require := require.New(t)
+	var reply structs.SchedulerConfigurationResponse
+
+	// Try with no token and expect permission denied
+	{
+		err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerGetConfiguration", &arg, &reply)
+		require.NotNil(err)
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect permission denied
+	{
+		arg.AuthToken = invalidToken.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerGetConfiguration", &arg, &reply)
+		require.NotNil(err)
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with root token, should succeed
+	{
+		arg.AuthToken = root.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerGetConfiguration", &arg, &reply)
+		require.Nil(err)
+	}
+
+}
+
+func TestOperator_SchedulerSetConfiguration_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := TestACLServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = 3
+	})
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create ACL token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+	arg := structs.SchedulerSetConfigRequest{
+		Config: structs.SchedulerConfiguration{
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled: true,
+			},
+		},
+	}
+	arg.Region = s1.config.Region
+
+	require := require.New(t)
+	var reply structs.SchedulerSetConfigurationResponse
+
+	// Try with no token and expect permission denied
+	{
+		err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration", &arg, &reply)
+		require.NotNil(err)
+		require.Equal(structs.ErrPermissionDenied.Error(), err.Error())
+	}
+
+	// Try with an invalid token and expect permission denied
+	{
+		arg.AuthToken = invalidToken.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration", &arg, &reply)
+		require.NotNil(err)
+		require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with root token, should succeed
+	{
+		arg.AuthToken = root.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.SchedulerSetConfiguration", &arg, &reply)
+		require.Nil(err)
+	}
+
 }

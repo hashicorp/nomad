@@ -2,12 +2,11 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	log "github.com/hashicorp/go-hclog"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -18,17 +17,17 @@ const (
 
 // VaultFingerprint is used to fingerprint for Vault
 type VaultFingerprint struct {
-	logger    *log.Logger
+	logger    log.Logger
 	client    *vapi.Client
 	lastState string
 }
 
 // NewVaultFingerprint is used to create a Vault fingerprint
-func NewVaultFingerprint(logger *log.Logger) Fingerprint {
-	return &VaultFingerprint{logger: logger, lastState: vaultUnavailable}
+func NewVaultFingerprint(logger log.Logger) Fingerprint {
+	return &VaultFingerprint{logger: logger.Named("vault"), lastState: vaultUnavailable}
 }
 
-func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	config := req.Config
 
 	if config.VaultConfig == nil || !config.VaultConfig.IsEnabled() {
@@ -55,7 +54,7 @@ func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *c
 		f.clearVaultAttributes(resp)
 		// Print a message indicating that Vault is not available anymore
 		if f.lastState == vaultAvailable {
-			f.logger.Printf("[INFO] fingerprint.vault: Vault is unavailable")
+			f.logger.Info("Vault is unavailable")
 		}
 		f.lastState = vaultUnavailable
 		return nil
@@ -71,7 +70,7 @@ func (f *VaultFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *c
 	// If Vault was previously unavailable print a message to indicate the Agent
 	// is available now
 	if f.lastState == vaultUnavailable {
-		f.logger.Printf("[INFO] fingerprint.vault: Vault is available")
+		f.logger.Info("Vault is available")
 	}
 	f.lastState = vaultAvailable
 	resp.Detected = true
@@ -82,7 +81,7 @@ func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-func (f *VaultFingerprint) clearVaultAttributes(r *cstructs.FingerprintResponse) {
+func (f *VaultFingerprint) clearVaultAttributes(r *FingerprintResponse) {
 	r.RemoveAttribute("vault.accessible")
 	r.RemoveAttribute("vault.version")
 	r.RemoveAttribute("vault.cluster_id")

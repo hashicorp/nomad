@@ -8,14 +8,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConsulFingerprint(t *testing.T) {
-	fp := NewConsulFingerprint(testlog.Logger(t))
+	fp := NewConsulFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -29,8 +28,8 @@ func TestConsulFingerprint(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
-	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: conf, Node: node}
+	var response FingerprintResponse
 	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)
@@ -171,7 +170,7 @@ const mockConsulResponse = `
 // See https://github.com/hashicorp/nomad/issues/3326
 func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	assert := assert.New(t)
-	fp := NewConsulFingerprint(testlog.Logger(t))
+	fp := NewConsulFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -185,8 +184,8 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.ConsulConfig.Addr = strings.TrimPrefix(ts.URL, "http://")
 
-	request := &cstructs.FingerprintRequest{Config: conf, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: conf, Node: node}
+	var response FingerprintResponse
 	err := fp.Fingerprint(request, &response)
 	assert.Nil(err)
 

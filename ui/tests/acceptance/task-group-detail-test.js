@@ -144,11 +144,15 @@ test('each allocation should show basic information about the allocation', funct
   andThen(() => {
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short id');
     assert.equal(
+      allocationRow.createTime,
+      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      'Allocation create time'
+    );
+    assert.equal(
       allocationRow.modifyTime,
-      moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
+      moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
-    assert.equal(allocationRow.name, allocation.name, 'Allocation name');
     assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
     assert.equal(allocationRow.jobVersion, allocation.jobVersion, 'Job Version');
     assert.equal(
@@ -219,4 +223,36 @@ test('when the allocation has reschedule events, the allocation row is denoted w
 
   assert.ok(rescheduleRow.rescheduled, 'Reschedule row has a reschedule icon');
   assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
+});
+
+test('when the job for the task group is not found, an error message is shown, but the URL persists', function(assert) {
+  TaskGroup.visit({ id: 'not-a-real-job', name: 'not-a-real-task-group' });
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/job/not-a-real-job',
+      'A request to the nonexistent job is made'
+    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/not-a-real-task-group', 'The URL persists');
+    assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
+    assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
+  });
+});
+
+test('when the task group is not found on the job, an error message is shown, but the URL persists', function(assert) {
+  TaskGroup.visit({ id: job.id, name: 'not-a-real-task-group' });
+
+  andThen(() => {
+    assert.ok(
+      server.pretender.handledRequests
+        .filterBy('status', 200)
+        .mapBy('url')
+        .includes(`/v1/job/${job.id}`),
+      'A request to the job is made and succeeds'
+    );
+    assert.equal(currentURL(), `/jobs/${job.id}/not-a-real-task-group`, 'The URL persists');
+    assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
+    assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
+  });
 });

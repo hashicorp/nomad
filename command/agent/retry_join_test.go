@@ -92,7 +92,7 @@ func TestRetryJoin_Server_NonCloud(t *testing.T) {
 		discover:      &MockDiscover{},
 		serverJoin:    mockJoin,
 		serverEnabled: true,
-		logger:        testlog.Logger(t),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 
@@ -123,7 +123,7 @@ func TestRetryJoin_Server_Cloud(t *testing.T) {
 		discover:      mockDiscover,
 		serverJoin:    mockJoin,
 		serverEnabled: true,
-		logger:        testlog.Logger(t),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 
@@ -155,7 +155,7 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 		discover:      mockDiscover,
 		serverJoin:    mockJoin,
 		serverEnabled: true,
-		logger:        testlog.Logger(t),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 
@@ -186,7 +186,7 @@ func TestRetryJoin_Client(t *testing.T) {
 		discover:      &MockDiscover{},
 		clientJoin:    mockJoin,
 		clientEnabled: true,
-		logger:        testlog.Logger(t),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 

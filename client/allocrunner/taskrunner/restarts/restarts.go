@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 const (
@@ -34,8 +34,9 @@ func NewRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTr
 }
 
 type RestartTracker struct {
-	waitRes          *dstructs.WaitResult
+	exitRes          *drivers.ExitResult
 	startErr         error
+	killed           bool      // Whether the task has been killed
 	restartTriggered bool      // Whether the task has been signalled to be restarted
 	failure          bool      // Whether a failure triggered the restart
 	count            int       // Current number of attempts.
@@ -71,11 +72,11 @@ func (r *RestartTracker) SetStartError(err error) *RestartTracker {
 	return r
 }
 
-// SetWaitResult is used to mark the most recent wait result.
-func (r *RestartTracker) SetWaitResult(res *dstructs.WaitResult) *RestartTracker {
+// SetExitResult is used to mark the most recent wait result.
+func (r *RestartTracker) SetExitResult(res *drivers.ExitResult) *RestartTracker {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.waitRes = res
+	r.exitRes = res
 	r.failure = true
 	return r
 }
@@ -95,12 +96,27 @@ func (r *RestartTracker) SetRestartTriggered(failure bool) *RestartTracker {
 	return r
 }
 
+// SetKilled is used to mark that the task has been killed.
+func (r *RestartTracker) SetKilled() *RestartTracker {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.killed = true
+	return r
+}
+
 // GetReason returns a human-readable description for the last state returned by
 // GetState.
 func (r *RestartTracker) GetReason() string {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	return r.reason
+}
+
+// GetCount returns the current restart count
+func (r *RestartTracker) GetCount() int {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.count
 }
 
 // GetState returns the tasks next state given the set exit code and start
@@ -120,10 +136,17 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 	// Clear out the existing state
 	defer func() {
 		r.startErr = nil
-		r.waitRes = nil
+		r.exitRes = nil
 		r.restartTriggered = false
 		r.failure = false
+		r.killed = false
 	}()
+
+	// Hot path if task was killed
+	if r.killed {
+		r.reason = ""
+		return structs.TaskKilled, 0
+	}
 
 	// Hot path if a restart was triggered
 	if r.restartTriggered {
@@ -137,7 +160,7 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 
 		// If the task does not restart on a successful exit code and
 		// the exit code was successful: terminate.
-		if !r.onSuccess && r.waitRes != nil && r.waitRes.Successful() {
+		if !r.onSuccess && r.exitRes != nil && r.exitRes.Successful() {
 			return structs.TaskTerminated, 0
 		}
 
@@ -167,10 +190,10 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 			r.reason = ReasonUnrecoverableErrror
 			return structs.TaskNotRestarting, 0
 		}
-	} else if r.waitRes != nil {
+	} else if r.exitRes != nil {
 		// If the task started successfully and restart on success isn't specified,
 		// don't restart but don't mark as failed.
-		if r.waitRes.Successful() && !r.onSuccess {
+		if r.exitRes.Successful() && !r.onSuccess {
 			r.reason = "Restart unnecessary as task terminated successfully"
 			return structs.TaskTerminated, 0
 		}

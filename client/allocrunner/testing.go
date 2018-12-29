@@ -1,65 +1,81 @@
 package allocrunner
 
 import (
-	"io/ioutil"
-	"os"
 	"sync"
 	"testing"
 
-	"github.com/boltdb/bolt"
-	"github.com/hashicorp/nomad/client/config"
-	consulApi "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/allocwatcher"
+	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/shared/catalog"
+	"github.com/hashicorp/nomad/plugins/shared/singleton"
+	"github.com/stretchr/testify/require"
 )
 
-type MockAllocStateUpdater struct {
-	Allocs []*structs.Allocation
-	mu     sync.Mutex
+// MockStateUpdater implements the AllocStateHandler interface and records
+// alloc updates.
+type MockStateUpdater struct {
+	Updates []*structs.Allocation
+	mu      sync.Mutex
 }
 
-// Update fulfills the TaskStateUpdater interface
-func (m *MockAllocStateUpdater) Update(alloc *structs.Allocation) {
+// AllocStateUpdated implements the AllocStateHandler interface and records an
+// alloc update.
+func (m *MockStateUpdater) AllocStateUpdated(alloc *structs.Allocation) {
 	m.mu.Lock()
-	m.Allocs = append(m.Allocs, alloc)
+	m.Updates = append(m.Updates, alloc)
 	m.mu.Unlock()
 }
 
-// Last returns a copy of the last alloc (or nil) sync'd
-func (m *MockAllocStateUpdater) Last() *structs.Allocation {
+// Last returns a copy of the last alloc (or nil) update. Safe for concurrent
+// access with updates.
+func (m *MockStateUpdater) Last() *structs.Allocation {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	n := len(m.Allocs)
+	n := len(m.Updates)
 	if n == 0 {
 		return nil
 	}
-	return m.Allocs[n-1].Copy()
+	return m.Updates[n-1].Copy()
 }
 
-func TestAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
-	conf := config.DefaultConfig()
-	conf.Node = mock.Node()
-	conf.StateDir = os.TempDir()
-	conf.AllocDir = os.TempDir()
-	tmp, _ := ioutil.TempFile("", "state-db")
-	db, _ := bolt.Open(tmp.Name(), 0600, nil)
-	upd := &MockAllocStateUpdater{}
-	if !restarts {
-		*alloc.Job.LookupTaskGroup(alloc.TaskGroup).RestartPolicy = structs.RestartPolicy{Attempts: 0}
-		alloc.Job.Type = structs.JobTypeBatch
+// Reset resets the recorded alloc updates.
+func (m *MockStateUpdater) Reset() {
+	m.mu.Lock()
+	m.Updates = nil
+	m.mu.Unlock()
+}
+
+func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, func()) {
+	pluginLoader := catalog.TestPluginLoader(t)
+	clientConf, cleanup := clientconfig.TestClientConfig(t)
+	conf := &Config{
+		// Copy the alloc in case the caller edits and reuses it
+		Alloc:                 alloc.Copy(),
+		Logger:                clientConf.Logger,
+		ClientConfig:          clientConf,
+		StateDB:               state.NoopDB{},
+		Consul:                consul.NewMockConsulServiceClient(t, clientConf.Logger),
+		Vault:                 vaultclient.NewMockVaultClient(),
+		StateUpdater:          &MockStateUpdater{},
+		PrevAllocWatcher:      allocwatcher.NoopPrevAlloc{},
+		PluginSingletonLoader: singleton.NewSingletonLoader(clientConf.Logger, pluginLoader),
+		DeviceManager:         devicemanager.NoopMockManager(),
 	}
-	vclient := vaultclient.NewMockVaultClient()
-	ar := NewAllocRunner(testlog.Logger(t), conf, db, upd.Update, alloc, vclient, consulApi.NewMockConsulServiceClient(t), NoopPrevAlloc{})
-	return upd, ar
+	return conf, cleanup
 }
 
-func TestAllocRunner(t *testing.T, restarts bool) (*MockAllocStateUpdater, *AllocRunner) {
-	// Use mock driver
-	alloc := mock.Alloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-	task.Config["run_for"] = "500ms"
-	return TestAllocRunnerFromAlloc(t, alloc, restarts)
+func TestAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation) (*allocRunner, func()) {
+	t.Helper()
+	cfg, cleanup := testAllocRunnerConfig(t, alloc)
+	ar, err := NewAllocRunner(cfg)
+	if err != nil {
+		require.NoError(t, err, "Failed to setup AllocRunner")
+	}
+
+	return ar, cleanup
 }

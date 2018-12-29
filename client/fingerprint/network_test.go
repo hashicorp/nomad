@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -185,14 +184,14 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Skipf("Environment variable %+q not empty, skipping test", skipOnlineTestsEnvVar)
 	}
 
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{NetworkSpeed: 101}
 
-	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -236,14 +235,14 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 }
 
 func TestNetworkFingerprint_default_device_absent(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth0"}
 
-	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err == nil {
 		t.Fatalf("err: %v", err)
@@ -259,14 +258,14 @@ func TestNetworkFingerprint_default_device_absent(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_default_device(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorOnlyLo{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "lo"}
 
-	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -310,14 +309,14 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth3"}
 
-	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -357,14 +356,14 @@ func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth4"}
 
-	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -411,7 +410,7 @@ func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
 }
 
 func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -423,8 +422,8 @@ func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
 		},
 	}
 
-	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)

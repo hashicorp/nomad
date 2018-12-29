@@ -141,6 +141,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 
 	// Insert failed alloc with an old reschedule attempt, can be GCed
 	alloc := mock.Alloc()
+	alloc.Job = job
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusFailed
@@ -158,6 +159,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	}
 
 	alloc2 := mock.Alloc()
+	alloc2.Job = job
 	alloc2.EvalID = eval.ID
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc2.ClientStatus = structs.AllocClientStatusFailed
@@ -315,12 +317,14 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 	// Insert "failed" alloc
 	alloc := mock.Alloc()
+	alloc.Job = job
 	alloc.JobID = job.ID
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 
 	// Insert "lost" alloc
 	alloc2 := mock.Alloc()
+	alloc2.Job = job
 	alloc2.JobID = job.ID
 	alloc2.EvalID = eval.ID
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
@@ -373,6 +377,128 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	}
 	if outA2 == nil {
 		t.Fatalf("bad: %v", outA2)
+	}
+
+	outB, err := state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outB == nil {
+		t.Fatalf("bad: %v", outB)
+	}
+}
+
+// An EvalGC should reap allocations from jobs with an older modify index
+func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, nil)
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
+	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	// Insert a "dead" job
+	state := s1.fsm.State()
+	job := mock.Job()
+	job.Type = structs.JobTypeBatch
+	job.Status = structs.JobStatusDead
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert "complete" eval
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusComplete
+	eval.Type = structs.JobTypeBatch
+	eval.JobID = job.ID
+	err = state.UpsertEvals(1001, []*structs.Evaluation{eval})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Insert "failed" alloc
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.EvalID = eval.ID
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+
+	// Insert "lost" alloc
+	alloc2 := mock.Alloc()
+	alloc2.Job = job
+	alloc2.JobID = job.ID
+	alloc2.EvalID = eval.ID
+	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc2.ClientStatus = structs.AllocClientStatusLost
+
+	// Insert alloc with older job modifyindex
+	alloc3 := mock.Alloc()
+	job2 := job.Copy()
+
+	alloc3.Job = job2
+	alloc3.JobID = job2.ID
+	alloc3.EvalID = eval.ID
+	job2.CreateIndex = 500
+	alloc3.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc3.ClientStatus = structs.AllocClientStatusLost
+
+	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2, alloc3})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Update the time tables to make this work
+	tt := s1.fsm.TimeTable()
+	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	core := NewCoreScheduler(s1, snap)
+
+	// Attempt the GC
+	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
+	err = core.Process(gc)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Alloc1 and 2 should be there, and alloc3 should be gone
+	ws := memdb.NewWatchSet()
+	out, err := state.EvalByID(ws, eval.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out == nil {
+		t.Fatalf("bad: %v", out)
+	}
+
+	outA, err := state.AllocByID(ws, alloc.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA == nil {
+		t.Fatalf("bad: %v", outA)
+	}
+
+	outA2, err := state.AllocByID(ws, alloc2.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA2 == nil {
+		t.Fatalf("bad: %v", outA2)
+	}
+
+	outA3, err := state.AllocByID(ws, alloc3.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if outA3 != nil {
+		t.Fatalf("expected alloc to be nil:%v", outA2)
 	}
 
 	outB, err := state.JobByID(ws, job.Namespace, job.ID)
@@ -1798,18 +1924,20 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 // Tests various scenarios when allocations are eligible to be GCed
 func TestAllocation_GCEligible(t *testing.T) {
 	type testCase struct {
-		Desc               string
-		GCTime             time.Time
-		ClientStatus       string
-		DesiredStatus      string
-		JobStatus          string
-		JobStop            bool
-		ModifyIndex        uint64
-		NextAllocID        string
-		ReschedulePolicy   *structs.ReschedulePolicy
-		RescheduleTrackers []*structs.RescheduleEvent
-		ThresholdIndex     uint64
-		ShouldGC           bool
+		Desc                string
+		GCTime              time.Time
+		ClientStatus        string
+		DesiredStatus       string
+		JobStatus           string
+		JobStop             bool
+		AllocJobModifyIndex uint64
+		JobModifyIndex      uint64
+		ModifyIndex         uint64
+		NextAllocID         string
+		ReschedulePolicy    *structs.ReschedulePolicy
+		RescheduleTrackers  []*structs.RescheduleEvent
+		ThresholdIndex      uint64
+		ShouldGC            bool
 	}
 
 	fail := time.Now()
@@ -1838,6 +1966,16 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:           "Don't GC when non terminal and job dead",
 			ClientStatus:   structs.AllocClientStatusPending,
 			DesiredStatus:  structs.AllocDesiredStatusRun,
+			JobStatus:      structs.JobStatusDead,
+			GCTime:         fail,
+			ModifyIndex:    90,
+			ThresholdIndex: 90,
+			ShouldGC:       false,
+		},
+		{
+			Desc:           "Don't GC when non terminal on client and job dead",
+			ClientStatus:   structs.AllocClientStatusRunning,
+			DesiredStatus:  structs.AllocDesiredStatusStop,
 			JobStatus:      structs.JobStatusDead,
 			GCTime:         fail,
 			ModifyIndex:    90,

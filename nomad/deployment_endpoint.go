@@ -5,7 +5,9 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -13,7 +15,8 @@ import (
 
 // Deployment endpoint is used for manipulating deployments
 type Deployment struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // GetDeployment is used to request information about a specific deployment

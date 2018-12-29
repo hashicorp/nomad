@@ -23,7 +23,7 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	{
-		cmd := exec.Command("nomad", "init")
+		cmd := exec.Command("nomad", "job", "init")
 		cmd.Dir = tmpDir
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("error running init: %v", err)
@@ -31,7 +31,7 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 	}
 
 	{
-		cmd := exec.Command("nomad", "validate", "example.nomad")
+		cmd := exec.Command("nomad", "job", "validate", "example.nomad")
 		cmd.Dir = tmpDir
 		cmd.Env = []string{`NOMAD_ADDR=http://127.0.0.1:0`}
 		if err := cmd.Run(); err != nil {
@@ -52,13 +52,13 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	defer srv.Shutdown()
 
 	{
-		cmd := exec.Command("nomad", "init")
+		cmd := exec.Command("nomad", "job", "init")
 		cmd.Dir = tmpDir
 		assert.Nil(cmd.Run())
 	}
 
 	{
-		cmd := exec.Command("nomad", "run", "example.nomad")
+		cmd := exec.Command("nomad", "job", "run", "example.nomad")
 		cmd.Dir = tmpDir
 		cmd.Env = []string{fmt.Sprintf("NOMAD_ADDR=%s", url)}
 		err := cmd.Run()
@@ -68,7 +68,7 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	}
 
 	{
-		cmd := exec.Command("nomad", "inspect", "example")
+		cmd := exec.Command("nomad", "job", "inspect", "example")
 		cmd.Dir = tmpDir
 		cmd.Env = []string{fmt.Sprintf("NOMAD_ADDR=%s", url)}
 		out, err := cmd.Output()
@@ -83,4 +83,13 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 		assert.Nil(err)
 		assert.NotZero(resp.EvalID)
 	}
+
+	{
+		cmd := exec.Command("nomad", "job", "stop", "example")
+		cmd.Dir = tmpDir
+		cmd.Env = []string{fmt.Sprintf("NOMAD_ADDR=%s", url)}
+		_, err := cmd.Output()
+		assert.Nil(err)
+	}
+
 }

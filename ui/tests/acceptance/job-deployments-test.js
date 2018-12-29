@@ -232,8 +232,23 @@ test('when open, a deployment shows a list of all allocations for the deployment
       const allocation = allocations[0];
       const allocationRow = deploymentRow.allocations.objectAt(0);
 
-      assert.equal(allocationRow.id, allocation.id.split('-')[0], 'Allocation is as expected');
+      assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation is as expected');
     });
+  });
+});
+
+test('when the job for the deployments is not found, an error message is shown, but the URL persists', function(assert) {
+  Deployments.visit({ id: 'not-a-real-job' });
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/job/not-a-real-job',
+      'A request to the nonexistent job is made'
+    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/deployments', 'The URL persists');
+    assert.ok(Deployments.error.isPresent, 'Error message is shown');
+    assert.equal(Deployments.error.title, 'Not Found', 'Error message is for 404');
   });
 });
 

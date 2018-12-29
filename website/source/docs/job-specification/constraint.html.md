@@ -85,6 +85,8 @@ all groups (and tasks) in the job.
     regexp
     set_contains
     version
+    is_set
+    is_not_set
     ```
 
     For a detailed explanation of these values and their behavior, please see
@@ -196,6 +198,13 @@ constraint {
     }
     ```
 
+- `"is_set"` - Specifies that a given attribute must be present. This can be
+  combined with the `"!="` operator to require that an attribute has been set
+  before checking for equality. The default behavior for `"!="` is to include
+  nodes that don't have that attribute set.
+
+- `"is_not_set"` - Specifies that a given attribute must not be present. 
+
 ## `constraint` Examples
 
 The following examples only show the `constraint` stanzas. Remember that the
@@ -275,7 +284,7 @@ constraint {
 
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
-[client-meta]: /docs/agent/configuration/client.html#meta "Nomad meta Job Specification"
+[client-meta]: /docs/configuration/client.html#meta "Nomad meta Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
 [node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"

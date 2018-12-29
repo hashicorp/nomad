@@ -3,13 +3,14 @@ package deploymentwatcher
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -58,7 +59,7 @@ type DeploymentRaftEndpoints interface {
 // transitions.
 type Watcher struct {
 	enabled bool
-	logger  *log.Logger
+	logger  log.Logger
 
 	// queryLimiter is used to limit the rate of blocking queries
 	queryLimiter *rate.Limiter
@@ -90,7 +91,7 @@ type Watcher struct {
 
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
-func NewDeploymentsWatcher(logger *log.Logger,
+func NewDeploymentsWatcher(logger log.Logger,
 	raft DeploymentRaftEndpoints, stateQueriesPerSecond float64,
 	updateBatchDuration time.Duration) *Watcher {
 
@@ -98,7 +99,7 @@ func NewDeploymentsWatcher(logger *log.Logger,
 		raft:                raft,
 		queryLimiter:        rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
 		updateBatchDuration: updateBatchDuration,
-		logger:              logger,
+		logger:              logger.Named("deployments_watcher"),
 	}
 }
 
@@ -154,7 +155,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 				return
 			}
 
-			w.logger.Printf("[ERR] nomad.deployments_watcher: failed to retrieve deployments: %v", err)
+			w.logger.Error("failed to retrieve deployments", "error", err)
 		}
 
 		// Update the latest index
@@ -165,7 +166,7 @@ func (w *Watcher) watchDeployments(ctx context.Context) {
 		for _, d := range deployments {
 			if d.Active() {
 				if err := w.add(d); err != nil {
-					w.logger.Printf("[ERR] nomad.deployments_watcher: failed to track deployment %q: %v", d.ID, err)
+					w.logger.Error("failed to track deployment", "deployment_id", d.ID, "error", err)
 				}
 			} else {
 				w.remove(d)

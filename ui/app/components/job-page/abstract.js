@@ -11,7 +11,6 @@ export default Component.extend({
   sortDescending: null,
 
   // Provide actions that require routing
-  onNamespaceChange() {},
   gotoTaskGroup() {},
   gotoJob() {},
 

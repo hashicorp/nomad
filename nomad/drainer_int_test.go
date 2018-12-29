@@ -3,13 +3,14 @@ package nomad
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/rpc"
 	"testing"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/drainer"
@@ -22,7 +23,7 @@ import (
 
 func allocPromoter(errCh chan<- error, ctx context.Context,
 	state *state.StateStore, codec rpc.ClientCodec, nodeID string,
-	logger *log.Logger) {
+	logger log.Logger) {
 
 	nindex := uint64(1)
 	for {
@@ -54,7 +55,7 @@ func allocPromoter(errCh chan<- error, ctx context.Context,
 				Timestamp: now,
 			}
 			updates = append(updates, newAlloc)
-			logger.Printf("Marked deployment health for alloc %q", alloc.ID)
+			logger.Trace("marked deployment health for alloc", "alloc_id", alloc.ID)
 		}
 
 		if len(updates) == 0 {
@@ -869,7 +870,6 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 // Test that transitions to force drain work.
 func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	for _, inf := range []bool{true, false} {
 		name := "Infinite"
@@ -877,6 +877,7 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 			name = "Deadline"
 		}
 		t.Run(name, func(t *testing.T) {
+			require := require.New(t)
 			s1 := TestServer(t, nil)
 			defer s1.Shutdown()
 			codec := rpcClient(t, s1)
@@ -947,12 +948,12 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 			// Make sure the batch job isn't affected
 			testutil.AssertUntil(500*time.Millisecond, func() (bool, error) {
 				if err := checkAllocPromoter(errCh); err != nil {
-					return false, err
+					return false, fmt.Errorf("check alloc promoter error: %v", err)
 				}
 
 				allocs, err := state.AllocsByNode(nil, n1.ID)
 				if err != nil {
-					return false, err
+					return false, fmt.Errorf("AllocsByNode error: %v", err)
 				}
 				for _, alloc := range allocs {
 					if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
