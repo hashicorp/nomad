@@ -5,9 +5,9 @@ package mem
 import (
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/shirou/gopsutil/internal/common"
+	"golang.org/x/sys/unix"
 )
 
 func VirtualMemory() (*VirtualMemoryStat, error) {
@@ -72,9 +72,9 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 }
 
 func SwapMemory() (*SwapMemoryStat, error) {
-	sysinfo := &syscall.Sysinfo_t{}
+	sysinfo := &unix.Sysinfo_t{}
 
-	if err := syscall.Sysinfo(sysinfo); err != nil {
+	if err := unix.Sysinfo(sysinfo); err != nil {
 		return nil, err
 	}
 	ret := &SwapMemoryStat{

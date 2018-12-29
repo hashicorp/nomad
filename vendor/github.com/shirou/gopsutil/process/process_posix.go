@@ -4,14 +4,13 @@ package process
 
 import (
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
-	"github.com/shirou/gopsutil/internal/common"
+	"golang.org/x/sys/unix"
 )
 
 // POSIX
@@ -53,8 +52,8 @@ func getTerminalMap() (map[uint64]string, error) {
 	}
 
 	for _, name := range termfiles {
-		stat := syscall.Stat_t{}
-		if err = syscall.Stat(name, &stat); err != nil {
+		stat := unix.Stat_t{}
+		if err = unix.Stat(name, &stat); err != nil {
 			return nil, err
 		}
 		rdev := uint64(stat.Rdev)
@@ -63,31 +62,15 @@ func getTerminalMap() (map[uint64]string, error) {
 	return ret, nil
 }
 
-// SendSignal sends a syscall.Signal to the process.
+// SendSignal sends a unix.Signal to the process.
 // Currently, SIGSTOP, SIGCONT, SIGTERM and SIGKILL are supported.
 func (p *Process) SendSignal(sig syscall.Signal) error {
-	sigAsStr := "INT"
-	switch sig {
-	case syscall.SIGSTOP:
-		sigAsStr = "STOP"
-	case syscall.SIGCONT:
-		sigAsStr = "CONT"
-	case syscall.SIGTERM:
-		sigAsStr = "TERM"
-	case syscall.SIGKILL:
-		sigAsStr = "KILL"
-	}
-
-	kill, err := exec.LookPath("kill")
+	process, err := os.FindProcess(int(p.Pid))
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(kill, "-s", sigAsStr, strconv.Itoa(int(p.Pid)))
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	err = common.WaitTimeout(cmd, common.Timeout)
+
+	err = process.Signal(sig)
 	if err != nil {
 		return err
 	}
@@ -97,22 +80,22 @@ func (p *Process) SendSignal(sig syscall.Signal) error {
 
 // Suspend sends SIGSTOP to the process.
 func (p *Process) Suspend() error {
-	return p.SendSignal(syscall.SIGSTOP)
+	return p.SendSignal(unix.SIGSTOP)
 }
 
 // Resume sends SIGCONT to the process.
 func (p *Process) Resume() error {
-	return p.SendSignal(syscall.SIGCONT)
+	return p.SendSignal(unix.SIGCONT)
 }
 
 // Terminate sends SIGTERM to the process.
 func (p *Process) Terminate() error {
-	return p.SendSignal(syscall.SIGTERM)
+	return p.SendSignal(unix.SIGTERM)
 }
 
 // Kill sends SIGKILL to the process.
 func (p *Process) Kill() error {
-	return p.SendSignal(syscall.SIGKILL)
+	return p.SendSignal(unix.SIGKILL)
 }
 
 // Username returns a username of the process.

@@ -167,10 +167,10 @@ func TestFlatMap(t *testing.T) {
 			Input: &containers{
 				myslice: []int{1, 2},
 				mymap: map[string]linkedList{
-					"foo": linkedList{
+					"foo": {
 						value: "l1",
 					},
-					"bar": linkedList{
+					"bar": {
 						value: "l2",
 					},
 				},
@@ -188,10 +188,10 @@ func TestFlatMap(t *testing.T) {
 			Input: &containers{
 				myslice: []int{1, 2},
 				mymap: map[string]linkedList{
-					"foo": linkedList{
+					"foo": {
 						value: "l1",
 					},
-					"bar": linkedList{
+					"bar": {
 						value: "l2",
 					},
 				},

@@ -55,7 +55,7 @@ func (s *HTTPServer) nodeForceEvaluate(resp http.ResponseWriter, req *http.Reque
 	args := structs.NodeEvaluateRequest{
 		NodeID: nodeID,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.NodeUpdateResponse
 	if err := s.agent.RPC("Node.Evaluate", &args, &out); err != nil {
@@ -109,7 +109,7 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 		NodeID: nodeID,
 		Drain:  enable,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.NodeDrainUpdateResponse
 	if err := s.agent.RPC("Node.UpdateDrain", &args, &out); err != nil {

@@ -13,6 +13,21 @@ type KeygenCommand struct {
 	Meta
 }
 
+func (c *KeygenCommand) Synopsis() string {
+	return "Generates a new encryption key"
+}
+
+func (c *KeygenCommand) Help() string {
+	helpText := `
+Usage: nomad keygen
+
+  Generates a new encryption key that can be used to configure the
+  agent to encrypt traffic. The output of this command is already
+  in the proper format that the agent expects.
+`
+	return strings.TrimSpace(helpText)
+}
+
 func (c *KeygenCommand) Run(_ []string) int {
 	key := make([]byte, 16)
 	n, err := rand.Reader.Read(key)
@@ -27,19 +42,4 @@ func (c *KeygenCommand) Run(_ []string) int {
 
 	c.Ui.Output(base64.StdEncoding.EncodeToString(key))
 	return 0
-}
-
-func (c *KeygenCommand) Synopsis() string {
-	return "Generates a new encryption key"
-}
-
-func (c *KeygenCommand) Help() string {
-	helpText := `
-Usage: nomad keygen
-
-  Generates a new encryption key that can be used to configure the
-  agent to encrypt traffic. The output of this command is already
-  in the proper format that the agent expects.
-`
-	return strings.TrimSpace(helpText)
 }

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -341,7 +342,8 @@ type blockingOptions struct {
 // blockingRPC is used for queries that need to wait for a
 // minimum index. This is used to block and wait for changes.
 func (s *Server) blockingRPC(opts *blockingOptions) error {
-	var timeout *time.Timer
+	ctx := context.Background()
+	var cancel context.CancelFunc
 	var state *state.StateStore
 
 	// Fast path non-blocking
@@ -360,8 +362,8 @@ func (s *Server) blockingRPC(opts *blockingOptions) error {
 	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / jitterFraction)
 
 	// Setup a query timeout
-	timeout = time.NewTimer(opts.queryOpts.MaxQueryTime)
-	defer timeout.Stop()
+	ctx, cancel = context.WithTimeout(context.Background(), opts.queryOpts.MaxQueryTime)
+	defer cancel()
 
 RUN_QUERY:
 	// Update the query meta data
@@ -393,7 +395,7 @@ RUN_QUERY:
 
 	// Check for minimum query time
 	if err == nil && opts.queryOpts.MinQueryIndex > 0 && opts.queryMeta.Index <= opts.queryOpts.MinQueryIndex {
-		if expired := ws.Watch(timeout.C); !expired {
+		if err := ws.WatchCtx(ctx); err == nil {
 			goto RUN_QUERY
 		}
 	}

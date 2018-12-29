@@ -62,6 +62,9 @@ type NewWatcherInput struct {
 	// RenewVault indicates if this watcher should renew Vault tokens.
 	RenewVault bool
 
+	// VaultToken is the vault token to renew.
+	VaultToken string
+
 	// RetryFuncs specify the different ways to retry based on the upstream.
 	RetryFuncConsul  RetryFunc
 	RetryFuncDefault RetryFunc
@@ -90,7 +93,7 @@ func NewWatcher(i *NewWatcherInput) (*Watcher, error) {
 
 	// Start a watcher for the Vault renew if that config was specified
 	if i.RenewVault {
-		vt, err := dep.NewVaultTokenQuery()
+		vt, err := dep.NewVaultTokenQuery(i.VaultToken)
 		if err != nil {
 			return nil, errors.Wrap(err, "watcher")
 		}

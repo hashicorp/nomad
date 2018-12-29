@@ -1,0 +1,8 @@
+{{yield (hash
+  head=(component "list-table/table-head")
+  body=(component "list-table/table-body" rows=decoratedSource)
+  sort-by=(component "list-table/sort-by"
+    currentProp=sortProperty
+    sortDescending=sortDescending
+  )
+)}}

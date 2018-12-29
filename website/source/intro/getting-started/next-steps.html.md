@@ -13,7 +13,7 @@ excited about the possibilities of Nomad and ready to put this knowledge
 to use to improve your environment.
 
 We've covered the basics of all the core features of Nomad in this guide.
-We recommend reading the following as next steps.
+We recommend exploring the following resources as next steps.
 
   * [Documentation](/docs/index.html) - The documentation is an in-depth
     reference guide to all the features of Nomad.
@@ -23,4 +23,7 @@ We recommend reading the following as next steps.
 
   * [Operating a Job](/docs/operating-a-job/index.html) - Additional details on how to
     run a job in production.
+
+  * [Example Terraform configuration](https://github.com/hashicorp/nomad/tree/master/terraform) - 
+    Use Terraform to automatically provision a cluster in AWS.
 

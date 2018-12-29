@@ -23,6 +23,7 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 }
 
 func TestRPC_forwardLeader(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	s2 := testServer(t, func(c *Config) {
@@ -61,6 +62,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 }
 
 func TestRPC_forwardRegion(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	s2 := testServer(t, func(c *Config) {

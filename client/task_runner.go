@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/boltdb/bolt"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul-template/signals"
@@ -65,13 +65,29 @@ var (
 	taskRunnerStateAllKey = []byte("simple-all")
 )
 
+// taskRestartEvent wraps a TaskEvent with additional metadata to control
+// restart behavior.
+type taskRestartEvent struct {
+	// taskEvent to report
+	taskEvent *structs.TaskEvent
+
+	// if false, don't count against restart count
+	failure bool
+}
+
+func newTaskRestartEvent(reason string, failure bool) *taskRestartEvent {
+	return &taskRestartEvent{
+		taskEvent: structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reason),
+		failure:   failure,
+	}
+}
+
 // TaskRunner is used to wrap a task within an allocation and provide the execution context.
 type TaskRunner struct {
 	stateDB        *bolt.DB
 	config         *config.Config
 	updater        TaskStateUpdater
 	logger         *log.Logger
-	alloc          *structs.Allocation
 	restartTracker *RestartTracker
 	consul         ConsulServiceAPI
 
@@ -82,6 +98,7 @@ type TaskRunner struct {
 	resourceUsage     *cstructs.TaskResourceUsage
 	resourceUsageLock sync.RWMutex
 
+	alloc   *structs.Allocation
 	task    *structs.Task
 	taskDir *allocdir.TaskDir
 
@@ -139,7 +156,7 @@ type TaskRunner struct {
 	unblockLock sync.Mutex
 
 	// restartCh is used to restart a task
-	restartCh chan *structs.TaskEvent
+	restartCh chan *taskRestartEvent
 
 	// signalCh is used to send a signal to a task
 	signalCh chan SignalEvent
@@ -159,8 +176,12 @@ type TaskRunner struct {
 	persistLock sync.Mutex
 
 	// persistedHash is the hash of the last persisted snapshot. It is used to
-	// detect if a new snapshot has to be writen to disk.
+	// detect if a new snapshot has to be written to disk.
 	persistedHash []byte
+
+	// baseLabels are used when emitting tagged metrics. All task runner metrics
+	// will have these tags, and optionally more.
+	baseLabels []metrics.Label
 }
 
 // taskRunnerState is used to snapshot the state of the task runner
@@ -188,8 +209,9 @@ func (s *taskRunnerState) Hash() []byte {
 	return h.Sum(nil)
 }
 
-// TaskStateUpdater is used to signal that tasks state has changed.
-type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent)
+// TaskStateUpdater is used to signal that tasks state has changed. If lazySync
+// is set the event won't be immediately pushed to the server.
+type TaskStateUpdater func(taskName, state string, event *structs.TaskEvent, lazySync bool)
 
 // SignalEvent is a tuple of the signal and the event generating it
 type SignalEvent struct {
@@ -242,8 +264,27 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 		waitCh:           make(chan struct{}),
 		startCh:          make(chan struct{}, 1),
 		unblockCh:        make(chan struct{}),
-		restartCh:        make(chan *structs.TaskEvent),
+		restartCh:        make(chan *taskRestartEvent),
 		signalCh:         make(chan SignalEvent),
+	}
+
+	tc.baseLabels = []metrics.Label{
+		{
+			Name:  "job",
+			Value: tc.alloc.Job.Name,
+		},
+		{
+			Name:  "task_group",
+			Value: tc.alloc.TaskGroup,
+		},
+		{
+			Name:  "alloc_id",
+			Value: tc.alloc.ID,
+		},
+		{
+			Name:  "task",
+			Value: tc.task.Name,
+		},
 	}
 
 	return tc
@@ -251,12 +292,22 @@ func NewTaskRunner(logger *log.Logger, config *config.Config,
 
 // MarkReceived marks the task as received.
 func (r *TaskRunner) MarkReceived() {
-	r.updater(r.task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived))
+	// We lazy sync this since there will be a follow up message almost
+	// immediately.
+	r.updater(r.task.Name, structs.TaskStatePending, structs.NewTaskEvent(structs.TaskReceived), true)
 }
 
 // WaitCh returns a channel to wait for termination
 func (r *TaskRunner) WaitCh() <-chan struct{} {
 	return r.waitCh
+}
+
+// getHandle returns the task's handle or nil
+func (r *TaskRunner) getHandle() driver.DriverHandle {
+	r.handleLock.Lock()
+	h := r.handle
+	r.handleLock.Unlock()
+	return h
 }
 
 // pre060StateFilePath returns the path to our state file that would have been
@@ -416,10 +467,17 @@ func pre06ScriptCheck(ver, driver string, services []*structs.Service) bool {
 
 // SaveState is used to snapshot our state
 func (r *TaskRunner) SaveState() error {
+	r.destroyLock.Lock()
+	defer r.destroyLock.Unlock()
+	if r.destroy {
+		// Don't save state if already destroyed
+		return nil
+	}
+
 	r.persistLock.Lock()
 	defer r.persistLock.Unlock()
 	snap := taskRunnerState{
-		Version:            r.config.Version,
+		Version:            r.config.Version.VersionNumber(),
 		ArtifactDownloaded: r.artifactsDownloaded,
 		TaskDirBuilt:       r.taskDirBuilt,
 		PayloadRendered:    r.payloadRendered,
@@ -483,14 +541,14 @@ func (r *TaskRunner) DestroyState() error {
 }
 
 // setState is used to update the state of the task runner
-func (r *TaskRunner) setState(state string, event *structs.TaskEvent) {
+func (r *TaskRunner) setState(state string, event *structs.TaskEvent, lazySync bool) {
 	// Persist our state to disk.
 	if err := r.SaveState(); err != nil {
 		r.logger.Printf("[ERR] client: failed to save state of Task Runner for task %q: %v", r.task.Name, err)
 	}
 
 	// Indicate the task has been updated.
-	r.updater(r.task.Name, state, event)
+	r.updater(r.task.Name, state, event, lazySync)
 }
 
 // createDriver makes a driver for the task
@@ -500,7 +558,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 	eventEmitter := func(m string, args ...interface{}) {
 		msg := fmt.Sprintf(m, args...)
 		r.logger.Printf("[DEBUG] client: driver event for alloc %q: %s", r.alloc.ID, msg)
-		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg))
+		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg), false)
 	}
 
 	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, eventEmitter)
@@ -522,7 +580,8 @@ func (r *TaskRunner) Run() {
 	if err := r.validateTask(); err != nil {
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(err).SetFailsTask())
+			structs.NewTaskEvent(structs.TaskFailedValidation).SetValidationError(err).SetFailsTask(),
+			false)
 		return
 	}
 
@@ -534,7 +593,8 @@ func (r *TaskRunner) Run() {
 		e := fmt.Errorf("failed to create driver of task %q for alloc %q: %v", r.task.Name, r.alloc.ID, err)
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask(),
+			false)
 		return
 	}
 
@@ -545,7 +605,8 @@ func (r *TaskRunner) Run() {
 		e := fmt.Errorf("failed to build task directory for %q: %v", r.task.Name, err)
 		r.setState(
 			structs.TaskStateDead,
-			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask())
+			structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(e).SetFailsTask(),
+			false)
 		return
 	}
 
@@ -747,7 +808,8 @@ OUTER:
 					return
 				}
 			case structs.VaultChangeModeRestart:
-				r.Restart("vault", "new Vault token acquired")
+				const noFailure = false
+				r.Restart("vault", "new Vault token acquired", noFailure)
 			case structs.VaultChangeModeNoop:
 				fallthrough
 			default:
@@ -839,11 +901,21 @@ func (r *TaskRunner) updatedTokenHandler() {
 
 		// Create a new templateManager
 		var err error
-		r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-			r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
+		r.templateManager, err = NewTaskTemplateManager(&TaskTemplateManagerConfig{
+			Hooks:                r,
+			Templates:            r.task.Templates,
+			ClientConfig:         r.config,
+			VaultToken:           r.vaultFuture.Get(),
+			TaskDir:              r.taskDir.Dir,
+			EnvBuilder:           r.envBuilder,
+			MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+		})
+
 		if err != nil {
 			err := fmt.Errorf("failed to build task's template manager: %v", err)
-			r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+			r.setState(structs.TaskStateDead,
+				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask(),
+				false)
 			r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
 			r.Kill("vault", err.Error(), true)
 			return
@@ -852,10 +924,12 @@ func (r *TaskRunner) updatedTokenHandler() {
 }
 
 // prestart handles life-cycle tasks that occur before the task has started.
-func (r *TaskRunner) prestart(resultCh chan bool) {
-	if r.task.Vault != nil {
+// Since it's run asynchronously with the main Run() loop the alloc & task are
+// passed in to avoid racing with updates.
+func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, resultCh chan bool) {
+	if task.Vault != nil {
 		// Wait for the token
-		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
+		r.logger.Printf("[DEBUG] client: waiting for Vault token for task %v in alloc %q", task.Name, alloc.ID)
 		tokenCh := r.vaultFuture.Wait()
 		select {
 		case <-tokenCh:
@@ -863,20 +937,21 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 			resultCh <- false
 			return
 		}
-		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", r.task.Name, r.alloc.ID)
-		r.envBuilder.SetVaultToken(r.vaultFuture.Get(), r.task.Vault.Env)
+		r.logger.Printf("[DEBUG] client: retrieved Vault token for task %v in alloc %q", task.Name, alloc.ID)
+		r.envBuilder.SetVaultToken(r.vaultFuture.Get(), task.Vault.Env)
 	}
 
 	// If the job is a dispatch job and there is a payload write it to disk
-	requirePayload := len(r.alloc.Job.Payload) != 0 &&
+	requirePayload := len(alloc.Job.Payload) != 0 &&
 		(r.task.DispatchPayload != nil && r.task.DispatchPayload.File != "")
 	if !r.payloadRendered && requirePayload {
-		renderTo := filepath.Join(r.taskDir.LocalDir, r.task.DispatchPayload.File)
-		decoded, err := snappy.Decode(nil, r.alloc.Job.Payload)
+		renderTo := filepath.Join(r.taskDir.LocalDir, task.DispatchPayload.File)
+		decoded, err := snappy.Decode(nil, alloc.Job.Payload)
 		if err != nil {
 			r.setState(
 				structs.TaskStateDead,
-				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask(),
+				false)
 			resultCh <- false
 			return
 		}
@@ -884,7 +959,8 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		if err := os.MkdirAll(filepath.Dir(renderTo), 07777); err != nil {
 			r.setState(
 				structs.TaskStateDead,
-				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask(),
+				false)
 			resultCh <- false
 			return
 		}
@@ -892,7 +968,8 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		if err := ioutil.WriteFile(renderTo, decoded, 0777); err != nil {
 			r.setState(
 				structs.TaskStateDead,
-				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
+				structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask(),
+				false)
 			resultCh <- false
 			return
 		}
@@ -906,15 +983,15 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		r.persistLock.Unlock()
 
 		// Download the task's artifacts
-		if !downloaded && len(r.task.Artifacts) > 0 {
-			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
+		if !downloaded && len(task.Artifacts) > 0 {
+			r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDownloadingArtifacts), false)
 			taskEnv := r.envBuilder.Build()
-			for _, artifact := range r.task.Artifacts {
+			for _, artifact := range task.Artifacts {
 				if err := getter.GetArtifact(taskEnv, artifact, r.taskDir.Dir); err != nil {
 					wrapped := fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err)
 					r.logger.Printf("[DEBUG] client: %v", wrapped)
 					r.setState(structs.TaskStatePending,
-						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
+						structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped), false)
 					r.restartTracker.SetStartError(structs.WrapRecoverable(wrapped.Error(), err))
 					goto RESTART
 				}
@@ -926,7 +1003,7 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		}
 
 		// We don't have to wait for any template
-		if len(r.task.Templates) == 0 {
+		if len(task.Templates) == 0 {
 			// Send the start signal
 			select {
 			case r.startCh <- struct{}{}:
@@ -940,12 +1017,19 @@ func (r *TaskRunner) prestart(resultCh chan bool) {
 		// Build the template manager
 		if r.templateManager == nil {
 			var err error
-			r.templateManager, err = NewTaskTemplateManager(r, r.task.Templates,
-				r.config, r.vaultFuture.Get(), r.taskDir.Dir, r.envBuilder)
+			r.templateManager, err = NewTaskTemplateManager(&TaskTemplateManagerConfig{
+				Hooks:                r,
+				Templates:            r.task.Templates,
+				ClientConfig:         r.config,
+				VaultToken:           r.vaultFuture.Get(),
+				TaskDir:              r.taskDir.Dir,
+				EnvBuilder:           r.envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			})
 			if err != nil {
 				err := fmt.Errorf("failed to build task's template manager: %v", err)
-				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask())
-				r.logger.Printf("[ERR] client: alloc %q, task %q %v", r.alloc.ID, r.task.Name, err)
+				r.setState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskSetupFailure).SetSetupError(err).SetFailsTask(), false)
+				r.logger.Printf("[ERR] client: alloc %q, task %q %v", alloc.ID, task.Name, err)
 				resultCh <- false
 				return
 			}
@@ -996,9 +1080,7 @@ func (r *TaskRunner) run() {
 
 	// If we already have a handle, populate the stopCollection and handleWaitCh
 	// to fix the invariant that it exists.
-	r.handleLock.Lock()
-	handleEmpty := r.handle == nil
-	r.handleLock.Unlock()
+	handleEmpty := r.getHandle() == nil
 
 	if !handleEmpty {
 		stopCollection = make(chan struct{})
@@ -1009,7 +1091,7 @@ func (r *TaskRunner) run() {
 	for {
 		// Do the prestart activities
 		prestartResultCh := make(chan bool, 1)
-		go r.prestart(prestartResultCh)
+		go r.prestart(r.alloc, r.task, prestartResultCh)
 
 	WAIT:
 		for {
@@ -1017,26 +1099,24 @@ func (r *TaskRunner) run() {
 			case success := <-prestartResultCh:
 				if !success {
 					r.cleanup()
-					r.setState(structs.TaskStateDead, nil)
+					r.setState(structs.TaskStateDead, nil, false)
 					return
 				}
 			case <-r.startCh:
 				// Start the task if not yet started or it is being forced. This logic
 				// is necessary because in the case of a restore the handle already
 				// exists.
-				r.handleLock.Lock()
-				handleEmpty := r.handle == nil
-				r.handleLock.Unlock()
+				handleEmpty := r.getHandle() == nil
 				if handleEmpty {
 					startErr := r.startTask()
 					r.restartTracker.SetStartError(startErr)
 					if startErr != nil {
-						r.setState("", structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr))
+						r.setState("", structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(startErr), true)
 						goto RESTART
 					}
 
 					// Mark the task as started
-					r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+					r.setState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted), false)
 					r.runningLock.Lock()
 					r.running = true
 					r.runningLock.Unlock()
@@ -1063,7 +1143,7 @@ func (r *TaskRunner) run() {
 
 				// Log whether the task was successful or not.
 				r.restartTracker.SetWaitResult(waitRes)
-				r.setState("", r.waitErrorToEvent(waitRes))
+				r.setState("", r.waitErrorToEvent(waitRes), true)
 				if !waitRes.Successful() {
 					r.logger.Printf("[INFO] client: task %q for alloc %q failed: %v", r.task.Name, r.alloc.ID, waitRes)
 				} else {
@@ -1089,12 +1169,12 @@ func (r *TaskRunner) run() {
 				}
 
 				r.logger.Printf("[DEBUG] client: sending %s", common)
-				r.setState(structs.TaskStateRunning, se.e)
+				r.setState(structs.TaskStateRunning, se.e, false)
 
 				res := r.handle.Signal(se.s)
 				se.result <- res
 
-			case event := <-r.restartCh:
+			case restartEvent := <-r.restartCh:
 				r.runningLock.Lock()
 				running := r.running
 				r.runningLock.Unlock()
@@ -1104,8 +1184,8 @@ func (r *TaskRunner) run() {
 					continue
 				}
 
-				r.logger.Printf("[DEBUG] client: restarting %s: %v", common, event.RestartReason)
-				r.setState(structs.TaskStateRunning, event)
+				r.logger.Printf("[DEBUG] client: restarting %s: %v", common, restartEvent.taskEvent.RestartReason)
+				r.setState(structs.TaskStateRunning, restartEvent.taskEvent, false)
 				r.killTask(nil)
 
 				close(stopCollection)
@@ -1114,9 +1194,7 @@ func (r *TaskRunner) run() {
 					<-handleWaitCh
 				}
 
-				// Since the restart isn't from a failure, restart immediately
-				// and don't count against the restart policy
-				r.restartTracker.SetRestartTriggered()
+				r.restartTracker.SetRestartTriggered(restartEvent.failure)
 				break WAIT
 
 			case <-r.destroyCh:
@@ -1125,13 +1203,21 @@ func (r *TaskRunner) run() {
 				r.runningLock.Unlock()
 				if !running {
 					r.cleanup()
-					r.setState(structs.TaskStateDead, r.destroyEvent)
+					r.setState(structs.TaskStateDead, r.destroyEvent, false)
 					return
 				}
 
 				// Remove from consul before killing the task so that traffic
 				// can be rerouted
-				r.consul.RemoveTask(r.alloc.ID, r.task)
+				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+				r.consul.RemoveTask(r.alloc.ID, interpTask)
+
+				// Delay actually killing the task if configured. See #244
+				if r.task.ShutdownDelay > 0 {
+					r.logger.Printf("[DEBUG] client: delaying shutdown of alloc %q task %q for %q",
+						r.alloc.ID, r.task.Name, r.task.ShutdownDelay)
+					<-time.After(r.task.ShutdownDelay)
+				}
 
 				// Store the task event that provides context on the task
 				// destroy. The Killed event is set from the alloc_runner and
@@ -1141,7 +1227,7 @@ func (r *TaskRunner) run() {
 					if r.destroyEvent.Type == structs.TaskKilling {
 						killEvent = r.destroyEvent
 					} else {
-						r.setState(structs.TaskStateRunning, r.destroyEvent)
+						r.setState(structs.TaskStateRunning, r.destroyEvent, false)
 					}
 				}
 
@@ -1152,7 +1238,7 @@ func (r *TaskRunner) run() {
 				<-handleWaitCh
 				r.cleanup()
 
-				r.setState(structs.TaskStateDead, nil)
+				r.setState(structs.TaskStateDead, nil, false)
 				return
 			}
 		}
@@ -1162,7 +1248,7 @@ func (r *TaskRunner) run() {
 		restart := r.shouldRestart()
 		if !restart {
 			r.cleanup()
-			r.setState(structs.TaskStateDead, nil)
+			r.setState(structs.TaskStateDead, nil, false)
 			return
 		}
 
@@ -1179,7 +1265,8 @@ func (r *TaskRunner) run() {
 // stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
 	// Remove from Consul
-	r.consul.RemoveTask(r.alloc.ID, r.task)
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1225,7 +1312,8 @@ func (r *TaskRunner) shouldRestart() bool {
 		if state == structs.TaskNotRestarting {
 			r.setState(structs.TaskStateDead,
 				structs.NewTaskEvent(structs.TaskNotRestarting).
-					SetRestartReason(reason).SetFailsTask())
+					SetRestartReason(reason).SetFailsTask(),
+				false)
 		}
 		return false
 	case structs.TaskRestarting:
@@ -1233,14 +1321,16 @@ func (r *TaskRunner) shouldRestart() bool {
 		r.setState(structs.TaskStatePending,
 			structs.NewTaskEvent(structs.TaskRestarting).
 				SetRestartDelay(when).
-				SetRestartReason(reason))
+				SetRestartReason(reason),
+			false)
 	default:
 		r.logger.Printf("[ERR] client: restart tracker returned unknown state: %q", state)
 		return false
 	}
 
 	// Unregister from Consul while waiting to restart.
-	r.consul.RemoveTask(r.alloc.ID, r.task)
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	r.consul.RemoveTask(r.alloc.ID, interpTask)
 
 	// Sleep but watch for destroy events.
 	select {
@@ -1254,7 +1344,7 @@ func (r *TaskRunner) shouldRestart() bool {
 	r.destroyLock.Unlock()
 	if destroyed {
 		r.logger.Printf("[DEBUG] client: Not restarting task: %v because it has been destroyed", r.task.Name)
-		r.setState(structs.TaskStateDead, r.destroyEvent)
+		r.setState(structs.TaskStateDead, r.destroyEvent, false)
 		return false
 	}
 
@@ -1286,11 +1376,9 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	event.SetKillTimeout(timeout)
 
 	// Mark that we received the kill event
-	r.setState(structs.TaskStateRunning, event)
+	r.setState(structs.TaskStateRunning, event, false)
 
-	r.handleLock.Lock()
-	handle := r.handle
-	r.handleLock.Unlock()
+	handle := r.getHandle()
 
 	// Kill the task using an exponential backoff in-case of failures.
 	destroySuccess, err := r.handleDestroy(handle)
@@ -1304,7 +1392,7 @@ func (r *TaskRunner) killTask(killingEvent *structs.TaskEvent) {
 	r.runningLock.Unlock()
 
 	// Store that the task has been destroyed and any associated error.
-	r.setState("", structs.NewTaskEvent(structs.TaskKilled).SetKillError(err))
+	r.setState("", structs.NewTaskEvent(structs.TaskKilled).SetKillError(err), true)
 }
 
 // startTask creates the driver, task dir, and starts the task.
@@ -1385,14 +1473,15 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, r.task, exec, n)
+	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
+	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, r, exec, n)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
 // task's environment.
-func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) {
-	for _, service := range task.Services {
+func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task {
+	taskCopy := task.Copy()
+	for _, service := range taskCopy.Services {
 		for _, check := range service.Checks {
 			check.Name = taskEnv.ReplaceEnv(check.Name)
 			check.Type = taskEnv.ReplaceEnv(check.Type)
@@ -1402,11 +1491,24 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) {
 			check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
 			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
 			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
+			check.Method = taskEnv.ReplaceEnv(check.Method)
+			if len(check.Header) > 0 {
+				header := make(map[string][]string, len(check.Header))
+				for k, vs := range check.Header {
+					newVals := make([]string, len(vs))
+					for i, v := range vs {
+						newVals[i] = taskEnv.ReplaceEnv(v)
+					}
+					header[taskEnv.ReplaceEnv(k)] = newVals
+				}
+				check.Header = header
+			}
 		}
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
 	}
+	return taskCopy
 }
 
 // buildTaskDir creates the task directory before driver.Prestart. It is safe
@@ -1420,8 +1522,9 @@ func (r *TaskRunner) buildTaskDir(fsi cstructs.FSIsolation) error {
 	// and the task dir is already built. The reason we call Build again is to
 	// ensure that the task dir invariants are still held.
 	if !built {
-		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskSetup).
-			SetMessage(structs.TaskBuildingTaskDir))
+		r.setState(structs.TaskStatePending,
+			structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir),
+			false)
 	}
 
 	chroot := config.DefaultChrootEnv
@@ -1453,10 +1556,11 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 		select {
 		case <-next.C:
 			next.Reset(r.config.StatsCollectionInterval)
-			if r.handle == nil {
+			handle := r.getHandle()
+			if handle == nil {
 				continue
 			}
-			ru, err := r.handle.Stats()
+			ru, err := handle.Stats()
 
 			if err != nil {
 				// Check if the driver doesn't implement stats
@@ -1515,6 +1619,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 	for _, t := range tg.Tasks {
 		if t.Name == r.task.Name {
 			updatedTask = t.Copy()
+			break
 		}
 	}
 	if updatedTask == nil {
@@ -1567,11 +1672,12 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 		// Allow set the script executor if the driver supports it
 		exec = h
 	}
-	interpolateServices(r.envBuilder.Build(), new)
+	newInterpolatedTask := interpolateServices(r.envBuilder.Build(), new)
+	oldInterpolatedTask := interpolateServices(r.envBuilder.Build(), old)
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, old, new, exec, net)
+	return r.consul.UpdateTask(r.alloc.ID, oldInterpolatedTask, newInterpolatedTask, r, exec, net)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,
@@ -1590,7 +1696,7 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 
 			r.logger.Printf("[ERR] client: failed to kill task '%s' for alloc %q. Retrying in %v: %v",
 				r.task.Name, r.alloc.ID, backoff, err)
-			time.Sleep(time.Duration(backoff))
+			time.Sleep(backoff)
 		} else {
 			// Kill was successful
 			return true, nil
@@ -1599,10 +1705,10 @@ func (r *TaskRunner) handleDestroy(handle driver.DriverHandle) (destroyed bool, 
 	return
 }
 
-// Restart will restart the task
-func (r *TaskRunner) Restart(source, reason string) {
+// Restart will restart the task.
+func (r *TaskRunner) Restart(source, reason string, failure bool) {
 	reasonStr := fmt.Sprintf("%s: %s", source, reason)
-	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reasonStr)
+	event := newTaskRestartEvent(reasonStr, failure)
 
 	select {
 	case r.restartCh <- event:
@@ -1642,6 +1748,14 @@ func (r *TaskRunner) Kill(source, reason string, fail bool) {
 
 	r.logger.Printf("[DEBUG] client: killing task %v for alloc %q: %v", r.task.Name, r.alloc.ID, reasonStr)
 	r.Destroy(event)
+}
+
+func (r *TaskRunner) EmitEvent(source, message string) {
+	event := structs.NewTaskEvent(structs.TaskGenericMessage).
+		SetGenericSource(source).SetMessage(message)
+	r.setState("", event, false)
+	r.logger.Printf("[DEBUG] client: event from %q for task %q in alloc %q: %v",
+		source, r.task.Name, r.alloc.ID, message)
 }
 
 // UnblockStart unblocks the starting of the task. It currently assumes only
@@ -1714,10 +1828,25 @@ func (r *TaskRunner) setCreatedResources(cr *driver.CreatedResources) {
 	r.createdResourcesLock.Unlock()
 }
 
-// emitStats emits resource usage stats of tasks to remote metrics collector
-// sinks
-func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
-	if ru.ResourceUsage.MemoryStats != nil && r.config.PublishAllocationMetrics {
+func (r *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
+	if !r.config.DisableTaggedMetrics {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+			float32(ru.ResourceUsage.MemoryStats.RSS), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+			float32(ru.ResourceUsage.MemoryStats.RSS), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
+			float32(ru.ResourceUsage.MemoryStats.Cache), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
+			float32(ru.ResourceUsage.MemoryStats.Swap), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
+			float32(ru.ResourceUsage.MemoryStats.MaxUsage), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
+			float32(ru.ResourceUsage.MemoryStats.KernelUsage), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
+			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), r.baseLabels)
+	}
+
+	if r.config.BackwardsCompatibleMetrics {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
@@ -1725,13 +1854,46 @@ func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
 	}
+}
 
-	if ru.ResourceUsage.CpuStats != nil && r.config.PublishAllocationMetrics {
+func (r *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
+	if !r.config.DisableTaggedMetrics {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
+			float32(ru.ResourceUsage.CpuStats.Percent), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
+			float32(ru.ResourceUsage.CpuStats.SystemMode), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
+			float32(ru.ResourceUsage.CpuStats.UserMode), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
+			float32(ru.ResourceUsage.CpuStats.ThrottledTime), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
+			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), r.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
+			float32(ru.ResourceUsage.CpuStats.TotalTicks), r.baseLabels)
+	}
+
+	if r.config.BackwardsCompatibleMetrics {
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
 		metrics.SetGauge([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, r.alloc.ID, r.task.Name, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
+	}
+}
+
+// emitStats emits resource usage stats of tasks to remote metrics collector
+// sinks
+func (r *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
+	if !r.config.PublishAllocationMetrics {
+		return
+	}
+
+	if ru.ResourceUsage.MemoryStats != nil {
+		r.setGaugeForMemory(ru)
+	}
+
+	if ru.ResourceUsage.CpuStats != nil {
+		r.setGaugeForCPU(ru)
 	}
 }

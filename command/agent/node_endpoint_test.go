@@ -10,7 +10,8 @@ import (
 )
 
 func TestHTTP_NodesList(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the node
 			node := mock.Node()
@@ -57,7 +58,8 @@ func TestHTTP_NodesList(t *testing.T) {
 }
 
 func TestHTTP_NodesPrefixList(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		ids := []string{
 			"12345678-abcd-efab-cdef-123456789abc",
 			"12345678-aaaa-efab-cdef-123456789abc",
@@ -113,7 +115,8 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 }
 
 func TestHTTP_NodeForceEval(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{
@@ -164,7 +167,8 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 }
 
 func TestHTTP_NodeAllocations(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{
@@ -221,7 +225,8 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 }
 
 func TestHTTP_NodeDrain(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the node
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{
@@ -272,7 +277,8 @@ func TestHTTP_NodeDrain(t *testing.T) {
 }
 
 func TestHTTP_NodeQuery(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		node := mock.Node()
 		args := structs.NodeRegisterRequest{

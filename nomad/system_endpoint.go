@@ -18,6 +18,13 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 		return err
 	}
 
+	// Check management level permissions
+	if acl, err := s.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl != nil && !acl.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Get the states current index
 	snapshotIndex, err := s.srv.fsm.State().LatestIndex()
 	if err != nil {
@@ -33,6 +40,13 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *structs.GenericResponse) error {
 	if done, err := s.srv.forward("System.ReconcileJobSummaries", args, args, reply); done {
 		return err
+	}
+
+	// Check management level permissions
+	if acl, err := s.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if acl != nil && !acl.IsManagement() {
+		return structs.ErrPermissionDenied
 	}
 
 	_, index, err := s.srv.raftApply(structs.ReconcileJobSummariesRequestType, args)

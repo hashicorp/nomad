@@ -8,14 +8,17 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 )
 
 func TestCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &Command{}
 }
 
 func TestCommand_Args(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -55,6 +58,7 @@ func TestCommand_Args(t *testing.T) {
 		shutdownCh := make(chan struct{})
 		close(shutdownCh)
 		cmd := &Command{
+			Version:    version.GetVersion(),
 			Ui:         ui,
 			ShutdownCh: shutdownCh,
 		}
@@ -75,9 +79,10 @@ func TestCommand_Args(t *testing.T) {
 	}
 }
 
+// TODO Why is this failing
 func TestRetryJoin(t *testing.T) {
-	dir, agent := makeAgent(t, nil)
-	defer os.RemoveAll(dir)
+	t.Parallel()
+	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
 	doneCh := make(chan struct{})
@@ -89,6 +94,7 @@ func TestRetryJoin(t *testing.T) {
 	}()
 
 	cmd := &Command{
+		Version:    version.GetVersion(),
 		ShutdownCh: shutdownCh,
 		Ui: &cli.BasicUi{
 			Reader:      os.Stdin,
@@ -97,14 +103,11 @@ func TestRetryJoin(t *testing.T) {
 		},
 	}
 
-	serfAddr := fmt.Sprintf(
-		"%s:%d",
-		agent.config.BindAddr,
-		agent.config.Ports.Serf)
+	serfAddr := agent.Config.normalizedAddrs.Serf
 
 	args := []string{
 		"-dev",
-		"-node", fmt.Sprintf(`"Node %d"`, getPort()),
+		"-node", "foo",
 		"-retry-join", serfAddr,
 		"-retry-interval", "1s",
 	}

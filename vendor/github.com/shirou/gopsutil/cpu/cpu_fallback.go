@@ -3,8 +3,6 @@
 package cpu
 
 import (
-	"time"
-
 	"github.com/shirou/gopsutil/internal/common"
 )
 

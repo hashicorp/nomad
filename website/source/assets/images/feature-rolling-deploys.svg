@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 175">
+  <g fill="none" fill-rule="evenodd">
+    <path stroke="#FFF" stroke-width="5" d="M33.302 90.566C31.162 96.818 30 103.523 30 110.5c0 33.966 27.534 61.5 61.5 61.5s61.5-27.534 61.5-61.5S125.466 49 91.5 49"/>
+    <path stroke="#FFF" stroke-opacity=".6" stroke-width="5" d="M87.935 49.102c-24.4 1.394-44.99 17.013-53.607 38.69"/>
+    <g fill="#FFF" font-family="CourierNewPS-BoldMT, Courier New" font-weight="bold">
+      <text font-size="12" transform="translate(55 88)">
+        <tspan x=".494" y="42">rolling...</tspan>
+      </text>
+      <text font-size="30" transform="translate(55 88)">
+        <tspan x=".494" y="25">9/12</tspan>
+      </text>
+    </g>
+    <path stroke="#FFF" stroke-width="2" d="M195 109h27.538" stroke-linecap="square"/>
+    <path fill="#FFF" d="M231.5 109.037l-10.5 6.038V103"/>
+    <g transform="translate(267 49)">
+      <circle cx="61.5" cy="61.5" r="61.5" stroke="#FFF" stroke-width="5"/>
+      <g fill="#FFF" font-family="CourierNewPS-BoldMT, Courier New" font-weight="bold">
+        <text font-size="12" transform="translate(16 39)">
+          <tspan x="27.497" y="42">done!</tspan>
+        </text>
+        <text font-size="30" transform="translate(16 39)">
+          <tspan x=".493" y="25">12/12</tspan>
+        </text>
+      </g>
+    </g>
+    <g fill="#FFF">
+      <path fill-opacity=".6" d="M258.527 1.02l-16.33 9.473 16.33 9.474 16.2-9.56"/>
+      <path fill-rule="nonzero" d="M258.527.037L241 10.194v20.27l11.97 6.915v-.985l-11.115-6.4V11.303L258.1 20.69v19.42l.64.384 17.312-10.03v-20.27L258.527.037zm0 19.93l-16.33-9.474 16.33-9.474 16.2 9.386-16.2 9.56zm16.67 10.03L259.597 39l-.64.384V20.692l16.242-9.56v18.864z"/>
+    </g>
+    <path d="M27.5 1.02L11.195 10.5 27.5 19.983l16.177-9.567"/>
+    <path fill="#FFF" fill-rule="nonzero" d="M27.5.037L10 10.202V30.49l11.95 6.917v-.982L10.855 30.02V11.312l16.22 9.395V40.14l.64.385L45 30.49V10.2L27.5.037zm0 19.945l-16.305-9.48L27.5 1.02l16.177 9.396L27.5 19.982zM44.146 30.02l-15.58 9.01-.64.385V20.708l16.22-9.566V30.02z"/>
+  </g>
+</svg>

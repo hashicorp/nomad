@@ -12,6 +12,7 @@ import (
 )
 
 func TestNodes_List(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -40,6 +41,7 @@ func TestNodes_List(t *testing.T) {
 }
 
 func TestNodes_PrefixList(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -80,6 +82,7 @@ func TestNodes_PrefixList(t *testing.T) {
 }
 
 func TestNodes_Info(t *testing.T) {
+	t.Parallel()
 	startTime := time.Now().Unix()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
@@ -131,6 +134,7 @@ func TestNodes_Info(t *testing.T) {
 }
 
 func TestNodes_ToggleDrain(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -196,6 +200,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 }
 
 func TestNodes_Allocations(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	nodes := c.Nodes()
@@ -214,6 +219,7 @@ func TestNodes_Allocations(t *testing.T) {
 }
 
 func TestNodes_ForceEvaluate(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
@@ -252,17 +258,18 @@ func TestNodes_ForceEvaluate(t *testing.T) {
 }
 
 func TestNodes_Sort(t *testing.T) {
+	t.Parallel()
 	nodes := []*NodeListStub{
-		&NodeListStub{CreateIndex: 2},
-		&NodeListStub{CreateIndex: 1},
-		&NodeListStub{CreateIndex: 5},
+		{CreateIndex: 2},
+		{CreateIndex: 1},
+		{CreateIndex: 5},
 	}
 	sort.Sort(NodeIndexSort(nodes))
 
 	expect := []*NodeListStub{
-		&NodeListStub{CreateIndex: 5},
-		&NodeListStub{CreateIndex: 2},
-		&NodeListStub{CreateIndex: 1},
+		{CreateIndex: 5},
+		{CreateIndex: 2},
+		{CreateIndex: 1},
 	}
 	if !reflect.DeepEqual(nodes, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", nodes, expect)

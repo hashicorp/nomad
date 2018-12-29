@@ -71,6 +71,12 @@ job "docs" {
   [Consul][] for service discovery. Nomad automatically registers when a task
   is started and de-registers it when the task dies.
 
+- `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
+  killing a task between removing it from Consul and sending it a shutdown
+  signal. Ideally services would fail healthchecks once they receive a shutdown
+  signal. Alternatively `shutdown_delay` may be set to give in flight requests
+  time to complete before shutting down.
+
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
   [Docker][] and [rkt][] images specify their own default users.  This can only

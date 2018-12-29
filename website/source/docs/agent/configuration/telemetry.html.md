@@ -58,6 +58,20 @@ The following options are available on all telemetry configurations.
 - `publish_node_metrics` `(bool: false)` - Specifies if Nomad should publish
   runtime metrics of nodes.
 
+- `backwards_compatible_metrics` `(bool: false)` - Specifies if Nomad should
+  publish metrics that are backwards compatible with versions below 0.7, as
+  post version 0.7, Nomad emits tagged metrics. All new metrics will
+  only be added to tagged metrics. Note that this option is used to transition
+  monitoring to tagged metrics and will eventually be deprecated.
+
+
+- `disable_tagged_metrics` `(bool: false)` - Specifies if Nomad should not emit
+  tagged metrics and only emit metrics compatible with versions below Nomad
+  0.7. Note that this option is used to transition monitoring to tagged
+  metrics and will eventually be deprecated.
+
+
+
 ### `statsite`
 
 These `telemetry` parameters apply to
@@ -99,6 +113,13 @@ telemetry {
   datadog_address = "dogstatsd.company.local:8125"
 }
 ```
+
+### `prometheus`
+
+These `telemetry` parameters apply to [Prometheus](https://prometheus.io).
+
+- `prometheus_metrics` `(bool: false)` - Specifies whether the agent should
+  make Prometheus formatted metrics available at `/v1/metrics?format=prometheus`.
 
 ### `circonus`
 
@@ -160,5 +181,5 @@ These `telemetry` parameters apply to
 - `circonus_broker_select_tag` `(string: "")` - Specifies a special tag which
   will be used to select a Circonus Broker when a Broker ID is not provided. The
   best use of this is to as a hint for which broker should be used based on
-  *where* this particular instance is running (e.g. a specific geo location or
+  *where* this particular instance is running (e.g. a specific geographic location or
   datacenter, dc:sfo).

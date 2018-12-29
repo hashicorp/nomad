@@ -23,8 +23,8 @@ func TestSliceStringIsSubset(t *testing.T) {
 
 func TestMapStringStringSliceValueSet(t *testing.T) {
 	m := map[string][]string{
-		"foo": []string{"1", "2"},
-		"bar": []string{"3"},
+		"foo": {"1", "2"},
+		"bar": {"3"},
 		"baz": nil,
 	}
 
@@ -33,6 +33,24 @@ func TestMapStringStringSliceValueSet(t *testing.T) {
 	sort.Strings(act)
 	if !reflect.DeepEqual(act, exp) {
 		t.Fatalf("Bad; got %v; want %v", act, exp)
+	}
+}
+
+func TestCopyMapStringSliceString(t *testing.T) {
+	m := map[string][]string{
+		"x": {"a", "b", "c"},
+		"y": {"1", "2", "3"},
+		"z": nil,
+	}
+
+	c := CopyMapStringSliceString(m)
+	if !reflect.DeepEqual(c, m) {
+		t.Fatalf("%#v != %#v", m, c)
+	}
+
+	c["x"][1] = "---"
+	if reflect.DeepEqual(c, m) {
+		t.Fatalf("Shared slices: %#v == %#v", m["x"], c["x"])
 	}
 }
 

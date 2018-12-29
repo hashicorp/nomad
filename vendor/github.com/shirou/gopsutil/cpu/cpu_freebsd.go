@@ -146,7 +146,7 @@ func Info() ([]InfoStat, error) {
 func parseDmesgBoot(fileName string) (InfoStat, int, error) {
 	c := InfoStat{}
 	lines, _ := common.ReadLines(fileName)
-	var cpuNum int
+	cpuNum := 1 // default cpu num is 1
 	for _, line := range lines {
 		if matches := cpuEnd.FindStringSubmatch(line); matches != nil {
 			break

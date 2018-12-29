@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
 )
 
 type OperatorRaftRemoveCommand struct {
@@ -15,14 +16,14 @@ func (c *OperatorRaftRemoveCommand) Help() string {
 	helpText := `
 Usage: nomad operator raft remove-peer [options]
 
-Remove the Nomad server with given -peer-address from the Raft configuration.
+  Remove the Nomad server with given -peer-address from the Raft configuration.
 
-There are rare cases where a peer may be left behind in the Raft quorum even
-though the server is no longer present and known to the cluster. This command
-can be used to remove the failed server so that it is no longer affects the Raft
-quorum. If the server still shows in the output of the "nomad server-members"
-command, it is preferable to clean up by simply running "nomad
-server-force-leave" instead of this command.
+  There are rare cases where a peer may be left behind in the Raft quorum even
+  though the server is no longer present and known to the cluster. This command
+  can be used to remove the failed server so that it is no longer affects the
+  Raft quorum. If the server still shows in the output of the "nomad
+  server-members" command, it is preferable to clean up by simply running "nomad
+  server-force-leave" instead of this command.
 
 General Options:
 
@@ -34,6 +35,17 @@ Remove Peer Options:
     Remove a Nomad server with given address from the Raft configuration.
 `
 	return strings.TrimSpace(helpText)
+}
+
+func (c *OperatorRaftRemoveCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-peer-address": complete.PredictAnything,
+		})
+}
+
+func (c *OperatorRaftRemoveCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *OperatorRaftRemoveCommand) Synopsis() string {

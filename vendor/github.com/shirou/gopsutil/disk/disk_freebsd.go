@@ -7,8 +7,9 @@ import (
 	"encoding/binary"
 	"path"
 	"strconv"
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/shirou/gopsutil/internal/common"
 )
@@ -17,7 +18,7 @@ func Partitions(all bool) ([]PartitionStat, error) {
 	var ret []PartitionStat
 
 	// get length
-	count, err := syscall.Getfsstat(nil, MNT_WAIT)
+	count, err := unix.Getfsstat(nil, MNT_WAIT)
 	if err != nil {
 		return ret, err
 	}
@@ -94,12 +95,12 @@ func Partitions(all bool) ([]PartitionStat, error) {
 	return ret, nil
 }
 
-func IOCounters() (map[string]IOCountersStat, error) {
+func IOCounters(names ...string) (map[string]IOCountersStat, error) {
 	// statinfo->devinfo->devstat
 	// /usr/include/devinfo.h
 	ret := make(map[string]IOCountersStat)
 
-	r, err := syscall.Sysctl("kern.devstat.all")
+	r, err := unix.Sysctl("kern.devstat.all")
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +119,10 @@ func IOCounters() (map[string]IOCountersStat, error) {
 		}
 		un := strconv.Itoa(int(d.Unit_number))
 		name := common.IntToString(d.Device_name[:]) + un
+
+		if len(names) > 0 && !common.StringsHas(names, name) {
+			continue
+		}
 
 		ds := IOCountersStat{
 			ReadCount:  d.Operations[DEVSTAT_READ],
@@ -151,7 +156,7 @@ func Getfsstat(buf []Statfs, flags int) (n int, err error) {
 		_p0 = unsafe.Pointer(&buf[0])
 		bufsize = unsafe.Sizeof(Statfs{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := syscall.Syscall(syscall.SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+	r0, _, e1 := unix.Syscall(unix.SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -171,6 +176,6 @@ func parseDevstat(buf []byte) (Devstat, error) {
 	return ds, nil
 }
 
-func getFsType(stat syscall.Statfs_t) string {
+func getFsType(stat unix.Statfs_t) string {
 	return common.IntToString(stat.Fstypename[:])
 }

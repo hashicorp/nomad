@@ -46,6 +46,24 @@ var (
 		HardwareAddr: []byte{23, 44, 54, 70},
 		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagMulticast,
 	}
+
+	// One link local address
+	eth3 = net.Interface{
+		Index:        4,
+		MTU:          1500,
+		Name:         "eth3",
+		HardwareAddr: []byte{23, 44, 54, 71},
+		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagMulticast,
+	}
+
+	// One link local address and one globally routable address
+	eth4 = net.Interface{
+		Index:        4,
+		MTU:          1500,
+		Name:         "eth4",
+		HardwareAddr: []byte{23, 44, 54, 72},
+		Flags:        net.FlagUp | net.FlagBroadcast | net.FlagMulticast,
+	}
 )
 
 // A fake network detector which returns no devices
@@ -109,6 +127,10 @@ func (n *NetworkInterfaceDetectorMultipleInterfaces) InterfaceByName(name string
 		intf = &eth1
 	case "eth2":
 		intf = &eth2
+	case "eth3":
+		intf = &eth3
+	case "eth4":
+		intf = &eth4
 	}
 	if intf != nil {
 		return intf, nil
@@ -140,6 +162,18 @@ func (n *NetworkInterfaceDetectorMultipleInterfaces) Addrs(intf *net.Interface) 
 	if intf.Name == "eth2" {
 		return []net.Addr{}, nil
 	}
+
+	if intf.Name == "eth3" {
+		_, ipnet1, _ := net.ParseCIDR("169.254.155.20/32")
+		return []net.Addr{ipnet1}, nil
+	}
+
+	if intf.Name == "eth4" {
+		_, ipnet1, _ := net.ParseCIDR("169.254.155.20/32")
+		_, ipnet2, _ := net.ParseCIDR("100.64.0.10/10")
+		return []net.Addr{ipnet1, ipnet2}, nil
+	}
+
 	return nil, fmt.Errorf("Can't find addresses for device: %v", intf.Name)
 }
 
@@ -186,7 +220,7 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatal("Expected Network Resource to have a Device Name")
 	}
 	if net.MBits != 101 {
-		t.Fatalf("Expected Network Resource to have bandwith %d; got %d", 101, net.MBits)
+		t.Fatalf("Expected Network Resource to have bandwidth %d; got %d", 101, net.MBits)
 	}
 }
 
@@ -263,7 +297,7 @@ func TestNetworkFingerPrint_default_device(t *testing.T) {
 		t.Fatal("Expected Network Resource to have a Device Name")
 	}
 	if net.MBits == 0 {
-		t.Fatal("Expected Network Resource to have a non-zero bandwith")
+		t.Fatal("Expected Network Resource to have a non-zero bandwidth")
 	}
 }
 
@@ -306,7 +340,7 @@ func TestNetworkFingerPrint_excludelo_down_interfaces(t *testing.T) {
 		t.Fatal("Expected Network Resource to be eth0. Actual: ", net.Device)
 	}
 	if net.MBits == 0 {
-		t.Fatal("Expected Network Resource to have a non-zero bandwith")
+		t.Fatal("Expected Network Resource to have a non-zero bandwidth")
 	}
 
 	// Test the CIDR of the IPs
@@ -319,5 +353,116 @@ func TestNetworkFingerPrint_excludelo_down_interfaces(t *testing.T) {
 	// Ensure that the link local address isn't fingerprinted
 	if len(node.Resources.Networks) != 2 {
 		t.Fatalf("bad number of IPs %v", len(node.Resources.Networks))
+	}
+}
+
+func TestNetworkFingerPrint_LinkLocal_Allowed(t *testing.T) {
+	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth3"}
+
+	ok, err := f.Fingerprint(cfg, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should apply")
+	}
+
+	assertNodeAttributeContains(t, node, "unique.network.ip-address")
+
+	ip := node.Attributes["unique.network.ip-address"]
+	match := net.ParseIP(ip)
+	if match == nil {
+		t.Fatalf("Bad IP match: %s", ip)
+	}
+
+	if node.Resources == nil || len(node.Resources.Networks) == 0 {
+		t.Fatal("Expected to find Network Resources")
+	}
+
+	// Test at least the first Network Resource
+	net := node.Resources.Networks[0]
+	if net.IP == "" {
+		t.Fatal("Expected Network Resource to not be empty")
+	}
+	if net.CIDR == "" {
+		t.Fatal("Expected Network Resource to have a CIDR")
+	}
+	if net.Device == "" {
+		t.Fatal("Expected Network Resource to have a Device Name")
+	}
+	if net.MBits == 0 {
+		t.Fatal("Expected Network Resource to have a non-zero bandwidth")
+	}
+}
+
+func TestNetworkFingerPrint_LinkLocal_Allowed_MixedIntf(t *testing.T) {
+	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+	cfg := &config.Config{NetworkSpeed: 100, NetworkInterface: "eth4"}
+
+	ok, err := f.Fingerprint(cfg, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should apply")
+	}
+
+	assertNodeAttributeContains(t, node, "unique.network.ip-address")
+
+	ip := node.Attributes["unique.network.ip-address"]
+	match := net.ParseIP(ip)
+	if match == nil {
+		t.Fatalf("Bad IP match: %s", ip)
+	}
+
+	if node.Resources == nil || len(node.Resources.Networks) == 0 {
+		t.Fatal("Expected to find Network Resources")
+	}
+
+	// Test at least the first Network Resource
+	net := node.Resources.Networks[0]
+	if net.IP == "" {
+		t.Fatal("Expected Network Resource to not be empty")
+	}
+	if net.IP == "169.254.155.20" {
+		t.Fatalf("expected non-link local address; got %v", net.IP)
+	}
+	if net.CIDR == "" {
+		t.Fatal("Expected Network Resource to have a CIDR")
+	}
+	if net.Device == "" {
+		t.Fatal("Expected Network Resource to have a Device Name")
+	}
+	if net.MBits == 0 {
+		t.Fatal("Expected Network Resource to have a non-zero bandwidth")
+	}
+}
+
+func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
+	f := &NetworkFingerprint{logger: testLogger(), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+	cfg := &config.Config{
+		NetworkSpeed:     100,
+		NetworkInterface: "eth3",
+		Options: map[string]string{
+			networkDisallowLinkLocalOption: "true",
+		},
+	}
+
+	ok, err := f.Fingerprint(cfg, node)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !ok {
+		t.Fatalf("should not apply")
 	}
 }

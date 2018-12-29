@@ -74,17 +74,17 @@ func (d *QemuDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"image_path": &fields.FieldSchema{
+			"image_path": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"accelerator": &fields.FieldSchema{
+			"accelerator": {
 				Type: fields.TypeString,
 			},
-			"port_map": &fields.FieldSchema{
+			"port_map": {
 				Type: fields.TypeArray,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -170,7 +170,10 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	if d.driverConfig.Accelerator != "" {
 		accelerator = d.driverConfig.Accelerator
 	}
-	// TODO: Check a lower bounds, e.g. the default 128 of Qemu
+
+	if task.Resources.MemoryMB < 128 || task.Resources.MemoryMB > 4000000 {
+		return nil, fmt.Errorf("Qemu memory assignment out of bounds")
+	}
 	mem := fmt.Sprintf("%dM", task.Resources.MemoryMB)
 
 	absPath, err := GetAbsolutePath("qemu-system-x86_64")
@@ -250,7 +253,6 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: ctx.TaskEnv,
 		Driver:  "qemu",
-		AllocID: d.DriverContext.allocID,
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
 		LogDir:  ctx.TaskDir.LogDir,
@@ -280,7 +282,7 @@ func (d *QemuDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		userPid:        ps.Pid,
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
-		version:        d.config.Version,
+		version:        d.config.Version.VersionNumber(),
 		logger:         d.logger,
 		doneCh:         make(chan struct{}),
 		waitCh:         make(chan *dstructs.WaitResult, 1),

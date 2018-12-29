@@ -28,9 +28,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `NO`             | `namespace:read-job`       |
 
 ### Parameters
 
@@ -58,6 +58,7 @@ $ curl \
   "ValidationErrors": [
     "Task group cache validation failed: 1 error(s) occurred:\n\n* Task redis validation failed: 1 error(s) occurred:\n\n* 1 error(s) occurred:\n\n* minimum CPU value is 20; got 1"
   ],
+  "Warnings": "1 warning(s):\n\n* Group \"cache\" has warnings: 1 error(s) occurred:\n\n* Update max parallel count is greater than task group count (13 > 1). A destructive change would result in the simultaneous replacement of all allocations.",
   "Error": "1 error(s) occurred:\n\n* Task group cache validation failed: 1 error(s) occurred:\n\n* Task redis validation failed: 1 error(s) occurred:\n\n* 1 error(s) occurred:\n\n* minimum CPU value is 20; got 1"
 }
 ```

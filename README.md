@@ -1,7 +1,8 @@
-Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Build status](https://ci.appveyor.com/api/projects/status/i748vuqet037ojo3?svg=true)](https://ci.appveyor.com/project/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 =========
--	Website: https://www.nomadproject.io
--	Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
+
+* Website: [www.nomadproject.io](https://www.nomadproject.io)
+* Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
 
 <p align="center" style="text-align:center;">
   <img src="https://cdn.rawgit.com/hashicorp/nomad/master/website/source/assets/images/logo-text.svg" width="500" />
@@ -57,11 +58,11 @@ Developing Nomad
 
 If you wish to work on Nomad itself or any of its built-in systems,
 you will first need [Go](https://www.golang.org) installed on your
-machine (version 1.8+ is *required*).
+machine (version 1.9+ is *required*).
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
-created virtual machine is based off of Ubuntu 14, and installs several of the
+created virtual machine is based off of Ubuntu 16, and installs several of the
 base libraries that can be used by Nomad.
 
 To use this virtual machine, checkout Nomad and run `vagrant up` from the root
@@ -78,7 +79,7 @@ needed dependencies.
 
 **Developing locally**
 For local dev first make sure Go is properly installed, including setting up a
-[GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, clone this 
+[GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, clone this
 repository into `$GOPATH/src/github.com/hashicorp/nomad`. Then you can
 download the required build tools such as vet, cover, godep etc by bootstrapping
 your environment.
@@ -106,11 +107,22 @@ $ bin/nomad
 ...
 ```
 
-To cross-compile Nomad, run `make bin`. This will compile Nomad for multiple
+If the Nomad UI is desired in the development version, run `make dev-ui`. This will build the UI from source and compile it into the dev binary.
+
+```sh
+$ make dev-ui
+...
+$ bin/nomad
+...
+```
+
+**Note:** Building the Nomad UI from source requires Node, Yarn, and Ember CLI. These tools are already in the Vagrant VM. Read the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for more info.
+
+To cross-compile Nomad, run `make release`. This will compile Nomad for multiple
 platforms and place the resulting binaries into the `./pkg` directory:
 
 ```sh
-$ make bin
+$ make release
 ...
 $ ls ./pkg
 ...

@@ -1,0 +1,248 @@
+---
+layout: "docs"
+page_title: "Commands: job status"
+sidebar_current: "docs-commands-job-status"
+description: >
+  Display information and status of jobs.
+---
+
+# Command: job status
+
+The `job status` command displays status information for a job.
+
+## Usage
+
+```
+nomad job status [options] [job]
+```
+
+This command accepts an optional job ID or prefix as the sole argument. If there
+is an exact match based on the provided job ID or prefix, then information about
+the specific job is queried and displayed. Otherwise, a list of matching jobs and
+information will be displayed.
+
+If the ID is omitted, the command lists out all of the existing jobs and a few of
+the most useful status fields for each.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Status Options
+
+* `-all-allocs`: Display all allocations matching the job ID, even those from an
+  older instance of the job.
+
+* `-evals`: Display the evaluations associated with the job.
+
+* `-short`: Display short output. Used only when a single node is being queried.
+  Drops verbose node allocation data from the output.
+
+* `-verbose`: Show full information.
+
+## Examples
+
+List of all jobs:
+
+```
+$ nomad job status
+ID       Type     Priority  Status          Submit Date
+job1     service  80        running         07/25/17 15:47:11 UTC
+job2     batch    40        complete        07/24/17 19:22:11 UTC
+job3     service  50        dead (stopped)  07/22/17 16:34:48 UTC
+```
+
+Short view of a specific job:
+
+```
+$ nomad job status -short job1
+ID            = job1
+Name          = Test Job
+Submit Date   = 07/25/17 15:47:11 UTC
+Type          = service
+Priority      = 3
+Datacenters   = dc1,dc2,dc3
+Status        = pending
+Periodic      = false
+Parameterized = false
+```
+
+Full status information of a job:
+
+```
+$ nomad job status example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 15:53:04 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       0       0         1        0       0         0
+
+Latest Deployment
+ID          = 6294be0c
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       1        1       1        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+478ce836  5ed166e8  cache       0        run      running  07/25/17 15:53:04 UTC
+```
+
+Full status information of a perodic job:
+
+```
+$ nomad job status example
+ID                   = example
+Name                 = example
+Submit Date          = 07/25/17 15:59:52 UTC
+Type                 = batch
+Priority             = 50
+Datacenters          = dc1
+Status               = running
+Periodic             = true
+Parameterized        = false
+Next Periodic Launch = 07/25/17 16:00:30 UTC (5s from now)
+
+Children Job Summary
+Pending  Running  Dead
+0        3        0
+
+Previously Launched Jobs
+ID                           Status
+example/periodic-1500998400  running
+example/periodic-1500998410  running
+example/periodic-1500998420  running
+```
+
+Full status information of a parameterized job:
+
+```
+$ nomad job status example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 15:59:52 UTC
+Type          = batch
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = true
+
+Parameterized Job
+Payload           = required
+Required Metadata = foo
+Optional Metadata = bar
+
+Parameterized Job Summary
+Pending  Running  Dead
+0        2        0
+
+Dispatched Jobs
+ID                                    Status
+example/dispatch-1485411496-58f24d2d  running
+example/dispatch-1485411499-fa2ee40e  running
+```
+
+Full status information of a job with placement failures:
+
+```
+$ nomad job status example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 15:55:27 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       1       0         4        0       0         0
+
+Placement Failure
+Task Group "cache":
+  * Resources exhausted on 1 nodes
+  * Dimension "cpu exhausted" exhausted on 1 nodes
+
+Latest Deployment
+ID          = bb4b2fb1
+Status      = running
+Description = Deployment is running
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       5        4       4        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+048c1e9e  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+250f9dec  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+2eb772a1  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+a17b7d3d  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+```
+
+Full status information showing evaluations with a placement failure. The in
+progress evaluation denotes that Nomad is blocked waiting for resources to
+become availables so that it can place the remaining allocations.
+
+```
+$ nomad job status -evals example
+ID            = example
+Name          = example
+Submit Date   = 07/25/17 15:55:27 UTC
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+cache       1       0         4        0       0         0
+
+Evaluations
+ID        Priority  Triggered By        Status    Placement Failures
+e44a39e8  50        deployment-watcher  canceled  false
+97018573  50        deployment-watcher  complete  true
+d5a7300c  50        deployment-watcher  canceled  false
+f05a4495  50        deployment-watcher  complete  true
+e3f3bdb4  50        deployment-watcher  canceled  false
+b5f08700  50        deployment-watcher  complete  true
+73bb867a  50        job-register        blocked   N/A - In Progress
+85052989  50        job-register        complete  true
+
+Placement Failure
+Task Group "cache":
+  * Resources exhausted on 1 nodes
+  * Dimension "cpu exhausted" exhausted on 1 nodes
+
+Latest Deployment
+ID          = bb4b2fb1
+Status      = running
+Description = Deployment is running
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       5        4       4        0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created At
+048c1e9e  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+250f9dec  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+2eb772a1  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+a17b7d3d  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+```

@@ -130,8 +130,9 @@ func calculateAllBusy(t1, t2 []TimesStat) ([]float64, error) {
 	return ret, nil
 }
 
-//Percent calculates the percentage of cpu used either per CPU or combined.
-//If an interval of 0 is given it will compare the current cpu times against the last call.
+// Percent calculates the percentage of cpu used either per CPU or combined.
+// If an interval of 0 is given it will compare the current cpu times against the last call.
+// Returns one value per cpu, or a single value if percpu is set to false.
 func Percent(interval time.Duration, percpu bool) ([]float64, error) {
 	if interval <= 0 {
 		return percentUsedFromLastCall(percpu)

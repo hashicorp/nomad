@@ -20,6 +20,13 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 		return err
 	}
 
+	// Check management permissions
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// We can't fetch the leader and the configuration atomically with
 	// the current Raft API.
 	future := op.srv.raft.GetConfiguration()
@@ -67,6 +74,13 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftPeerByAddressRequest, reply *struct{}) error {
 	if done, err := op.srv.forward("Operator.RaftRemovePeerByAddress", args, args, reply); done {
 		return err
+	}
+
+	// Check management permissions
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
 	}
 
 	// Since this is an operation designed for humans to use, we will return

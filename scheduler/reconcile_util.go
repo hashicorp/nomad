@@ -8,6 +8,69 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// placementResult is an allocation that must be placed. It potentionally has a
+// previous allocation attached to it that should be stopped only if the
+// paired placement is complete. This gives an atomic place/stop behavior to
+// prevent an impossible resource ask as part of a rolling update to wipe the
+// job out.
+type placementResult interface {
+	// TaskGroup returns the task group the placement is for
+	TaskGroup() *structs.TaskGroup
+
+	// Name returns the name of the desired allocation
+	Name() string
+
+	// Canary returns whether the placement should be a canary
+	Canary() bool
+
+	// PreviousAllocation returns the previous allocation
+	PreviousAllocation() *structs.Allocation
+
+	// StopPreviousAlloc returns whether the previous allocation should be
+	// stopped and if so the status description.
+	StopPreviousAlloc() (bool, string)
+}
+
+// allocStopResult contains the information required to stop a single allocation
+type allocStopResult struct {
+	alloc             *structs.Allocation
+	clientStatus      string
+	statusDescription string
+}
+
+// allocPlaceResult contains the information required to place a single
+// allocation
+type allocPlaceResult struct {
+	name          string
+	canary        bool
+	taskGroup     *structs.TaskGroup
+	previousAlloc *structs.Allocation
+}
+
+func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
+func (a allocPlaceResult) Name() string                            { return a.name }
+func (a allocPlaceResult) Canary() bool                            { return a.canary }
+func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
+func (a allocPlaceResult) StopPreviousAlloc() (bool, string)       { return false, "" }
+
+// allocDestructiveResult contains the information required to do a destructive
+// update. Destructive changes should be applied atomically, as in the old alloc
+// is only stopped if the new one can be placed.
+type allocDestructiveResult struct {
+	placeName             string
+	placeTaskGroup        *structs.TaskGroup
+	stopAlloc             *structs.Allocation
+	stopStatusDescription string
+}
+
+func (a allocDestructiveResult) TaskGroup() *structs.TaskGroup           { return a.placeTaskGroup }
+func (a allocDestructiveResult) Name() string                            { return a.placeName }
+func (a allocDestructiveResult) Canary() bool                            { return false }
+func (a allocDestructiveResult) PreviousAllocation() *structs.Allocation { return a.stopAlloc }
+func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
+	return true, a.stopStatusDescription
+}
+
 // allocMatrix is a mapping of task groups to their allocation set.
 type allocMatrix map[string]allocSet
 
@@ -26,10 +89,8 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 
 	if job != nil {
 		for _, tg := range job.TaskGroups {
-			s, ok := m[tg.Name]
-			if !ok {
-				s = make(map[string]*structs.Allocation)
-				m[tg.Name] = s
+			if _, ok := m[tg.Name]; !ok {
+				m[tg.Name] = make(map[string]*structs.Allocation)
 			}
 		}
 	}
@@ -39,15 +100,6 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 // allocSet is a set of allocations with a series of helper functions defined
 // that help reconcile state.
 type allocSet map[string]*structs.Allocation
-
-// newAllocSet creates an allocation set given a set of allocations
-func newAllocSet(allocs []*structs.Allocation) allocSet {
-	s := make(map[string]*structs.Allocation, len(allocs))
-	for _, a := range allocs {
-		s[a.ID] = a
-	}
-	return s
-}
 
 // GoString provides a human readable view of the set
 func (a allocSet) GoString() string {
@@ -201,7 +253,7 @@ func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *allocName
 
 // bitmapFrom creates a bitmap from the given allocation set and a minimum size
 // maybe given. The size of the bitmap is as the larger of the passed minimum
-// and t the maximum alloc index of the passed input (byte alligned).
+// and the maximum alloc index of the passed input (byte aligned).
 func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 	var max uint
 	for _, a := range input {
@@ -213,9 +265,16 @@ func bitmapFrom(input allocSet, minSize uint) structs.Bitmap {
 	if l := uint(len(input)); minSize < l {
 		minSize = l
 	}
+
 	if max < minSize {
 		max = minSize
+	} else if max%8 == 0 {
+		// This may be possible if the job was scaled down. We want to make sure
+		// that the max index is not byte-aligned otherwise we will overflow
+		// the bitmap.
+		max++
 	}
+
 	if max == 0 {
 		max = 8
 	}
@@ -313,7 +372,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 		}
 	}
 
-	// We have exhausted the prefered and free set, now just pick overlapping
+	// We have exhausted the preferred and free set, now just pick overlapping
 	// indexes
 	var i uint
 	for i = 0; i < remainder; i++ {

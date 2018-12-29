@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAgent_Self(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -33,6 +35,7 @@ func TestAgent_Self(t *testing.T) {
 }
 
 func TestAgent_NodeName(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -48,6 +51,7 @@ func TestAgent_NodeName(t *testing.T) {
 }
 
 func TestAgent_Datacenter(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -63,6 +67,7 @@ func TestAgent_Datacenter(t *testing.T) {
 }
 
 func TestAgent_Join(t *testing.T) {
+	t.Parallel()
 	c1, s1 := makeClient(t, nil, nil)
 	defer s1.Stop()
 	a1 := c1.Agent()
@@ -92,6 +97,7 @@ func TestAgent_Join(t *testing.T) {
 }
 
 func TestAgent_Members(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -112,6 +118,7 @@ func TestAgent_Members(t *testing.T) {
 }
 
 func TestAgent_ForceLeave(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Agent()
@@ -129,104 +136,105 @@ func (a *AgentMember) String() string {
 }
 
 func TestAgents_Sort(t *testing.T) {
+	t.Parallel()
 	var sortTests = []struct {
 		in  []*AgentMember
 		out []*AgentMember
 	}{
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-2.vac.us-east",
+				{Name: "nomad-2.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
-				&AgentMember{Name: "nomad-1.global",
+				{Name: "nomad-1.global",
 					Tags: map[string]string{"region": "global", "dc": "dc1"}},
-				&AgentMember{Name: "nomad-1.vac.us-east",
+				{Name: "nomad-1.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-1.global",
+				{Name: "nomad-1.global",
 					Tags: map[string]string{"region": "global", "dc": "dc1"}},
-				&AgentMember{Name: "nomad-1.vac.us-east",
+				{Name: "nomad-1.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
-				&AgentMember{Name: "nomad-2.vac.us-east",
+				{Name: "nomad-2.vac.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "us-east-1c"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.pal.us-west",
+				{Name: "nomad-02.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
-				&AgentMember{Name: "nomad-01.pal.us-west",
+				{Name: "nomad-01.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-01.pal.us-west",
+				{Name: "nomad-01.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
-				&AgentMember{Name: "nomad-02.pal.us-west",
+				{Name: "nomad-02.pal.us-west",
 					Tags: map[string]string{"region": "us-west", "dc": "palo_alto"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.tam.us-east",
+				{Name: "nomad-01.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
-				&AgentMember{Name: "nomad-02.tam.us-east",
+				{Name: "nomad-02.tam.us-east",
 					Tags: map[string]string{"region": "us-east", "dc": "tampa"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-02.ber.europe",
+				{Name: "nomad-02.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.ber.europe",
+				{Name: "nomad-01.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-01.ams.europe",
+				{Name: "nomad-01.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-02.ams.europe",
+				{Name: "nomad-02.ams.europe",
 					Tags: map[string]string{"region": "europe", "dc": "amsterdam"}},
-				&AgentMember{Name: "nomad-01.ber.europe",
+				{Name: "nomad-01.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
-				&AgentMember{Name: "nomad-02.ber.europe",
+				{Name: "nomad-02.ber.europe",
 					Tags: map[string]string{"region": "europe", "dc": "berlin"}},
 			},
 		},
 		{
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-1.global"},
-				&AgentMember{Name: "nomad-3.global"},
-				&AgentMember{Name: "nomad-2.global"},
+				{Name: "nomad-1.global"},
+				{Name: "nomad-3.global"},
+				{Name: "nomad-2.global"},
 			},
 			[]*AgentMember{
-				&AgentMember{Name: "nomad-1.global"},
-				&AgentMember{Name: "nomad-2.global"},
-				&AgentMember{Name: "nomad-3.global"},
+				{Name: "nomad-1.global"},
+				{Name: "nomad-2.global"},
+				{Name: "nomad-3.global"},
 			},
 		},
 	}
@@ -236,4 +244,16 @@ func TestAgents_Sort(t *testing.T) {
 			t.Errorf("\necpected: %s\nget     : %s", tt.in, tt.out)
 		}
 	}
+}
+
+func TestAgent_Health(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	health, err := a.Health()
+	assert.Nil(err)
+	assert.True(health.Server.Ok)
 }

@@ -9,15 +9,15 @@ import (
 func TestLimitIterator(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node:  mock.Node(),
 			Score: 1,
 		},
-		&RankedNode{
+		{
 			Node:  mock.Node(),
 			Score: 2,
 		},
-		&RankedNode{
+		{
 			Node:  mock.Node(),
 			Score: 3,
 		},
@@ -53,15 +53,15 @@ func TestLimitIterator(t *testing.T) {
 func TestMaxScoreIterator(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
-		&RankedNode{
+		{
 			Node:  mock.Node(),
 			Score: 1,
 		},
-		&RankedNode{
+		{
 			Node:  mock.Node(),
 			Score: 2,
 		},
-		&RankedNode{
+		{
 			Node:  mock.Node(),
 			Score: 3,
 		},

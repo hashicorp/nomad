@@ -2,6 +2,7 @@ package serf
 
 import (
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -15,6 +16,7 @@ var ProtocolVersionMap map[uint8]uint8
 
 func init() {
 	ProtocolVersionMap = map[uint8]uint8{
+		5: 2,
 		4: 2,
 		3: 2,
 		2: 2,
@@ -182,6 +184,12 @@ type Config struct {
 	// logs will go to stderr.
 	LogOutput io.Writer
 
+	// Logger is a custom logger which you provide. If Logger is set, it will use
+	// this for the internal logger. If Logger is not set, it will fall back to the
+	// behavior for using LogOutput. You cannot specify both LogOutput and Logger
+	// at the same time.
+	Logger *log.Logger
+
 	// SnapshotPath if provided is used to snapshot live nodes as well
 	// as lamport clock values. When Serf is started with a snapshot,
 	// it will attempt to join all the previously known nodes until one
@@ -240,7 +248,7 @@ func DefaultConfig() *Config {
 		EventBuffer:                  512,
 		QueryBuffer:                  512,
 		LogOutput:                    os.Stderr,
-		ProtocolVersion:              ProtocolVersionMax,
+		ProtocolVersion:              4,
 		ReapInterval:                 15 * time.Second,
 		RecentIntentTimeout:          5 * time.Minute,
 		ReconnectInterval:            30 * time.Second,

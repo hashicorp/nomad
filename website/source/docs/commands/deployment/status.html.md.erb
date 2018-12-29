@@ -1,0 +1,68 @@
+---
+layout: "docs"
+page_title: "Commands: deployment status"
+sidebar_current: "docs-commands-deployment-status"
+description: >
+  The deployment status command is used to display the status of a deployment.
+---
+
+# Command: deployment status
+
+The `deployment status` command is used to display the status of a deployment.
+The status will display the number of desired changes as well as the currently
+applied changes. 
+
+## Usage
+
+```
+nomad deployment status [options] <deployment id>
+```
+
+The `deployment status` command requires a single argument, a deployment ID or
+prefix. 
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Status Options
+
+* `-json` : Output the deployment in its JSON format.
+
+* `-t` : Format and display the deployment using a Go template.
+
+* `-verbose`: Show full information.
+
+## Examples
+
+Inspect the status of a complete deployment:
+
+```
+$ nomad deployment status 06ca68a2
+ID          = 06ca68a2
+Job ID      = example
+Job Version = 0
+Status      = successful
+Description = Deployment completed successfully
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       2        2       2        0
+web         2        2       2        0
+```
+
+Inspect the status of a deployment that is waiting for canary promotion:
+
+```
+$ nomad deployment status 0b
+ID          = 0b23b149
+Job ID      = example
+Job Version = 1
+Status      = running
+Description = Deployment is running but requires promotion
+
+Deployed
+Task Group  Promoted  Desired  Canaries  Placed  Healthy  Unhealthy
+cache       false     2        1         1       0        0
+web         N/A       2        0         2       2        0
+```

@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type NodeDrainCommand struct {
@@ -42,6 +45,31 @@ func (c *NodeDrainCommand) Synopsis() string {
 	return "Toggle drain mode on a given node"
 }
 
+func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-disable": complete.PredictNothing,
+			"-enable":  complete.PredictNothing,
+			"-self":    complete.PredictNothing,
+			"-yes":     complete.PredictNothing,
+		})
+}
+
+func (c *NodeDrainCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Nodes]
+	})
+}
+
 func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, self, autoYes bool
 
@@ -77,7 +105,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// If -self flag is set then determine the current node.
-	nodeID := ""
+	var nodeID string
 	if !self {
 		nodeID = args[0]
 	} else {
@@ -93,12 +121,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
 		return 1
 	}
-	if len(nodeID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		nodeID = nodeID[:len(nodeID)-1]
-	}
 
+	nodeID = sanatizeUUIDPrefix(nodeID)
 	nodes, _, err := client.Nodes().PrefixList(nodeID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error toggling drain mode: %s", err))
@@ -124,8 +148,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 				node.Status)
 		}
 		// Dump the output
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", formatList(out)))
+		return 1
 	}
 
 	// Prefix lookup matched a single node

@@ -1,0 +1,46 @@
+<div class="page-column is-left">
+  <div class="gutter">
+    <aside class="menu">
+      <p class="menu-label">
+        Workload
+      </p>
+      <ul class="menu-list">
+        {{#if system.namespaces.length}}
+          <li>
+            <div class="menu-item">
+              {{#power-select
+                options=sortedNamespaces
+                selected=system.activeNamespace
+                searchField="name"
+                searchEnabled=(gt sortedNamespaces.length 10)
+                onchange=(action (queue
+                  (action (mut system.activeNamespace))
+                  (action onNamespaceChange)
+                ))
+                tagName="div"
+                class="namespace-switcher"
+                as |namespace|}}
+                {{#if (eq namespace.name "default")}}
+                  Default Namespace
+                {{else}}
+                  {{namespace.name}}
+                {{/if}}
+              {{/power-select}}
+            </div>
+          </li>
+        {{/if}}
+        <li>{{#link-to "jobs" activeClass="is-active"}}Jobs{{/link-to}}</li>
+      </ul>
+      <p class="menu-label">
+        Cluster
+      </p>
+      <ul class="menu-list">
+        <li>{{#link-to "nodes" activeClass="is-active"}}Clients{{/link-to}}</li>
+        <li>{{#link-to "servers" activeClass="is-active"}}Servers{{/link-to}}</li>
+      </ul>
+    </aside>
+  </div>
+</div>
+<div class="page-column is-right">
+  {{yield}}
+</div>

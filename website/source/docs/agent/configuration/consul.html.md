@@ -63,7 +63,7 @@ configuration, Nomad will automatically connect and configure with Consul.
 - `cert_file` `(string: "")` - Specifies the path to the certificate used for
   Consul communication. If this is set then you need to also set `key_file`.
 
-- `checks_use_advertise` `(bool: false)` - Specifies if Consul heath checks
+- `checks_use_advertise` `(bool: false)` - Specifies if Consul health checks
   should bind to the advertise address. By default, this is the bind address.
 
 - `client_auto_join` `(bool: true)` - Specifies if the Nomad clients should

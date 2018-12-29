@@ -9,12 +9,16 @@ import (
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 )
 
 // The fingerprinter test should always pass, even if QEMU is not installed.
 func TestQemuDriver_Fingerprint(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
 		Name:      "foo",
@@ -44,6 +48,9 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 }
 
 func TestQemuDriver_StartOpen_Wait(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.QemuCompatible(t)
 	task := &structs.Task{
 		Name:   "linux",
@@ -65,7 +72,7 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 			CPU:      500,
 			MemoryMB: 512,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
 				},
 			},
@@ -110,8 +117,11 @@ func TestQemuDriver_StartOpen_Wait(t *testing.T) {
 }
 
 func TestQemuDriverUser(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	ctestutils.QemuCompatible(t)
-	task := &structs.Task{
+	tasks := []*structs.Task{{
 		Name:   "linux",
 		Driver: "qemu",
 		User:   "alice",
@@ -123,6 +133,7 @@ func TestQemuDriverUser(t *testing.T) {
 				"web":  8080,
 			}},
 			"args": []string{"-nodefconfig", "-nodefaults"},
+			"msg":  "unknown user alice",
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -132,28 +143,59 @@ func TestQemuDriverUser(t *testing.T) {
 			CPU:      500,
 			MemoryMB: 512,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
+				},
+			},
+		},
+	},
+		{
+			Name:   "linux",
+			Driver: "qemu",
+			User:   "alice",
+			Config: map[string]interface{}{
+				"image_path":  "linux-0.2.img",
+				"accelerator": "tcg",
+				"port_map": []map[string]int{{
+					"main": 22,
+					"web":  8080,
+				}},
+				"args": []string{"-nodefconfig", "-nodefaults"},
+				"msg":  "Qemu memory assignment out of bounds",
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      10,
+				MaxFileSizeMB: 10,
+			},
+			Resources: &structs.Resources{
+				CPU:      500,
+				MemoryMB: -1,
+				Networks: []*structs.NetworkResource{
+					{
+						ReservedPorts: []structs.Port{{Label: "main", Value: 22000}, {Label: "web", Value: 80}},
+					},
 				},
 			},
 		},
 	}
 
-	ctx := testDriverContexts(t, task)
-	defer ctx.AllocDir.Destroy()
-	d := NewQemuDriver(ctx.DriverCtx)
+	for _, task := range tasks {
+		ctx := testDriverContexts(t, task)
+		defer ctx.AllocDir.Destroy()
+		d := NewQemuDriver(ctx.DriverCtx)
 
-	if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
-		t.Fatalf("Prestart faild: %v", err)
-	}
+		if _, err := d.Prestart(ctx.ExecCtx, task); err != nil {
+			t.Fatalf("Prestart faild: %v", err)
+		}
 
-	resp, err := d.Start(ctx.ExecCtx, task)
-	if err == nil {
-		resp.Handle.Kill()
-		t.Fatalf("Should've failed")
-	}
-	msg := "unknown user alice"
-	if !strings.Contains(err.Error(), msg) {
-		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+		resp, err := d.Start(ctx.ExecCtx, task)
+		if err == nil {
+			resp.Handle.Kill()
+			t.Fatalf("Should've failed")
+		}
+		msg := task.Config["msg"].(string)
+		if !strings.Contains(err.Error(), msg) {
+			t.Fatalf("Expecting '%v' in '%v'", msg, err)
+		}
 	}
 }

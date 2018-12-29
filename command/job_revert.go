@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type JobRevertCommand struct {
@@ -13,8 +16,8 @@ func (c *JobRevertCommand) Help() string {
 	helpText := `
 Usage: nomad job revert [options] <job> <version>
 
-Revert is used to revert a job to a prior version of the job. The available
-versions to revert to can be found using "nomad job history" command.
+  Revert is used to revert a job to a prior version of the job. The available
+  versions to revert to can be found using "nomad job history" command.
 
 General Options:
 
@@ -35,6 +38,29 @@ Revert Options:
 
 func (c *JobRevertCommand) Synopsis() string {
 	return "Revert to a prior version of the job"
+}
+
+func (c *JobRevertCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *JobRevertCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *JobRevertCommand) Run(args []string) int {
@@ -91,8 +117,8 @@ func (c *JobRevertCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		return 1
 	}
 
 	// Prefix lookup matched a single job

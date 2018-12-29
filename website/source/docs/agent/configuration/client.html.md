@@ -60,10 +60,10 @@ client {
   clients can determine their speed automatically, and thus in most cases this
   should be left unset.
 
-- `cpu_total_compute` `(int: 0)` - Specifies an override for the total cpu
+- `cpu_total_compute` `(int: 0)` - Specifies an override for the total CPU
   compute. This value should be set to `# Cores * Core MHz`. For example, a
-  quadcore running at 2GHz would have a total compute of 8000 (4 * 2000). Most
-  clients can determine their total cpu compute automatically, and thus in most
+  quad-core running at 2 GHz would have a total compute of 8000 (4 * 2000). Most
+  clients can determine their total CPU compute automatically, and thus in most
   cases this should be left unset.
 
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
@@ -92,7 +92,7 @@ client {
  "client", like `"/opt/nomad/client"`. This must be an absolute path.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
-  attempts to garbage collect terminal allocation directories. 
+  attempts to garbage collect terminal allocation directories.
 
 - `gc_disk_usage_threshold` `(float: 80)` - Specifies the disk usage percent which
   Nomad tries to maintain by garbage collecting terminal allocations.
@@ -264,6 +264,19 @@ see the [drivers documentation](/docs/drivers/index.html).
     client {
       options = {
         "fingerprint.blacklist" = "network"
+      }
+    }
+    ```
+
+- `"fingerprint.network.disallow_link_local"` `(string: "false")` - Specifies
+  whether the network fingerprinter should ignore link-local addresses in the
+  case that no globally routable address is found. The fingerprinter will always
+  prefer globally routable addresses.
+
+    ```hcl
+    client {
+      options = {
+        "fingerprint.network.disallow_link_local" = "true"
       }
     }
     ```

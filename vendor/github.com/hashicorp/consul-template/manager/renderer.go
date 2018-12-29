@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// RenderInput is used as input to the render function.
 type RenderInput struct {
 	Backup    bool
 	Contents  []byte
@@ -20,9 +21,22 @@ type RenderInput struct {
 	Perms     os.FileMode
 }
 
+// RenderResult is returned and stored. It contains the status of the render
+// operationg.
 type RenderResult struct {
-	DidRender   bool
+	// DidRender indicates if the template rendered to disk. This will be false in
+	// the event of an error, but it will also be false in dry mode or when the
+	// template on disk matches the new result.
+	DidRender bool
+
+	// WouldRender indicates if the template would have rendered to disk. This
+	// will return false in the event of an error, but will return true in dry
+	// mode or when the template on disk matches the new result.
 	WouldRender bool
+
+	// Contents are the actual contents of the resulting template from the render
+	// operation.
+	Contents []byte
 }
 
 // Render atomically renders a file contents to disk, returning a result of
@@ -37,6 +51,7 @@ func Render(i *RenderInput) (*RenderResult, error) {
 		return &RenderResult{
 			DidRender:   false,
 			WouldRender: true,
+			Contents:    existing,
 		}, nil
 	}
 
@@ -51,6 +66,7 @@ func Render(i *RenderInput) (*RenderResult, error) {
 	return &RenderResult{
 		DidRender:   true,
 		WouldRender: true,
+		Contents:    i.Contents,
 	}, nil
 }
 

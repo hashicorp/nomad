@@ -23,6 +23,13 @@ type FeasibleIterator interface {
 	Reset()
 }
 
+// JobContextualIterator is an iterator that can have the job and task group set
+// on it.
+type ContextualIterator interface {
+	SetJob(*structs.Job)
+	SetTaskGroup(*structs.TaskGroup)
+}
+
 // FeasibilityChecker is used to check if a single node meets feasibility
 // constraints.
 type FeasibilityChecker interface {

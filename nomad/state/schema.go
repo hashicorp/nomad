@@ -2,20 +2,35 @@ package state
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// stateStoreSchema is used to return the schema for the state store
-func stateStoreSchema() *memdb.DBSchema {
-	// Create the root DB schema
-	db := &memdb.DBSchema{
-		Tables: make(map[string]*memdb.TableSchema),
-	}
+var (
+	schemaFactories SchemaFactories
+	factoriesLock   sync.Mutex
+)
 
-	// Collect all the schemas that are needed
-	schemas := []func() *memdb.TableSchema{
+// SchemaFactory is the factory method for returning a TableSchema
+type SchemaFactory func() *memdb.TableSchema
+type SchemaFactories []SchemaFactory
+
+// RegisterSchemaFactories is used to register a table schema.
+func RegisterSchemaFactories(factories ...SchemaFactory) {
+	factoriesLock.Lock()
+	defer factoriesLock.Unlock()
+	schemaFactories = append(schemaFactories, factories...)
+}
+
+func GetFactories() SchemaFactories {
+	return schemaFactories
+}
+
+func init() {
+	// Register all schemas
+	RegisterSchemaFactories([]SchemaFactory{
 		indexTableSchema,
 		nodeTableSchema,
 		jobTableSchema,
@@ -26,10 +41,20 @@ func stateStoreSchema() *memdb.DBSchema {
 		evalTableSchema,
 		allocTableSchema,
 		vaultAccessorTableSchema,
+		aclPolicyTableSchema,
+		aclTokenTableSchema,
+	}...)
+}
+
+// stateStoreSchema is used to return the schema for the state store
+func stateStoreSchema() *memdb.DBSchema {
+	// Create the root DB schema
+	db := &memdb.DBSchema{
+		Tables: make(map[string]*memdb.TableSchema),
 	}
 
 	// Add each of the tables
-	for _, schemaFn := range schemas {
+	for _, schemaFn := range GetFactories() {
 		schema := schemaFn()
 		if _, ok := db.Tables[schema.Name]; ok {
 			panic(fmt.Sprintf("duplicate table name: %s", schema.Name))
@@ -44,7 +69,7 @@ func indexTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "index",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -66,12 +91,20 @@ func nodeTableSchema() *memdb.TableSchema {
 			// Primary index is used for node management
 			// and simple direct lookup. ID is required to be
 			// unique.
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "ID",
+				},
+			},
+			"secret_id": {
+				Name:         "secret_id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "SecretID",
 				},
 			},
 		},
@@ -86,17 +119,27 @@ func jobTableSchema() *memdb.TableSchema {
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is used for job management
 			// and simple direct lookup. ID is required to be
-			// unique.
-			"id": &memdb.IndexSchema{
+			// unique within a namespace.
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "ID",
-					Lowercase: true,
+
+				// Use a compound index so the tuple of (Namespace, ID) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
-			"type": &memdb.IndexSchema{
+			"type": {
 				Name:         "type",
 				AllowMissing: false,
 				Unique:       false,
@@ -105,7 +148,7 @@ func jobTableSchema() *memdb.TableSchema {
 					Lowercase: false,
 				},
 			},
-			"gc": &memdb.IndexSchema{
+			"gc": {
 				Name:         "gc",
 				AllowMissing: false,
 				Unique:       false,
@@ -113,7 +156,7 @@ func jobTableSchema() *memdb.TableSchema {
 					Conditional: jobIsGCable,
 				},
 			},
-			"periodic": &memdb.IndexSchema{
+			"periodic": {
 				Name:         "periodic",
 				AllowMissing: false,
 				Unique:       false,
@@ -130,13 +173,23 @@ func jobSummarySchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "job_summary",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "JobID",
-					Lowercase: true,
+
+				// Use a compound index so the tuple of (Namespace, JobID) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
 				},
 			},
 		},
@@ -149,21 +202,24 @@ func jobVersionSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "job_version",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
 
-				// Use a compound index so the tuple of (JobID, Version) is
+				// Use a compound index so the tuple of (Namespace, ID, Version) is
 				// uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
 						&memdb.StringFieldIndex{
 							Field:     "ID",
 							Lowercase: true,
 						},
 
-						// Will need to create a new indexer
 						&memdb.UintFieldIndex{
 							Field: "Version",
 						},
@@ -229,7 +285,7 @@ func deploymentSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "deployment",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -238,14 +294,33 @@ func deploymentSchema() *memdb.TableSchema {
 				},
 			},
 
-			// Job index is used to lookup deployments by job
-			"job": &memdb.IndexSchema{
-				Name:         "job",
+			"namespace": {
+				Name:         "namespace",
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
-					Field:     "JobID",
-					Lowercase: true,
+					Field: "Namespace",
+				},
+			},
+
+			// Job index is used to lookup deployments by job
+			"job": {
+				Name:         "job",
+				AllowMissing: false,
+				Unique:       false,
+
+				// Use a compound index so the tuple of (Namespace, JobID) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
 				},
 			},
 		},
@@ -261,13 +336,23 @@ func periodicLaunchTableSchema() *memdb.TableSchema {
 			// Primary index is used for job management
 			// and simple direct lookup. ID is required to be
 			// unique.
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "ID",
-					Lowercase: true,
+
+				// Use a compound index so the tuple of (Namespace, JobID) is
+				// uniquely identifying
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "ID",
+						},
+					},
 				},
 			},
 		},
@@ -282,7 +367,7 @@ func evalTableSchema() *memdb.TableSchema {
 		Name: "evals",
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is used for direct lookup.
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -291,17 +376,31 @@ func evalTableSchema() *memdb.TableSchema {
 				},
 			},
 
+			"namespace": {
+				Name:         "namespace",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Namespace",
+				},
+			},
+
 			// Job index is used to lookup allocations by job
-			"job": &memdb.IndexSchema{
+			"job": {
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
 							Field:     "JobID",
 							Lowercase: true,
 						},
+
 						&memdb.StringFieldIndex{
 							Field:     "Status",
 							Lowercase: true,
@@ -321,7 +420,7 @@ func allocTableSchema() *memdb.TableSchema {
 		Name: "allocs",
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is a UUID
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -330,8 +429,17 @@ func allocTableSchema() *memdb.TableSchema {
 				},
 			},
 
+			"namespace": {
+				Name:         "namespace",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Namespace",
+				},
+			},
+
 			// Node index is used to lookup allocations by node
-			"node": &memdb.IndexSchema{
+			"node": {
 				Name:         "node",
 				AllowMissing: true, // Missing is allow for failed allocations
 				Unique:       false,
@@ -360,18 +468,26 @@ func allocTableSchema() *memdb.TableSchema {
 			},
 
 			// Job index is used to lookup allocations by job
-			"job": &memdb.IndexSchema{
+			"job": {
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field:     "JobID",
-					Lowercase: true,
+
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+
+						&memdb.StringFieldIndex{
+							Field: "JobID",
+						},
+					},
 				},
 			},
 
 			// Eval index is used to lookup allocations by eval
-			"eval": &memdb.IndexSchema{
+			"eval": {
 				Name:         "eval",
 				AllowMissing: false,
 				Unique:       false,
@@ -381,7 +497,7 @@ func allocTableSchema() *memdb.TableSchema {
 			},
 
 			// Deployment index is used to lookup allocations by deployment
-			"deployment": &memdb.IndexSchema{
+			"deployment": {
 				Name:         "deployment",
 				AllowMissing: true,
 				Unique:       false,
@@ -401,7 +517,7 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 		Name: "vault_accessors",
 		Indexes: map[string]*memdb.IndexSchema{
 			// The primary index is the accessor id
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -410,7 +526,7 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"alloc_id": &memdb.IndexSchema{
+			"alloc_id": {
 				Name:         "alloc_id",
 				AllowMissing: false,
 				Unique:       false,
@@ -419,12 +535,64 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"node_id": &memdb.IndexSchema{
+			"node_id": {
 				Name:         "node_id",
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "NodeID",
+				},
+			},
+		},
+	}
+}
+
+// aclPolicyTableSchema returns the MemDB schema for the policy table.
+// This table is used to store the policies which are refrenced by tokens
+func aclPolicyTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "acl_policy",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
+				},
+			},
+		},
+	}
+}
+
+// aclTokenTableSchema returns the MemDB schema for the tokens table.
+// This table is used to store the bearer tokens which are used to authenticate
+func aclTokenTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "acl_token",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "AccessorID",
+				},
+			},
+			"secret": {
+				Name:         "secret",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "SecretID",
+				},
+			},
+			"global": {
+				Name:         "global",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.FieldSetIndex{
+					Field: "Global",
 				},
 			},
 		},

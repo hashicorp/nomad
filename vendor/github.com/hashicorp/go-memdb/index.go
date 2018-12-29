@@ -305,20 +305,19 @@ func (u *UintFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
 }
 
 // IsUintType returns whether the passed type is a type of uint and the number
-// of bytes the type is. To avoid platform specific sizes, the uint type returns
-// 8 bytes regardless of if it is smaller.
+// of bytes needed to encode the type.
 func IsUintType(k reflect.Kind) (size int, okay bool) {
 	switch k {
 	case reflect.Uint:
-		return 8, true
+		return binary.MaxVarintLen64, true
 	case reflect.Uint8:
-		return 1, true
-	case reflect.Uint16:
 		return 2, true
+	case reflect.Uint16:
+		return binary.MaxVarintLen16, true
 	case reflect.Uint32:
-		return 4, true
+		return binary.MaxVarintLen32, true
 	case reflect.Uint64:
-		return 8, true
+		return binary.MaxVarintLen64, true
 	default:
 		return 0, false
 	}

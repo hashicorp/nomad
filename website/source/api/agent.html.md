@@ -27,7 +27,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `node:read`  |
 
 ### Sample Request
 
@@ -88,7 +88,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `agent:read` |
 
 ### Sample Request
 
@@ -118,9 +118,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required  |
+| ---------------- | ------------- |
+| `NO`             | `agent:write` |
 
 ### Parameters
 
@@ -147,9 +147,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required |
-| ---------------- | ----------------- | ------------ |
-| `NO`             | `none`            | `none`       |
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `agent:read` |
 
 ### Sample Request
 
@@ -440,9 +440,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required  |
+| ---------------- | ------------- |
+| `NO`             | `agent:write` |
 
 ### Parameters
 
@@ -454,4 +454,46 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     https://nomad.rocks/v1/agent/force-leave?node=client-ab2e23dc
+```
+
+## Health
+
+This endpoint returns whether or not the agent is healthy. When using Consul it
+is the endpoint Nomad will register for its own health checks.
+
+When the agent is unhealthy 500 will be returned along with JSON response
+containing an error message.
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `GET`  | `/agent/health`              | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `none`       |
+
+### Sample Request
+
+```text
+$ curl \
+    https://nomad.rocks/v1/agent/health
+```
+
+### Sample Response
+
+```json
+{
+    "client": {
+        "message": "ok",
+        "ok": true
+    },
+    "server": {
+        "message": "ok",
+        "ok": true
+    }
+}
 ```

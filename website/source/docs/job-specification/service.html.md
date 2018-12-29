@@ -47,6 +47,12 @@ job "docs" {
           args     = ["--verbose"]
           interval = "60s"
           timeout  = "5s"
+
+          check_restart {
+            limit = 3
+            grace = "90s"
+            ignore_warnings = false
+          }
         }
       }
     }
@@ -95,11 +101,11 @@ does not automatically enable service discovery.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
   driver-specific) this service should advertise. `host` indicates the host IP
-  and port. `driver` advertises the IP used in the driver (eg Docker's internal
-  IP) and uses the ports specifid in the port map. The default is `auto` which
+  and port. `driver` advertises the IP used in the driver (e.g. Docker's internal
+  IP) and uses the ports specified in the port map. The default is `auto` which
   behaves the same as `host` unless the driver determines its IP should be used.
-  This setting was added in Nomad 0.6 and only supported by the Docker driver.
-  It will advertise the container IP if a network plugin is used (eg weave).
+  This setting supported Docker since Nomad 0.6 and rkt since Nomad 0.7. It
+  will advertise the container IP if a network plugin is used (e.g. weave).
 
 ### `check` Parameters
 
@@ -110,6 +116,8 @@ scripts.
 
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
+
+- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
 
 - `command` `(string: <varies>)` - Specifies the command to run for performing
   the health check. The script must exit: 0 for passing, 1 for warning, or any
@@ -129,6 +137,9 @@ scripts.
 - `interval` `(string: <required>)` - Specifies the frequency of the health checks
   that Consul will perform. This is specified using a label suffix like "30s"
   or "1h". This must be greater than or equal to "1s"
+
+- `method` `(string: "GET")` - Specifies the HTTP method to use for HTTP
+  checks.
 
 - `name` `(string: "service: <name> check")` - Specifies the name of the health
   check.
@@ -158,6 +169,28 @@ scripts.
 
 - `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
   checks. Requires Consul >= 0.7.2.
+
+#### `header` Stanza
+
+HTTP checks may include a `header` stanza to set HTTP headers. The `header`
+stanza parameters have lists of strings as values. Multiple values will cause
+the header to be set multiple times, once for each value.
+
+```hcl
+service {
+  # ...
+  check {
+    type     = "http"
+    port     = "lb"
+    path     = "/_healthz"
+    interval = "5s"
+    timeout  = "2s"
+    header {
+      Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
+    }
+  }
+}
+```
 
 
 ## `service` Examples
@@ -232,8 +265,8 @@ argument provided as a value to the `args` array.
 
 This example shows a service with an HTTP health check. This will query the
 service on the IP and port registered with Nomad at `/_healthz` every 5 seconds,
-giving the service a maximum of 2 seconds to return a response. Any non-2xx code
-is considered a failure.
+giving the service a maximum of 2 seconds to return a response, and include an
+Authorization header. Any non-2xx code is considered a failure.
 
 ```hcl
 service {
@@ -243,6 +276,9 @@ service {
     path     = "/_healthz"
     interval = "5s"
     timeout  = "2s"
+    header {
+      Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
+    }
   }
 }
 ```
@@ -269,6 +305,7 @@ service {
     path     = "/_healthz"
     interval = "5s"
     timeout  = "2s"
+    method   = "POST"
   }
 
   check {
@@ -287,7 +324,9 @@ service {
 [qemu driver][qemu] since the Nomad client does not have access to the file
 system of a task for that driver.</small>
 
+[check_restart_stanza]: /docs/job-specification/check_restart.html "check_restart stanza"
 [service-discovery]: /docs/service-discovery/index.html "Nomad Service Discovery"
 [interpolation]: /docs/runtime/interpolation.html "Nomad Runtime Interpolation"
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
 [qemu]: /docs/drivers/qemu.html "Nomad qemu Driver"
+[restart_stanza]: /docs/job-specification/restart.html "restart stanza"

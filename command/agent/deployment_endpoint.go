@@ -60,7 +60,7 @@ func (s *HTTPServer) deploymentFail(resp http.ResponseWriter, req *http.Request,
 	args := structs.DeploymentFailRequest{
 		DeploymentID: deploymentID,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.DeploymentUpdateResponse
 	if err := s.agent.RPC("Deployment.Fail", &args, &out); err != nil {
@@ -85,7 +85,7 @@ func (s *HTTPServer) deploymentPause(resp http.ResponseWriter, req *http.Request
 	if pauseRequest.DeploymentID != deploymentID {
 		return nil, CodedError(400, "Deployment ID does not match")
 	}
-	s.parseRegion(req, &pauseRequest.Region)
+	s.parseWriteRequest(req, &pauseRequest.WriteRequest)
 
 	var out structs.DeploymentUpdateResponse
 	if err := s.agent.RPC("Deployment.Pause", &pauseRequest, &out); err != nil {
@@ -110,7 +110,7 @@ func (s *HTTPServer) deploymentPromote(resp http.ResponseWriter, req *http.Reque
 	if promoteRequest.DeploymentID != deploymentID {
 		return nil, CodedError(400, "Deployment ID does not match")
 	}
-	s.parseRegion(req, &promoteRequest.Region)
+	s.parseWriteRequest(req, &promoteRequest.WriteRequest)
 
 	var out structs.DeploymentUpdateResponse
 	if err := s.agent.RPC("Deployment.Promote", &promoteRequest, &out); err != nil {
@@ -135,7 +135,7 @@ func (s *HTTPServer) deploymentSetAllocHealth(resp http.ResponseWriter, req *htt
 	if healthRequest.DeploymentID != deploymentID {
 		return nil, CodedError(400, "Deployment ID does not match")
 	}
-	s.parseRegion(req, &healthRequest.Region)
+	s.parseWriteRequest(req, &healthRequest.WriteRequest)
 
 	var out structs.DeploymentUpdateResponse
 	if err := s.agent.RPC("Deployment.SetAllocHealth", &healthRequest, &out); err != nil {

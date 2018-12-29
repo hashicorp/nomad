@@ -2,9 +2,12 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type DeploymentStatusCommand struct {
@@ -15,8 +18,8 @@ func (c *DeploymentStatusCommand) Help() string {
 	helpText := `
 Usage: nomad deployment status [options] <deployment id>
 
-Status is used to display the status of a deployment. The status will display
-the number of desired changes as well as the currently applied changes.
+  Status is used to display the status of a deployment. The status will display
+  the number of desired changes as well as the currently applied changes.
 
 General Options:
 
@@ -38,6 +41,30 @@ Status Options:
 
 func (c *DeploymentStatusCommand) Synopsis() string {
 	return "Display the status of a deployment"
+}
+
+func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-verbose": complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
+		})
+}
+
+func (c *DeploymentStatusCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Deployments, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Deployments]
+	})
 }
 
 func (c *DeploymentStatusCommand) Run(args []string) int {
@@ -84,8 +111,8 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	if json || len(tmpl) > 0 {
@@ -142,10 +169,13 @@ func getDeployment(client *api.Deployments, dID string) (match *api.Deployment, 
 }
 
 func formatDeployment(d *api.Deployment, uuidLength int) string {
+	if d == nil {
+		return "No deployment found"
+	}
 	// Format the high-level elements
 	high := []string{
 		fmt.Sprintf("ID|%s", limit(d.ID, uuidLength)),
-		fmt.Sprintf("Job ID|%s", limit(d.JobID, uuidLength)),
+		fmt.Sprintf("Job ID|%s", d.JobID),
 		fmt.Sprintf("Job Version|%d", d.JobVersion),
 		fmt.Sprintf("Status|%s", d.Status),
 		fmt.Sprintf("Description|%s", d.StatusDescription),
@@ -163,7 +193,9 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	// Detect if we need to add these columns
 	canaries, autorevert := false, false
-	for _, state := range d.TaskGroups {
+	tgNames := make([]string, 0, len(d.TaskGroups))
+	for name, state := range d.TaskGroups {
+		tgNames = append(tgNames, name)
 		if state.AutoRevert {
 			autorevert = true
 		}
@@ -172,29 +204,42 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		}
 	}
 
+	// Sort the task group names to get a reliable ordering
+	sort.Strings(tgNames)
+
 	// Build the row string
 	rowString := "Task Group|"
 	if autorevert {
 		rowString += "Auto Revert|"
 	}
+	if canaries {
+		rowString += "Promoted|"
+	}
 	rowString += "Desired|"
 	if canaries {
-		rowString += "Canaries|Promoted|"
+		rowString += "Canaries|"
 	}
 	rowString += "Placed|Healthy|Unhealthy"
 
 	rows := make([]string, len(d.TaskGroups)+1)
 	rows[0] = rowString
 	i := 1
-	for tg, state := range d.TaskGroups {
+	for _, tg := range tgNames {
+		state := d.TaskGroups[tg]
 		row := fmt.Sprintf("%s|", tg)
 		if autorevert {
 			row += fmt.Sprintf("%v|", state.AutoRevert)
 		}
+		if canaries {
+			if state.DesiredCanaries > 0 {
+				row += fmt.Sprintf("%v|", state.Promoted)
+			} else {
+				row += fmt.Sprintf("%v|", "N/A")
+			}
+		}
 		row += fmt.Sprintf("%d|", state.DesiredTotal)
 		if canaries {
 			row += fmt.Sprintf("%d|", state.DesiredCanaries)
-			row += fmt.Sprintf("%v|", state.Promoted)
 		}
 		row += fmt.Sprintf("%d|%d|%d", state.PlacedAllocs, state.HealthyAllocs, state.UnhealthyAllocs)
 		rows[i] = row

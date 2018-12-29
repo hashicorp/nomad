@@ -1,0 +1,52 @@
+---
+layout: "docs"
+page_title: "Commands: deployment resume"
+sidebar_current: "docs-commands-deployment-resume"
+description: >
+  The deployment resume command is used to resume a paused deployment.
+---
+
+# Command: deployment resume
+
+The `deployment resume` command is used used to unpause a paused deployment.
+Resuming a deployment will resume the placement of new allocations as part of
+rolling deployment.
+
+## Usage
+
+```
+nomad deployment resume [options] <deployment id>
+```
+
+The `deployment resume` command requires a single argument, a deployment ID or
+prefix. 
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Resume Options
+
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to examine the evaluation using the
+  [eval-status](/docs/commands/eval-status.html) command
+
+* `-verbose`: Show full information.
+
+## Examples
+
+Manually resume a deployment:
+
+```
+$ nomad deployment resume c848972e
+Deployment "c848972e-dcd3-7354-e0d2-39d86642cdb1" resumed
+
+==> Monitoring evaluation "5e266d42"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "c848972e"
+    Allocation "00208424" created: node "6240eed6", group "web"
+    Allocation "68c72edf" created: node "6240eed6", group "cache"
+    Allocation "00208424" status changed: "pending" -> "running"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "5e266d42" finished with status "complete"
+```

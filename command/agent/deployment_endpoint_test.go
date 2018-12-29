@@ -11,8 +11,9 @@ import (
 )
 
 func TestHTTP_DeploymentList(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d1 := mock.Deployment()
@@ -41,8 +42,9 @@ func TestHTTP_DeploymentList(t *testing.T) {
 }
 
 func TestHTTP_DeploymentPrefixList(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d1 := mock.Deployment()
@@ -74,8 +76,9 @@ func TestHTTP_DeploymentPrefixList(t *testing.T) {
 }
 
 func TestHTTP_DeploymentAllocations(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -112,8 +115,9 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 }
 
 func TestHTTP_DeploymentQuery(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d := mock.Deployment()
@@ -140,8 +144,9 @@ func TestHTTP_DeploymentQuery(t *testing.T) {
 }
 
 func TestHTTP_DeploymentPause(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -154,7 +159,10 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 		args := structs.DeploymentPauseRequest{
 			DeploymentID: d.ID,
 			Pause:        false,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
 		}
 		buf := encodeReq(args)
 
@@ -177,8 +185,9 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 }
 
 func TestHTTP_DeploymentPromote(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -191,7 +200,10 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 		args := structs.DeploymentPromoteRequest{
 			DeploymentID: d.ID,
 			All:          true,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
 		}
 		buf := encodeReq(args)
 
@@ -214,8 +226,9 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 }
 
 func TestHTTP_DeploymentAllocHealth(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()
@@ -232,7 +245,10 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 		args := structs.DeploymentAllocHealthRequest{
 			DeploymentID:         d.ID,
 			HealthyAllocationIDs: []string{a.ID},
-			WriteRequest:         structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
 		}
 		buf := encodeReq(args)
 
@@ -255,8 +271,9 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 }
 
 func TestHTTP_DeploymentFail(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-	httpTest(t, nil, func(s *TestServer) {
+	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		j := mock.Job()

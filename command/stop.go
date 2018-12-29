@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type StopCommand struct {
@@ -14,7 +17,7 @@ func (c *StopCommand) Help() string {
 Usage: nomad stop [options] <job>
 
   Stop an existing job. This command is used to signal allocations
-  to shut down for the given job ID. Upon successful deregistraion,
+  to shut down for the given job ID. Upon successful deregistration,
   an interactive monitor session will start to display log lines as
   the job unwinds its allocations and completes shutting down. It
   is safe to exit the monitor early using ctrl+c.
@@ -46,6 +49,31 @@ Stop Options:
 
 func (c *StopCommand) Synopsis() string {
 	return "Stop a running job"
+}
+
+func (c *StopCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-purge":   complete.PredictNothing,
+			"-yes":     complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *StopCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Jobs]
+	})
 }
 
 func (c *StopCommand) Run(args []string) int {
@@ -94,8 +122,8 @@ func (c *StopCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		return 1
 	}
 	// Prefix lookup matched a single job
 	job, _, err := client.Jobs().Info(jobs[0].ID, nil)

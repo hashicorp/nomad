@@ -13,6 +13,7 @@ import (
 )
 
 func TestInitializeHeartbeatTimers(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -38,6 +39,7 @@ func TestInitializeHeartbeatTimers(t *testing.T) {
 }
 
 func TestResetHeartbeatTimer(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -59,6 +61,7 @@ func TestResetHeartbeatTimer(t *testing.T) {
 }
 
 func TestResetHeartbeatTimerLocked(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -79,12 +82,13 @@ func TestResetHeartbeatTimerLocked(t *testing.T) {
 }
 
 func TestResetHeartbeatTimerLocked_Renew(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s1.heartbeatTimersLock.Lock()
-	s1.resetHeartbeatTimerLocked("foo", 5*time.Millisecond)
+	s1.resetHeartbeatTimerLocked("foo", 30*time.Millisecond)
 	s1.heartbeatTimersLock.Unlock()
 
 	if _, ok := s1.heartbeatTimers["foo"]; !ok {
@@ -95,28 +99,29 @@ func TestResetHeartbeatTimerLocked_Renew(t *testing.T) {
 
 	// Renew the heartbeat
 	s1.heartbeatTimersLock.Lock()
-	s1.resetHeartbeatTimerLocked("foo", 5*time.Millisecond)
+	s1.resetHeartbeatTimerLocked("foo", 30*time.Millisecond)
 	s1.heartbeatTimersLock.Unlock()
 	renew := time.Now()
 
 	// Watch for invalidation
-	for time.Now().Sub(renew) < time.Duration(testutil.TestMultiplier()*20)*time.Millisecond {
+	for time.Now().Sub(renew) < time.Duration(testutil.TestMultiplier()*100)*time.Millisecond {
 		s1.heartbeatTimersLock.Lock()
 		_, ok := s1.heartbeatTimers["foo"]
 		s1.heartbeatTimersLock.Unlock()
 		if !ok {
 			end := time.Now()
-			if diff := end.Sub(renew); diff < 5*time.Millisecond {
+			if diff := end.Sub(renew); diff < 30*time.Millisecond {
 				t.Fatalf("early invalidate %v", diff)
 			}
 			return
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 	}
 	t.Fatalf("should have expired")
 }
 
 func TestInvalidateHeartbeat(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -144,6 +149,7 @@ func TestInvalidateHeartbeat(t *testing.T) {
 }
 
 func TestClearHeartbeatTimer(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -163,6 +169,7 @@ func TestClearHeartbeatTimer(t *testing.T) {
 }
 
 func TestClearAllHeartbeatTimers(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -184,6 +191,7 @@ func TestClearAllHeartbeatTimers(t *testing.T) {
 }
 
 func TestServer_HeartbeatTTL_Failover(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 

@@ -10,7 +10,7 @@ import (
 func TestAnnotateTaskGroup_Updates(t *testing.T) {
 	annotations := &structs.PlanAnnotations{
 		DesiredTGUpdates: map[string]*structs.DesiredUpdates{
-			"foo": &structs.DesiredUpdates{
+			"foo": {
 				Ignore:            1,
 				Place:             2,
 				Migrate:           3,

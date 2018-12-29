@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -103,14 +104,43 @@ func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request
 	if s.agent.client == nil {
 		return nil, clientNotRunning
 	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check node write permissions
+	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	return nil, s.agent.Client().CollectAllAllocs()
 }
 
 func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var secret string
+	s.parseToken(req, &secret)
+
+	var namespace string
+	parseNamespace(req, &namespace)
+
+	// Check namespace submit-job permissions
+	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob) {
+		return nil, structs.ErrPermissionDenied
+	}
 	return nil, s.agent.Client().CollectAllocation(allocID)
 }
 
 func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var secret string
+	s.parseToken(req, &secret)
+	if !s.agent.Client().ValidateMigrateToken(allocID, secret) {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	allocFS, err := s.agent.Client().GetAllocFS(allocID)
 	if err != nil {
 		return nil, fmt.Errorf(allocNotFoundErr)
@@ -122,6 +152,19 @@ func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req
 }
 
 func (s *HTTPServer) allocStats(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var secret string
+	s.parseToken(req, &secret)
+
+	var namespace string
+	parseNamespace(req, &namespace)
+
+	// Check namespace read-job permissions
+	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+		return nil, err
+	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	clientStats := s.agent.client.StatsReporter()
 	aStats, err := clientStats.GetAllocStats(allocID)
 	if err != nil {

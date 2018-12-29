@@ -7,7 +7,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/shirou/gopsutil/internal/common"
 )
@@ -214,10 +215,8 @@ var fsTypeMap = map[int64]string{
 // Partitions returns disk partitions. If all is false, returns
 // physical devices only (e.g. hard disks, cd-rom drives, USB keys)
 // and ignore all others (e.g. memory partitions such as /dev/shm)
-//
-// should use setmntent(3) but this implement use /etc/mtab file
 func Partitions(all bool) ([]PartitionStat, error) {
-	filename := common.HostEtc("mtab")
+	filename := common.HostProc("self/mounts")
 	lines, err := common.ReadLines(filename)
 	if err != nil {
 		return nil, err
@@ -272,7 +271,7 @@ func getFileSystems() ([]string, error) {
 	return ret, nil
 }
 
-func IOCounters() (map[string]IOCountersStat, error) {
+func IOCounters(names ...string) (map[string]IOCountersStat, error) {
 	filename := common.HostProc("diskstats")
 	lines, err := common.ReadLines(filename)
 	if err != nil {
@@ -288,6 +287,11 @@ func IOCounters() (map[string]IOCountersStat, error) {
 			continue
 		}
 		name := fields[2]
+
+		if len(names) > 0 && !common.StringsHas(names, name) {
+			continue
+		}
+
 		reads, err := strconv.ParseUint((fields[3]), 10, 64)
 		if err != nil {
 			return ret, err
@@ -383,7 +387,7 @@ func GetDiskSerialNumber(name string) string {
 	return ""
 }
 
-func getFsType(stat syscall.Statfs_t) string {
+func getFsType(stat unix.Statfs_t) string {
 	t := int64(stat.Type)
 	ret, ok := fsTypeMap[t]
 	if !ok {

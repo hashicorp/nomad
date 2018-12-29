@@ -10,14 +10,11 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/posener/complete"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
-	// Names of environment variables used to supply various
-	// config options to the Nomad CLI.
-	EnvNomadAddress = "NOMAD_ADDR"
-	EnvNomadRegion  = "NOMAD_REGION"
-
 	// Constants for CLI identifier length
 	shortId = 8
 	fullId  = 36
@@ -47,6 +44,12 @@ type Meta struct {
 	// The region to send API requests
 	region string
 
+	// namespace to send API requests
+	namespace string
+
+	// token is used for ACLs to access privileged information
+	token string
+
 	caCert     string
 	caPath     string
 	clientCert string
@@ -66,6 +69,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	if fs&FlagSetClient != 0 {
 		f.StringVar(&m.flagAddress, "address", "", "")
 		f.StringVar(&m.region, "region", "", "")
+		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
@@ -73,6 +77,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.clientKey, "client-key", "", "")
 		f.BoolVar(&m.insecure, "insecure", false, "")
 		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
+		f.StringVar(&m.token, "token", "", "")
 
 	}
 
@@ -92,22 +97,44 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	return f
 }
 
+// AutocompleteFlags returns a set of flag completions for the given flag set.
+func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
+	if fs&FlagSetClient == 0 {
+		return nil
+	}
+
+	return complete.Flags{
+		"-address":         complete.PredictAnything,
+		"-region":          complete.PredictAnything,
+		"-namespace":       NamespacePredictor(m.Client, nil),
+		"-no-color":        complete.PredictNothing,
+		"-ca-cert":         complete.PredictFiles("*"),
+		"-ca-path":         complete.PredictDirs("*"),
+		"-client-cert":     complete.PredictFiles("*"),
+		"-client-key":      complete.PredictFiles("*"),
+		"-insecure":        complete.PredictNothing,
+		"-tls-skip-verify": complete.PredictNothing,
+		"-token":           complete.PredictAnything,
+	}
+}
+
+// ApiClientFactory is the signature of a API client factory
+type ApiClientFactory func() (*api.Client, error)
+
 // Client is used to initialize and return a new API client using
 // the default command line arguments and env vars.
 func (m *Meta) Client() (*api.Client, error) {
 	config := api.DefaultConfig()
-	if v := os.Getenv(EnvNomadAddress); v != "" {
-		config.Address = v
-	}
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
-	}
-	if v := os.Getenv(EnvNomadRegion); v != "" {
-		config.Region = v
 	}
 	if m.region != "" {
 		config.Region = m.region
 	}
+	if m.namespace != "" {
+		config.Namespace = m.namespace
+	}
+
 	// If we need custom TLS configuration, then set it
 	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.insecure {
 		t := &api.TLSConfig{
@@ -120,13 +147,17 @@ func (m *Meta) Client() (*api.Client, error) {
 		config.TLSConfig = t
 	}
 
+	if m.token != "" {
+		config.SecretID = m.token
+	}
+
 	return api.NewClient(config)
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: m.noColor,
+		Disable: m.noColor || !terminal.IsTerminal(int(os.Stdout.Fd())),
 		Reset:   true,
 	}
 }
@@ -143,34 +174,51 @@ func generalOptionsUsage() string {
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
-  
+
+  -namespace=<namespace>
+    The target namespace for queries and actions bound to a namespace.
+    Overrides the NOMAD_NAMESPACE environment variable if set.
+    Defaults to the "default" namespace.
+
   -no-color
     Disables colored command output.
 
-  -ca-cert=<path>           
-    Path to a PEM encoded CA cert file to use to verify the 
-    Nomad server SSL certificate.  Overrides the NOMAD_CACERT 
+  -ca-cert=<path>
+    Path to a PEM encoded CA cert file to use to verify the
+    Nomad server SSL certificate.  Overrides the NOMAD_CACERT
     environment variable if set.
 
-  -ca-path=<path>           
-    Path to a directory of PEM encoded CA cert files to verify 
-    the Nomad server SSL certificate. If both -ca-cert and 
-    -ca-path are specified, -ca-cert is used. Overrides the 
+  -ca-path=<path>
+    Path to a directory of PEM encoded CA cert files to verify
+    the Nomad server SSL certificate. If both -ca-cert and
+    -ca-path are specified, -ca-cert is used. Overrides the
     NOMAD_CAPATH environment variable if set.
 
-  -client-cert=<path>       
-    Path to a PEM encoded client certificate for TLS authentication 
-    to the Nomad server. Must also specify -client-key. Overrides 
+  -client-cert=<path>
+    Path to a PEM encoded client certificate for TLS authentication
+    to the Nomad server. Must also specify -client-key. Overrides
     the NOMAD_CLIENT_CERT environment variable if set.
 
-  -client-key=<path>        
-    Path to an unencrypted PEM encoded private key matching the 
-    client certificate from -client-cert. Overrides the 
+  -client-key=<path>
+    Path to an unencrypted PEM encoded private key matching the
+    client certificate from -client-cert. Overrides the
     NOMAD_CLIENT_KEY environment variable if set.
 
-  -tls-skip-verify        
+  -tls-skip-verify
     Do not verify TLS certificate. This is highly not recommended. Verification
     will also be skipped if NOMAD_SKIP_VERIFY is set.
+
+  -token
+    The SecretID of an ACL token to use to authenticate API requests with.
+    Overrides the NOMAD_TOKEN environment variable if set.
 `
 	return strings.TrimSpace(helpText)
 }
+
+// funcVar is a type of flag that accepts a function that is the string given
+// by the user.
+type funcVar func(s string) error
+
+func (f funcVar) Set(s string) error { return f(s) }
+func (f funcVar) String() string     { return "" }
+func (f funcVar) IsBoolFlag() bool   { return false }

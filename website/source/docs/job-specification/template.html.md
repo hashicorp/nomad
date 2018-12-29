@@ -76,7 +76,7 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   different delimiter that does not conflict with the output file itself.
 
 - `perms` `(string: "644")` - Specifies the rendered template's permissions.
-  File permissions are given as octal of the unix file permissions rwxrwxrwx.
+  File permissions are given as octal of the Unix file permissions rwxrwxrwx.
 
 - `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
@@ -89,10 +89,24 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   reference a template inside of a Docker container, for example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
-  0ms and the given splay value before invoking the change mode. This is
+  0 ms and the given splay value before invoking the change mode. This is
   specified using a label suffix like "30s" or "1h", and is often used to
   prevent a thundering herd problem where all task instances restart at the same
   time.
+
+-   `vault_grace` `(string: "15s")` - Specifies the grace period between lease
+    renewal and secret re-acquisition. When renewing a secret, if the remaining
+    lease is less than or equal to the configured grace, the template will request
+    a new credential. This prevents Vault from revoking the secret at its
+    expiration and the task having a stale secret.
+    
+    If the grace is set to a value that is higher than your default TTL or max
+    TTL, the template will always read a new secret. **If secrets are being
+    renewed constantly, increase the `vault_grace`.**
+    
+    If the task defines several templates, the `vault_grace` will be set to the
+    lowest value across all the templates.
+
 
 ## `template` Examples
 
@@ -119,6 +133,7 @@ template {
   ---
     bind_port:   {{ env "NOMAD_PORT_db" }}
     scratch_dir: {{ env "NOMAD_TASK_DIR" }}
+    node_id:     {{ env "node.unique.id" }}
     service_key: {{ key "service/my-key" }}
   EOH
 
@@ -175,11 +190,11 @@ template {
 # Lines starting with a # are ignored
 
 # Empty lines are also ignored
-CORES={{ env "attr.cpu.numcores" }}
-SERVICE_KEY={{ key "service/my-key" }}
+LOG_LEVEL="{{key "service/geo-api/log-verbosity"}}"
+API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.key}}{{end}}"
 EOH
 
-  destination = "local/file.env"
+  destination = "secrets/file.env"
   env         = true
 }
 ```
@@ -188,8 +203,8 @@ The task's environment would then have environment variables like the
 following:
 
 ```
-CORES=4
-SERVICE_KEY=12345678-1234-1234-1234-1234-123456789abc
+LOG_LEVEL=DEBUG
+API_KEY=12345678-1234-1234-1234-1234-123456789abc
 ```
 
 This allows [12factor app](https://12factor.net/config) style environment

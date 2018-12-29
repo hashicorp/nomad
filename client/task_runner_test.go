@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -17,13 +18,14 @@ import (
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-
-	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/kr/pretty"
 )
 
 func testLogger() *log.Logger {
@@ -37,13 +39,19 @@ func prefixedTestLogger(prefix string) *log.Logger {
 	return log.New(ioutil.Discard, "", 0)
 }
 
+// Returns a tracker that never restarts.
+func noRestartsTracker() *RestartTracker {
+	policy := &structs.RestartPolicy{Attempts: 0, Mode: structs.RestartPolicyModeFail}
+	return newRestartTracker(policy, structs.JobTypeBatch)
+}
+
 type MockTaskStateUpdater struct {
 	state  string
 	failed bool
 	events []*structs.TaskEvent
 }
 
-func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent) {
+func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEvent, _ bool) {
 	if state != "" {
 		m.state = state
 	}
@@ -55,10 +63,21 @@ func (m *MockTaskStateUpdater) Update(name, state string, event *structs.TaskEve
 	}
 }
 
+// String for debugging purposes.
+func (m *MockTaskStateUpdater) String() string {
+	s := fmt.Sprintf("Updates:\n  state=%q\n  failed=%t\n  events=\n", m.state, m.failed)
+	for _, e := range m.events {
+		s += fmt.Sprintf("    %#v\n", e)
+	}
+	return s
+}
+
 type taskRunnerTestCtx struct {
 	upd      *MockTaskStateUpdater
 	tr       *TaskRunner
 	allocDir *allocdir.AllocDir
+	vault    *vaultclient.MockVaultClient
+	consul   *mockConsulServiceClient
 }
 
 // Cleanup calls Destroy on the task runner and alloc dir
@@ -68,7 +87,12 @@ func (ctx *taskRunnerTestCtx) Cleanup() {
 }
 
 func testTaskRunner(t *testing.T, restarts bool) *taskRunnerTestCtx {
-	return testTaskRunnerFromAlloc(t, restarts, mock.Alloc())
+	// Use mock driver
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "500ms"
+	return testTaskRunnerFromAlloc(t, restarts, alloc)
 }
 
 // Creates a mock task runner using the first task in the first task group of
@@ -124,7 +148,13 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 	if !restarts {
 		tr.restartTracker = noRestartsTracker()
 	}
-	return &taskRunnerTestCtx{upd, tr, allocDir}
+	return &taskRunnerTestCtx{
+		upd:      upd,
+		tr:       tr,
+		allocDir: allocDir,
+		vault:    vclient,
+		consul:   cclient,
+	}
 }
 
 // testWaitForTaskToStart waits for the task to or fails the test
@@ -160,7 +190,7 @@ func testWaitForTaskToStart(t *testing.T, ctx *taskRunnerTestCtx) {
 }
 
 func TestTaskRunner_SimpleRun(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 	ctx := testTaskRunner(t, false)
 	ctx.tr.MarkReceived()
 	go ctx.tr.Run()
@@ -198,6 +228,7 @@ func TestTaskRunner_SimpleRun(t *testing.T) {
 }
 
 func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -240,26 +271,21 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 }
 
 func TestTaskRunner_Destroy(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-	ctx := testTaskRunner(t, true)
-	ctx.tr.MarkReceived()
-	//FIXME This didn't used to send a kill status update!!!???
-	defer ctx.Cleanup()
+	t.Parallel()
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1000s",
+	}
 
-	// Change command to ensure we run for a bit
-	ctx.tr.task.Config["command"] = "/bin/sleep"
-	ctx.tr.task.Config["args"] = []string{"1000"}
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
 	go ctx.tr.Run()
+	defer ctx.Cleanup()
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, ctx)
-
-	// Make sure we are collecting a few stats
-	time.Sleep(2 * time.Second)
-	stats := ctx.tr.LatestResourceUsage()
-	if len(stats.Pids) == 0 || stats.ResourceUsage == nil || stats.ResourceUsage.MemoryStats.RSS == 0 {
-		t.Fatalf("expected task runner to have some stats")
-	}
 
 	// Begin the tear down
 	ctx.tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
@@ -288,13 +314,17 @@ func TestTaskRunner_Destroy(t *testing.T) {
 }
 
 func TestTaskRunner_Update(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-	ctx := testTaskRunner(t, false)
+	t.Parallel()
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Services[0].Checks[0].Args[0] = "${NOMAD_META_foo}"
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "100s",
+	}
 
-	// Change command to ensure we run for a bit
-	ctx.tr.task.Config["command"] = "/bin/sleep"
-	ctx.tr.task.Config["args"] = []string{"100"}
-	ctx.tr.task.Services[0].Checks[0].Args[0] = "${NOMAD_META_foo}"
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
 	go ctx.tr.Run()
 	defer ctx.Cleanup()
 
@@ -314,18 +344,9 @@ func TestTaskRunner_Update(t *testing.T) {
 	newTask.Meta["foo"] = "UPDATE"
 
 	// Update the kill timeout
-	testutil.WaitForResult(func() (bool, error) {
-		if ctx.tr.handle == nil {
-			return false, fmt.Errorf("task not started")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
+	testWaitForTaskToStart(t, ctx)
 	oldHandle := ctx.tr.handle.ID()
 	newTask.KillTimeout = time.Hour
-
 	ctx.tr.Update(updateAlloc)
 
 	// Wait for ctx.update to take place
@@ -364,6 +385,7 @@ func TestTaskRunner_Update(t *testing.T) {
 }
 
 func TestTaskRunner_SaveRestoreState(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -378,7 +400,6 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 	ctx := testTaskRunnerFromAlloc(t, false, alloc)
 	ctx.tr.MarkReceived()
 	go ctx.tr.Run()
-	//FIXME This test didn't used to defer destroy the allocidr ???!!!
 	defer ctx.Cleanup()
 
 	// Wait for the task to be running and then snapshot the state
@@ -424,14 +445,18 @@ func TestTaskRunner_SaveRestoreState(t *testing.T) {
 }
 
 func TestTaskRunner_Download_List(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-
+	t.Parallel()
 	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))
 	defer ts.Close()
 
 	// Create an allocation that has a task with a list of artifacts.
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
 	f1 := "task_runner_test.go"
 	f2 := "task_runner.go"
 	artifact1 := structs.TaskArtifact{
@@ -491,13 +516,17 @@ func TestTaskRunner_Download_List(t *testing.T) {
 }
 
 func TestTaskRunner_Download_Retries(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-
+	t.Parallel()
 	// Create an allocation that has a task with bad artifacts.
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
 	artifact := structs.TaskArtifact{
-		GetterSource: "http://127.1.1.111:12315/foo/bar/baz",
+		GetterSource: "http://127.0.0.1:0/foo/bar/baz",
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact}
 
@@ -564,8 +593,7 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 // TestTaskRunner_UnregisterConsul_Retries asserts a task is unregistered from
 // Consul when waiting to be retried.
 func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
-	ctestutil.ExecCompatible(t)
-
+	t.Parallel()
 	// Create an allocation that has a task with bad artifacts.
 	alloc := mock.Alloc()
 
@@ -609,7 +637,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 }
 
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
-	ctestutil.ExecCompatible(t)
+	t.Parallel()
 	ctx := testTaskRunner(t, false)
 	defer ctx.Cleanup()
 
@@ -636,6 +664,7 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 }
 
 func TestTaskRunner_RestartTask(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -652,14 +681,14 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	// Wait for it to start
 	go func() {
 		testWaitForTaskToStart(t, ctx)
-		ctx.tr.Restart("test", "restart")
+		ctx.tr.Restart("test", "restart", false)
 
 		// Wait for it to restart then kill
 		go func() {
 			// Wait for the task to start again
 			testutil.WaitForResult(func() (bool, error) {
 				if len(ctx.upd.events) != 8 {
-					t.Fatalf("task %q in alloc %q should have 8 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
+					return false, fmt.Errorf("task %q in alloc %q should have 8 ctx.updates: %#v", task.Name, alloc.ID, ctx.upd.events)
 				}
 
 				return true, nil
@@ -677,7 +706,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	}
 
 	if len(ctx.upd.events) != 10 {
-		t.Fatalf("should have 9 ctx.updates: %#v", ctx.upd.events)
+		t.Fatalf("should have 10 ctx.updates: %#v", ctx.upd.events)
 	}
 
 	if ctx.upd.state != structs.TaskStateDead {
@@ -716,7 +745,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		t.Fatalf("Eighth Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskStarted)
 	}
 	if ctx.upd.events[8].Type != structs.TaskKilling {
-		t.Fatalf("Nineth  Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilling)
+		t.Fatalf("Ninth  Event was %v; want %v", ctx.upd.events[8].Type, structs.TaskKilling)
 	}
 
 	if ctx.upd.events[9].Type != structs.TaskKilled {
@@ -725,6 +754,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 }
 
 func TestTaskRunner_KillTask(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -783,6 +813,7 @@ func TestTaskRunner_KillTask(t *testing.T) {
 }
 
 func TestTaskRunner_SignalFailure(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -806,6 +837,7 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 }
 
 func TestTaskRunner_BlockForVault(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -913,6 +945,7 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 }
 
 func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -998,6 +1031,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 }
 
 func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1044,10 +1078,7 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 }
 
 func TestTaskRunner_Template_Block(t *testing.T) {
-	testRetryRate = 2 * time.Second
-	defer func() {
-		testRetryRate = 0
-	}()
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1125,6 +1156,7 @@ func TestTaskRunner_Template_Block(t *testing.T) {
 }
 
 func TestTaskRunner_Template_Artifact(t *testing.T) {
+	t.Parallel()
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("bad: %v", err)
@@ -1204,6 +1236,7 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 }
 
 func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1238,8 +1271,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	})
 
 	// Error the token renewal
-	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[token]
+	renewalCh, ok := ctx.vault.RenewTokens[token]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1266,13 +1298,12 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	})
 
 	// Check the token was revoked
-	m := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
 	testutil.WaitForResult(func() (bool, error) {
-		if len(m.StoppedTokens) != 1 {
-			return false, fmt.Errorf("Expected a stopped token: %v", m.StoppedTokens)
+		if len(ctx.vault.StoppedTokens) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", ctx.vault.StoppedTokens)
 		}
 
-		if a := m.StoppedTokens[0]; a != token {
+		if a := ctx.vault.StoppedTokens[0]; a != token {
 			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
 		}
 		return true, nil
@@ -1282,6 +1313,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 }
 
 func TestTaskRunner_VaultManager_Restart(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1303,8 +1335,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 	testWaitForTaskToStart(t, ctx)
 
 	// Error the token renewal
-	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[ctx.tr.vaultFuture.Get()]
+	renewalCh, ok := ctx.vault.RenewTokens[ctx.tr.vaultFuture.Get()]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1357,6 +1388,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 }
 
 func TestTaskRunner_VaultManager_Signal(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1379,8 +1411,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 	testWaitForTaskToStart(t, ctx)
 
 	// Error the token renewal
-	vc := ctx.tr.vaultClient.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vc.RenewTokens[ctx.tr.vaultFuture.Get()]
+	renewalCh, ok := ctx.vault.RenewTokens[ctx.tr.vaultFuture.Get()]
 	if !ok {
 		t.Fatalf("no renewal channel")
 	}
@@ -1418,6 +1449,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 
 // Test that the payload is written to disk
 func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1486,6 +1518,7 @@ func TestTaskRunner_SimpleRun_Dispatch(t *testing.T) {
 // TestTaskRunner_CleanupEmpty ensures TaskRunner works when createdResources
 // is empty.
 func TestTaskRunner_CleanupEmpty(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1503,6 +1536,7 @@ func TestTaskRunner_CleanupEmpty(t *testing.T) {
 }
 
 func TestTaskRunner_CleanupOK(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1528,6 +1562,7 @@ func TestTaskRunner_CleanupOK(t *testing.T) {
 }
 
 func TestTaskRunner_CleanupFail(t *testing.T) {
+	t.Parallel()
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -1553,6 +1588,7 @@ func TestTaskRunner_CleanupFail(t *testing.T) {
 }
 
 func TestTaskRunner_Pre06ScriptCheck(t *testing.T) {
+	t.Parallel()
 	run := func(ver, driver, checkType string, exp bool) (string, func(t *testing.T)) {
 		name := fmt.Sprintf("%s %s %s returns %t", ver, driver, checkType, exp)
 		return name, func(t *testing.T) {
@@ -1596,4 +1632,242 @@ func TestTaskRunner_Pre06ScriptCheck(t *testing.T) {
 	t.Run(run("0.5.6", "exec", "tcp", false))
 	t.Run(run("0.5.6", "java", "tcp", false))
 	t.Run(run("0.5.6", "mock_driver", "tcp", false))
+}
+
+func TestTaskRunner_interpolateServices(t *testing.T) {
+	t.Parallel()
+	task := &structs.Task{
+		Services: []*structs.Service{
+			{
+				Name:      "${name}",
+				PortLabel: "${portlabel}",
+				Tags:      []string{"${tags}"},
+				Checks: []*structs.ServiceCheck{
+					{
+						Name:          "${checkname}",
+						Type:          "${checktype}",
+						Command:       "${checkcmd}",
+						Args:          []string{"${checkarg}"},
+						Path:          "${checkstr}",
+						Protocol:      "${checkproto}",
+						PortLabel:     "${checklabel}",
+						InitialStatus: "${checkstatus}",
+						Method:        "${checkmethod}",
+						Header: map[string][]string{
+							"${checkheaderk}": {"${checkheaderv}"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	env := &env.TaskEnv{
+		EnvMap: map[string]string{
+			"name":         "name",
+			"portlabel":    "portlabel",
+			"tags":         "tags",
+			"checkname":    "checkname",
+			"checktype":    "checktype",
+			"checkcmd":     "checkcmd",
+			"checkarg":     "checkarg",
+			"checkstr":     "checkstr",
+			"checkpath":    "checkpath",
+			"checkproto":   "checkproto",
+			"checklabel":   "checklabel",
+			"checkstatus":  "checkstatus",
+			"checkmethod":  "checkmethod",
+			"checkheaderk": "checkheaderk",
+			"checkheaderv": "checkheaderv",
+		},
+	}
+
+	interpTask := interpolateServices(env, task)
+
+	exp := &structs.Task{
+		Services: []*structs.Service{
+			{
+				Name:      "name",
+				PortLabel: "portlabel",
+				Tags:      []string{"tags"},
+				Checks: []*structs.ServiceCheck{
+					{
+						Name:          "checkname",
+						Type:          "checktype",
+						Command:       "checkcmd",
+						Args:          []string{"checkarg"},
+						Path:          "checkstr",
+						Protocol:      "checkproto",
+						PortLabel:     "checklabel",
+						InitialStatus: "checkstatus",
+						Method:        "checkmethod",
+						Header: map[string][]string{
+							"checkheaderk": {"checkheaderv"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if diff := pretty.Diff(interpTask, exp); len(diff) > 0 {
+		t.Fatalf("diff:\n%s\n", strings.Join(diff, "\n"))
+	}
+}
+
+func TestTaskRunner_ShutdownDelay(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1000s",
+	}
+
+	// No shutdown escape hatch for this delay, so don't set it too high
+	task.ShutdownDelay = 500 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
+
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
+
+	// Wait for the task to start
+	testWaitForTaskToStart(t, ctx)
+
+	// Begin the tear down
+	ctx.tr.Destroy(structs.NewTaskEvent(structs.TaskKilled))
+	destroyed := time.Now()
+
+	// Service should get removed quickly; loop until RemoveTask is called
+	found := false
+	deadline := destroyed.Add(task.ShutdownDelay)
+	for time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+
+		ctx.consul.mu.Lock()
+		n := len(ctx.consul.ops)
+		if n < 2 {
+			ctx.consul.mu.Unlock()
+			continue
+		}
+
+		lastOp := ctx.consul.ops[n-1].op
+		ctx.consul.mu.Unlock()
+
+		if lastOp == "remove" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("task was not removed from Consul first")
+	}
+
+	// Wait for actual exit
+	select {
+	case <-ctx.tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// It should be impossible to reach here in less time than the shutdown delay
+	if time.Now().Before(destroyed.Add(task.ShutdownDelay)) {
+		t.Fatalf("task exited before shutdown delay")
+	}
+}
+
+// TestTaskRunner_CheckWatcher_Restart asserts that when enabled an unhealthy
+// Consul check will cause a task to restart following restart policy rules.
+func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+
+	// Make the restart policy fail within this test
+	tg := alloc.Job.TaskGroups[0]
+	tg.RestartPolicy.Attempts = 2
+	tg.RestartPolicy.Interval = 1 * time.Minute
+	tg.RestartPolicy.Delay = 10 * time.Millisecond
+	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
+
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "100s",
+	}
+
+	// Make the task register a check that fails
+	task.Services[0].Checks[0] = &structs.ServiceCheck{
+		Name:     "test-restarts",
+		Type:     structs.ServiceCheckTCP,
+		Interval: 50 * time.Millisecond,
+		CheckRestart: &structs.CheckRestart{
+			Limit: 2,
+			Grace: 100 * time.Millisecond,
+		},
+	}
+
+	ctx := testTaskRunnerFromAlloc(t, true, alloc)
+
+	// Replace mock Consul ServiceClient, with the real ServiceClient
+	// backed by a mock consul whose checks are always unhealthy.
+	consulAgent := consul.NewMockAgent()
+	consulAgent.SetStatus("critical")
+	consulClient := consul.NewServiceClient(consulAgent, true, ctx.tr.logger)
+	go consulClient.Run()
+	defer consulClient.Shutdown()
+
+	ctx.tr.consul = consulClient
+	ctx.consul = nil // prevent accidental use of old mock
+
+	ctx.tr.MarkReceived()
+	go ctx.tr.Run()
+	defer ctx.Cleanup()
+
+	select {
+	case <-ctx.tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	expected := []string{
+		"Received",
+		"Task Setup",
+		"Started",
+		"Restart Signaled",
+		"Killing",
+		"Killed",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Killing",
+		"Killed",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Killing",
+		"Killed",
+		"Not Restarting",
+	}
+
+	if n := len(ctx.upd.events); n != len(expected) {
+		t.Fatalf("should have %d ctx.updates found %d: %s", len(expected), n, ctx.upd)
+	}
+
+	if ctx.upd.state != structs.TaskStateDead {
+		t.Fatalf("TaskState %v; want %v", ctx.upd.state, structs.TaskStateDead)
+	}
+
+	if !ctx.upd.failed {
+		t.Fatalf("expected failed")
+	}
+
+	for i, actual := range ctx.upd.events {
+		if actual.Type != expected[i] {
+			t.Errorf("%.2d - Expected %q but found %q", i, expected[i], actual.Type)
+		}
+	}
 }

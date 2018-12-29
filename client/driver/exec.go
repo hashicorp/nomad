@@ -20,12 +20,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-const (
-	// The key populated in Node Attributes to indicate the presence of the Exec
-	// driver
-	execDriverAttr = "driver.exec"
-)
-
 // ExecDriver fork/execs tasks using as many of the underlying OS's isolation
 // features.
 type ExecDriver struct {
@@ -66,11 +60,11 @@ func (d *ExecDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"command": &fields.FieldSchema{
+			"command": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -126,7 +120,6 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: ctx.TaskEnv,
 		Driver:  "exec",
-		AllocID: d.DriverContext.allocID,
 		LogDir:  ctx.TaskDir.LogDir,
 		TaskDir: ctx.TaskDir.Dir,
 		Task:    task,
@@ -162,7 +155,7 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout:  maxKill,
 		logger:          d.logger,
-		version:         d.config.Version,
+		version:         d.config.Version.VersionNumber(),
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *dstructs.WaitResult, 1),
 		taskDir:         ctx.TaskDir,

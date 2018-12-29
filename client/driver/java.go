@@ -80,19 +80,19 @@ func (d *JavaDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"class": &fields.FieldSchema{
+			"class": {
 				Type: fields.TypeString,
 			},
-			"class_path": &fields.FieldSchema{
+			"class_path": {
 				Type: fields.TypeString,
 			},
-			"jar_path": &fields.FieldSchema{
+			"jar_path": {
 				Type: fields.TypeString,
 			},
-			"jvm_options": &fields.FieldSchema{
+			"jvm_options": {
 				Type: fields.TypeArray,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -251,7 +251,6 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: ctx.TaskEnv,
 		Driver:  "java",
-		AllocID: d.DriverContext.allocID,
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
 		LogDir:  ctx.TaskDir.LogDir,
@@ -290,7 +289,7 @@ func (d *JavaDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		taskDir:         ctx.TaskDir.Dir,
 		killTimeout:     GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout:  maxKill,
-		version:         d.config.Version,
+		version:         d.config.Version.VersionNumber(),
 		logger:          d.logger,
 		doneCh:          make(chan struct{}),
 		waitCh:          make(chan *dstructs.WaitResult, 1),

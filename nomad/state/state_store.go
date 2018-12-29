@@ -1,9 +1,11 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
+	"sort"
 
 	"github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -18,6 +20,15 @@ type IndexEntry struct {
 	Value uint64
 }
 
+// StateStoreConfig is used to configure a new state store
+type StateStoreConfig struct {
+	// LogOutput is used to configure the output of the state store's logs
+	LogOutput io.Writer
+
+	// Region is the region of the server embedding the state store.
+	Region string
+}
+
 // The StateStore is responsible for maintaining all the Nomad
 // state. It is manipulated by the FSM which maintains consistency
 // through the use of Raft. The goals of the StateStore are to provide
@@ -29,13 +40,16 @@ type StateStore struct {
 	logger *log.Logger
 	db     *memdb.MemDB
 
+	// config is the passed in configuration
+	config *StateStoreConfig
+
 	// abandonCh is used to signal watchers that this state store has been
 	// abandoned (usually during a restore). This is only ever closed.
 	abandonCh chan struct{}
 }
 
 // NewStateStore is used to create a new state store
-func NewStateStore(logOutput io.Writer) (*StateStore, error) {
+func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -44,11 +58,17 @@ func NewStateStore(logOutput io.Writer) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(logOutput, "", log.LstdFlags),
+		logger:    log.New(config.LogOutput, "", log.LstdFlags),
 		db:        db,
+		config:    config,
 		abandonCh: make(chan struct{}),
 	}
 	return s, nil
+}
+
+// Config returns the state store configuration.
+func (s *StateStore) Config() *StateStoreConfig {
+	return s.config
 }
 
 // Snapshot is used to create a point in time snapshot. Because
@@ -58,6 +78,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	snap := &StateSnapshot{
 		StateStore: StateStore{
 			logger: s.logger,
+			config: s.config,
 			db:     s.db.Snapshot(),
 		},
 	}
@@ -85,6 +106,50 @@ func (s *StateStore) AbandonCh() <-chan struct{} {
 // Calling this more than one time will panic.
 func (s *StateStore) Abandon() {
 	close(s.abandonCh)
+}
+
+// QueryFn is the definition of a function that can be used to implement a basic
+// blocking query against the state store.
+type QueryFn func(memdb.WatchSet, *StateStore) (resp interface{}, index uint64, err error)
+
+// BlockingQuery takes a query function and runs the function until the minimum
+// query index is met or until the passed context is cancelled.
+func (s *StateStore) BlockingQuery(query QueryFn, minIndex uint64, ctx context.Context) (
+	resp interface{}, index uint64, err error) {
+
+RUN_QUERY:
+	// We capture the state store and its abandon channel but pass a snapshot to
+	// the blocking query function. We operate on the snapshot to allow separate
+	// calls to the state store not all wrapped within the same transaction.
+	abandonCh := s.AbandonCh()
+	snap, _ := s.Snapshot()
+	stateSnap := &snap.StateStore
+
+	// We can skip all watch tracking if this isn't a blocking query.
+	var ws memdb.WatchSet
+	if minIndex > 0 {
+		ws = memdb.NewWatchSet()
+
+		// This channel will be closed if a snapshot is restored and the
+		// whole state store is abandoned.
+		ws.Add(abandonCh)
+	}
+
+	resp, index, err = query(ws, stateSnap)
+	if err != nil {
+		return nil, index, err
+	}
+
+	// We haven't reached the min-index yet.
+	if minIndex > 0 && index <= minIndex {
+		if err := ws.WatchCtx(ctx); err != nil {
+			return nil, index, err
+		}
+
+		goto RUN_QUERY
+	}
+
+	return resp, index, nil
 }
 
 // UpsertPlanResults is used to upsert the results of a plan.
@@ -152,8 +217,13 @@ func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSumma
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if jobSummary.Namespace == "" {
+		jobSummary.Namespace = structs.DefaultNamespace
+	}
+
 	// Check if the job summary already exists
-	existing, err := txn.First("job_summary", "id", jobSummary.JobID)
+	existing, err := txn.First("job_summary", "id", jobSummary.Namespace, jobSummary.JobID)
 	if err != nil {
 		return fmt.Errorf("job summary lookup failed: %v", err)
 	}
@@ -183,12 +253,17 @@ func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSumma
 
 // DeleteJobSummary deletes the job summary with the given ID. This is for
 // testing purposes only.
-func (s *StateStore) DeleteJobSummary(index uint64, id string) error {
+func (s *StateStore) DeleteJobSummary(index uint64, namespace, id string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Delete the job summary
-	if _, err := txn.DeleteAll("job_summary", "id", id); err != nil {
+	if _, err := txn.DeleteAll("job_summary", "id", namespace, id); err != nil {
 		return fmt.Errorf("deleting job summary failed: %v", err)
 	}
 	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
@@ -217,6 +292,11 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		return fmt.Errorf("deployment lookup failed: %v", err)
 	}
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if deployment.Namespace == "" {
+		deployment.Namespace = structs.DefaultNamespace
+	}
+
 	// Setup the indexes correctly
 	if existing != nil {
 		deployment.CreateIndex = existing.(*structs.Deployment).CreateIndex
@@ -238,7 +318,7 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 
 	// If the deployment is being marked as complete, set the job to stable.
 	if deployment.Status == structs.DeploymentStatusSuccessful {
-		if err := s.updateJobStabilityImpl(index, deployment.JobID, deployment.JobVersion, true, txn); err != nil {
+		if err := s.updateJobStabilityImpl(index, deployment.Namespace, deployment.JobID, deployment.JobVersion, true, txn); err != nil {
 			return fmt.Errorf("failed to update job stability: %v", err)
 		}
 	}
@@ -259,7 +339,20 @@ func (s *StateStore) Deployments(ws memdb.WatchSet) (memdb.ResultIterator, error
 	return iter, nil
 }
 
-func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, deploymentID string) (memdb.ResultIterator, error) {
+func (s *StateStore) DeploymentsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire deployments table
+	iter, err := txn.Get("deployment", "namespace", namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploymentID string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	// Walk the entire deployments table
@@ -269,7 +362,23 @@ func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, deploymentID strin
 	}
 
 	ws.Add(iter.WatchCh())
-	return iter, nil
+
+	// Wrap the iterator in a filter
+	wrap := memdb.NewFilterIterator(iter, deploymentNamespaceFilter(namespace))
+	return wrap, nil
+}
+
+// deploymentNamespaceFilter returns a filter function that filters all
+// deployment not in the given namespace.
+func deploymentNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		d, ok := raw.(*structs.Deployment)
+		if !ok {
+			return true
+		}
+
+		return d.Namespace != namespace
+	}
 }
 
 func (s *StateStore) DeploymentByID(ws memdb.WatchSet, deploymentID string) (*structs.Deployment, error) {
@@ -291,11 +400,16 @@ func (s *StateStore) deploymentByIDImpl(ws memdb.WatchSet, deploymentID string, 
 	return nil, nil
 }
 
-func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, jobID string) ([]*structs.Deployment, error) {
+func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string) ([]*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Get an iterator over the deployments
-	iter, err := txn.Get("deployment", "job", jobID)
+	iter, err := txn.Get("deployment", "job", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -318,11 +432,16 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, jobID string) ([]*str
 
 // LatestDeploymentByJobID returns the latest deployment for the given job. The
 // latest is determined strictly by CreateIndex.
-func (s *StateStore) LatestDeploymentByJobID(ws memdb.WatchSet, jobID string) (*structs.Deployment, error) {
+func (s *StateStore) LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Get an iterator over the deployments
-	iter, err := txn.Get("deployment", "job", jobID)
+	iter, err := txn.Get("deployment", "job", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -539,6 +658,22 @@ func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.Re
 	return iter, nil
 }
 
+// NodeBySecretID is used to lookup a node by SecretID
+func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID string) (*structs.Node, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("nodes", "secret_id", secretID)
+	if err != nil {
+		return nil, fmt.Errorf("node lookup by SecretID failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.Node), nil
+	}
+	return nil, nil
+}
+
 // Nodes returns an iterator over all the nodes
 func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
@@ -563,10 +698,22 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
-// upsertJobImpl is the inplementation for registering a job or updating a job definition
+// upsertJobImpl is the implementation for registering a job or updating a job definition
 func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if job.Namespace == "" {
+		job.Namespace = structs.DefaultNamespace
+	}
+
+	// Assert the namespace exists
+	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("job %q is in non-existent namespace %q", job.ID, job.Namespace)
+	}
+
 	// Check if the job already exists
-	existing, err := txn.First("jobs", "id", job.ID)
+	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -601,7 +748,7 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		}
 
 		// Have to get the job again since it could have been updated
-		updated, err := txn.First("jobs", "id", job.ID)
+		updated, err := txn.First("jobs", "id", job.Namespace, job.ID)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
 		}
@@ -634,12 +781,17 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 }
 
 // DeleteJob is used to deregister a job
-func (s *StateStore) DeleteJob(index uint64, jobID string) error {
+func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Lookup the node
-	existing, err := txn.First("jobs", "id", jobID)
+	existing, err := txn.First("jobs", "id", namespace, jobID)
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -650,7 +802,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	// Check if we should update a parent job summary
 	job := existing.(*structs.Job)
 	if job.ParentID != "" {
-		summaryRaw, err := txn.First("job_summary", "id", job.ParentID)
+		summaryRaw, err := txn.First("job_summary", "id", namespace, job.ParentID)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
 		}
@@ -681,6 +833,11 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 					// Update the modify index
 					pSummary.ModifyIndex = index
 
+					// COMPAT 0.7: Upgrade old objects that do not have namespaces
+					if pSummary.Namespace == "" {
+						pSummary.Namespace = structs.DefaultNamespace
+					}
+
 					// Insert the summary
 					if err := txn.Insert("job_summary", pSummary); err != nil {
 						return fmt.Errorf("job summary insert failed: %v", err)
@@ -707,7 +864,7 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 	}
 
 	// Delete the job summary
-	if _, err = txn.DeleteAll("job_summary", "id", jobID); err != nil {
+	if _, err = txn.DeleteAll("job_summary", "id", namespace, jobID); err != nil {
 		return fmt.Errorf("deleing job summary failed: %v", err)
 	}
 	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
@@ -720,7 +877,12 @@ func (s *StateStore) DeleteJob(index uint64, jobID string) error {
 
 // deleteJobVersions deletes all versions of the given job.
 func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memdb.Txn) error {
-	iter, err := txn.Get("job_version", "id_prefix", job.ID)
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if job.Namespace == "" {
+		job.Namespace = structs.DefaultNamespace
+	}
+
+	iter, err := txn.Get("job_version", "id_prefix", job.Namespace, job.ID)
 	if err != nil {
 		return err
 	}
@@ -737,12 +899,12 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 			continue
 		}
 
-		if _, err = txn.DeleteAll("job_version", "id", job.ID, job.Version); err != nil {
+		if _, err = txn.DeleteAll("job_version", "id", j.Namespace, j.ID, j.Version); err != nil {
 			return fmt.Errorf("deleting job versions failed: %v", err)
 		}
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{"job_version", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -752,6 +914,11 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 // upsertJobVersion inserts a job into its historic version table and limits the
 // number of job versions that are tracked.
 func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if job.Namespace == "" {
+		job.Namespace = structs.DefaultNamespace
+	}
+
 	// Insert the job
 	if err := txn.Insert("job_version", job); err != nil {
 		return fmt.Errorf("failed to insert job into job_version table: %v", err)
@@ -762,7 +929,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 	}
 
 	// Get all the historic jobs for this ID
-	all, err := s.jobVersionByID(txn, nil, job.ID)
+	all, err := s.jobVersionByID(txn, nil, job.Namespace, job.ID)
 	if err != nil {
 		return fmt.Errorf("failed to look up job versions for %q: %v", job.ID, err)
 	}
@@ -800,10 +967,15 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 
 // JobByID is used to lookup a job by its ID. JobByID returns the current/latest job
 // version.
-func (s *StateStore) JobByID(ws memdb.WatchSet, id string) (*structs.Job, error) {
+func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, existing, err := txn.FirstWatch("jobs", "id", id)
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	watchCh, existing, err := txn.FirstWatch("jobs", "id", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -816,10 +988,15 @@ func (s *StateStore) JobByID(ws memdb.WatchSet, id string) (*structs.Job, error)
 }
 
 // JobsByIDPrefix is used to lookup a job by prefix
-func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	iter, err := txn.Get("jobs", "id_prefix", id)
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	iter, err := txn.Get("jobs", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -830,17 +1007,28 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultI
 }
 
 // JobVersionsByID returns all the tracked versions of a job.
-func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, id string) ([]*structs.Job, error) {
+func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
 	txn := s.db.Txn(false)
-	return s.jobVersionByID(txn, &ws, id)
+
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	return s.jobVersionByID(txn, &ws, namespace, id)
 }
 
 // jobVersionByID is the underlying implementation for retrieving all tracked
 // versions of a job and is called under an existing transaction. A watch set
 // can optionally be passed in to add the job histories to the watch set.
-func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id string) ([]*structs.Job, error) {
+func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Get all the historic jobs for this ID
-	iter, err := txn.Get("job_version", "id_prefix", id)
+	iter, err := txn.Get("job_version", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, err
 	}
@@ -865,25 +1053,35 @@ func (s *StateStore) jobVersionByID(txn *memdb.Txn, ws *memdb.WatchSet, id strin
 		all = append(all, j)
 	}
 
-	// Reverse so that highest versions first
-	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
-		all[i], all[j] = all[j], all[i]
-	}
+	// Sort in reverse order so that the highest version is first
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Version > all[j].Version
+	})
 
 	return all, nil
 }
 
 // JobByIDAndVersion returns the job identified by its ID and Version. The
 // passed watchset may be nil.
-func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, id string, version uint64) (*structs.Job, error) {
+func (s *StateStore) JobByIDAndVersion(ws memdb.WatchSet, namespace, id string, version uint64) (*structs.Job, error) {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
 	txn := s.db.Txn(false)
-	return s.jobByIDAndVersionImpl(ws, id, version, txn)
+	return s.jobByIDAndVersionImpl(ws, namespace, id, version, txn)
 }
 
 // jobByIDAndVersionImpl returns the job identified by its ID and Version. The
 // passed watchset may be nil.
-func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, id string, version uint64, txn *memdb.Txn) (*structs.Job, error) {
-	watchCh, existing, err := txn.FirstWatch("job_version", "id", id, version)
+func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, namespace, id string,
+	version uint64, txn *memdb.Txn) (*structs.Job, error) {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	watchCh, existing, err := txn.FirstWatch("job_version", "id", namespace, id, version)
 	if err != nil {
 		return nil, err
 	}
@@ -919,6 +1117,25 @@ func (s *StateStore) Jobs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 
 	// Walk the entire jobs table
 	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// JobsByNamespace returns an iterator over all the jobs for the given namespace
+func (s *StateStore) JobsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	return s.jobsByNamespaceImpl(ws, namespace, txn)
+}
+
+// jobsByNamespaceImpl returns an iterator over all the jobs for the given namespace
+func (s *StateStore) jobsByNamespaceImpl(ws memdb.WatchSet, namespace string, txn *memdb.Txn) (memdb.ResultIterator, error) {
+	// Walk the entire jobs table
+	iter, err := txn.Get("jobs", "id_prefix", namespace, "")
 	if err != nil {
 		return nil, err
 	}
@@ -974,10 +1191,15 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 }
 
 // JobSummary returns a job summary object which matches a specific id.
-func (s *StateStore) JobSummaryByID(ws memdb.WatchSet, jobID string) (*structs.JobSummary, error) {
+func (s *StateStore) JobSummaryByID(ws memdb.WatchSet, namespace, jobID string) (*structs.JobSummary, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, existing, err := txn.FirstWatch("job_summary", "id", jobID)
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	watchCh, existing, err := txn.FirstWatch("job_summary", "id", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -1008,10 +1230,15 @@ func (s *StateStore) JobSummaries(ws memdb.WatchSet) (memdb.ResultIterator, erro
 }
 
 // JobSummaryByPrefix is used to look up Job Summary by id prefix
-func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
-	iter, err := txn.Get("job_summary", "id_prefix", id)
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	iter, err := txn.Get("job_summary", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
 	}
@@ -1026,8 +1253,13 @@ func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.Periodic
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if launch.Namespace == "" {
+		launch.Namespace = structs.DefaultNamespace
+	}
+
 	// Check if the job already exists
-	existing, err := txn.First("periodic_launch", "id", launch.ID)
+	existing, err := txn.First("periodic_launch", "id", launch.Namespace, launch.ID)
 	if err != nil {
 		return fmt.Errorf("periodic launch lookup failed: %v", err)
 	}
@@ -1054,12 +1286,17 @@ func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.Periodic
 }
 
 // DeletePeriodicLaunch is used to delete the periodic launch
-func (s *StateStore) DeletePeriodicLaunch(index uint64, jobID string) error {
+func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Lookup the launch
-	existing, err := txn.First("periodic_launch", "id", jobID)
+	existing, err := txn.First("periodic_launch", "id", namespace, jobID)
 	if err != nil {
 		return fmt.Errorf("launch lookup failed: %v", err)
 	}
@@ -1081,10 +1318,15 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, jobID string) error {
 
 // PeriodicLaunchByID is used to lookup a periodic launch by the periodic job
 // ID.
-func (s *StateStore) PeriodicLaunchByID(ws memdb.WatchSet, id string) (*structs.PeriodicLaunch, error) {
+func (s *StateStore) PeriodicLaunchByID(ws memdb.WatchSet, namespace, id string) (*structs.PeriodicLaunch, error) {
 	txn := s.db.Txn(false)
 
-	watchCh, existing, err := txn.FirstWatch("periodic_launch", "id", id)
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	watchCh, existing, err := txn.FirstWatch("periodic_launch", "id", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("periodic launch lookup failed: %v", err)
 	}
@@ -1118,13 +1360,17 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	defer txn.Abort()
 
 	// Do a nested upsert
-	jobs := make(map[string]string, len(evals))
+	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
 		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
 
-		jobs[eval.JobID] = ""
+		tuple := structs.NamespacedID{
+			ID:        eval.JobID,
+			Namespace: eval.Namespace,
+		}
+		jobs[tuple] = ""
 	}
 
 	// Set the job's status
@@ -1144,6 +1390,11 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 		return fmt.Errorf("eval lookup failed: %v", err)
 	}
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if eval.Namespace == "" {
+		eval.Namespace = structs.DefaultNamespace
+	}
+
 	// Update the indexes
 	if existing != nil {
 		eval.CreateIndex = existing.(*structs.Evaluation).CreateIndex
@@ -1154,7 +1405,7 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 	}
 
 	// Update the job summary
-	summaryRaw, err := txn.First("job_summary", "id", eval.JobID)
+	summaryRaw, err := txn.First("job_summary", "id", eval.Namespace, eval.JobID)
 	if err != nil {
 		return fmt.Errorf("job summary lookup failed: %v", err)
 	}
@@ -1175,6 +1426,11 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 
 		// Insert the job summary
 		if hasSummaryChanged {
+			// COMPAT 0.7: Upgrade old objects that do not have namespaces
+			if js.Namespace == "" {
+				js.Namespace = structs.DefaultNamespace
+			}
+
 			js.ModifyIndex = index
 			if err := txn.Insert("job_summary", js); err != nil {
 				return fmt.Errorf("job summary insert failed: %v", err)
@@ -1188,9 +1444,9 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 	// Check if the job has any blocked evaluations and cancel them
 	if eval.Status == structs.EvalStatusComplete && len(eval.FailedTGAllocs) == 0 {
 		// Get the blocked evaluation for a job if it exists
-		iter, err := txn.Get("evals", "job", eval.JobID, structs.EvalStatusBlocked)
+		iter, err := txn.Get("evals", "job", eval.Namespace, eval.JobID, structs.EvalStatusBlocked)
 		if err != nil {
-			return fmt.Errorf("failed to get blocked evals for job %q: %v", eval.JobID, err)
+			return fmt.Errorf("failed to get blocked evals for job %q in namespace %q: %v", eval.JobID, eval.Namespace, err)
 		}
 
 		var blocked []*structs.Evaluation
@@ -1208,6 +1464,12 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 			newEval.Status = structs.EvalStatusCancelled
 			newEval.StatusDescription = fmt.Sprintf("evaluation %q successful", newEval.ID)
 			newEval.ModifyIndex = index
+
+			// COMPAT 0.7: Upgrade old objects that do not have namespaces
+			if newEval.Namespace == "" {
+				newEval.Namespace = structs.DefaultNamespace
+			}
+
 			if err := txn.Insert("evals", newEval); err != nil {
 				return fmt.Errorf("eval insert failed: %v", err)
 			}
@@ -1229,7 +1491,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	jobs := make(map[string]string, len(evals))
+	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
 		existing, err := txn.First("evals", "id", eval)
 		if err != nil {
@@ -1241,19 +1503,24 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		if err := txn.Delete("evals", existing); err != nil {
 			return fmt.Errorf("eval delete failed: %v", err)
 		}
-		jobID := existing.(*structs.Evaluation).JobID
-		jobs[jobID] = ""
+		eval := existing.(*structs.Evaluation)
+
+		tuple := structs.NamespacedID{
+			ID:        eval.JobID,
+			Namespace: eval.Namespace,
+		}
+		jobs[tuple] = ""
 	}
 
 	for _, alloc := range allocs {
-		existing, err := txn.First("allocs", "id", alloc)
+		raw, err := txn.First("allocs", "id", alloc)
 		if err != nil {
 			return fmt.Errorf("alloc lookup failed: %v", err)
 		}
-		if existing == nil {
+		if raw == nil {
 			continue
 		}
-		if err := txn.Delete("allocs", existing); err != nil {
+		if err := txn.Delete("allocs", raw); err != nil {
 			return fmt.Errorf("alloc delete failed: %v", err)
 		}
 	}
@@ -1292,10 +1559,12 @@ func (s *StateStore) EvalByID(ws memdb.WatchSet, id string) (*structs.Evaluation
 	return nil, nil
 }
 
-// EvalsByIDPrefix is used to lookup evaluations by prefix
-func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultIterator, error) {
+// EvalsByIDPrefix is used to lookup evaluations by prefix in a particular
+// namespace
+func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
+	// Get an iterator over all evals by the id prefix
 	iter, err := txn.Get("evals", "id_prefix", id)
 	if err != nil {
 		return nil, fmt.Errorf("eval lookup failed: %v", err)
@@ -1303,15 +1572,40 @@ func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, id string) (memdb.Result
 
 	ws.Add(iter.WatchCh())
 
-	return iter, nil
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	// Wrap the iterator in a filter
+	wrap := memdb.NewFilterIterator(iter, evalNamespaceFilter(namespace))
+	return wrap, nil
+}
+
+// evalNamespaceFilter returns a filter function that filters all evaluations
+// not in the given namespace.
+func evalNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		eval, ok := raw.(*structs.Evaluation)
+		if !ok {
+			return true
+		}
+
+		return eval.Namespace != namespace
+	}
 }
 
 // EvalsByJob returns all the evaluations by job id
-func (s *StateStore) EvalsByJob(ws memdb.WatchSet, jobID string) ([]*structs.Evaluation, error) {
+func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*structs.Evaluation, error) {
 	txn := s.db.Txn(false)
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Get an iterator over the node allocations
-	iter, err := txn.Get("evals", "job_prefix", jobID)
+	iter, err := txn.Get("evals", "job_prefix", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -1343,6 +1637,22 @@ func (s *StateStore) Evals(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 
 	// Walk the entire table
 	iter, err := txn.Get("evals", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// EvalsByNamespace returns an iterator over all the evaluations in the given
+// namespace
+func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("evals", "namespace", namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1394,6 +1704,11 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	// Copy everything from the existing allocation
 	copyAlloc := exist.Copy()
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if copyAlloc.Namespace == "" {
+		copyAlloc.Namespace = structs.DefaultNamespace
+	}
+
 	// Pull in anything the client is the authority on
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
@@ -1403,13 +1718,16 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	// Update the modify index
 	copyAlloc.ModifyIndex = index
 
-	// TODO TEST
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating deployment: %v", err)
 	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating job summary: %v", err)
+	}
+
+	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
+		return err
 	}
 
 	// Update the allocation
@@ -1422,7 +1740,13 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	if !copyAlloc.TerminalStatus() {
 		forceStatus = structs.JobStatusRunning
 	}
-	jobs := map[string]string{exist.JobID: forceStatus}
+
+	tuple := structs.NamespacedID{
+		ID:        exist.JobID,
+		Namespace: exist.Namespace,
+	}
+	jobs := map[structs.NamespacedID]string{tuple: forceStatus}
+
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
@@ -1445,7 +1769,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 // used with an existing transaction.
 func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation, txn *memdb.Txn) error {
 	// Handle the allocations
-	jobs := make(map[string]string, 1)
+	jobs := make(map[structs.NamespacedID]string, 1)
 	for _, alloc := range allocs {
 		existing, err := txn.First("allocs", "id", alloc.ID)
 		if err != nil {
@@ -1493,12 +1817,25 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			}
 		}
 
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if alloc.Namespace == "" {
+			alloc.Namespace = structs.DefaultNamespace
+		}
+
+		// OPTIMIZATION:
+		// These should be given a map of new to old allocation and the updates
+		// should be one on all changes. The current implementation causes O(n)
+		// lookups/copies/insertions rather than O(1)
 		if err := s.updateDeploymentWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating deployment: %v", err)
 		}
 
 		if err := s.updateSummaryWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating job summary: %v", err)
+		}
+
+		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
+			return err
 		}
 
 		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
@@ -1516,7 +1853,12 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 		if !alloc.TerminalStatus() {
 			forceStatus = structs.JobStatusRunning
 		}
-		jobs[alloc.JobID] = forceStatus
+
+		tuple := structs.NamespacedID{
+			ID:        alloc.JobID,
+			Namespace: alloc.Namespace,
+		}
+		jobs[tuple] = forceStatus
 	}
 
 	// Update the indexes
@@ -1550,7 +1892,7 @@ func (s *StateStore) AllocByID(ws memdb.WatchSet, id string) (*structs.Allocatio
 }
 
 // AllocsByIDPrefix is used to lookup allocs by prefix
-func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, id string) (memdb.ResultIterator, error) {
+func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
 	iter, err := txn.Get("allocs", "id_prefix", id)
@@ -1560,7 +1902,22 @@ func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, id string) (memdb.Resul
 
 	ws.Add(iter.WatchCh())
 
-	return iter, nil
+	// Wrap the iterator in a filter
+	wrap := memdb.NewFilterIterator(iter, allocNamespaceFilter(namespace))
+	return wrap, nil
+}
+
+// allocNamespaceFilter returns a filter function that filters all allocations
+// not in the given namespace.
+func allocNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		alloc, ok := raw.(*structs.Allocation)
+		if !ok {
+			return true
+		}
+
+		return alloc.Namespace != namespace
+	}
 }
 
 // AllocsByNode returns all the allocations by node
@@ -1611,12 +1968,17 @@ func (s *StateStore) AllocsByNodeTerminal(ws memdb.WatchSet, node string, termin
 }
 
 // AllocsByJob returns all the allocations by job id
-func (s *StateStore) AllocsByJob(ws memdb.WatchSet, jobID string, all bool) ([]*structs.Allocation, error) {
+func (s *StateStore) AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Allocation, error) {
 	txn := s.db.Txn(false)
+
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
 
 	// Get the job
 	var job *structs.Job
-	rawJob, err := txn.First("jobs", "id", jobID)
+	rawJob, err := txn.First("jobs", "id", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -1625,7 +1987,7 @@ func (s *StateStore) AllocsByJob(ws memdb.WatchSet, jobID string, all bool) ([]*
 	}
 
 	// Get an iterator over the node allocations
-	iter, err := txn.Get("allocs", "job", jobID)
+	iter, err := txn.Get("allocs", "job", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -1703,6 +2065,27 @@ func (s *StateStore) Allocs(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 
 	// Walk the entire table
 	iter, err := txn.Get("allocs", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// AllocsByNamespace returns an iterator over all the allocations in the
+// namespace
+func (s *StateStore) AllocsByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	return s.allocsByNamespaceImpl(ws, txn, namespace)
+}
+
+// allocsByNamespaceImpl returns an iterator over all the allocations in the
+// namespace
+func (s *StateStore) allocsByNamespaceImpl(ws memdb.WatchSet, txn *memdb.Txn, namespace string) (memdb.ResultIterator, error) {
+	// Walk the entire table
+	iter, err := txn.Get("allocs", "namespace", namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1881,6 +2264,11 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.StatusDescription = u.StatusDescription
 	copy.ModifyIndex = index
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if copy.Namespace == "" {
+		copy.Namespace = structs.DefaultNamespace
+	}
+
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
 		return err
@@ -1893,7 +2281,7 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 
 	// If the deployment is being marked as complete, set the job to stable.
 	if copy.Status == structs.DeploymentStatusSuccessful {
-		if err := s.updateJobStabilityImpl(index, copy.JobID, copy.JobVersion, true, txn); err != nil {
+		if err := s.updateJobStabilityImpl(index, copy.Namespace, copy.JobID, copy.JobVersion, true, txn); err != nil {
 			return fmt.Errorf("failed to update job stability: %v", err)
 		}
 	}
@@ -1903,11 +2291,16 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 
 // UpdateJobStability updates the stability of the given job and version to the
 // desired status.
-func (s *StateStore) UpdateJobStability(index uint64, jobID string, jobVersion uint64, stable bool) error {
+func (s *StateStore) UpdateJobStability(index uint64, namespace, jobID string, jobVersion uint64, stable bool) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
-	if err := s.updateJobStabilityImpl(index, jobID, jobVersion, stable, txn); err != nil {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
+	if err := s.updateJobStabilityImpl(index, namespace, jobID, jobVersion, stable, txn); err != nil {
 		return err
 	}
 
@@ -1916,9 +2309,14 @@ func (s *StateStore) UpdateJobStability(index uint64, jobID string, jobVersion u
 }
 
 // updateJobStabilityImpl updates the stability of the given job and version
-func (s *StateStore) updateJobStabilityImpl(index uint64, jobID string, jobVersion uint64, stable bool, txn *memdb.Txn) error {
+func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID string, jobVersion uint64, stable bool, txn *memdb.Txn) error {
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if namespace == "" {
+		namespace = structs.DefaultNamespace
+	}
+
 	// Get the job that is referenced
-	job, err := s.jobByIDAndVersionImpl(nil, jobID, jobVersion, txn)
+	job, err := s.jobByIDAndVersionImpl(nil, namespace, jobID, jobVersion, txn)
 	if err != nil {
 		return err
 	}
@@ -1973,6 +2371,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 	}
 
+	haveCanaries := false
 	var unhealthyErr multierror.Error
 	for {
 		raw := iter.Next()
@@ -1997,10 +2396,16 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 			multierror.Append(&unhealthyErr, fmt.Errorf("Canary allocation %q for group %q is not healthy", alloc.ID, alloc.TaskGroup))
 			continue
 		}
+
+		haveCanaries = true
 	}
 
 	if err := unhealthyErr.ErrorOrNil(); err != nil {
 		return err
+	}
+
+	if !haveCanaries {
+		return fmt.Errorf("no canaries to promote")
 	}
 
 	// Update deployment
@@ -2216,15 +2621,21 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 
 		// Create a job summary for the job
 		summary := &structs.JobSummary{
-			JobID:   job.ID,
-			Summary: make(map[string]structs.TaskGroupSummary),
+			JobID:     job.ID,
+			Namespace: job.Namespace,
+			Summary:   make(map[string]structs.TaskGroupSummary),
 		}
 		for _, tg := range job.TaskGroups {
 			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
 		}
 
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if job.Namespace == "" {
+			job.Namespace = structs.DefaultNamespace
+		}
+
 		// Find all the allocations for the jobs
-		iterAllocs, err := txn.Get("allocs", "job", job.ID)
+		iterAllocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
 		if err != nil {
 			return err
 		}
@@ -2284,9 +2695,14 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 // It takes a map of job IDs to an optional forceStatus string. It returns an
 // error if the job doesn't exist or setJobStatus fails.
 func (s *StateStore) setJobStatuses(index uint64, txn *memdb.Txn,
-	jobs map[string]string, evalDelete bool) error {
-	for job, forceStatus := range jobs {
-		existing, err := txn.First("jobs", "id", job)
+	jobs map[structs.NamespacedID]string, evalDelete bool) error {
+	for tuple, forceStatus := range jobs {
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if tuple.Namespace == "" {
+			tuple.Namespace = structs.DefaultNamespace
+		}
+
+		existing, err := txn.First("jobs", "id", tuple.Namespace, tuple.ID)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
 		}
@@ -2337,6 +2753,11 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 	updated.Status = newStatus
 	updated.ModifyIndex = index
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if updated.Namespace == "" {
+		updated.Namespace = structs.DefaultNamespace
+	}
+
 	// Insert the job
 	if err := txn.Insert("jobs", updated); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -2348,7 +2769,7 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 	// Update the children summary
 	if updated.ParentID != "" {
 		// Try to update the summary of the parent job summary
-		summaryRaw, err := txn.First("job_summary", "id", updated.ParentID)
+		summaryRaw, err := txn.First("job_summary", "id", updated.Namespace, updated.ParentID)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
 		}
@@ -2362,7 +2783,12 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 				pSummary.Children = new(structs.JobChildrenSummary)
 			}
 
-			// Determine the transistion and update the correct fields
+			// COMPAT 0.7: Upgrade old objects that do not have namespaces
+			if pSummary.Namespace == "" {
+				pSummary.Namespace = structs.DefaultNamespace
+			}
+
+			// Determine the transition and update the correct fields
 			children := pSummary.Children
 
 			// Decrement old status
@@ -2408,7 +2834,12 @@ func (s *StateStore) setJobStatus(index uint64, txn *memdb.Txn,
 }
 
 func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete bool) (string, error) {
-	allocs, err := txn.Get("allocs", "job", job.ID)
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if job.Namespace == "" {
+		job.Namespace = structs.DefaultNamespace
+	}
+
+	allocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
 	if err != nil {
 		return "", err
 	}
@@ -2422,7 +2853,7 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 		}
 	}
 
-	evals, err := txn.Get("evals", "job_prefix", job.ID)
+	evals, err := txn.Get("evals", "job_prefix", job.Namespace, job.ID)
 	if err != nil {
 		return "", err
 	}
@@ -2477,8 +2908,13 @@ func (s *StateStore) getJobStatus(txn *memdb.Txn, job *structs.Job, evalDelete b
 func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 	txn *memdb.Txn) error {
 
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if job.Namespace == "" {
+		job.Namespace = structs.DefaultNamespace
+	}
+
 	// Update the job summary
-	summaryRaw, err := txn.First("job_summary", "id", job.ID)
+	summaryRaw, err := txn.First("job_summary", "id", job.Namespace, job.ID)
 	if err != nil {
 		return fmt.Errorf("job summary lookup failed: %v", err)
 	}
@@ -2491,6 +2927,7 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 	} else {
 		summary = &structs.JobSummary{
 			JobID:       job.ID,
+			Namespace:   job.Namespace,
 			Summary:     make(map[string]structs.TaskGroupSummary),
 			Children:    new(structs.JobChildrenSummary),
 			CreateIndex: index,
@@ -2514,6 +2951,11 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 	// The job summary has changed, so update the modify index.
 	if hasSummaryChanged {
 		summary.ModifyIndex = index
+
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if summary.Namespace == "" {
+			summary.Namespace = structs.DefaultNamespace
+		}
 
 		// Update the indexes table for job summary
 		if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
@@ -2543,7 +2985,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 		return err
 	}
 	if deployment == nil {
-		return fmt.Errorf("allocation %q references unknown deployment %q", alloc.ID, alloc.DeploymentID)
+		return nil
 	}
 
 	// Retrieve the deployment state object
@@ -2615,15 +3057,19 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if alloc.Job == nil {
 		return nil
 	}
+	// COMPAT 0.7: Upgrade old objects that do not have namespaces
+	if alloc.Namespace == "" {
+		alloc.Namespace = structs.DefaultNamespace
+	}
 
-	summaryRaw, err := txn.First("job_summary", "id", alloc.JobID)
+	summaryRaw, err := txn.First("job_summary", "id", alloc.Namespace, alloc.JobID)
 	if err != nil {
-		return fmt.Errorf("unable to lookup job summary for job id %q: %v", alloc.JobID, err)
+		return fmt.Errorf("unable to lookup job summary for job id %q in namespace %q: %v", alloc.JobID, alloc.Namespace, err)
 	}
 
 	if summaryRaw == nil {
 		// Check if the job is de-registered
-		rawJob, err := txn.First("jobs", "id", alloc.JobID)
+		rawJob, err := txn.First("jobs", "id", alloc.Namespace, alloc.JobID)
 		if err != nil {
 			return fmt.Errorf("unable to query job: %v", err)
 		}
@@ -2633,7 +3079,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			return nil
 		}
 
-		return fmt.Errorf("job summary for job %q is not present", alloc.JobID)
+		return fmt.Errorf("job summary for job %q in namespace %q is not present", alloc.JobID, alloc.Namespace)
 	}
 
 	// Get a copy of the existing summary
@@ -2704,6 +3150,11 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if summaryChanged {
 		jobSummary.ModifyIndex = index
 
+		// COMPAT 0.7: Upgrade old objects that do not have namespaces
+		if jobSummary.Namespace == "" {
+			jobSummary.Namespace = structs.DefaultNamespace
+		}
+
 		// Update the indexes table for job summary
 		if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
@@ -2734,6 +3185,300 @@ func (s *StateStore) addEphemeralDiskToTaskGroups(job *structs.Job) {
 			SizeMB: diskMB,
 		}
 	}
+}
+
+// UpsertACLPolicies is used to create or update a set of ACL policies
+func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, policy := range policies {
+		// Ensure the policy hash is non-nil. This should be done outside the state store
+		// for performance reasons, but we check here for defense in depth.
+		if len(policy.Hash) == 0 {
+			policy.SetHash()
+		}
+
+		// Check if the policy already exists
+		existing, err := txn.First("acl_policy", "id", policy.Name)
+		if err != nil {
+			return fmt.Errorf("policy lookup failed: %v", err)
+		}
+
+		// Update all the indexes
+		if existing != nil {
+			policy.CreateIndex = existing.(*structs.ACLPolicy).CreateIndex
+			policy.ModifyIndex = index
+		} else {
+			policy.CreateIndex = index
+			policy.ModifyIndex = index
+		}
+
+		// Update the policy
+		if err := txn.Insert("acl_policy", policy); err != nil {
+			return fmt.Errorf("upserting policy failed: %v", err)
+		}
+	}
+
+	// Update the indexes tabl
+	if err := txn.Insert("index", &IndexEntry{"acl_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// DeleteACLPolicies deletes the policies with the given names
+func (s *StateStore) DeleteACLPolicies(index uint64, names []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Delete the policy
+	for _, name := range names {
+		if _, err := txn.DeleteAll("acl_policy", "id", name); err != nil {
+			return fmt.Errorf("deleting acl policy failed: %v", err)
+		}
+	}
+	if err := txn.Insert("index", &IndexEntry{"acl_policy", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
+// ACLPolicyByName is used to lookup a policy by name
+func (s *StateStore) ACLPolicyByName(ws memdb.WatchSet, name string) (*structs.ACLPolicy, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("acl_policy", "id", name)
+	if err != nil {
+		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ACLPolicy), nil
+	}
+	return nil, nil
+}
+
+// ACLPolicyByNamePrefix is used to lookup policies by prefix
+func (s *StateStore) ACLPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("acl_policy", "id_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// ACLPolicies returns an iterator over all the acl policies
+func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("acl_policy", "id")
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// UpsertACLTokens is used to create or update a set of ACL tokens
+func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	for _, token := range tokens {
+		// Ensure the policy hash is non-nil. This should be done outside the state store
+		// for performance reasons, but we check here for defense in depth.
+		if len(token.Hash) == 0 {
+			token.SetHash()
+		}
+
+		// Check if the token already exists
+		existing, err := txn.First("acl_token", "id", token.AccessorID)
+		if err != nil {
+			return fmt.Errorf("token lookup failed: %v", err)
+		}
+
+		// Update all the indexes
+		if existing != nil {
+			existTK := existing.(*structs.ACLToken)
+			token.CreateIndex = existTK.CreateIndex
+			token.ModifyIndex = index
+
+			// Do not allow SecretID or create time to change
+			token.SecretID = existTK.SecretID
+			token.CreateTime = existTK.CreateTime
+
+		} else {
+			token.CreateIndex = index
+			token.ModifyIndex = index
+		}
+
+		// Update the token
+		if err := txn.Insert("acl_token", token); err != nil {
+			return fmt.Errorf("upserting token failed: %v", err)
+		}
+	}
+
+	// Update the indexes table
+	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
+// DeleteACLTokens deletes the tokens with the given accessor ids
+func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Delete the tokens
+	for _, id := range ids {
+		if _, err := txn.DeleteAll("acl_token", "id", id); err != nil {
+			return fmt.Errorf("deleting acl token failed: %v", err)
+		}
+	}
+	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
+// ACLTokenByAccessorID is used to lookup a token by accessor ID
+func (s *StateStore) ACLTokenByAccessorID(ws memdb.WatchSet, id string) (*structs.ACLToken, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("acl_token", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("acl token lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ACLToken), nil
+	}
+	return nil, nil
+}
+
+// ACLTokenBySecretID is used to lookup a token by secret ID
+func (s *StateStore) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("acl_token", "secret", secretID)
+	if err != nil {
+		return nil, fmt.Errorf("acl token lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.ACLToken), nil
+	}
+	return nil, nil
+}
+
+// ACLTokenByAccessorIDPrefix is used to lookup tokens by prefix
+func (s *StateStore) ACLTokenByAccessorIDPrefix(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	iter, err := txn.Get("acl_token", "id_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("acl token lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// ACLTokens returns an iterator over all the tokens
+func (s *StateStore) ACLTokens(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("acl_token", "id")
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// ACLTokensByGlobal returns an iterator over all the tokens filtered by global value
+func (s *StateStore) ACLTokensByGlobal(ws memdb.WatchSet, globalVal bool) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire table
+	iter, err := txn.Get("acl_token", "global", globalVal)
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// CanBootstrapACLToken checks if bootstrapping is possible and returns the reset index
+func (s *StateStore) CanBootstrapACLToken() (bool, uint64, error) {
+	txn := s.db.Txn(false)
+
+	// Lookup the bootstrap sentinel
+	out, err := txn.First("index", "id", "acl_token_bootstrap")
+	if err != nil {
+		return false, 0, err
+	}
+
+	// No entry, we haven't bootstrapped yet
+	if out == nil {
+		return true, 0, nil
+	}
+
+	// Return the reset index if we've already bootstrapped
+	return false, out.(*IndexEntry).Value, nil
+}
+
+// BootstrapACLToken is used to create an initial ACL token
+func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs.ACLToken) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Check if we have already done a bootstrap
+	existing, err := txn.First("index", "id", "acl_token_bootstrap")
+	if err != nil {
+		return fmt.Errorf("bootstrap check failed: %v", err)
+	}
+	if existing != nil {
+		if resetIndex == 0 {
+			return fmt.Errorf("ACL bootstrap already done")
+		} else if resetIndex != existing.(*IndexEntry).Value {
+			return fmt.Errorf("Invalid reset index for ACL bootstrap")
+		}
+	}
+
+	// Update the Create/Modify time
+	token.CreateIndex = index
+	token.ModifyIndex = index
+
+	// Insert the token
+	if err := txn.Insert("acl_token", token); err != nil {
+		return fmt.Errorf("upserting token failed: %v", err)
+	}
+
+	// Update the indexes table, prevents future bootstrap until reset
+	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"acl_token_bootstrap", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	txn.Commit()
+	return nil
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot
@@ -2851,6 +3596,22 @@ func (r *StateRestore) DeploymentRestore(deployment *structs.Deployment) error {
 func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) error {
 	if err := r.txn.Insert("vault_accessors", accessor); err != nil {
 		return fmt.Errorf("vault accessor insert failed: %v", err)
+	}
+	return nil
+}
+
+// ACLPolicyRestore is used to restore an ACL policy
+func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
+	if err := r.txn.Insert("acl_policy", policy); err != nil {
+		return fmt.Errorf("inserting acl policy failed: %v", err)
+	}
+	return nil
+}
+
+// ACLTokenRestore is used to restore an ACL token
+func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
+	if err := r.txn.Insert("acl_token", token); err != nil {
+		return fmt.Errorf("inserting acl token failed: %v", err)
 	}
 	return nil
 }

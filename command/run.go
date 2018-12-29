@@ -1,8 +1,6 @@
 package command
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,7 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/posener/complete"
 )
 
 var (
@@ -76,8 +74,12 @@ Run Options:
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
-  -verbose
-    Display full information.
+  -output
+    Output the JSON that would be submitted to the HTTP API without submitting
+    the job.
+
+  -policy-override
+    Sets the flag to force override any soft mandatory Sentinel policies.
 
   -vault-token
     If set, the passed Vault token is stored in the job before sending to the
@@ -85,9 +87,8 @@ Run Options:
     the job file. This overrides the token found in $VAULT_TOKEN environment
     variable and that found in the job.
 
-  -output
-    Output the JSON that would be submitted to the HTTP API without submitting
-    the job.
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -96,8 +97,24 @@ func (c *RunCommand) Synopsis() string {
 	return "Run a new job or update an existing job"
 }
 
+func (c *RunCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-check-index":     complete.PredictNothing,
+			"-detach":          complete.PredictNothing,
+			"-verbose":         complete.PredictNothing,
+			"-vault-token":     complete.PredictAnything,
+			"-output":          complete.PredictNothing,
+			"-policy-override": complete.PredictNothing,
+		})
+}
+
+func (c *RunCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictOr(complete.PredictFiles("*.nomad"), complete.PredictFiles("*.hcl"))
+}
+
 func (c *RunCommand) Run(args []string) int {
-	var detach, verbose, output bool
+	var detach, verbose, output, override bool
 	var checkIndexStr, vaultToken string
 
 	flags := c.Meta.FlagSet("run", FlagSetClient)
@@ -105,6 +122,7 @@ func (c *RunCommand) Run(args []string) int {
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
+	flags.BoolVar(&override, "policy-override", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 
@@ -151,6 +169,11 @@ func (c *RunCommand) Run(args []string) int {
 		client.SetRegion(*r)
 	}
 
+	// Force the namespace to be that of the job.
+	if n := job.Namespace; n != nil {
+		client.SetNamespace(*n)
+	}
+
 	// Check if the job is periodic or is a parameterized job
 	periodic := job.IsPeriodic()
 	paramjob := job.IsParameterized()
@@ -184,13 +207,18 @@ func (c *RunCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Submit the job
-	var resp *api.JobRegisterResponse
+	// Set the register options
+	opts := &api.RegisterOptions{}
 	if enforce {
-		resp, _, err = client.Jobs().EnforceRegister(job, checkIndex, nil)
-	} else {
-		resp, _, err = client.Jobs().Register(job, nil)
+		opts.EnforceIndex = true
+		opts.ModifyIndex = checkIndex
 	}
+	if override {
+		opts.PolicyOverride = true
+	}
+
+	// Submit the job
+	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), api.RegisterEnforceIndexErrPrefix) {
 			// Format the error specially if the error is due to index
@@ -248,20 +276,4 @@ func parseCheckIndex(input string) (uint64, bool, error) {
 
 	u, err := strconv.ParseUint(input, 10, 64)
 	return u, true, err
-}
-
-// convertStructJob is used to take a *structs.Job and convert it to an *api.Job.
-// This function is just a hammer and probably needs to be revisited.
-func convertStructJob(in *structs.Job) (*api.Job, error) {
-	gob.Register([]map[string]interface{}{})
-	gob.Register([]interface{}{})
-	var apiJob *api.Job
-	buf := new(bytes.Buffer)
-	if err := gob.NewEncoder(buf).Encode(in); err != nil {
-		return nil, err
-	}
-	if err := gob.NewDecoder(buf).Decode(&apiJob); err != nil {
-		return nil, err
-	}
-	return apiJob, nil
 }

@@ -65,15 +65,39 @@ func (f *ConsulFingerprint) Fingerprint(config *client.Config, node *structs.Nod
 		return false, nil
 	}
 
-	node.Attributes["consul.server"] = strconv.FormatBool(info["Config"]["Server"].(bool))
-	node.Attributes["consul.version"] = info["Config"]["Version"].(string)
-	node.Attributes["consul.revision"] = info["Config"]["Revision"].(string)
-	node.Attributes["unique.consul.name"] = info["Config"]["NodeName"].(string)
-	node.Attributes["consul.datacenter"] = info["Config"]["Datacenter"].(string)
+	if s, ok := info["Config"]["Server"].(bool); ok {
+		node.Attributes["consul.server"] = strconv.FormatBool(s)
+	} else {
+		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.server")
+	}
+	if v, ok := info["Config"]["Version"].(string); ok {
+		node.Attributes["consul.version"] = v
+	} else {
+		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.version")
+	}
+	if r, ok := info["Config"]["Revision"].(string); ok {
+		node.Attributes["consul.revision"] = r
+	} else {
+		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.revision")
+	}
+	if n, ok := info["Config"]["NodeName"].(string); ok {
+		node.Attributes["unique.consul.name"] = n
+	} else {
+		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint unique.consul.name")
+	}
+	if d, ok := info["Config"]["Datacenter"].(string); ok {
+		node.Attributes["consul.datacenter"] = d
+	} else {
+		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.datacenter")
+	}
 
-	node.Links["consul"] = fmt.Sprintf("%s.%s",
-		node.Attributes["consul.datacenter"],
-		node.Attributes["unique.consul.name"])
+	if node.Attributes["consul.datacenter"] != "" || node.Attributes["unique.consul.name"] != "" {
+		node.Links["consul"] = fmt.Sprintf("%s.%s",
+			node.Attributes["consul.datacenter"],
+			node.Attributes["unique.consul.name"])
+	} else {
+		f.logger.Printf("[WARN] fingerprint.consul: malformed Consul response prevented linking")
+	}
 
 	// If the Consul Agent was previously unavailable print a message to
 	// indicate the Agent is available now

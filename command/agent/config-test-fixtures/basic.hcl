@@ -63,6 +63,7 @@ client {
 }
 server {
 	enabled = true
+	authoritative_region = "foobar"
 	bootstrap_expect = 5
 	data_dir = "/tmp/data"
 	protocol_version = 3
@@ -73,6 +74,8 @@ server {
 	eval_gc_threshold = "12h"
 	deployment_gc_threshold = "12h"
 	heartbeat_grace   = "30s"
+	min_heartbeat_ttl = "33s"
+	max_heartbeats_per_second = 11.0
 	retry_join = [ "1.1.1.1", "2.2.2.2" ]
 	start_join = [ "1.1.1.1", "2.2.2.2" ]
 	retry_max = 3
@@ -80,13 +83,22 @@ server {
 	rejoin_after_leave = true
     encrypt = "abc"
 }
+acl {
+    enabled = true
+    token_ttl = "60s"
+    policy_ttl = "60s"
+    replication_token = "foobar"
+}
 telemetry {
 	statsite_address = "127.0.0.1:1234"
 	statsd_address = "127.0.0.1:2345"
+	prometheus_metrics = true
 	disable_hostname = true
     collection_interval = "3s"
     publish_allocation_metrics = true
     publish_node_metrics = true
+    disable_tagged_metrics = true
+    backwards_compatible_metrics = true
 }
 leave_on_interrupt = true
 leave_on_terminate = true
@@ -141,4 +153,14 @@ tls {
     cert_file = "bar"
     key_file = "pipe"
     verify_https_client = true
+}
+sentinel {
+    import "foo" {
+        path = "foo"
+        args = ["a", "b", "c"]
+    }
+    import "bar" {
+        path = "bar"
+        args = ["x", "y", "z"]
+    }
 }

@@ -3,5 +3,3 @@
 
 //= require hashicorp/mega-nav
 //= require hashicorp/sidebar
-
-//= require _cubes

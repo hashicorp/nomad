@@ -26,6 +26,9 @@
           <li<%= sidebar_current("docs-job-specification-artifact")%>>
             <a href="/docs/job-specification/artifact.html">artifact</a>
           </li>
+          <li<%= sidebar_current("docs-job-specification-check_restart")%>>
+            <a href="/docs/job-specification/check_restart.html">check_restart</a>
+          </li>
           <li<%= sidebar_current("docs-job-specification-constraint")%>>
             <a href="/docs/job-specification/constraint.html">constraint</a>
           </li>
@@ -167,6 +170,41 @@
       <li<%= sidebar_current("docs-commands") %>>
         <a href="/docs/commands/index.html">Commands (CLI)</a>
         <ul class="nav">
+          <li<%= sidebar_current("docs-commands-acl") %>>
+            <a href="/docs/commands/acl.html">acl</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-acl-bootstrap") %>>
+                <a href="/docs/commands/acl/bootstrap.html">acl bootstrap</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-policy-apply") %>>
+                <a href="/docs/commands/acl/policy-apply.html">acl policy apply</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-policy-delete") %>>
+                <a href="/docs/commands/acl/policy-delete.html">acl policy delete</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-policy-info") %>>
+                <a href="/docs/commands/acl/policy-info.html">acl policy info</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-policy-list") %>>
+                <a href="/docs/commands/acl/policy-list.html">acl policy list</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-token-create") %>>
+                <a href="/docs/commands/acl/token-create.html">acl token create</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-token-delete") %>>
+                <a href="/docs/commands/acl/token-delete.html">acl token delete</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-token-info") %>>
+                <a href="/docs/commands/acl/token-info.html">acl token info</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-token-self") %>>
+                <a href="/docs/commands/acl/token-self.html">acl token self</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-acl-token-update") %>>
+                <a href="/docs/commands/acl/token-update.html">acl token update</a>
+              </li>
+            </ul>
+          </li>
           <li<%= sidebar_current("docs-commands-_agent") %>>
             <a href="/docs/commands/agent.html">agent</a>
           </li>
@@ -178,6 +216,29 @@
           </li>
           <li<%= sidebar_current("docs-commands-client-config") %>>
             <a href="/docs/commands/client-config.html">client-config</a>
+          </li>
+          <li<%= sidebar_current("docs-commands-deployment") %>>
+            <a href="/docs/commands/deployment.html">deployment</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-deployment-fail") %>>
+                <a href="/docs/commands/deployment/fail.html">deployment fail</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-deployment-list") %>>
+                <a href="/docs/commands/deployment/list.html">deployment list</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-deployment-pause") %>>
+                <a href="/docs/commands/deployment/pause.html">deployment pause</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-deployment-promote") %>>
+                <a href="/docs/commands/deployment/promote.html">deployment promote</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-deployment-resume") %>>
+                <a href="/docs/commands/deployment/resume.html">deployment resume</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-deployment-status") %>>
+                <a href="/docs/commands/deployment/status.html">deployment status</a>
+              </li>
+            </ul>
           </li>
           <li<%= sidebar_current("docs-commands-eval-status") %>>
             <a href="/docs/commands/eval-status.html">eval-status</a>
@@ -191,8 +252,28 @@
           <li<%= sidebar_current("docs-commands-inspect") %>>
             <a href="/docs/commands/inspect.html">inspect</a>
           </li>
-          <li<%= sidebar_current("docs-commands-job-dispatch") %>>
-            <a href="/docs/commands/job-dispatch.html">job dispatch</a>
+          <li<%= sidebar_current("docs-commands-job") %>>
+            <a href="/docs/commands/job.html">job</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-job-deployments") %>>
+                <a href="/docs/commands/job/deployments.html">job deployments</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-job-dispatch") %>>
+                <a href="/docs/commands/job/dispatch.html">job dispatch</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-job-history") %>>
+                <a href="/docs/commands/job/history.html">job history</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-job-promote") %>>
+                <a href="/docs/commands/job/promote.html">job promote</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-job-revert") %>>
+                <a href="/docs/commands/job/revert.html">job revert</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-job-status") %>>
+                <a href="/docs/commands/job/status.html">job status</a>
+              </li>
+            </ul>
           </li>
           <li<%= sidebar_current("docs-commands-keygen") %>>
             <a href="/docs/commands/keygen.html">keygen</a>
@@ -203,6 +284,26 @@
           <li<%= sidebar_current("docs-commands-logs") %>>
             <a href="/docs/commands/logs.html">logs</a>
           </li>
+          <li<%= sidebar_current("docs-commands-namespace") %>>
+            <a href="/docs/commands/namespace.html">namespace</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-namespace-apply") %>>
+                <a href="/docs/commands/namespace/apply.html">namespace apply</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-namespace-delete") %>>
+                <a href="/docs/commands/namespace/delete.html">namespace delete</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-namespace-inspect") %>>
+                <a href="/docs/commands/namespace/inspect.html">namespace inspect</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-namespace-list") %>>
+                <a href="/docs/commands/namespace/list.html">namespace list</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-namespace-status") %>>
+                <a href="/docs/commands/namespace/status.html">namespace status</a>
+              </li>
+            </ul>
+          </li>
           <li<%= sidebar_current("docs-commands-node-drain") %>>
             <a href="/docs/commands/node-drain.html">node-drain</a>
           </li>
@@ -210,21 +311,61 @@
             <a href="/docs/commands/node-status.html">node-status</a>
           </li>
           <li<%= sidebar_current("docs-commands-operator") %>>
-            <a href="/docs/commands/operator-index.html">operator</a>
+            <a href="/docs/commands/operator.html">operator</a>
             <ul class="nav">
               <li<%= sidebar_current("docs-commands-operator-raft-list-peers") %>>
-                <a href="/docs/commands/operator-raft-list-peers.html">raft list-peers</a>
+                <a href="/docs/commands/operator/raft-list-peers.html">raft list-peers</a>
               </li>
               <li<%= sidebar_current("docs-commands-operator-raft-remove-peer") %>>
-                <a href="/docs/commands/operator-raft-remove-peer.html">raft remove-peer</a>
+                <a href="/docs/commands/operator/raft-remove-peer.html">raft remove-peer</a>
               </li>
             </ul>
           </li>
           <li<%= sidebar_current("docs-commands-plan") %>>
             <a href="/docs/commands/plan.html">plan</a>
           </li>
+          <li<%= sidebar_current("docs-commands-quota") %>>
+            <a href="/docs/commands/quota.html">quota</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-quota-apply") %>>
+                <a href="/docs/commands/quota/apply.html">quota apply</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-quota-delete") %>>
+                <a href="/docs/commands/quota/delete.html">quota delete</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-quota-init") %>>
+                <a href="/docs/commands/quota/init.html">quota init</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-quota-inspect") %>>
+                <a href="/docs/commands/quota/inspect.html">quota inspect</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-quota-list") %>>
+                <a href="/docs/commands/quota/list.html">quota list</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-quota-status") %>>
+                <a href="/docs/commands/quota/status.html">quota status</a>
+              </li>
+            </ul>
+          </li>
           <li<%= sidebar_current("docs-commands-run") %>>
             <a href="/docs/commands/run.html">run</a>
+          </li>
+          <li<%= sidebar_current("docs-commands-sentinel") %>>
+            <a href="/docs/commands/sentinel.html">sentinel</a>
+            <ul class="nav">
+              <li<%= sidebar_current("docs-commands-sentinel-apply") %>>
+                <a href="/docs/commands/sentinel/apply.html">sentinel apply</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-sentinel-delete") %>>
+                <a href="/docs/commands/sentinel/delete.html">sentinel delete</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-sentinel-list") %>>
+                <a href="/docs/commands/sentinel/list.html">sentinel list</a>
+              </li>
+              <li<%= sidebar_current("docs-commands-sentinel-read") %>>
+                <a href="/docs/commands/sentinel/read.html">sentinel read</a>
+              </li>
+            </ul>
           </li>
           <li<%= sidebar_current("docs-commands-server-force-leave") %>>
             <a href="/docs/commands/server-force-leave.html">server-force-leave</a>
@@ -240,6 +381,9 @@
           </li>
           <li<%= sidebar_current("docs-commands-stop") %>>
             <a href="/docs/commands/stop.html">stop</a>
+          </li>
+          <li<%= sidebar_current("docs-commands-ui") %>>
+            <a href="/docs/commands/ui.html">ui</a>
           </li>
           <li<%= sidebar_current("docs-commands-validate") %>>
             <a href="/docs/commands/validate.html">validate</a>
@@ -257,11 +401,17 @@
           <li<%= sidebar_current("docs-agent-configuration") %>>
             <a href="/docs/agent/configuration/index.html">Configuration</a>
             <ul class="nav">
+              <li <%= sidebar_current("docs-agent-configuration-acl") %>>
+                <a href="/docs/agent/configuration/acl.html">acl</a>
+              </li>
               <li <%= sidebar_current("docs-agent-configuration-client") %>>
                 <a href="/docs/agent/configuration/client.html">client</a>
               </li>
               <li <%= sidebar_current("docs-agent-configuration-consul") %>>
                 <a href="/docs/agent/configuration/consul.html">consul</a>
+              </li>
+              <li <%= sidebar_current("docs-agent-configuration-sentinel") %>>
+                <a href="/docs/agent/configuration/sentinel.html">sentinel</a>
               </li>
               <li <%= sidebar_current("docs-agent-configuration-server") %>>
                 <a href="/docs/agent/configuration/server.html">server</a>
@@ -324,6 +474,24 @@
       <li<%= sidebar_current("docs-faq") %>>
         <a href="/docs/faq.html">FAQ</a>
       </li>
+
+      <hr>
+
+      <li<%= sidebar_current("docs-enterprise") %>>
+        <a href="/docs/enterprise/index.html">Nomad Enterprise</a>
+        <ul class="nav">
+          <li<%= sidebar_current("docs-enterprise-namespaces") %>>
+            <a href="/docs/enterprise/namespaces/index.html">Namespaces</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-quotas") %>>
+            <a href="/docs/enterprise/quotas/index.html">Resource Quotas</a>
+          </li>
+          <li<%= sidebar_current("docs-enterprise-sentinel") %>>
+            <a href="/docs/enterprise/sentinel/index.html">Sentinel Policy Enforcement</a>
+          </li>
+        </ul>
+      </li>
+
     </ul>
   <% end %>
 

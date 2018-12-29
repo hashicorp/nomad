@@ -58,6 +58,7 @@ type Evaluation struct {
 	Priority             int
 	Type                 string
 	TriggeredBy          string
+	Namespace            string
 	JobID                string
 	JobModifyIndex       uint64
 	NodeID               string
@@ -72,6 +73,7 @@ type Evaluation struct {
 	FailedTGAllocs       map[string]*AllocationMetric
 	ClassEligibility     map[string]bool
 	EscapedComputedClass bool
+	QuotaLimitReached    string
 	AnnotatePlan         bool
 	QueuedAllocations    map[string]int
 	SnapshotIndex        uint64

@@ -60,6 +60,7 @@ func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.Al
 }
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
+	t.Parallel()
 	testutil.ExecCompatible(t)
 
 	execCmd := ExecCommand{Cmd: "/bin/ls", Args: []string{"-F", "/", "/etc/"}}
@@ -139,6 +140,7 @@ ld.so.conf.d/`
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
+	t.Parallel()
 	testutil.ExecCompatible(t)
 
 	ctx, allocDir := testExecutorContextWithChroot(t)

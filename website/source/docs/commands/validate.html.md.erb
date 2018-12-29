@@ -27,3 +27,31 @@ and supports `go-getter` syntax.
 
 On successful validation, exit code 0 will be returned, otherwise an exit code
 of 1 indicates an error.
+
+## Examples
+
+Validate a job with invalid syntax:
+
+```
+$ nomad validate example.nomad
+Job validation errors:
+1 error(s) occurred:
+
+* group "cache" -> task "redis" -> config: 1 error(s) occurred:
+
+* field "image" is required
+```
+
+Validate a job that has a configuration that causes warnings:
+
+```
+$ nomad validate example.nomad
+Job Warnings:
+1 warning(s):
+
+* Group "cache" has warnings: 1 error(s) occurred:
+
+* Update max parallel count is greater than task group count (6 > 3). A destructive change would result in the simultaneous replacement of all allocations.
+
+Job validation successful
+```

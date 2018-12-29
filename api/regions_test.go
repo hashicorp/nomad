@@ -8,6 +8,7 @@ import (
 )
 
 func TestRegionsList(t *testing.T) {
+	t.Parallel()
 	c1, s1 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.Region = "regionA"
 	})

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/version"
 )
 
 var (
@@ -129,10 +130,7 @@ type Config struct {
 	Options map[string]string
 
 	// Version is the version of the Nomad client
-	Version string
-
-	// Revision is the commit number of the Nomad client
-	Revision string
+	Version *version.VersionInfo
 
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
@@ -181,6 +179,23 @@ type Config struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID bool
+
+	// ACLEnabled controls if ACL enforcement and management is enabled.
+	ACLEnabled bool
+
+	// ACLTokenTTL is how long we cache token values for
+	ACLTokenTTL time.Duration
+
+	// ACLPolicyTTL is how long we cache policy values for
+	ACLPolicyTTL time.Duration
+
+	// DisableTaggedMetrics determines whether metrics will be displayed via a
+	// key/value/tag format, or simply a key/value format
+	DisableTaggedMetrics bool
+
+	// BackwardsCompatibleMetrics determines whether to show methods of
+	// displaying metrics for older verions, or to only show the new format
+	BackwardsCompatibleMetrics bool
 }
 
 func (c *Config) Copy() *Config {
@@ -198,19 +213,22 @@ func (c *Config) Copy() *Config {
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		VaultConfig:             config.DefaultVaultConfig(),
-		ConsulConfig:            config.DefaultConsulConfig(),
-		LogOutput:               os.Stderr,
-		Region:                  "global",
-		StatsCollectionInterval: 1 * time.Second,
-		TLSConfig:               &config.TLSConfig{},
-		LogLevel:                "DEBUG",
-		GCInterval:              1 * time.Minute,
-		GCParallelDestroys:      2,
-		GCDiskUsageThreshold:    80,
-		GCInodeUsageThreshold:   70,
-		GCMaxAllocs:             50,
-		NoHostUUID:              true,
+		Version:                    version.GetVersion(),
+		VaultConfig:                config.DefaultVaultConfig(),
+		ConsulConfig:               config.DefaultConsulConfig(),
+		LogOutput:                  os.Stderr,
+		Region:                     "global",
+		StatsCollectionInterval:    1 * time.Second,
+		TLSConfig:                  &config.TLSConfig{},
+		LogLevel:                   "DEBUG",
+		GCInterval:                 1 * time.Minute,
+		GCParallelDestroys:         2,
+		GCDiskUsageThreshold:       80,
+		GCInodeUsageThreshold:      70,
+		GCMaxAllocs:                50,
+		NoHostUUID:                 true,
+		DisableTaggedMetrics:       false,
+		BackwardsCompatibleMetrics: false,
 	}
 }
 

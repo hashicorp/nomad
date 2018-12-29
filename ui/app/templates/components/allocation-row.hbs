@@ -1,0 +1,60 @@
+<td>
+  <a href="{{href-to "allocations.allocation" allocation}}" class="is-primary">
+    {{allocation.shortId}}
+  </a>
+</td>
+<td>{{allocation.modifyIndex}}</td>
+<td>{{allocation.name}}</td>
+<td>
+  <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
+</td>
+{{#if (eq context "job")}}
+  <td>{{allocation.jobVersion}}</td>
+  <td><a href="{{href-to "nodes.node" allocation.node}}">{{allocation.node.shortId}}</a></td>
+{{else if (eq context "node")}}
+  <td>
+    {{#if (or allocation.job.isPending allocation.job.isReloading)}}
+      ...
+    {{else}}
+      <a href="{{href-to "jobs.job" allocation.job}}">{{allocation.job.name}}</a>
+      <span class="is-faded">/ {{allocation.taskGroup.name}}</span>
+    {{/if}}
+  </td>
+  <td>{{allocation.jobVersion}}</td>
+{{/if}}
+<td class="has-text-centered">
+  {{#if allocation.stats.isPending}}
+    ...
+  {{else if allocation.stats.isRejected}}
+    <span class="tooltip text-center" aria-label="Couldn't connect to client">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{else}}
+    <div class="inline-chart tooltip" aria-label="{{allocation.cpuUsed}} / {{allocation.taskGroup.reservedCPU}} MHz">
+      <progress
+        class="progress is-info is-small"
+        value="{{allocation.percentCPU}}"
+        max="1">
+        {{allocation.percentCPU}}
+      </progress>
+    </div>
+  {{/if}}
+</td>
+<td class="has-text-centered">
+  {{#if allocation.stats.isPending}}
+    ...
+  {{else if allocation.stats.isRejected}}
+    <span class="tooltip text-center" aria-label="Couldn't connect to client">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{else}}
+    <div class="inline-chart tooltip" aria-label="{{format-bytes allocation.memoryUsed}} / {{allocation.taskGroup.reservedMemory}} MiB">
+      <progress
+        class="progress is-danger is-small"
+        value="{{allocation.percentMemory}}"
+        max="1">
+        {{allocation.percentMemory}}
+      </progress>
+    </div>
+  {{/if}}
+</td>

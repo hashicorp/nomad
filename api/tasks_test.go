@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
+	t.Parallel()
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
 		Name:  helper.StringToPtr("grp1"),
@@ -19,6 +21,7 @@ func TestTaskGroup_NewTaskGroup(t *testing.T) {
 }
 
 func TestTaskGroup_Constrain(t *testing.T) {
+	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add a constraint to the group
@@ -35,12 +38,12 @@ func TestTaskGroup_Constrain(t *testing.T) {
 	// Add a second constraint
 	grp.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
-		&Constraint{
+		{
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
 		},
-		&Constraint{
+		{
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
@@ -52,6 +55,7 @@ func TestTaskGroup_Constrain(t *testing.T) {
 }
 
 func TestTaskGroup_SetMeta(t *testing.T) {
+	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Initializes an empty map
@@ -74,6 +78,7 @@ func TestTaskGroup_SetMeta(t *testing.T) {
 }
 
 func TestTaskGroup_AddTask(t *testing.T) {
+	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add the task to the task group
@@ -90,11 +95,11 @@ func TestTaskGroup_AddTask(t *testing.T) {
 	// Add a second task
 	grp.AddTask(NewTask("task2", "exec"))
 	expect := []*Task{
-		&Task{
+		{
 			Name:   "task1",
 			Driver: "java",
 		},
-		&Task{
+		{
 			Name:   "task2",
 			Driver: "exec",
 		},
@@ -105,6 +110,7 @@ func TestTaskGroup_AddTask(t *testing.T) {
 }
 
 func TestTask_NewTask(t *testing.T) {
+	t.Parallel()
 	task := NewTask("task1", "exec")
 	expect := &Task{
 		Name:   "task1",
@@ -116,6 +122,7 @@ func TestTask_NewTask(t *testing.T) {
 }
 
 func TestTask_SetConfig(t *testing.T) {
+	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
@@ -138,6 +145,7 @@ func TestTask_SetConfig(t *testing.T) {
 }
 
 func TestTask_SetMeta(t *testing.T) {
+	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
@@ -160,6 +168,7 @@ func TestTask_SetMeta(t *testing.T) {
 }
 
 func TestTask_Require(t *testing.T) {
+	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Create some require resources
@@ -169,7 +178,7 @@ func TestTask_Require(t *testing.T) {
 		DiskMB:   helper.IntToPtr(2048),
 		IOPS:     helper.IntToPtr(500),
 		Networks: []*NetworkResource{
-			&NetworkResource{
+			{
 				CIDR:          "0.0.0.0/0",
 				MBits:         helper.IntToPtr(100),
 				ReservedPorts: []Port{{"", 80}, {"", 443}},
@@ -188,6 +197,7 @@ func TestTask_Require(t *testing.T) {
 }
 
 func TestTask_Constrain(t *testing.T) {
+	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Add a constraint to the task
@@ -204,12 +214,12 @@ func TestTask_Constrain(t *testing.T) {
 	// Add a second constraint
 	task.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
-		&Constraint{
+		{
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
 		},
-		&Constraint{
+		{
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
@@ -221,6 +231,7 @@ func TestTask_Constrain(t *testing.T) {
 }
 
 func TestTask_Artifact(t *testing.T) {
+	t.Parallel()
 	a := TaskArtifact{
 		GetterSource: helper.StringToPtr("http://localhost/foo.txt"),
 		GetterMode:   helper.StringToPtr("file"),
@@ -232,4 +243,26 @@ func TestTask_Artifact(t *testing.T) {
 	if *a.RelativeDest != "local/foo.txt" {
 		t.Errorf("expected local/foo.txt but found %q", *a.RelativeDest)
 	}
+}
+
+// Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
+func TestTaskGroup_Canonicalize_Update(t *testing.T) {
+	job := &Job{
+		ID: helper.StringToPtr("test"),
+		Update: &UpdateStrategy{
+			AutoRevert:      helper.BoolToPtr(false),
+			Canary:          helper.IntToPtr(0),
+			HealthCheck:     helper.StringToPtr(""),
+			HealthyDeadline: helper.TimeToPtr(0),
+			MaxParallel:     helper.IntToPtr(0),
+			MinHealthyTime:  helper.TimeToPtr(0),
+			Stagger:         helper.TimeToPtr(0),
+		},
+	}
+	job.Canonicalize()
+	tg := &TaskGroup{
+		Name: helper.StringToPtr("foo"),
+	}
+	tg.Canonicalize(job)
+	assert.Nil(t, tg.Update)
 }

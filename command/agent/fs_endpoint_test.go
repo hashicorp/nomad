@@ -18,14 +18,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/ugorji/go/codec"
 )
 
 func TestAllocDirFS_List_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -40,7 +44,8 @@ func TestAllocDirFS_List_MissingParams(t *testing.T) {
 }
 
 func TestAllocDirFS_Stat_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stat/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -67,7 +72,8 @@ func TestAllocDirFS_Stat_MissingParams(t *testing.T) {
 }
 
 func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -99,6 +105,126 @@ func TestAllocDirFS_ReadAt_MissingParams(t *testing.T) {
 		_, err = s.Server.FileReadAtRequest(respW, req)
 		if err == nil {
 			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestAllocDirFS_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	for _, endpoint := range []string{"ls", "stat", "readat", "cat", "stream"} {
+		httpACLTest(t, nil, func(s *TestAgent) {
+			state := s.Agent.server.State()
+
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/fs/%s/", endpoint), nil)
+			assert.Nil(err)
+
+			// Try request without a token and expect failure
+			{
+				respW := httptest.NewRecorder()
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			}
+
+			// Try request with an invalid token and expect failure
+			{
+				respW := httptest.NewRecorder()
+				policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadLogs})
+				token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", policy)
+				setToken(req, token)
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			}
+
+			// Try request with a valid token
+			// No alloc id set, so expect an error - just not a permissions error
+			{
+				respW := httptest.NewRecorder()
+				policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
+				token := mock.CreatePolicyAndToken(t, state, 1007, "valid", policy)
+				setToken(req, token)
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(allocIDNotPresentErr, err)
+			}
+
+			// Try request with a management token
+			// No alloc id set, so expect an error - just not a permissions error
+			{
+				respW := httptest.NewRecorder()
+				setToken(req, s.RootToken)
+				_, err := s.Server.FsRequest(respW, req)
+				assert.NotNil(err)
+				assert.Equal(allocIDNotPresentErr, err)
+			}
+		})
+	}
+}
+
+func TestAllocDirFS_Logs_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
+		assert.Nil(err)
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", policy)
+			setToken(req, token)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid token (ReadFS)
+		// No alloc id set, so expect an error - just not a permissions error
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadFS})
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid1", policy)
+			setToken(req, token)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(allocIDNotPresentErr, err)
+		}
+
+		// Try request with a valid token (ReadLogs)
+		// No alloc id set, so expect an error - just not a permissions error
+		{
+			respW := httptest.NewRecorder()
+			policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadLogs})
+			token := mock.CreatePolicyAndToken(t, state, 1009, "valid2", policy)
+			setToken(req, token)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(allocIDNotPresentErr, err)
+		}
+
+		// Try request with a management token
+		// No alloc id set, so expect an error - just not a permissions error
+		{
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err := s.Server.FsRequest(respW, req)
+			assert.NotNil(err)
+			assert.Equal(allocIDNotPresentErr, err)
 		}
 	})
 }
@@ -331,7 +457,7 @@ func TestStreamFramer_Order(t *testing.T) {
 	}
 
 	expected := bytes.NewBuffer(make([]byte, 0, 100000))
-	for _, _ = range files {
+	for range files {
 		expected.Write(input.Bytes())
 	}
 	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))
@@ -421,7 +547,7 @@ func TestStreamFramer_Order_PlainText(t *testing.T) {
 	}
 
 	expected := bytes.NewBuffer(make([]byte, 0, 100000))
-	for _, _ = range files {
+	for range files {
 		expected.Write(input.Bytes())
 	}
 	receivedBuf := bytes.NewBuffer(make([]byte, 0, 100000))
@@ -500,7 +626,8 @@ func TestStreamFramer_Order_PlainText(t *testing.T) {
 }
 
 func TestHTTP_Stream_MissingParams(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -560,7 +687,8 @@ func (n nopWriteCloser) Close() error {
 }
 
 func TestHTTP_Stream_NoFile(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -576,7 +704,8 @@ func TestHTTP_Stream_NoFile(t *testing.T) {
 }
 
 func TestHTTP_Stream_Modify(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -651,7 +780,8 @@ func TestHTTP_Stream_Modify(t *testing.T) {
 }
 
 func TestHTTP_Stream_Truncate(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -760,7 +890,8 @@ func TestHTTP_Stream_Truncate(t *testing.T) {
 }
 
 func TestHTTP_Stream_Delete(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -842,7 +973,8 @@ func TestHTTP_Stream_Delete(t *testing.T) {
 }
 
 func TestHTTP_Logs_NoFollow(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir and create the log dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -923,7 +1055,8 @@ func TestHTTP_Logs_NoFollow(t *testing.T) {
 }
 
 func TestHTTP_Logs_Follow(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Get a temp alloc dir and create the log dir
 		ad := tempAllocDir(t)
 		defer os.RemoveAll(ad.AllocDir)
@@ -1029,7 +1162,7 @@ func BenchmarkHTTP_Logs_Follow(t *testing.B) {
 	runtime.MemProfileRate = 1
 
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 
 	// Get a temp alloc dir and create the log dir
@@ -1191,7 +1324,7 @@ func TestLogs_findClosest(t *testing.T) {
 			Error:      true,
 		},
 
-		// Test begining cases
+		// Test beginning cases
 		{
 			Entries:      entries,
 			DesiredIdx:   0,

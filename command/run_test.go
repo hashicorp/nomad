@@ -12,10 +12,12 @@ import (
 )
 
 func TestRunCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &RunCommand{}
 }
 
 func TestRunCommand_Output_Json(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &RunCommand{Meta: Meta{Ui: ui}}
 
@@ -51,6 +53,7 @@ job "job1" {
 }
 
 func TestRunCommand_Fails(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &RunCommand{Meta: Meta{Ui: ui}}
 
@@ -154,6 +157,7 @@ job "job1" {
 }
 
 func TestRunCommand_From_STDIN(t *testing.T) {
+	t.Parallel()
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -184,18 +188,19 @@ job "job1" {
 		stdinW.Close()
 	}()
 
-	args := []string{"-"}
+	args := []string{"-address=nope", "-"}
 	if code := cmd.Run(args); code != 1 {
 		t.Fatalf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String())
 	}
 
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "connection refused") {
-		t.Fatalf("expected connection refused error, got: %s", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error submitting job") {
+		t.Fatalf("expected submission error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
 }
 
 func TestRunCommand_From_URL(t *testing.T) {
+	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &RunCommand{
 		Meta: Meta{Ui: ui},

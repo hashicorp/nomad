@@ -19,7 +19,7 @@ description: |-
 </table>
 
 The `resources` stanza describes the requirements a task needs to execute.
-Resource requirements include memory, network, cpu, and more.
+Resource requirements include memory, network, CPU, and more.
 
 ```hcl
 job "docs" {
@@ -61,8 +61,8 @@ The following examples only show the `resources` stanzas. Remember that the
 
 ### Memory
 
-This example specifies the task requires 2GB of RAM to operate. 2GB is the
-equivalent of 2000MB:
+This example specifies the task requires 2 GB of RAM to operate. 2 GB is the
+equivalent of 2000 MB:
 
 ```hcl
 resources {
@@ -73,7 +73,7 @@ resources {
 ### Network
 
 This example shows network constraints as specified in the [network][] stanza
-which require 1GBit of bandwidth, dynamically allocates two ports, and
+which require 1 Gbit of bandwidth, dynamically allocates two ports, and
 statically allocates one port:
 
 ```hcl

@@ -37,10 +37,11 @@ type snapMetaSlice []*fileSnapshotMeta
 
 // FileSnapshotSink implements SnapshotSink with a file.
 type FileSnapshotSink struct {
-	store  *FileSnapshotStore
-	logger *log.Logger
-	dir    string
-	meta   fileSnapshotMeta
+	store     *FileSnapshotStore
+	logger    *log.Logger
+	dir       string
+	parentDir string
+	meta      fileSnapshotMeta
 
 	stateFile *os.File
 	stateHash hash.Hash64
@@ -158,9 +159,10 @@ func (f *FileSnapshotStore) Create(version SnapshotVersion, index, term uint64,
 
 	// Create the sink
 	sink := &FileSnapshotSink{
-		store:  f,
-		logger: f.logger,
-		dir:    path,
+		store:     f,
+		logger:    f.logger,
+		dir:       path,
+		parentDir: f.path,
 		meta: fileSnapshotMeta{
 			SnapshotMeta: SnapshotMeta{
 				Version:            version,
@@ -384,6 +386,10 @@ func (s *FileSnapshotSink) Close() error {
 	// Close the open handles
 	if err := s.finalize(); err != nil {
 		s.logger.Printf("[ERR] snapshot: Failed to finalize snapshot: %v", err)
+		if delErr := os.RemoveAll(s.dir); delErr != nil {
+			s.logger.Printf("[ERR] snapshot: Failed to delete temporary snapshot directory at path %v: %v", s.dir, delErr)
+			return delErr
+		}
 		return err
 	}
 
@@ -397,6 +403,19 @@ func (s *FileSnapshotSink) Close() error {
 	newPath := strings.TrimSuffix(s.dir, tmpSuffix)
 	if err := os.Rename(s.dir, newPath); err != nil {
 		s.logger.Printf("[ERR] snapshot: Failed to move snapshot into place: %v", err)
+		return err
+	}
+
+	// fsync the parent directory, to sync directory edits to disk
+	parentFH, err := os.Open(s.parentDir)
+	defer parentFH.Close()
+	if err != nil {
+		s.logger.Printf("[ERR] snapshot: Failed to open snapshot parent directory %v, error: %v", s.parentDir, err)
+		return err
+	}
+
+	if err = parentFH.Sync(); err != nil {
+		s.logger.Printf("[ERR] snapshot: Failed syncing parent directory %v, error: %v", s.parentDir, err)
 		return err
 	}
 
@@ -433,6 +452,11 @@ func (s *FileSnapshotSink) finalize() error {
 		return err
 	}
 
+	// Sync to force fsync to disk
+	if err := s.stateFile.Sync(); err != nil {
+		return err
+	}
+
 	// Get the file size
 	stat, statErr := s.stateFile.Stat()
 
@@ -464,13 +488,21 @@ func (s *FileSnapshotSink) writeMeta() error {
 
 	// Buffer the file IO
 	buffered := bufio.NewWriter(fh)
-	defer buffered.Flush()
 
 	// Write out as JSON
 	enc := json.NewEncoder(buffered)
 	if err := enc.Encode(&s.meta); err != nil {
 		return err
 	}
+
+	if err = buffered.Flush(); err != nil {
+		return err
+	}
+
+	if err = fh.Sync(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -1,6 +1,8 @@
 package nomad
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 // Status endpoint is used to check on server status
 type Status struct {
@@ -70,6 +72,13 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 // Members return the list of servers in a cluster that a particular server is
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {
+	// Check node read permissions
+	if aclObj, err := s.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+		return structs.ErrPermissionDenied
+	}
+
 	serfMembers := s.srv.Members()
 	members := make([]*structs.ServerMember, len(serfMembers))
 	for i, mem := range serfMembers {

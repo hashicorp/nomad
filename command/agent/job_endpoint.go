@@ -92,7 +92,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	args := structs.JobEvaluateRequest{
 		JobID: jobName,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Evaluate", &args, &out); err != nil {
@@ -121,16 +121,19 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match")
 	}
-	s.parseRegion(req, &args.Region)
 
 	sJob := ApiJobToStructJob(args.Job)
 	planReq := structs.JobPlanRequest{
-		Job:  sJob,
-		Diff: args.Diff,
+		Job:            sJob,
+		Diff:           args.Diff,
+		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
 			Region: args.WriteRequest.Region,
 		},
 	}
+	s.parseWriteRequest(req, &planReq.WriteRequest)
+	planReq.Namespace = sJob.Namespace
+
 	var out structs.JobPlanResponse
 	if err := s.agent.RPC("Job.Plan", &planReq, &out); err != nil {
 		return nil, err
@@ -160,7 +163,8 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 			Region: validateRequest.Region,
 		},
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
+	args.Namespace = job.Namespace
 
 	var out structs.JobValidateResponse
 	if err := s.agent.RPC("Job.Validate", &args, &out); err != nil {
@@ -179,7 +183,7 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 	args := structs.PeriodicForceRequest{
 		JobID: jobName,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.PeriodicForceResponse
 	if err := s.agent.RPC("Periodic.Force", &args, &out); err != nil {
@@ -348,7 +352,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
-	s.parseRegion(req, &args.Region)
 
 	sJob := ApiJobToStructJob(args.Job)
 
@@ -356,10 +359,15 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		Job:            sJob,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
+		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
-			Region: args.WriteRequest.Region,
+			Region:    args.WriteRequest.Region,
+			AuthToken: args.WriteRequest.SecretID,
 		},
 	}
+	s.parseWriteRequest(req, &regReq.WriteRequest)
+	regReq.Namespace = sJob.Namespace
+
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
 		return nil, err
@@ -385,7 +393,7 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 		JobID: jobName,
 		Purge: purgeBool,
 	}
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDeregisterResponse
 	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
@@ -447,7 +455,7 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	s.parseRegion(req, &revertRequest.Region)
+	s.parseWriteRequest(req, &revertRequest.WriteRequest)
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Revert", &revertRequest, &out); err != nil {
@@ -476,7 +484,7 @@ func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	s.parseRegion(req, &stableRequest.Region)
+	s.parseWriteRequest(req, &stableRequest.WriteRequest)
 
 	var out structs.JobStabilityResponse
 	if err := s.agent.RPC("Job.Stable", &stableRequest, &out); err != nil {
@@ -523,7 +531,7 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 		args.JobID = name
 	}
 
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDispatchResponse
 	if err := s.agent.RPC("Job.Dispatch", &args, &out); err != nil {
@@ -539,6 +547,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	j := &structs.Job{
 		Stop:        *job.Stop,
 		Region:      *job.Region,
+		Namespace:   *job.Namespace,
 		ID:          *job.ID,
 		ParentID:    *job.ParentID,
 		Name:        *job.Name,
@@ -663,6 +672,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Env = apiTask.Env
 	structsTask.Meta = apiTask.Meta
 	structsTask.KillTimeout = *apiTask.KillTimeout
+	structsTask.ShutdownDelay = apiTask.ShutdownDelay
 
 	if l := len(apiTask.Constraints); l != 0 {
 		structsTask.Constraints = make([]*structs.Constraint, l)
@@ -698,6 +708,15 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						Timeout:       check.Timeout,
 						InitialStatus: check.InitialStatus,
 						TLSSkipVerify: check.TLSSkipVerify,
+						Header:        check.Header,
+						Method:        check.Method,
+					}
+					if check.CheckRestart != nil {
+						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
+							Limit:          check.CheckRestart.Limit,
+							Grace:          *check.CheckRestart.Grace,
+							IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
+						}
 					}
 				}
 			}
@@ -781,6 +800,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				LeftDelim:    *template.LeftDelim,
 				RightDelim:   *template.RightDelim,
 				Envvars:      *template.Envvars,
+				VaultGrace:   *template.VaultGrace,
 			}
 		}
 	}

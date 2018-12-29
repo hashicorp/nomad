@@ -14,12 +14,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/internal/common"
 	"github.com/shirou/gopsutil/net"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -117,7 +117,7 @@ func (p *Process) CmdlineSlice() ([]string, error) {
 	return p.fillSliceFromCmdline()
 }
 
-// CreateTime returns created time of the process in seconds since the epoch, in UTC.
+// CreateTime returns created time of the process in milliseconds since the epoch, in UTC.
 func (p *Process) CreateTime() (int64, error) {
 	_, _, _, createTime, _, err := p.fillFromStat()
 	if err != nil {
@@ -219,8 +219,8 @@ func (p *Process) NumCtxSwitches() (*NumCtxSwitchesStat, error) {
 
 // NumFDs returns the number of File Descriptors used by the process.
 func (p *Process) NumFDs() (int32, error) {
-	numFds, _, err := p.fillFromfd()
-	return numFds, err
+	_, fnames, err := p.fillFromfdList()
+	return int32(len(fnames)), err
 }
 
 // NumThreads returns the number of threads used by the process.
@@ -514,16 +514,25 @@ func (p *Process) fillFromLimits() ([]RlimitStat, error) {
 	return limitStats, nil
 }
 
-// Get num_fds from /proc/(pid)/fd
-func (p *Process) fillFromfd() (int32, []*OpenFilesStat, error) {
+// Get list of /proc/(pid)/fd files
+func (p *Process) fillFromfdList() (string, []string, error) {
 	pid := p.Pid
 	statPath := common.HostProc(strconv.Itoa(int(pid)), "fd")
 	d, err := os.Open(statPath)
 	if err != nil {
-		return 0, nil, err
+		return statPath, []string{}, err
 	}
 	defer d.Close()
 	fnames, err := d.Readdirnames(-1)
+	return statPath, fnames, err
+}
+
+// Get num_fds from /proc/(pid)/fd
+func (p *Process) fillFromfd() (int32, []*OpenFilesStat, error) {
+	statPath, fnames, err := p.fillFromfdList()
+	if err != nil {
+		return 0, nil, err
+	}
 	numFDs := int32(len(fnames))
 
 	var openfiles []*OpenFilesStat
@@ -857,7 +866,7 @@ func (p *Process) fillFromStat() (string, int32, *cpu.TimesStat, int64, int32, e
 
 	//	p.Nice = mustParseInt32(fields[18])
 	// use syscall instead of parse Stat file
-	snice, _ := syscall.Getpriority(PrioProcess, int(pid))
+	snice, _ := unix.Getpriority(PrioProcess, int(pid))
 	nice := int32(snice) // FIXME: is this true?
 
 	return terminal, int32(ppid), cpuTimes, createTime, nice, nil

@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type DeploymentPauseCommand struct {
@@ -13,8 +16,8 @@ func (c *DeploymentPauseCommand) Help() string {
 	helpText := `
 Usage: nomad deployment pause [options] <deployment id>
 
-Pause is used to pause a deployment. Pausing a deployment will pause the
-placement of new allocations as part of rolling deployment.
+  Pause is used to pause a deployment. Pausing a deployment will pause the
+  placement of new allocations as part of rolling deployment.
 
 General Options:
 
@@ -30,6 +33,28 @@ Pause Options:
 
 func (c *DeploymentPauseCommand) Synopsis() string {
 	return "Pause a deployment"
+}
+
+func (c *DeploymentPauseCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *DeploymentPauseCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Deployments, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Deployments]
+	})
 }
 
 func (c *DeploymentPauseCommand) Run(args []string) int {
@@ -73,8 +98,8 @@ func (c *DeploymentPauseCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	if _, _, err := client.Deployments().Pause(deploy.ID, true, nil); err != nil {

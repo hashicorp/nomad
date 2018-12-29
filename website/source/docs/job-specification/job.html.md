@@ -26,8 +26,6 @@ of one or many tasks.
 
 ```hcl
 job "docs" {
-  all_at_once = true
-
   constraint {
     # ...
   }
@@ -66,9 +64,11 @@ job "docs" {
 
 ## `job` Parameters
 
-- `all_at_once` `(bool: false)` - Controls if the entire set of tasks in the job
-  must be placed atomically or if they can be scheduled incrementally. This
-  should only be used for special circumstances.
+- `all_at_once` `(bool: false)` - Controls whether the scheduler can make
+  partial placements if optimistic scheduling resulted in an oversubscribed
+  node. This does not control whether all allocations for the job, where all
+  would be the desired count for each task group, must be placed atomically.
+  This should only be used for special circumstances.
 
 - `constraint` <code>([Constraint][constraint]: nil)</code> -
   This can be provided multiple times to define additional constraints. See the
@@ -85,8 +85,11 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
+- `namespace` `(string: "default")` - The namespace in which to execute the job.
+  Values other than default are not allowed in non-Enterprise versions of Nomad.
+
 - `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
-  the job as a paramterized job such that it can be dispatched against.
+  the job as a parameterized job such that it can be dispatched against.
 
 - `periodic` <code>([Periodic][]: nil)</code> - Allows the job to be scheduled
   at fixed times, dates or intervals.
@@ -148,8 +151,8 @@ job "docs" {
 
 ### Batch Job
 
-This example job executes the `uptime` command across all Nomad clients in the
-fleet, as long as those machines are running Linux.
+This example job executes the `uptime` command on 10 Nomad clients in the fleet,
+restricting the eligble nodes to Linux machines.
 
 ```hcl
 job "docs" {
@@ -163,14 +166,11 @@ job "docs" {
   }
 
   group "example" {
+    count = 10
     task "uptime" {
       driver = "exec"
       config {
         command = "uptime"
-      }
-
-      resources {
-        cpu = 20
       }
     }
   }
@@ -203,10 +203,6 @@ job "docs" {
 
       vault {
         policies = ["secret-readonly"]
-      }
-
-      resources {
-        cpu = 20
       }
     }
   }

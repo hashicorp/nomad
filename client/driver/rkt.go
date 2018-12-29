@@ -1,3 +1,5 @@
+// +build linux
+
 package driver
 
 import (
@@ -17,6 +19,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	appcschema "github.com/appc/spec/schema"
+	rktv1 "github.com/rkt/rkt/api/v1"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-version"
@@ -41,7 +46,7 @@ const (
 	// minRktVersion is the earliest supported version of rkt. rkt added support
 	// for CPU and memory isolators in 0.14.0. We cannot support an earlier
 	// version to maintain an uniform interface across all drivers
-	minRktVersion = "1.0.0"
+	minRktVersion = "1.27.0"
 
 	// The key populated in the Node Attributes to indicate the presence of the
 	// Rkt driver
@@ -55,8 +60,8 @@ const (
 	// rktCmd is the command rkt is installed as.
 	rktCmd = "rkt"
 
-	// rktUuidDeadline is how long to wait for the uuid file to be written
-	rktUuidDeadline = 5 * time.Second
+	// rktNetworkDeadline is how long to wait for container network to start
+	rktNetworkDeadline = 5 * time.Second
 )
 
 // RktDriver is a driver for running images via Rkt
@@ -80,7 +85,7 @@ type RktDriverConfig struct {
 	Net              []string            `mapstructure:"net"`                // Networks for the containers
 	PortMapRaw       []map[string]string `mapstructure:"port_map"`           //
 	PortMap          map[string]string   `mapstructure:"-"`                  // A map of host port and the port name defined in the image manifest file
-	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
 	InsecureOptions  []string            `mapstructure:"insecure_options"`   // list of args for --insecure-options
 
 	NoOverlay bool `mapstructure:"no_overlay"` // disable overlayfs for rkt run
@@ -112,7 +117,117 @@ type rktPID struct {
 	MaxKillTimeout time.Duration
 }
 
-// NewRktDriver is used to create a new exec driver
+// Retrieve pod status for the pod with the given UUID.
+func rktGetStatus(uuid string) (*rktv1.Pod, error) {
+	statusArgs := []string{
+		"status",
+		"--format=json",
+		uuid,
+	}
+	var outBuf bytes.Buffer
+	cmd := exec.Command(rktCmd, statusArgs...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = ioutil.Discard
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	var status rktv1.Pod
+	if err := json.Unmarshal(outBuf.Bytes(), &status); err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
+// Retrieves a pod manifest
+func rktGetManifest(uuid string) (*appcschema.PodManifest, error) {
+	statusArgs := []string{
+		"cat-manifest",
+		uuid,
+	}
+	var outBuf bytes.Buffer
+	cmd := exec.Command(rktCmd, statusArgs...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = ioutil.Discard
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	var manifest appcschema.PodManifest
+	if err := json.Unmarshal(outBuf.Bytes(), &manifest); err != nil {
+		return nil, err
+	}
+	return &manifest, nil
+}
+
+func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string) (*cstructs.DriverNetwork, error) {
+	deadline := time.Now().Add(rktNetworkDeadline)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if status, err := rktGetStatus(uuid); err == nil {
+			for _, net := range status.Networks {
+				if !net.IP.IsGlobalUnicast() {
+					continue
+				}
+
+				// Get the pod manifest so we can figure out which ports are exposed
+				var portmap map[string]int
+				manifest, err := rktGetManifest(uuid)
+				if err == nil {
+					portmap, err = rktManifestMakePortMap(manifest, driverConfigPortMap)
+					if err != nil {
+						lastErr = fmt.Errorf("could not create manifest-based portmap: %v", err)
+						return nil, lastErr
+					}
+				} else {
+					lastErr = fmt.Errorf("could not get pod manifest: %v", err)
+					return nil, lastErr
+				}
+
+				return &cstructs.DriverNetwork{
+					PortMap: portmap,
+					IP:      status.Networks[0].IP.String(),
+				}, nil
+			}
+
+			if len(status.Networks) == 0 {
+				lastErr = fmt.Errorf("no networks found")
+			} else {
+				lastErr = fmt.Errorf("no good driver networks out of %d returned", len(status.Networks))
+			}
+		} else {
+			lastErr = fmt.Errorf("getting status failed: %v", err)
+		}
+
+		time.Sleep(400 * time.Millisecond)
+	}
+	return nil, fmt.Errorf("timed out, last error: %v", lastErr)
+}
+
+// Given a rkt/appc pod manifest and driver portmap configuration, create
+// a driver portmap.
+func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[string]string) (map[string]int, error) {
+	if len(manifest.Apps) == 0 {
+		return nil, fmt.Errorf("manifest has no apps")
+	}
+	if len(manifest.Apps) != 1 {
+		return nil, fmt.Errorf("manifest has multiple apps!")
+	}
+	app := manifest.Apps[0]
+	if app.App == nil {
+		return nil, fmt.Errorf("specified app has no App object")
+	}
+
+	portMap := make(map[string]int)
+	for svc, name := range configPortMap {
+		for _, port := range app.App.Ports {
+			if port.Name.String() == name {
+				portMap[svc] = int(port.Port)
+			}
+		}
+	}
+	return portMap, nil
+}
+
+// NewRktDriver is used to create a new rkt driver
 func NewRktDriver(ctx *DriverContext) Driver {
 	return &RktDriver{DriverContext: *ctx}
 }
@@ -126,41 +241,41 @@ func (d *RktDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"image": &fields.FieldSchema{
+			"image": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"command": &fields.FieldSchema{
+			"command": {
 				Type: fields.TypeString,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
-			"trust_prefix": &fields.FieldSchema{
+			"trust_prefix": {
 				Type: fields.TypeString,
 			},
-			"dns_servers": &fields.FieldSchema{
+			"dns_servers": {
 				Type: fields.TypeArray,
 			},
-			"dns_search_domains": &fields.FieldSchema{
+			"dns_search_domains": {
 				Type: fields.TypeArray,
 			},
-			"net": &fields.FieldSchema{
+			"net": {
 				Type: fields.TypeArray,
 			},
-			"port_map": &fields.FieldSchema{
+			"port_map": {
 				Type: fields.TypeArray,
 			},
-			"debug": &fields.FieldSchema{
+			"debug": {
 				Type: fields.TypeBool,
 			},
-			"volumes": &fields.FieldSchema{
+			"volumes": {
 				Type: fields.TypeArray,
 			},
-			"no_overlay": &fields.FieldSchema{
+			"no_overlay": {
 				Type: fields.TypeBool,
 			},
-			"insecure_options": &fields.FieldSchema{
+			"insecure_options": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -207,17 +322,23 @@ func (d *RktDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool, e
 		return false, fmt.Errorf("Unable to parse Rkt version string: %#v", rktMatches)
 	}
 
+	minVersion, _ := version.NewVersion(minRktVersion)
+	currentVersion, _ := version.NewVersion(rktMatches[1])
+	if currentVersion.LessThan(minVersion) {
+		// Do not allow ancient rkt versions
+		if d.fingerprintSuccess == nil {
+			// Only log on first failure
+			d.logger.Printf("[WARN] driver.rkt: unsupported rkt version %s; please upgrade to >= %s",
+				currentVersion, minVersion)
+		}
+		delete(node.Attributes, rktDriverAttr)
+		d.fingerprintSuccess = helper.BoolToPtr(false)
+		return false, nil
+	}
+
 	node.Attributes[rktDriverAttr] = "1"
 	node.Attributes["driver.rkt.version"] = rktMatches[1]
 	node.Attributes["driver.rkt.appc.version"] = appcMatches[1]
-
-	minVersion, _ := version.NewVersion(minRktVersion)
-	currentVersion, _ := version.NewVersion(node.Attributes["driver.rkt.version"])
-	if currentVersion.LessThan(minVersion) {
-		// Do not allow ancient rkt versions
-		d.logger.Printf("[WARN] driver.rkt: please upgrade rkt to a version >= %s", minVersion)
-		node.Attributes[rktDriverAttr] = "0"
-	}
 
 	// Advertise if this node supports rkt volumes
 	if d.config.ReadBoolDefault(rktVolumesConfigOption, rktVolumesConfigDefault) {
@@ -247,8 +368,8 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	// ACI image
 	img := driverConfig.ImageName
 
-	// Build the command.
-	cmdArgs := make([]string, 0, 50)
+	// Global arguments given to both prepare and run-prepared
+	globalArgs := make([]string, 0, 50)
 
 	// Add debug option to rkt command.
 	debug := driverConfig.Debug
@@ -274,43 +395,44 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	// if we have a selective insecure_options, prefer them
 	// insecure options are rkt's global argument, so we do this before the actual "run"
 	if len(driverConfig.InsecureOptions) > 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--insecure-options=%s", strings.Join(driverConfig.InsecureOptions, ",")))
+		globalArgs = append(globalArgs, fmt.Sprintf("--insecure-options=%s", strings.Join(driverConfig.InsecureOptions, ",")))
 	} else if insecure {
-		cmdArgs = append(cmdArgs, "--insecure-options=all")
+		globalArgs = append(globalArgs, "--insecure-options=all")
 	}
 
 	// debug is rkt's global argument, so add it before the actual "run"
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--debug=%t", debug))
+	globalArgs = append(globalArgs, fmt.Sprintf("--debug=%t", debug))
 
-	cmdArgs = append(cmdArgs, "run")
+	prepareArgs := make([]string, 0, 50)
+	runArgs := make([]string, 0, 50)
+
+	prepareArgs = append(prepareArgs, globalArgs...)
+	prepareArgs = append(prepareArgs, "prepare")
+	runArgs = append(runArgs, globalArgs...)
+	runArgs = append(runArgs, "run-prepared")
 
 	// disable overlayfs
 	if driverConfig.NoOverlay {
-		cmdArgs = append(cmdArgs, "--no-overlay=true")
+		prepareArgs = append(prepareArgs, "--no-overlay=true")
 	}
-
-	// Write the UUID out to a file in the state dir so we can read it back
-	// in and access the pod by UUID from other commands
-	uuidPath := filepath.Join(ctx.TaskDir.Dir, "rkt.uuid")
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--uuid-file-save=%s", uuidPath))
 
 	// Convert underscores to dashes in task names for use in volume names #2358
 	sanitizedName := strings.Replace(task.Name, "_", "-", -1)
 
 	// Mount /alloc
 	allocVolName := fmt.Sprintf("%s-%s-alloc", d.DriverContext.allocID, sanitizedName)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, ctx.TaskDir.SharedAllocDir))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, allocdir.SharedAllocContainerPath))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, ctx.TaskDir.SharedAllocDir))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, allocdir.SharedAllocContainerPath))
 
 	// Mount /local
 	localVolName := fmt.Sprintf("%s-%s-local", d.DriverContext.allocID, sanitizedName)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, ctx.TaskDir.LocalDir))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, allocdir.TaskLocalContainerPath))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, ctx.TaskDir.LocalDir))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, allocdir.TaskLocalContainerPath))
 
 	// Mount /secrets
 	secretsVolName := fmt.Sprintf("%s-%s-secrets", d.DriverContext.allocID, sanitizedName)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, ctx.TaskDir.SecretsDir))
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, allocdir.TaskSecretsContainerPath))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, ctx.TaskDir.SecretsDir))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, allocdir.TaskSecretsContainerPath))
 
 	// Mount arbitrary volumes if enabled
 	if len(driverConfig.Volumes) > 0 {
@@ -319,37 +441,49 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		}
 		for i, rawvol := range driverConfig.Volumes {
 			parts := strings.Split(rawvol, ":")
-			if len(parts) != 2 {
+			readOnly := "false"
+			// job spec:
+			//   volumes = ["/host/path:/container/path[:readOnly]"]
+			// the third parameter is optional, mount is read-write by default
+			if len(parts) == 3 {
+				if parts[2] == "readOnly" {
+					d.logger.Printf("[DEBUG] Mounting %s:%s as readOnly", parts[0], parts[1])
+					readOnly = "true"
+				} else {
+					d.logger.Printf("[WARN] Unknown volume parameter '%s' ignored for mount %s", parts[2], parts[0])
+				}
+			} else if len(parts) != 2 {
 				return nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
 			volName := fmt.Sprintf("%s-%s-%d", d.DriverContext.allocID, sanitizedName, i)
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", volName, parts[0]))
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
+			prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%s", volName, parts[0], readOnly))
+			prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
 		}
 	}
 
-	cmdArgs = append(cmdArgs, img)
-
 	// Inject environment variables
 	for k, v := range ctx.TaskEnv.Map() {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--set-env=%s=%s", k, v))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--set-env=%s=%s", k, v))
 	}
+
+	// Image is set here, because the commands that follow apply to it
+	prepareArgs = append(prepareArgs, img)
 
 	// Check if the user has overridden the exec command.
 	if driverConfig.Command != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--exec=%v", driverConfig.Command))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--exec=%v", driverConfig.Command))
 	}
 
 	// Add memory isolator
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--memory=%vM", int64(task.Resources.MemoryMB)))
 
 	// Add CPU isolator
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu=%vm", int64(task.Resources.CPU)))
 
 	// Add DNS servers
 	if len(driverConfig.DNSServers) == 1 && (driverConfig.DNSServers[0] == "host" || driverConfig.DNSServers[0] == "none") {
 		// Special case single item lists with the special values "host" or "none"
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", driverConfig.DNSServers[0]))
+		runArgs = append(runArgs, fmt.Sprintf("--dns=%s", driverConfig.DNSServers[0]))
 	} else {
 		for _, ip := range driverConfig.DNSServers {
 			if err := net.ParseIP(ip); err == nil {
@@ -357,20 +491,20 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 				d.logger.Printf("[DEBUG] driver.rkt: %v", msg)
 				return nil, msg
 			} else {
-				cmdArgs = append(cmdArgs, fmt.Sprintf("--dns=%s", ip))
+				runArgs = append(runArgs, fmt.Sprintf("--dns=%s", ip))
 			}
 		}
 	}
 
 	// set DNS search domains
 	for _, domain := range driverConfig.DNSSearchDomains {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--dns-search=%s", domain))
+		runArgs = append(runArgs, fmt.Sprintf("--dns-search=%s", domain))
 	}
 
 	// set network
 	network := strings.Join(driverConfig.Net, ",")
 	if network != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--net=%s", network))
+		runArgs = append(runArgs, fmt.Sprintf("--net=%s", network))
 	}
 
 	// Setup port mapping and exposed ports
@@ -396,7 +530,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 			d.logger.Printf("[DEBUG] driver.rkt: exposed port %s", containerPort)
 			// Add port option to rkt run arguments. rkt allows multiple port args
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
+			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
 		}
 
 		for _, port := range network.DynamicPorts {
@@ -414,7 +548,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 			d.logger.Printf("[DEBUG] driver.rkt: exposed port %s", containerPort)
 			// Add port option to rkt run arguments. rkt allows multiple port args
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
+			prepareArgs = append(prepareArgs, fmt.Sprintf("--port=%s:%s", containerPort, hostPortStr))
 		}
 
 	}
@@ -425,11 +559,11 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 
 		// Need to start arguments with "--"
 		if len(parsed) > 0 {
-			cmdArgs = append(cmdArgs, "--")
+			prepareArgs = append(prepareArgs, "--")
 		}
 
 		for _, arg := range parsed {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("%v", arg))
+			prepareArgs = append(prepareArgs, fmt.Sprintf("%v", arg))
 		}
 	}
 
@@ -444,6 +578,24 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		return nil, err
 	}
 
+	absPath, err := GetAbsolutePath(rktCmd)
+	if err != nil {
+		return nil, err
+	}
+
+	var outBuf, errBuf bytes.Buffer
+	cmd := exec.Command(rktCmd, prepareArgs...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	d.logger.Printf("[DEBUG] driver.rkt: preparing pod %q for task %q with: %v", img, d.taskName, prepareArgs)
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("Error preparing rkt pod: %s\n\nOutput: %s\n\nError: %s",
+			err, outBuf.String(), errBuf.String())
+	}
+	uuid := strings.TrimSpace(outBuf.String())
+	d.logger.Printf("[DEBUG] driver.rkt: pod %q for task %q prepared, UUID is: %s", img, d.taskName, uuid)
+	runArgs = append(runArgs, uuid)
+
 	// The task's environment is set via --set-env flags above, but the rkt
 	// command itself needs an evironment with PATH set to find iptables.
 	eb := env.NewEmptyBuilder()
@@ -452,7 +604,6 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 	executorCtx := &executor.ExecutorContext{
 		TaskEnv: rktEnv,
 		Driver:  "rkt",
-		AllocID: d.DriverContext.allocID,
 		Task:    task,
 		TaskDir: ctx.TaskDir.Dir,
 		LogDir:  ctx.TaskDir.LogDir,
@@ -462,14 +613,9 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
-	absPath, err := GetAbsolutePath(rktCmd)
-	if err != nil {
-		return nil, err
-	}
-
 	execCmd := &executor.ExecCommand{
 		Cmd:  absPath,
-		Args: cmdArgs,
+		Args: runArgs,
 		User: task.User,
 	}
 	ps, err := execIntf.LaunchCmd(execCmd)
@@ -478,25 +624,7 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		return nil, err
 	}
 
-	// Wait for UUID file to get written
-	uuid := ""
-	deadline := time.Now().Add(rktUuidDeadline)
-	var lastErr error
-	for time.Now().Before(deadline) {
-		if uuidBytes, err := ioutil.ReadFile(uuidPath); err != nil {
-			lastErr = err
-		} else {
-			uuid = string(uuidBytes)
-			break
-		}
-		time.Sleep(400 * time.Millisecond)
-	}
-	if uuid == "" {
-		d.logger.Printf("[WARN] driver.rkt: reading uuid from %q failed; unable to run script checks for task %q. Last error: %v",
-			uuidPath, d.taskName, lastErr)
-	}
-
-	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q (UUID: %s) for task %q with: %v", img, uuid, d.taskName, cmdArgs)
+	d.logger.Printf("[DEBUG] driver.rkt: started ACI %q (UUID: %s) for task %q with: %v", img, uuid, d.taskName, runArgs)
 	maxKill := d.DriverContext.config.MaxKillTimeout
 	h := &rktHandle{
 		uuid:           uuid,
@@ -512,8 +640,20 @@ func (d *RktDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse,
 		waitCh:         make(chan *dstructs.WaitResult, 1),
 	}
 	go h.run()
-	//TODO Set Network
-	return &StartResponse{Handle: h}, nil
+
+	d.logger.Printf("[DEBUG] driver.rkt: retrieving network information for pod %q (UUID %s) for task %q", img, uuid, d.taskName)
+	driverNetwork, err := rktGetDriverNetwork(uuid, driverConfig.PortMap)
+	if err != nil && !pluginClient.Exited() {
+		d.logger.Printf("[WARN] driver.rkt: network status retrieval for pod %q (UUID %s) for task %q failed. Last error: %v", img, uuid, d.taskName, err)
+
+		// If a portmap was given, this turns into a fatal error
+		if len(driverConfig.PortMap) != 0 {
+			pluginClient.Kill()
+			return nil, fmt.Errorf("Trying to map ports but driver could not determine network information")
+		}
+	}
+
+	return &StartResponse{Handle: h, Network: driverNetwork}, nil
 }
 
 func (d *RktDriver) Cleanup(*ExecContext, *CreatedResources) error { return nil }

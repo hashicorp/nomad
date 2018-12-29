@@ -46,7 +46,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
     ```
 
 * `args` - (Optional) A list of arguments to the optional `command`. If no
-  `command` is specified, the args are passed directly to the container.
+  `command` is specified, the arguments are passed directly to the container.
   References to environment variables or any [interpretable Nomad
   variables](/docs/runtime/interpolation.html) will be interpreted before
   launching the task. For example:
@@ -78,8 +78,10 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
+* `dns_options` - (Optional) A list of DNS options for the container to use.
+
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
-  (e.g. ["8.8.8.8", "8.8.4.4"]). *Docker API v1.10 and above only*
+  (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
 
 * `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
@@ -103,10 +105,10 @@ The `docker` driver supports the following configuration in the job spec.  Only
   Nomad agent to be configured to allow privileged containers.
 
 * `ipv4_address` - (Optional) The IPv4 address to be used for the container when
-  using user defined networks. Requires docker 1.13.0 or greater.
+  using user defined networks. Requires Docker 1.13 or greater.
 
 * `ipv6_address` - (Optional) The IPv6 address to be used for the container when
-  using user defined networks. Requires docker 1.13.0 or greater.
+  using user defined networks. Requires Docker 1.13 or greater.
 
 * `labels` - (Optional) A key-value map of labels to set to the containers on
   start.
@@ -120,18 +122,15 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
-* `load` - (Optional) A list of paths to image archive files. If
-  this key is not specified, Nomad assumes the `image` is hosted on a repository
-  and attempts to pull the image. The `artifact` blocks can be specified to
-  download each of the archive files. The equivalent of `docker load -i path`
-  would be run on each of the archive files.
+* `load` - (Optional) Load an image from a `tar` archive file instead of from a
+  remote repository. Equivalent to the `docker load -i <filename>` command.
 
     ```hcl
     artifact {
       source = "http://path.to/redis.tar"
     }
     config {
-      load = ["redis.tar"]
+      load = "redis.tar"
       image = "redis"
     }
     ```
@@ -150,6 +149,9 @@ The `docker` driver supports the following configuration in the job spec.  Only
       }
     }
     ```
+
+* `mac_address` - (Optional) The MAC address for the container to use (e.g.
+  "02:68:b3:29:da:98").
 
 * `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
   container to be discovered by an alternate name by any other container within
@@ -184,12 +186,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
   the container access to devices on the host. Note that this also requires the
   nomad agent and docker daemon to be configured to allow privileged
   containers.
-
-* `mac_address` - (Optional) The mac address for the container to use
-  (e.g. "02:68:b3:29:da:98").
-
-* `dns_search_domains` - (Optional) A list of DNS search domains for the container
-  to use.
 
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
@@ -257,6 +253,34 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `work_dir` - (Optional) The working directory inside the container.
 
+* `mounts` - (Optional) A list of
+  [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-or-volumes)
+  to be mounted into the container. Only volume type mounts are supported.
+
+    ```hcl
+    config {
+      mounts = [
+        {
+          target = "/path/in/container"
+          source = "name-of-volume"
+          readonly = false
+          volume_options {
+            no_copy = false
+            labels {
+              foo = "bar"
+            }
+            driver_config {
+              name = "flocker"
+              options = {
+                foo = "bar"
+              }
+            }
+          }
+        }
+      ]
+    }
+    ```
+
 ### Container Name
 
 Nomad creates a container after pulling an image. Containers are named
@@ -322,7 +346,17 @@ Example docker-config, using two helper scripts in $PATH,
 }
 ```
 
+Example agent configuration, using a helper script "docker-credential-ecr" in
+$PATH
 
+```hcl
+client {
+  enabled = true
+  options {
+    "docker.auth.helper" = "ecr"
+  }
+}
+```
 !> **Be Careful!** At this time these credentials are stored in Nomad in plain
 text. Secrets management will be added in a later release.
 
@@ -438,7 +472,7 @@ through Nomad plugins or dynamic job configuration.
 Nomad requires Docker to be installed and running on the host alongside the
 Nomad agent. Nomad was developed against Docker `1.8.2` and `1.9`.
 
-By default Nomad communicates with the Docker daemon using the daemon's unix
+By default Nomad communicates with the Docker daemon using the daemon's Unix
 socket. Nomad will need to be able to read/write to this socket. If you do not
 run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
@@ -468,7 +502,8 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify
   a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
   -like script on $PATH to lookup authentication information from external
-  sources.
+  sources. The script's name must begin with `docker-credential-` and this
+  option should include only the basename of the script, not the path.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
@@ -488,10 +523,11 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
-* `docker.cleanup.image.delay` A time duration that defaults to `3m`. The delay
-  controls how long Nomad will wait between an image being unused and deleting
-  it. If a tasks is received that uses the same image within the delay, the
-  image will be reused.
+* `docker.cleanup.image.delay` A time duration, as [defined
+  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
+  delay controls how long Nomad will wait between an image being unused and
+  deleting it. If a tasks is received that uses the same image within the delay,
+  the image will be reused.
 
 * `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container and use volume drivers (`volume_driver`).
@@ -553,9 +589,9 @@ job "docs" {
 Nomad limits containers' CPU based on CPU shares. CPU shares allow containers
 to burst past their CPU limits. CPU limits will only be imposed when there is
 contention for resources. When the host is under load your process may be
-throttled to stabilize QOS depending on how many shares it has. You can see how
+throttled to stabilize QoS depending on how many shares it has. You can see how
 many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`.
-1000 shares are approximately equal to 1Ghz.
+1000 shares are approximately equal to 1 GHz.
 
 Please keep the implications of CPU shares in mind when you load test workloads
 on Nomad.
@@ -571,11 +607,11 @@ Since memory is not an elastic resource, you will need to make sure your
 container does not exceed the amount of memory allocated to it, or it will be
 terminated or crash when it tries to malloc. A process can inspect its memory
 limit by reading `NOMAD_MEMORY_LIMIT`, but will need to track its own memory
-usage. Memory limit is expressed in megabytes so 1024 = 1Gb.
+usage. Memory limit is expressed in megabytes so 1024 = 1 GB.
 
 ### IO
 
-Nomad's Docker integration does not currently provide QOS around network or
+Nomad's Docker integration does not currently provide QoS around network or
 filesystem IO. These will be added in a later release.
 
 ### Security
@@ -587,13 +623,13 @@ need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
 [QEMU](/docs/drivers/qemu.html).
 
-## Docker For Mac Caveats
+## Docker for Mac Caveats
 
-Docker For Mac runs docker inside a small VM and then allows access to parts of
+Docker for Mac runs Docker inside a small VM and then allows access to parts of
 the host filesystem into that VM. At present, nomad uses a syslog server bound to
-a unix socket within a path that both the host and the VM can access to forward
+a Unix socket within a path that both the host and the VM can access to forward
 log messages back to nomad. But at present, Docker For Mac does not work for
-unix domain sockets (https://github.com/docker/for-mac/issues/483) in one of
+Unix domain sockets (https://github.com/docker/for-mac/issues/483) in one of
 these shared paths.
 
 As a result, using nomad with the docker driver on OS X/macOS will work, but no
@@ -601,3 +637,11 @@ logs will be available to nomad. Users must use the native docker facilities to
 examine the logs of any jobs running under docker.
 
 In the future, we will resolve this issue, one way or another.
+
+## Docker for Windows Caveats
+
+Docker for Windows only supports running Windows containers. Because Docker for
+Windows is relatively new and rapidly evolving you may want to consult the
+[list of relevant issues on GitHub][WinIssues].
+
+[WinIssues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Adriver%2Fdocker+label%3Aplatform-windows

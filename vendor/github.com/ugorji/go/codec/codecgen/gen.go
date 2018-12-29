@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -135,6 +136,9 @@ func Generate(outfile, buildTag, codecPkgPath string, uid int64, useUnsafe bool,
 	if tv.ImportPath == tv.CodecImportPath {
 		tv.CodecPkgFiles = true
 		tv.CodecPkgName = "codec"
+	} else {
+		// HACK: always handle vendoring. It should be typically on in go 1.6, 1.7
+		tv.ImportPath = stripVendor(tv.ImportPath)
 	}
 	astfiles := make([]*ast.File, len(infiles))
 	for i, infile := range infiles {
@@ -160,6 +164,31 @@ func Generate(outfile, buildTag, codecPkgPath string, uid int64, useUnsafe bool,
 		}
 	}
 
+	// keep track of types with selfer methods
+	// selferMethods := []string{"CodecEncodeSelf", "CodecDecodeSelf"}
+	selferEncTyps := make(map[string]bool)
+	selferDecTyps := make(map[string]bool)
+	for _, f := range astfiles {
+		for _, d := range f.Decls {
+			// if fd, ok := d.(*ast.FuncDecl); ok && fd.Recv != nil && fd.Recv.NumFields() == 1 {
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.Recv != nil && len(fd.Recv.List) == 1 {
+				recvType := fd.Recv.List[0].Type
+				if ptr, ok := recvType.(*ast.StarExpr); ok {
+					recvType = ptr.X
+				}
+				if id, ok := recvType.(*ast.Ident); ok {
+					switch fd.Name.Name {
+					case "CodecEncodeSelf":
+						selferEncTyps[id.Name] = true
+					case "CodecDecodeSelf":
+						selferDecTyps[id.Name] = true
+					}
+				}
+			}
+		}
+	}
+
+	// now find types
 	for _, f := range astfiles {
 		for _, d := range f.Decls {
 			if gd, ok := d.(*ast.GenDecl); ok {
@@ -180,7 +209,14 @@ func Generate(outfile, buildTag, codecPkgPath string, uid int64, useUnsafe bool,
 						//   FuncType, InterfaceType, StarExpr (ptr), etc
 						switch td.Type.(type) {
 						case *ast.StructType, *ast.Ident, *ast.MapType, *ast.ArrayType, *ast.ChanType:
-							if regexName.FindStringIndex(td.Name.Name) != nil && notRegexName.FindStringIndex(td.Name.Name) == nil {
+							// only add to tv.Types iff
+							//   - it matches per the -r parameter
+							//   - it doesn't match per the -nr parameter
+							//   - it doesn't have any of the Selfer methods in the file
+							if regexName.FindStringIndex(td.Name.Name) != nil &&
+								notRegexName.FindStringIndex(td.Name.Name) == nil &&
+								!selferEncTyps[td.Name.Name] &&
+								!selferDecTyps[td.Name.Name] {
 								tv.Types = append(tv.Types, td.Name.Name)
 							}
 						}
@@ -252,6 +288,20 @@ func gen1(frunName, tmplStr string, tv interface{}) (frun *os.File, err error) {
 		return
 	}
 	return
+}
+
+// copied from ../gen.go (keep in sync).
+func stripVendor(s string) string {
+	// HACK: Misbehaviour occurs in go 1.5. May have to re-visit this later.
+	// if s contains /vendor/ OR startsWith vendor/, then return everything after it.
+	const vendorStart = "vendor/"
+	const vendorInline = "/vendor/"
+	if i := strings.LastIndex(s, vendorInline); i >= 0 {
+		s = s[i+len(vendorInline):]
+	} else if strings.HasPrefix(s, vendorStart) {
+		s = s[len(vendorStart):]
+	}
+	return s
 }
 
 func main() {

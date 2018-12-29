@@ -1,0 +1,61 @@
+---
+layout: "docs"
+page_title: "Commands: deployment fail"
+sidebar_current: "docs-commands-deployment-fail"
+description: >
+  The deployment fail command is used to manually fail a deployment.
+---
+
+# Command: deployment fail
+
+The `deployment fail` command is used to mark a deployment as failed. Failing a
+deployment will stop the placement of new allocations as part of rolling
+deployment and if the job is configured to auto revert, the job will attempt to
+roll back to a stable version.
+
+## Usage
+
+```
+nomad deployment fail [options] <deployment id>
+```
+
+The `deployment fail` command requires a single argument, a deployment ID or
+prefix. 
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Fail Options
+
+* `-detach`: Return immediately instead of monitoring. A new evaluation ID
+  will be output, which can be used to examine the evaluation using the
+  [eval-status](/docs/commands/eval-status.html) command.
+
+* `-verbose`: Show full information.
+
+## Examples
+
+Manually mark an ongoing deployment as failed:
+
+```
+$ nomad deployment fail 8990cfbc
+Deployment "8990cfbc-28c0-cb28-ca31-856cf691b987" failed
+
+==> Monitoring evaluation "a2d97ad5"
+    Evaluation triggered by job "example"
+    Evaluation within deployment: "8990cfbc"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "a2d97ad5" finished with status "complete"
+
+$ nomad deployment status 8990cfbc
+ID          = 8990cfbc
+Job ID      = example
+Job Version = 2
+Status      = failed
+Description = Deployment marked as failed
+
+Deployed
+Task Group  Desired  Placed  Healthy  Unhealthy
+cache       3        2       1        0
+```

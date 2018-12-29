@@ -37,11 +37,17 @@ func (s *SyslogServer) Start() {
 	for {
 		select {
 		case <-s.doneCh:
-			s.listener.Close()
 			return
 		default:
 			connection, err := s.listener.Accept()
 			if err != nil {
+				s.doneLock.Lock()
+				done := s.done
+				s.doneLock.Unlock()
+				if done {
+					return
+				}
+
 				s.logger.Printf("[ERR] logcollector.server: error in accepting connection: %v", err)
 				continue
 			}
@@ -74,11 +80,12 @@ func (s *SyslogServer) read(connection net.Conn) {
 // Shutdown shutsdown the syslog server
 func (s *SyslogServer) Shutdown() {
 	s.doneLock.Lock()
-	s.doneLock.Unlock()
+	defer s.doneLock.Unlock()
 
 	if !s.done {
 		close(s.doneCh)
 		close(s.messages)
 		s.done = true
+		s.listener.Close()
 	}
 }

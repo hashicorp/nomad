@@ -40,6 +40,7 @@ type GenericStack struct {
 	source *StaticIterator
 
 	wrappedChecks       *FeasibilityWrapper
+	quota               FeasibleIterator
 	jobConstraint       *ConstraintChecker
 	taskGroupDrivers    *DriverChecker
 	taskGroupConstraint *ConstraintChecker
@@ -65,6 +66,10 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// balancing across eligible nodes.
 	s.source = NewRandomIterator(ctx, nil)
 
+	// Create the quota iterator to determine if placements would result in the
+	// quota attached to the namespace of the job to go over.
+	s.quota = NewQuotaIterator(ctx, s.source)
+
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
@@ -80,7 +85,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct host constraints.
 	s.distinctHostsConstraint = NewDistinctHostsIterator(ctx, s.wrappedChecks)
@@ -143,6 +148,10 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.binPack.SetPriority(job.Priority)
 	s.jobAntiAff.SetJob(job.ID)
 	s.ctx.Eligibility().SetJob(job)
+
+	if contextual, ok := s.quota.(ContextualIterator); ok {
+		contextual.SetJob(job)
+	}
 }
 
 func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
@@ -161,6 +170,10 @@ func (s *GenericStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Reso
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.binPack.SetTaskGroup(tg)
+
+	if contextual, ok := s.quota.(ContextualIterator); ok {
+		contextual.SetTaskGroup(tg)
+	}
 
 	// Find the node with the max score
 	option := s.maxScore.Next()
@@ -196,6 +209,7 @@ type SystemStack struct {
 	ctx                        Context
 	source                     *StaticIterator
 	wrappedChecks              *FeasibilityWrapper
+	quota                      FeasibleIterator
 	jobConstraint              *ConstraintChecker
 	taskGroupDrivers           *DriverChecker
 	taskGroupConstraint        *ConstraintChecker
@@ -212,6 +226,10 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// have to evaluate on all nodes.
 	s.source = NewStaticIterator(ctx, nil)
 
+	// Create the quota iterator to determine if placements would result in the
+	// quota attached to the namespace of the job to go over.
+	s.quota = NewQuotaIterator(ctx, s.source)
+
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
@@ -227,7 +245,7 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs)
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct property constraints.
 	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.wrappedChecks)
@@ -252,6 +270,10 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetPriority(job.Priority)
 	s.ctx.Eligibility().SetJob(job)
+
+	if contextual, ok := s.quota.(ContextualIterator); ok {
+		contextual.SetJob(job)
+	}
 }
 
 func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resources) {
@@ -269,6 +291,10 @@ func (s *SystemStack) Select(tg *structs.TaskGroup) (*RankedNode, *structs.Resou
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)
+
+	if contextual, ok := s.quota.(ContextualIterator); ok {
+		contextual.SetTaskGroup(tg)
+	}
 
 	// Get the next option that satisfies the constraints.
 	option := s.binPack.Next()

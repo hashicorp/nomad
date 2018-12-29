@@ -5,18 +5,23 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
+	t.Parallel()
 	var _ cli.Command = &AllocStatusCommand{}
 }
 
 func TestAllocStatusCommand_Fails(t *testing.T) {
-	srv, _, url := testServer(t, nil)
-	defer srv.Stop()
+	t.Parallel()
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -76,10 +81,9 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
-	srv, client, url := testServer(t, func(c *testutil.TestServerConfig) {
-		c.DevMode = true
-	})
-	defer srv.Stop()
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
 
 	// Wait for a node to be ready
 	testutil.WaitForResult(func() (bool, error) {
@@ -140,4 +144,47 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected to have 'Created At' but saw: %s", out)
 	}
 	ui.OutputWriter.Reset()
+
+	// Try the query with an even prefix that includes the hyphen
+	if code := cmd.Run([]string{"-address=" + url, allocId1[:13]}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, "Created At") {
+		t.Fatalf("expected to have 'Created At' but saw: %s", out)
+	}
+	ui.OutputWriter.Reset()
+
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", allocId1}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if !strings.Contains(out, allocId1) {
+		t.Fatal("expected to find alloc id in output")
+	}
+	ui.OutputWriter.Reset()
+}
+
+func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create a fake alloc
+	state := srv.Agent.Server().State()
+	a := mock.Alloc()
+	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+
+	prefix := a.ID[:5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(a.ID, res[0])
 }

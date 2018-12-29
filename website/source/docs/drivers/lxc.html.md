@@ -76,7 +76,7 @@ information.
 
 The `lxc` driver requires the following:
 
-* 64bit Linux host
+* 64-bit Linux host
 * The `linux_amd64_lxc` Nomad binary
 * `liblxc` to be installed
 * `lxc-templates` to be installed
@@ -92,7 +92,7 @@ The `lxc` driver requires the following:
 The `lxc` driver will set the following client attributes:
 
 * `driver.lxc` - Set to `1` if LXC is found  and enabled on the host node.
-* `driver.lxc.version` - Version of `lxc` eg: `1.1.0`.
+* `driver.lxc.version` - Version of `lxc` e.g.: `1.1.0`.
 
 ## Resource Isolation
 

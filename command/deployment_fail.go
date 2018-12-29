@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type DeploymentFailCommand struct {
@@ -13,10 +16,10 @@ func (c *DeploymentFailCommand) Help() string {
 	helpText := `
 Usage: nomad deployment fail [options] <deployment id>
 
-Fail is used to mark a deployment as failed. Failing a deployment will
-stop the placement of new allocations as part of rolling deployment and
-if the job is configured to auto revert, the job will attempt to roll back to a
-stable version.
+  Fail is used to mark a deployment as failed. Failing a deployment will
+  stop the placement of new allocations as part of rolling deployment and
+  if the job is configured to auto revert, the job will attempt to roll back to a
+  stable version.
 
 General Options:
 
@@ -25,9 +28,9 @@ General Options:
 Fail Options:
 
   -detach
-	Return immediately instead of entering monitor mode. After deployment
-	resume, the evaluation ID will be printed to the screen, which can be used
-	to examine the evaluation using the eval-status command.
+    Return immediately instead of entering monitor mode. After deployment
+    resume, the evaluation ID will be printed to the screen, which can be used
+    to examine the evaluation using the eval-status command.
 
   -verbose
     Display full information.
@@ -39,10 +42,33 @@ func (c *DeploymentFailCommand) Synopsis() string {
 	return "Manually fail a deployment"
 }
 
+func (c *DeploymentFailCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+
+func (c *DeploymentFailCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Deployments, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Deployments]
+	})
+}
+
 func (c *DeploymentFailCommand) Run(args []string) int {
 	var detach, verbose bool
 
-	flags := c.Meta.FlagSet("deployment resume", FlagSetClient)
+	flags := c.Meta.FlagSet("deployment fail", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -81,8 +107,8 @@ func (c *DeploymentFailCommand) Run(args []string) int {
 	}
 
 	if len(possible) != 0 {
-		c.Ui.Output(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple deployments\n\n%s", formatDeployments(possible, length)))
+		return 1
 	}
 
 	u, _, err := client.Deployments().Fail(deploy.ID, nil)

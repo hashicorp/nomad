@@ -34,6 +34,11 @@ server {
 
 ## `server` Parameters
 
+- `authoritative_region` `(string: "")` - Specifies the authoritative region, which
+  provides a single source of truth for global configurations such as ACL Policies and
+  global ACL tokens. Non-authoritative regions will replicate from the authoritative
+  to act as a mirror. By default, the local region is assumed to be authoritative.
+
 - `bootstrap_expect` `(int: required)` - Specifies the number of server nodes to
   wait for before bootstrapping. It is most common to use the odd-numbered
   integers `3` or `5` for this value, depending on the cluster size. A value of
@@ -54,7 +59,7 @@ server {
   worker threads will dequeue for processing.
 
 - `encrypt` `(string: "")` - Specifies the secret key to use for encryption of
-  Nomad server's gossip network traffic. This key must be 16-bytes that are
+  Nomad server's gossip network traffic. This key must be 16 bytes that are
   base64-encoded. The provided key is automatically persisted to the data
   directory and loaded automatically whenever the agent is restarted. This means
   that to encrypt Nomad server's gossip protocol, this option only needs to be
@@ -79,6 +84,23 @@ server {
 - `deployment_gc_threshold` `(string: "1h")` - Specifies the minimum time a
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
+
+- `heartbeat_grace` `(string: "10s")` - Specifies the additional time given as a
+  grace period beyond the heartbeat TTL of nodes to account for network and
+  processing delays as well as clock skew. This is specified using a label
+  suffix like "30s" or "1h".
+
+- `min_heartbeat_ttl` `(string: "10s")` - Specifies the minimum time between
+  node heartbeats. This is used as a floor to prevent excessive updates. This is
+  specified using a label suffix like "30s" or "1h". Lowering the minimum TTL is
+  a tradeoff as it lowers failure detection time of nodes at the tradeoff of
+  false positives and increased load on the leader.
+
+- `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
+  rate of heartbeats being processed per second. This allows the TTL to be
+  increased to meet the target rate. Increasing the maximum heartbeats per
+  second is a tradeoff as it lowers failure detection time of nodes at the
+  tradeoff of false positives and increased load on the leader.
 
 - `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
   scheduler threads to run. This can be as many as one per core, or `0` to

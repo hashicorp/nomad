@@ -81,59 +81,59 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"template": &fields.FieldSchema{
+			"template": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"distro": &fields.FieldSchema{
+			"distro": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"release": &fields.FieldSchema{
+			"release": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"arch": &fields.FieldSchema{
+			"arch": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"image_variant": &fields.FieldSchema{
+			"image_variant": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"image_server": &fields.FieldSchema{
+			"image_server": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"gpg_key_id": &fields.FieldSchema{
+			"gpg_key_id": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"gpg_key_server": &fields.FieldSchema{
+			"gpg_key_server": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"disable_gpg": &fields.FieldSchema{
+			"disable_gpg": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"flush_cache": &fields.FieldSchema{
+			"flush_cache": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"force_cache": &fields.FieldSchema{
+			"force_cache": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"template_args": &fields.FieldSchema{
+			"template_args": {
 				Type:     fields.TypeArray,
 				Required: false,
 			},
-			"log_level": &fields.FieldSchema{
+			"log_level": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
-			"verbosity": &fields.FieldSchema{
+			"verbosity": {
 				Type:     fields.TypeString,
 				Required: false,
 			},
@@ -382,13 +382,16 @@ func (h *lxcDriverHandle) Exec(ctx context.Context, cmd string, args []string) (
 }
 
 func (h *lxcDriverHandle) Kill() error {
-	h.logger.Printf("[INFO] driver.lxc: shutting down container %q", h.container.Name())
+	name := h.container.Name()
+
+	h.logger.Printf("[INFO] driver.lxc: shutting down container %q", name)
 	if err := h.container.Shutdown(h.killTimeout); err != nil {
-		h.logger.Printf("[INFO] driver.lxc: shutting down container %q failed: %v", h.container.Name(), err)
+		h.logger.Printf("[INFO] driver.lxc: shutting down container %q failed: %v", name, err)
 		if err := h.container.Stop(); err != nil {
-			h.logger.Printf("[ERR] driver.lxc: error stopping container %q: %v", h.container.Name(), err)
+			h.logger.Printf("[ERR] driver.lxc: error stopping container %q: %v", name, err)
 		}
 	}
+
 	close(h.doneCh)
 	return nil
 }

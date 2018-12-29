@@ -7,12 +7,15 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSystemEndpoint_GarbageCollect(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -48,7 +51,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if the job has been GC'd
 		ws := memdb.NewWatchSet()
-		exist, err := state.JobByID(ws, job.ID)
+		exist, err := state.JobByID(ws, job.Namespace, job.ID)
 		if err != nil {
 			return false, err
 		}
@@ -61,7 +64,52 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	})
 }
 
+func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	assert := assert.New(t)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create ACL tokens
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+	// Make the GC request
+	req := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	// Try without a token and expect failure
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", req, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect failure
+	{
+		req.AuthToken = invalidToken.SecretID
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", req, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a management token
+	{
+		req.AuthToken = root.SecretID
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", req, &resp))
+	}
+}
+
 func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
@@ -76,7 +124,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	}
 
 	// Delete the job summary
-	state.DeleteJobSummary(1001, job.ID)
+	state.DeleteJobSummary(1001, job.Namespace, job.ID)
 
 	// Make the GC request
 	req := &structs.GenericRequest{
@@ -92,7 +140,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if Nomad has reconciled the summary for the job
 		ws := memdb.NewWatchSet()
-		summary, err := state.JobSummaryByID(ws, job.ID)
+		summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
 		if err != nil {
 			return false, err
 		}
@@ -103,9 +151,10 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 		// setting the modifyindex and createindex of the expected summary to
 		// the output so that we can do deep equal
 		expectedSummary := structs.JobSummary{
-			JobID: job.ID,
+			JobID:     job.ID,
+			Namespace: job.Namespace,
 			Summary: map[string]structs.TaskGroupSummary{
-				"web": structs.TaskGroupSummary{
+				"web": {
 					Queued: 10,
 				},
 			},
@@ -119,4 +168,48 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %s", err)
 	})
+}
+
+func TestSystemEndpoint_ReconcileJobSummaries_ACL(t *testing.T) {
+	t.Parallel()
+	s1, root := testACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	assert := assert.New(t)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create ACL tokens
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+	// Make the request
+	req := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	// Try without a token and expect failure
+	{
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "System.ReconcileJobSummaries", req, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect failure
+	{
+		req.AuthToken = invalidToken.SecretID
+		var resp structs.GenericResponse
+		err := msgpackrpc.CallWithCodec(codec, "System.ReconcileJobSummaries", req, &resp)
+		assert.NotNil(err)
+		assert.Contains(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a management token
+	{
+		req.AuthToken = root.SecretID
+		var resp structs.GenericResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "System.ReconcileJobSummaries", req, &resp))
+	}
 }

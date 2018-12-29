@@ -22,9 +22,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required                |
+| ---------------- | --------------------------- |
+| `YES`            | `namespace:list-jobs`       |
 
 ### Parameters
 
@@ -96,16 +96,108 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `namespace:submit-job`<br>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
-There are no parameters, but the request _body_ contains the entire job file.
+- `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
+
+- `EnforceIndex` `(bool: false)` - If set, the job will only be registered if the
+  passed `JobModifyIndex` matches the current job's index. If the index is zero,
+  the register only occurs if the job is new. This paradigm allows check-and-set
+  style job updating.
+
+- `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
+  current job is at.
+
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
+  will be overridden. This allows a job to be registered when it would be denied
+  by policy.
 
 ### Sample Payload
 
-```text
-(any valid nomad job IN JSON FORMAT)
+```json
+{
+    "Job": {
+        "ID": "example",
+        "Name": "example",
+        "Type": "service",
+        "Priority": 50,
+        "Datacenters": [
+            "dc1"
+        ],
+        "TaskGroups": [{
+            "Name": "cache",
+            "Count": 1,
+            "Tasks": [{
+                "Name": "redis",
+                "Driver": "docker",
+                "User": "",
+                "Config": {
+                    "image": "redis:3.2",
+                    "port_map": [{
+                        "db": 6379
+                    }]
+                },
+                "Services": [{
+                    "Id": "",
+                    "Name": "global-redis-check",
+                    "Tags": [
+                        "global",
+                        "cache"
+                    ],
+                    "PortLabel": "db",
+                    "AddressMode": "",
+                    "Checks": [{
+                        "Id": "",
+                        "Name": "alive",
+                        "Type": "tcp",
+                        "Command": "",
+                        "Args": null,
+                        "Path": "",
+                        "Protocol": "",
+                        "PortLabel": "",
+                        "Interval": 10000000000,
+                        "Timeout": 2000000000,
+                        "InitialStatus": "",
+                        "TLSSkipVerify": false
+                    }]
+                }],
+                "Resources": {
+                    "CPU": 500,
+                    "MemoryMB": 256,
+                    "Networks": [{
+                        "Device": "",
+                        "CIDR": "",
+                        "IP": "",
+                        "MBits": 10,
+                        "DynamicPorts": [{
+                            "Label": "db",
+                            "Value": 0
+                        }]
+                    }]
+                },
+                "Leader": false
+            }],
+            "RestartPolicy": {
+                "Interval": 300000000000,
+                "Attempts": 10,
+                "Delay": 25000000000,
+                "Mode": "delay"
+            },
+            "EphemeralDisk": {
+                "SizeMB": 300
+            }
+        }],
+        "Update": {
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000,
+            "HealthyDeadline": 180000000000,
+            "AutoRevert": false,
+            "Canary": 0
+        }
+    }
+}
 ```
 
 ### Sample Request
@@ -124,6 +216,7 @@ $ curl \
   "EvalID": "",
   "EvalCreateIndex": 0,
   "JobModifyIndex": 109,
+  "Warnings": "",
   "Index": 0,
   "LastContact": 0,
   "KnownLeader": false
@@ -143,9 +236,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -357,9 +450,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -529,14 +622,18 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
+
+- `all` `(bool: false)` - Specifies whether the list of allocations should
+  include allocations from a previously registered job with the same ID. This is
+  possible if the job is deregistered and reregistered.
 
 ### Sample Request
 
@@ -681,9 +778,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -742,9 +839,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -827,9 +924,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -840,7 +937,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/job/my-job/deployments
+    https://nomad.rocks/v1/job/my-job/deployment
 ```
 
 ### Sample Response
@@ -887,9 +984,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `YES`            | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `YES`            | `namespace:read-job`       |
 
 ### Parameters
 
@@ -942,7 +1039,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `namespace:submit-job`<br>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
@@ -951,13 +1048,17 @@ The table below shows this endpoint's support for
 
 - `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
 
-- `EnforceIndex` `(int: 0)` - If set, the job will only be registered if the
+- `EnforceIndex` `(bool: false)` - If set, the job will only be registered if the
   passed `JobModifyIndex` matches the current job's index. If the index is zero,
   the register only occurs if the job is new. This paradigm allows check-and-set
   style job updating.
 
 - `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
   current job is at.
+
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
+  will be overridden. This allows a job to be registered when it would be denied
+  by policy.
 
 ### Sample Payload
 
@@ -966,10 +1067,10 @@ The table below shows this endpoint's support for
   "Job": {
     // ...
   },
-  "EnforceIndex": 1,
+  "EnforceIndex": true,
   "JobModifyIndex": 4
 }
-```      
+```
 
 ### Sample Request
 
@@ -1002,9 +1103,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                   |
+| ---------------- | ------------------------------ |
+| `NO`             | `namespace:dispatch-job`       |
 
 ### Parameters
 
@@ -1061,9 +1162,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                 |
+| ---------------- | ---------------------------- |
+| `NO`             | `namespace:submit-job`       |
 
 ### Parameters
 
@@ -1117,9 +1218,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                 |
+| ---------------- | ---------------------------- |
+| `NO`             | `namespace:submit-job`       |
 
 ### Parameters
 
@@ -1172,9 +1273,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `NO`             | `namespace:read-job`       |
 
 ### Parameters
 
@@ -1213,7 +1314,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `namespace:submit-job`<br>`namespace:sentinel-override` if `PolicyOverride` set |
 
 ### Parameters
 
@@ -1226,12 +1327,17 @@ The table below shows this endpoint's support for
   submitted and server side version of the job should be included in the
   response.
 
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
+  will be overridden. This allows a job to be registered when it would be denied
+  by policy.
+
 ### Sample Payload
 
 ```json
 {
   "Job": "...",
-  "Diff": true
+  "Diff": true,
+  "PolicyOverride": false
 }
 ```
 
@@ -1250,6 +1356,7 @@ $ curl \
 {
   "Index": 0,
   "NextPeriodicLaunch": "0001-01-01T00:00:00Z",
+  "Warnings": "",
   "Diff": {
     "Type": "Added",
     "TaskGroups": [
@@ -1426,9 +1533,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
 
 ### Parameters
 
@@ -1452,7 +1559,7 @@ $ curl \
 }
 ```
 
-## Delete a Job
+## Stop a Job
 
 This endpoint deregisters a job, and stops all allocations part of it.
 
@@ -1464,21 +1571,25 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                 |
+| ---------------- | ---------------------------- |
+| `NO`             | `namespace:submit-job`       |
 
 ### Parameters
 
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
+- `Purge` `(bool: false)` - Specifies that the job should stopped and purged
+  immediately. This means the job will not be queryable after being stopped. If
+  not set, the job will be purged by the garbage collector.
+
 ### Sample Request
 
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/job/my-job
+    https://nomad.rocks/v1/job/my-job?purge=true
 ```
 
 ### Sample Response

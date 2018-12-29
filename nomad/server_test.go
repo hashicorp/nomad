@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"path"
@@ -11,19 +12,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 )
 
 var (
-	nextPort   uint32 = 15000
 	nodeNumber uint32 = 0
 )
 
-func getPort() int {
-	return int(atomic.AddUint32(&nextPort, 1))
+func testLogger() *log.Logger {
+	return log.New(os.Stderr, "", log.LstdFlags)
 }
 
 func tmpDir(t *testing.T) string {
@@ -34,21 +37,31 @@ func tmpDir(t *testing.T) string {
 	return dir
 }
 
+func testACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken) {
+	server := testServer(t, func(c *Config) {
+		c.ACLEnabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	token := mock.ACLManagementToken()
+	err := server.State().BootstrapACLTokens(1, 0, token)
+	if err != nil {
+		t.Fatalf("failed to bootstrap ACL token: %v", err)
+	}
+	return server, token
+}
+
 func testServer(t *testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
-	config.Build = "unittest"
+	config.Build = "0.7.0+unittest"
 	config.DevMode = true
-	config.RPCAddr = &net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: getPort(),
-	}
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
-	config.SerfConfig.MemberlistConfig.BindPort = getPort()
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
 	config.SerfConfig.MemberlistConfig.RetransmitMult = 2
 	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
@@ -81,12 +94,31 @@ func testServer(t *testing.T, cb func(*Config)) *Server {
 	logger := log.New(config.LogOutput, fmt.Sprintf("[%s] ", config.NodeName), log.LstdFlags)
 	catalog := consul.NewMockCatalog(logger)
 
-	// Create server
-	server, err := NewServer(config, catalog, logger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	for i := 10; i >= 0; i-- {
+		// Get random ports
+		ports := freeport.GetT(t, 2)
+		config.RPCAddr = &net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: ports[0],
+		}
+		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
+
+		// Create server
+		server, err := NewServer(config, catalog, logger)
+		if err == nil {
+			return server
+		} else if i == 0 {
+			t.Fatalf("err: %v", err)
+		} else {
+			if server != nil {
+				server.Shutdown()
+			}
+			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
+			time.Sleep(wait)
+		}
 	}
-	return server
+
+	return nil
 }
 
 func testJoin(t *testing.T, s1 *Server, other ...*Server) {
@@ -102,6 +134,7 @@ func testJoin(t *testing.T, s1 *Server, other ...*Server) {
 }
 
 func TestServer_RPC(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, nil)
 	defer s1.Shutdown()
 
@@ -112,6 +145,7 @@ func TestServer_RPC(t *testing.T) {
 }
 
 func TestServer_RPC_MixedTLS(t *testing.T) {
+	t.Parallel()
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -187,6 +221,7 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 }
 
 func TestServer_Regions(t *testing.T) {
+	t.Parallel()
 	// Make the servers
 	s1 := testServer(t, func(c *Config) {
 		c.Region = "region1"
@@ -218,6 +253,7 @@ func TestServer_Regions(t *testing.T) {
 }
 
 func TestServer_Reload_Vault(t *testing.T) {
+	t.Parallel()
 	s1 := testServer(t, func(c *Config) {
 		c.Region = "region1"
 	})
@@ -230,7 +266,7 @@ func TestServer_Reload_Vault(t *testing.T) {
 	tr := true
 	config := s1.config
 	config.VaultConfig.Enabled = &tr
-	config.VaultConfig.Token = structs.GenerateUUID()
+	config.VaultConfig.Token = uuid.Generate()
 
 	if err := s1.Reload(config); err != nil {
 		t.Fatalf("Reload failed: %v", err)

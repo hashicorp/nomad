@@ -253,7 +253,7 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 			continue
 		}
 		out = append(out, node)
-		dcMap[node.Datacenter] += 1
+		dcMap[node.Datacenter]++
 	}
 	return out, dcMap, nil
 }
@@ -277,7 +277,7 @@ func retryMax(max int, cb func() (bool, error), reset func() bool) error {
 		if reset != nil && reset() {
 			attempts = 0
 		} else {
-			attempts += 1
+			attempts++
 		}
 	}
 	return &SetStatusError{
@@ -570,24 +570,6 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	return true
 }
 
-// markLostAndPlace is used to mark allocations as lost and add them to the
-// placement queue. evictAndPlace modifies both the diffResult and the
-// limit. It returns true if the limit has been reached.
-func markLostAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc string, limit *int) bool {
-	n := len(allocs)
-	for i := 0; i < n && i < *limit; i++ {
-		a := allocs[i]
-		ctx.Plan().AppendUpdate(a.Alloc, structs.AllocDesiredStatusStop, desc, structs.AllocClientStatusLost)
-		diff.place = append(diff.place, a)
-	}
-	if n <= *limit {
-		*limit -= n
-		return false
-	}
-	*limit = 0
-	return true
-}
-
 // tgConstrainTuple is used to store the total constraints of a task group.
 type tgConstrainTuple struct {
 	// Holds the combined constraints of the task group and all it's sub-tasks.
@@ -698,25 +680,27 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 // adjustQueuedAllocations decrements the number of allocations pending per task
 // group based on the number of allocations successfully placed
 func adjustQueuedAllocations(logger *log.Logger, result *structs.PlanResult, queuedAllocs map[string]int) {
-	if result != nil {
-		for _, allocations := range result.NodeAllocation {
-			for _, allocation := range allocations {
-				// Ensure that the allocation is newly created. We check that
-				// the CreateIndex is equal to the ModifyIndex in order to check
-				// that the allocation was just created. We do not check that
-				// the CreateIndex is equal to the results AllocIndex because
-				// the allocations we get back have gone through the planner's
-				// optimistic snapshot and thus their indexes may not be
-				// correct, but they will be consistent.
-				if allocation.CreateIndex != allocation.ModifyIndex {
-					continue
-				}
+	if result == nil {
+		return
+	}
 
-				if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
-					queuedAllocs[allocation.TaskGroup] -= 1
-				} else {
-					logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
-				}
+	for _, allocations := range result.NodeAllocation {
+		for _, allocation := range allocations {
+			// Ensure that the allocation is newly created. We check that
+			// the CreateIndex is equal to the ModifyIndex in order to check
+			// that the allocation was just created. We do not check that
+			// the CreateIndex is equal to the results AllocIndex because
+			// the allocations we get back have gone through the planner's
+			// optimistic snapshot and thus their indexes may not be
+			// correct, but they will be consistent.
+			if allocation.CreateIndex != allocation.ModifyIndex {
+				continue
+			}
+
+			if _, ok := queuedAllocs[allocation.TaskGroup]; ok {
+				queuedAllocs[allocation.TaskGroup]--
+			} else {
+				logger.Printf("[ERR] sched: allocation %q placed but not in list of unplaced allocations", allocation.TaskGroup)
 			}
 		}
 	}

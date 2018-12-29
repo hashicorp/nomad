@@ -7,6 +7,7 @@ import (
 )
 
 func TestLevelFilter(t *testing.T) {
+	t.Parallel()
 
 	filt := LevelFilter()
 	filt.Levels = []logutils.LogLevel{"TRACE", "DEBUG", "INFO", "WARN", "ERR"}

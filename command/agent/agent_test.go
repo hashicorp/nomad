@@ -2,33 +2,17 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/stretchr/testify/assert"
 )
-
-func getPort() int {
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
-	if err != nil {
-		panic(err)
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
-}
 
 func tmpDir(t testing.TB) string {
 	dir, err := ioutil.TempDir("", "nomad")
@@ -38,61 +22,9 @@ func tmpDir(t testing.TB) string {
 	return dir
 }
 
-func makeAgent(t testing.TB, cb func(*Config)) (string, *Agent) {
-	dir := tmpDir(t)
-	conf := DevConfig()
-
-	// Customize the server configuration
-	config := nomad.DefaultConfig()
-	conf.NomadConfig = config
-
-	// Set the data_dir
-	conf.DataDir = dir
-	conf.NomadConfig.DataDir = dir
-
-	// Bind and set ports
-	conf.BindAddr = "127.0.0.1"
-	conf.Ports = &Ports{
-		HTTP: getPort(),
-		RPC:  getPort(),
-		Serf: getPort(),
-	}
-	conf.NodeName = fmt.Sprintf("Node %d", conf.Ports.RPC)
-	conf.Consul = sconfig.DefaultConsulConfig()
-	conf.Vault.Enabled = new(bool)
-
-	// Tighten the Serf timing
-	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
-	config.SerfConfig.MemberlistConfig.RetransmitMult = 2
-	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
-	config.SerfConfig.MemberlistConfig.ProbeInterval = 100 * time.Millisecond
-	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond
-
-	// Tighten the Raft timing
-	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
-	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
-	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
-	config.RaftConfig.StartAsLeader = true
-	config.RaftTimeout = 500 * time.Millisecond
-
-	if cb != nil {
-		cb(conf)
-	}
-
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
-	agent, err := NewAgent(conf, os.Stderr)
-	if err != nil {
-		os.RemoveAll(dir)
-		t.Fatalf("err: %v", err)
-	}
-	return dir, agent
-}
-
 func TestAgent_RPCPing(t *testing.T) {
-	dir, agent := makeAgent(t, nil)
-	defer os.RemoveAll(dir)
+	t.Parallel()
+	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
 	var out struct{}
@@ -102,6 +34,7 @@ func TestAgent_RPCPing(t *testing.T) {
 }
 
 func TestAgent_ServerConfig(t *testing.T) {
+	t.Parallel()
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
 	a := &Agent{config: conf}
@@ -109,6 +42,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
 	conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
 	conf.AdvertiseAddrs.HTTP = "10.10.11.1:4005"
+	conf.ACL.Enabled = true
 
 	// Parses the advertise addrs correctly
 	if err := conf.normalizeAddrs(); err != nil {
@@ -125,6 +59,12 @@ func TestAgent_ServerConfig(t *testing.T) {
 	serfPort := out.SerfConfig.MemberlistConfig.AdvertisePort
 	if serfPort != 4000 {
 		t.Fatalf("expected 4000, got: %d", serfPort)
+	}
+	if out.AuthoritativeRegion != "global" {
+		t.Fatalf("bad: %#v", out.AuthoritativeRegion)
+	}
+	if !out.ACLEnabled {
+		t.Fatalf("ACL not enabled")
 	}
 
 	// Assert addresses weren't changed
@@ -171,7 +111,6 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err = a.serverConfig()
-	fmt.Println(conf.Addresses.RPC)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -233,22 +172,22 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("expect 10s, got: %s", threshold)
 	}
 
-	conf.Server.HeartbeatGrace = "42g"
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
-	out, err = a.serverConfig()
-	if err == nil || !strings.Contains(err.Error(), "unknown unit") {
-		t.Fatalf("expected unknown unit error, got: %#v", err)
-	}
-
-	conf.Server.HeartbeatGrace = "37s"
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
+	conf.Server.HeartbeatGrace = 37 * time.Second
 	out, err = a.serverConfig()
 	if threshold := out.HeartbeatGrace; threshold != time.Second*37 {
 		t.Fatalf("expect 37s, got: %s", threshold)
+	}
+
+	conf.Server.MinHeartbeatTTL = 37 * time.Second
+	out, err = a.serverConfig()
+	if min := out.MinHeartbeatTTL; min != time.Second*37 {
+		t.Fatalf("expect 37s, got: %s", min)
+	}
+
+	conf.Server.MaxHeartbeatsPerSecond = 11.0
+	out, err = a.serverConfig()
+	if max := out.MaxHeartbeatsPerSecond; max != 11.0 {
+		t.Fatalf("expect 11, got: %v", max)
 	}
 
 	// Defaults to the global bind addr
@@ -320,6 +259,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 }
 
 func TestAgent_ClientConfig(t *testing.T) {
+	t.Parallel()
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
 
@@ -362,9 +302,33 @@ func TestAgent_ClientConfig(t *testing.T) {
 	}
 }
 
+// Clients should inherit telemetry configuration
+func TestAget_Client_TelemetryConfiguration(t *testing.T) {
+	assert := assert.New(t)
+
+	conf := DefaultConfig()
+	conf.DevMode = true
+	conf.Telemetry.DisableTaggedMetrics = true
+	conf.Telemetry.BackwardsCompatibleMetrics = true
+
+	a := &Agent{config: conf}
+
+	c, err := a.clientConfig()
+	assert.Nil(err)
+
+	telemetry := conf.Telemetry
+
+	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
+	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
+	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
+	assert.Equal(c.DisableTaggedMetrics, telemetry.DisableTaggedMetrics)
+	assert.Equal(c.BackwardsCompatibleMetrics, telemetry.BackwardsCompatibleMetrics)
+}
+
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP
 // API health check depending on configuration.
 func TestAgent_HTTPCheck(t *testing.T) {
+	t.Parallel()
 	logger := log.New(ioutil.Discard, "", 0)
 	if testing.Verbose() {
 		logger = log.New(os.Stdout, "[TestAgent_HTTPCheck] ", log.Lshortfile)
@@ -392,7 +356,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		if check.Type != "http" {
 			t.Errorf("expected http check not: %q", check.Type)
 		}
-		if expected := "/v1/agent/servers"; check.Path != expected {
+		if expected := "/v1/agent/health?type=client"; check.Path != expected {
 			t.Errorf("expected %q path not: %q", expected, check.Path)
 		}
 		if check.Protocol != "http" {
@@ -455,6 +419,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 }
 
 func TestAgent_ConsulSupportsTLSSkipVerify(t *testing.T) {
+	t.Parallel()
 	assertSupport := func(expected bool, blob string) {
 		self := map[string]map[string]interface{}{}
 		if err := json.Unmarshal([]byte("{"+blob+"}"), &self); err != nil {
@@ -561,6 +526,7 @@ func TestAgent_ConsulSupportsTLSSkipVerify(t *testing.T) {
 // TestAgent_HTTPCheckPath asserts clients and servers use different endpoints
 // for healthchecks.
 func TestAgent_HTTPCheckPath(t *testing.T) {
+	t.Parallel()
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
 		config: DevConfig(),
@@ -573,23 +539,23 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 		a.logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 
-	// Assert server check uses /v1/status/peers
+	// Assert server check uses /v1/agent/health?type=server
 	isServer := true
 	check := a.agentHTTPCheck(isServer)
 	if expected := "Nomad Server HTTP Check"; check.Name != expected {
 		t.Errorf("expected server check name to be %q but found %q", expected, check.Name)
 	}
-	if expected := "/v1/status/peers"; check.Path != expected {
+	if expected := "/v1/agent/health?type=server"; check.Path != expected {
 		t.Errorf("expected server check path to be %q but found %q", expected, check.Path)
 	}
 
-	// Assert client check uses /v1/agent/servers
+	// Assert client check uses /v1/agent/health?type=client
 	isServer = false
 	check = a.agentHTTPCheck(isServer)
 	if expected := "Nomad Client HTTP Check"; check.Name != expected {
 		t.Errorf("expected client check name to be %q but found %q", expected, check.Name)
 	}
-	if expected := "/v1/agent/servers"; check.Path != expected {
+	if expected := "/v1/agent/health?type=client"; check.Path != expected {
 		t.Errorf("expected client check path to be %q but found %q", expected, check.Path)
 	}
 }

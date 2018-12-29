@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJobs_Register(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -54,6 +57,7 @@ func TestJobs_Register(t *testing.T) {
 }
 
 func TestJobs_Validate(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -81,6 +85,7 @@ func TestJobs_Validate(t *testing.T) {
 }
 
 func TestJobs_Canonicalize(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		expected *Job
@@ -101,6 +106,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ID:                helper.StringToPtr(""),
 				Name:              helper.StringToPtr(""),
 				Region:            helper.StringToPtr("global"),
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				Type:              helper.StringToPtr("service"),
 				ParentID:          helper.StringToPtr(""),
 				Priority:          helper.IntToPtr(50),
@@ -143,9 +149,10 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "partial",
 			input: &Job{
-				Name:     helper.StringToPtr("foo"),
-				ID:       helper.StringToPtr("bar"),
-				ParentID: helper.StringToPtr("lol"),
+				Name:      helper.StringToPtr("foo"),
+				Namespace: helper.StringToPtr("bar"),
+				ID:        helper.StringToPtr("bar"),
+				ParentID:  helper.StringToPtr("lol"),
 				TaskGroups: []*TaskGroup{
 					{
 						Name: helper.StringToPtr("bar"),
@@ -158,6 +165,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr("bar"),
 				ID:                helper.StringToPtr("bar"),
 				Name:              helper.StringToPtr("foo"),
 				Region:            helper.StringToPtr("global"),
@@ -272,6 +280,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										EmbeddedTmpl: helper.StringToPtr("FOO=bar\n"),
 										DestPath:     helper.StringToPtr("local/file.env"),
 										Envvars:      helper.BoolToPtr(true),
+										VaultGrace:   helper.TimeToPtr(3 * time.Second),
 									},
 								},
 							},
@@ -280,6 +289,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				ID:                helper.StringToPtr("example_template"),
 				Name:              helper.StringToPtr("example_template"),
 				ParentID:          helper.StringToPtr(""),
@@ -386,6 +396,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    helper.StringToPtr("{{"),
 										RightDelim:   helper.StringToPtr("}}"),
 										Envvars:      helper.BoolToPtr(false),
+										VaultGrace:   helper.TimeToPtr(15 * time.Second),
 									},
 									{
 										SourcePath:   helper.StringToPtr(""),
@@ -398,6 +409,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										LeftDelim:    helper.StringToPtr("{{"),
 										RightDelim:   helper.StringToPtr("}}"),
 										Envvars:      helper.BoolToPtr(true),
+										VaultGrace:   helper.TimeToPtr(3 * time.Second),
 									},
 								},
 							},
@@ -414,6 +426,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Periodic: &PeriodicConfig{},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				ID:                helper.StringToPtr("bar"),
 				ParentID:          helper.StringToPtr(""),
 				Name:              helper.StringToPtr("bar"),
@@ -483,6 +496,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
+				Namespace:         helper.StringToPtr(DefaultNamespace),
 				ID:                helper.StringToPtr("bar"),
 				Name:              helper.StringToPtr("foo"),
 				Region:            helper.StringToPtr("global"),
@@ -589,6 +603,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 }
 
 func TestJobs_EnforceRegister(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -607,13 +622,13 @@ func TestJobs_EnforceRegister(t *testing.T) {
 
 	// Create a job and attempt to register it with an incorrect index.
 	job := testJob()
-	resp2, wm, err := jobs.EnforceRegister(job, 10, nil)
+	resp2, _, err := jobs.EnforceRegister(job, 10, nil)
 	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
 
 	// Register
-	resp2, wm, err = jobs.EnforceRegister(job, 0, nil)
+	resp2, wm, err := jobs.EnforceRegister(job, 0, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -640,7 +655,7 @@ func TestJobs_EnforceRegister(t *testing.T) {
 	curIndex := resp[0].JobModifyIndex
 
 	// Fail at incorrect index
-	resp2, wm, err = jobs.EnforceRegister(job, 123456, nil)
+	resp2, _, err = jobs.EnforceRegister(job, 123456, nil)
 	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
@@ -657,6 +672,7 @@ func TestJobs_EnforceRegister(t *testing.T) {
 }
 
 func TestJobs_Revert(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -683,7 +699,7 @@ func TestJobs_Revert(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Fail revert at incorrect enforce
-	_, wm, err = jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(10), nil)
+	_, _, err = jobs.Revert(*job.ID, 0, helper.Uint64ToPtr(10), nil)
 	if err == nil || !strings.Contains(err.Error(), "enforcing version") {
 		t.Fatalf("expected enforcement error: %v", err)
 	}
@@ -706,6 +722,7 @@ func TestJobs_Revert(t *testing.T) {
 }
 
 func TestJobs_Info(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -739,6 +756,7 @@ func TestJobs_Info(t *testing.T) {
 }
 
 func TestJobs_Versions(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -771,6 +789,7 @@ func TestJobs_Versions(t *testing.T) {
 }
 
 func TestJobs_PrefixList(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -809,6 +828,7 @@ func TestJobs_PrefixList(t *testing.T) {
 }
 
 func TestJobs_List(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -847,6 +867,7 @@ func TestJobs_List(t *testing.T) {
 }
 
 func TestJobs_Allocations(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -868,6 +889,7 @@ func TestJobs_Allocations(t *testing.T) {
 }
 
 func TestJobs_Evaluations(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -909,6 +931,7 @@ func TestJobs_Evaluations(t *testing.T) {
 }
 
 func TestJobs_Deregister(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -968,6 +991,7 @@ func TestJobs_Deregister(t *testing.T) {
 }
 
 func TestJobs_ForceEvaluate(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1007,6 +1031,7 @@ func TestJobs_ForceEvaluate(t *testing.T) {
 }
 
 func TestJobs_PeriodicForce(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1059,6 +1084,7 @@ func TestJobs_PeriodicForce(t *testing.T) {
 }
 
 func TestJobs_Plan(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1101,6 +1127,7 @@ func TestJobs_Plan(t *testing.T) {
 	if len(planResp.CreatedEvals) == 0 {
 		t.Fatalf("got no CreatedEvals: %#v", planResp)
 	}
+	assertWriteMeta(t, wm)
 
 	// Make a plan request w/o the diff
 	planResp, wm, err = jobs.Plan(job, false, nil)
@@ -1129,6 +1156,7 @@ func TestJobs_Plan(t *testing.T) {
 }
 
 func TestJobs_JobSummary(t *testing.T) {
+	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	jobs := c.Jobs()
@@ -1166,6 +1194,7 @@ func TestJobs_JobSummary(t *testing.T) {
 }
 
 func TestJobs_NewBatchJob(t *testing.T) {
+	t.Parallel()
 	job := NewBatchJob("job1", "myjob", "region1", 5)
 	expect := &Job{
 		Region:   helper.StringToPtr("region1"),
@@ -1180,6 +1209,7 @@ func TestJobs_NewBatchJob(t *testing.T) {
 }
 
 func TestJobs_NewServiceJob(t *testing.T) {
+	t.Parallel()
 	job := NewServiceJob("job1", "myjob", "region1", 5)
 	expect := &Job{
 		Region:   helper.StringToPtr("region1"),
@@ -1194,6 +1224,7 @@ func TestJobs_NewServiceJob(t *testing.T) {
 }
 
 func TestJobs_SetMeta(t *testing.T) {
+	t.Parallel()
 	job := &Job{Meta: nil}
 
 	// Initializes a nil map
@@ -1216,6 +1247,7 @@ func TestJobs_SetMeta(t *testing.T) {
 }
 
 func TestJobs_Constrain(t *testing.T) {
+	t.Parallel()
 	job := &Job{Constraints: nil}
 
 	// Create and add a constraint
@@ -1232,12 +1264,12 @@ func TestJobs_Constrain(t *testing.T) {
 	// Adding another constraint preserves the original
 	job.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
 	expect := []*Constraint{
-		&Constraint{
+		{
 			LTarget: "kernel.name",
 			RTarget: "darwin",
 			Operand: "=",
 		},
-		&Constraint{
+		{
 			LTarget: "memory.totalbytes",
 			RTarget: "128000000",
 			Operand: ">=",
@@ -1249,19 +1281,59 @@ func TestJobs_Constrain(t *testing.T) {
 }
 
 func TestJobs_Sort(t *testing.T) {
+	t.Parallel()
 	jobs := []*JobListStub{
-		&JobListStub{ID: "job2"},
-		&JobListStub{ID: "job0"},
-		&JobListStub{ID: "job1"},
+		{ID: "job2"},
+		{ID: "job0"},
+		{ID: "job1"},
 	}
 	sort.Sort(JobIDSort(jobs))
 
 	expect := []*JobListStub{
-		&JobListStub{ID: "job0"},
-		&JobListStub{ID: "job1"},
-		&JobListStub{ID: "job2"},
+		{ID: "job0"},
+		{ID: "job1"},
+		{ID: "job2"},
 	}
 	if !reflect.DeepEqual(jobs, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", jobs, expect)
 	}
+}
+
+func TestJobs_Summary_WithACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	c, s, root := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	invalidToken := mock.ACLToken()
+
+	// Registering with an invalid  token should fail
+	c.SetSecretID(invalidToken.SecretID)
+	job := testJob()
+	_, _, err := jobs.Register(job, nil)
+	assert.NotNil(err)
+
+	// Register with token should succeed
+	c.SetSecretID(root.SecretID)
+	resp2, wm, err := jobs.Register(job, nil)
+	assert.Nil(err)
+	assert.NotNil(resp2)
+	assert.NotEqual("", resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Query the job summary with an invalid token should fail
+	c.SetSecretID(invalidToken.SecretID)
+	result, _, err := jobs.Summary(*job.ID, nil)
+	assert.NotNil(err)
+
+	// Query the job summary with a valid token should succeed
+	c.SetSecretID(root.SecretID)
+	result, qm, err := jobs.Summary(*job.ID, nil)
+	assert.Nil(err)
+	assertQueryMeta(t, qm)
+
+	// Check that the result is what we expect
+	assert.Equal(*job.ID, result.JobID)
 }

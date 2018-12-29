@@ -1,7 +1,7 @@
 ---
 layout: api
 page_title: JSON Job Specification - HTTP API
-sidebar_current: api-jobs
+sidebar_current: api-json-jobs
 description: |-
   Jobs can also be specified via the HTTP API using a JSON format. This guide
   discusses the job specification in JSON format.
@@ -18,172 +18,111 @@ $ nomad run -output my-job.nomad
 
 ## Syntax
 
-Below is an example of a JSON object that submits a `periodic` job to Nomad:
+Below is the JSON representation of the job outputted by `$ nomad init`:
 
 ```json
 {
-  "Job": {
-    "Region": "global",
-    "ID": "example",
-    "Name": "example",
-    "Type": "batch",
-    "Priority": 50,
-    "AllAtOnce": false,
-    "Datacenters": [
-      "dc1"
-    ],
-    "Constraints": [
-      {
-        "LTarget": "${attr.kernel.name}",
-        "RTarget": "linux",
-        "Operand": "="
-      }
-    ],
-    "TaskGroups": [
-      {
-        "Name": "cache",
-        "Count": 1,
-        "Constraints": null,
-        "Tasks": [
-          {
-            "Name": "redis",
-            "Driver": "docker",
-            "User": "foo-user",
-            "Config": {
-              "image": "redis:latest",
-              "port_map": [
-                {
-                  "db": 6379
-                }
-              ]
-            },
-            "Constraints": null,
-            "Env": {
-              "foo": "bar",
-              "baz": "pipe"
-            },
-            "Services": [
-              {
-                "Name": "cache-redis",
-                "Tags": [
-                  "global",
-                  "cache"
-                ],
-                "PortLabel": "db",
-                "Checks": [
-                  {
-                    "Id": "",
-                    "Name": "alive",
-                    "Type": "tcp",
-                    "Command": "",
-                    "Args": null,
-                    "Path": "",
-                    "Protocol": "",
-                    "Interval": 10000000000,
-                    "Timeout": 2000000000
-                  }
-                ]
-              }
-            ],
-            "Vault": {
-              "Policies": [
-                "policy-name"
-              ],
-              "Env": true,
-              "ChangeMode": "restart",
-              "ChangeSignal": ""
-            },
-            "Resources": {
-              "CPU": 500,
-              "MemoryMB": 256,
-              "IOPS": 0,
-              "Networks": [
-                {
-                  "ReservedPorts": [
-                    {
-                      "Label": "rpc",
-                      "Value": 25566
-                    }
-                  ],
-                  "DynamicPorts": [
-                    {
-                      "Label": "db"
-                    }
-                  ],
-                  "MBits": 10
-                }
-              ]
-            },
-            "Meta": {
-              "foo": "bar",
-              "baz": "pipe"
-            },
-            "KillTimeout": 5000000000,
-            "LogConfig": {
-              "MaxFiles": 10,
-              "MaxFileSizeMB": 10
-            },
-            "Templates": [
-              {
-                "SourcePath": "local/config.conf.tpl",
-                "DestPath": "local/config.conf",
-                "EmbeddedTmpl": "",
-                "ChangeMode": "signal",
-                "ChangeSignal": "SIGUSR1",
-                "Splay": 5000000000
-              }
-            ],
-            "Artifacts": [
-              {
-                "GetterSource": "http://foo.com/artifact.tar.gz",
-                "GetterOptions": {
-                  "checksum": "md5:c4aa853ad2215426eb7d70a21922e794"
-                },
-                "RelativeDest": "local/"
-              }
-            ],
-            "DispatchPayload": {
-              "File": "config.json"
-            }
-          }
+    "Job": {
+        "ID": "example",
+        "Name": "example",
+        "Type": "service",
+        "Priority": 50,
+        "Datacenters": [
+            "dc1"
         ],
-        "RestartPolicy": {
-          "Interval": 300000000000,
-          "Attempts": 10,
-          "Delay": 25000000000,
-          "Mode": "delay"
-        },
-        "Meta": {
-          "foo": "bar",
-          "baz": "pipe"
+        "TaskGroups": [{
+            "Name": "cache",
+            "Count": 1,
+            "Tasks": [{
+                "Name": "redis",
+                "Driver": "docker",
+                "User": "",
+                "Config": {
+                    "image": "redis:3.2",
+                    "port_map": [{
+                        "db": 6379
+                    }]
+                },
+                "Services": [{
+                    "Id": "",
+                    "Name": "global-redis-check",
+                    "Tags": [
+                        "global",
+                        "cache"
+                    ],
+                    "PortLabel": "db",
+                    "AddressMode": "",
+                    "Checks": [{
+                        "Id": "",
+                        "Name": "alive",
+                        "Type": "tcp",
+                        "Command": "",
+                        "Args": null,
+                        "Header": {},
+                        "Method": "",
+                        "Path": "",
+                        "Protocol": "",
+                        "PortLabel": "",
+                        "Interval": 10000000000,
+                        "Timeout": 2000000000,
+                        "InitialStatus": "",
+                        "TLSSkipVerify": false,
+                        "CheckRestart": {
+                            "Limit": 3,
+                            "Grace": "30s",
+                            "IgnoreWarnings": false
+                        }
+                    }]
+                }],
+                "Resources": {
+                    "CPU": 500,
+                    "MemoryMB": 256,
+                    "Networks": [{
+                        "Device": "",
+                        "CIDR": "",
+                        "IP": "",
+                        "MBits": 10,
+                        "DynamicPorts": [{
+                            "Label": "db",
+                            "Value": 0
+                        }]
+                    }]
+                },
+                "Leader": false
+            }],
+            "RestartPolicy": {
+                "Interval": 300000000000,
+                "Attempts": 10,
+                "Delay": 25000000000,
+                "Mode": "delay"
+            },
+            "EphemeralDisk": {
+                "SizeMB": 300
+            }
+        }],
+        "Update": {
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000,
+            "HealthyDeadline": 180000000000,
+            "AutoRevert": false,
+            "Canary": 0
         }
-      }
-    ],
-    "Update": {
-      "Stagger": 10000000000,
-      "MaxParallel": 1
-    },
-    "Periodic": {
-      "Enabled": true,
-      "Spec": "- *",
-      "SpecType": "cron",
-      "ProhibitOverlap": true
-    },
-    "Meta": {
-      "foo": "bar",
-      "baz": "pipe"
-    },
-    "ParameterizedJob": {
-      "Payload": "required",
-      "MetaRequired": [
-        "foo"
-      ],
-      "MetaOptional": [
-        "bar"
-      ]
-    },
-    "Payload": null
-  }
+    }
+}
+```
+
+The example JSON could be submitted as a job using the following:
+
+```text
+$ curl -XPUT @d example.json http://127.0.0.1:4646/v1/job/example
+{
+  "EvalID": "5d6ded54-0b2a-8858-6583-be5f476dec9d",
+  "EvalCreateIndex": 12,
+  "JobModifyIndex": 11,
+  "Warnings": "",
+  "Index": 12,
+  "LastContact": 0,
+  "KnownLeader": false
 }
 ```
 
@@ -196,9 +135,11 @@ their default values if any for each type of object.
 
 The `Job` object supports the following keys:
 
-- `AllAtOnce` - Controls if the entire set of tasks in the job must
-  be placed atomically or if they can be scheduled incrementally.
-  This should only be used for special circumstances. Defaults to `false`.
+- `AllAtOnce` - Controls whether the scheduler can make partial placements if
+  optimistic scheduling resulted in an oversubscribed node. This does not
+  control whether all allocations for the job, where all would be the desired
+  count for each task group, must be placed atomically. This should only be
+  used for special circumstances. Defaults to `false`.
 
 - `Constraints` - A list to define additional constraints where a job can be
   run. See the constraint reference for more details.
@@ -211,7 +152,10 @@ The `Job` object supports the following keys:
 
 - `Meta` - Annotates the job with opaque metadata.
 
-- `ParameterizedJob` - Specifies the job as a paramterized job such that it can
+- `Namespace` - The namespace to execute the job in, defaults to "default".
+  Values other than default are not allowed in non-Enterprise versions of Nomad.
+
+- `ParameterizedJob` - Specifies the job as a parameterized job such that it can
   be dispatched against. The `ParamaterizedJob` object supports the following
   attributes:
 
@@ -241,25 +185,10 @@ The `Job` object supports the following keys:
   and defaults to `service`. To learn more about each scheduler type visit
   [here](/docs/runtime/schedulers.html)
 
-- `Update` - Specifies the task's update strategy. When omitted, rolling
-  updates are disabled. The `Update` object supports the following attributes:
-
-  - `MaxParallel` - `MaxParallel` is given as an integer value and specifies
-  the number of tasks that can be updated at the same time.
-
-  - `Stagger` - `Stagger` introduces a delay between sets of task updates and
-  is given in nanoseconds.
-
-    An example `Update` block:
-
-    ```json
-    {
-      "Update": {
-        "MaxParallel" : 3,
-        "Stagger" : 10000000000
-      }
-    }
-    ```
+- `Update` - Specifies an update strategy to be applied to all task groups
+  within the job. When specified both at the job level and the task group level,
+  the update blocks are merged with the task group's taking precedence. For more
+  details on the update stanza, please see below.
 
 -   `Periodic` - `Periodic` allows the job to be scheduled at fixed times, dates
     or intervals. The periodic expression is always evaluated in the UTC
@@ -322,6 +251,11 @@ attributes:
 
 - `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
   [ephemeral disk reference](#ephemeral_disk) for more details.
+
+- `Update` - Specifies an update strategy to be applied to all task groups
+  within the job. When specified both at the job level and the task group level,
+  the update blocks are merged with the task group's taking precedence. For more
+  details on the update stanza, please see below.
 
 - `Tasks` - A list of `Task` object that are part of the task group.
 
@@ -422,18 +356,24 @@ The `Task` object supports the following keys:
 
          - `Name`: The name of the health check.
 
+	 - `Header`: Headers for HTTP checks. Should be an object where the
+	   values are an array of values. Headers will be written once for each
+           value.
+
          - `Interval`: This indicates the frequency of the health checks that
            Consul will perform.
 
          - `Timeout`: This indicates how long Consul will wait for a health
            check query to succeed.
 
-         - `Path`: The path of the http endpoint which Consul will query to query
+         - `Method`: The HTTP method to use for HTTP checks. Defaults to GET.
+
+         - `Path`: The path of the HTTP endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
            will add the IP of the service and the port, users are only required
            to add the relative URL of the health check endpoint.
 
-         - `Protocol`: This indicates the protocol for the http checks. Valid
+         - `Protocol`: This indicates the protocol for the HTTP checks. Valid
            options are `http` and `https`. We default it to `http`.
 
          - `Command`: This is the command that the Nomad client runs for doing
@@ -444,6 +384,26 @@ The `Task` object supports the following keys:
 
 	 - `TLSSkipVerify`: If true, Consul will not attempt to verify the
 	   certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
+
+	   - `CheckRestart`: `CheckRestart` is an object which enables
+	     restarting of tasks based upon Consul health checks.
+
+	     - `Limit`: The number of unhealthy checks allowed before the
+	       service is restarted. Defaults to `0` which disables
+               health-based restarts.
+
+	     - `Grace`: The duration to wait after a task starts or restarts
+	       before counting unhealthy checks count against the limit.
+               Defaults to "1s".
+
+	     - `IgnoreWarnings`: Treat checks that are warning as passing.
+	       Defaults to false which means warnings are considered unhealthy.
+
+- `ShutdownDelay` - Specifies the duration to wait when killing a task between
+  removing it from Consul and sending it a shutdown signal. Ideally services
+  would fail healthchecks once they receive a shutdown signal. Alternatively
+  `ShutdownDelay` may be set to give in flight requests time to complete before
+  shutting down.
 
 - `Templates` - Specifies the set of [`Template`](#template) objects to render for the task.
   Templates can be used to inject both static and dynamic configuration with
@@ -520,6 +480,70 @@ The `RestartPolicy` object supports the following keys:
 
     - `fail` - `fail` will not restart the task again.
 
+### Update
+
+Specifies the task group update strategy. When omitted, rolling updates are
+disabled. The update stanza can be specified at the job or task group level.
+When specified at the job, the update stanza is inherited by all task groups.
+When specified in both the job and in a task group, the stanzas are merged with
+the task group's taking precedence. The `Update` object supports the following
+attributes:
+
+- `MaxParallel` - `MaxParallel` is given as an integer value and specifies
+the number of tasks that can be updated at the same time.
+
+- `HealthCheck` - Specifies the mechanism in which allocations health is
+determined. The potential values are:
+
+  - "checks" - Specifies that the allocation should be considered healthy when
+    all of its tasks are running and their associated [checks][] are healthy,
+    and unhealthy if any of the tasks fail or not all checks become healthy.
+    This is a superset of "task_states" mode.
+
+  - "task_states" - Specifies that the allocation should be considered healthy
+    when all its tasks are running and unhealthy if tasks fail.
+
+  - "manual" - Specifies that Nomad should not automatically determine health
+    and that the operator will specify allocation health using the [HTTP
+    API](/api/deployments.html#set-allocation-health-in-deployment).
+
+- `MinHealthyTime` - Specifies the minimum time the allocation must be in the
+  healthy state before it is marked as healthy and unblocks further allocations
+  from being updated. This is specified using a label suffix like "30s" or
+  "15m".
+
+- `HealthyDeadline` - Specifies the deadline in which the allocation must be
+  marked as healthy after which the allocation is automatically transitioned to
+  unhealthy. This is specified using a label suffix like "2m" or "1h".
+
+- `AutoRevert` - Specifies if the job should auto-revert to the last stable job
+  on deployment failure. A job is marked as stable if all the allocations as
+  part of its deployment were marked healthy.
+
+- `Canary` - Specifies that changes to the job that would result in destructive
+  updates should create the specified number of canaries without stopping any
+  previous allocations. Once the operator determines the canaries are healthy,
+  they can be promoted which unblocks a rolling update of the remaining
+  allocations at a rate of `max_parallel`.
+
+- `Stagger` - Specifies the delay between migrating allocations off nodes marked
+  for draining. This is specified using a label suffix like "30s" or "1h".
+
+An example `Update` block:
+
+```json
+{
+  "Update": {
+        "MaxParallel": 3,
+        "HealthCheck": "checks",
+        "MinHealthyTime": 15000000000,
+        "HealthyDeadline": 180000000000,
+        "AutoRevert": false,
+        "Canary": 1
+  }
+}
+```
+
 ### Constraint
 
 The `Constraint` object supports the following keys:
@@ -539,7 +563,7 @@ The `Constraint` object supports the following keys:
   - `set_contains` - Allows the `RTarget` to be a comma separated list of values
     that should be contained in the LTarget's value.
 
-  - `distinct_host` - If set, the scheduler will not co-locate any task groups on the same
+  - `distinct_hosts` - If set, the scheduler will not co-locate any task groups on the same
         machine. This can be specified as a job constraint which applies the
         constraint to all task groups in the job, or as a task group constraint which
         scopes the effect to just that group. The constraint may not be
@@ -551,7 +575,9 @@ The `Constraint` object supports the following keys:
         omitted.
 
   - `distinct_property` - If set, the scheduler selects nodes that have a
-        distinct value of the specified property for each allocation. This can
+        distinct value of the specified property. The `RTarget` specifies how
+        many allocations are allowed to share the value of a property. The
+        `RTarget` must be 1 or greater and if omitted, defaults to 1. This can
         be specified as a job constraint which applies the constraint to all
         task groups in the job, or as a task group constraint which scopes the
         effect to just that group. The constraint may not be specified at the
@@ -590,8 +616,8 @@ a validation error when a job is submitted.
 ```
 
 In the above example we have asked Nomad to retain 3 rotated files for both
-`stderr` and `stdout` and size of each file is 10MB. The minimum disk space that
-would be required for the task would be 60MB.
+`stderr` and `stdout` and size of each file is 10 MB. The minimum disk space that
+would be required for the task would be 60 MB.
 
 ### Artifact
 
@@ -724,12 +750,15 @@ README][ct].
   or `EmbeddedTmpl` must be specified, but not both. This is useful for smaller
   templates, but we recommend using `SourcePath` for larger templates.
 
+- `Envvars` - Specifies the template should be read back as environment
+  variables for the task.
+
 - `LeftDelim` - Specifies the left delimiter to use in the template. The default
   is "{{" for some templates, it may be easier to use a different delimiter that
   does not conflict with the output file itself.
 
 - `Perms` - Specifies the rendered template's permissions. File permissions are
-  given as octal of the unix file permissions rwxrwxrwx.
+  given as octal of the Unix file permissions rwxrwxrwx.
 
 - `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that
@@ -741,10 +770,18 @@ README][ct].
   machine prior to starting the task; it is not possible to reference a template
   inside of a Docker container, for example.
 
-- `Splay` - Specifies a random amount of time to wait between 0ms and the given
+- `Splay` - Specifies a random amount of time to wait between 0 ms and the given
   splay value before invoking the change mode. Should be specified in
   nanoseconds.
 
+- `VaultGrace` - Specifies the grace period between lease renewal and secret
+  re-acquisition. When renewing a secret, if the remaining lease is less than or
+  equal to the configured grace, the template will request a new credential.
+  This prevents Vault from revoking the secret at its expiration and the task
+  having a stale secret. If the grace is set to a value that is higher than your
+  default TTL or max TTL, the template will always read a new secret. If the
+  task defines several templates, the `vault_grace` will be set to the lowest
+  value across all the templates.
 
 ```json
 {
@@ -759,7 +796,6 @@ README][ct].
     }
   ]
 }
-
 ```
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"

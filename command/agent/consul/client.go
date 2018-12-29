@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -8,12 +9,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -68,10 +71,6 @@ type AgentAPI interface {
 	UpdateTTL(id, output, status string) error
 }
 
-// addrParser is usually the Task.FindHostAndPortFor method for turning a
-// portLabel into an address and port.
-type addrParser func(portLabel string) (string, int)
-
 // operations are submitted to the main loop via commit() for synchronizing
 // with Consul.
 type operations struct {
@@ -81,6 +80,103 @@ type operations struct {
 
 	deregServices []string
 	deregChecks   []string
+}
+
+// AllocRegistration holds the status of services registered for a particular
+// allocations by task.
+type AllocRegistration struct {
+	// Tasks maps the name of a task to its registered services and checks
+	Tasks map[string]*TaskRegistration
+}
+
+func (a *AllocRegistration) copy() *AllocRegistration {
+	c := &AllocRegistration{
+		Tasks: make(map[string]*TaskRegistration, len(a.Tasks)),
+	}
+
+	for k, v := range a.Tasks {
+		c.Tasks[k] = v.copy()
+	}
+
+	return c
+}
+
+// NumServices returns the number of registered services
+func (a *AllocRegistration) NumServices() int {
+	if a == nil {
+		return 0
+	}
+
+	total := 0
+	for _, treg := range a.Tasks {
+		for _, sreg := range treg.Services {
+			if sreg.Service != nil {
+				total++
+			}
+		}
+	}
+
+	return total
+}
+
+// NumChecks returns the number of registered checks
+func (a *AllocRegistration) NumChecks() int {
+	if a == nil {
+		return 0
+	}
+
+	total := 0
+	for _, treg := range a.Tasks {
+		for _, sreg := range treg.Services {
+			total += len(sreg.Checks)
+		}
+	}
+
+	return total
+}
+
+// TaskRegistration holds the status of services registered for a particular
+// task.
+type TaskRegistration struct {
+	Services map[string]*ServiceRegistration
+}
+
+func (t *TaskRegistration) copy() *TaskRegistration {
+	c := &TaskRegistration{
+		Services: make(map[string]*ServiceRegistration, len(t.Services)),
+	}
+
+	for k, v := range t.Services {
+		c.Services[k] = v.copy()
+	}
+
+	return c
+}
+
+// ServiceRegistration holds the status of a registered Consul Service and its
+// Checks.
+type ServiceRegistration struct {
+	// serviceID and checkIDs are internal fields that track just the IDs of the
+	// services/checks registered in Consul. It is used to materialize the other
+	// fields when queried.
+	serviceID string
+	checkIDs  map[string]struct{}
+
+	// Service is the AgentService registered in Consul.
+	Service *api.AgentService
+
+	// Checks is the status of the registered checks.
+	Checks []*api.AgentCheck
+}
+
+func (s *ServiceRegistration) copy() *ServiceRegistration {
+	// Copy does not copy the external fields but only the internal fields. This
+	// is so that the caller of AllocRegistrations can not access the internal
+	// fields and that method uses these fields to populate the external fields.
+	return &ServiceRegistration{
+		serviceID: s.serviceID,
+		checkIDs:  helper.CopyMapStringStruct(s.checkIDs),
+	}
 }
 
 // ServiceClient handles task and agent service registration with Consul.
@@ -110,39 +206,74 @@ type ServiceClient struct {
 	scripts        map[string]*scriptCheck
 	runningScripts map[string]*scriptHandle
 
+	// allocRegistrations stores the services and checks that are registered
+	// with Consul by allocation ID.
+	allocRegistrations     map[string]*AllocRegistration
+	allocRegistrationsLock sync.RWMutex
+
 	// agent services and checks record entries for the agent itself which
 	// should be removed on shutdown
 	agentServices map[string]struct{}
 	agentChecks   map[string]struct{}
 	agentLock     sync.Mutex
+
+	// seen is 1 if Consul has ever been seen; otherise 0. Accessed with
+	// atomics.
+	seen int32
+
+	// checkWatcher restarts checks that are unhealthy.
+	checkWatcher *checkWatcher
 }
 
 // NewServiceClient creates a new Consul ServiceClient from an existing Consul API
 // Client and logger.
 func NewServiceClient(consulClient AgentAPI, skipVerifySupport bool, logger *log.Logger) *ServiceClient {
 	return &ServiceClient{
-		client:            consulClient,
-		skipVerifySupport: skipVerifySupport,
-		logger:            logger,
-		retryInterval:     defaultRetryInterval,
-		maxRetryInterval:  defaultMaxRetryInterval,
-		exitCh:            make(chan struct{}),
-		shutdownCh:        make(chan struct{}),
-		shutdownWait:      defaultShutdownWait,
-		opCh:              make(chan *operations, 8),
-		services:          make(map[string]*api.AgentServiceRegistration),
-		checks:            make(map[string]*api.AgentCheckRegistration),
-		scripts:           make(map[string]*scriptCheck),
-		runningScripts:    make(map[string]*scriptHandle),
-		agentServices:     make(map[string]struct{}),
-		agentChecks:       make(map[string]struct{}),
+		client:             consulClient,
+		skipVerifySupport:  skipVerifySupport,
+		logger:             logger,
+		retryInterval:      defaultRetryInterval,
+		maxRetryInterval:   defaultMaxRetryInterval,
+		exitCh:             make(chan struct{}),
+		shutdownCh:         make(chan struct{}),
+		shutdownWait:       defaultShutdownWait,
+		opCh:               make(chan *operations, 8),
+		services:           make(map[string]*api.AgentServiceRegistration),
+		checks:             make(map[string]*api.AgentCheckRegistration),
+		scripts:            make(map[string]*scriptCheck),
+		runningScripts:     make(map[string]*scriptHandle),
+		allocRegistrations: make(map[string]*AllocRegistration),
+		agentServices:      make(map[string]struct{}),
+		agentChecks:        make(map[string]struct{}),
+		checkWatcher:       newCheckWatcher(logger, consulClient),
 	}
+}
+
+// seen is used by markSeen and hasSeen
+const seen = 1
+
+// markSeen marks Consul as having been seen (meaning at least one operation
+// has succeeded).
+func (c *ServiceClient) markSeen() {
+	atomic.StoreInt32(&c.seen, seen)
+}
+
+// hasSeen returns true if any Consul operation has ever succeeded. Useful to
+// squelch errors if Consul isn't running.
+func (c *ServiceClient) hasSeen() bool {
+	return atomic.LoadInt32(&c.seen) == seen
 }
 
 // Run the Consul main loop which retries operations against Consul. It should
 // be called exactly once.
 func (c *ServiceClient) Run() {
 	defer close(c.exitCh)
+
+	// start checkWatcher
+	ctx, cancelWatcher := context.WithCancel(context.Background())
+	defer cancelWatcher()
+	go c.checkWatcher.Run(ctx)
+
 	retryTimer := time.NewTimer(0)
 	<-retryTimer.C // disabled by default
 	failures := 0
@@ -150,6 +281,7 @@ func (c *ServiceClient) Run() {
 		select {
 		case <-retryTimer.C:
 		case <-c.shutdownCh:
+			cancelWatcher()
 		case ops := <-c.opCh:
 			c.merge(ops)
 		}
@@ -336,6 +468,9 @@ func (c *ServiceClient) sync() error {
 		}
 	}
 
+	// A Consul operation has succeeded, mark Consul as having been seen
+	c.markSeen()
+
 	c.logger.Printf("[DEBUG] consul.sync: registered %d services, %d checks; deregistered %d services, %d checks",
 		sreg, creg, sdereg, cdereg)
 	return nil
@@ -422,11 +557,19 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 }
 
 // serviceRegs creates service registrations, check registrations, and script
-// checks from a service.
+// checks from a service. It returns a service registration object with the
+// service and check IDs populated.
 func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *structs.Service,
-	task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+	task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) (*ServiceRegistration, error) {
 
+	// Get the services ID
 	id := makeTaskServiceID(allocID, task.Name, service)
+	sreg := &ServiceRegistration{
+		serviceID: id,
+		checkIDs:  make(map[string]struct{}, len(service.Checks)),
+	}
+
+	// Determine the address to advertise
 	addrMode := service.AddressMode
 	if addrMode == structs.AddressModeAuto {
 		if net.Advertise() {
@@ -439,11 +582,13 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 	ip, port := task.Resources.Networks.Port(service.PortLabel)
 	if addrMode == structs.AddressModeDriver {
 		if net == nil {
-			return fmt.Errorf("service %s cannot use driver's IP because driver didn't set one", service.Name)
+			return nil, fmt.Errorf("service %s cannot use driver's IP because driver didn't set one", service.Name)
 		}
 		ip = net.IP
 		port = net.PortMap[service.PortLabel]
 	}
+
+	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
 		ID:      id,
 		Name:    service.Name,
@@ -455,12 +600,30 @@ func (c *ServiceClient) serviceRegs(ops *operations, allocID string, service *st
 	// with tests that may reuse Tasks
 	copy(serviceReg.Tags, service.Tags)
 	ops.regServices = append(ops.regServices, serviceReg)
-	return c.checkRegs(ops, allocID, id, service, task, exec, net)
+
+	// Build the check registrations
+	checkIDs, err := c.checkRegs(ops, allocID, id, service, task, exec, net)
+	if err != nil {
+		return nil, err
+	}
+	for _, cid := range checkIDs {
+		sreg.checkIDs[cid] = struct{}{}
+	}
+	return sreg, nil
 }
 
+// checkRegs registers the checks for the given service and returns the
+// registered check ids.
 func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, service *structs.Service,
-	task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+	task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) ([]string, error) {
 
+	// Fast path
+	numChecks := len(service.Checks)
+	if numChecks == 0 {
+		return nil, nil
+	}
+
+	checkIDs := make([]string, 0, numChecks)
 	for _, check := range service.Checks {
 		if check.TLSSkipVerify && !c.skipVerifySupport {
 			c.logger.Printf("[WARN] consul.sync: skipping check %q for task %q alloc %q because Consul doesn't support tls_skip_verify. Please upgrade to Consul >= 0.7.2.",
@@ -468,9 +631,10 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 			continue
 		}
 		checkID := makeCheckID(serviceID, check)
+		checkIDs = append(checkIDs, checkID)
 		if check.Type == structs.ServiceCheckScript {
 			if exec == nil {
-				return fmt.Errorf("driver doesn't support script checks")
+				return nil, fmt.Errorf("driver doesn't support script checks")
 			}
 			ops.scripts = append(ops.scripts, newScriptCheck(
 				allocID, task.Name, checkID, check, exec, c.client, c.logger, c.shutdownCh))
@@ -486,28 +650,55 @@ func (c *ServiceClient) checkRegs(ops *operations, allocID, serviceID string, se
 		ip, port := task.Resources.Networks.Port(portLabel)
 		checkReg, err := createCheckReg(serviceID, checkID, check, ip, port)
 		if err != nil {
-			return fmt.Errorf("failed to add check %q: %v", check.Name, err)
+			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
 		ops.regChecks = append(ops.regChecks, checkReg)
 	}
-	return nil
+	return checkIDs, nil
 }
 
-// RegisterTask with Consul. Adds all sevice entries and checks to Consul. If
+// RegisterTask with Consul. Adds all service entries and checks to Consul. If
 // exec is nil and a script check exists an error is returned.
 //
 // If the service IP is set it used as the address in the service registration.
 // Checks will always use the IP from the Task struct (host's IP).
 //
 // Actual communication with Consul is done asynchrously (see Run).
-func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+	// Fast path
+	numServices := len(task.Services)
+	if numServices == 0 {
+		return nil
+	}
+
+	t := new(TaskRegistration)
+	t.Services = make(map[string]*ServiceRegistration, numServices)
+
 	ops := &operations{}
 	for _, service := range task.Services {
-		if err := c.serviceRegs(ops, allocID, service, task, exec, net); err != nil {
+		sreg, err := c.serviceRegs(ops, allocID, service, task, exec, net)
+		if err != nil {
 			return err
 		}
+		t.Services[sreg.serviceID] = sreg
 	}
+
+	// Add the task to the allocation's registration
+	c.addTaskRegistration(allocID, task.Name, t)
+
 	c.commit(ops)
+
+	// Start watching checks. Done after service registrations are built
+	// since an error building them could leak watches.
+	for _, service := range task.Services {
+		serviceID := makeTaskServiceID(allocID, task.Name, service)
+		for _, check := range service.Checks {
+			if check.TriggersRestarts() {
+				checkID := makeCheckID(serviceID, check)
+				c.checkWatcher.Watch(allocID, task.Name, checkID, check, restarter)
+			}
+		}
+	}
 	return nil
 }
 
@@ -515,8 +706,11 @@ func (c *ServiceClient) RegisterTask(allocID string, task *structs.Task, exec dr
 // changed.
 //
 // DriverNetwork must not change between invocations for the same allocation.
-func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
+func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) error {
 	ops := &operations{}
+
+	t := new(TaskRegistration)
+	t.Services = make(map[string]*ServiceRegistration, len(newTask.Services))
 
 	existingIDs := make(map[string]*structs.Service, len(existing.Services))
 	for _, s := range existing.Services {
@@ -532,13 +726,26 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 	for existingID, existingSvc := range existingIDs {
 		newSvc, ok := newIDs[existingID]
 		if !ok {
-			// Existing sevice entry removed
+			// Existing service entry removed
 			ops.deregServices = append(ops.deregServices, existingID)
 			for _, check := range existingSvc.Checks {
-				ops.deregChecks = append(ops.deregChecks, makeCheckID(existingID, check))
+				cid := makeCheckID(existingID, check)
+				ops.deregChecks = append(ops.deregChecks, cid)
+
+				// Unwatch watched checks
+				if check.TriggersRestarts() {
+					c.checkWatcher.Unwatch(cid)
+				}
 			}
 			continue
 		}
+
+		// Service still exists so add it to the task's registration
+		sreg := &ServiceRegistration{
+			serviceID: existingID,
+			checkIDs:  make(map[string]struct{}, len(newSvc.Checks)),
+		}
+		t.Services[existingID] = sreg
 
 		// PortLabel and AddressMode aren't included in the ID, so we
 		// have to compare manually.
@@ -549,9 +756,9 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 		}
 
 		// Check to see what checks were updated
-		existingChecks := make(map[string]struct{}, len(existingSvc.Checks))
+		existingChecks := make(map[string]*structs.ServiceCheck, len(existingSvc.Checks))
 		for _, check := range existingSvc.Checks {
-			existingChecks[makeCheckID(existingID, check)] = struct{}{}
+			existingChecks[makeCheckID(existingID, check)] = check
 		}
 
 		// Register new checks
@@ -560,30 +767,64 @@ func (c *ServiceClient) UpdateTask(allocID string, existing, newTask *structs.Ta
 			if _, exists := existingChecks[checkID]; exists {
 				// Check exists, so don't remove it
 				delete(existingChecks, checkID)
+				sreg.checkIDs[checkID] = struct{}{}
 			} else if serviceUnchanged {
 				// New check on an unchanged service; add them now
-				err := c.checkRegs(ops, allocID, existingID, newSvc, newTask, exec, net)
+				newCheckIDs, err := c.checkRegs(ops, allocID, existingID, newSvc, newTask, exec, net)
 				if err != nil {
 					return err
 				}
+
+				for _, checkID := range newCheckIDs {
+					sreg.checkIDs[checkID] = struct{}{}
+
+				}
+
+			}
+
+			// Update all watched checks as CheckRestart fields aren't part of ID
+			if check.TriggersRestarts() {
+				c.checkWatcher.Watch(allocID, newTask.Name, checkID, check, restarter)
 			}
 		}
 
 		// Remove existing checks not in updated service
-		for cid := range existingChecks {
+		for cid, check := range existingChecks {
 			ops.deregChecks = append(ops.deregChecks, cid)
+
+			// Unwatch checks
+			if check.TriggersRestarts() {
+				c.checkWatcher.Unwatch(cid)
+			}
 		}
 	}
 
 	// Any remaining services should just be enqueued directly
 	for _, newSvc := range newIDs {
-		err := c.serviceRegs(ops, allocID, newSvc, newTask, exec, net)
+		sreg, err := c.serviceRegs(ops, allocID, newSvc, newTask, exec, net)
 		if err != nil {
 			return err
 		}
+
+		t.Services[sreg.serviceID] = sreg
 	}
 
+	// Add the task to the allocation's registration
+	c.addTaskRegistration(allocID, newTask.Name, t)
+
 	c.commit(ops)
+
+	// Start watching checks. Done after service registrations are built
+	// since an error building them could leak watches.
+	for _, service := range newIDs {
+		serviceID := makeTaskServiceID(allocID, newTask.Name, service)
+		for _, check := range service.Checks {
+			if check.TriggersRestarts() {
+				checkID := makeCheckID(serviceID, check)
+				c.checkWatcher.Watch(allocID, newTask.Name, checkID, check, restarter)
+			}
+		}
+	}
 	return nil
 }
 
@@ -598,47 +839,61 @@ func (c *ServiceClient) RemoveTask(allocID string, task *structs.Task) {
 		ops.deregServices = append(ops.deregServices, id)
 
 		for _, check := range service.Checks {
-			ops.deregChecks = append(ops.deregChecks, makeCheckID(id, check))
+			cid := makeCheckID(id, check)
+			ops.deregChecks = append(ops.deregChecks, cid)
+
+			if check.TriggersRestarts() {
+				c.checkWatcher.Unwatch(cid)
+			}
 		}
 	}
+
+	// Remove the task from the alloc's registrations
+	c.removeTaskRegistration(allocID, task.Name)
 
 	// Now add them to the deregistration fields; main Run loop will update
 	c.commit(&ops)
 }
 
-// Checks returns the checks registered against the agent for the given
-// allocation.
-func (c *ServiceClient) Checks(a *structs.Allocation) ([]*api.AgentCheck, error) {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil {
-		return nil, fmt.Errorf("failed to find task group in alloc")
+// AllocRegistrations returns the registrations for the given allocation. If the
+// allocation has no reservations, the response is a nil object.
+func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, error) {
+	// Get the internal struct using the lock
+	c.allocRegistrationsLock.RLock()
+	regInternal, ok := c.allocRegistrations[allocID]
+	if !ok {
+		c.allocRegistrationsLock.RUnlock()
+		return nil, nil
 	}
 
-	// Determine the checks that are relevant
-	relevant := make(map[string]struct{}, 4)
-	for _, task := range tg.Tasks {
-		for _, service := range task.Services {
-			id := makeTaskServiceID(a.ID, task.Name, service)
-			for _, check := range service.Checks {
-				relevant[makeCheckID(id, check)] = struct{}{}
-			}
-		}
+	// Copy so we don't expose internal structs
+	reg := regInternal.copy()
+	c.allocRegistrationsLock.RUnlock()
+
+	// Query the services and checks to populate the allocation registrations.
+	services, err := c.client.Services()
+	if err != nil {
+		return nil, err
 	}
 
-	// Query all the checks
 	checks, err := c.client.Checks()
 	if err != nil {
 		return nil, err
 	}
 
-	allocChecks := make([]*api.AgentCheck, 0, len(relevant))
-	for checkID := range relevant {
-		if check, ok := checks[checkID]; ok {
-			allocChecks = append(allocChecks, check)
+	// Populate the object
+	for _, treg := range reg.Tasks {
+		for serviceID, sreg := range treg.Services {
+			sreg.Service = services[serviceID]
+			for checkID := range sreg.checkIDs {
+				if check, ok := checks[checkID]; ok {
+					sreg.Checks = append(sreg.Checks, check)
+				}
+			}
 		}
 	}
 
-	return allocChecks, nil
+	return reg, nil
 }
 
 // Shutdown the Consul client. Update running task registations and deregister
@@ -648,28 +903,13 @@ func (c *ServiceClient) Shutdown() error {
 	// Serialize Shutdown calls with RegisterAgent to prevent leaking agent
 	// entries.
 	c.agentLock.Lock()
+	defer c.agentLock.Unlock()
 	select {
 	case <-c.shutdownCh:
 		return nil
 	default:
+		close(c.shutdownCh)
 	}
-
-	// Deregister Nomad agent Consul entries before closing shutdown.
-	ops := operations{}
-	for id := range c.agentServices {
-		ops.deregServices = append(ops.deregServices, id)
-	}
-	for id := range c.agentChecks {
-		ops.deregChecks = append(ops.deregChecks, id)
-	}
-	c.commit(&ops)
-
-	// Then signal shutdown
-	close(c.shutdownCh)
-
-	// Safe to unlock after shutdownCh closed as RegisterAgent will check
-	// shutdownCh before committing.
-	c.agentLock.Unlock()
 
 	// Give run loop time to sync, but don't block indefinitely
 	deadline := time.After(c.shutdownWait)
@@ -679,7 +919,24 @@ func (c *ServiceClient) Shutdown() error {
 	case <-c.exitCh:
 	case <-deadline:
 		// Don't wait forever though
-		return fmt.Errorf("timed out waiting for Consul operations to complete")
+	}
+
+	// If Consul was never seen nothing could be written so exit early
+	if !c.hasSeen() {
+		return nil
+	}
+
+	// Always attempt to deregister Nomad agent Consul entries, even if
+	// deadline was reached
+	for id := range c.agentServices {
+		if err := c.client.ServiceDeregister(id); err != nil {
+			c.logger.Printf("[ERR] consul.sync: error deregistering agent service (id: %q): %v", id, err)
+		}
+	}
+	for id := range c.agentChecks {
+		if err := c.client.CheckDeregister(id); err != nil {
+			c.logger.Printf("[ERR] consul.sync: error deregistering agent service (id: %q): %v", id, err)
+		}
 	}
 
 	// Give script checks time to exit (no need to lock as Run() has exited)
@@ -691,6 +948,39 @@ func (c *ServiceClient) Shutdown() error {
 		}
 	}
 	return nil
+}
+
+// addTaskRegistration adds the task registration for the given allocation.
+func (c *ServiceClient) addTaskRegistration(allocID, taskName string, reg *TaskRegistration) {
+	c.allocRegistrationsLock.Lock()
+	defer c.allocRegistrationsLock.Unlock()
+
+	alloc, ok := c.allocRegistrations[allocID]
+	if !ok {
+		alloc = &AllocRegistration{
+			Tasks: make(map[string]*TaskRegistration),
+		}
+		c.allocRegistrations[allocID] = alloc
+	}
+	alloc.Tasks[taskName] = reg
+}
+
+// removeTaskRegistration removes the task registration for the given allocation.
+func (c *ServiceClient) removeTaskRegistration(allocID, taskName string) {
+	c.allocRegistrationsLock.Lock()
+	defer c.allocRegistrationsLock.Unlock()
+
+	alloc, ok := c.allocRegistrations[allocID]
+	if !ok {
+		return
+	}
+
+	// Delete the task and if it is the last one also delete the alloc's
+	// registration
+	delete(alloc.Tasks, taskName)
+	if len(alloc.Tasks) == 0 {
+		delete(c.allocRegistrations, allocID)
+	}
 }
 
 // makeAgentServiceID creates a unique ID for identifying an agent service in
@@ -768,10 +1058,14 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		}
 		url := base.ResolveReference(relative)
 		chkReg.HTTP = url.String()
+		chkReg.Method = check.Method
+		chkReg.Header = check.Header
 	case structs.ServiceCheckTCP:
 		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
 	case structs.ServiceCheckScript:
 		chkReg.TTL = (check.Interval + ttlCheckBuffer).String()
+		// As of Consul 1.0.0 setting TTL and Interval is a 400
+		chkReg.Interval = ""
 	default:
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)
 	}
@@ -779,7 +1073,9 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 }
 
 // isNomadService returns true if the ID matches the pattern of a Nomad managed
-// service.
+// service. Agent services return false as independent client and server agents
+// may be running on the same machine. #2827
 func isNomadService(id string) bool {
-	return strings.HasPrefix(id, nomadServicePrefix)
+	const prefix = nomadServicePrefix + "-executor"
+	return strings.HasPrefix(id, prefix)
 }

@@ -50,7 +50,7 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 	}
 
 	var args structs.RaftPeerByAddressRequest
-	s.parseRegion(req, &args.Region)
+	s.parseWriteRequest(req, &args.WriteRequest)
 
 	params := req.URL.Query()
 	if _, ok := params["address"]; ok {

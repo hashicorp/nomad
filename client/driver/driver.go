@@ -88,7 +88,7 @@ func NewCreatedResources() *CreatedResources {
 // Add a new resource if it doesn't already exist.
 func (r *CreatedResources) Add(k, v string) {
 	if r.Resources == nil {
-		r.Resources = map[string][]string{k: []string{v}}
+		r.Resources = map[string][]string{k: {v}}
 		return
 	}
 	existing, ok := r.Resources[k]
@@ -338,16 +338,6 @@ func NewExecContext(td *allocdir.TaskDir, te *env.TaskEnv) *ExecContext {
 		TaskDir: td,
 		TaskEnv: te,
 	}
-}
-
-func mapMergeStrInt(maps ...map[string]int) map[string]int {
-	out := map[string]int{}
-	for _, in := range maps {
-		for key, val := range in {
-			out[key] = val
-		}
-	}
-	return out
 }
 
 func mapMergeStrStr(maps ...map[string]string) map[string]string {

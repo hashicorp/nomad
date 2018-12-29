@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -21,6 +20,9 @@ const (
 
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
+
+	// DefaultNamespace is the default namespace.
+	DefaultNamespace = "default"
 )
 
 const (
@@ -49,30 +51,43 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 	return &resp, wm, err
 }
 
+// RegisterOptions is used to pass through job registration parameters
+type RegisterOptions struct {
+	EnforceIndex   bool
+	ModifyIndex    uint64
+	PolicyOverride bool
+}
+
 // Register is used to register a new job. It returns the ID
 // of the evaluation, along with any errors encountered.
 func (j *Jobs) Register(job *Job, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
-
-	var resp JobRegisterResponse
-
-	req := &RegisterJobRequest{Job: job}
-	wm, err := j.client.write("/v1/jobs", req, &resp, q)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &resp, wm, nil
+	return j.RegisterOpts(job, nil, q)
 }
 
 // EnforceRegister is used to register a job enforcing its job modify index.
 func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	opts := RegisterOptions{EnforceIndex: true, ModifyIndex: modifyIndex}
+	return j.RegisterOpts(job, &opts, q)
+}
+
+// Register is used to register a new job. It returns the ID
+// of the evaluation, along with any errors encountered.
+func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	// Format the request
+	req := &RegisterJobRequest{
+		Job: job,
+	}
+	if opts != nil {
+		if opts.EnforceIndex {
+			req.EnforceIndex = true
+			req.JobModifyIndex = opts.ModifyIndex
+		}
+		if opts.PolicyOverride {
+			req.PolicyOverride = true
+		}
+	}
 
 	var resp JobRegisterResponse
-
-	req := &RegisterJobRequest{
-		Job:            job,
-		EnforceIndex:   true,
-		JobModifyIndex: modifyIndex,
-	}
 	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -205,21 +220,36 @@ func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta,
 	return resp.EvalID, wm, nil
 }
 
+// PlanOptions is used to pass through job planning parameters
+type PlanOptions struct {
+	Diff           bool
+	PolicyOverride bool
+}
+
 func (j *Jobs) Plan(job *Job, diff bool, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
+	opts := PlanOptions{Diff: diff}
+	return j.PlanOpts(job, &opts, q)
+}
+
+func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanResponse, *WriteMeta, error) {
 	if job == nil {
 		return nil, nil, fmt.Errorf("must pass non-nil job")
 	}
 
-	var resp JobPlanResponse
+	// Setup the request
 	req := &JobPlanRequest{
-		Job:  job,
-		Diff: diff,
+		Job: job,
 	}
+	if opts != nil {
+		req.Diff = opts.Diff
+		req.PolicyOverride = opts.PolicyOverride
+	}
+
+	var resp JobPlanResponse
 	wm, err := j.client.write("/v1/job/"+*job.ID+"/plan", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	return &resp, wm, nil
 }
 
@@ -299,6 +329,20 @@ type UpdateStrategy struct {
 	Canary          *int           `mapstructure:"canary"`
 }
 
+// DefaultUpdateStrategy provides a baseline that can be used to upgrade
+// jobs with the old policy or for populating field defaults.
+func DefaultUpdateStrategy() *UpdateStrategy {
+	return &UpdateStrategy{
+		Stagger:         helper.TimeToPtr(30 * time.Second),
+		MaxParallel:     helper.IntToPtr(1),
+		HealthCheck:     helper.StringToPtr("checks"),
+		MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
+		HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+		AutoRevert:      helper.BoolToPtr(false),
+		Canary:          helper.IntToPtr(0),
+	}
+}
+
 func (u *UpdateStrategy) Copy() *UpdateStrategy {
 	if u == nil {
 		return nil
@@ -372,35 +416,72 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 }
 
 func (u *UpdateStrategy) Canonicalize() {
+	d := DefaultUpdateStrategy()
+
 	if u.MaxParallel == nil {
-		u.MaxParallel = helper.IntToPtr(0)
+		u.MaxParallel = d.MaxParallel
 	}
 
-	d := structs.DefaultUpdateStrategy
-
 	if u.Stagger == nil {
-		u.Stagger = helper.TimeToPtr(d.Stagger)
+		u.Stagger = d.Stagger
 	}
 
 	if u.HealthCheck == nil {
-		u.HealthCheck = helper.StringToPtr(d.HealthCheck)
+		u.HealthCheck = d.HealthCheck
 	}
 
 	if u.HealthyDeadline == nil {
-		u.HealthyDeadline = helper.TimeToPtr(d.HealthyDeadline)
+		u.HealthyDeadline = d.HealthyDeadline
 	}
 
 	if u.MinHealthyTime == nil {
-		u.MinHealthyTime = helper.TimeToPtr(d.MinHealthyTime)
+		u.MinHealthyTime = d.MinHealthyTime
 	}
 
 	if u.AutoRevert == nil {
-		u.AutoRevert = helper.BoolToPtr(d.AutoRevert)
+		u.AutoRevert = d.AutoRevert
 	}
 
 	if u.Canary == nil {
-		u.Canary = helper.IntToPtr(d.Canary)
+		u.Canary = d.Canary
 	}
+}
+
+// Empty returns whether the UpdateStrategy is empty or has user defined values.
+func (u *UpdateStrategy) Empty() bool {
+	if u == nil {
+		return true
+	}
+
+	if u.Stagger != nil && *u.Stagger != 0 {
+		return false
+	}
+
+	if u.MaxParallel != nil && *u.MaxParallel != 0 {
+		return false
+	}
+
+	if u.HealthCheck != nil && *u.HealthCheck != "" {
+		return false
+	}
+
+	if u.MinHealthyTime != nil && *u.MinHealthyTime != 0 {
+		return false
+	}
+
+	if u.HealthyDeadline != nil && *u.HealthyDeadline != 0 {
+		return false
+	}
+
+	if u.AutoRevert != nil && *u.AutoRevert {
+		return false
+	}
+
+	if u.Canary != nil && *u.Canary != 0 {
+		return false
+	}
+
+	return true
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -463,6 +544,7 @@ type ParameterizedJobConfig struct {
 type Job struct {
 	Stop              *bool
 	Region            *string
+	Namespace         *string
 	ID                *string
 	ParentID          *string
 	Name              *string
@@ -508,6 +590,9 @@ func (j *Job) Canonicalize() {
 	if j.ParentID == nil {
 		j.ParentID = helper.StringToPtr("")
 	}
+	if j.Namespace == nil {
+		j.Namespace = helper.StringToPtr(DefaultNamespace)
+	}
 	if j.Priority == nil {
 		j.Priority = helper.IntToPtr(50)
 	}
@@ -516,6 +601,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Region == nil {
 		j.Region = helper.StringToPtr("global")
+	}
+	if j.Namespace == nil {
+		j.Namespace = helper.StringToPtr("default")
 	}
 	if j.Type == nil {
 		j.Type = helper.StringToPtr("service")
@@ -561,9 +649,10 @@ func (j *Job) Canonicalize() {
 
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
-	JobID    string
-	Summary  map[string]TaskGroupSummary
-	Children *JobChildrenSummary
+	JobID     string
+	Namespace string
+	Summary   map[string]TaskGroupSummary
+	Children  *JobChildrenSummary
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -692,6 +781,12 @@ func (j *Job) AddPeriodicConfig(cfg *PeriodicConfig) *Job {
 type WriteRequest struct {
 	// The target region for this write
 	Region string
+
+	// Namespace is the target namespace for this write
+	Namespace string
+
+	// SecretID is the secret ID of an ACL token
+	SecretID string
 }
 
 // JobValidateRequest is used to validate a job
@@ -709,7 +804,7 @@ type JobValidateResponse struct {
 	// ValidationErrors is a list of validation errors
 	ValidationErrors []string
 
-	// Error is a string version of any error that may have occured
+	// Error is a string version of any error that may have occurred
 	Error string
 
 	// Warnings contains any warnings about the given job. These may include
@@ -740,6 +835,7 @@ type JobRegisterRequest struct {
 	// register only occurs if the job is new.
 	EnforceIndex   bool
 	JobModifyIndex uint64
+	PolicyOverride bool
 
 	WriteRequest
 }
@@ -749,6 +845,7 @@ type RegisterJobRequest struct {
 	Job            *Job
 	EnforceIndex   bool   `json:",omitempty"`
 	JobModifyIndex uint64 `json:",omitempty"`
+	PolicyOverride bool   `json:",omitempty"`
 }
 
 // JobRegisterResponse is used to respond to a job registration
@@ -773,8 +870,9 @@ type JobDeregisterResponse struct {
 }
 
 type JobPlanRequest struct {
-	Job  *Job
-	Diff bool
+	Job            *Job
+	Diff           bool
+	PolicyOverride bool
 	WriteRequest
 }
 

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type LogsCommand struct {
@@ -57,6 +59,34 @@ Logs Specific Options:
 
 func (l *LogsCommand) Synopsis() string {
 	return "Streams the logs of a task."
+}
+
+func (c *LogsCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-stderr":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+			"-job":     complete.PredictAnything,
+			"-f":       complete.PredictNothing,
+			"-tail":    complete.PredictAnything,
+			"-n":       complete.PredictAnything,
+			"-c":       complete.PredictAnything,
+		})
+}
+
+func (l *LogsCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := l.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
 }
 
 func (l *LogsCommand) Run(args []string) int {
@@ -118,12 +148,8 @@ func (l *LogsCommand) Run(args []string) int {
 		l.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
 		return 1
 	}
-	if len(allocID)%2 == 1 {
-		// Identifiers must be of even length, so we strip off the last byte
-		// to provide a consistent user experience.
-		allocID = allocID[:len(allocID)-1]
-	}
 
+	allocID = sanatizeUUIDPrefix(allocID)
 	allocs, _, err := client.Allocations().PrefixList(allocID)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
@@ -136,8 +162,8 @@ func (l *LogsCommand) Run(args []string) int {
 	if len(allocs) > 1 {
 		// Format the allocs
 		out := formatAllocListStubs(allocs, verbose, length)
-		l.Ui.Output(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
-		return 0
+		l.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
+		return 1
 	}
 	// Prefix lookup matched a single allocation
 	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
@@ -225,7 +251,12 @@ func (l *LogsCommand) Run(args []string) int {
 	}
 
 	defer r.Close()
-	io.Copy(os.Stdout, r)
+	_, err = io.Copy(os.Stdout, r)
+	if err != nil {
+		l.Ui.Error(fmt.Sprintf("error following logs: %s", err))
+		return 1
+	}
+
 	return 0
 }
 
@@ -235,16 +266,18 @@ func (l *LogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 	follow bool, task, logType, origin string, offset int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, err := client.AllocFS().Logs(alloc, follow, task, logType, origin, offset, cancel, nil)
-	if err != nil {
+	frames, errCh := client.AllocFS().Logs(alloc, follow, task, logType, origin, offset, cancel, nil)
+	select {
+	case err := <-errCh:
 		return nil, err
+	default:
 	}
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	// Create a reader
 	var r io.ReadCloser
-	frameReader := api.NewFrameReader(frames, cancel)
+	frameReader := api.NewFrameReader(frames, errCh, cancel)
 	frameReader.SetUnblockTime(500 * time.Millisecond)
 	r = frameReader
 

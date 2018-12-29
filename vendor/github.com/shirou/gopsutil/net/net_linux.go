@@ -3,6 +3,7 @@
 package net
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -32,15 +33,20 @@ func IOCountersByFile(pernic bool, filename string) ([]IOCountersStat, error) {
 		return nil, err
 	}
 
+	parts := make([]string, 2)
+
 	statlen := len(lines) - 1
 
 	ret := make([]IOCountersStat, 0, statlen)
 
 	for _, line := range lines[2:] {
-		parts := strings.SplitN(line, ": ", 2)
-		if len(parts) != 2 {
+		separatorPos := strings.LastIndex(line, ":")
+		if separatorPos == -1 {
 			continue
 		}
+		parts[0] = line[0:separatorPos]
+		parts[1] = line[separatorPos+1:]
+
 		interfaceName := strings.TrimSpace(parts[0])
 		if interfaceName == "" {
 			continue
@@ -256,17 +262,17 @@ var kindUNIX = netConnectionKindType{
 }
 
 var netConnectionKindMap = map[string][]netConnectionKindType{
-	"all":   []netConnectionKindType{kindTCP4, kindTCP6, kindUDP4, kindUDP6, kindUNIX},
-	"tcp":   []netConnectionKindType{kindTCP4, kindTCP6},
-	"tcp4":  []netConnectionKindType{kindTCP4},
-	"tcp6":  []netConnectionKindType{kindTCP6},
-	"udp":   []netConnectionKindType{kindUDP4, kindUDP6},
-	"udp4":  []netConnectionKindType{kindUDP4},
-	"udp6":  []netConnectionKindType{kindUDP6},
-	"unix":  []netConnectionKindType{kindUNIX},
-	"inet":  []netConnectionKindType{kindTCP4, kindTCP6, kindUDP4, kindUDP6},
-	"inet4": []netConnectionKindType{kindTCP4, kindUDP4},
-	"inet6": []netConnectionKindType{kindTCP6, kindUDP6},
+	"all":   {kindTCP4, kindTCP6, kindUDP4, kindUDP6, kindUNIX},
+	"tcp":   {kindTCP4, kindTCP6},
+	"tcp4":  {kindTCP4},
+	"tcp6":  {kindTCP6},
+	"udp":   {kindUDP4, kindUDP6},
+	"udp4":  {kindUDP4},
+	"udp6":  {kindUDP6},
+	"unix":  {kindUNIX},
+	"inet":  {kindTCP4, kindTCP6, kindUDP4, kindUDP6},
+	"inet4": {kindTCP4, kindUDP4},
+	"inet6": {kindTCP6, kindUDP6},
 }
 
 type inodeMap struct {
@@ -346,12 +352,13 @@ func ConnectionsPidMax(kind string, pid int32, max int) ([]ConnectionStat, error
 }
 
 func statsFromInodes(root string, pid int32, tmap []netConnectionKindType, inodes map[string][]inodeMap) ([]ConnectionStat, error) {
-	dupCheckMap := make(map[connTmp]struct{})
+	dupCheckMap := make(map[string]struct{})
 	var ret []ConnectionStat
 
 	var err error
 	for _, t := range tmap {
 		var path string
+		var connKey string
 		var ls []connTmp
 		path = fmt.Sprintf("%s/net/%s", root, t.filename)
 		switch t.family {
@@ -366,7 +373,11 @@ func statsFromInodes(root string, pid int32, tmap []netConnectionKindType, inode
 			return nil, err
 		}
 		for _, c := range ls {
-			if _, ok := dupCheckMap[c]; ok {
+			// Build TCP key to id the connection uniquely
+			// socket type, src ip, src port, dst ip, dst port and state should be enough
+			// to prevent duplications.
+			connKey = fmt.Sprintf("%d-%s:%d-%s:%d-%s", c.sockType, c.laddr.IP, c.laddr.Port, c.raddr.IP, c.raddr.Port, c.status)
+			if _, ok := dupCheckMap[connKey]; ok {
 				continue
 			}
 
@@ -390,7 +401,7 @@ func statsFromInodes(root string, pid int32, tmap []netConnectionKindType, inode
 			conn.Uids, _ = proc.getUids()
 
 			ret = append(ret, conn)
-			dupCheckMap[c] = struct{}{}
+			dupCheckMap[connKey] = struct{}{}
 		}
 
 	}
@@ -405,12 +416,12 @@ func getProcInodes(root string, pid int32, max int) (map[string][]inodeMap, erro
 	dir := fmt.Sprintf("%s/%d/fd", root, pid)
 	f, err := os.Open(dir)
 	if err != nil {
-		return ret, nil
+		return ret, err
 	}
 	defer f.Close()
 	files, err := f.Readdir(max)
 	if err != nil {
-		return ret, nil
+		return ret, err
 	}
 	for _, fd := range files {
 		inodePath := fmt.Sprintf("%s/%d/fd/%s", root, pid, fd.Name())
@@ -603,14 +614,22 @@ func processInet(file string, kind netConnectionKindType, inodes map[string][]in
 		// IPv6 not supported, return empty.
 		return []connTmp{}, nil
 	}
-	lines, err := common.ReadLines(file)
+
+	// Read the contents of the /proc file with a single read sys call.
+	// This minimizes duplicates in the returned connections
+	// For more info:
+	// https://github.com/shirou/gopsutil/pull/361
+	contents, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
+
+	lines := bytes.Split(contents, []byte("\n"))
+
 	var ret []connTmp
 	// skip first line
 	for _, line := range lines[1:] {
-		l := strings.Fields(line)
+		l := strings.Fields(string(line))
 		if len(l) < 10 {
 			continue
 		}
@@ -657,15 +676,21 @@ func processInet(file string, kind netConnectionKindType, inodes map[string][]in
 }
 
 func processUnix(file string, kind netConnectionKindType, inodes map[string][]inodeMap, filterPid int32) ([]connTmp, error) {
-	lines, err := common.ReadLines(file)
+	// Read the contents of the /proc file with a single read sys call.
+	// This minimizes duplicates in the returned connections
+	// For more info:
+	// https://github.com/shirou/gopsutil/pull/361
+	contents, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
 
+	lines := bytes.Split(contents, []byte("\n"))
+
 	var ret []connTmp
 	// skip first line
 	for _, line := range lines[1:] {
-		tokens := strings.Fields(line)
+		tokens := strings.Fields(string(line))
 		if len(tokens) < 6 {
 			continue
 		}
@@ -680,7 +705,7 @@ func processUnix(file string, kind netConnectionKindType, inodes map[string][]in
 		pairs, exists := inodes[inode]
 		if !exists {
 			pairs = []inodeMap{
-				inodeMap{},
+				{},
 			}
 		}
 		for _, pair := range pairs {

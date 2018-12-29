@@ -1,3 +1,5 @@
+// +build linux
+
 package driver
 
 import (
@@ -21,6 +23,7 @@ import (
 )
 
 func TestRktVersionRegex(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("NOMAD_TEST_RKT unset, skipping")
 	}
@@ -41,6 +44,7 @@ func TestRktVersionRegex(t *testing.T) {
 
 // The fingerprinter test should always pass, even if rkt is not installed.
 func TestRktDriver_Fingerprint(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -70,6 +74,9 @@ func TestRktDriver_Fingerprint(t *testing.T) {
 }
 
 func TestRktDriver_Start_DNS(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -121,6 +128,9 @@ func TestRktDriver_Start_DNS(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -180,6 +190,9 @@ func TestRktDriver_Start_Wait(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -233,6 +246,9 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 }
 
 func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -305,6 +321,9 @@ func TestRktDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestRktDriverUser(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -349,6 +368,9 @@ func TestRktDriverUser(t *testing.T) {
 }
 
 func TestRktTrustPrefix(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -390,6 +412,7 @@ func TestRktTrustPrefix(t *testing.T) {
 }
 
 func TestRktTaskValidate(t *testing.T) {
+	t.Parallel()
 	ctestutils.RktCompatible(t)
 	task := &structs.Task{
 		Name:   "etcd",
@@ -415,6 +438,9 @@ func TestRktTaskValidate(t *testing.T) {
 
 // TODO: Port Mapping test should be ran with proper ACI image and test the port access.
 func TestRktDriver_PortsMapping(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}
@@ -425,9 +451,8 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 		Driver: "rkt",
 		Config: map[string]interface{}{
 			"image": "docker://redis:latest",
-			"args":  []string{"--version"},
 			"port_map": []map[string]string{
-				map[string]string{
+				{
 					"main": "6379-tcp",
 				},
 			},
@@ -441,7 +466,7 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 			MemoryMB: 256,
 			CPU:      512,
 			Networks: []*structs.NetworkResource{
-				&structs.NetworkResource{
+				{
 					IP:            "127.0.0.1",
 					ReservedPorts: []structs.Port{{Label: "main", Value: 8080}},
 				},
@@ -459,6 +484,9 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 	resp, err := d.Start(ctx.ExecCtx, task)
 	if err != nil {
 		t.Fatalf("err: %v", err)
+	}
+	if resp.Network == nil {
+		t.Fatalf("Expected driver to set a DriverNetwork, but it did not!")
 	}
 
 	failCh := make(chan error, 1)
@@ -479,6 +507,9 @@ func TestRktDriver_PortsMapping(t *testing.T) {
 }
 
 func TestRktDriver_HandlerExec(t *testing.T) {
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
 	if os.Getenv("NOMAD_TEST_RKT") == "" {
 		t.Skip("skipping rkt tests")
 	}

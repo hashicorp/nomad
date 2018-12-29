@@ -15,3 +15,9 @@ func (s *System) GarbageCollect() error {
 	_, err := s.client.write("/v1/system/gc", &req, nil, nil)
 	return err
 }
+
+func (s *System) ReconcileSummaries() error {
+	var req struct{}
+	_, err := s.client.write("/v1/system/reconcile/summaries", &req, nil, nil)
+	return err
+}

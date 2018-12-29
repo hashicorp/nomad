@@ -135,6 +135,25 @@ type DockerLoggingOpts struct {
 	Config    map[string]string   `mapstructure:"-"`
 }
 
+type DockerMount struct {
+	Target        string                 `mapstructure:"target"`
+	Source        string                 `mapstructure:"source"`
+	ReadOnly      bool                   `mapstructure:"readonly"`
+	VolumeOptions []*DockerVolumeOptions `mapstructure:"volume_options"`
+}
+
+type DockerVolumeOptions struct {
+	NoCopy       bool                       `mapstructure:"no_copy"`
+	Labels       []map[string]string        `mapstructure:"labels"`
+	DriverConfig []DockerVolumeDriverConfig `mapstructure:"driver_config"`
+}
+
+// VolumeDriverConfig holds a map of volume driver specific options
+type DockerVolumeDriverConfig struct {
+	Name    string              `mapstructure:"name"`
+	Options []map[string]string `mapstructure:"options"`
+}
+
 type DockerDriverConfig struct {
 	ImageName        string              `mapstructure:"image"`              // Container's Image Name
 	LoadImage        string              `mapstructure:"load"`               // LoadImage is a path to an image archive file
@@ -153,6 +172,7 @@ type DockerDriverConfig struct {
 	Privileged       bool                `mapstructure:"privileged"`         // Flag to run the container in privileged mode
 	DNSServers       []string            `mapstructure:"dns_servers"`        // DNS Server for containers
 	DNSSearchDomains []string            `mapstructure:"dns_search_domains"` // DNS Search domains for containers
+	DNSOptions       []string            `mapstructure:"dns_options"`        // DNS Options
 	ExtraHosts       []string            `mapstructure:"extra_hosts"`        // Add host to /etc/hosts (host:IP)
 	Hostname         string              `mapstructure:"hostname"`           // Hostname for containers
 	LabelsRaw        []map[string]string `mapstructure:"labels"`             //
@@ -165,6 +185,7 @@ type DockerDriverConfig struct {
 	WorkDir          string              `mapstructure:"work_dir"`           // Working directory inside the container
 	Logging          []DockerLoggingOpts `mapstructure:"logging"`            // Logging options for syslog server
 	Volumes          []string            `mapstructure:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container
+	Mounts           []DockerMount       `mapstructure:"mounts"`             // Docker volumes to mount
 	VolumeDriver     string              `mapstructure:"volume_driver"`      // Docker volume driver used for the container's volumes
 	ForcePull        bool                `mapstructure:"force_pull"`         // Always force pull before running image, useful if your tags are mutable
 	MacAddress       string              `mapstructure:"mac_address"`        // Pin mac address to container
@@ -188,7 +209,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 		return nil, err
 	}
 
-	// Interpolate everthing that is a string
+	// Interpolate everything that is a string
 	dconf.ImageName = env.ReplaceEnv(dconf.ImageName)
 	dconf.Command = env.ReplaceEnv(dconf.Command)
 	dconf.IpcMode = env.ReplaceEnv(dconf.IpcMode)
@@ -205,6 +226,7 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	dconf.VolumeDriver = env.ReplaceEnv(dconf.VolumeDriver)
 	dconf.DNSServers = env.ParseAndReplace(dconf.DNSServers)
 	dconf.DNSSearchDomains = env.ParseAndReplace(dconf.DNSSearchDomains)
+	dconf.DNSOptions = env.ParseAndReplace(dconf.DNSOptions)
 	dconf.ExtraHosts = env.ParseAndReplace(dconf.ExtraHosts)
 	dconf.MacAddress = env.ReplaceEnv(dconf.MacAddress)
 	dconf.SecurityOpt = env.ParseAndReplace(dconf.SecurityOpt)
@@ -230,6 +252,51 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 			for k, v := range c {
 				delete(c, k)
 				c[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+			}
+		}
+	}
+
+	for i, m := range dconf.Mounts {
+		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
+		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
+
+		if len(m.VolumeOptions) > 1 {
+			return nil, fmt.Errorf("Only one volume_options stanza allowed")
+		}
+
+		if len(m.VolumeOptions) == 1 {
+			vo := m.VolumeOptions[0]
+			if len(vo.Labels) > 1 {
+				return nil, fmt.Errorf("labels may only be specified once in volume_options stanza")
+			}
+
+			if len(vo.Labels) == 1 {
+				for k, v := range vo.Labels[0] {
+					if k != env.ReplaceEnv(k) {
+						delete(vo.Labels[0], k)
+					}
+					vo.Labels[0][env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+				}
+			}
+
+			if len(vo.DriverConfig) > 1 {
+				return nil, fmt.Errorf("volume driver config may only be specified once")
+			}
+			if len(vo.DriverConfig) == 1 {
+				vo.DriverConfig[0].Name = env.ReplaceEnv(vo.DriverConfig[0].Name)
+				if len(vo.DriverConfig[0].Options) > 1 {
+					return nil, fmt.Errorf("volume driver options may only be specified once")
+				}
+
+				if len(vo.DriverConfig[0].Options) == 1 {
+					options := vo.DriverConfig[0].Options[0]
+					for k, v := range options {
+						if k != env.ReplaceEnv(k) {
+							delete(options, k)
+						}
+						options[env.ReplaceEnv(k)] = env.ReplaceEnv(v)
+					}
+				}
 			}
 		}
 	}
@@ -282,7 +349,6 @@ type DockerHandle struct {
 	ImageID           string
 	containerID       string
 	version           string
-	clkSpeed          float64
 	killTimeout       time.Duration
 	maxKillTimeout    time.Duration
 	resourceUsageLock sync.RWMutex
@@ -347,7 +413,14 @@ func (d *DockerDriver) Fingerprint(cfg *config.Config, node *structs.Node) (bool
 				break
 			}
 
-			node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+			if n.IPAM.Config[0].Gateway != "" {
+				node.Attributes["driver.docker.bridge_ip"] = n.IPAM.Config[0].Gateway
+			} else if d.fingerprintSuccess == nil {
+				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
+				// See https://github.com/moby/moby/issues/32648
+				d.logger.Printf("[DEBUG] driver.docker: bridge_ip could not be discovered")
+			}
+			break
 		}
 	}
 
@@ -360,102 +433,108 @@ func (d *DockerDriver) Validate(config map[string]interface{}) error {
 	fd := &fields.FieldData{
 		Raw: config,
 		Schema: map[string]*fields.FieldSchema{
-			"image": &fields.FieldSchema{
+			"image": {
 				Type:     fields.TypeString,
 				Required: true,
 			},
-			"load": &fields.FieldSchema{
+			"load": {
 				Type: fields.TypeString,
 			},
-			"command": &fields.FieldSchema{
+			"command": {
 				Type: fields.TypeString,
 			},
-			"args": &fields.FieldSchema{
+			"args": {
 				Type: fields.TypeArray,
 			},
-			"ipc_mode": &fields.FieldSchema{
+			"ipc_mode": {
 				Type: fields.TypeString,
 			},
-			"network_mode": &fields.FieldSchema{
+			"network_mode": {
 				Type: fields.TypeString,
 			},
-			"network_aliases": &fields.FieldSchema{
+			"network_aliases": {
 				Type: fields.TypeArray,
 			},
-			"ipv4_address": &fields.FieldSchema{
+			"ipv4_address": {
 				Type: fields.TypeString,
 			},
-			"ipv6_address": &fields.FieldSchema{
+			"ipv6_address": {
 				Type: fields.TypeString,
 			},
-			"mac_address": &fields.FieldSchema{
+			"mac_address": {
 				Type: fields.TypeString,
 			},
-			"pid_mode": &fields.FieldSchema{
+			"pid_mode": {
 				Type: fields.TypeString,
 			},
-			"uts_mode": &fields.FieldSchema{
+			"uts_mode": {
 				Type: fields.TypeString,
 			},
-			"userns_mode": &fields.FieldSchema{
+			"userns_mode": {
 				Type: fields.TypeString,
 			},
-			"port_map": &fields.FieldSchema{
+			"port_map": {
 				Type: fields.TypeArray,
 			},
-			"privileged": &fields.FieldSchema{
+			"privileged": {
 				Type: fields.TypeBool,
 			},
-			"dns_servers": &fields.FieldSchema{
+			"dns_servers": {
 				Type: fields.TypeArray,
 			},
-			"dns_search_domains": &fields.FieldSchema{
+			"dns_options": {
 				Type: fields.TypeArray,
 			},
-			"extra_hosts": &fields.FieldSchema{
+			"dns_search_domains": {
 				Type: fields.TypeArray,
 			},
-			"hostname": &fields.FieldSchema{
+			"extra_hosts": {
+				Type: fields.TypeArray,
+			},
+			"hostname": {
 				Type: fields.TypeString,
 			},
-			"labels": &fields.FieldSchema{
+			"labels": {
 				Type: fields.TypeArray,
 			},
-			"auth": &fields.FieldSchema{
+			"auth": {
 				Type: fields.TypeArray,
 			},
-			"auth_soft_fail": &fields.FieldSchema{
+			"auth_soft_fail": {
 				Type: fields.TypeBool,
 			},
 			// COMPAT: Remove in 0.6.0. SSL is no longer needed
-			"ssl": &fields.FieldSchema{
+			"ssl": {
 				Type: fields.TypeBool,
 			},
-			"tty": &fields.FieldSchema{
+			"tty": {
 				Type: fields.TypeBool,
 			},
-			"interactive": &fields.FieldSchema{
+			"interactive": {
 				Type: fields.TypeBool,
 			},
-			"shm_size": &fields.FieldSchema{
+			"shm_size": {
 				Type: fields.TypeInt,
 			},
-			"work_dir": &fields.FieldSchema{
+			"work_dir": {
 				Type: fields.TypeString,
 			},
-			"logging": &fields.FieldSchema{
+			"logging": {
 				Type: fields.TypeArray,
 			},
-			"volumes": &fields.FieldSchema{
+			"volumes": {
 				Type: fields.TypeArray,
 			},
-			"volume_driver": &fields.FieldSchema{
+			"volume_driver": {
 				Type: fields.TypeString,
 			},
-			"force_pull": &fields.FieldSchema{
+			"mounts": {
+				Type: fields.TypeArray,
+			},
+			"force_pull": {
 				Type: fields.TypeBool,
 			},
-			"security_opt": &fields.FieldSchema{
+			"security_opt": {
 				Type: fields.TypeArray,
 			},
 		},
@@ -542,7 +621,6 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		TaskEnv:        ctx.TaskEnv,
 		Task:           task,
 		Driver:         "docker",
-		AllocID:        d.DriverContext.allocID,
 		LogDir:         ctx.TaskDir.LogDir,
 		TaskDir:        ctx.TaskDir.Dir,
 		PortLowerBound: d.config.ClientMinPort,
@@ -553,17 +631,20 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
-	// Only launch syslog server if we're going to use it!
+	// The user hasn't specified any logging options so launch our own syslog
+	// server if possible.
 	syslogAddr := ""
-	if runtime.GOOS == "darwin" && len(d.driverConfig.Logging) == 0 {
-		d.logger.Printf("[DEBUG] driver.docker: disabling syslog driver as Docker for Mac workaround")
-	} else if len(d.driverConfig.Logging) == 0 || d.driverConfig.Logging[0].Type == "syslog" {
-		ss, err := exec.LaunchSyslogServer()
-		if err != nil {
-			pluginClient.Kill()
-			return nil, fmt.Errorf("failed to start syslog collector: %v", err)
+	if len(d.driverConfig.Logging) == 0 {
+		if runtime.GOOS == "darwin" {
+			d.logger.Printf("[DEBUG] driver.docker: disabling syslog driver as Docker for Mac workaround")
+		} else {
+			ss, err := exec.LaunchSyslogServer()
+			if err != nil {
+				pluginClient.Kill()
+				return nil, fmt.Errorf("failed to start syslog collector: %v", err)
+			}
+			syslogAddr = ss.Addr
 		}
-		syslogAddr = ss.Addr
 	}
 
 	config, err := d.createContainerConfig(ctx, task, d.driverConfig, syslogAddr)
@@ -591,17 +672,20 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		if err := d.startContainer(container); err != nil {
 			d.logger.Printf("[ERR] driver.docker: failed to start container %s: %s", container.ID, err)
 			pluginClient.Kill()
-			return nil, fmt.Errorf("Failed to start container %s: %s", container.ID, err)
+			return nil, structs.NewRecoverableError(fmt.Errorf("Failed to start container %s: %s", container.ID, err), structs.IsRecoverable(err))
 		}
+
 		// InspectContainer to get all of the container metadata as
 		// much of the metadata (eg networking) isn't populated until
 		// the container is started
-		if container, err = client.InspectContainer(container.ID); err != nil {
+		runningContainer, err := client.InspectContainer(container.ID)
+		if err != nil {
 			err = fmt.Errorf("failed to inspect started container %s: %s", container.ID, err)
 			d.logger.Printf("[ERR] driver.docker: %v", err)
 			pluginClient.Kill()
 			return nil, structs.NewRecoverableError(err, true)
 		}
+		container = runningContainer
 		d.logger.Printf("[INFO] driver.docker: started container %s", container.ID)
 	} else {
 		d.logger.Printf("[DEBUG] driver.docker: re-attaching to container %s with status %q",
@@ -619,7 +703,7 @@ func (d *DockerDriver) Start(ctx *ExecContext, task *structs.Task) (*StartRespon
 		Image:          d.driverConfig.ImageName,
 		ImageID:        d.imageID,
 		containerID:    container.ID,
-		version:        d.config.Version,
+		version:        d.config.Version.VersionNumber(),
 		killTimeout:    GetKillTimeout(task.KillTimeout, maxKill),
 		maxKillTimeout: maxKill,
 		doneCh:         make(chan bool),
@@ -666,8 +750,9 @@ func (d *DockerDriver) detectIP(c *docker.Container) (string, bool) {
 		ip = net.IPAddress
 		ipName = name
 
-		// Don't auto-advertise bridge IPs
-		if name != "bridge" {
+		// Don't auto-advertise IPs for default networks (bridge on
+		// Linux, nat on Windows)
+		if name != "bridge" && name != "nat" {
 			auto = true
 		}
 
@@ -870,13 +955,13 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	memLimit := int64(task.Resources.MemoryMB) * 1024 * 1024
 
 	if len(driverConfig.Logging) == 0 {
-		if runtime.GOOS != "darwin" {
+		if runtime.GOOS == "darwin" {
+			d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
+		} else {
 			d.logger.Printf("[DEBUG] driver.docker: Setting default logging options to syslog and %s", syslogAddr)
 			driverConfig.Logging = []DockerLoggingOpts{
 				{Type: "syslog", Config: map[string]string{"syslog-address": syslogAddr}},
 			}
-		} else {
-			d.logger.Printf("[DEBUG] driver.docker: deferring logging to docker on Docker for Mac")
 		}
 	}
 
@@ -894,8 +979,11 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		VolumeDriver: driverConfig.VolumeDriver,
 	}
 
-	// Windows does not support MemorySwap #2193
-	if runtime.GOOS != "windows" {
+	// Windows does not support MemorySwap/MemorySwappiness #2193
+	if runtime.GOOS == "windows" {
+		hostConfig.MemorySwap = 0
+		hostConfig.MemorySwappiness = -1
+	} else {
 		hostConfig.MemorySwap = memLimit // MemorySwap is memory + swap.
 	}
 
@@ -932,8 +1020,39 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 		}
 	}
 
+	// Setup mounts
+	for _, m := range driverConfig.Mounts {
+		hm := docker.HostMount{
+			Target:   m.Target,
+			Source:   m.Source,
+			Type:     "volume", // Only type supported
+			ReadOnly: m.ReadOnly,
+		}
+		if len(m.VolumeOptions) == 1 {
+			vo := m.VolumeOptions[0]
+			hm.VolumeOptions = &docker.VolumeOptions{
+				NoCopy: vo.NoCopy,
+			}
+
+			if len(vo.DriverConfig) == 1 {
+				dc := vo.DriverConfig[0]
+				hm.VolumeOptions.DriverConfig = docker.VolumeDriverConfig{
+					Name: dc.Name,
+				}
+				if len(dc.Options) == 1 {
+					hm.VolumeOptions.DriverConfig.Options = dc.Options[0]
+				}
+			}
+			if len(vo.Labels) == 1 {
+				hm.VolumeOptions.Labels = vo.Labels[0]
+			}
+		}
+		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+	}
+
 	// set DNS search domains and extra hosts
 	hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+	hostConfig.DNSOptions = driverConfig.DNSOptions
 	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 
 	hostConfig.IpcMode = driverConfig.IpcMode
@@ -1040,7 +1159,7 @@ func (d *DockerDriver) createContainerConfig(ctx *ExecContext, task *structs.Tas
 	if len(driverConfig.NetworkAliases) > 0 || driverConfig.IPv4Address != "" || driverConfig.IPv6Address != "" {
 		networkingConfig = &docker.NetworkingConfig{
 			EndpointsConfig: map[string]*docker.EndpointConfig{
-				hostConfig.NetworkMode: &docker.EndpointConfig{},
+				hostConfig.NetworkMode: {},
 			},
 		}
 	}
@@ -1198,10 +1317,11 @@ CREATE:
 		containerName := "/" + config.Name
 		d.logger.Printf("[DEBUG] driver.docker: searching for container name %q to purge", containerName)
 		for _, shimContainer := range containers {
-			d.logger.Printf("[DEBUG] driver.docker: listed container %+v", container)
+			d.logger.Printf("[DEBUG] driver.docker: listed container %+v", shimContainer.Names)
 			found := false
 			for _, name := range shimContainer.Names {
 				if name == containerName {
+					d.logger.Printf("[DEBUG] driver.docker: Found container %v: %v", containerName, shimContainer.ID)
 					found = true
 					break
 				}
@@ -1223,7 +1343,7 @@ CREATE:
 				// See #2802
 				return nil, structs.NewRecoverableError(err, true)
 			}
-			if container != nil && (container.State.Running || container.State.FinishedAt.IsZero()) {
+			if container != nil && container.State.Running {
 				return container, nil
 			}
 
@@ -1273,6 +1393,7 @@ START:
 			time.Sleep(1 * time.Second)
 			goto START
 		}
+		return structs.NewRecoverableError(startErr, true)
 	}
 
 	return recoverableErrTimeouts(startErr)
@@ -1299,7 +1420,7 @@ func (d *DockerDriver) Open(ctx *ExecContext, handleID string) (DriverHandle, er
 	// Look for a running container with this ID
 	containers, err := client.ListContainers(docker.ListContainersOptions{
 		Filters: map[string][]string{
-			"id": []string{pid.ContainerID},
+			"id": {pid.ContainerID},
 		},
 	})
 	if err != nil {
@@ -1434,6 +1555,10 @@ func (h *DockerHandle) Signal(s os.Signal) error {
 		return fmt.Errorf("Failed to determine signal number")
 	}
 
+	// TODO When we expose signals we will need a mapping layer that converts
+	// MacOS signals to the correct signal number for docker. Or we change the
+	// interface to take a signal string and leave it up to driver to map?
+
 	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{
 		ID:     h.containerID,
@@ -1542,16 +1667,15 @@ func (h *DockerHandle) collectStats() {
 				}
 
 				// Calculate percentage
-				cores := len(s.CPUStats.CPUUsage.PercpuUsage)
 				cs.Percent = calculatePercent(
 					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-					s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, cores)
+					s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, numCores)
 				cs.SystemMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
+					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
 				cs.UserMode = calculatePercent(
 					s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
-					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, cores)
+					s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, numCores)
 				cs.TotalTicks = (cs.Percent / 100) * shelpers.TotalTicksAvailable() / float64(numCores)
 
 				h.resourceUsageLock.Lock()
@@ -1687,15 +1811,21 @@ func authFromHelper(helperName string) authBackend {
 		}
 		helper := dockerAuthHelperPrefix + helperName
 		cmd := exec.Command(helper, "get")
+
+		// Ensure that the HTTPs prefix exists
+		if !strings.HasPrefix(repo, "https://") {
+			repo = fmt.Sprintf("https://%s", repo)
+		}
+
 		cmd.Stdin = strings.NewReader(repo)
 
 		output, err := cmd.Output()
 		if err != nil {
-			switch e := err.(type) {
+			switch err.(type) {
 			default:
 				return nil, err
 			case *exec.ExitError:
-				return nil, fmt.Errorf("%s failed with stderr: %s", helper, string(e.Stderr))
+				return nil, fmt.Errorf("%s with input %q failed with stderr: %s", helper, repo, output)
 			}
 		}
 

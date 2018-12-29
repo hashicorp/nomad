@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -16,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 type MockSink struct {
@@ -37,27 +40,27 @@ func (m *MockSink) Close() error {
 }
 
 func testStateStore(t *testing.T) *state.StateStore {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if state == nil {
-		t.Fatalf("missing state")
-	}
-	return state
+	return state.TestStateStore(t)
 }
 
 func testFSM(t *testing.T) *nomadFSM {
-	p, _ := testPeriodicDispatcher()
 	broker := testBroker(t, 0)
-	blocked := NewBlockedEvals(broker)
-	fsm, err := NewFSM(broker, p, blocked, os.Stderr)
+	dispatcher, _ := testPeriodicDispatcher()
+	fsmConfig := &FSMConfig{
+		EvalBroker: broker,
+		Periodic:   dispatcher,
+		Blocked:    NewBlockedEvals(broker),
+		LogOutput:  os.Stderr,
+		Region:     "global",
+	}
+	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if fsm == nil {
 		t.Fatalf("missing fsm")
 	}
+	state.TestInitState(t, fsm.state)
 	return fsm
 }
 
@@ -71,6 +74,7 @@ func makeLog(buf []byte) *raft.Log {
 }
 
 func TestFSM_UpsertNode(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -127,6 +131,7 @@ func TestFSM_UpsertNode(t *testing.T) {
 }
 
 func TestFSM_DeregisterNode(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	node := mock.Node()
@@ -168,6 +173,7 @@ func TestFSM_DeregisterNode(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeStatus(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -227,6 +233,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeDrain(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	node := mock.Node()
@@ -269,11 +276,15 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 }
 
 func TestFSM_RegisterJob(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -287,7 +298,7 @@ func TestFSM_RegisterJob(t *testing.T) {
 
 	// Verify we are registered
 	ws := memdb.NewWatchSet()
-	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -299,12 +310,16 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 
 	// Verify it was added to the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; !ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; !ok {
 		t.Fatal("job not added to periodic runner")
 	}
 
 	// Verify the launch time was tracked.
-	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -316,12 +331,56 @@ func TestFSM_RegisterJob(t *testing.T) {
 	}
 }
 
+func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	job := mock.Job()
+	job.Namespace = "foo"
+	req := structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp == nil {
+		t.Fatalf("no resp: %v", resp)
+	}
+	err, ok := resp.(error)
+	if !ok {
+		t.Fatalf("resp not of error type: %T %v", resp, resp)
+	}
+	if !strings.Contains(err.Error(), "non-existent namespace") {
+		t.Fatalf("bad error: %v", err)
+	}
+
+	// Verify we are not registered
+	ws := memdb.NewWatchSet()
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if jobOut != nil {
+		t.Fatalf("job found!")
+	}
+}
+
 func TestFSM_DeregisterJob_Purge(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -336,6 +395,9 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
 		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -349,7 +411,7 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 
 	// Verify we are NOT registered
 	ws := memdb.NewWatchSet()
-	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -358,12 +420,16 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
 		t.Fatal("job not removed from periodic runner")
 	}
 
 	// Verify it was removed from the periodic launch table.
-	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -373,11 +439,15 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 }
 
 func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
 	req := structs.JobRegisterRequest{
 		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
@@ -392,6 +462,9 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	req2 := structs.JobDeregisterRequest{
 		JobID: job.ID,
 		Purge: false,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err = structs.Encode(structs.JobDeregisterRequestType, req2)
 	if err != nil {
@@ -405,7 +478,7 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 
 	// Verify we are NOT registered
 	ws := memdb.NewWatchSet()
-	jobOut, err := fsm.State().JobByID(ws, req.Job.ID)
+	jobOut, err := fsm.State().JobByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -417,12 +490,16 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	}
 
 	// Verify it was removed from the periodic runner.
-	if _, ok := fsm.periodicDispatcher.tracked[job.ID]; ok {
+	tuple := structs.NamespacedID{
+		ID:        job.ID,
+		Namespace: job.Namespace,
+	}
+	if _, ok := fsm.periodicDispatcher.tracked[tuple]; ok {
 		t.Fatal("job not removed from periodic runner")
 	}
 
 	// Verify it was removed from the periodic launch table.
-	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Job.ID)
+	launchOut, err := fsm.State().PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -432,6 +509,7 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 }
 
 func TestFSM_UpdateEval(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 
@@ -469,6 +547,7 @@ func TestFSM_UpdateEval(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_Blocked(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -517,6 +596,7 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_Untrack(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -571,6 +651,7 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -627,6 +708,7 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 }
 
 func TestFSM_DeleteEval(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	eval := mock.Eval()
@@ -668,6 +750,7 @@ func TestFSM_DeleteEval(t *testing.T) {
 }
 
 func TestFSM_UpsertAllocs(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -725,6 +808,7 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 }
 
 func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -797,6 +881,7 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 }
 
 func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -837,6 +922,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 	state := fsm.State()
@@ -921,6 +1007,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocFromClient(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
 
@@ -959,6 +1046,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 }
 
 func TestFSM_UpsertVaultAccessor(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -1008,6 +1096,7 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 }
 
 func TestFSM_DeregisterVaultAccessor(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -1050,6 +1139,7 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 }
 
 func TestFSM_ApplyPlanResults(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 
 	// Create the request and create a deployment
@@ -1143,6 +1233,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 }
 
 func TestFSM_DeploymentStatusUpdate(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -1195,7 +1286,7 @@ func TestFSM_DeploymentStatusUpdate(t *testing.T) {
 	}
 
 	// Check that the job was created
-	jout, _ := state.JobByID(ws, j.ID)
+	jout, _ := state.JobByID(ws, j.Namespace, j.ID)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -1211,6 +1302,7 @@ func TestFSM_DeploymentStatusUpdate(t *testing.T) {
 }
 
 func TestFSM_JobStabilityUpdate(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -1226,6 +1318,9 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 		JobID:      job.ID,
 		JobVersion: job.Version,
 		Stable:     true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
 	}
 	buf, err := structs.Encode(structs.JobStabilityRequestType, req)
 	if err != nil {
@@ -1238,7 +1333,7 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 
 	// Check that the stability was updated properly
 	ws := memdb.NewWatchSet()
-	jout, _ := state.JobByIDAndVersion(ws, job.ID, job.Version)
+	jout, _ := state.JobByIDAndVersion(ws, job.Namespace, job.ID, job.Version)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -1248,6 +1343,7 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 }
 
 func TestFSM_DeploymentPromotion(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -1266,11 +1362,11 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	d.TaskGroups = map[string]*structs.DeploymentState{
-		"web": &structs.DeploymentState{
+		"web": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},
-		"foo": &structs.DeploymentState{
+		"foo": {
 			DesiredTotal:    10,
 			DesiredCanaries: 1,
 		},
@@ -1352,6 +1448,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 }
 
 func TestFSM_DeploymentAllocHealth(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -1425,7 +1522,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 	}
 
 	// Check that the job was created
-	jout, _ := state.JobByID(ws, j.ID)
+	jout, _ := state.JobByID(ws, j.Namespace, j.ID)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -1458,6 +1555,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 }
 
 func TestFSM_DeleteDeployment(t *testing.T) {
+	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
 
@@ -1489,6 +1587,157 @@ func TestFSM_DeleteDeployment(t *testing.T) {
 	if deployment != nil {
 		t.Fatalf("deployment found!")
 	}
+}
+
+func TestFSM_UpsertACLPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.ACLPolicy()
+	req := structs.ACLPolicyUpsertRequest{
+		Policies: []*structs.ACLPolicy{policy},
+	}
+	buf, err := structs.Encode(structs.ACLPolicyUpsertRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteACLPolicies(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	policy := mock.ACLPolicy()
+	err := fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy})
+	assert.Nil(t, err)
+
+	req := structs.ACLPolicyDeleteRequest{
+		Names: []string{policy.Name},
+	}
+	buf, err := structs.Encode(structs.ACLPolicyDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLPolicyByName(ws, policy.Name)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
+}
+
+func TestFSM_BootstrapACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	req := structs.ACLTokenBootstrapRequest{
+		Token: token,
+	}
+	buf, err := structs.Encode(structs.ACLTokenBootstrapRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out, err := fsm.State().ACLTokenByAccessorID(nil, token.AccessorID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+
+	// Test with reset
+	token2 := mock.ACLToken()
+	req = structs.ACLTokenBootstrapRequest{
+		Token:      token2,
+		ResetIndex: out.CreateIndex,
+	}
+	buf, err = structs.Encode(structs.ACLTokenBootstrapRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	out2, err := fsm.State().ACLTokenByAccessorID(nil, token2.AccessorID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out2)
+}
+
+func TestFSM_UpsertACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	req := structs.ACLTokenUpsertRequest{
+		Tokens: []*structs.ACLToken{token},
+	}
+	buf, err := structs.Encode(structs.ACLTokenUpsertRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLTokenByAccessorID(ws, token.AccessorID)
+	assert.Nil(t, err)
+	assert.NotNil(t, out)
+}
+
+func TestFSM_DeleteACLTokens(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	token := mock.ACLToken()
+	err := fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	assert.Nil(t, err)
+
+	req := structs.ACLTokenDeleteRequest{
+		AccessorIDs: []string{token.AccessorID},
+	}
+	buf, err := structs.Encode(structs.ACLTokenDeleteRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	// Verify we are NOT registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().ACLTokenByAccessorID(ws, token.AccessorID)
+	assert.Nil(t, err)
+	assert.Nil(t, out)
 }
 
 func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
@@ -1531,6 +1780,7 @@ func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 }
 
 func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1554,6 +1804,7 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1566,8 +1817,8 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobByID(ws, job1.ID)
-	out2, _ := state2.JobByID(ws, job2.ID)
+	out1, _ := state2.JobByID(ws, job1.Namespace, job1.ID)
+	out2, _ := state2.JobByID(ws, job2.Namespace, job2.ID)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -1577,6 +1828,7 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Evals(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1600,6 +1852,7 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1625,6 +1878,7 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Allocs_NoSharedResources(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1655,6 +1909,7 @@ func TestFSM_SnapshotRestore_Allocs_NoSharedResources(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1675,6 +1930,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 
@@ -1696,31 +1952,42 @@ func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	launch1 := &structs.PeriodicLaunch{ID: job1.ID, Launch: time.Now()}
+	launch1 := &structs.PeriodicLaunch{
+		ID:        job1.ID,
+		Namespace: job1.Namespace,
+		Launch:    time.Now(),
+	}
 	state.UpsertPeriodicLaunch(1000, launch1)
 	job2 := mock.Job()
-	launch2 := &structs.PeriodicLaunch{ID: job2.ID, Launch: time.Now()}
+	launch2 := &structs.PeriodicLaunch{
+		ID:        job2.ID,
+		Namespace: job2.Namespace,
+		Launch:    time.Now(),
+	}
 	state.UpsertPeriodicLaunch(1001, launch2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
 	ws := memdb.NewWatchSet()
-	out1, _ := state2.PeriodicLaunchByID(ws, launch1.ID)
-	out2, _ := state2.PeriodicLaunchByID(ws, launch2.ID)
-	if !reflect.DeepEqual(launch1, out1) {
-		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
+	out1, _ := state2.PeriodicLaunchByID(ws, launch1.Namespace, launch1.ID)
+	out2, _ := state2.PeriodicLaunchByID(ws, launch2.Namespace, launch2.ID)
+
+	if !cmp.Equal(launch1, out1) {
+		t.Fatalf("bad: %v", cmp.Diff(launch1, out1))
 	}
-	if !reflect.DeepEqual(launch2, out2) {
-		t.Fatalf("bad: \n%#v\n%#v", out2, job2)
+	if !cmp.Equal(launch2, out2) {
+		t.Fatalf("bad: %v", cmp.Diff(launch2, out2))
 	}
 }
 
 func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1728,17 +1995,17 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	job1 := mock.Job()
 	state.UpsertJob(1000, job1)
 	ws := memdb.NewWatchSet()
-	js1, _ := state.JobSummaryByID(ws, job1.ID)
+	js1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 
 	job2 := mock.Job()
 	state.UpsertJob(1001, job2)
-	js2, _ := state.JobSummaryByID(ws, job2.ID)
+	js2, _ := state.JobSummaryByID(ws, job2.Namespace, job2.ID)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobSummaryByID(ws, job1.ID)
-	out2, _ := state2.JobSummaryByID(ws, job2.ID)
+	out1, _ := state2.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	out2, _ := state2.JobSummaryByID(ws, job2.Namespace, job2.ID)
 	if !reflect.DeepEqual(js1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", js1, out1)
 	}
@@ -1748,6 +2015,7 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1770,6 +2038,7 @@ func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1783,8 +2052,8 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.JobByIDAndVersion(ws, job1.ID, job1.Version)
-	out2, _ := state2.JobByIDAndVersion(ws, job2.ID, job2.Version)
+	out1, _ := state2.JobByIDAndVersion(ws, job1.Namespace, job1.ID, job1.Version)
+	out2, _ := state2.JobByIDAndVersion(ws, job2.Namespace, job2.ID, job2.Version)
 	if !reflect.DeepEqual(job1, out1) {
 		t.Fatalf("bad: \n%#v\n%#v", out1, job1)
 	}
@@ -1797,6 +2066,7 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1819,7 +2089,46 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	}
 }
 
+func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	p1 := mock.ACLPolicy()
+	p2 := mock.ACLPolicy()
+	state.UpsertACLPolicies(1000, []*structs.ACLPolicy{p1, p2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.ACLPolicyByName(ws, p1.Name)
+	out2, _ := state2.ACLPolicyByName(ws, p2.Name)
+	assert.Equal(t, p1, out1)
+	assert.Equal(t, p2, out2)
+}
+
+func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	tk1 := mock.ACLToken()
+	tk2 := mock.ACLToken()
+	state.UpsertACLTokens(1000, []*structs.ACLToken{tk1, tk2})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out1, _ := state2.ACLTokenByAccessorID(ws, tk1.AccessorID)
+	out2, _ := state2.ACLTokenByAccessorID(ws, tk2.AccessorID)
+	assert.Equal(t, tk1, out1)
+	assert.Equal(t, tk2, out2)
+}
+
 func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1830,7 +2139,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
 
 	// Delete the summary
-	state.DeleteJobSummary(1040, alloc.Job.ID)
+	state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID)
 
 	// Delete the index
 	if err := state.RemoveIndex("job_summary"); err != nil {
@@ -1842,11 +2151,12 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 	latestIndex, _ := state.LatestIndex()
 
 	ws := memdb.NewWatchSet()
-	out, _ := state2.JobSummaryByID(ws, alloc.Job.ID)
+	out, _ := state2.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
 	expected := structs.JobSummary{
-		JobID: alloc.Job.ID,
+		JobID:     alloc.Job.ID,
+		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Starting: 1,
 			},
 		},
@@ -1859,6 +2169,7 @@ func TestFSM_SnapshotRestore_AddMissingSummary(t *testing.T) {
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {
+	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -1879,8 +2190,8 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
 
 	// Delete the summaries
-	state.DeleteJobSummary(1030, job1.ID)
-	state.DeleteJobSummary(1040, alloc.Job.ID)
+	state.DeleteJobSummary(1030, job1.Namespace, job1.ID)
+	state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID)
 
 	req := structs.GenericRequest{}
 	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
@@ -1894,11 +2205,12 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	out1, _ := state.JobSummaryByID(ws, job1.ID)
+	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 	expected := structs.JobSummary{
-		JobID: job1.ID,
+		JobID:     job1.ID,
+		Namespace: job1.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Queued: 10,
 			},
 		},
@@ -1912,11 +2224,12 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// This exercises the code path which adds the allocations made by the
 	// planner and the number of unplaced allocations in the reconcile summaries
 	// codepath
-	out2, _ := state.JobSummaryByID(ws, alloc.Job.ID)
+	out2, _ := state.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
 	expected = structs.JobSummary{
-		JobID: alloc.Job.ID,
+		JobID:     alloc.Job.ID,
+		Namespace: alloc.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
-			"web": structs.TaskGroupSummary{
+			"web": {
 				Queued:   9,
 				Starting: 1,
 			},

@@ -13,6 +13,10 @@ import (
 // EmptyDuration is to be used by fingerprinters that are not periodic.
 const (
 	EmptyDuration = time.Duration(0)
+
+	// TightenNetworkTimeoutsConfig is a config key that can be used during
+	// tests to tighten the timeouts for fingerprinters that make network calls.
+	TightenNetworkTimeoutsConfig = "test.tighten_network_timeouts"
 )
 
 func init() {

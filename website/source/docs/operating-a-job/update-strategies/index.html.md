@@ -12,10 +12,11 @@ description: |-
 
 Most applications are long-lived and require updates over time. Whether you are
 deploying a new version of your web application or upgrading to a new version of
-redis, Nomad has built-in support for rolling updates. When a job specifies a
-rolling update, Nomad can take some configurable strategies to minimize or
-eliminate down time, stagger deployments, and more. This section and subsections
-will explore how to do so safely with Nomad.
+Redis, Nomad has built-in support for rolling, blue/green, and canary updates.
+When a job specifies a rolling update, Nomad uses task state and health check
+information in order to detect allocation health and minimize or eliminate
+downtime. This section and subsections will explore how to do so safely with
+Nomad.
 
 Please see one of the guides below or use the navigation on the left:
 

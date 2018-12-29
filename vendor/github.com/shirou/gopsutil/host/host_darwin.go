@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -32,12 +33,19 @@ func Info() (*InfoStat, error) {
 		ret.Hostname = hostname
 	}
 
-	platform, family, pver, version, err := PlatformInformation()
+	uname, err := exec.LookPath("uname")
+	if err == nil {
+		out, err := invoke.Command(uname, "-r")
+		if err == nil {
+			ret.KernelVersion = strings.ToLower(strings.TrimSpace(string(out)))
+		}
+	}
+
+	platform, family, pver, err := PlatformInformation()
 	if err == nil {
 		ret.Platform = platform
 		ret.PlatformFamily = family
 		ret.PlatformVersion = pver
-		ret.KernelVersion = version
 	}
 
 	system, role, err := Virtualization()
@@ -65,9 +73,13 @@ func Info() (*InfoStat, error) {
 	return ret, nil
 }
 
+// cachedBootTime must be accessed via atomic.Load/StoreUint64
+var cachedBootTime uint64
+
 func BootTime() (uint64, error) {
-	if cachedBootTime != 0 {
-		return cachedBootTime, nil
+	t := atomic.LoadUint64(&cachedBootTime)
+	if t != 0 {
+		return t, nil
 	}
 	values, err := common.DoSysctrl("kern.boottime")
 	if err != nil {
@@ -79,9 +91,10 @@ func BootTime() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	cachedBootTime = uint64(boottime)
+	t = uint64(boottime)
+	atomic.StoreUint64(&cachedBootTime, t)
 
-	return cachedBootTime, nil
+	return t, nil
 }
 
 func uptime(boot uint64) uint64 {
@@ -140,19 +153,18 @@ func Users() ([]UserStat, error) {
 
 }
 
-func PlatformInformation() (string, string, string, string, error) {
+func PlatformInformation() (string, string, string, error) {
 	platform := ""
 	family := ""
-	version := ""
 	pver := ""
 
 	sw_vers, err := exec.LookPath("sw_vers")
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", err
 	}
 	uname, err := exec.LookPath("uname")
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", err
 	}
 
 	out, err := invoke.Command(uname, "-s")
@@ -165,17 +177,14 @@ func PlatformInformation() (string, string, string, string, error) {
 		pver = strings.ToLower(strings.TrimSpace(string(out)))
 	}
 
-	out, err = invoke.Command(uname, "-r")
-	if err == nil {
-		version = strings.ToLower(strings.TrimSpace(string(out)))
-	}
-
-	return platform, family, pver, version, nil
+	return platform, family, pver, nil
 }
 
 func Virtualization() (string, string, error) {
-	system := ""
-	role := ""
+	return "", "", common.ErrNotImplementedError
+}
 
-	return system, role, nil
+func KernelVersion() (string, error) {
+	_, _, version, err := PlatformInformation()
+	return version, err
 }

@@ -37,8 +37,8 @@ server {
 
 Alternatively, the address can be supplied after the servers have all been
 started by running the [`server-join` command](/docs/commands/server-join.html)
-on the servers individual to cluster the servers. All servers can join just one
-other server, and then rely on the gossip protocol to discover the rest.
+on the servers individually to cluster the servers. All servers can join just
+one other server, and then rely on the gossip protocol to discover the rest.
 
 ```
 $ nomad server-join <known-address>
@@ -57,7 +57,7 @@ At this time, there is no equivalent of the <tt>server-join</tt> command for
 Nomad clients.
 
 The port corresponds to the RPC port. If no port is specified with the IP
-address, the default RCP port of `4647` is assumed.
+address, the default RPC port of `4647` is assumed.
 
 As servers are added or removed from the cluster, this information is pushed to
 the client. This means only one server must be specified because, after initial

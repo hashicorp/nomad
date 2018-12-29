@@ -77,8 +77,8 @@ parameters section above.
 ### Customization
 
 This example asks Nomad to retain 3 rotated files for each of `stderr` and
-`stdout`, each a maximum size of 5MB per file. The minimum disk space this
-would require is 60MB (3 `stderr` &plus; 3 `stdout` &times; 5MB &equals; 30MB).
+`stdout`, each a maximum size of 5 MB per file. The minimum disk space this
+would require is 60 MB (3 `stderr` &plus; 3 `stdout` &times; 5 MB &equals; 30 MB).
 
 ```hcl
 logs {

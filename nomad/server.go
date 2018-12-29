@@ -20,6 +20,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-multierror"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -72,6 +73,10 @@ const (
 	// defaultConsulDiscoveryIntervalRetry is how often to poll Consul for
 	// new servers if there is no leader and the last Consul query failed.
 	defaultConsulDiscoveryIntervalRetry time.Duration = 9 * time.Second
+
+	// aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing and
+	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
+	aclCacheSize = 512
 )
 
 // Server is Nomad server which manages the job queues,
@@ -130,7 +135,7 @@ type Server struct {
 	blockedEvals *BlockedEvals
 
 	// deploymentWatcher is used to watch deployments and their allocations and
-	// make the required calls to continue to transistion the deployment.
+	// make the required calls to continue to transition the deployment.
 	deploymentWatcher *deploymentwatcher.Watcher
 
 	// evalBroker is used to manage the in-progress evaluations
@@ -158,6 +163,12 @@ type Server struct {
 	// Worker used for processing
 	workers []*Worker
 
+	// aclCache is used to maintain the parsed ACL objects
+	aclCache *lru.TwoQueueCache
+
+	// EnterpriseState is used to fill in state for Pro/Ent builds
+	EnterpriseState
+
 	left         bool
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -174,9 +185,12 @@ type endpoints struct {
 	Alloc      *Alloc
 	Deployment *Deployment
 	Region     *Region
+	Search     *Search
 	Periodic   *Periodic
 	System     *System
 	Operator   *Operator
+	ACL        *ACL
+	Enterprise *EnterpriseEndpoints
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -224,6 +238,12 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		incomingTLS = itls
 	}
 
+	// Create the ACL object cache
+	aclCache, err := lru.New2Q(aclCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the server
 	s := &Server{
 		config:        config,
@@ -239,6 +259,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		blockedEvals:  blockedEvals,
 		planQueue:     planQueue,
 		rpcTLS:        incomingTLS,
+		aclCache:      aclCache,
 		shutdownCh:    make(chan struct{}),
 	}
 
@@ -291,6 +312,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 		return nil, fmt.Errorf("failed to create deployment watcher: %v", err)
 	}
 
+	// Setup the enterprise state
+	if err := s.setupEnterprise(config); err != nil {
+		return nil, err
+	}
+
 	// Monitor leadership changes
 	go s.monitorLeadership()
 
@@ -314,6 +340,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, logger *log.Logg
 
 	// Emit metrics
 	go s.heartbeatStats()
+
+	// Start enterprise background workers
+	s.startEnterpriseBackground()
 
 	// Done
 	return s, nil
@@ -678,23 +707,15 @@ func (s *Server) setupConsulSyncer() error {
 // shim that provides the appropriate methods.
 func (s *Server) setupDeploymentWatcher() error {
 
-	// Create the shims
-	stateShim := &deploymentWatcherStateShim{
-		region:         s.Region(),
-		evaluations:    s.endpoints.Job.Evaluations,
-		allocations:    s.endpoints.Deployment.Allocations,
-		list:           s.endpoints.Deployment.List,
-		getDeployment:  s.endpoints.Deployment.GetDeployment,
-		getJobVersions: s.endpoints.Job.GetJobVersions,
-		getJob:         s.endpoints.Job.GetJob,
-	}
+	// Create the raft shim type to restrict the set of raft methods that can be
+	// made
 	raftShim := &deploymentWatcherRaftShim{
 		apply: s.raftApply,
 	}
 
 	// Create the deployment watcher
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
-		s.logger, stateShim, raftShim,
+		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
 		deploymentwatcher.CrossDeploymentEvalBatchDuration)
 
@@ -714,6 +735,7 @@ func (s *Server) setupVaultClient() error {
 // setupRPC is used to setup the RPC listener
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Create endpoints
+	s.endpoints.ACL = &ACL{s}
 	s.endpoints.Alloc = &Alloc{s}
 	s.endpoints.Eval = &Eval{s}
 	s.endpoints.Job = &Job{s}
@@ -725,8 +747,11 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.endpoints.Region = &Region{s}
 	s.endpoints.Status = &Status{s}
 	s.endpoints.System = &System{s}
+	s.endpoints.Search = &Search{s}
+	s.endpoints.Enterprise = NewEnterpriseEndpoints(s)
 
 	// Register the handlers
+	s.rpcServer.Register(s.endpoints.ACL)
 	s.rpcServer.Register(s.endpoints.Alloc)
 	s.rpcServer.Register(s.endpoints.Eval)
 	s.rpcServer.Register(s.endpoints.Job)
@@ -738,6 +763,8 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	s.rpcServer.Register(s.endpoints.Region)
 	s.rpcServer.Register(s.endpoints.Status)
 	s.rpcServer.Register(s.endpoints.System)
+	s.rpcServer.Register(s.endpoints.Search)
+	s.endpoints.Enterprise.Register(s)
 
 	list, err := net.ListenTCP("tcp", s.config.RPCAddr)
 	if err != nil {
@@ -779,8 +806,15 @@ func (s *Server) setupRaft() error {
 	}()
 
 	// Create the FSM
+	fsmConfig := &FSMConfig{
+		EvalBroker: s.evalBroker,
+		Periodic:   s.periodicDispatcher,
+		Blocked:    s.blockedEvals,
+		LogOutput:  s.config.LogOutput,
+		Region:     s.Region(),
+	}
 	var err error
-	s.fsm, err = NewFSM(s.evalBroker, s.periodicDispatcher, s.blockedEvals, s.config.LogOutput)
+	s.fsm, err = NewFSM(fsmConfig)
 	if err != nil {
 		return err
 	}
@@ -870,7 +904,7 @@ func (s *Server) setupRaft() error {
 			if err != nil {
 				return fmt.Errorf("recovery failed to parse peers.json: %v", err)
 			}
-			tmpFsm, err := NewFSM(s.evalBroker, s.periodicDispatcher, s.blockedEvals, s.config.LogOutput)
+			tmpFsm, err := NewFSM(fsmConfig)
 			if err != nil {
 				return fmt.Errorf("recovery failed to make temp FSM: %v", err)
 			}
@@ -897,7 +931,7 @@ func (s *Server) setupRaft() error {
 			// we add support for node IDs.
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
-					raft.Server{
+					{
 						ID:      raft.ServerID(trans.LocalAddr()),
 						Address: trans.LocalAddr(),
 					},
@@ -1042,7 +1076,7 @@ func (s *Server) Regions() []string {
 	defer s.peerLock.RUnlock()
 
 	regions := make([]string, 0, len(s.peers))
-	for region, _ := range s.peers {
+	for region := range s.peers {
 		regions = append(regions, region)
 	}
 	sort.Strings(regions)
@@ -1104,7 +1138,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		return strconv.FormatUint(v, 10)
 	}
 	stats := map[string]map[string]string{
-		"nomad": map[string]string{
+		"nomad": {
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
 			"leader_addr":   string(s.raft.Leader()),
@@ -1119,7 +1153,7 @@ func (s *Server) Stats() map[string]map[string]string {
 	return stats
 }
 
-// Region retuns the region of the server
+// Region returns the region of the server
 func (s *Server) Region() string {
 	return s.config.Region
 }
@@ -1134,13 +1168,19 @@ func (s *Server) GetConfig() *Config {
 	return s.config
 }
 
+// ReplicationToken returns the token used for replication. We use a method to support
+// dynamic reloading of this value later.
+func (s *Server) ReplicationToken() string {
+	return s.config.ReplicationToken
+}
+
 // peersInfoContent is used to help operators understand what happened to the
 // peers.json file. This is written to a file called peers.info in the same
 // location.
 const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. It should be formatted as a JSON array containing the address
-and port of each Consul server in the cluster, like this:
+and port (RPC) of each Nomad server in the cluster, like this:
 
 ["10.1.0.1:4647","10.1.0.2:4647","10.1.0.3:4647"]
 

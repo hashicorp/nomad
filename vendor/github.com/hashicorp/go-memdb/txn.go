@@ -330,6 +330,96 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 	return nil
 }
 
+// DeletePrefix is used to delete an entire subtree based on a prefix.
+// The given index must be a prefix index, and will be used to perform a scan and enumerate the set of objects to delete.
+// These will be removed from all other indexes, and then a special prefix operation will delete the objects from the given index in an efficient subtree delete operation.
+// This is useful when you have a very large number of objects indexed by the given index, along with a much smaller number of entries in the other indexes for those objects.
+func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (bool, error) {
+	if !txn.write {
+		return false, fmt.Errorf("cannot delete in read-only transaction")
+	}
+
+	if !strings.HasSuffix(prefix_index, "_prefix") {
+		return false, fmt.Errorf("Index name for DeletePrefix must be a prefix index, Got %v ", prefix_index)
+	}
+
+	deletePrefixIndex := strings.TrimSuffix(prefix_index, "_prefix")
+
+	// Get an iterator over all of the keys with the given prefix.
+	entries, err := txn.Get(table, prefix_index, prefix)
+	if err != nil {
+		return false, fmt.Errorf("failed kvs lookup: %s", err)
+	}
+	// Get the table schema
+	tableSchema, ok := txn.db.schema.Tables[table]
+	if !ok {
+		return false, fmt.Errorf("invalid table '%s'", table)
+	}
+
+	foundAny := false
+	for entry := entries.Next(); entry != nil; entry = entries.Next() {
+		if !foundAny {
+			foundAny = true
+		}
+		// Get the primary ID of the object
+		idSchema := tableSchema.Indexes[id]
+		idIndexer := idSchema.Indexer.(SingleIndexer)
+		ok, idVal, err := idIndexer.FromObject(entry)
+		if err != nil {
+			return false, fmt.Errorf("failed to build primary index: %v", err)
+		}
+		if !ok {
+			return false, fmt.Errorf("object missing primary index")
+		}
+		// Remove the object from all the indexes except the given prefix index
+		for name, indexSchema := range tableSchema.Indexes {
+			if name == deletePrefixIndex {
+				continue
+			}
+			indexTxn := txn.writableIndex(table, name)
+
+			// Handle the update by deleting from the index first
+			var (
+				ok   bool
+				vals [][]byte
+				err  error
+			)
+			switch indexer := indexSchema.Indexer.(type) {
+			case SingleIndexer:
+				var val []byte
+				ok, val, err = indexer.FromObject(entry)
+				vals = [][]byte{val}
+			case MultiIndexer:
+				ok, vals, err = indexer.FromObject(entry)
+			}
+			if err != nil {
+				return false, fmt.Errorf("failed to build index '%s': %v", name, err)
+			}
+
+			if ok {
+				// Handle non-unique index by computing a unique index.
+				// This is done by appending the primary key which must
+				// be unique anyways.
+				for _, val := range vals {
+					if !indexSchema.Unique {
+						val = append(val, idVal...)
+					}
+					indexTxn.Delete(val)
+				}
+			}
+		}
+	}
+	if foundAny {
+		indexTxn := txn.writableIndex(table, deletePrefixIndex)
+		ok = indexTxn.DeletePrefix([]byte(prefix))
+		if !ok {
+			panic(fmt.Errorf("prefix %v matched some entries but DeletePrefix did not delete any ", prefix))
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
 // DeleteAll is used to delete all the objects in a given table
 // matching the constraints on the index
 func (txn *Txn) DeleteAll(table, index string, args ...interface{}) (int, error) {

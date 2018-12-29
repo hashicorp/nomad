@@ -1,3 +1,3 @@
 package structs
 
-//go:generate codecgen -o structs.generated.go structs.go
+//go:generate codecgen -d 100 -o structs.generated.go structs.go

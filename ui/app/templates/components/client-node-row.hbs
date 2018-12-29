@@ -1,0 +1,13 @@
+<td><a href="{{href-to "nodes.node" node.id}}" class="is-primary">{{node.shortId}}</a></td>
+<td class="is-200px is-truncatable" title="{{node.name}}">{{node.name}}</td>
+<td>{{node.status}}</td>
+<td>{{node.address}}</td>
+<td>{{node.port}}</td>
+<td>{{node.datacenter}}</td>
+<td>
+  {{#if node.allocations.isPending}}
+    ...
+  {{else}}
+    {{node.allocations.length}}
+  {{/if}}
+</td>

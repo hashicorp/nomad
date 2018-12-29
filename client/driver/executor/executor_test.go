@@ -14,22 +14,8 @@ import (
 	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/go-ps"
-)
-
-var (
-	constraint = &structs.Resources{
-		CPU:      250,
-		MemoryMB: 256,
-		Networks: []*structs.NetworkResource{
-			&structs.NetworkResource{
-				MBits:        50,
-				DynamicPorts: []structs.Port{{Label: "http"}},
-			},
-		},
-	}
 )
 
 func testLogger() *log.Logger {
@@ -63,6 +49,7 @@ func testExecutorContext(t *testing.T) (*ExecutorContext, *allocdir.AllocDir) {
 }
 
 func TestExecutor_Start_Invalid(t *testing.T) {
+	t.Parallel()
 	invalid := "/bin/foobar"
 	execCmd := ExecCommand{Cmd: invalid, Args: []string{"1"}}
 	ctx, allocDir := testExecutorContext(t)
@@ -79,7 +66,8 @@ func TestExecutor_Start_Invalid(t *testing.T) {
 }
 
 func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
-	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"fail"}}
+	t.Parallel()
+	execCmd := ExecCommand{Cmd: "/bin/date", Args: []string{"fail"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
@@ -106,6 +94,7 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 }
 
 func TestExecutor_Start_Wait(t *testing.T) {
+	t.Parallel()
 	execCmd := ExecCommand{Cmd: "/bin/echo", Args: []string{"hello world"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
@@ -144,6 +133,7 @@ func TestExecutor_Start_Wait(t *testing.T) {
 }
 
 func TestExecutor_WaitExitSignal(t *testing.T) {
+	t.Parallel()
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10000"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
@@ -159,13 +149,13 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 		ru, err := executor.Stats()
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if len(ru.Pids) != 2 {
-			t.Fatalf("expected number of pids: 2, actual: %v", len(ru.Pids))
+		if len(ru.Pids) == 0 {
+			t.Fatalf("expected pids")
 		}
 		proc, err := os.FindProcess(ps.Pid)
 		if err != nil {
@@ -186,6 +176,7 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 }
 
 func TestExecutor_Start_Kill(t *testing.T) {
+	t.Parallel()
 	execCmd := ExecCommand{Cmd: "/bin/sleep", Args: []string{"10 && hello world"}}
 	ctx, allocDir := testExecutorContext(t)
 	defer allocDir.Destroy()
@@ -226,6 +217,7 @@ func TestExecutor_Start_Kill(t *testing.T) {
 }
 
 func TestExecutor_MakeExecutable(t *testing.T) {
+	t.Parallel()
 	// Create a temp file
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -259,6 +251,7 @@ func TestExecutor_MakeExecutable(t *testing.T) {
 }
 
 func TestScanPids(t *testing.T) {
+	t.Parallel()
 	p1 := NewFakeProcess(2, 5)
 	p2 := NewFakeProcess(10, 2)
 	p3 := NewFakeProcess(15, 6)

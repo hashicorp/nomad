@@ -1,0 +1,13 @@
+.columns {
+  .column {
+    &.is-centered {
+      align-self: center;
+      justify-self: center;
+      text-align: center;
+    }
+
+    &.is-minimum {
+      flex-grow: 0;
+    }
+  }
+}

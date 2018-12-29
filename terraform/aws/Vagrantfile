@@ -1,0 +1,55 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+
+  config.vm.box = "ubuntu/trusty64"
+  config.vm.provision "shell", inline: <<-SHELL
+    
+    cd /tmp
+
+    PACKERVERSION=1.0.0
+    PACKERDOWNLOAD=https://releases.hashicorp.com/packer/${PACKERVERSION}/packer_${PACKERVERSION}_linux_amd64.zip
+    TERRAFORMVERSION=0.9.8
+    TERRAFORMDOWNLOAD=https://releases.hashicorp.com/terraform/${TERRAFORMVERSION}/terraform_${TERRAFORMVERSION}_linux_amd64.zip
+
+    echo "Dependencies..."
+    sudo apt-get install -y unzip tree
+
+    # Disable the firewall
+    sudo ufw disable
+
+    ## Packer
+    echo Fetching Packer...
+    curl -L $PACKERDOWNLOAD > packer.zip
+    echo Installing Packer...
+    unzip packer.zip -d /usr/local/bin
+    chmod 0755 /usr/local/bin/packer
+    chown root:root /usr/local/bin/packer
+
+    ## Terraform
+    echo Fetching Terraform...
+    curl -L $TERRAFORMDOWNLOAD > terraform.zip
+    echo Installing Terraform...
+    unzip terraform.zip -d /usr/local/bin
+    chmod 0755 /usr/local/bin/terraform
+    chown root:root /usr/local/bin/terraform
+
+    ## Docker
+    echo deb https://apt.dockerproject.org/repo ubuntu-`lsb_release -c | awk '{print $2}'` main | sudo tee /etc/apt/sources.list.d/docker.list
+    sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+    sudo apt-get update
+    sudo apt-get install -y docker-engine
+
+  SHELL
+
+  config.vm.synced_folder "../aws/", "/home/vagrant/aws", owner: "vagrant", group: "vagrant"
+  config.vm.synced_folder "../shared/", "/home/vagrant/shared", owner: "vagrant", group: "vagrant"
+  config.vm.synced_folder "../examples/", "/home/vagrant/examples", owner: "vagrant", group: "vagrant"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = 2
+  end
+
+end

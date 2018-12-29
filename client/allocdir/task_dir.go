@@ -57,6 +57,14 @@ func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
 	}
 }
 
+// Copy a TaskDir. Panics if TaskDir is nil as TaskDirs should never be nil.
+func (t *TaskDir) Copy() *TaskDir {
+	// No nested structures other than the logger which is safe to share,
+	// so just copy the struct
+	tcopy := *t
+	return &tcopy
+}
+
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
 // done.

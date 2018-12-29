@@ -1,0 +1,14 @@
+{{#each annotatedDeployments as |record|}}
+  {{#if record.meta.showDate}}
+    <li class="timeline-note">
+      {{#if record.deployment.version.submitTime}}
+        {{moment-format record.deployment.version.submitTime "MMMM D, YYYY"}}
+      {{else}}
+        Unknown time
+      {{/if}}
+    </li>
+  {{/if}}
+  <li class="timeline-object">
+    {{job-deployment deployment=record.deployment}}
+  </li>
+{{/each}}

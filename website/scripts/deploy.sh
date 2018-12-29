@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 
 PROJECT="nomad"
@@ -95,7 +95,7 @@ if [ -z "$NO_UPLOAD" ]; then
 fi
 
 # Add redirects if they exist
-if [ -z "$NO_REDIRECTS" ] || [ ! test -f "$DIR/redirects.txt" ]; then
+if [ -z "$NO_REDIRECTS" ] || [ ! test -f "./redirects.txt" ]; then
   echo "Adding redirects..."
   fields=()
   while read -r line; do
@@ -105,7 +105,7 @@ if [ -z "$NO_REDIRECTS" ] || [ ! test -f "$DIR/redirects.txt" ]; then
     # Read fields
     IFS=" " read -ra parts <<<"$line"
     fields+=("${parts[@]}")
-  done < "$DIR/redirects.txt"
+  done < "./redirects.txt"
 
   # Check we have pairs
   if [ $((${#fields[@]} % 2)) -ne 0 ]; then
@@ -144,19 +144,23 @@ if [ -z "$NO_REDIRECTS" ] || [ ! test -f "$DIR/redirects.txt" ]; then
     jq_args+=(--arg "value$((i/2))" "${redirect}")
     jq_query+="| .items |= (. + [{op: \"upsert\", item_key: \$key$((i/2)), item_value: \$value$((i/2))}])"
   done
-  json="$(jq "${jq_args[@]}" "${jq_query}" <<<'{"items": []}')"
 
-  # Post the JSON body
-  curl \
-    --fail \
-    --silent \
-    --output /dev/null \
-    --request "PATCH" \
-    --header "Fastly-Key: $FASTLY_API_KEY" \
-    --header "Content-type: application/json" \
-    --header "Accept: application/json" \
-    --data "$json"\
-    "https://api.fastly.com/service/$FASTLY_SERVICE_ID/dictionary/$FASTLY_DICTIONARY_ID/items"
+  # Do not post empty items (the API gets sad)
+  if [ "${#jq_args[@]}" -ne 0 ]; then
+    json="$(jq "${jq_args[@]}" "${jq_query}" <<<'{"items": []}')"
+
+    # Post the JSON body
+    curl \
+      --fail \
+      --silent \
+      --output /dev/null \
+      --request "PATCH" \
+      --header "Fastly-Key: $FASTLY_API_KEY" \
+      --header "Content-type: application/json" \
+      --header "Accept: application/json" \
+      --data "$json"\
+      "https://api.fastly.com/service/$FASTLY_SERVICE_ID/dictionary/$FASTLY_DICTIONARY_ID/items"
+  fi
 fi
 
 # Perform a purge of the surrogate key.
@@ -184,8 +188,13 @@ if [ -z "$NO_WARM" ]; then
   echo "wget --recursive --delete-after https://$PROJECT_URL/"
   echo ""
   wget \
-    --recursive \
     --delete-after \
-    --quiet \
+    --level inf \
+    --no-directories \
+    --no-host-directories \
+    --no-verbose \
+    --page-requisites \
+    --recursive \
+    --spider \
     "https://$PROJECT_URL/"
 fi

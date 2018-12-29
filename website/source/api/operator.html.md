@@ -17,7 +17,7 @@ Nomad outage and even loss of data.
 See the [Outage Recovery](/guides/outage.html) guide for some examples of how
 these capabilities are used. For a CLI to perform these operations manually,
 please see the documentation for the
-[`nomad operator`](/docs/commands/operator-index.html) command.
+[`nomad operator`](/docs/commands/operator.html) command.
 
 
 ## Read Raft Configuration
@@ -34,7 +34,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `management` |
 
 ### Parameters
 
@@ -104,7 +104,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
-| `NO`             | `none`       |
+| `NO`             | `management` |
 
 ### Parameters
 

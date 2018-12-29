@@ -7,7 +7,8 @@ import (
 )
 
 func TestHTTP_SystemGarbageCollect(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/system/gc", nil)
 		if err != nil {
@@ -23,7 +24,8 @@ func TestHTTP_SystemGarbageCollect(t *testing.T) {
 }
 
 func TestHTTP_ReconcileJobSummaries(t *testing.T) {
-	httpTest(t, nil, func(s *TestServer) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/system/reconcile/summaries", nil)
 		if err != nil {

@@ -3,11 +3,13 @@ package structs
 import (
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 func testNode() *Node {
 	return &Node{
-		ID:         GenerateUUID(),
+		ID:         uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
 		Attributes: map[string]string{
@@ -22,7 +24,7 @@ func testNode() *Node {
 			DiskMB:   100 * 1024,
 			IOPS:     150,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
 					MBits:  1000,

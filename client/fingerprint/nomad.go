@@ -20,7 +20,7 @@ func NewNomadFingerprint(logger *log.Logger) Fingerprint {
 }
 
 func (f *NomadFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
-	node.Attributes["nomad.version"] = config.Version
-	node.Attributes["nomad.revision"] = config.Revision
+	node.Attributes["nomad.version"] = config.Version.VersionNumber()
+	node.Attributes["nomad.revision"] = config.Version.Revision
 	return true, nil
 }

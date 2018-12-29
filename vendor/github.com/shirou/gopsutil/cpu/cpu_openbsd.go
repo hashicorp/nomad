@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/shirou/gopsutil/internal/common"
+	"golang.org/x/sys/unix"
 )
 
 // sys/sched.h
@@ -100,7 +100,7 @@ func Info() ([]InfoStat, error) {
 
 	c := InfoStat{}
 
-	v, err := syscall.Sysctl("hw.model")
+	v, err := unix.Sysctl("hw.model")
 	if err != nil {
 		return nil, err
 	}

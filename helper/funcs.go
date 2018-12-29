@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/hcl/hcl/ast"
 )
 
 // validUUID is used to check if a given string looks like a UUID
@@ -71,6 +74,20 @@ func TimeToPtr(t time.Duration) *time.Duration {
 
 func IntMin(a, b int) int {
 	if a < b {
+		return a
+	}
+	return b
+}
+
+func IntMax(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func Uint64Max(a, b uint64) uint64 {
+	if a > b {
 		return a
 	}
 	return b
@@ -159,6 +176,19 @@ func CopyMapStringString(m map[string]string) map[string]string {
 	return c
 }
 
+func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]struct{}, l)
+	for k := range m {
+		c[k] = struct{}{}
+	}
+	return c
+}
+
 func CopyMapStringInt(m map[string]int) map[string]int {
 	l := len(m)
 	if l == 0 {
@@ -181,6 +211,21 @@ func CopyMapStringFloat64(m map[string]float64) map[string]float64 {
 	c := make(map[string]float64, l)
 	for k, v := range m {
 		c[k] = v
+	}
+	return c
+}
+
+// CopyMapStringSliceString copies a map of strings to string slices such as
+// http.Header
+func CopyMapStringSliceString(m map[string][]string) map[string][]string {
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string][]string, l)
+	for k, v := range m {
+		c[k] = CopySliceString(v)
 	}
 	return c
 }
@@ -227,4 +272,32 @@ func CleanEnvVar(s string, r byte) string {
 		}
 	}
 	return string(b)
+}
+
+func CheckHCLKeys(node ast.Node, valid []string) error {
+	var list *ast.ObjectList
+	switch n := node.(type) {
+	case *ast.ObjectList:
+		list = n
+	case *ast.ObjectType:
+		list = n.List
+	default:
+		return fmt.Errorf("cannot check HCL keys of type %T", n)
+	}
+
+	validMap := make(map[string]struct{}, len(valid))
+	for _, v := range valid {
+		validMap[v] = struct{}{}
+	}
+
+	var result error
+	for _, item := range list.Items {
+		key := item.Keys[0].Token.Value().(string)
+		if _, ok := validMap[key]; !ok {
+			result = multierror.Append(result, fmt.Errorf(
+				"invalid key: %s", key))
+		}
+	}
+
+	return result
 }

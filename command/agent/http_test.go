@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -21,43 +20,21 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/ugorji/go/codec"
 )
-
-type TestServer struct {
-	T      testing.TB
-	Dir    string
-	Agent  *Agent
-	Server *HTTPServer
-}
-
-func (s *TestServer) Cleanup() {
-	s.Server.Shutdown()
-	s.Agent.Shutdown()
-	os.RemoveAll(s.Dir)
-}
 
 // makeHTTPServer returns a test server whose logs will be written to
 // the passed writer. If the writer is nil, the logs are written to stderr.
-func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestServer {
-	dir, agent := makeAgent(t, cb)
-	srv, err := NewHTTPServer(agent, agent.config)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	s := &TestServer{
-		T:      t,
-		Dir:    dir,
-		Agent:  agent,
-		Server: srv,
-	}
-	return s
+func makeHTTPServer(t testing.TB, cb func(c *Config)) *TestAgent {
+	return NewTestAgent(t, t.Name(), cb)
 }
 
 func BenchmarkHTTPRequests(b *testing.B) {
 	s := makeHTTPServer(b, func(c *Config) {
 		c.Client.Enabled = false
 	})
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	job := mock.Job()
 	var allocs []*structs.Allocation
@@ -85,6 +62,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 }
 
 func TestSetIndex(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setIndex(resp, 1000)
 	header := resp.Header().Get("X-Nomad-Index")
@@ -98,6 +76,7 @@ func TestSetIndex(t *testing.T) {
 }
 
 func TestSetKnownLeader(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setKnownLeader(resp, true)
 	header := resp.Header().Get("X-Nomad-KnownLeader")
@@ -113,6 +92,7 @@ func TestSetKnownLeader(t *testing.T) {
 }
 
 func TestSetLastContact(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	setLastContact(resp, 123456*time.Microsecond)
 	header := resp.Header().Get("X-Nomad-LastContact")
@@ -122,6 +102,7 @@ func TestSetLastContact(t *testing.T) {
 }
 
 func TestSetMeta(t *testing.T) {
+	t.Parallel()
 	meta := structs.QueryMeta{
 		Index:       1000,
 		KnownLeader: true,
@@ -144,9 +125,10 @@ func TestSetMeta(t *testing.T) {
 }
 
 func TestSetHeaders(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	s.Agent.config.HTTPAPIResponseHeaders = map[string]string{"foo": "bar"}
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
 	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -164,8 +146,9 @@ func TestSetHeaders(t *testing.T) {
 }
 
 func TestContentTypeIsJSON(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
 
@@ -184,20 +167,23 @@ func TestContentTypeIsJSON(t *testing.T) {
 }
 
 func TestPrettyPrint(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty=1", true, t)
 }
 
 func TestPrettyPrintOff(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty=0", false, t)
 }
 
 func TestPrettyPrintBare(t *testing.T) {
+	t.Parallel()
 	testPrettyPrint("pretty", true, t)
 }
 
 func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	r := &structs.Job{Name: "foo"}
 
@@ -210,24 +196,65 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	req, _ := http.NewRequest("GET", urlStr, nil)
 	s.Server.wrap(handler)(resp, req)
 
-	var expected []byte
+	var expected bytes.Buffer
+	var err error
 	if prettyFmt {
-		expected, _ = json.MarshalIndent(r, "", "    ")
-		expected = append(expected, "\n"...)
+		enc := codec.NewEncoder(&expected, structs.JsonHandlePretty)
+		err = enc.Encode(r)
+		expected.WriteByte('\n')
 	} else {
-		expected, _ = json.Marshal(r)
+		enc := codec.NewEncoder(&expected, structs.JsonHandle)
+		err = enc.Encode(r)
+	}
+	if err != nil {
+		t.Fatalf("failed to encode: %v", err)
 	}
 	actual, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if !bytes.Equal(expected, actual) {
-		t.Fatalf("bad:\nexpected:\t%q\nactual:\t\t%q", string(expected), string(actual))
+	if !bytes.Equal(expected.Bytes(), actual) {
+		t.Fatalf("bad:\nexpected:\t%q\nactual:\t\t%q", expected.String(), string(actual))
 	}
 }
 
+func TestPermissionDenied(t *testing.T) {
+	s := makeHTTPServer(t, func(c *Config) {
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	urlStr := "/v1/job/foo"
+	req, _ := http.NewRequest("GET", urlStr, nil)
+	s.Server.wrap(handler)(resp, req)
+	assert.Equal(t, resp.Code, 403)
+}
+
+func TestTokenNotFound(t *testing.T) {
+	s := makeHTTPServer(t, func(c *Config) {
+		c.ACL.Enabled = true
+	})
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		return nil, structs.ErrTokenNotFound
+	}
+
+	urlStr := "/v1/job/foo"
+	req, _ := http.NewRequest("GET", urlStr, nil)
+	s.Server.wrap(handler)(resp, req)
+	assert.Equal(t, resp.Code, 403)
+}
+
 func TestParseWait(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -250,6 +277,7 @@ func TestParseWait(t *testing.T) {
 }
 
 func TestParseWait_InvalidTime(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -269,6 +297,7 @@ func TestParseWait_InvalidTime(t *testing.T) {
 }
 
 func TestParseWait_InvalidIndex(t *testing.T) {
+	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -288,6 +317,7 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 }
 
 func TestParseConsistency(t *testing.T) {
+	t.Parallel()
 	var b structs.QueryOptions
 
 	req, err := http.NewRequest("GET",
@@ -315,8 +345,9 @@ func TestParseConsistency(t *testing.T) {
 }
 
 func TestParseRegion(t *testing.T) {
+	t.Parallel()
 	s := makeHTTPServer(t, nil)
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	req, err := http.NewRequest("GET",
 		"/v1/jobs?region=foo", nil)
@@ -342,9 +373,28 @@ func TestParseRegion(t *testing.T) {
 	}
 }
 
+func TestParseToken(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	req, err := http.NewRequest("GET", "/v1/jobs", nil)
+	req.Header.Add("X-Nomad-Token", "foobar")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	var token string
+	s.Server.parseToken(req, &token)
+	if token != "foobar" {
+		t.Fatalf("bad %s", token)
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
+	t.Parallel()
 	const (
 		cafile  = "../../helper/tlsutil/testdata/ca.pem"
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
@@ -360,7 +410,7 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 			KeyFile:           fookey,
 		}
 	})
-	defer s.Cleanup()
+	defer s.Shutdown()
 
 	reqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
 
@@ -492,11 +542,27 @@ func getIndex(t *testing.T, resp *httptest.ResponseRecorder) uint64 {
 	return uint64(val)
 }
 
-func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestServer)) {
+func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
-	defer s.Cleanup()
+	defer s.Shutdown()
 	testutil.WaitForLeader(t, s.Agent.RPC)
 	f(s)
+}
+
+func httpACLTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
+	s := makeHTTPServer(t, func(c *Config) {
+		c.ACL.Enabled = true
+		if cb != nil {
+			cb(c)
+		}
+	})
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.Agent.RPC)
+	f(s)
+}
+
+func setToken(req *http.Request, token *structs.ACLToken) {
+	req.Header.Set("X-Nomad-Token", token.SecretID)
 }
 
 func encodeReq(obj interface{}) io.ReadCloser {

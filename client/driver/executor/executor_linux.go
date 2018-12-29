@@ -18,6 +18,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -72,7 +73,7 @@ func (e *UniversalExecutor) applyLimits(pid int) error {
 func (e *UniversalExecutor) configureCgroups(resources *structs.Resources) error {
 	e.resConCtx.groups = &cgroupConfig.Cgroup{}
 	e.resConCtx.groups.Resources = &cgroupConfig.Resources{}
-	cgroupName := structs.GenerateUUID()
+	cgroupName := uuid.Generate()
 	e.resConCtx.groups.Path = filepath.Join("/nomad", cgroupName)
 
 	// TODO: verify this is needed for things like network access

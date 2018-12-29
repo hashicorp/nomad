@@ -1,5 +1,6 @@
 job "binstore-storagelocker" {
   region      = "fooregion"
+  namespace   = "foonamespace"
   type        = "batch"
   priority    = 52
   all_at_once = true
@@ -94,6 +95,12 @@ job "binstore-storagelocker" {
           interval = "10s"
           timeout  = "2s"
           port     = "admin"
+
+          check_restart {
+            limit = 3
+            grace = "10s"
+            ignore_warnings = true
+          }
         }
       }
 
@@ -129,6 +136,8 @@ job "binstore-storagelocker" {
 
       kill_timeout = "22s"
 
+      shutdown_delay = "11s"
+
       artifact {
         source = "http://foo.com/artifact"
 
@@ -158,6 +167,7 @@ job "binstore-storagelocker" {
         change_signal = "foo"
         splay = "10s"
         env = true
+        vault_grace = "33s"
       }
 
       template {

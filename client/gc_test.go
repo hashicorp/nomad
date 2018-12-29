@@ -20,6 +20,7 @@ func gcConfig() *GCConfig {
 }
 
 func TestIndexedGCAllocPQ(t *testing.T) {
+	t.Parallel()
 	pq := NewIndexedGCAllocPQ()
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
@@ -100,13 +101,12 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 }
 
 func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
 
 	gcAlloc := gc.allocRunners.Pop()
 	if gcAlloc == nil || gcAlloc.allocRunner != ar1 {
@@ -115,17 +115,14 @@ func TestAllocGarbageCollector_MarkForCollection(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_Collect(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	// Fake that ar.Run() exits
 	close(ar1.waitCh)
@@ -141,17 +138,14 @@ func TestAllocGarbageCollector_Collect(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_CollectAll(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	gc := NewAllocGarbageCollector(logger, &MockStatsCollector{}, &MockAllocCounter{}, gcConfig())
 
 	_, ar1 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	if err := gc.CollectAll(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -163,6 +157,7 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -173,12 +168,8 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 	close(ar1.waitCh)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar2.waitCh)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	// Make stats collector report 200MB free out of which 20MB is reserved
 	statsCollector.availableValues = []uint64{200 * MB}
@@ -201,6 +192,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_EnoughSpace(t *testing.T) 
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -211,12 +203,8 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 	close(ar1.waitCh)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar2.waitCh)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	// Make stats collector report 80MB and 175MB free in subsequent calls
 	statsCollector.availableValues = []uint64{80 * MB, 80 * MB, 175 * MB}
@@ -240,6 +228,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Partial(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -250,12 +239,8 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 	close(ar1.waitCh)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar2.waitCh)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	// Make stats collector report 80MB and 95MB free in subsequent calls
 	statsCollector.availableValues = []uint64{80 * MB, 80 * MB, 95 * MB}
@@ -275,6 +260,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_All(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -285,12 +271,8 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 	close(ar1.waitCh)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar2.waitCh)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	alloc := mock.Alloc()
 	alloc.Resources.DiskMB = 150
@@ -309,6 +291,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_GC_Fallback(t *testing.T) 
 }
 
 func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
+	t.Parallel()
 	const (
 		liveAllocs   = 3
 		maxAllocs    = 6
@@ -330,9 +313,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 	for i := 0; i < gcAllocs; i++ {
 		_, ar := testAllocRunnerFromAlloc(mock.Alloc(), false)
 		close(ar.waitCh)
-		if err := gc.MarkForCollection(ar); err != nil {
-			t.Fatalf("error marking alloc for gc: %v", err)
-		}
+		gc.MarkForCollection(ar)
 	}
 
 	if err := gc.MakeRoomFor([]*structs.Allocation{mock.Alloc(), mock.Alloc()}); err != nil {
@@ -346,6 +327,7 @@ func TestAllocGarbageCollector_MakeRoomForAllocations_MaxAllocs(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -356,12 +338,8 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 	close(ar1.waitCh)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar2.waitCh)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	statsCollector.availableValues = []uint64{1000}
 	statsCollector.usedPercents = []float64{20}
@@ -381,6 +359,7 @@ func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
+	t.Parallel()
 	logger := testLogger()
 	statsCollector := &MockStatsCollector{}
 	conf := gcConfig()
@@ -391,12 +370,8 @@ func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 	close(ar1.waitCh)
 	_, ar2 := testAllocRunnerFromAlloc(mock.Alloc(), false)
 	close(ar2.waitCh)
-	if err := gc.MarkForCollection(ar1); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if err := gc.MarkForCollection(ar2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	gc.MarkForCollection(ar1)
+	gc.MarkForCollection(ar2)
 
 	statsCollector.availableValues = []uint64{1000, 800}
 	statsCollector.usedPercents = []float64{85, 60}
@@ -418,6 +393,7 @@ func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
 }
 
 func TestAllocGarbageCollector_MaxAllocsThreshold(t *testing.T) {
+	t.Parallel()
 	const (
 		liveAllocs   = 3
 		maxAllocs    = 6
@@ -439,9 +415,7 @@ func TestAllocGarbageCollector_MaxAllocsThreshold(t *testing.T) {
 	for i := 0; i < gcAllocs; i++ {
 		_, ar := testAllocRunnerFromAlloc(mock.Alloc(), false)
 		close(ar.waitCh)
-		if err := gc.MarkForCollection(ar); err != nil {
-			t.Fatalf("error marking alloc for gc: %v", err)
-		}
+		gc.MarkForCollection(ar)
 	}
 
 	if err := gc.keepUsageBelowThreshold(); err != nil {
