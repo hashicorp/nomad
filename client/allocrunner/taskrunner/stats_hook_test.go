@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/driver"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/require"
@@ -15,6 +14,7 @@ import (
 // Statically assert the stats hook implements the expected interfaces
 var _ interfaces.TaskPoststartHook = (*statsHook)(nil)
 var _ interfaces.TaskExitedHook = (*statsHook)(nil)
+var _ interfaces.ShutdownHook = (*statsHook)(nil)
 
 type mockStatsUpdater struct {
 	// Ch is sent task resource usage updates if not nil
@@ -159,7 +159,7 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 	ds := &mockDriverStats{
-		err: driver.DriverStatsNotImplemented,
+		err: cstructs.DriverStatsNotImplemented,
 	}
 
 	poststartReq := &interfaces.TaskPoststartRequest{DriverStats: ds}

@@ -5,21 +5,21 @@ import (
 )
 
 type taskStore struct {
-	store map[string]*mockTaskHandle
+	store map[string]*taskHandle
 	lock  sync.RWMutex
 }
 
 func newTaskStore() *taskStore {
-	return &taskStore{store: map[string]*mockTaskHandle{}}
+	return &taskStore{store: map[string]*taskHandle{}}
 }
 
-func (ts *taskStore) Set(id string, handle *mockTaskHandle) {
+func (ts *taskStore) Set(id string, handle *taskHandle) {
 	ts.lock.Lock()
 	defer ts.lock.Unlock()
 	ts.store[id] = handle
 }
 
-func (ts *taskStore) Get(id string) (*mockTaskHandle, bool) {
+func (ts *taskStore) Get(id string) (*taskHandle, bool) {
 	ts.lock.RLock()
 	defer ts.lock.RUnlock()
 	t, ok := ts.store[id]

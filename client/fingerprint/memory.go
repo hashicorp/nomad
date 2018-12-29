@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shirou/gopsutil/mem"
 )
@@ -25,7 +24,7 @@ func NewMemoryFingerprint(logger log.Logger) Fingerprint {
 	return f
 }
 
-func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *MemoryFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	var totalMemory int
 	cfg := req.Config
 	if cfg.MemoryMB != 0 {

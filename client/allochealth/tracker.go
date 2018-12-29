@@ -289,7 +289,7 @@ func (t *Tracker) watchTaskEvents() {
 		select {
 		case <-t.ctx.Done():
 			return
-		case newAlloc, ok := <-t.allocUpdates.Ch:
+		case newAlloc, ok := <-t.allocUpdates.Ch():
 			if !ok {
 				return
 			}

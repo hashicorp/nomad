@@ -26,11 +26,14 @@ export default Model.extend({
   // Instances of periodic or parameterized jobs are false for both properties
   periodic: attr('boolean'),
   parameterized: attr('boolean'),
+  dispatched: attr('boolean'),
 
   periodicDetails: attr(),
   parameterizedDetails: attr(),
 
-  hasChildren: or('periodic', 'parameterized'),
+  hasChildren: computed('periodic', 'parameterized', 'dispatched', function() {
+    return this.get('periodic') || (this.get('parameterized') && !this.get('dispatched'));
+  }),
 
   parent: belongsTo('job', { inverse: 'children' }),
   children: hasMany('job', { inverse: 'parent' }),
@@ -63,14 +66,14 @@ export default Model.extend({
     function() {
       const type = this.get('type');
 
-      if (this.get('periodic')) {
-        return 'periodic';
-      } else if (this.get('parameterized')) {
-        return 'parameterized';
-      } else if (this.get('parent.periodic')) {
+      if (this.get('parent.periodic')) {
         return 'periodic-child';
       } else if (this.get('parent.parameterized')) {
         return 'parameterized-child';
+      } else if (this.get('periodic')) {
+        return 'periodic';
+      } else if (this.get('parameterized')) {
+        return 'parameterized';
       } else if (JOB_TYPES.includes(type)) {
         // Guard against the API introducing a new type before the UI
         // is prepared to handle it.

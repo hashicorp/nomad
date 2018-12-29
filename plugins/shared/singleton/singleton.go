@@ -10,6 +10,13 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
+var (
+	// SingletonPluginExited is returned when the dispense is called and the
+	// existing plugin has exited. The caller should retry, and this will issue
+	// a new plugin instance.
+	SingletonPluginExited = fmt.Errorf("singleton plugin exited")
+)
+
 // SingletonLoader is used to only load a single external plugin at a time.
 type SingletonLoader struct {
 	// Loader is the underlying plugin loader that we wrap to give a singleton
@@ -43,18 +50,20 @@ func (s *SingletonLoader) Catalog() map[string][]*base.PluginInfoResponse {
 // Dispense returns the plugin given its name and type. This will also
 // configure the plugin. If there is an instance of an already running plugin,
 // this is used.
-func (s *SingletonLoader) Dispense(name, pluginType string, logger log.Logger) (loader.PluginInstance, error) {
-	return s.getPlugin(false, name, pluginType, logger, nil)
+func (s *SingletonLoader) Dispense(name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) (loader.PluginInstance, error) {
+	return s.getPlugin(false, name, pluginType, logger, config, nil)
 }
 
 // Reattach is used to reattach to a previously launched external plugin.
 func (s *SingletonLoader) Reattach(name, pluginType string, config *plugin.ReattachConfig) (loader.PluginInstance, error) {
-	return s.getPlugin(true, name, pluginType, nil, config)
+	return s.getPlugin(true, name, pluginType, nil, nil, config)
 }
 
 // getPlugin is a helper that either dispenses or reattaches to a plugin using
 // futures to ensure only a single instance is retrieved
-func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logger log.Logger, config *plugin.ReattachConfig) (loader.PluginInstance, error) {
+func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logger log.Logger,
+	nomadConfig *base.ClientAgentConfig, config *plugin.ReattachConfig) (loader.PluginInstance, error) {
+
 	// Lock the instance map to prevent races
 	s.instanceLock.Lock()
 
@@ -70,7 +79,7 @@ func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logg
 		if reattach {
 			go s.reattach(f, name, pluginType, config)
 		} else {
-			go s.dispense(f, name, pluginType, logger)
+			go s.dispense(f, name, pluginType, nomadConfig, logger)
 		}
 	}
 
@@ -85,7 +94,7 @@ func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logg
 
 	if i.Exited() {
 		s.clearFuture(id, f)
-		return nil, fmt.Errorf("plugin %q exited", id)
+		return nil, SingletonPluginExited
 	}
 
 	return i, nil
@@ -93,8 +102,8 @@ func (s *SingletonLoader) getPlugin(reattach bool, name, pluginType string, logg
 
 // dispense should be called in a go routine to not block and creates the
 // desired plugin, setting the results in the future.
-func (s *SingletonLoader) dispense(f *future, name, pluginType string, logger log.Logger) {
-	i, err := s.loader.Dispense(name, pluginType, logger)
+func (s *SingletonLoader) dispense(f *future, name, pluginType string, config *base.ClientAgentConfig, logger log.Logger) {
+	i, err := s.loader.Dispense(name, pluginType, config, logger)
 	f.set(i, err)
 }
 

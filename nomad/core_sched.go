@@ -7,7 +7,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -286,6 +285,14 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		return false, nil, err
 	}
 
+	// Get the allocations by eval
+	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
+	if err != nil {
+		c.logger.Error("failed to get allocs for eval",
+			"eval_id", eval.ID, "error", err)
+		return false, nil, err
+	}
+
 	// If the eval is from a running "batch" job we don't want to garbage
 	// collect its allocations. If there is a long running batch job and its
 	// terminal allocations get GC'd the scheduler would re-run the
@@ -311,16 +318,10 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		// We don't want to gc anything related to a job which is not dead
 		// If the batch job doesn't exist we can GC it regardless of allowBatch
 		if !collect {
-			return false, nil, nil
+			// Find allocs associated with older (based on createindex) and GC them if terminal
+			oldAllocs := olderVersionTerminalAllocs(allocs, job)
+			return false, oldAllocs, nil
 		}
-	}
-
-	// Get the allocations by eval
-	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
-	if err != nil {
-		c.logger.Error("failed to get allocs for eval",
-			"eval_id", eval.ID, "error", err)
-		return false, nil, err
 	}
 
 	// Scan the allocations to ensure they are terminal and old
@@ -338,6 +339,18 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	}
 
 	return gcEval, gcAllocIDs, nil
+}
+
+// olderVersionTerminalAllocs returns terminal allocations whose job create index
+// is older than the job's create index
+func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job) []string {
+	var ret []string
+	for _, alloc := range allocs {
+		if alloc.Job != nil && alloc.Job.CreateIndex < job.CreateIndex && alloc.TerminalStatus() {
+			ret = append(ret, alloc.ID)
+		}
+	}
+	return ret
 }
 
 // evalReap contacts the leader and issues a reap on the passed evals and
@@ -606,6 +619,12 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
 	// Not in a terminal status and old enough
 	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+		return false
+	}
+
+	// If the allocation is still running on the client we can not garbage
+	// collect it.
+	if a.ClientStatus == structs.AllocClientStatusRunning {
 		return false
 	}
 

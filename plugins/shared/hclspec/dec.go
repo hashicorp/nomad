@@ -23,56 +23,57 @@ var (
 		Column: 0,
 		Byte:   0,
 	}
-
-	// specCtx is the context used to evaluate expressions.
-	specCtx = &hcl.EvalContext{
-		Functions: specFuncs,
-	}
 )
 
 // Convert converts a Spec to an hcl specification.
-func Convert(spec *Spec) (hcldec.Spec, hcl.Diagnostics) {
+func Convert(spec *Spec, ctx *hcl.EvalContext) (hcldec.Spec, hcl.Diagnostics) {
 	if spec == nil {
 		return nil, hcl.Diagnostics([]*hcl.Diagnostic{nilSpecDiagnostic})
 	}
 
-	return decodeSpecBlock(spec, "")
+	if ctx == nil {
+		ctx = &hcl.EvalContext{
+			Functions: specFuncs,
+		}
+	}
+
+	return decodeSpecBlock(spec, ctx, "")
 }
 
 // decodeSpecBlock is the recursive entry point that converts between the two
 // spec types.
-func decodeSpecBlock(spec *Spec, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+func decodeSpecBlock(spec *Spec, ctx *hcl.EvalContext, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
 	switch spec.Block.(type) {
 
 	case *Spec_Object:
-		return decodeObjectSpec(spec.GetObject())
+		return decodeObjectSpec(spec.GetObject(), ctx)
 
 	case *Spec_Array:
-		return decodeArraySpec(spec.GetArray())
+		return decodeArraySpec(spec.GetArray(), ctx)
 
 	case *Spec_Attr:
-		return decodeAttrSpec(spec.GetAttr(), impliedName)
+		return decodeAttrSpec(spec.GetAttr(), ctx, impliedName)
 
 	case *Spec_BlockValue:
-		return decodeBlockSpec(spec.GetBlockValue(), impliedName)
+		return decodeBlockSpec(spec.GetBlockValue(), ctx, impliedName)
 
 	case *Spec_BlockAttrs:
-		return decodeBlockAttrsSpec(spec.GetBlockAttrs(), impliedName)
+		return decodeBlockAttrsSpec(spec.GetBlockAttrs(), ctx, impliedName)
 
 	case *Spec_BlockList:
-		return decodeBlockListSpec(spec.GetBlockList(), impliedName)
+		return decodeBlockListSpec(spec.GetBlockList(), ctx, impliedName)
 
 	case *Spec_BlockSet:
-		return decodeBlockSetSpec(spec.GetBlockSet(), impliedName)
+		return decodeBlockSetSpec(spec.GetBlockSet(), ctx, impliedName)
 
 	case *Spec_BlockMap:
-		return decodeBlockMapSpec(spec.GetBlockMap(), impliedName)
+		return decodeBlockMapSpec(spec.GetBlockMap(), ctx, impliedName)
 
 	case *Spec_Default:
-		return decodeDefaultSpec(spec.GetDefault())
+		return decodeDefaultSpec(spec.GetDefault(), ctx)
 
 	case *Spec_Literal:
-		return decodeLiteralSpec(spec.GetLiteral())
+		return decodeLiteralSpec(spec.GetLiteral(), ctx)
 
 	default:
 		// Should never happen, because the above cases should be exhaustive
@@ -87,11 +88,11 @@ func decodeSpecBlock(spec *Spec, impliedName string) (hcldec.Spec, hcl.Diagnosti
 	}
 }
 
-func decodeObjectSpec(obj *Object) (hcldec.Spec, hcl.Diagnostics) {
+func decodeObjectSpec(obj *Object, ctx *hcl.EvalContext) (hcldec.Spec, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	spec := make(hcldec.ObjectSpec)
 	for attr, block := range obj.GetAttributes() {
-		propSpec, propDiags := decodeSpecBlock(block, attr)
+		propSpec, propDiags := decodeSpecBlock(block, ctx, attr)
 		diags = append(diags, propDiags...)
 		spec[attr] = propSpec
 	}
@@ -99,12 +100,12 @@ func decodeObjectSpec(obj *Object) (hcldec.Spec, hcl.Diagnostics) {
 	return spec, diags
 }
 
-func decodeArraySpec(a *Array) (hcldec.Spec, hcl.Diagnostics) {
+func decodeArraySpec(a *Array, ctx *hcl.EvalContext) (hcldec.Spec, hcl.Diagnostics) {
 	values := a.GetValues()
 	var diags hcl.Diagnostics
 	spec := make(hcldec.TupleSpec, 0, len(values))
 	for _, block := range values {
-		elemSpec, elemDiags := decodeSpecBlock(block, "")
+		elemSpec, elemDiags := decodeSpecBlock(block, ctx, "")
 		diags = append(diags, elemDiags...)
 		spec = append(spec, elemSpec)
 	}
@@ -112,7 +113,7 @@ func decodeArraySpec(a *Array) (hcldec.Spec, hcl.Diagnostics) {
 	return spec, diags
 }
 
-func decodeAttrSpec(attr *Attr, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+func decodeAttrSpec(attr *Attr, ctx *hcl.EvalContext, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
 	// Convert the string type to an hcl.Expression
 	typeExpr, diags := hclsyntax.ParseExpression([]byte(attr.GetType()), "proto", emptyPos)
 	if diags.HasErrors() {
@@ -144,7 +145,7 @@ func decodeAttrSpec(attr *Attr, impliedName string) (hcldec.Spec, hcl.Diagnostic
 	return spec, diags
 }
 
-func decodeBlockSpec(block *Block, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+func decodeBlockSpec(block *Block, ctx *hcl.EvalContext, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
 	spec := &hcldec.BlockSpec{
 		TypeName: impliedName,
 		Required: block.GetRequired(),
@@ -154,12 +155,12 @@ func decodeBlockSpec(block *Block, impliedName string) (hcldec.Spec, hcl.Diagnos
 		spec.TypeName = n
 	}
 
-	nested, diags := decodeBlockNestedSpec(block.GetNested())
+	nested, diags := decodeBlockNestedSpec(block.GetNested(), ctx)
 	spec.Nested = nested
 	return spec, diags
 }
 
-func decodeBlockAttrsSpec(block *BlockAttrs, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+func decodeBlockAttrsSpec(block *BlockAttrs, ctx *hcl.EvalContext, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
 	// Convert the string type to an hcl.Expression
 	typeExpr, diags := hclsyntax.ParseExpression([]byte(block.GetType()), "proto", emptyPos)
 	if diags.HasErrors() {
@@ -191,7 +192,7 @@ func decodeBlockAttrsSpec(block *BlockAttrs, impliedName string) (hcldec.Spec, h
 	return spec, diags
 }
 
-func decodeBlockListSpec(block *BlockList, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+func decodeBlockListSpec(block *BlockList, ctx *hcl.EvalContext, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
 	spec := &hcldec.BlockListSpec{
 		TypeName: impliedName,
 		MinItems: int(block.GetMinItems()),
@@ -202,7 +203,7 @@ func decodeBlockListSpec(block *BlockList, impliedName string) (hcldec.Spec, hcl
 		spec.TypeName = n
 	}
 
-	nested, diags := decodeBlockNestedSpec(block.GetNested())
+	nested, diags := decodeBlockNestedSpec(block.GetNested(), ctx)
 	spec.Nested = nested
 
 	if spec.TypeName == "" {
@@ -217,7 +218,7 @@ func decodeBlockListSpec(block *BlockList, impliedName string) (hcldec.Spec, hcl
 	return spec, diags
 }
 
-func decodeBlockSetSpec(block *BlockSet, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+func decodeBlockSetSpec(block *BlockSet, ctx *hcl.EvalContext, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
 	spec := &hcldec.BlockSetSpec{
 		TypeName: impliedName,
 		MinItems: int(block.GetMinItems()),
@@ -228,7 +229,7 @@ func decodeBlockSetSpec(block *BlockSet, impliedName string) (hcldec.Spec, hcl.D
 		spec.TypeName = n
 	}
 
-	nested, diags := decodeBlockNestedSpec(block.GetNested())
+	nested, diags := decodeBlockNestedSpec(block.GetNested(), ctx)
 	spec.Nested = nested
 
 	if spec.TypeName == "" {
@@ -243,7 +244,7 @@ func decodeBlockSetSpec(block *BlockSet, impliedName string) (hcldec.Spec, hcl.D
 	return spec, diags
 }
 
-func decodeBlockMapSpec(block *BlockMap, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
+func decodeBlockMapSpec(block *BlockMap, ctx *hcl.EvalContext, impliedName string) (hcldec.Spec, hcl.Diagnostics) {
 	spec := &hcldec.BlockMapSpec{
 		TypeName:   impliedName,
 		LabelNames: block.GetLabels(),
@@ -253,7 +254,7 @@ func decodeBlockMapSpec(block *BlockMap, impliedName string) (hcldec.Spec, hcl.D
 		spec.TypeName = n
 	}
 
-	nested, diags := decodeBlockNestedSpec(block.GetNested())
+	nested, diags := decodeBlockNestedSpec(block.GetNested(), ctx)
 	spec.Nested = nested
 
 	if spec.TypeName == "" {
@@ -276,7 +277,7 @@ func decodeBlockMapSpec(block *BlockMap, impliedName string) (hcldec.Spec, hcl.D
 	return spec, diags
 }
 
-func decodeBlockNestedSpec(spec *Spec) (hcldec.Spec, hcl.Diagnostics) {
+func decodeBlockNestedSpec(spec *Spec, ctx *hcl.EvalContext) (hcldec.Spec, hcl.Diagnostics) {
 	if spec == nil {
 		return nil, hcl.Diagnostics([]*hcl.Diagnostic{
 			{
@@ -286,17 +287,17 @@ func decodeBlockNestedSpec(spec *Spec) (hcldec.Spec, hcl.Diagnostics) {
 			}})
 	}
 
-	return decodeSpecBlock(spec, "")
+	return decodeSpecBlock(spec, ctx, "")
 }
 
-func decodeLiteralSpec(l *Literal) (hcldec.Spec, hcl.Diagnostics) {
+func decodeLiteralSpec(l *Literal, ctx *hcl.EvalContext) (hcldec.Spec, hcl.Diagnostics) {
 	// Convert the string value to an hcl.Expression
 	valueExpr, diags := hclsyntax.ParseExpression([]byte(l.GetValue()), "proto", emptyPos)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	value, valueDiags := valueExpr.Value(specCtx)
+	value, valueDiags := valueExpr.Value(ctx)
 	diags = append(diags, valueDiags...)
 	if diags.HasErrors() {
 		return nil, diags
@@ -307,15 +308,15 @@ func decodeLiteralSpec(l *Literal) (hcldec.Spec, hcl.Diagnostics) {
 	}, diags
 }
 
-func decodeDefaultSpec(d *Default) (hcldec.Spec, hcl.Diagnostics) {
+func decodeDefaultSpec(d *Default, ctx *hcl.EvalContext) (hcldec.Spec, hcl.Diagnostics) {
 	// Parse the primary
-	primary, diags := decodeSpecBlock(d.GetPrimary(), "")
+	primary, diags := decodeSpecBlock(d.GetPrimary(), ctx, "")
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
 	// Parse the default
-	def, defDiags := decodeSpecBlock(d.GetDefault(), "")
+	def, defDiags := decodeSpecBlock(d.GetDefault(), ctx, "")
 	diags = append(diags, defDiags...)
 	if diags.HasErrors() {
 		return nil, diags

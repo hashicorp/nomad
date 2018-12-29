@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -52,7 +53,7 @@ General Options:
 ` + generalOptionsUsage() + `
 
 Device Options:
-  
+
   -trace
     Enable trace level log output.
 `
@@ -119,7 +120,7 @@ func (c *Device) Run(args []string) int {
 	}
 	c.spec = spec
 
-	if err := c.setConfig(spec, config); err != nil {
+	if err := c.setConfig(spec, config, nil); err != nil {
 		c.logger.Error("failed to set config", "error", err)
 		return 1
 	}
@@ -175,7 +176,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 	c.logger.Trace("device spec", "spec", hclog.Fmt("% #v", pretty.Formatter(spec)))
 
 	// Convert the schema
-	schema, diag := hclspec.Convert(spec)
+	schema, diag := hclspec.Convert(spec, nil)
 	if diag.HasErrors() {
 		errStr := "failed to convert HCL schema: "
 		for _, err := range diag.Errs() {
@@ -187,7 +188,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 	return schema, nil
 }
 
-func (c *Device) setConfig(spec hcldec.Spec, config []byte) error {
+func (c *Device) setConfig(spec hcldec.Spec, config []byte, nmdCfg *base.ClientAgentConfig) error {
 	// Parse the config into hcl
 	configVal, err := hclConfigToInterface(config)
 	if err != nil {
@@ -216,7 +217,7 @@ func (c *Device) setConfig(spec hcldec.Spec, config []byte) error {
 	}
 
 	c.logger.Trace("msgpack config", "config", string(cdata))
-	if err := c.dev.SetConfig(cdata); err != nil {
+	if err := c.dev.SetConfig(cdata, nmdCfg); err != nil {
 		return err
 	}
 
@@ -345,7 +346,7 @@ func (c *Device) replOutput(ctx context.Context, startFingerprint, startStats <-
 			c.Ui.Output(fmt.Sprintf("> fingerprint: % #v", pretty.Formatter(resp)))
 		case ctx := <-startStats:
 			var err error
-			stats, err = c.dev.Stats(ctx)
+			stats, err = c.dev.Stats(ctx, 1*time.Second)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("stats: %s", err))
 				os.Exit(1)

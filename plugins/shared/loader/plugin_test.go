@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
@@ -99,6 +100,8 @@ type mockPlugin struct {
 
 	// config is built on SetConfig
 	config *mockPluginConfig
+	// nomadconfig is set on SetConfig
+	nomadConfig *base.ClientAgentConfig
 }
 
 // mockPluginConfig is the configuration for the mock plugin
@@ -138,13 +141,14 @@ func (m *mockPlugin) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 // SetConfig decodes the configuration and stores it
-func (m *mockPlugin) SetConfig(data []byte) error {
+func (m *mockPlugin) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config mockPluginConfig
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err
 	}
 
 	m.config = &config
+	m.nomadConfig = cfg
 	return nil
 }
 
@@ -162,6 +166,6 @@ func (m *mockPlugin) Reserve(deviceIDs []string) (*device.ContainerReservation, 
 	}, nil
 }
 
-func (m *mockPlugin) Stats(ctx context.Context) (<-chan *device.StatsResponse, error) {
+func (m *mockPlugin) Stats(ctx context.Context, interval time.Duration) (<-chan *device.StatsResponse, error) {
 	return make(chan *device.StatsResponse), nil
 }

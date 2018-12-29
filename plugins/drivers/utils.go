@@ -51,16 +51,19 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 	}
 	return &TaskConfig{
 		ID:              pb.Id,
+		JobName:         pb.JobName,
+		TaskGroupName:   pb.TaskGroupName,
 		Name:            pb.Name,
 		Env:             pb.Env,
 		rawDriverConfig: pb.MsgpackDriverConfig,
 		Resources:       resourcesFromProto(pb.Resources),
-		Devices:         []DeviceConfig{}, //TODO
-		Mounts:          []MountConfig{},  //TODO
+		Devices:         devicesFromProto(pb.Devices),
+		Mounts:          mountsFromProto(pb.Mounts),
 		User:            pb.User,
 		AllocDir:        pb.AllocDir,
 		StdoutPath:      pb.StdoutPath,
 		StderrPath:      pb.StderrPath,
+		AllocID:         pb.AllocId,
 	}
 }
 
@@ -70,16 +73,19 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 	}
 	pb := &proto.TaskConfig{
 		Id:                  cfg.ID,
+		JobName:             cfg.JobName,
+		TaskGroupName:       cfg.TaskGroupName,
 		Name:                cfg.Name,
 		Env:                 cfg.Env,
 		Resources:           resourcesToProto(cfg.Resources),
-		Mounts:              []*proto.Mount{},
-		Devices:             []*proto.Device{},
+		Devices:             devicesToProto(cfg.Devices),
+		Mounts:              mountsToProto(cfg.Mounts),
 		User:                cfg.User,
 		AllocDir:            cfg.AllocDir,
 		MsgpackDriverConfig: cfg.rawDriverConfig,
 		StdoutPath:          cfg.StdoutPath,
 		StderrPath:          cfg.StderrPath,
+		AllocId:             cfg.AllocID,
 	}
 	return pb
 }
@@ -94,7 +100,6 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 		r.NomadResources = &structs.Resources{
 			CPU:      int(pb.RawResources.Cpu),
 			MemoryMB: int(pb.RawResources.Memory),
-			IOPS:     int(pb.RawResources.Iops),
 			DiskMB:   int(pb.RawResources.Disk),
 		}
 
@@ -129,6 +134,7 @@ func resourcesFromProto(pb *proto.Resources) *Resources {
 			OOMScoreAdj:      pb.LinuxResources.OomScoreAdj,
 			CpusetCPUs:       pb.LinuxResources.CpusetCpus,
 			CpusetMems:       pb.LinuxResources.CpusetMems,
+			PercentTicks:     pb.LinuxResources.PercentTicks,
 		}
 	}
 
@@ -144,7 +150,6 @@ func resourcesToProto(r *Resources) *proto.Resources {
 		pb.RawResources = &proto.RawResources{
 			Cpu:      int64(r.NomadResources.CPU),
 			Memory:   int64(r.NomadResources.MemoryMB),
-			Iops:     int64(r.NomadResources.IOPS),
 			Disk:     int64(r.NomadResources.DiskMB),
 			Networks: make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
 		}
@@ -181,10 +186,111 @@ func resourcesToProto(r *Resources) *proto.Resources {
 			OomScoreAdj:      r.LinuxResources.OOMScoreAdj,
 			CpusetCpus:       r.LinuxResources.CpusetCPUs,
 			CpusetMems:       r.LinuxResources.CpusetMems,
+			PercentTicks:     r.LinuxResources.PercentTicks,
 		}
 	}
 
 	return &pb
+}
+
+func devicesFromProto(devices []*proto.Device) []*DeviceConfig {
+	if devices == nil {
+		return nil
+	}
+
+	out := make([]*DeviceConfig, len(devices))
+	for i, d := range devices {
+		out[i] = deviceFromProto(d)
+	}
+
+	return out
+}
+
+func deviceFromProto(device *proto.Device) *DeviceConfig {
+	if device == nil {
+		return nil
+	}
+
+	return &DeviceConfig{
+		TaskPath:    device.TaskPath,
+		HostPath:    device.HostPath,
+		Permissions: device.CgroupPermissions,
+	}
+}
+
+func mountsFromProto(mounts []*proto.Mount) []*MountConfig {
+	if mounts == nil {
+		return nil
+	}
+
+	out := make([]*MountConfig, len(mounts))
+	for i, m := range mounts {
+		out[i] = mountFromProto(m)
+	}
+
+	return out
+}
+
+func mountFromProto(mount *proto.Mount) *MountConfig {
+	if mount == nil {
+		return nil
+	}
+
+	return &MountConfig{
+		TaskPath: mount.TaskPath,
+		HostPath: mount.HostPath,
+		Readonly: mount.Readonly,
+	}
+}
+
+func devicesToProto(devices []*DeviceConfig) []*proto.Device {
+	if devices == nil {
+		return nil
+	}
+
+	out := make([]*proto.Device, len(devices))
+	for i, d := range devices {
+		out[i] = deviceToProto(d)
+	}
+
+	return out
+}
+
+func deviceToProto(device *DeviceConfig) *proto.Device {
+	if device == nil {
+		return nil
+	}
+
+	return &proto.Device{
+		TaskPath:          device.TaskPath,
+		HostPath:          device.HostPath,
+		CgroupPermissions: device.Permissions,
+	}
+}
+
+func mountsToProto(mounts []*MountConfig) []*proto.Mount {
+	if mounts == nil {
+		return nil
+	}
+
+	out := make([]*proto.Mount, len(mounts))
+	for i, m := range mounts {
+		out[i] = mountToProto(m)
+	}
+
+	return out
+}
+
+func mountToProto(mount *MountConfig) *proto.Mount {
+	if mount == nil {
+		return nil
+	}
+
+	return &proto.Mount{
+		TaskPath: mount.TaskPath,
+		HostPath: mount.HostPath,
+		Readonly: mount.Readonly,
+	}
 }
 
 func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
@@ -194,7 +300,7 @@ func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
 	return &TaskHandle{
 		Config:      taskConfigFromProto(pb.Config),
 		State:       taskStateFromProtoMap[pb.State],
-		driverState: pb.DriverState,
+		DriverState: pb.DriverState,
 	}
 }
 
@@ -202,11 +308,14 @@ func taskHandleToProto(handle *TaskHandle) *proto.TaskHandle {
 	return &proto.TaskHandle{
 		Config:      taskConfigToProto(handle.Config),
 		State:       taskStateToProtoMap[handle.State],
-		DriverState: handle.driverState,
+		DriverState: handle.DriverState,
 	}
 }
 
 func exitResultToProto(result *ExitResult) *proto.ExitResult {
+	if result == nil {
+		return &proto.ExitResult{}
+	}
 	return &proto.ExitResult{
 		ExitCode:  int32(result.ExitCode),
 		Signal:    int32(result.Signal),
@@ -263,7 +372,7 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 }
 
 func taskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
-	timestamp, err := ptypes.TimestampProto(time.Unix(stats.Timestamp, 0))
+	timestamp, err := ptypes.TimestampProto(time.Unix(0, stats.Timestamp))
 	if err != nil {
 		return nil, err
 	}

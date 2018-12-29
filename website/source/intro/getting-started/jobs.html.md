@@ -108,8 +108,8 @@ Deployment Health   = healthy
 
 Task "redis" is "running"
 Task Resources
-CPU        Memory           Disk     IOPS  Addresses
-8/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:22672
+CPU        Memory           Disk     Addresses
+8/500 MHz  6.3 MiB/256 MiB  300 MiB  db: 127.0.0.1:22672
 
 Task Events:
 Started At     = 10/31/17 22:58:49 UTC

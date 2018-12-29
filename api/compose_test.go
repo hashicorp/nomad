@@ -18,7 +18,6 @@ func TestCompose(t *testing.T) {
 			CPU:      helper.IntToPtr(1250),
 			MemoryMB: helper.IntToPtr(1024),
 			DiskMB:   helper.IntToPtr(2048),
-			IOPS:     helper.IntToPtr(500),
 			Networks: []*NetworkResource{
 				{
 					CIDR:          "0.0.0.0/0",
@@ -109,7 +108,6 @@ func TestCompose(t *testing.T) {
 							CPU:      helper.IntToPtr(1250),
 							MemoryMB: helper.IntToPtr(1024),
 							DiskMB:   helper.IntToPtr(2048),
-							IOPS:     helper.IntToPtr(500),
 							Networks: []*NetworkResource{
 								{
 									CIDR:  "0.0.0.0/0",

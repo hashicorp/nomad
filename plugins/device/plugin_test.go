@@ -9,11 +9,10 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/helper"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
@@ -28,7 +27,7 @@ func TestDevicePlugin_PluginInfo(t *testing.T) {
 	const (
 		apiVersion    = "v0.1.0"
 		pluginVersion = "v0.2.1"
-		pluginName    = "mock"
+		pluginName    = "mock_device"
 	)
 
 	knownType := func() (*base.PluginInfoResponse, error) {
@@ -128,10 +127,18 @@ func TestDevicePlugin_SetConfig(t *testing.T) {
 	var receivedData []byte
 	mock := &MockDevicePlugin{
 		MockPlugin: &base.MockPlugin{
+			PluginInfoF: func() (*base.PluginInfoResponse, error) {
+				return &base.PluginInfoResponse{
+					Type:             base.PluginTypeDevice,
+					PluginApiVersion: "v0.0.1",
+					PluginVersion:    "v0.0.1",
+					Name:             "mock_device",
+				}, nil
+			},
 			ConfigSchemaF: func() (*hclspec.Spec, error) {
 				return base.TestSpec, nil
 			},
-			SetConfigF: func(data []byte) error {
+			SetConfigF: func(data []byte, cfg *base.ClientAgentConfig) error {
 				receivedData = data
 				return nil
 			},
@@ -162,7 +169,7 @@ func TestDevicePlugin_SetConfig(t *testing.T) {
 	})
 	cdata, err := msgpack.Marshal(config, config.Type())
 	require.NoError(err)
-	require.NoError(impl.SetConfig(cdata))
+	require.NoError(impl.SetConfig(cdata, nil))
 	require.Equal(cdata, receivedData)
 
 	// Decode the value back
@@ -464,9 +471,9 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Name:   "foo",
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
-					Summary: &StatValue{
-						IntNumeratorVal:   10,
-						IntDenominatorVal: 20,
+					Summary: &psstructs.StatValue{
+						IntNumeratorVal:   helper.Int64ToPtr(10),
+						IntDenominatorVal: helper.Int64ToPtr(20),
 						Unit:              "MB",
 						Desc:              "Unit test",
 					},
@@ -481,9 +488,9 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Name:   "foo",
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
-					Summary: &StatValue{
-						FloatNumeratorVal:   10.0,
-						FloatDenominatorVal: 20.0,
+					Summary: &psstructs.StatValue{
+						FloatNumeratorVal:   helper.Float64ToPtr(10.0),
+						FloatDenominatorVal: helper.Float64ToPtr(20.0),
 						Unit:                "MB",
 						Desc:                "Unit test",
 					},
@@ -496,8 +503,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Name:   "bar",
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
-					Summary: &StatValue{
-						StringVal: "foo",
+					Summary: &psstructs.StatValue{
+						StringVal: helper.StringToPtr("foo"),
 						Unit:      "MB",
 						Desc:      "Unit test",
 					},
@@ -510,8 +517,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			Name:   "baz",
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
-					Summary: &StatValue{
-						BoolVal: true,
+					Summary: &psstructs.StatValue{
+						BoolVal: helper.BoolToPtr(true),
 						Unit:    "MB",
 						Desc:    "Unit test",
 					},
@@ -521,7 +528,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 	}
 
 	mock := &MockDevicePlugin{
-		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+		StatsF: func(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
 			outCh := make(chan *StatsResponse, 1)
 			go func() {
 				// Send two messages
@@ -561,7 +568,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 	defer cancel()
 
 	// Get the stream
-	stream, err := impl.Stats(ctx)
+	stream, err := impl.Stats(ctx, time.Millisecond)
 	require.NoError(err)
 
 	// Get the first message
@@ -600,7 +607,7 @@ func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
 
 	ferr := fmt.Errorf("mock stats failed")
 	mock := &MockDevicePlugin{
-		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+		StatsF: func(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
 			outCh := make(chan *StatsResponse, 1)
 			go func() {
 				// Send the error
@@ -639,7 +646,7 @@ func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
 	defer cancel()
 
 	// Get the stream
-	stream, err := impl.Stats(ctx)
+	stream, err := impl.Stats(ctx, time.Millisecond)
 	require.NoError(err)
 
 	// Get the first message
@@ -659,7 +666,7 @@ func TestDevicePlugin_Stats_CancelCtx(t *testing.T) {
 	require := require.New(t)
 
 	mock := &MockDevicePlugin{
-		StatsF: func(ctx context.Context) (<-chan *StatsResponse, error) {
+		StatsF: func(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error) {
 			outCh := make(chan *StatsResponse, 1)
 			go func() {
 				<-ctx.Done()
@@ -691,7 +698,7 @@ func TestDevicePlugin_Stats_CancelCtx(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Get the stream
-	stream, err := impl.Stats(ctx)
+	stream, err := impl.Stats(ctx, time.Millisecond)
 	require.NoError(err)
 
 	// Get the first message

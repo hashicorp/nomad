@@ -176,3 +176,32 @@ test('each search mode has independent search props', function(assert) {
     'Canada is not matched by the regex because only id is looked at for regex search'
   );
 });
+
+test('the resetPagination method is a no-op', function(assert) {
+  const subject = this.subject();
+  assert.strictEqual(subject.get('currentPage'), undefined, 'No currentPage value set');
+  subject.resetPagination();
+  assert.strictEqual(subject.get('currentPage'), undefined, 'Still no currentPage value set');
+});
+
+moduleFor('mixin:searchable', 'Unit | Mixin | Searchable (with pagination)', {
+  subject() {
+    const SearchablePaginatedObject = EmberObject.extend(Searchable, {
+      source: null,
+      searchProps: computed(() => ['id', 'name']),
+      listToSearch: alias('source'),
+      currentPage: 1,
+    });
+
+    this.register('test-container:searchable-paginated-object', SearchablePaginatedObject);
+    return getOwner(this).lookup('test-container:searchable-paginated-object');
+  },
+});
+
+test('the resetPagination method sets the currentPage to 1', function(assert) {
+  const subject = this.subject();
+  subject.set('currentPage', 5);
+  assert.equal(subject.get('currentPage'), 5, 'Current page is something other than 1');
+  subject.resetPagination();
+  assert.equal(subject.get('currentPage'), 1, 'Current page gets reset to 1');
+});

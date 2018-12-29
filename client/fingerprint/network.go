@@ -6,7 +6,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	sockaddr "github.com/hashicorp/go-sockaddr"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -61,7 +60,7 @@ func NewNetworkFingerprint(logger log.Logger) Fingerprint {
 	return f
 }
 
-func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
 
 	// Find the named interface

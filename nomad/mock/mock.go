@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 func Node() *structs.Node {
@@ -27,7 +28,6 @@ func Node() *structs.Node {
 			CPU:      4000,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
-			IOPS:     150,
 		},
 		Reserved: &structs.Resources{
 			CPU:      100,
@@ -89,6 +89,36 @@ func Node() *structs.Node {
 	}
 	node.ComputeClass()
 	return node
+}
+
+// NvidiaNode returns a node with two instances of an Nvidia GPU
+func NvidiaNode() *structs.Node {
+	n := Node()
+	n.NodeResources.Devices = []*structs.NodeDeviceResource{
+		{
+			Type:   "gpu",
+			Vendor: "nvidia",
+			Name:   "1080ti",
+			Attributes: map[string]*psstructs.Attribute{
+				"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
+				"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
+				"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
+				"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
+			},
+			Instances: []*structs.NodeDevice{
+				{
+					ID:      uuid.Generate(),
+					Healthy: true,
+				},
+				{
+					ID:      uuid.Generate(),
+					Healthy: true,
+				},
+			},
+		},
+	}
+	n.ComputeClass()
+	return n
 }
 
 func HCL() string {
@@ -242,7 +272,7 @@ func BatchJob() *structs.Job {
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "worker",
+				Name:  "web",
 				Count: 10,
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
@@ -261,7 +291,7 @@ func BatchJob() *structs.Job {
 				},
 				Tasks: []*structs.Task{
 					{
-						Name:   "worker",
+						Name:   "web",
 						Driver: "mock_driver",
 						Config: map[string]interface{}{
 							"run_for": "500ms",
@@ -477,7 +507,7 @@ func BatchAlloc() *structs.Allocation {
 		EvalID:    uuid.Generate(),
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
-		TaskGroup: "worker",
+		TaskGroup: "web",
 
 		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{

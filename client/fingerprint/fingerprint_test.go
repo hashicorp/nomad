@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) *cstructs.FingerprintResponse {
-	request := &cstructs.FingerprintRequest{Config: new(config.Config), Node: node}
-	var response cstructs.FingerprintResponse
+func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) *FingerprintResponse {
+	request := &FingerprintRequest{Config: new(config.Config), Node: node}
+	var response FingerprintResponse
 	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)

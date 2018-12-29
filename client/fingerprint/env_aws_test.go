@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,8 +20,8 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -55,8 +54,8 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	defer ts.Close()
 	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -173,8 +172,8 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -223,8 +222,8 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 			Attributes: make(map[string]string),
 		}
 
-		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -266,8 +265,8 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 			NetworkSpeed: 10,
 		}
 
-		request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: cfg, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -303,8 +302,8 @@ func TestNetworkFingerprint_notAWS(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)

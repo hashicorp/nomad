@@ -19,9 +19,11 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/devicemanager"
+	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -52,10 +54,12 @@ const (
 )
 
 type TaskRunner struct {
-	// allocID and taskName are immutable so these fields may be accessed
-	// without locks
-	allocID  string
-	taskName string
+	// allocID, taskName, taskLeader, and taskResources are immutable so these fields may
+	// be accessed without locks
+	allocID       string
+	taskName      string
+	taskLeader    bool
+	taskResources *structs.AllocatedTaskResources
 
 	alloc     *structs.Allocation
 	allocLock sync.Mutex
@@ -66,23 +70,32 @@ type TaskRunner struct {
 	stateUpdater interfaces.TaskStateHandler
 
 	// state captures the state of the task for updating the allocation
-	state     *structs.TaskState
-	stateLock sync.Mutex
+	// Must acquire stateLock to access.
+	state *structs.TaskState
 
 	// localState captures the node-local state of the task for when the
-	// Nomad agent restarts
-	localState     *state.LocalState
-	localStateLock sync.RWMutex
+	// Nomad agent restarts.
+	// Must acquire stateLock to access.
+	localState *state.LocalState
+
+	// stateLock must be acquired when accessing state or localState.
+	stateLock sync.RWMutex
 
 	// stateDB is for persisting localState and taskState
 	stateDB cstate.StateDB
 
-	// ctx is the task runner's context representing the tasks's lifecycle.
-	// Canceling the context will cause the task to be destroyed.
+	// killCtx is the task runner's context representing the tasks's lifecycle.
+	// The context is canceled when the task is killed.
+	killCtx context.Context
+
+	// killCtxCancel is called when killing a task.
+	killCtxCancel context.CancelFunc
+
+	// ctx is used to exit the TaskRunner *without* affecting task state.
 	ctx context.Context
 
-	// ctxCancel is used to exit the task runner's Run loop without
-	// stopping the task. Shutdown hooks are run.
+	// ctxCancel causes the TaskRunner to exit immediately without
+	// affecting task state. Useful for testing or graceful agent shutdown.
 	ctxCancel context.CancelFunc
 
 	// Logger is the logger for the task runner.
@@ -104,7 +117,8 @@ type TaskRunner struct {
 	driverCapabilities *drivers.Capabilities
 
 	// taskSchema is the hcl spec for the task driver configuration
-	taskSchema hcldec.Spec
+	taskSchema     hcldec.Spec
+	taskSchemaDiag hcl.Diagnostics
 
 	// handleLock guards access to handle and handleResult
 	handleLock sync.Mutex
@@ -120,7 +134,7 @@ type TaskRunner struct {
 	taskDir *allocdir.TaskDir
 
 	// envBuilder is used to build the task's environment
-	envBuilder *env.Builder
+	envBuilder *taskenv.Builder
 
 	// restartTracker is used to decide if the task should be restarted.
 	restartTracker *restarts.RestartTracker
@@ -128,6 +142,9 @@ type TaskRunner struct {
 	// runnerHooks are task runner lifecycle hooks that should be run on state
 	// transistions.
 	runnerHooks []interfaces.TaskHook
+
+	// hookResources captures the resources provided by hooks
+	hookResources *hookResources
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
@@ -154,9 +171,16 @@ type TaskRunner struct {
 	resourceUsage     *cstructs.TaskResourceUsage
 	resourceUsageLock sync.Mutex
 
+	// deviceStatsReporter is used to lookup resource usage for alloc devices
+	deviceStatsReporter cinterfaces.DeviceStatsReporter
+
 	// PluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
 	pluginSingletonLoader loader.PluginCatalog
+
+	// devicemanager is used to mount devices as well as lookup device
+	// statistics
+	devicemanager devicemanager.Manager
 }
 
 type Config struct {
@@ -167,11 +191,8 @@ type Config struct {
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
 
-	// VaultClient is the client to use to derive and renew Vault tokens
-	VaultClient vaultclient.VaultClient
-
-	// LocalState is optionally restored task state
-	LocalState *state.LocalState
+	// Vault is the client to use to derive and renew Vault tokens
+	Vault vaultclient.VaultClient
 
 	// StateDB is used to store and restore state.
 	StateDB cstate.StateDB
@@ -179,22 +200,38 @@ type Config struct {
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.TaskStateHandler
 
+	// deviceStatsReporter is used to lookup resource usage for alloc devices
+	DeviceStatsReporter cinterfaces.DeviceStatsReporter
+
 	// PluginSingletonLoader is a plugin loader that will returns singleton
 	// instances of the plugins.
 	PluginSingletonLoader loader.PluginCatalog
+
+	// DeviceManager is used to mount devices as well as lookup device
+	// statistics
+	DeviceManager devicemanager.Manager
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
-	// Create a context for the runner
+	// Create a context for causing the runner to exit
 	trCtx, trCancel := context.WithCancel(context.Background())
 
+	// Create a context for killing the runner
+	killCtx, killCancel := context.WithCancel(context.Background())
+
 	// Initialize the environment builder
-	envBuilder := env.NewBuilder(
+	envBuilder := taskenv.NewBuilder(
 		config.ClientConfig.Node,
 		config.Alloc,
 		config.Task,
 		config.ClientConfig.Region,
 	)
+
+	// Initialize state from alloc if it is set
+	tstate := structs.NewTaskState()
+	if ts := config.Alloc.TaskStates[config.Task.Name]; ts != nil {
+		tstate = ts.Copy()
+	}
 
 	tr := &TaskRunner{
 		alloc:                 config.Alloc,
@@ -203,22 +240,38 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		task:                  config.Task,
 		taskDir:               config.TaskDir,
 		taskName:              config.Task.Name,
+		taskLeader:            config.Task.Leader,
 		envBuilder:            envBuilder,
 		consulClient:          config.Consul,
-		vaultClient:           config.VaultClient,
-		state:                 config.Alloc.TaskStates[config.Task.Name].Copy(),
-		localState:            config.LocalState,
+		vaultClient:           config.Vault,
+		state:                 tstate,
+		localState:            state.NewLocalState(),
 		stateDB:               config.StateDB,
 		stateUpdater:          config.StateUpdater,
+		deviceStatsReporter:   config.DeviceStatsReporter,
+		killCtx:               killCtx,
+		killCtxCancel:         killCancel,
 		ctx:                   trCtx,
 		ctxCancel:             trCancel,
 		triggerUpdateCh:       make(chan struct{}, triggerUpdateChCap),
 		waitCh:                make(chan struct{}),
 		pluginSingletonLoader: config.PluginSingletonLoader,
+		devicemanager:         config.DeviceManager,
 	}
 
 	// Create the logger based on the allocation ID
 	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
+
+	// Pull out the task's resources
+	ares := tr.alloc.AllocatedResources
+	if ares != nil {
+		if tres, ok := ares.Tasks[tr.taskName]; ok {
+			tr.taskResources = tres
+		}
+
+		// TODO in the else case should we do a migration from resources as an
+		// upgrade path
+	}
 
 	// Build the restart tracker.
 	tg := tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)
@@ -227,9 +280,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		return nil, fmt.Errorf("alloc missing task group")
 	}
 	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
-
-	// Initialize the task state
-	tr.initState()
 
 	// Get the driver
 	if err := tr.initDriver(); err != nil {
@@ -244,17 +294,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.initLabels()
 
 	return tr, nil
-}
-
-func (tr *TaskRunner) initState() {
-	if tr.state == nil {
-		tr.state = &structs.TaskState{
-			State: structs.TaskStatePending,
-		}
-	}
-	if tr.localState == nil {
-		tr.localState = state.NewLocalState()
-	}
 }
 
 func (tr *TaskRunner) initLabels() {
@@ -298,6 +337,8 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
+// Run the TaskRunner. Starts the user's task or reattaches to a restored task.
+// Run closes WaitCh when it exits. Should be started in a goroutine.
 func (tr *TaskRunner) Run() {
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
@@ -308,7 +349,16 @@ func (tr *TaskRunner) Run() {
 	go tr.handleUpdates()
 
 MAIN:
-	for tr.ctx.Err() == nil {
+	for {
+		select {
+		case <-tr.killCtx.Done():
+			break MAIN
+		case <-tr.ctx.Done():
+			// TaskRunner was told to exit immediately
+			return
+		default:
+		}
+
 		// Run the prestart hooks
 		if err := tr.prestart(); err != nil {
 			tr.logger.Error("prestart failed", "error", err)
@@ -316,13 +366,19 @@ MAIN:
 			goto RESTART
 		}
 
-		if tr.ctx.Err() != nil {
+		select {
+		case <-tr.killCtx.Done():
 			break MAIN
+		case <-tr.ctx.Done():
+			// TaskRunner was told to exit immediately
+			return
+		default:
 		}
 
 		// Run the task
 		if err := tr.runDriver(); err != nil {
 			tr.logger.Error("running driver failed", "error", err)
+			tr.EmitEvent(structs.NewTaskEvent(structs.TaskDriverFailure).SetDriverError(err))
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
 		}
@@ -336,12 +392,20 @@ MAIN:
 		{
 			handle := tr.getDriverHandle()
 
-			// Do *not* use tr.ctx here as it would cause Wait() to
-			// unblock before the task exits when Kill() is called.
+			// Do *not* use tr.killCtx here as it would cause
+			// Wait() to unblock before the task exits when Kill()
+			// is called.
 			if resultCh, err := handle.WaitCh(context.Background()); err != nil {
 				tr.logger.Error("wait task failed", "error", err)
 			} else {
-				result = <-resultCh
+				select {
+				case result = <-resultCh:
+					// WaitCh returned a result
+					tr.handleTaskExitResult(result)
+				case <-tr.ctx.Done():
+					// TaskRunner was told to exit immediately
+					return
+				}
 			}
 		}
 
@@ -364,21 +428,17 @@ MAIN:
 		// Actually restart by sleeping and also watching for destroy events
 		select {
 		case <-time.After(restartDelay):
-		case <-tr.ctx.Done():
+		case <-tr.killCtx.Done():
 			tr.logger.Trace("task killed between restarts", "delay", restartDelay)
 			break MAIN
+		case <-tr.ctx.Done():
+			// TaskRunner was told to exit immediately
+			return
 		}
 	}
 
-	// If task terminated, update server. All other exit conditions (eg
-	// killed or out of restarts) will perform their own server updates.
-	if result != nil {
-		event := structs.NewTaskEvent(structs.TaskTerminated).
-			SetExitCode(result.ExitCode).
-			SetSignal(result.Signal).
-			SetExitMessage(result.Err)
-		tr.UpdateState(structs.TaskStateDead, event)
-	}
+	// Mark the task as dead
+	tr.UpdateState(structs.TaskStateDead, nil)
 
 	// Run the stop hooks
 	if err := tr.stop(); err != nil {
@@ -386,6 +446,24 @@ MAIN:
 	}
 
 	tr.logger.Debug("task run loop exiting")
+}
+
+func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) {
+	if result == nil {
+		return
+	}
+
+	event := structs.NewTaskEvent(structs.TaskTerminated).
+		SetExitCode(result.ExitCode).
+		SetSignal(result.Signal).
+		SetOOMKilled(result.OOMKilled).
+		SetExitMessage(result.Err)
+
+	tr.EmitEvent(event)
+
+	if result.OOMKilled && !tr.clientConfig.DisableTaggedMetrics {
+		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
+	}
 }
 
 // handleUpdates runs update hooks when triggerUpdateCh is ticked and exits
@@ -396,15 +474,6 @@ func (tr *TaskRunner) handleUpdates() {
 		case <-tr.triggerUpdateCh:
 		case <-tr.waitCh:
 			return
-		}
-
-		if tr.Alloc().TerminalStatus() {
-			// Terminal update: kill TaskRunner and let Run execute postrun hooks
-			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
-			if err != nil {
-				tr.logger.Warn("error stopping task", "error", err)
-			}
-			continue
 		}
 
 		// Non-terminal update; run hooks
@@ -432,11 +501,41 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	case structs.TaskRestarting:
 		tr.logger.Info("restarting task", "reason", reason, "delay", when)
 		tr.UpdateState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskRestarting).SetRestartDelay(when).SetRestartReason(reason))
-		return true, 0
+		return true, when
 	default:
 		tr.logger.Error("restart tracker returned unknown state", "state", state)
 		return true, when
 	}
+}
+
+func (tr *TaskRunner) evalContext() (*hcl.EvalContext, error) {
+	// Build hcl context variables
+	vars, errs, err := tr.envBuilder.Build().AllValues()
+	if err != nil {
+		return nil, fmt.Errorf("error building environment variables: %v", err)
+	}
+
+	// Handle per-key errors
+	if len(errs) > 0 {
+		keys := make([]string, 0, len(errs))
+		for k, err := range errs {
+			keys = append(keys, k)
+
+			if tr.logger.IsTrace() {
+				// Verbosely log every diagnostic for debugging
+				tr.logger.Trace("error building environment variables", "key", k, "error", err)
+			}
+		}
+
+		tr.logger.Warn("some environment variables not available for rendering", "keys", strings.Join(keys, ", "))
+	}
+
+	evalCtx := &hcl.EvalContext{
+		Variables: vars,
+		Functions: shared.GetStdlibFuncs(),
+	}
+
+	return evalCtx, nil
 }
 
 // runDriver runs the driver and waits for it to exit
@@ -445,9 +544,13 @@ func (tr *TaskRunner) runDriver() error {
 	// TODO(nickethier): make sure this uses alloc.AllocatedResources once #4750 is rebased
 	taskConfig := tr.buildTaskConfig()
 
-	// TODO: load variables
-	evalCtx := &hcl.EvalContext{
-		Functions: shared.GetStdlibFuncs(),
+	evalCtx, err := tr.evalContext()
+	if err != nil {
+		return err
+	}
+
+	if diag := tr.taskSchemaDiag; diag.HasErrors() {
+		return multierror.Append(errors.New("failed to convert task schema"), diag.Errs()...)
 	}
 
 	val, diag := shared.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
@@ -459,20 +562,41 @@ func (tr *TaskRunner) runDriver() error {
 		return fmt.Errorf("failed to encode driver config: %v", err)
 	}
 
-	//TODO mounts and devices
 	//XXX Evaluate and encode driver config
 
-	// Start the job
+	// If there's already a task handle (eg from a Restore) there's nothing
+	// to do except update state.
+	if tr.getDriverHandle() != nil {
+		// Ensure running state is persisted but do *not* append a new
+		// task event as restoring is a client event and not relevant
+		// to a task's lifecycle.
+		if err := tr.updateStateImpl(structs.TaskStateRunning); err != nil {
+			//TODO return error and destroy task to avoid an orphaned task?
+			tr.logger.Warn("error persisting task state", "error", err)
+		}
+		return nil
+	}
+
+	// Start the job if there's no existing handle (or if RecoverTask failed)
 	handle, net, err := tr.driver.StartTask(taskConfig)
 	if err != nil {
 		return fmt.Errorf("driver start failed: %v", err)
 	}
 
-	tr.localStateLock.Lock()
+	tr.stateLock.Lock()
 	tr.localState.TaskHandle = handle
-	tr.localStateLock.Unlock()
+	tr.localState.DriverNetwork = net
+	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState); err != nil {
+		//TODO Nomad will be unable to restore this task; try to kill
+		//     it now and fail? In general we prefer to leave running
+		//     tasks running even if the agent encounters an error.
+		tr.logger.Warn("error persisting local task state; may be unable to restore after a Nomad restart",
+			"error", err, "task_id", handle.Config.ID)
+	}
+	tr.stateLock.Unlock()
 
 	tr.setDriverHandle(NewDriverHandle(tr.driver, taskConfig.ID, tr.Task(), net))
+
 	// Emit an event that we started
 	tr.UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
 	return nil
@@ -511,7 +635,7 @@ func (tr *TaskRunner) runDriver() error {
 
 // initDriver retrives the DriverPlugin from the plugin loader for this task
 func (tr *TaskRunner) initDriver() error {
-	plugin, err := tr.pluginSingletonLoader.Dispense(tr.Task().Driver, base.PluginTypeDriver, tr.logger)
+	plugin, err := tr.pluginSingletonLoader.Dispense(tr.Task().Driver, base.PluginTypeDriver, tr.clientConfig.NomadPluginConfig(), tr.logger)
 	if err != nil {
 		return err
 	}
@@ -528,10 +652,17 @@ func (tr *TaskRunner) initDriver() error {
 	if err != nil {
 		return err
 	}
-	spec, diag := hclspec.Convert(schema)
-	if diag.HasErrors() {
-		return multierror.Append(errors.New("failed to convert task schema"), diag.Errs()...)
+
+	evalCtx, err := tr.evalContext()
+	if err != nil {
+		return err
 	}
+	spec, diag := hclspec.Convert(schema, evalCtx)
+	if diag.HasErrors() {
+		tr.logger.Warn("failed to convert driver schema", "error", diag.Errs())
+	}
+	// store task schema errors to be reported as runDriver errors
+	tr.taskSchemaDiag = diag
 	tr.taskSchema = spec
 
 	caps, err := tr.driver.Capabilities()
@@ -543,17 +674,17 @@ func (tr *TaskRunner) initDriver() error {
 	return nil
 }
 
-// handleDestroy kills the task handle. In the case that killing fails,
-// handleDestroy will retry with an exponential backoff and will give up at a
-// given limit. It returns whether the task was destroyed and the error
-// associated with the last kill attempt.
-func (tr *TaskRunner) handleDestroy(handle *DriverHandle) (destroyed bool, err error) {
+// killTask kills the task handle. In the case that killing fails,
+// killTask will retry with an exponential backoff and will give up at a
+// given limit. Returns an error if the task could not be killed.
+func (tr *TaskRunner) killTask(handle *DriverHandle) error {
 	// Cap the number of times we attempt to kill the task.
+	var err error
 	for i := 0; i < killFailureLimit; i++ {
 		if err = handle.Kill(); err != nil {
 			if err == drivers.ErrTaskNotFound {
 				tr.logger.Warn("couldn't find task to kill", "task_id", handle.ID())
-				return true, nil
+				return nil
 			}
 			// Calculate the new backoff
 			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
@@ -565,16 +696,16 @@ func (tr *TaskRunner) handleDestroy(handle *DriverHandle) (destroyed bool, err e
 			time.Sleep(backoff)
 		} else {
 			// Kill was successful
-			return true, nil
+			return nil
 		}
 	}
-	return
+	return err
 }
 
 // persistLocalState persists local state to disk synchronously.
 func (tr *TaskRunner) persistLocalState() error {
-	tr.localStateLock.Lock()
-	defer tr.localStateLock.Unlock()
+	tr.stateLock.RLock()
+	defer tr.stateLock.RUnlock()
 
 	return tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState)
 }
@@ -582,25 +713,32 @@ func (tr *TaskRunner) persistLocalState() error {
 // buildTaskConfig builds a drivers.TaskConfig with an unique ID for the task.
 // The ID is consistently built from the alloc ID, task name and restart attempt.
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
+	task := tr.Task()
+	alloc := tr.Alloc()
+
 	return &drivers.TaskConfig{
-		ID:   fmt.Sprintf("%s/%s/%d", tr.allocID, tr.taskName, tr.restartTracker.GetCount()),
-		Name: tr.task.Name,
+		ID:      fmt.Sprintf("%s/%s/%d", alloc.ID, task.Name, tr.restartTracker.GetCount()),
+		Name:    task.Name,
+		JobName: alloc.Job.Name,
 		Resources: &drivers.Resources{
-			NomadResources: tr.task.Resources,
-			//TODO Calculate the LinuxResources
+			NomadResources: task.Resources,
+			LinuxResources: &drivers.LinuxResources{
+				MemoryLimitBytes: int64(task.Resources.MemoryMB) * 1024 * 1024,
+				CPUShares:        int64(task.Resources.CPU),
+				PercentTicks:     float64(task.Resources.CPU) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
+			},
 		},
+		Devices:    tr.hookResources.getDevices(),
+		Mounts:     tr.hookResources.getMounts(),
 		Env:        tr.envBuilder.Build().Map(),
-		User:       tr.task.User,
+		User:       task.User,
 		AllocDir:   tr.taskDir.AllocDir,
 		StdoutPath: tr.logmonHookConfig.stdoutFifo,
 		StderrPath: tr.logmonHookConfig.stderrFifo,
+		AllocID:    tr.allocID,
 	}
 }
 
-// XXX If the objects don't exists since the client shutdown before the task
-// runner ever saved state, then we should treat it as a new task runner and not
-// return an error
-//
 // Restore task runner state. Called by AllocRunner.Restore after NewTaskRunner
 // but before Run so no locks need to be acquired.
 func (tr *TaskRunner) Restore() error {
@@ -609,40 +747,94 @@ func (tr *TaskRunner) Restore() error {
 		return err
 	}
 
-	tr.localState = ls
-	tr.state = ts
+	if ls != nil {
+		ls.Canonicalize()
+		tr.localState = ls
+	}
+
+	if ts != nil {
+		ts.Canonicalize()
+		tr.state = ts
+	}
+
+	// If a TaskHandle was persisted, ensure it is valid or destroy it.
+	if taskHandle := tr.localState.TaskHandle; taskHandle != nil {
+		//TODO if RecoverTask returned the DriverNetwork we wouldn't
+		//     have to persist it at all!
+		tr.restoreHandle(taskHandle, tr.localState.DriverNetwork)
+	}
 	return nil
+}
+
+// restoreHandle ensures a TaskHandle is valid by calling Driver.RecoverTask
+// and sets the driver handle. If the TaskHandle is not valid, DestroyTask is
+// called.
+func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstructs.DriverNetwork) {
+	// Ensure handle is well-formed
+	if taskHandle.Config == nil {
+		return
+	}
+
+	if err := tr.driver.RecoverTask(taskHandle); err != nil {
+		if tr.TaskState().State != structs.TaskStateRunning {
+			// RecoverTask should fail if the Task wasn't running
+			return
+		}
+
+		tr.logger.Error("error recovering task; cleaning up",
+			"error", err, "task_id", taskHandle.Config.ID)
+
+		// Try to cleanup any existing task state in the plugin before restarting
+		if err := tr.driver.DestroyTask(taskHandle.Config.ID, true); err != nil {
+			// Ignore ErrTaskNotFound errors as ideally
+			// this task has already been stopped and
+			// therefore doesn't exist.
+			if err != drivers.ErrTaskNotFound {
+				tr.logger.Warn("error destroying unrecoverable task",
+					"error", err, "task_id", taskHandle.Config.ID)
+			}
+
+		}
+
+		return
+	}
+
+	// Update driver handle on task runner
+	tr.setDriverHandle(NewDriverHandle(tr.driver, taskHandle.Config.ID, tr.Task(), net))
+	return
 }
 
 // UpdateState sets the task runners allocation state and triggers a server
 // update.
 func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
-	tr.logger.Debug("setting task state", "state", state, "event", event.Type)
-	// Update the local state
-	stateCopy := tr.setStateLocal(state, event)
-
-	// Notify the alloc runner of the transition
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, stateCopy)
-}
-
-// setStateLocal updates the local in-memory state, persists a copy to disk and returns a
-// copy of the task's state.
-func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *structs.TaskState {
 	tr.stateLock.Lock()
 	defer tr.stateLock.Unlock()
 
-	//XXX REMOVE ME AFTER TESTING
-	if state == "" {
-		panic("UpdateState must not be called with an empty state")
+	if event != nil {
+		tr.logger.Trace("setting task state", "state", state, "event", event.Type)
+
+		// Append the event
+		tr.appendEvent(event)
 	}
+
+	// Update the state
+	if err := tr.updateStateImpl(state); err != nil {
+		// Only log the error as we persistence errors should not
+		// affect task state.
+		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
+	}
+
+	// Notify the alloc runner of the transition
+	tr.stateUpdater.TaskStateUpdated()
+}
+
+// updateStateImpl updates the in-memory task state and persists to disk.
+func (tr *TaskRunner) updateStateImpl(state string) error {
 
 	// Update the task state
 	oldState := tr.state.State
 	taskState := tr.state
 	taskState.State = state
-
-	// Append the event
-	tr.appendEvent(event)
 
 	// Handle the state transition.
 	switch state {
@@ -682,13 +874,7 @@ func (tr *TaskRunner) setStateLocal(state string, event *structs.TaskEvent) *str
 	}
 
 	// Persist the state and event
-	if err := tr.stateDB.PutTaskState(tr.allocID, tr.taskName, taskState); err != nil {
-		// Only a warning because the next event/state-transition will
-		// try to persist it again.
-		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
-	}
-
-	return tr.state.Copy()
+	return tr.stateDB.PutTaskState(tr.allocID, tr.taskName, taskState)
 }
 
 // EmitEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -709,7 +895,7 @@ func (tr *TaskRunner) EmitEvent(event *structs.TaskEvent) {
 	}
 
 	// Notify the alloc runner of the event
-	tr.stateUpdater.TaskStateUpdated(tr.taskName, tr.state.Copy())
+	tr.stateUpdater.TaskStateUpdated()
 }
 
 // AppendEvent appends a new TaskEvent to this task's TaskState. The actual
@@ -770,11 +956,26 @@ func (tr *TaskRunner) WaitCh() <-chan struct{} {
 // This method is safe for calling concurrently with Run() and does not modify
 // the passed in allocation.
 func (tr *TaskRunner) Update(update *structs.Allocation) {
-	// Update tr.alloc
-	tr.setAlloc(update)
+	task := update.LookupTask(tr.taskName)
+	if task == nil {
+		// This should not happen and likely indicates a bug in the
+		// server or client.
+		tr.logger.Error("allocation update is missing task; killing",
+			"group", update.TaskGroup)
+		te := structs.NewTaskEvent(structs.TaskKilled).
+			SetKillReason("update missing task").
+			SetFailsTask()
+		tr.Kill(context.Background(), te)
+		return
+	}
 
-	// Trigger update hooks
-	tr.triggerUpdateHooks()
+	// Update tr.alloc
+	tr.setAlloc(update, task)
+
+	// Trigger update hooks if not terminal
+	if !update.TerminalStatus() {
+		tr.triggerUpdateHooks()
+	}
 }
 
 // triggerUpdate if there isn't already an update pending. Should be called
@@ -790,6 +991,21 @@ func (tr *TaskRunner) triggerUpdateHooks() {
 	}
 }
 
+// Shutdown TaskRunner gracefully without affecting the state of the task.
+// Shutdown blocks until the main Run loop exits.
+func (tr *TaskRunner) Shutdown() {
+	tr.logger.Trace("shutting down")
+	tr.ctxCancel()
+
+	<-tr.WaitCh()
+
+	// Run shutdown hooks to cleanup
+	tr.shutdownHooks()
+
+	// Persist once more
+	tr.persistLocalState()
+}
+
 // LatestResourceUsage returns the last resource utilization datapoint
 // collected. May return nil if the task is not running or no resource
 // utilization has been collected yet.
@@ -797,6 +1013,12 @@ func (tr *TaskRunner) LatestResourceUsage() *cstructs.TaskResourceUsage {
 	tr.resourceUsageLock.Lock()
 	ru := tr.resourceUsage
 	tr.resourceUsageLock.Unlock()
+
+	// Look up device statistics lazily when fetched, as currently we do not emit any stats for them yet
+	if ru != nil && tr.deviceStatsReporter != nil {
+		deviceResources := tr.Alloc().AllocatedResources.Tasks[tr.taskName].Devices
+		ru.ResourceUsage.DeviceStats = tr.deviceStatsReporter.LatestDeviceResourceStats(deviceResources)
+	}
 	return ru
 }
 

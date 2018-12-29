@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_OperatorRaftConfiguration(t *testing.T) {
@@ -255,5 +256,118 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 				r.Fatalf("bad: %#v", out.Servers)
 			}
 		})
+	})
+}
+
+func TestOperator_SchedulerGetConfiguration(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		require := require.New(t)
+		body := bytes.NewBuffer(nil)
+		req, _ := http.NewRequest("GET", "/v1/operator/scheduler/configuration", body)
+		resp := httptest.NewRecorder()
+		obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		require.Nil(err)
+		require.Equal(200, resp.Code)
+		out, ok := obj.(structs.SchedulerConfigurationResponse)
+		require.True(ok)
+		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+	})
+}
+
+func TestOperator_SchedulerSetConfiguration(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		require := require.New(t)
+		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": true
+        }}`))
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
+		resp := httptest.NewRecorder()
+		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		require.Nil(err)
+		require.Equal(200, resp.Code)
+		schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+		require.True(ok)
+		require.NotZero(schedSetResp.Index)
+
+		args := structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: s.Config.Region,
+			},
+		}
+
+		var reply structs.SchedulerConfigurationResponse
+		err = s.RPC("Operator.SchedulerGetConfiguration", &args, &reply)
+		require.Nil(err)
+		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+	})
+}
+
+func TestOperator_SchedulerCASConfiguration(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		require := require.New(t)
+		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": true
+        }}`))
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
+		resp := httptest.NewRecorder()
+		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		require.Nil(err)
+		require.Equal(200, resp.Code)
+		schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+		require.True(ok)
+		require.NotZero(schedSetResp.Index)
+
+		args := structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: s.Config.Region,
+			},
+		}
+
+		var reply structs.SchedulerConfigurationResponse
+		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+
+		// Create a CAS request, bad index
+		{
+			buf := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": false
+        }}`))
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index-1), buf)
+			resp := httptest.NewRecorder()
+			setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+			require.Nil(err)
+			// Verify that the response has Updated=false
+			schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+			require.True(ok)
+			require.NotZero(schedSetResp.Index)
+			require.False(schedSetResp.Updated)
+		}
+
+		// Create a CAS request, good index
+		{
+			buf := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
+                     "SystemSchedulerEnabled": false
+        }}`))
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index), buf)
+			resp := httptest.NewRecorder()
+			setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+			require.Nil(err)
+			// Verify that the response has Updated=true
+			schedSetResp, ok := setResp.(structs.SchedulerSetConfigurationResponse)
+			require.True(ok)
+			require.NotZero(schedSetResp.Index)
+			require.True(schedSetResp.Updated)
+		}
+
+		// Verify the update
+		if err := s.RPC("Operator.SchedulerGetConfiguration", &args, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	})
 }

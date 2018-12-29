@@ -284,3 +284,65 @@ func (op *Operator) ServerHealth(args *structs.GenericRequest, reply *autopilot.
 
 	return nil
 }
+
+// SchedulerSetConfiguration is used to set the current Scheduler configuration.
+func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRequest, reply *structs.SchedulerSetConfigurationResponse) error {
+	if done, err := op.srv.forward("Operator.SchedulerSetConfiguration", args, args, reply); done {
+		return err
+	}
+
+	// This action requires operator write access.
+	rule, err := op.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if rule != nil && !rule.AllowOperatorWrite() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Apply the update
+	resp, index, err := op.srv.raftApply(structs.SchedulerConfigRequestType, args)
+	if err != nil {
+		op.logger.Error("failed applying Scheduler configuration", "error", err)
+		return err
+	} else if respErr, ok := resp.(error); ok {
+		return respErr
+	}
+
+	// Check if the return type is a bool
+	// Only applies to CAS requests
+	if respBool, ok := resp.(bool); ok {
+		reply.Updated = respBool
+	}
+	reply.Index = index
+	return nil
+}
+
+// SchedulerGetConfiguration is used to retrieve the current Scheduler configuration.
+func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, reply *structs.SchedulerConfigurationResponse) error {
+	if done, err := op.srv.forward("Operator.SchedulerGetConfiguration", args, args, reply); done {
+		return err
+	}
+
+	// This action requires operator read access.
+	rule, err := op.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if rule != nil && !rule.AllowOperatorRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	state := op.srv.fsm.State()
+	index, config, err := state.SchedulerConfig()
+
+	if err != nil {
+		return err
+	} else if config == nil {
+		return fmt.Errorf("scheduler config not initialized yet")
+	}
+
+	reply.SchedulerConfig = config
+	reply.QueryMeta.Index = index
+	op.srv.setQueryMeta(&reply.QueryMeta)
+
+	return nil
+}

@@ -81,6 +81,7 @@ const (
 	AllocUpdateDesiredTransitionRequestType
 	NodeUpdateEligibilityRequestType
 	BatchNodeUpdateDrainRequestType
+	SchedulerConfigRequestType
 )
 
 const (
@@ -161,6 +162,14 @@ const (
 type NamespacedID struct {
 	ID        string
 	Namespace string
+}
+
+// NewNamespacedID returns a new namespaced ID given the ID and namespace
+func NewNamespacedID(id, ns string) NamespacedID {
+	return NamespacedID{
+		ID:        id,
+		Namespace: ns,
+	}
 }
 
 func (n NamespacedID) String() string {
@@ -643,6 +652,14 @@ type ApplyPlanResultsRequest struct {
 	// processed many times, potentially making state updates, without the state of
 	// the evaluation itself being updated.
 	EvalID string
+
+	// NodePreemptions is a slice of allocations from other lower priority jobs
+	// that are preempted. Preempted allocations are marked as evicted.
+	NodePreemptions []*Allocation
+
+	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
+	// have been preempted to place allocs in this plan
+	PreemptionEvals []*Evaluation
 }
 
 // AllocUpdateRequest is used to submit changes to allocations, either
@@ -1432,6 +1449,7 @@ type Node struct {
 
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
+	// COMPAT(0.10): Remove in 0.10
 	Resources *Resources
 
 	// Reserved is the set of resources that are reserved,
@@ -1680,7 +1698,7 @@ type Resources struct {
 	CPU      int
 	MemoryMB int
 	DiskMB   int
-	IOPS     int
+	IOPS     int // COMPAT(0.10): Only being used to issue warnings
 	Networks Networks
 	Devices  []*RequestedDevice
 }
@@ -1697,7 +1715,6 @@ func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
 		MemoryMB: 300,
-		IOPS:     0,
 	}
 }
 
@@ -1710,7 +1727,6 @@ func MinResources() *Resources {
 	return &Resources{
 		CPU:      20,
 		MemoryMB: 10,
-		IOPS:     0,
 	}
 }
 
@@ -1750,9 +1766,6 @@ func (r *Resources) Merge(other *Resources) {
 	if other.DiskMB != 0 {
 		r.DiskMB = other.DiskMB
 	}
-	if other.IOPS != 0 {
-		r.IOPS = other.IOPS
-	}
 	if len(other.Networks) != 0 {
 		r.Networks = other.Networks
 	}
@@ -1787,9 +1800,6 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
-	}
-	if r.IOPS < minResources.IOPS {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum IOPS value is %d; got %d", minResources.IOPS, r.IOPS))
 	}
 	for i, n := range r.Networks {
 		if err := n.MeetsMinResources(); err != nil {
@@ -1847,9 +1857,6 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.DiskMB < other.DiskMB {
 		return false, "disk"
 	}
-	if r.IOPS < other.IOPS {
-		return false, "iops"
-	}
 	return true, ""
 }
 
@@ -1862,7 +1869,6 @@ func (r *Resources) Add(delta *Resources) error {
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
 	r.DiskMB += delta.DiskMB
-	r.IOPS += delta.IOPS
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR
@@ -2239,14 +2245,23 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	}
 
 	// Check the devices
-	if len(n.Devices) != len(o.Devices) {
+	if !DevicesEquals(n.Devices, o.Devices) {
 		return false
 	}
-	idMap := make(map[DeviceIdTuple]*NodeDeviceResource, len(n.Devices))
-	for _, d := range n.Devices {
+
+	return true
+}
+
+// DevicesEquals returns true if the two device arrays are equal
+func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
+	if len(d1) != len(d2) {
+		return false
+	}
+	idMap := make(map[DeviceIdTuple]*NodeDeviceResource, len(d1))
+	for _, d := range d1 {
 		idMap[*d.ID()] = d
 	}
-	for _, otherD := range o.Devices {
+	for _, otherD := range d2 {
 		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equals(otherD) {
 			return false
 		}
@@ -2358,6 +2373,14 @@ type DeviceIdTuple struct {
 	Name   string
 }
 
+func (d *DeviceIdTuple) String() string {
+	if d == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/%s/%s", d.Vendor, d.Type, d.Name)
+}
+
 // Matches returns if this Device ID is a superset of the passed ID.
 func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
 	if other == nil {
@@ -2377,6 +2400,17 @@ func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
 	}
 
 	return true
+}
+
+// Equals returns if this Device ID is the same as the passed ID.
+func (id *DeviceIdTuple) Equals(o *DeviceIdTuple) bool {
+	if id == nil && o == nil {
+		return true
+	} else if id == nil || o == nil {
+		return false
+	}
+
+	return o.Vendor == id.Vendor && o.Type == id.Type && o.Name == id.Name
 }
 
 // NodeDeviceResource captures a set of devices sharing a common
@@ -2685,6 +2719,7 @@ type AllocatedTaskResources struct {
 	Cpu      AllocatedCpuResources
 	Memory   AllocatedMemoryResources
 	Networks Networks
+	Devices  []*AllocatedDeviceResource
 }
 
 func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
@@ -2693,6 +2728,8 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 	}
 	newA := new(AllocatedTaskResources)
 	*newA = *a
+
+	// Copy the networks
 	if a.Networks != nil {
 		n := len(a.Networks)
 		newA.Networks = make([]*NetworkResource, n)
@@ -2700,6 +2737,16 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 			newA.Networks[i] = a.Networks[i].Copy()
 		}
 	}
+
+	// Copy the devices
+	if newA.Devices != nil {
+		n := len(a.Devices)
+		newA.Devices = make([]*AllocatedDeviceResource, n)
+		for i := 0; i < n; i++ {
+			newA.Devices[i] = a.Devices[i].Copy()
+		}
+	}
+
 	return newA
 }
 
@@ -2725,6 +2772,16 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 			a.Networks[idx].Add(n)
 		}
 	}
+
+	for _, d := range delta.Devices {
+		// Find the matching device
+		idx := AllocatedDevices(a.Devices).Index(d)
+		if idx == -1 {
+			a.Devices = append(a.Devices, d.Copy())
+		} else {
+			a.Devices[idx].Add(d)
+		}
+	}
 }
 
 // Comparable turns AllocatedTaskResources into ComparableResources
@@ -2748,6 +2805,8 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 	return ret
 }
 
+// Subtract only subtracts CPU and Memory resources. Network utilization
+// is managed separately in NetworkIndex
 func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 	if delta == nil {
 		return
@@ -2755,14 +2814,6 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 
 	a.Cpu.Subtract(&delta.Cpu)
 	a.Memory.Subtract(&delta.Memory)
-
-	for _, n := range delta.Networks {
-		// Find the matching interface by IP or CIDR
-		idx := a.NetIndex(n)
-		if idx != -1 {
-			a.Networks[idx].MBits -= delta.Networks[idx].MBits
-		}
-	}
 }
 
 // AllocatedSharedResources are the set of resources allocated to a task group.
@@ -2826,6 +2877,72 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+}
+
+type AllocatedDevices []*AllocatedDeviceResource
+
+// Index finds the matching index using the passed device. If not found, -1 is
+// returned.
+func (a AllocatedDevices) Index(d *AllocatedDeviceResource) int {
+	if d == nil {
+		return -1
+	}
+
+	for i, o := range a {
+		if o.ID().Equals(d.ID()) {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// AllocatedDeviceResource captures a set of allocated devices.
+type AllocatedDeviceResource struct {
+	// Vendor, Type, and Name are used to select the plugin to request the
+	// device IDs from.
+	Vendor string
+	Type   string
+	Name   string
+
+	// DeviceIDs is the set of allocated devices
+	DeviceIDs []string
+}
+
+func (a *AllocatedDeviceResource) ID() *DeviceIdTuple {
+	if a == nil {
+		return nil
+	}
+
+	return &DeviceIdTuple{
+		Vendor: a.Vendor,
+		Type:   a.Type,
+		Name:   a.Name,
+	}
+}
+
+func (a *AllocatedDeviceResource) Add(delta *AllocatedDeviceResource) {
+	if delta == nil {
+		return
+	}
+
+	a.DeviceIDs = append(a.DeviceIDs, delta.DeviceIDs...)
+}
+
+func (a *AllocatedDeviceResource) Copy() *AllocatedDeviceResource {
+	if a == nil {
+		return a
+	}
+
+	na := *a
+
+	// Copy the devices
+	na.DeviceIDs = make([]string, len(a.DeviceIDs))
+	for i, id := range a.DeviceIDs {
+		na.DeviceIDs[i] = id
+	}
+
+	return &na
 }
 
 // ComparableResources is the set of resources allocated to a task group but
@@ -4547,6 +4664,13 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		}
 	}
 
+	for _, t := range tg.Tasks {
+		if err := t.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", t.Name))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -5390,6 +5514,17 @@ func validateServices(t *Task) error {
 	return mErr.ErrorOrNil()
 }
 
+func (t *Task) Warnings() error {
+	var mErr multierror.Error
+
+	// Validate the resources
+	if t.Resources != nil && t.Resources.IOPS != 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 const (
 	// TemplateChangeModeNoop marks that no action should be taken if the
 	// template is re-rendered
@@ -5571,6 +5706,21 @@ type TaskState struct {
 
 	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
+}
+
+// NewTaskState returns a TaskState initialized in the Pending state.
+func NewTaskState() *TaskState {
+	return &TaskState{
+		State: TaskStatePending,
+	}
+}
+
+// Canonicalize ensures the TaskState has a State set. It should default to
+// Pending.
+func (ts *TaskState) Canonicalize() {
+	if ts.State == "" {
+		ts.State = TaskStatePending
+	}
 }
 
 func (ts *TaskState) Copy() *TaskState {
@@ -6060,6 +6210,11 @@ func (e *TaskEvent) SetDriverMessage(m string) *TaskEvent {
 	return e
 }
 
+func (e *TaskEvent) SetOOMKilled(oom bool) *TaskEvent {
+	e.Details["oom_killed"] = strconv.FormatBool(oom)
+	return e
+}
+
 // TaskArtifact is an artifact to download before running the task.
 type TaskArtifact struct {
 	// GetterSource is the source to download an artifact using go-getter
@@ -6139,60 +6294,74 @@ func (ta *TaskArtifact) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("destination escapes allocation directory"))
 	}
 
-	// Verify the checksum
-	if check, ok := ta.GetterOptions["checksum"]; ok {
-		check = strings.TrimSpace(check)
-		if check == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("checksum value cannot be empty"))
-			return mErr.ErrorOrNil()
-		}
-
-		parts := strings.Split(check, ":")
-		if l := len(parts); l != 2 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf(`checksum must be given as "type:value"; got %q`, check))
-			return mErr.ErrorOrNil()
-		}
-
-		checksumVal := parts[1]
-		checksumBytes, err := hex.DecodeString(checksumVal)
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid checksum: %v", err))
-			return mErr.ErrorOrNil()
-		}
-
-		checksumType := parts[0]
-		expectedLength := 0
-		switch checksumType {
-		case "md5":
-			expectedLength = md5.Size
-		case "sha1":
-			expectedLength = sha1.Size
-		case "sha256":
-			expectedLength = sha256.Size
-		case "sha512":
-			expectedLength = sha512.Size
-		default:
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported checksum type: %s", checksumType))
-			return mErr.ErrorOrNil()
-		}
-
-		if len(checksumBytes) != expectedLength {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal))
-			return mErr.ErrorOrNil()
-		}
+	if err := ta.validateChecksum(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	return mErr.ErrorOrNil()
 }
 
+func (ta *TaskArtifact) validateChecksum() error {
+	check, ok := ta.GetterOptions["checksum"]
+	if !ok {
+		return nil
+	}
+
+	// Job struct validation occurs before interpolation resolution can be effective.
+	// Skip checking if checksum contain variable reference, and artifacts fetching will
+	// eventually fail, if checksum is indeed invalid.
+	if args.ContainsEnv(check) {
+		return nil
+	}
+
+	check = strings.TrimSpace(check)
+	if check == "" {
+		return fmt.Errorf("checksum value cannot be empty")
+	}
+
+	parts := strings.Split(check, ":")
+	if l := len(parts); l != 2 {
+		return fmt.Errorf(`checksum must be given as "type:value"; got %q`, check)
+	}
+
+	checksumVal := parts[1]
+	checksumBytes, err := hex.DecodeString(checksumVal)
+	if err != nil {
+		return fmt.Errorf("invalid checksum: %v", err)
+	}
+
+	checksumType := parts[0]
+	expectedLength := 0
+	switch checksumType {
+	case "md5":
+		expectedLength = md5.Size
+	case "sha1":
+		expectedLength = sha1.Size
+	case "sha256":
+		expectedLength = sha256.Size
+	case "sha512":
+		expectedLength = sha512.Size
+	default:
+		return fmt.Errorf("unsupported checksum type: %s", checksumType)
+	}
+
+	if len(checksumBytes) != expectedLength {
+		return fmt.Errorf("invalid %s checksum: %v", checksumType, checksumVal)
+	}
+
+	return nil
+}
+
 const (
-	ConstraintDistinctProperty = "distinct_property"
-	ConstraintDistinctHosts    = "distinct_hosts"
-	ConstraintRegex            = "regexp"
-	ConstraintVersion          = "version"
-	ConstraintSetContains      = "set_contains"
-	ConstraintSetContainsAll   = "set_contains_all"
-	ConstraintSetContainsAny   = "set_contains_any"
+	ConstraintDistinctProperty  = "distinct_property"
+	ConstraintDistinctHosts     = "distinct_hosts"
+	ConstraintRegex             = "regexp"
+	ConstraintVersion           = "version"
+	ConstraintSetContains       = "set_contains"
+	ConstraintSetContainsAll    = "set_contains_all"
+	ConstraintSetContainsAny    = "set_contains_any"
+	ConstraintAttributeIsSet    = "is_set"
+	ConstraintAttributeIsNotSet = "is_not_set"
 )
 
 // Constraints are used to restrict placement options.
@@ -6262,6 +6431,10 @@ func (c *Constraint) Validate() error {
 			} else if count < 1 {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("Distinct Property must have an allowed count of 1 or greater: %d < 1", count))
 			}
+		}
+	case ConstraintAttributeIsSet, ConstraintAttributeIsNotSet:
+		if c.RTarget != "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Operator %q does not support an RTarget", c.Operand))
 		}
 	case "=", "==", "is", "!=", "not", "<", "<=", ">", ">=":
 		if c.RTarget == "" {
@@ -7025,6 +7198,14 @@ type Allocation struct {
 	// that can be rescheduled in the future
 	FollowupEvalID string
 
+	// PreemptedAllocations captures IDs of any allocations that were preempted
+	// in order to place this allocation
+	PreemptedAllocations []string
+
+	// PreemptedByAllocation tracks the alloc ID of the allocation that caused this allocation
+	// to stop running because it got preempted
+	PreemptedByAllocation string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -7099,6 +7280,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.RescheduleTracker = a.RescheduleTracker.Copy()
+	na.PreemptedAllocations = helper.CopySliceString(a.PreemptedAllocations)
 	return na
 }
 
@@ -7370,6 +7552,7 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 			Memory: AllocatedMemoryResources{
 				MemoryMB: int64(resources.MemoryMB),
 			},
+			Networks: resources.Networks,
 		},
 		Shared: AllocatedSharedResources{
 			DiskMB: int64(resources.DiskMB),
@@ -7398,8 +7581,10 @@ func (a *Allocation) Stub() *AllocListStub {
 		ID:                 a.ID,
 		EvalID:             a.EvalID,
 		Name:               a.Name,
+		Namespace:          a.Namespace,
 		NodeID:             a.NodeID,
 		JobID:              a.JobID,
+		JobType:            a.Job.Type,
 		JobVersion:         a.Job.Version,
 		TaskGroup:          a.TaskGroup,
 		DesiredStatus:      a.DesiredStatus,
@@ -7423,8 +7608,10 @@ type AllocListStub struct {
 	ID                 string
 	EvalID             string
 	Name               string
+	Namespace          string
 	NodeID             string
 	JobID              string
+	JobType            string
 	JobVersion         uint64
 	TaskGroup          string
 	DesiredStatus      string
@@ -7743,6 +7930,7 @@ const (
 	EvalTriggerMaxPlans          = "max-plan-attempts"
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
 	EvalTriggerQueuedAllocs      = "queued-allocs"
+	EvalTriggerPreemption        = "preemption"
 )
 
 const (
@@ -7968,11 +8156,12 @@ func (e *Evaluation) ShouldBlock() bool {
 // for a given Job
 func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
-		EvalID:         e.ID,
-		Priority:       e.Priority,
-		Job:            j,
-		NodeUpdate:     make(map[string][]*Allocation),
-		NodeAllocation: make(map[string][]*Allocation),
+		EvalID:          e.ID,
+		Priority:        e.Priority,
+		Job:             j,
+		NodeUpdate:      make(map[string][]*Allocation),
+		NodeAllocation:  make(map[string][]*Allocation),
+		NodePreemptions: make(map[string][]*Allocation),
 	}
 	if j != nil {
 		p.AllAtOnce = j.AllAtOnce
@@ -8085,6 +8274,11 @@ type Plan struct {
 	// deployments. This allows the scheduler to cancel any unneeded deployment
 	// because the job is stopped or the update block is removed.
 	DeploymentUpdates []*DeploymentStatusUpdate
+
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as evicted.
+	NodePreemptions map[string][]*Allocation
 }
 
 // AppendUpdate marks the allocation for eviction. The clientStatus of the
@@ -8115,6 +8309,35 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]
 	p.NodeUpdate[node] = append(existing, newAlloc)
+}
+
+// AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
+// To minimize the size of the plan, this only sets a minimal set of fields in the allocation
+func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preemptingAllocID string) {
+	newAlloc := &Allocation{}
+	newAlloc.ID = alloc.ID
+	newAlloc.JobID = alloc.JobID
+	newAlloc.Namespace = alloc.Namespace
+	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.PreemptedByAllocation = preemptingAllocID
+
+	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
+	newAlloc.DesiredDescription = desiredDesc
+
+	// TaskResources are needed by the plan applier to check if allocations fit
+	// after removing preempted allocations
+	if alloc.AllocatedResources != nil {
+		newAlloc.AllocatedResources = alloc.AllocatedResources
+	} else {
+		// COMPAT Remove in version 0.11
+		newAlloc.TaskResources = alloc.TaskResources
+		newAlloc.SharedResources = alloc.SharedResources
+	}
+
+	// Append this alloc to slice for this node
+	node := alloc.NodeID
+	existing := p.NodePreemptions[node]
+	p.NodePreemptions[node] = append(existing, newAlloc)
 }
 
 func (p *Plan) PopUpdate(alloc *Allocation) {
@@ -8162,6 +8385,11 @@ type PlanResult struct {
 	// DeploymentUpdates is the set of deployment updates that were committed.
 	DeploymentUpdates []*DeploymentStatusUpdate
 
+	// NodePreemptions is a map from node id to a set of allocations from other
+	// lower priority jobs that are preempted. Preempted allocations are marked
+	// as stopped.
+	NodePreemptions map[string][]*Allocation
+
 	// RefreshIndex is the index the worker should refresh state up to.
 	// This allows all evictions and allocations to be materialized.
 	// If any allocations were rejected due to stale data (node state,
@@ -8198,6 +8426,9 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 type PlanAnnotations struct {
 	// DesiredTGUpdates is the set of desired updates per task group.
 	DesiredTGUpdates map[string]*DesiredUpdates
+
+	// PreemptedAllocs is the set of allocations to be preempted to make the placement successful.
+	PreemptedAllocs []*AllocListStub
 }
 
 // DesiredUpdates is the set of changes the scheduler would like to make given
@@ -8210,6 +8441,7 @@ type DesiredUpdates struct {
 	InPlaceUpdate     uint64
 	DestructiveUpdate uint64
 	Canary            uint64
+	Preemptions       uint64
 }
 
 func (d *DesiredUpdates) GoString() string {

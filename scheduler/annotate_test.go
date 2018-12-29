@@ -230,12 +230,6 @@ func TestAnnotateTask(t *testing.T) {
 							},
 							{
 								Type: structs.DiffTypeEdited,
-								Name: "IOPS",
-								Old:  "100",
-								New:  "200",
-							},
-							{
-								Type: structs.DiffTypeEdited,
 								Name: "MemoryMB",
 								Old:  "100",
 								New:  "200",

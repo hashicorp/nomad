@@ -175,7 +175,7 @@ func (h *allocHealthWatcherHook) Update(req *interfaces.RunnerUpdateRequest) err
 	return h.init()
 }
 
-func (h *allocHealthWatcherHook) Destroy() error {
+func (h *allocHealthWatcherHook) Postrun() error {
 	h.hookLock.Lock()
 	defer h.hookLock.Unlock()
 
@@ -186,6 +186,11 @@ func (h *allocHealthWatcherHook) Destroy() error {
 	<-h.watchDone
 
 	return nil
+}
+
+func (h *allocHealthWatcherHook) Shutdown() {
+	// Same as Postrun
+	h.Postrun()
 }
 
 // watchHealth watches alloc health until it is set, the alloc is stopped, or

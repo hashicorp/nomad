@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -9,13 +8,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 	state := state.TestStateStore(t)
 	plan := &structs.Plan{
-		NodeUpdate:     make(map[string][]*structs.Allocation),
-		NodeAllocation: make(map[string][]*structs.Allocation),
+		NodeUpdate:      make(map[string][]*structs.Allocation),
+		NodeAllocation:  make(map[string][]*structs.Allocation),
+		NodePreemptions: make(map[string][]*structs.Allocation),
 	}
 
 	logger := testlog.HCLogger(t)
@@ -259,7 +260,7 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	e.SetTaskGroupEligibility(false, "fizz", "v1:3")
 
 	expClasses := map[string]bool{
-		"v1:1": true,
+		"v1:1": false,
 		"v1:2": false,
 		"v1:3": true,
 		"v1:4": false,
@@ -267,7 +268,27 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	}
 
 	actClasses := e.GetClasses()
-	if !reflect.DeepEqual(actClasses, expClasses) {
-		t.Fatalf("GetClasses() returned %#v; want %#v", actClasses, expClasses)
+	require.Equal(t, expClasses, actClasses)
+}
+func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T) {
+	e := NewEvalEligibility()
+	e.SetJobEligibility(true, "v1:1")
+	e.SetTaskGroupEligibility(false, "foo", "v1:1")
+
+	e.SetJobEligibility(true, "v1:2")
+	e.SetTaskGroupEligibility(false, "foo", "v1:2")
+	e.SetTaskGroupEligibility(true, "bar", "v1:2")
+
+	e.SetJobEligibility(true, "v1:3")
+	e.SetTaskGroupEligibility(false, "foo", "v1:3")
+	e.SetTaskGroupEligibility(false, "bar", "v1:3")
+
+	expClasses := map[string]bool{
+		"v1:1": false,
+		"v1:2": true,
+		"v1:3": false,
 	}
+
+	actClasses := e.GetClasses()
+	require.Equal(t, expClasses, actClasses)
 }

@@ -21,8 +21,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/driver/env"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -86,7 +86,9 @@ func testTaskRunner(t *testing.T, restarts bool) *taskRunnerTestCtx {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config["run_for"] = "500ms"
+	task.Config = map[string]interface{}{
+		"run_for": "500ms",
+	}
 	return testTaskRunnerFromAlloc(t, restarts, alloc)
 }
 
@@ -1693,7 +1695,7 @@ func TestTaskRunner_interpolateServices(t *testing.T) {
 		},
 	}
 
-	env := &env.TaskEnv{
+	env := &taskenv.TaskEnv{
 		EnvMap: map[string]string{
 			"name":         "name",
 			"portlabel":    "portlabel",

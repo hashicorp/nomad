@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/version"
 )
@@ -364,4 +365,14 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 		}
 	}
 	return list
+}
+
+// NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
+func (c *Config) NomadPluginConfig() *base.ClientAgentConfig {
+	return &base.ClientAgentConfig{
+		Driver: &base.ClientDriverConfig{
+			ClientMinPort: c.ClientMinPort,
+			ClientMaxPort: c.ClientMaxPort,
+		},
+	}
 }

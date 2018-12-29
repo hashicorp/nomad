@@ -45,8 +45,8 @@ Client Status = running
 
 Task "server" is "running"
 Task Resources
-CPU        Memory          Disk     IOPS  Addresses
-75/100 MHz  784 KiB/10 MiB  300 MiB  0     http: 10.1.1.196:5678
+CPU        Memory          Disk      Addresses
+75/100 MHz  784 KiB/10 MiB  300 MiB  http: 10.1.1.196:5678
 
 Memory Stats
 Cache   Max Usage  RSS      Swap
@@ -83,7 +83,7 @@ While single point in time resource usage measurements are useful, it is often
 more useful to graph resource usage over time to better understand and estimate
 resource usage. Nomad supports outputting resource data to statsite and statsd
 and is the recommended way of monitoring resources. For more information about
-outputting telemetry see the [Telemetry Guide](/guides/operations/monitoring/telemetry.html).
+outputting telemetry see the [Telemetry Guide](/docs/telemetry/index.html).
 
 For more advanced use cases, the resource usage data is also accessible via the
 client's HTTP API. See the documentation of the Client's [allocation HTTP

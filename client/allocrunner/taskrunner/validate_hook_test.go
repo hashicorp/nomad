@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +12,7 @@ import (
 func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 	t.Parallel()
 
-	taskEnv := env.NewEmptyBuilder().Build()
+	taskEnv := taskenv.NewEmptyBuilder().Build()
 	conf := config.DefaultConfig()
 
 	// Try to run as root with exec.
@@ -37,7 +37,7 @@ func TestTaskRunner_Validate_UserEnforcement(t *testing.T) {
 func TestTaskRunner_Validate_ServiceName(t *testing.T) {
 	t.Parallel()
 
-	builder := env.NewEmptyBuilder()
+	builder := taskenv.NewEmptyBuilder()
 	conf := config.DefaultConfig()
 
 	// Create a task with a service for validation
@@ -52,12 +52,12 @@ func TestTaskRunner_Validate_ServiceName(t *testing.T) {
 	require.NoError(t, validateTask(task, builder.Build(), conf))
 
 	// Add an env var that should validate
-	builder.SetGenericEnv(map[string]string{"FOO": "bar"})
+	builder.SetHookEnv("test", map[string]string{"FOO": "bar"})
 	task.Services[0].Name = "${FOO}"
 	require.NoError(t, validateTask(task, builder.Build(), conf))
 
 	// Add an env var that should *not* validate
-	builder.SetGenericEnv(map[string]string{"BAD": "invalid/in/consul"})
+	builder.SetHookEnv("test", map[string]string{"BAD": "invalid/in/consul"})
 	task.Services[0].Name = "${BAD}"
 	require.Error(t, validateTask(task, builder.Build(), conf))
 }

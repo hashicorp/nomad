@@ -19,7 +19,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -91,7 +91,7 @@ type TaskTemplateManagerConfig struct {
 	TaskDir string
 
 	// EnvBuilder is the environment variable builder for the task.
-	EnvBuilder *env.Builder
+	EnvBuilder *taskenv.Builder
 
 	// MaxTemplateEventRate is the maximum rate at which we should emit events.
 	MaxTemplateEventRate time.Duration

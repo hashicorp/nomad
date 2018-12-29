@@ -221,11 +221,13 @@ $ curl \
       "dc1"
     ],
     "Constraints": null,
+    "Affinities": null,
     "TaskGroups": [
       {
         "Name": "cache",
         "Count": 1,
         "Constraints": null,
+        "Affinities": null,
         "RestartPolicy": {
           "Attempts": 10,
           "Interval": 300000000000,
@@ -273,11 +275,11 @@ $ curl \
             "Vault": null,
             "Templates": null,
             "Constraints": null,
+            "Affinities": null,
             "Resources": {
               "CPU": 500,
               "MemoryMB": 10,
               "DiskMB": 0,
-              "IOPS": 0,
               "Networks": [
                 {
                   "Device": "",
@@ -333,7 +335,6 @@ $ curl \
     "CPU": 500,
     "MemoryMB": 10,
     "DiskMB": 300,
-    "IOPS": 0,
     "Networks": [
       {
         "Device": "lo0",
@@ -354,7 +355,6 @@ $ curl \
     "CPU": 0,
     "MemoryMB": 0,
     "DiskMB": 300,
-    "IOPS": 0,
     "Networks": null
   },
   "TaskResources": {
@@ -362,7 +362,6 @@ $ curl \
       "CPU": 500,
       "MemoryMB": 10,
       "DiskMB": 0,
-      "IOPS": 0,
       "Networks": [
         {
           "Device": "lo0",

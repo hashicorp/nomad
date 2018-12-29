@@ -3,16 +3,18 @@
 package rkt
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	"os"
-
-	"bytes"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+	"golang.org/x/sys/unix"
 
 	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
@@ -26,10 +28,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
-var _ drivers.DriverPlugin = (*RktDriver)(nil)
+var _ drivers.DriverPlugin = (*Driver)(nil)
 
 func TestRktVersionRegex(t *testing.T) {
 	ctestutil.RktCompatible(t)
@@ -55,7 +56,7 @@ func TestRktDriver_SetConfig(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	// Enable Volumes
 	config := &Config{
@@ -64,14 +65,14 @@ func TestRktDriver_SetConfig(t *testing.T) {
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
-	require.Exactly(config, d.(*RktDriver).config)
+	require.NoError(harness.SetConfig(data, nil))
+	require.Exactly(config, d.(*Driver).config)
 
 	config.VolumesEnabled = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
-	require.Exactly(config, d.(*RktDriver).config)
+	require.NoError(harness.SetConfig(data, nil))
+	require.Exactly(config, d.(*Driver).config)
 
 }
 
@@ -85,11 +86,12 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "etcd",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -120,52 +122,39 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 	require.NoError(err)
 	require.Nil(driverNet)
 
-	// Wait for task to start
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Block on the channel returned by wait task
-	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.Equal(15, result.Signal)
-	}()
-
-	// Wait until task started
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	// Add to the wait group
-	wg.Add(1)
-
-	// Stop the task
 	go func() {
-		defer wg.Done()
-		err := harness.StopTask(task.ID, 1*time.Second, "SIGTERM")
-		require.NoError(err)
+		harness.StopTask(task.ID, 2*time.Second, "SIGTERM")
 	}()
 
-	// Wait on the wait group
-	waitCh := make(chan struct{})
-	go func() {
-		defer close(waitCh)
-		wg.Wait()
-	}()
-
-	// Verify that the task exited
 	select {
-	case <-waitCh:
-		status, err := harness.InspectTask(task.ID)
-		require.NoError(err)
-		require.Equal(drivers.TaskStateExited, status.State)
-	case <-time.After(2 * time.Second):
+	case result := <-ch:
+		require.Equal(int(unix.SIGTERM), result.Signal)
+	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
 
-	require.NoError(harness.DestroyTask(task.ID, true))
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := harness.InspectTask(task.ID)
+		if err != nil {
+			return false, fmt.Errorf("inspecting task failed: %v", err)
+		}
+		if status.State != drivers.TaskStateExited {
+			return false, fmt.Errorf("task hasn't exited yet; status: %v", status.State)
+		}
 
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
 // Verifies waiting on task to exit cleanly
@@ -177,11 +166,12 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "etcd",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -231,11 +221,12 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "etcd",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -285,11 +276,12 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "etcd",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -335,11 +327,12 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "etcd",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -381,7 +374,7 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	originalStatus, err := d.InspectTask(task.ID)
 	require.NoError(err)
 
-	d.(*RktDriver).tasks.Delete(task.ID)
+	d.(*Driver).tasks.Delete(task.ID)
 
 	wg.Wait()
 	require.True(waitDone)
@@ -427,18 +420,19 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	// enable volumes
 	config := &Config{VolumesEnabled: true}
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	require.NoError(harness.SetConfig(data, nil))
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "rkttest_alpine",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "rkttest_alpine",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -453,9 +447,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
 	tmpvol, err := ioutil.TempDir("", "nomadtest_rktdriver_volumes")
-	if err != nil {
-		t.Fatalf("error creating temporary dir: %v", err)
-	}
+	require.NoError(err)
 	defer os.RemoveAll(tmpvol)
 	hostpath := filepath.Join(tmpvol, file)
 
@@ -498,17 +490,101 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
+// Verifies mounting a task mount from the host machine and writing
+// some data to it from inside the container
+func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
+	ctestutil.RktCompatible(t)
+	if !testutil.IsTravis() {
+		t.Parallel()
+	}
+
+	require := require.New(t)
+	d := NewRktDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	// mounts through task config should be enabled regardless
+	config := &Config{VolumesEnabled: false}
+
+	var data []byte
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	require.NoError(harness.SetConfig(data, nil))
+
+	tmpvol, err := ioutil.TempDir("", "nomadtest_rktdriver_volumes")
+	require.NoError(err)
+	defer os.RemoveAll(tmpvol)
+
+	task := &drivers.TaskConfig{
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "rkttest_alpine",
+		Resources: &drivers.Resources{
+			NomadResources: &structs.Resources{
+				MemoryMB: 128,
+				CPU:      100,
+			},
+			LinuxResources: &drivers.LinuxResources{
+				MemoryLimitBytes: 134217728,
+				CPUShares:        100,
+			},
+		},
+		Mounts: []*drivers.MountConfig{
+			{HostPath: tmpvol, TaskPath: "/foo", Readonly: false},
+		},
+	}
+	exp := []byte{'w', 'i', 'n'}
+	file := "output.txt"
+	hostpath := filepath.Join(tmpvol, file)
+
+	taskConfig := map[string]interface{}{
+		"image":   "docker://redis:3.2-alpine",
+		"command": "/bin/sh",
+		"args": []string{
+			"-c",
+			fmt.Sprintf("echo -n %s > /foo/%s", string(exp), file),
+		},
+		"net": []string{"none"},
+	}
+
+	encodeDriverHelper(require, task, taskConfig)
+	testtask.SetTaskConfigEnv(task)
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	_, _, err = harness.StartTask(task)
+	require.NoError(err)
+
+	// Task should terminate quickly
+	waitCh, err := harness.WaitTask(context.Background(), task.ID)
+	require.NoError(err)
+
+	select {
+	case res := <-waitCh:
+		require.NoError(res.Err)
+		require.True(res.Successful(), fmt.Sprintf("exit code %v", res.ExitCode))
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		require.Fail("WaitTask timeout")
+	}
+
+	// Check that data was written to the shared alloc directory.
+	act, err := ioutil.ReadFile(hostpath)
+	require.NoError(err)
+	require.Exactly(exp, act)
+	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
 // Verifies port mapping
 func TestRktDriver_PortMapping(t *testing.T) {
 	ctestutil.RktCompatible(t)
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "redis",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "redis",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -556,12 +632,13 @@ func TestRktDriver_UserGroup(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		User: "nobody",
-		Name: "rkttest_alpine",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		User:    "nobody",
+		Name:    "rkttest_alpine",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -594,13 +671,16 @@ func TestRktDriver_UserGroup(t *testing.T) {
 	expected := []byte("\nnobody   nogroup  /bin/sleep 9000\n")
 	testutil.WaitForResult(func() (bool, error) {
 		res, err := d.ExecTask(task.ID, []string{"ps", "-o", "user,group,args"}, time.Second)
-		require.NoError(err)
-		require.Zero(res.ExitResult.ExitCode)
-		require.True(res.ExitResult.Successful())
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if !res.ExitResult.Successful() {
+			return false, fmt.Errorf("ps failed: %#v %#v", res.ExitResult, res)
+		}
 		raw := res.Stdout
 		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		require.NoError(err)
 	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
@@ -615,11 +695,12 @@ func TestRktDriver_Exec(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "etcd",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -651,25 +732,32 @@ func TestRktDriver_Exec(t *testing.T) {
 	expected := []byte("etcd version")
 	testutil.WaitForResult(func() (bool, error) {
 		res, err := d.ExecTask(task.ID, []string{"/etcd", "--version"}, time.Second)
-		require.NoError(err)
-		require.True(res.ExitResult.Successful())
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if !res.ExitResult.Successful() {
+			return false, fmt.Errorf("/etcd --version failed: %#v %#v", res.ExitResult, res)
+		}
 		raw := res.Stdout
 		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		require.NoError(err)
 	})
 
 	// Run command that should fail
 	expected = []byte("flag provided but not defined")
 	testutil.WaitForResult(func() (bool, error) {
 		res, err := d.ExecTask(task.ID, []string{"/etcd", "--cgdfgdfg"}, time.Second)
-		require.False(res.ExitResult.Successful())
-		fmt.Println(err)
-		fmt.Println(res.ExitResult.ExitCode)
+		if err != nil {
+			return false, fmt.Errorf("failed to exec: %#v", err)
+		}
+		if res.ExitResult.Successful() {
+			return false, fmt.Errorf("/etcd --cgdfgdfg unexpected succeeded: %#v %#v", res.ExitResult, res)
+		}
 		raw := res.Stdout
 		return bytes.Contains(raw, expected), fmt.Errorf("expected %q but found:\n%s", expected, raw)
 	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		require.NoError(err)
 	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
@@ -685,11 +773,12 @@ func TestRktDriver_Stats(t *testing.T) {
 
 	require := require.New(t)
 	d := NewRktDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "etcd",
+		ID:      uuid.Generate(),
+		AllocID: uuid.Generate(),
+		Name:    "etcd",
 		Resources: &drivers.Resources{
 			NomadResources: &structs.Resources{
 				MemoryMB: 128,
@@ -740,7 +829,7 @@ func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, t
 	evalCtx := &hcl.EvalContext{
 		Functions: shared.GetStdlibFuncs(),
 	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
+	spec, diag := hclspec.Convert(taskConfigSpec, evalCtx)
 	require.False(diag.HasErrors())
 	taskConfigCtyVal, diag := shared.ParseHclInterface(taskConfig, spec, evalCtx)
 	if diag.HasErrors() {

@@ -18,6 +18,54 @@ type heartbeater interface {
 	UpdateTTL(id, output, status string) error
 }
 
+// contextExec allows canceling a ScriptExecutor with a context.
+type contextExec struct {
+	// pctx is the parent context. A subcontext will be created with Exec's
+	// timeout.
+	pctx context.Context
+
+	// exec to be wrapped in a context
+	exec interfaces.ScriptExecutor
+}
+
+func newContextExec(ctx context.Context, exec interfaces.ScriptExecutor) *contextExec {
+	return &contextExec{
+		pctx: ctx,
+		exec: exec,
+	}
+}
+
+type execResult struct {
+	buf  []byte
+	code int
+	err  error
+}
+
+// Exec a command until the timeout expires, the context is canceled, or the
+// underlying Exec returns.
+func (c *contextExec) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	resCh := make(chan execResult, 1)
+
+	// Don't trust the underlying implementation to obey timeout
+	ctx, cancel := context.WithTimeout(c.pctx, timeout)
+	defer cancel()
+
+	go func() {
+		output, code, err := c.exec.Exec(timeout, cmd, args)
+		select {
+		case resCh <- execResult{output, code, err}:
+		case <-ctx.Done():
+		}
+	}()
+
+	select {
+	case res := <-resCh:
+		return res.buf, res.code, res.err
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
+	}
+}
+
 // scriptHandle is returned by scriptCheck.run by cancelling a scriptCheck and
 // waiting for it to shutdown.
 type scriptHandle struct {
@@ -74,6 +122,11 @@ func newScriptCheck(allocID, taskName, checkID string, check *structs.ServiceChe
 func (s *scriptCheck) run() *scriptHandle {
 	ctx, cancel := context.WithCancel(context.Background())
 	exitCh := make(chan struct{})
+
+	// Wrap the original ScriptExecutor in one that obeys context
+	// cancelation.
+	ctxExec := newContextExec(ctx, s.exec)
+
 	go func() {
 		defer close(exitCh)
 		timer := time.NewTimer(0)
@@ -93,11 +146,10 @@ func (s *scriptCheck) run() *scriptHandle {
 			metrics.IncrCounter([]string{"client", "consul", "script_runs"}, 1)
 
 			// Execute check script with timeout
-			output, code, err := s.exec.Exec(s.check.Timeout, s.check.Command, s.check.Args)
+			output, code, err := ctxExec.Exec(s.check.Timeout, s.check.Command, s.check.Args)
 			switch err {
 			case context.Canceled:
 				// check removed during execution; exit
-				cancel()
 				return
 			case context.DeadlineExceeded:
 				metrics.IncrCounter([]string{"client", "consul", "script_timeouts"}, 1)
@@ -111,9 +163,6 @@ func (s *scriptCheck) run() *scriptHandle {
 				// failures
 				s.logger.Warn("check timed out", "timeout", s.check.Timeout)
 			}
-
-			// cleanup context
-			cancel()
 
 			state := api.HealthCritical
 			switch code {

@@ -7,7 +7,6 @@ import (
 
 	consul "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 const (
@@ -27,7 +26,7 @@ func NewConsulFingerprint(logger log.Logger) Fingerprint {
 	return &ConsulFingerprint{logger: logger.Named("consul"), lastState: consulUnavailable}
 }
 
-func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	// Only create the client once to avoid creating too many connections to
 	// Consul.
 	if f.client == nil {
@@ -103,7 +102,7 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 
 // clearConsulAttributes removes consul attributes and links from the passed
 // Node.
-func (f *ConsulFingerprint) clearConsulAttributes(r *cstructs.FingerprintResponse) {
+func (f *ConsulFingerprint) clearConsulAttributes(r *FingerprintResponse) {
 	r.RemoveAttribute("consul.server")
 	r.RemoveAttribute("consul.version")
 	r.RemoveAttribute("consul.revision")

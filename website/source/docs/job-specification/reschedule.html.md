@@ -36,7 +36,7 @@ job "docs" {
   group "example" {
     reschedule {
       attempts       = 15
-      interval       = "1hr"
+      interval       = "1h"
       delay          = "30s"
       delay_function = "exponential"
       max_delay      = "120s"
@@ -105,7 +105,7 @@ defaults by job type:
    reschedule {
      delay          = "30s"
      delay_function = "exponential"
-     max_delay      = "1hr"
+     max_delay      = "1h"
      unlimited      = true
    }
     ```

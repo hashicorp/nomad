@@ -142,7 +142,7 @@ type ConsoleOptions struct {
 	EscapeCharacter rune
 }
 
-// DefailtConsoleOptions is a convenient set of options to be used.
+// DefaultConsoleOptions is a convenient set of options to be used.
 var DefaultConsoleOptions = ConsoleOptions{
 	Tty:             -1,
 	StdinFd:         os.Stdin.Fd(),
@@ -175,25 +175,35 @@ var DefaultCloneOptions = CloneOptions{
 	Backend: Directory,
 }
 
-// CheckpointOptions type is used for defining checkpoint options for CRIU
+// CheckpointOptions type is used for defining checkpoint options for CRIU.
 type CheckpointOptions struct {
 	Directory string
 	Stop      bool
 	Verbose   bool
 }
 
-// RestoreOptions type is used for defining restore options for CRIU
+// RestoreOptions type is used for defining restore options for CRIU.
 type RestoreOptions struct {
 	Directory string
 	Verbose   bool
 }
 
+// MigrateOptions type is used for defining migrate options.
 type MigrateOptions struct {
 	Directory       string
+	PredumpDir      string
+	ActionScript    string
 	Verbose         bool
 	Stop            bool
-	PredumpDir      string
 	PreservesInodes bool
-	ActionScript    string
 	GhostLimit      uint64
+	FeaturesToCheck CriuFeatures
+}
+
+// ConsoleLogOptioins type is used for defining console log options.
+type ConsoleLogOptions struct {
+	ClearLog       bool
+	ReadLog        bool
+	ReadMax        uint64
+	WriteToLogFile bool
 }

@@ -14,6 +14,29 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+// ErrNotFound is returned when a key is not found.
+type ErrNotFound struct {
+	name string
+}
+
+func (e *ErrNotFound) Error() string {
+	return fmt.Sprintf("key not found: %s", e.name)
+}
+
+// NotFound returns a new error for a key that was not found.
+func NotFound(name string) error {
+	return &ErrNotFound{name}
+}
+
+// IsErrNotFound returns true if the error is an ErrNotFound error.
+func IsErrNotFound(e error) bool {
+	if e == nil {
+		return false
+	}
+	_, ok := e.(*ErrNotFound)
+	return ok
+}
+
 // DB wraps an underlying bolt.DB to create write deduplicating buckets and
 // msgpack encoded values.
 type DB struct {
@@ -46,6 +69,10 @@ func (db *DB) bucket(btx *bolt.Tx, name []byte) *Bucket {
 	db.rootBucketsLock.Lock()
 	defer db.rootBucketsLock.Unlock()
 
+	if db.isClosed() {
+		return nil
+	}
+
 	b, ok := db.rootBuckets[string(name)]
 	if !ok {
 		b = newBucketMeta()
@@ -64,6 +91,12 @@ func (db *DB) createBucket(btx *bolt.Tx, name []byte) (*Bucket, error) {
 	db.rootBucketsLock.Lock()
 	defer db.rootBucketsLock.Unlock()
 
+	// While creating a bucket on a closed db would error, we must recheck
+	// after acquiring the lock to avoid races.
+	if db.isClosed() {
+		return nil, bolt.ErrDatabaseNotOpen
+	}
+
 	// Always create a new Bucket since CreateBucket above fails if the
 	// bucket already exists.
 	b := newBucketMeta()
@@ -80,6 +113,12 @@ func (db *DB) createBucketIfNotExists(btx *bolt.Tx, name []byte) (*Bucket, error
 
 	db.rootBucketsLock.Lock()
 	defer db.rootBucketsLock.Unlock()
+
+	// While creating a bucket on a closed db would error, we must recheck
+	// after acquiring the lock to avoid races.
+	if db.isClosed() {
+		return nil, bolt.ErrDatabaseNotOpen
+	}
 
 	b, ok := db.rootBuckets[string(name)]
 	if !ok {
@@ -104,10 +143,18 @@ func (db *DB) View(fn func(*Tx) error) error {
 	})
 }
 
+// isClosed returns true if the database is closed and must be called while
+// db.rootBucketsLock is acquired.
+func (db *DB) isClosed() bool {
+	return db.rootBuckets == nil
+}
+
 // Close closes the underlying bolt.DB and clears all bucket hashes. DB is
 // unusable after closing.
 func (db *DB) Close() error {
+	db.rootBucketsLock.Lock()
 	db.rootBuckets = nil
+	db.rootBucketsLock.Unlock()
 	return db.bdb.Close()
 }
 
@@ -277,12 +324,13 @@ func (b *Bucket) Put(key []byte, val interface{}) error {
 
 }
 
-// Get value by key from boltdb or return an error if key not found.
+// Get value by key from boltdb or return an ErrNotFound error if key not
+// found.
 func (b *Bucket) Get(key []byte, obj interface{}) error {
 	// Get the raw data from the underlying boltdb
 	data := b.boltBucket.Get(key)
 	if data == nil {
-		return fmt.Errorf("no data at key %v", string(key))
+		return NotFound(string(key))
 	}
 
 	// Deserialize the object
@@ -342,11 +390,15 @@ func (b *Bucket) CreateBucketIfNotExists(name []byte) (*Bucket, error) {
 	return newBucket(bmeta, bb), nil
 }
 
-// DeleteBucket deletes a child bucket. Returns an error if the bucket does not
-// exist or corresponds to a non-bucket key.
+// DeleteBucket deletes a child bucket. Returns an error if the bucket
+// corresponds to a non-bucket key or another error is encountered. No error is
+// returned if the bucket does not exist.
 func (b *Bucket) DeleteBucket(name []byte) error {
 	// Delete the bucket from the underlying boltdb
 	err := b.boltBucket.DeleteBucket(name)
+	if err == bolt.ErrBucketNotFound {
+		err = nil
+	}
 
 	// Remove reference to child bucket
 	b.bm.deleteBucket(name)

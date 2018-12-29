@@ -800,7 +800,6 @@ func TestTask_Validate(t *testing.T) {
 		Resources: &Resources{
 			CPU:      100,
 			MemoryMB: 100,
-			IOPS:     10,
 		},
 		LogConfig: DefaultLogConfig(),
 	}
@@ -874,7 +873,6 @@ func TestTask_Validate_Services(t *testing.T) {
 		Resources: &Resources{
 			CPU:      100,
 			MemoryMB: 100,
-			IOPS:     10,
 		},
 		Services: []*Service{s1, s2},
 	}
@@ -1752,13 +1750,11 @@ func TestResource_Superset(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
-		IOPS:     100,
 	}
 	r2 := &Resources{
 		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
-		IOPS:     50,
 	}
 
 	if s, _ := r1.Superset(r1); !s {
@@ -1780,7 +1776,6 @@ func TestResource_Add(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 2048,
 		DiskMB:   10000,
-		IOPS:     100,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
@@ -1793,7 +1788,6 @@ func TestResource_Add(t *testing.T) {
 		CPU:      2000,
 		MemoryMB: 1024,
 		DiskMB:   5000,
-		IOPS:     50,
 		Networks: []*NetworkResource{
 			{
 				IP:            "10.0.0.1",
@@ -1812,7 +1806,6 @@ func TestResource_Add(t *testing.T) {
 		CPU:      3000,
 		MemoryMB: 3072,
 		DiskMB:   15000,
-		IOPS:     150,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
@@ -1867,6 +1860,75 @@ func TestResource_Add_Network(t *testing.T) {
 	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
 		t.Fatalf("bad: %#v %#v", expect.Networks[0], r1.Networks[0])
 	}
+}
+
+func TestComparableResources_Subtract(t *testing.T) {
+	r1 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 2000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 2048,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 10000,
+		},
+	}
+
+	r2 := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         20,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+	r1.Subtract(r2)
+
+	expect := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares: 1000,
+			},
+			Memory: AllocatedMemoryResources{
+				MemoryMB: 1024,
+			},
+			Networks: []*NetworkResource{
+				{
+					CIDR:          "10.0.0.0/8",
+					MBits:         100,
+					ReservedPorts: []Port{{"ssh", 22}},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 5000,
+		},
+	}
+
+	require := require.New(t)
+	require.Equal(expect, r1)
 }
 
 func TestEncodeDecode(t *testing.T) {
@@ -2671,6 +2733,15 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 				},
 			},
 			true,
+		},
+		{
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "md5:${ARTIFACT_CHECKSUM}",
+				},
+			},
+			false,
 		},
 	}
 
@@ -3895,7 +3966,6 @@ func TestNode_Copy(t *testing.T) {
 			CPU:      4000,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
-			IOPS:     150,
 			Networks: []*NetworkResource{
 				{
 					Device: "eth0",

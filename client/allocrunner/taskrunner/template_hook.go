@@ -10,7 +10,7 @@ import (
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/template"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -31,7 +31,7 @@ type templateHookConfig struct {
 	clientConfig *config.Config
 
 	// envBuilder is the environment variable builder for the task.
-	envBuilder *env.Builder
+	envBuilder *taskenv.Builder
 }
 
 type templateHook struct {

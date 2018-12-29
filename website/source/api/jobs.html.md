@@ -279,6 +279,7 @@ $ curl \
 {
     "AllAtOnce": false,
     "Constraints": null,
+    "Affinities":null,
     "CreateIndex": 0,
     "Datacenters": null,
     "ID": "my-job",
@@ -369,6 +370,14 @@ $ curl \
           "Operand": "set_contains"
         }
       ],
+      "Affinities": [
+         {
+          "LTarget": "${meta.datacenter}",
+          "RTarget": "dc1",
+          "Operand": "=",
+          "Weight": 50,
+         }
+       ],
       "RestartPolicy": {
         "Attempts": 10,
         "Interval": 300000000000,
@@ -429,11 +438,11 @@ $ curl \
             }
           ],
           "Constraints": null,
+          "Affinities":null,
           "Resources": {
             "CPU": 500,
             "MemoryMB": 256,
             "DiskMB": 0,
-            "IOPS": 0,
             "Networks": [
               {
                 "Device": "",
@@ -568,6 +577,7 @@ $ curl \
       "dc1"
     ],
     "Constraints": null,
+    "Affinities":null,
     "TaskGroups": [
       {
         "Name": "cache",
@@ -582,6 +592,7 @@ $ curl \
           "Canary": 0
         },
         "Constraints": null,
+        "Affinities":null,
         "RestartPolicy": {
           "Attempts": 10,
           "Interval": 300000000000,
@@ -630,11 +641,11 @@ $ curl \
             "Vault": null,
             "Templates": null,
             "Constraints": null,
+            "Affinities":null,
             "Resources": {
               "CPU": 500,
               "MemoryMB": 256,
               "DiskMB": 0,
-              "IOPS": 0,
               "Networks": [
                 {
                   "Device": "",

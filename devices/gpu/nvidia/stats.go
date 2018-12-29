@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
@@ -50,7 +52,7 @@ const (
 )
 
 // stats is the long running goroutine that streams device statistics
-func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResponse) {
+func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResponse, interval time.Duration) {
 	defer close(stats)
 
 	if d.initErr != nil {
@@ -70,7 +72,7 @@ func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResp
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			ticker.Reset(d.statsPeriod)
+			ticker.Reset(interval)
 		}
 
 		d.writeStatsToChannel(stats, time.Now())
@@ -132,8 +134,8 @@ func (d *NvidiaDevice) writeStatsToChannel(stats chan<- *device.StatsResponse, t
 	}
 }
 
-func newNotAvailableDeviceStats(unit, desc string) *device.StatValue {
-	return &device.StatValue{Unit: unit, Desc: desc, StringVal: notAvailable}
+func newNotAvailableDeviceStats(unit, desc string) *structs.StatValue {
+	return &structs.StatValue{Unit: unit, Desc: desc, StringVal: helper.StringToPtr(notAvailable)}
 }
 
 // statsForGroup is a helper function that populates device.DeviceGroupStats
@@ -158,135 +160,135 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 	// nvml.StatsData holds pointers to values that can be nil
 	// In case they are nil return stats with 'notAvailable' constant
 	var (
-		powerUsageStat         *device.StatValue
-		GPUUtilizationStat     *device.StatValue
-		memoryUtilizationStat  *device.StatValue
-		encoderUtilizationStat *device.StatValue
-		decoderUtilizationStat *device.StatValue
-		temperatureStat        *device.StatValue
-		memoryStateStat        *device.StatValue
-		BAR1StateStat          *device.StatValue
-		ECCErrorsL1CacheStat   *device.StatValue
-		ECCErrorsL2CacheStat   *device.StatValue
-		ECCErrorsDeviceStat    *device.StatValue
+		powerUsageStat         *structs.StatValue
+		GPUUtilizationStat     *structs.StatValue
+		memoryUtilizationStat  *structs.StatValue
+		encoderUtilizationStat *structs.StatValue
+		decoderUtilizationStat *structs.StatValue
+		temperatureStat        *structs.StatValue
+		memoryStateStat        *structs.StatValue
+		BAR1StateStat          *structs.StatValue
+		ECCErrorsL1CacheStat   *structs.StatValue
+		ECCErrorsL2CacheStat   *structs.StatValue
+		ECCErrorsDeviceStat    *structs.StatValue
 	)
 
 	if statsItem.PowerUsageW == nil || statsItem.PowerW == nil {
 		powerUsageStat = newNotAvailableDeviceStats(PowerUsageUnit, PowerUsageDesc)
 	} else {
-		powerUsageStat = &device.StatValue{
+		powerUsageStat = &structs.StatValue{
 			Unit:              PowerUsageUnit,
 			Desc:              PowerUsageDesc,
-			IntNumeratorVal:   int64(*statsItem.PowerUsageW),
-			IntDenominatorVal: int64(*statsItem.PowerW),
+			IntNumeratorVal:   helper.Int64ToPtr(int64(*statsItem.PowerUsageW)),
+			IntDenominatorVal: uintToInt64Ptr(statsItem.PowerW),
 		}
 	}
 
 	if statsItem.GPUUtilization == nil {
 		GPUUtilizationStat = newNotAvailableDeviceStats(GPUUtilizationUnit, GPUUtilizationDesc)
 	} else {
-		GPUUtilizationStat = &device.StatValue{
+		GPUUtilizationStat = &structs.StatValue{
 			Unit:            GPUUtilizationUnit,
 			Desc:            GPUUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.GPUUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.GPUUtilization),
 		}
 	}
 
 	if statsItem.MemoryUtilization == nil {
 		memoryUtilizationStat = newNotAvailableDeviceStats(MemoryUtilizationUnit, MemoryUtilizationDesc)
 	} else {
-		memoryUtilizationStat = &device.StatValue{
+		memoryUtilizationStat = &structs.StatValue{
 			Unit:            MemoryUtilizationUnit,
 			Desc:            MemoryUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.MemoryUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.MemoryUtilization),
 		}
 	}
 
 	if statsItem.EncoderUtilization == nil {
 		encoderUtilizationStat = newNotAvailableDeviceStats(EncoderUtilizationUnit, EncoderUtilizationDesc)
 	} else {
-		encoderUtilizationStat = &device.StatValue{
+		encoderUtilizationStat = &structs.StatValue{
 			Unit:            EncoderUtilizationUnit,
 			Desc:            EncoderUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.EncoderUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.EncoderUtilization),
 		}
 	}
 
 	if statsItem.DecoderUtilization == nil {
 		decoderUtilizationStat = newNotAvailableDeviceStats(DecoderUtilizationUnit, DecoderUtilizationDesc)
 	} else {
-		decoderUtilizationStat = &device.StatValue{
+		decoderUtilizationStat = &structs.StatValue{
 			Unit:            DecoderUtilizationUnit,
 			Desc:            DecoderUtilizationDesc,
-			IntNumeratorVal: int64(*statsItem.DecoderUtilization),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.DecoderUtilization),
 		}
 	}
 
 	if statsItem.TemperatureC == nil {
 		temperatureStat = newNotAvailableDeviceStats(TemperatureUnit, TemperatureDesc)
 	} else {
-		temperatureStat = &device.StatValue{
+		temperatureStat = &structs.StatValue{
 			Unit:            TemperatureUnit,
 			Desc:            TemperatureDesc,
-			IntNumeratorVal: int64(*statsItem.TemperatureC),
+			IntNumeratorVal: uintToInt64Ptr(statsItem.TemperatureC),
 		}
 	}
 
 	if statsItem.UsedMemoryMiB == nil || statsItem.MemoryMiB == nil {
 		memoryStateStat = newNotAvailableDeviceStats(MemoryStateUnit, MemoryStateDesc)
 	} else {
-		memoryStateStat = &device.StatValue{
+		memoryStateStat = &structs.StatValue{
 			Unit:              MemoryStateUnit,
 			Desc:              MemoryStateDesc,
-			IntNumeratorVal:   int64(*statsItem.UsedMemoryMiB),
-			IntDenominatorVal: int64(*statsItem.MemoryMiB),
+			IntNumeratorVal:   uint64ToInt64Ptr(statsItem.UsedMemoryMiB),
+			IntDenominatorVal: uint64ToInt64Ptr(statsItem.MemoryMiB),
 		}
 	}
 
 	if statsItem.BAR1UsedMiB == nil || statsItem.BAR1MiB == nil {
 		BAR1StateStat = newNotAvailableDeviceStats(BAR1StateUnit, BAR1StateDesc)
 	} else {
-		BAR1StateStat = &device.StatValue{
+		BAR1StateStat = &structs.StatValue{
 			Unit:              BAR1StateUnit,
 			Desc:              BAR1StateDesc,
-			IntNumeratorVal:   int64(*statsItem.BAR1UsedMiB),
-			IntDenominatorVal: int64(*statsItem.BAR1MiB),
+			IntNumeratorVal:   uint64ToInt64Ptr(statsItem.BAR1UsedMiB),
+			IntDenominatorVal: uint64ToInt64Ptr(statsItem.BAR1MiB),
 		}
 	}
 
 	if statsItem.ECCErrorsL1Cache == nil {
 		ECCErrorsL1CacheStat = newNotAvailableDeviceStats(ECCErrorsL1CacheUnit, ECCErrorsL1CacheDesc)
 	} else {
-		ECCErrorsL1CacheStat = &device.StatValue{
+		ECCErrorsL1CacheStat = &structs.StatValue{
 			Unit:            ECCErrorsL1CacheUnit,
 			Desc:            ECCErrorsL1CacheDesc,
-			IntNumeratorVal: int64(*statsItem.ECCErrorsL1Cache),
+			IntNumeratorVal: uint64ToInt64Ptr(statsItem.ECCErrorsL1Cache),
 		}
 	}
 
 	if statsItem.ECCErrorsL2Cache == nil {
 		ECCErrorsL2CacheStat = newNotAvailableDeviceStats(ECCErrorsL2CacheUnit, ECCErrorsL2CacheDesc)
 	} else {
-		ECCErrorsL2CacheStat = &device.StatValue{
+		ECCErrorsL2CacheStat = &structs.StatValue{
 			Unit:            ECCErrorsL2CacheUnit,
 			Desc:            ECCErrorsL2CacheDesc,
-			IntNumeratorVal: int64(*statsItem.ECCErrorsL2Cache),
+			IntNumeratorVal: uint64ToInt64Ptr(statsItem.ECCErrorsL2Cache),
 		}
 	}
 
 	if statsItem.ECCErrorsDevice == nil {
 		ECCErrorsDeviceStat = newNotAvailableDeviceStats(ECCErrorsDeviceUnit, ECCErrorsDeviceDesc)
 	} else {
-		ECCErrorsDeviceStat = &device.StatValue{
+		ECCErrorsDeviceStat = &structs.StatValue{
 			Unit:            ECCErrorsDeviceUnit,
 			Desc:            ECCErrorsDeviceDesc,
-			IntNumeratorVal: int64(*statsItem.ECCErrorsDevice),
+			IntNumeratorVal: uint64ToInt64Ptr(statsItem.ECCErrorsDevice),
 		}
 	}
 	return &device.DeviceStats{
-		Summary: temperatureStat,
-		Stats: &device.StatObject{
-			Attributes: map[string]*device.StatValue{
+		Summary: memoryStateStat,
+		Stats: &structs.StatObject{
+			Attributes: map[string]*structs.StatValue{
 				PowerUsageAttr:         powerUsageStat,
 				GPUUtilizationAttr:     GPUUtilizationStat,
 				MemoryUtilizationAttr:  memoryUtilizationStat,
@@ -302,4 +304,22 @@ func statsForItem(statsItem *nvml.StatsData, timestamp time.Time) *device.Device
 		},
 		Timestamp: timestamp,
 	}
+}
+
+func uintToInt64Ptr(u *uint) *int64 {
+	if u == nil {
+		return nil
+	}
+
+	v := int64(*u)
+	return &v
+}
+
+func uint64ToInt64Ptr(u *uint64) *int64 {
+	if u == nil {
+		return nil
+	}
+
+	v := int64(*u)
+	return &v
 }

@@ -244,6 +244,88 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	assert.EqualValues(1001, evalOut.ModifyIndex)
 }
 
+// This test checks that:
+// 1) Preempted allocations in plan results are updated
+// 2) Evals are inserted for preempted jobs
+func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
+	require := require.New(t)
+
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+
+	// Insert job
+	err := state.UpsertJob(999, job)
+	require.NoError(err)
+
+	// Create an eval
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	err = state.UpsertEvals(1, []*structs.Evaluation{eval})
+	require.NoError(err)
+
+	// Insert alloc that will be preempted in the plan
+	preemptedAlloc := mock.Alloc()
+	err = state.UpsertAllocs(2, []*structs.Allocation{preemptedAlloc})
+	require.NoError(err)
+
+	minimalPreemptedAlloc := &structs.Allocation{
+		ID:                 preemptedAlloc.ID,
+		Namespace:          preemptedAlloc.Namespace,
+		DesiredStatus:      structs.AllocDesiredStatusEvict,
+		ModifyTime:         time.Now().Unix(),
+		DesiredDescription: fmt.Sprintf("Preempted by allocation %v", alloc.ID),
+	}
+
+	// Create eval for preempted job
+	eval2 := mock.Eval()
+	eval2.JobID = preemptedAlloc.JobID
+
+	// Create a plan result
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{alloc},
+			Job:   job,
+		},
+		EvalID:          eval.ID,
+		NodePreemptions: []*structs.Allocation{minimalPreemptedAlloc},
+		PreemptionEvals: []*structs.Evaluation{eval2},
+	}
+
+	err = state.UpsertPlanResults(1000, &res)
+	require.NoError(err)
+
+	ws := memdb.NewWatchSet()
+
+	// Verify alloc and eval created by plan
+	out, err := state.AllocByID(ws, alloc.ID)
+	require.NoError(err)
+	require.Equal(alloc, out)
+
+	index, err := state.Index("allocs")
+	require.NoError(err)
+	require.EqualValues(1000, index)
+
+	evalOut, err := state.EvalByID(ws, eval.ID)
+	require.NoError(err)
+	require.NotNil(evalOut)
+	require.EqualValues(1000, evalOut.ModifyIndex)
+
+	// Verify preempted alloc
+	preempted, err := state.AllocByID(ws, preemptedAlloc.ID)
+	require.NoError(err)
+	require.Equal(preempted.DesiredStatus, structs.AllocDesiredStatusEvict)
+	require.Equal(preempted.DesiredDescription, fmt.Sprintf("Preempted by allocation %v", alloc.ID))
+
+	// Verify eval for preempted job
+	preemptedJobEval, err := state.EvalByID(ws, eval2.ID)
+	require.NoError(err)
+	require.NotNil(preemptedJobEval)
+	require.EqualValues(1000, preemptedJobEval.ModifyIndex)
+
+}
+
 // This test checks that deployment updates are applied correctly
 func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	state := testStateStore(t)
@@ -1577,6 +1659,75 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
+	state := testStateStore(t)
+
+	const testJobCount = 10
+	const jobVersionCount = 4
+
+	stateIndex := uint64(1000)
+
+	jobs := make([]*structs.Job, testJobCount)
+	for i := 0; i < testJobCount; i++ {
+		stateIndex++
+		job := mock.BatchJob()
+
+		err := state.UpsertJob(stateIndex, job)
+		require.NoError(t, err)
+
+		jobs[i] = job
+
+		// Create some versions
+		for vi := 1; vi < jobVersionCount; vi++ {
+			stateIndex++
+
+			job := job.Copy()
+			job.TaskGroups[0].Tasks[0].Env = map[string]string{
+				"Version": fmt.Sprintf("%d", vi),
+			}
+
+			require.NoError(t, state.UpsertJob(stateIndex, job))
+		}
+	}
+
+	ws := memdb.NewWatchSet()
+
+	// Sanity check that jobs are present in DB
+	job, err := state.JobByID(ws, jobs[0].Namespace, jobs[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, jobs[0].ID, job.ID)
+
+	jobVersions, err := state.JobVersionsByID(ws, jobs[0].Namespace, jobs[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, jobVersionCount, len(jobVersions))
+
+	// Actually delete
+	const deletionIndex = uint64(10001)
+	err = state.WithWriteTransaction(func(txn Txn) error {
+		for i, job := range jobs {
+			err := state.DeleteJobTxn(deletionIndex, job.Namespace, job.ID, txn)
+			require.NoError(t, err, "failed at %d %e", i, err)
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	assert.True(t, watchFired(ws))
+
+	ws = memdb.NewWatchSet()
+	out, err := state.JobByID(ws, jobs[0].Namespace, jobs[0].ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
+
+	jobVersions, err = state.JobVersionsByID(ws, jobs[0].Namespace, jobs[0].ID)
+	require.NoError(t, err)
+	require.Empty(t, jobVersions)
+
+	index, err := state.Index("jobs")
+	require.NoError(t, err)
+	require.Equal(t, deletionIndex, index)
 }
 
 func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
@@ -3551,6 +3702,8 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 	require.Nil(err)
 	require.NotNil(out)
 	require.True(out.DeploymentStatus.Canary)
+	require.NotNil(out.DeploymentStatus.Healthy)
+	require.True(*out.DeploymentStatus.Healthy)
 }
 
 func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
@@ -5468,7 +5621,15 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c2.DeploymentID = d.ID
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 
-	require.Nil(state.UpsertAllocs(3, []*structs.Allocation{c1, c2}))
+	// Create a healthy but terminal alloc
+	c3 := mock.Alloc()
+	c3.JobID = j.ID
+	c3.DeploymentID = d.ID
+	c3.DesiredStatus = structs.AllocDesiredStatusStop
+	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
+
+	require.Nil(state.UpsertAllocs(3, []*structs.Allocation{c1, c2, c3}))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -6685,6 +6846,33 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	assert.Equal(t, token, out)
+}
+
+func TestStateStore_SchedulerConfig(t *testing.T) {
+	state := testStateStore(t)
+	schedConfig := &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: false,
+		},
+		CreateIndex: 100,
+		ModifyIndex: 200,
+	}
+
+	require := require.New(t)
+	restore, err := state.Restore()
+
+	require.Nil(err)
+
+	err = restore.SchedulerConfigRestore(schedConfig)
+	require.Nil(err)
+
+	restore.Commit()
+
+	modIndex, out, err := state.SchedulerConfig()
+	require.Nil(err)
+	require.Equal(schedConfig.ModifyIndex, modIndex)
+
+	require.Equal(schedConfig, out)
 }
 
 func TestStateStore_Abandon(t *testing.T) {

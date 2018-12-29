@@ -1,0 +1,20 @@
+{{#freestyle-usage "stats-time-series-standard" title="Stats Time Series"}}
+  <div class="block" style="height:100px; width: 400px;">
+    {{stats-time-series data=staticMetrics chartClass="is-primary"}}
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "stats-time-series-comparison" title="Stats Time Series High/Low Comparison"}}
+  <div class="columns">
+    <div class="block column" style="height:200px; width:400px">
+      {{stats-time-series data=metricsHigh chartClass="is-info"}}
+    </div>
+    <div class="block column" style="height:200px; width:400px">
+      {{stats-time-series data=metricsLow chartClass="is-info"}}
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>Line charts, and therefore stats time series charts, use a constant linear gradient with a height equal to the canvas. This makes the color intensity of the gradient at values consistent across charts as long as those charts have the same y-axis domain.</p>
+  <p>This is used to great effect with stats charts since they all have a y-axis domain of 0-100%.</p>
+{{/freestyle-annotation}}

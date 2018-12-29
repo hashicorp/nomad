@@ -20,6 +20,10 @@ When running the job with the check-index flag, the job will only be run if the
 server side version matches the job modify index returned. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.`
+
+	// preemptionDisplayThreshold is an upper bound used to limit and summarize
+	// the details of preempted jobs in the output
+	preemptionDisplayThreshold = 10
 )
 
 type JobPlanCommand struct {
@@ -173,9 +177,74 @@ func (c *JobPlanCommand) Run(args []string) int {
 			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", resp.Warnings)))
 	}
 
+	// Print preemptions if there are any
+	if resp.Annotations != nil && len(resp.Annotations.PreemptedAllocs) > 0 {
+		c.addPreemptions(resp)
+	}
+
 	// Print the job index info
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return getExitCode(resp)
+}
+
+// addPreemptions shows details about preempted allocations
+func (c *JobPlanCommand) addPreemptions(resp *api.JobPlanResponse) {
+	c.Ui.Output(c.Colorize().Color("[bold][yellow]Preemptions:\n[reset]"))
+	if len(resp.Annotations.PreemptedAllocs) < preemptionDisplayThreshold {
+		var allocs []string
+		allocs = append(allocs, fmt.Sprintf("Alloc ID|Job ID|Task Group"))
+		for _, alloc := range resp.Annotations.PreemptedAllocs {
+			allocs = append(allocs, fmt.Sprintf("%s|%s|%s", alloc.ID, alloc.JobID, alloc.TaskGroup))
+		}
+		c.Ui.Output(formatList(allocs))
+		return
+	}
+	// Display in a summary format if the list is too large
+	// Group by job type and job ids
+	allocDetails := make(map[string]map[namespaceIdPair]int)
+	numJobs := 0
+	for _, alloc := range resp.Annotations.PreemptedAllocs {
+		id := namespaceIdPair{alloc.JobID, alloc.Namespace}
+		countMap := allocDetails[alloc.JobType]
+		if countMap == nil {
+			countMap = make(map[namespaceIdPair]int)
+		}
+		cnt, ok := countMap[id]
+		if !ok {
+			// First time we are seeing this job, increment counter
+			numJobs++
+		}
+		countMap[id] = cnt + 1
+		allocDetails[alloc.JobType] = countMap
+	}
+
+	// Show counts grouped by job ID if its less than a threshold
+	var output []string
+	if numJobs < preemptionDisplayThreshold {
+		output = append(output, fmt.Sprintf("Job ID|Namespace|Job Type|Preemptions"))
+		for jobType, jobCounts := range allocDetails {
+			for jobId, count := range jobCounts {
+				output = append(output, fmt.Sprintf("%s|%s|%s|%d", jobId.id, jobId.namespace, jobType, count))
+			}
+		}
+	} else {
+		// Show counts grouped by job type
+		output = append(output, fmt.Sprintf("Job Type|Preemptions"))
+		for jobType, jobCounts := range allocDetails {
+			total := 0
+			for _, count := range jobCounts {
+				total += count
+			}
+			output = append(output, fmt.Sprintf("%s|%d", jobType, total))
+		}
+	}
+	c.Ui.Output(formatList(output))
+
+}
+
+type namespaceIdPair struct {
+	id        string
+	namespace string
 }
 
 // getExitCode returns 0:

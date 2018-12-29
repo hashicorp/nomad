@@ -20,10 +20,10 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, nil)
+	testClient, cleanup := TestClient(t, nil)
 
 	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -48,10 +48,8 @@ func TestFingerprintManager_Run_MockDriver(t *testing.T) {
 func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, nil)
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	testClient, cleanup := TestClient(t, nil)
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -76,14 +74,12 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 func TestFingerprintManager_Fingerprint_Run(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "true",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -109,15 +105,13 @@ func TestFingerprintManager_Fingerprint_Periodic(t *testing.T) {
 	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"test.shutdown_periodic_after":    "true",
 			"test.shutdown_periodic_duration": "2",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -172,16 +166,14 @@ func TestFingerprintManager_HealthCheck_Driver(t *testing.T) {
 	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"driver.raw_exec.enable":          "1",
 			"test.shutdown_periodic_after":    "true",
 			"test.shutdown_periodic_duration": "2",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -275,15 +267,13 @@ func TestFingerprintManager_HealthCheck_Periodic(t *testing.T) {
 	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"test.shutdown_periodic_after":    "true",
 			"test.shutdown_periodic_duration": "2",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -373,15 +363,13 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"test.shutdown_periodic_after":    "true",
 			"test.shutdown_periodic_duration": "2",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -404,15 +392,13 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"fingerprint.whitelist": "  arch,memory,foo,bar	",
 			"fingerprint.blacklist": "  cpu	",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -437,15 +423,13 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"fingerprint.whitelist": "  arch,cpu,memory,foo,bar	",
-			"fingerprint.blacklist": "  memory,nomad	",
+			"fingerprint.blacklist": "  memory,host	",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -465,21 +449,19 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 	require.NotEqual(node.Attributes["cpu.frequency"], "")
 	require.NotEqual(node.Attributes["cpu.arch"], "")
 	require.NotContains(node.Attributes, "memory.totalbytes")
-	require.NotContains(node.Attributes, "nomad.version")
+	require.NotContains(node.Attributes, "os.name")
 }
 
 func TestFingerprintManager_Run_WhitelistDrivers(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   raw_exec ,  foo	",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -503,15 +485,13 @@ func TestFingerprintManager_Run_AllDriversBlacklisted(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   foo,bar,baz	",
 		}
 	})
-
-	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -538,7 +518,7 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 	t.Parallel()
 	require := require.New(t)
 
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   raw_exec,exec,foo,bar,baz	",
@@ -547,7 +527,7 @@ func TestFingerprintManager_Run_DriversWhiteListBlacklistCombination(t *testing.
 	})
 
 	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,
@@ -572,24 +552,24 @@ func TestFingerprintManager_Run_DriverFailure(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 		}
 	})
 
 	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	singLoader := testClient.config.PluginSingletonLoader
 
 	dispenseCalls := 0
 	loader := &loader.MockCatalog{
-		DispenseF: func(name, pluginType string, logger log.Logger) (loader.PluginInstance, error) {
+		DispenseF: func(name, pluginType string, cfg *base.ClientAgentConfig, logger log.Logger) (loader.PluginInstance, error) {
 			if pluginType == base.PluginTypeDriver && name == "raw_exec" {
 				dispenseCalls++
 			}
-			return singLoader.Dispense(name, pluginType, logger)
+			return singLoader.Dispense(name, pluginType, cfg, logger)
 		},
 		ReattachF: singLoader.Reattach,
 		CatalogF:  singLoader.Catalog,
@@ -626,7 +606,7 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	testClient := TestClient(t, func(c *config.Config) {
+	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
 			"driver.raw_exec.enable": "1",
 			"driver.whitelist": "   raw_exec,foo,bar,baz	",
@@ -635,7 +615,7 @@ func TestFingerprintManager_Run_DriversInBlacklist(t *testing.T) {
 	})
 
 	testClient.logger = testlog.HCLogger(t)
-	defer testClient.Shutdown()
+	defer cleanup()
 
 	fm := NewFingerprintManager(
 		testClient.config.PluginSingletonLoader,

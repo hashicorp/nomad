@@ -106,6 +106,24 @@ test('when there are jobs, but no matches for a search result, there is an empty
   });
 });
 
+test('searching resets the current page', function(assert) {
+  server.createList('job', JobsList.pageSize + 1, { createAllocations: false });
+  JobsList.visit();
+
+  andThen(() => {
+    JobsList.nextPage();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs?page=2', 'Page query param captures page=2');
+    JobsList.search('foobar');
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
+  });
+});
+
 test('when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state', function(assert) {
   server.createList('namespace', 2);
   const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });

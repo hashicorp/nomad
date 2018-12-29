@@ -40,7 +40,6 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.stateLock.Unlock()
 
 	// If deployment is unhealthy emit task events explaining why
-	a.ar.tasksLock.RLock()
 	if !healthy && isDeploy {
 		for task, event := range trackerTaskEvents {
 			if tr, ok := a.ar.tasks[task]; ok {
@@ -56,7 +55,6 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	for name, tr := range a.ar.tasks {
 		states[name] = tr.TaskState()
 	}
-	a.ar.tasksLock.RUnlock()
 
 	// Build the client allocation
 	calloc := a.ar.clientAlloc(states)
@@ -79,7 +77,8 @@ func (ar *allocRunner) initRunnerHooks() {
 	// directory path exists for other hooks.
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newDiskMigrationHook(hookLogger, ar.prevAllocWatcher, ar.allocDir),
+		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
+		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
 	}
 }
@@ -242,4 +241,28 @@ func (ar *allocRunner) destroy() error {
 	}
 
 	return nil
+}
+
+// shutdownHooks calls graceful shutdown hooks for when the agent is exiting.
+func (ar *allocRunner) shutdownHooks() {
+	for _, hook := range ar.runnerHooks {
+		sh, ok := hook.(interfaces.ShutdownHook)
+		if !ok {
+			continue
+		}
+
+		name := sh.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running shutdown hook", "name", name, "start", start)
+		}
+
+		sh.Shutdown()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished shutdown hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
 }

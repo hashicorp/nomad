@@ -1,6 +1,6 @@
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide } from '../utils';
-import { DATACENTERS, HOSTS } from '../common';
+import { DATACENTERS, HOSTS, generateResources } from '../common';
 import moment from 'moment';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
@@ -65,6 +65,8 @@ export default Factory.extend({
 
   drivers: makeDrivers,
 
+  resources: generateResources,
+
   attributes() {
     // TODO add variability to these
     return {
@@ -116,6 +118,10 @@ export default Factory.extend({
 
     node.update({
       eventIds: events.mapBy('id'),
+    });
+
+    server.create('client-stats', {
+      id: node.id,
     });
   },
 });

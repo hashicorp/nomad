@@ -4,39 +4,40 @@ package rkt
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	appcschema "github.com/appc/spec/schema"
+	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver/env"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
+	pexecutor "github.com/hashicorp/nomad/plugins/executor"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	rktv1 "github.com/rkt/rkt/api/v1"
-	"golang.org/x/net/context"
-
-	"encoding/json"
-	"io/ioutil"
-	"math/rand"
-	"strconv"
-
-	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/nomad/client/driver/executor"
 )
 
 const (
@@ -54,9 +55,35 @@ const (
 	// rktCmd is the command rkt is installed as.
 	rktCmd = "rkt"
 
-	// rktNetworkDeadline is how long to wait for container network to start
-	rktNetworkDeadline = 1 * time.Minute
+	// networkDeadline is how long to wait for container network
+	// information to become available.
+	networkDeadline = 1 * time.Minute
 )
+
+var (
+	// PluginID is the rawexec plugin metadata registered in the plugin
+	// catalog.
+	PluginID = loader.PluginID{
+		Name:       pluginName,
+		PluginType: base.PluginTypeDriver,
+	}
+
+	// PluginConfig is the rawexec factory function registered in the
+	// plugin catalog.
+	PluginConfig = &loader.InternalPluginConfig{
+		Config:  map[string]interface{}{},
+		Factory: func(l hclog.Logger) interface{} { return NewRktDriver(l) },
+	}
+)
+
+// PluginLoader maps pre-0.9 client driver options to post-0.9 plugin options.
+func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
+	conf := map[string]interface{}{}
+	if v, err := strconv.ParseBool(opts["driver.rkt.volumes.enabled"]); err == nil {
+		conf["volumes_enabled"] = v
+	}
+	return conf, nil
+}
 
 var (
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -85,7 +112,7 @@ var (
 		"dns_servers":        hclspec.NewAttr("dns_servers", "list(string)", false),
 		"dns_search_domains": hclspec.NewAttr("dns_search_domains", "list(string)", false),
 		"net":                hclspec.NewAttr("net", "list(string)", false),
-		"port_map":           hclspec.NewAttr("port_map", "map(string)", false),
+		"port_map":           hclspec.NewBlockAttrs("port_map", "string", false),
 		"volumes":            hclspec.NewAttr("volumes", "list(string)", false),
 		"insecure_options":   hclspec.NewAttr("insecure_options", "list(string)", false),
 		"no_overlay":         hclspec.NewAttr("no_overlay", "bool", false),
@@ -98,7 +125,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: cstructs.FSIsolationChroot,
+		FSIsolation: cstructs.FSIsolationImage,
 	}
 
 	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
@@ -115,43 +142,45 @@ type Config struct {
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	ImageName        string            `codec:"image" cty:"image"`
-	Command          string            `codec:"command" cty:"command"`
-	Args             []string          `codec:"args" cty:"args"`
-	TrustPrefix      string            `codec:"trust_prefix" cty:"trust_prefix"`
-	DNSServers       []string          `codec:"dns_servers" cty:"dns_servers"`               // DNS Server for containers
-	DNSSearchDomains []string          `codec:"dns_search_domains" cty:"dns_search_domains"` // DNS Search domains for containers
-	Net              []string          `codec:"net" cty:"net"`                               // Networks for the containers
-	PortMap          map[string]string `codec:"port_map" cty:"port_map"`                     // A map of host port and the port name defined in the image manifest file
-	Volumes          []string          `codec:"volumes" cty:"volumes"`                       // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
-	InsecureOptions  []string          `codec:"insecure_options" cty:"insecure_options"`     // list of args for --insecure-options
+	ImageName        string            `codec:"image"`
+	Command          string            `codec:"command"`
+	Args             []string          `codec:"args"`
+	TrustPrefix      string            `codec:"trust_prefix"`
+	DNSServers       []string          `codec:"dns_servers"`        // DNS Server for containers
+	DNSSearchDomains []string          `codec:"dns_search_domains"` // DNS Search domains for containers
+	Net              []string          `codec:"net"`                // Networks for the containers
+	PortMap          map[string]string `codec:"port_map"`           // A map of host port and the port name defined in the image manifest file
+	Volumes          []string          `codec:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
+	InsecureOptions  []string          `codec:"insecure_options"`   // list of args for --insecure-options
 
-	NoOverlay bool   `codec:"no_overlay" cty:"no_overlay"` // disable overlayfs for rkt run
-	Debug     bool   `codec:"debug" cty:"debug"`           // Enable debug option for rkt command
-	Group     string `codec:"group" cty:"group"`           // Group override for the container
+	NoOverlay bool   `codec:"no_overlay"` // disable overlayfs for rkt run
+	Debug     bool   `codec:"debug"`      // Enable debug option for rkt command
+	Group     string `codec:"group"`      // Group override for the container
 }
 
-// RktTaskState is the state which is encoded in the handle returned in
+// TaskState is the state which is encoded in the handle returned in
 // StartTask. This information is needed to rebuild the taskConfig state and handler
 // during recovery.
-type RktTaskState struct {
-	ReattachConfig *utils.ReattachConfig
+type TaskState struct {
+	ReattachConfig *shared.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
 	UUID           string
 }
 
-// RktDriver is a driver for running images via Rkt
-// We attempt to chose sane defaults for now, with more configuration available
-// planned in the future
-type RktDriver struct {
+// Driver is a driver for running images via Rkt We attempt to chose sane
+// defaults for now, with more configuration available planned in the future.
+type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
 
 	// config is the driver configuration set by the SetConfig RPC
 	config *Config
+
+	// nomadConfig is the client config from nomad
+	nomadConfig *base.ClientDriverConfig
 
 	// tasks is the in memory datastore mapping taskIDs to rktTaskHandles
 	tasks *taskStore
@@ -164,15 +193,14 @@ type RktDriver struct {
 	// ctx passed to any subsystems
 	signalShutdown context.CancelFunc
 
-	// logger will log to the plugin output which is usually an 'executor.out'
-	// file located in the root of the TaskDir
+	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
 func NewRktDriver(logger hclog.Logger) drivers.DriverPlugin {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger = logger.Named(pluginName)
-	return &RktDriver{
+	return &Driver{
 		eventer:        eventer.NewEventer(ctx, logger),
 		config:         &Config{},
 		tasks:          newTaskStore(),
@@ -182,39 +210,42 @@ func NewRktDriver(logger hclog.Logger) drivers.DriverPlugin {
 	}
 }
 
-func (d *RktDriver) PluginInfo() (*base.PluginInfoResponse, error) {
+func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
 	return pluginInfo, nil
 }
 
-func (d *RktDriver) ConfigSchema() (*hclspec.Spec, error) {
+func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-func (d *RktDriver) SetConfig(data []byte) error {
+func (d *Driver) SetConfig(data []byte, cfg *base.ClientAgentConfig) error {
 	var config Config
 	if err := base.MsgPackDecode(data, &config); err != nil {
 		return err
 	}
 
 	d.config = &config
+	if cfg != nil {
+		d.nomadConfig = cfg.Driver
+	}
 	return nil
 }
 
-func (d *RktDriver) TaskConfigSchema() (*hclspec.Spec, error) {
+func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 	return taskConfigSpec, nil
 }
 
-func (d *RktDriver) Capabilities() (*drivers.Capabilities, error) {
+func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	return capabilities, nil
 }
 
-func (r *RktDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 	ch := make(chan *drivers.Fingerprint)
-	go r.handleFingerprint(ctx, ch)
+	go d.handleFingerprint(ctx, ch)
 	return ch, nil
 }
 
-func (d *RktDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
+func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
 	defer close(ch)
 	ticker := time.NewTimer(0)
 	for {
@@ -230,11 +261,11 @@ func (d *RktDriver) handleFingerprint(ctx context.Context, ch chan *drivers.Fing
 	}
 }
 
-func (d *RktDriver) buildFingerprint() *drivers.Fingerprint {
+func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
-		Attributes:        map[string]string{},
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
+		HealthDescription: "ready",
 	}
 
 	// Only enable if we are root
@@ -272,29 +303,38 @@ func (d *RktDriver) buildFingerprint() *drivers.Fingerprint {
 		return fingerprint
 	}
 
-	fingerprint.Attributes["driver.rkt"] = "1"
-	fingerprint.Attributes["driver.rkt.version"] = rktMatches[1]
-	fingerprint.Attributes["driver.rkt.appc.version"] = appcMatches[1]
+	fingerprint.Attributes["driver.rkt"] = pstructs.NewBoolAttribute(true)
+	fingerprint.Attributes["driver.rkt.version"] = pstructs.NewStringAttribute(rktMatches[1])
+	fingerprint.Attributes["driver.rkt.appc.version"] = pstructs.NewStringAttribute(appcMatches[1])
 	if d.config.VolumesEnabled {
-		fingerprint.Attributes["driver.rkt.volumes.enabled"] = "1"
+		fingerprint.Attributes["driver.rkt.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
 	return fingerprint
 
 }
 
-func (d *RktDriver) RecoverTask(handle *drivers.TaskHandle) error {
+func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	if handle == nil {
 		return fmt.Errorf("error: handle cannot be nil")
 	}
 
-	var taskState RktTaskState
+	// If already attached to handle there's nothing to recover.
+	if _, ok := d.tasks.Get(handle.Config.ID); ok {
+		d.logger.Trace("nothing to recover; task already exists",
+			"task_id", handle.Config.ID,
+			"task_name", handle.Config.Name,
+		)
+		return nil
+	}
+
+	var taskState TaskState
 	if err := handle.GetDriverState(&taskState); err != nil {
 		d.logger.Error("failed to decode taskConfig state from handle", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to decode taskConfig state from handle: %v", err)
 	}
 
-	plugRC, err := utils.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from taskConfig state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
@@ -313,11 +353,11 @@ func (d *RktDriver) RecoverTask(handle *drivers.TaskHandle) error {
 	// The taskConfig's environment is set via --set-env flags in Start, but the rkt
 	// command itself needs an environment with PATH set to find iptables.
 	// TODO (preetha) need to figure out how to read env.blacklist
-	eb := env.NewEmptyBuilder()
+	eb := taskenv.NewEmptyBuilder()
 	filter := strings.Split(config.DefaultEnvBlacklist, ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
-	h := &rktTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		env:          rktEnv,
 		pid:          taskState.Pid,
@@ -335,7 +375,7 @@ func (d *RktDriver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
 	}
@@ -407,17 +447,17 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	sanitizedName := strings.Replace(cfg.Name, "_", "-", -1)
 
 	// Mount /alloc
-	allocVolName := fmt.Sprintf("%s-%s-alloc", cfg.ID, sanitizedName)
+	allocVolName := fmt.Sprintf("%s-%s-alloc", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", allocVolName, cfg.TaskDir().SharedAllocDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", allocVolName, "/alloc"))
 
 	// Mount /local
-	localVolName := fmt.Sprintf("%s-%s-local", cfg.ID, sanitizedName)
+	localVolName := fmt.Sprintf("%s-%s-local", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", localVolName, cfg.TaskDir().LocalDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", localVolName, "/local"))
 
 	// Mount /secrets
-	secretsVolName := fmt.Sprintf("%s-%s-secrets", cfg.ID, sanitizedName)
+	secretsVolName := fmt.Sprintf("%s-%s-secrets", cfg.AllocID, sanitizedName)
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s", secretsVolName, cfg.TaskDir().SecretsDir))
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", secretsVolName, "/secrets"))
 
@@ -442,10 +482,25 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 			} else if len(parts) != 2 {
 				return nil, nil, fmt.Errorf("invalid rkt volume: %q", rawvol)
 			}
-			volName := fmt.Sprintf("%s-%s-%d", cfg.ID, sanitizedName, i)
+			volName := fmt.Sprintf("%s-%s-%d", cfg.AllocID, sanitizedName, i)
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%s", volName, parts[0], readOnly))
 			prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, parts[1]))
 		}
+	}
+
+	// Mount task volumes, always do
+	for i, vol := range cfg.Mounts {
+		volName := fmt.Sprintf("%s-%s-taskmounts-%d", cfg.AllocID, sanitizedName, i)
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%v", volName, vol.HostPath, vol.Readonly))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, vol.TaskPath))
+	}
+
+	// Mount task devices, always do
+	for i, vol := range cfg.Devices {
+		volName := fmt.Sprintf("%s-%s-taskdevices-%d", cfg.AllocID, sanitizedName, i)
+		readOnly := !strings.Contains(vol.Permissions, "w")
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--volume=%s,kind=host,source=%s,readOnly=%v", volName, vol.HostPath, readOnly))
+		prepareArgs = append(prepareArgs, fmt.Sprintf("--mount=volume=%s,target=%s", volName, vol.TaskPath))
 	}
 
 	// Inject environment variables
@@ -564,13 +619,12 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	}
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, fmt.Sprintf("%s-executor.out", cfg.Name))
-	executorConfig := &dstructs.ExecutorConfig{
+	executorConfig := &pexecutor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
 	}
 
-	// TODO: best way to pass port ranges in from client config
-	execImpl, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, 14000, 14512, executorConfig)
+	execImpl, pluginClient, err := utils.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -597,7 +651,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	// command itself needs an environment with PATH set to find iptables.
 
 	// TODO (preetha) need to figure out how to pass env.blacklist from client config
-	eb := env.NewEmptyBuilder()
+	eb := taskenv.NewEmptyBuilder()
 	filter := strings.Split(config.DefaultEnvBlacklist, ",")
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
@@ -613,7 +667,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 			MemoryMB: int(drivers.BytesToMB(cfg.Resources.LinuxResources.MemoryLimitBytes)),
 			DiskMB:   cfg.Resources.NomadResources.DiskMB,
 		},
-		Env:        cfg.EnvList(),
+		Env:        rktEnv.List(),
 		TaskDir:    cfg.TaskDir().Dir,
 		StdoutPath: cfg.StdoutPath,
 		StderrPath: cfg.StderrPath,
@@ -625,7 +679,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 	}
 
 	d.logger.Debug("started taskConfig", "aci", img, "uuid", uuid, "task_name", cfg.Name, "args", runArgs)
-	h := &rktTaskHandle{
+	h := &taskHandle{
 		exec:         execImpl,
 		env:          rktEnv,
 		pid:          ps.Pid,
@@ -637,8 +691,8 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 		logger:       d.logger,
 	}
 
-	rktDriverState := RktTaskState{
-		ReattachConfig: utils.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+	rktDriverState := TaskState{
+		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,
@@ -678,7 +732,7 @@ func (d *RktDriver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cs
 
 }
 
-func (d *RktDriver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
+func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -690,7 +744,7 @@ func (d *RktDriver) WaitTask(ctx context.Context, taskID string) (<-chan *driver
 	return ch, nil
 }
 
-func (d *RktDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
+func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -706,7 +760,7 @@ func (d *RktDriver) StopTask(taskID string, timeout time.Duration, signal string
 	return nil
 }
 
-func (d *RktDriver) DestroyTask(taskID string, force bool) error {
+func (d *Driver) DestroyTask(taskID string, force bool) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -730,31 +784,16 @@ func (d *RktDriver) DestroyTask(taskID string, force bool) error {
 	return nil
 }
 
-func (d *RktDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
+func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	handle.stateLock.RLock()
-	defer handle.stateLock.RUnlock()
-
-	status := &drivers.TaskStatus{
-		ID:          handle.taskConfig.ID,
-		Name:        handle.taskConfig.Name,
-		State:       handle.procState,
-		StartedAt:   handle.startedAt,
-		CompletedAt: handle.completedAt,
-		ExitResult:  handle.exitResult,
-		DriverAttributes: map[string]string{
-			"pid": strconv.Itoa(handle.pid),
-		},
-	}
-
-	return status, nil
+	return handle.TaskStatus(), nil
 }
 
-func (d *RktDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -763,11 +802,11 @@ func (d *RktDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error
 	return handle.exec.Stats()
 }
 
-func (d *RktDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
+func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.eventer.TaskEvents(ctx)
 }
 
-func (d *RktDriver) SignalTask(taskID string, signal string) error {
+func (d *Driver) SignalTask(taskID string, signal string) error {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
@@ -781,7 +820,7 @@ func (d *RktDriver) SignalTask(taskID string, signal string) error {
 	return handle.exec.Signal(sig)
 }
 
-func (d *RktDriver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
+func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	if len(cmdArgs) == 0 {
 		return nil, fmt.Errorf("error cmd must have atleast one value")
 	}
@@ -823,7 +862,7 @@ func GetAbsolutePath(bin string) (string, error) {
 }
 
 func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, logger hclog.Logger) (*cstructs.DriverNetwork, error) {
-	deadline := time.Now().Add(rktNetworkDeadline)
+	deadline := time.Now().Add(networkDeadline)
 	var lastErr error
 	try := 0
 
@@ -968,7 +1007,7 @@ func elide(inBuf bytes.Buffer) string {
 	return tempBuf.String()
 }
 
-func (d *RktDriver) handleWait(ctx context.Context, handle *rktTaskHandle, ch chan *drivers.ExitResult) {
+func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
 	ps, err := handle.exec.Wait()

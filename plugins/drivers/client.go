@@ -1,18 +1,23 @@
 package drivers
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
+	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
+	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"golang.org/x/net/context"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	"google.golang.org/grpc/status"
 )
 
 var _ DriverPlugin = &driverPluginClient{}
@@ -22,12 +27,15 @@ type driverPluginClient struct {
 
 	client proto.DriverClient
 	logger hclog.Logger
+
+	// doneCtx is closed when the plugin exits
+	doneCtx context.Context
 }
 
 func (d *driverPluginClient) TaskConfigSchema() (*hclspec.Spec, error) {
 	req := &proto.TaskConfigSchemaRequest{}
 
-	resp, err := d.client.TaskConfigSchema(context.Background(), req)
+	resp, err := d.client.TaskConfigSchema(d.doneCtx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +46,7 @@ func (d *driverPluginClient) TaskConfigSchema() (*hclspec.Spec, error) {
 func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 	req := &proto.CapabilitiesRequest{}
 
-	resp, err := d.client.Capabilities(context.Background(), req)
+	resp, err := d.client.Capabilities(d.doneCtx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -67,12 +75,15 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 func (d *driverPluginClient) Fingerprint(ctx context.Context) (<-chan *Fingerprint, error) {
 	req := &proto.FingerprintRequest{}
 
+	// Join the passed context and the shutdown context
+	ctx, _ = joincontext.Join(ctx, d.doneCtx)
+
 	stream, err := d.client.Fingerprint(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make(chan *Fingerprint)
+	ch := make(chan *Fingerprint, 1)
 	go d.handleFingerprint(ctx, ch, stream)
 
 	return ch, nil
@@ -82,19 +93,20 @@ func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fin
 	defer close(ch)
 	for {
 		pb, err := stream.Recv()
-		if err == io.EOF {
-			return
-		}
 		if err != nil {
-			d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
-			select {
-			case <-ctx.Done():
-			case ch <- &Fingerprint{Err: fmt.Errorf("error from RPC stream: %v", err)}:
+			if err != io.EOF {
+				d.logger.Error("error receiving stream from Fingerprint driver RPC", "error", err)
+				ch <- &Fingerprint{
+					Err: shared.HandleStreamErr(err, ctx, d.doneCtx),
+				}
 			}
+
+			// End the stream
 			return
 		}
+
 		f := &Fingerprint{
-			Attributes:        pb.Attributes,
+			Attributes:        pstructs.ConvertProtoAttributeMap(pb.Attributes),
 			Health:            healthStateFromProto(pb.Health),
 			HealthDescription: pb.HealthDescription,
 		}
@@ -112,7 +124,7 @@ func (d *driverPluginClient) handleFingerprint(ctx context.Context, ch chan *Fin
 func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
 	req := &proto.RecoverTaskRequest{Handle: taskHandleToProto(h)}
 
-	_, err := d.client.RecoverTask(context.Background(), req)
+	_, err := d.client.RecoverTask(d.doneCtx, req)
 	return err
 }
 
@@ -124,8 +136,14 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.Dr
 		Task: taskConfigToProto(c),
 	}
 
-	resp, err := d.client.StartTask(context.Background(), req)
+	resp, err := d.client.StartTask(d.doneCtx, req)
 	if err != nil {
+		st := status.Convert(err)
+		if len(st.Details()) > 0 {
+			if rec, ok := st.Details()[0].(*sproto.RecoverableError); ok {
+				return nil, nil, structs.NewRecoverableError(err, rec.Recoverable)
+			}
+		}
 		return nil, nil, err
 	}
 
@@ -150,6 +168,10 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.Dr
 // the same task without issue.
 func (d *driverPluginClient) WaitTask(ctx context.Context, id string) (<-chan *ExitResult, error) {
 	ch := make(chan *ExitResult)
+
+	// Join the passed context and the shutdown context
+	ctx, _ = joincontext.Join(ctx, d.doneCtx)
+
 	go d.handleWaitTask(ctx, id, ch)
 	return ch, nil
 }
@@ -186,7 +208,7 @@ func (d *driverPluginClient) StopTask(taskID string, timeout time.Duration, sign
 		Signal:  signal,
 	}
 
-	_, err := d.client.StopTask(context.Background(), req)
+	_, err := d.client.StopTask(d.doneCtx, req)
 	return err
 }
 
@@ -199,7 +221,7 @@ func (d *driverPluginClient) DestroyTask(taskID string, force bool) error {
 		Force:  force,
 	}
 
-	_, err := d.client.DestroyTask(context.Background(), req)
+	_, err := d.client.DestroyTask(d.doneCtx, req)
 	return err
 }
 
@@ -207,7 +229,7 @@ func (d *driverPluginClient) DestroyTask(taskID string, force bool) error {
 func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 	req := &proto.InspectTaskRequest{TaskId: taskID}
 
-	resp, err := d.client.InspectTask(context.Background(), req)
+	resp, err := d.client.InspectTask(d.doneCtx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +260,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
 	req := &proto.TaskStatsRequest{TaskId: taskID}
 
-	resp, err := d.client.TaskStats(context.Background(), req)
+	resp, err := d.client.TaskStats(d.doneCtx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -255,28 +277,36 @@ func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsa
 // tasks such as lifecycle events, terminal errors, etc.
 func (d *driverPluginClient) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
 	req := &proto.TaskEventsRequest{}
+
+	// Join the passed context and the shutdown context
+	ctx, _ = joincontext.Join(ctx, d.doneCtx)
+
 	stream, err := d.client.TaskEvents(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	ch := make(chan *TaskEvent)
-	go d.handleTaskEvents(ch, stream)
+	ch := make(chan *TaskEvent, 1)
+	go d.handleTaskEvents(ctx, ch, stream)
 	return ch, nil
 }
 
-func (d *driverPluginClient) handleTaskEvents(ch chan *TaskEvent, stream proto.Driver_TaskEventsClient) {
+func (d *driverPluginClient) handleTaskEvents(ctx context.Context, ch chan *TaskEvent, stream proto.Driver_TaskEventsClient) {
 	defer close(ch)
 	for {
 		ev, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
 		if err != nil {
-			d.logger.Error("error receiving stream from TaskEvents driver RPC", "error", err)
-			ch <- &TaskEvent{Err: err}
-			break
+			if err != io.EOF {
+				d.logger.Error("error receiving stream from TaskEvents driver RPC", "error", err)
+				ch <- &TaskEvent{
+					Err: shared.HandleStreamErr(err, ctx, d.doneCtx),
+				}
+			}
+
+			// End the stream
+			return
 		}
+
 		timestamp, _ := ptypes.Timestamp(ev.Timestamp)
 		event := &TaskEvent{
 			TaskID:      ev.TaskId,
@@ -284,7 +314,11 @@ func (d *driverPluginClient) handleTaskEvents(ch chan *TaskEvent, stream proto.D
 			Message:     ev.Message,
 			Timestamp:   timestamp,
 		}
-		ch <- event
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- event:
+		}
 	}
 }
 
@@ -294,7 +328,7 @@ func (d *driverPluginClient) SignalTask(taskID string, signal string) error {
 		TaskId: taskID,
 		Signal: signal,
 	}
-	_, err := d.client.SignalTask(context.Background(), req)
+	_, err := d.client.SignalTask(d.doneCtx, req)
 	return err
 }
 
@@ -309,7 +343,7 @@ func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.
 		Timeout: ptypes.DurationProto(timeout),
 	}
 
-	resp, err := d.client.ExecTask(context.Background(), req)
+	resp, err := d.client.ExecTask(d.doneCtx, req)
 	if err != nil {
 		return nil, err
 	}

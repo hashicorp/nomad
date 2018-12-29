@@ -29,7 +29,6 @@ func testJob() *Job {
 		Require(&Resources{
 			CPU:      helper.IntToPtr(100),
 			MemoryMB: helper.IntToPtr(256),
-			IOPS:     helper.IntToPtr(10),
 		}).
 		SetLogConfig(&LogConfig{
 			MaxFiles:      helper.IntToPtr(1),

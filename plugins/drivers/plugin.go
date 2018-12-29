@@ -38,9 +38,24 @@ func (p *PluginDriver) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 func (p *PluginDriver) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &driverPluginClient{
 		BasePluginClient: &base.BasePluginClient{
-			Client: baseproto.NewBasePluginClient(c),
+			DoneCtx: ctx,
+			Client:  baseproto.NewBasePluginClient(c),
 		},
-		client: proto.NewDriverClient(c),
-		logger: p.logger,
+		client:  proto.NewDriverClient(c),
+		logger:  p.logger,
+		doneCtx: ctx,
 	}, nil
+}
+
+// Serve is used to serve a driverplugin
+func Serve(d DriverPlugin, logger hclog.Logger) {
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: base.Handshake,
+		Plugins: map[string]plugin.Plugin{
+			base.PluginTypeBase:   &base.PluginBase{Impl: d},
+			base.PluginTypeDriver: &PluginDriver{impl: d, logger: logger},
+		},
+		GRPCServer: plugin.DefaultGRPCServer,
+		Logger:     logger,
+	})
 }

@@ -25,6 +25,10 @@ type RankedNode struct {
 	// Allocs is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
 	Proposed []*structs.Allocation
+
+	// PreemptedAllocs is used by the BinpackIterator to identify allocs
+	// that should be preempted in order to make the placement
+	PreemptedAllocs []*structs.Allocation
 }
 
 func (r *RankedNode) GoString() string {
@@ -187,6 +191,14 @@ OUTER:
 		netIdx.SetNode(option.Node)
 		netIdx.AddAllocs(proposed)
 
+		// Create a device allocator
+		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
+		devAllocator.AddAllocs(proposed)
+
+		// Track the affinities of the devices
+		totalDeviceAffinityWeight := 0.0
+		sumMatchingAffinities := 0.0
+
 		// Assign the resources for each task
 		total := &structs.AllocatedResources{
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
@@ -195,6 +207,21 @@ OUTER:
 				DiskMB: int64(iter.taskGroup.EphemeralDisk.SizeMB),
 			},
 		}
+
+		var allocsToPreempt []*structs.Allocation
+
+		// Initialize preemptor with node
+		preemptor := NewPreemptor(iter.priority, iter.ctx)
+		preemptor.SetNode(option.Node)
+
+		// Count the number of existing preemptions
+		allPreemptions := iter.ctx.Plan().NodePreemptions
+		var currentPreemptions []*structs.Allocation
+		for _, allocs := range allPreemptions {
+			currentPreemptions = append(currentPreemptions, allocs...)
+		}
+		preemptor.SetPreemptions(currentPreemptions)
+
 		for _, task := range iter.taskGroup.Tasks {
 			// Allocate the resources
 			taskResources := &structs.AllocatedTaskResources{
@@ -211,10 +238,40 @@ OUTER:
 				ask := task.Resources.Networks[0].Copy()
 				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
-					iter.ctx.Metrics().ExhaustedNode(option.Node,
-						fmt.Sprintf("network: %s", err))
+					// If eviction is not enabled, mark this node as exhausted and continue
+					if !iter.evict {
+						iter.ctx.Metrics().ExhaustedNode(option.Node,
+							fmt.Sprintf("network: %s", err))
+						netIdx.Release()
+						continue OUTER
+					}
+
+					// Look for preemptible allocations to satisfy the network resource for this task
+					preemptor.SetCandidates(proposed)
+
+					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
+					if netPreemptions == nil {
+						iter.ctx.Logger().Named("binpack").Error("preemption not possible ", "network_resource", ask)
+						netIdx.Release()
+						continue OUTER
+					}
+					allocsToPreempt = append(allocsToPreempt, netPreemptions...)
+
+					// First subtract out preempted allocations
+					proposed = structs.RemoveAllocs(proposed, netPreemptions)
+
+					// Reset the network index and try the offer again
 					netIdx.Release()
-					continue OUTER
+					netIdx = structs.NewNetworkIndex()
+					netIdx.SetNode(option.Node)
+					netIdx.AddAllocs(proposed)
+
+					offer, err = netIdx.AssignNetwork(ask)
+					if offer == nil {
+						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create network offer after considering preemption", "error", err)
+						netIdx.Release()
+						continue OUTER
+					}
 				}
 
 				// Reserve this to prevent another task from colliding
@@ -224,6 +281,55 @@ OUTER:
 				taskResources.Networks = []*structs.NetworkResource{offer}
 			}
 
+			// Check if we need to assign devices
+			for _, req := range task.Resources.Devices {
+				offer, sumAffinities, err := devAllocator.AssignDevice(req)
+				if offer == nil {
+					// If eviction is not enabled, mark this node as exhausted and continue
+					if !iter.evict {
+						iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
+						continue OUTER
+					}
+
+					// Attempt preemption
+					preemptor.SetCandidates(proposed)
+					devicePreemptions := preemptor.PreemptForDevice(req, devAllocator)
+
+					if devicePreemptions == nil {
+						iter.ctx.Logger().Named("binpack").Error("preemption not possible", "requested_device", req)
+						netIdx.Release()
+						continue OUTER
+					}
+					allocsToPreempt = append(allocsToPreempt, devicePreemptions...)
+
+					// First subtract out preempted allocations
+					proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
+
+					// Reset the device allocator with new set of proposed allocs
+					devAllocator := newDeviceAllocator(iter.ctx, option.Node)
+					devAllocator.AddAllocs(proposed)
+
+					// Try offer again
+					offer, sumAffinities, err = devAllocator.AssignDevice(req)
+					if offer == nil {
+						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create device offer after considering preemption", "error", err)
+						continue OUTER
+					}
+				}
+
+				// Store the resource
+				devAllocator.AddReserved(offer)
+				taskResources.Devices = append(taskResources.Devices, offer)
+
+				// Add the scores
+				if len(req.Affinities) != 0 {
+					for _, a := range req.Affinities {
+						totalDeviceAffinityWeight += math.Abs(a.Weight)
+					}
+					sumMatchingAffinities += sumAffinities
+				}
+			}
+
 			// Store the task resource
 			option.SetTaskResources(task, taskResources)
 
@@ -231,27 +337,55 @@ OUTER:
 			total.Tasks[task.Name] = taskResources
 		}
 
+		// Store current set of running allocs before adding resources for the task group
+		current := proposed
+
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
 
 		// Check if these allocations fit, if they do not, simply skip this node
-		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx)
+		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx, false)
 		netIdx.Release()
 		if !fit {
-			iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
-			continue
-		}
+			// Skip the node if evictions are not enabled
+			if !iter.evict {
+				iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
+				continue
+			}
 
-		// XXX: For now we completely ignore evictions. We should use that flag
-		// to determine if its possible to evict other lower priority allocations
-		// to make room. This explodes the search space, so it must be done
-		// carefully.
+			// If eviction is enabled and the node doesn't fit the alloc, check if
+			// any allocs can be preempted
+
+			// Initialize preemptor with candidate set
+			preemptor.SetCandidates(current)
+
+			preemptedAllocs := preemptor.PreemptForTaskGroup(total)
+			allocsToPreempt = append(allocsToPreempt, preemptedAllocs...)
+
+			// If we were unable to find preempted allocs to meet these requirements
+			// mark as exhausted and continue
+			if len(preemptedAllocs) == 0 {
+				iter.ctx.Metrics().ExhaustedNode(option.Node, dim)
+				continue
+			}
+		}
+		if len(allocsToPreempt) > 0 {
+			option.PreemptedAllocs = allocsToPreempt
+		}
 
 		// Score the fit normally otherwise
 		fitness := structs.ScoreFit(option.Node, util)
 		normalizedFit := fitness / binPackingMaxFitScore
 		option.Scores = append(option.Scores, normalizedFit)
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)
+
+		// Score the device affinity
+		if totalDeviceAffinityWeight != 0 {
+			sumMatchingAffinities /= totalDeviceAffinityWeight
+			option.Scores = append(option.Scores, sumMatchingAffinities)
+			iter.ctx.Metrics().ScoreNode(option.Node, "devices", sumMatchingAffinities)
+		}
+
 		return option
 	}
 }
@@ -319,6 +453,8 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 			scorePenalty := -1 * float64(collisions+1) / float64(iter.desiredCount)
 			option.Scores = append(option.Scores, scorePenalty)
 			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", scorePenalty)
+		} else {
+			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", 0)
 		}
 		return option
 	}
@@ -362,6 +498,8 @@ func (iter *NodeReschedulingPenaltyIterator) Next() *RankedNode {
 		if ok {
 			option.Scores = append(option.Scores, -1)
 			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", -1)
+		} else {
+			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", 0)
 		}
 		return option
 	}
@@ -428,6 +566,7 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 		return nil
 	}
 	if !iter.hasAffinities() {
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", 0)
 		return option
 	}
 	// TODO(preetha): we should calculate normalized weights once and reuse it here
@@ -453,17 +592,11 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 func matchesAffinity(ctx Context, affinity *structs.Affinity, option *structs.Node) bool {
 	//TODO(preetha): Add a step here that filters based on computed node class for potential speedup
 	// Resolve the targets
-	lVal, ok := resolveTarget(affinity.LTarget, option)
-	if !ok {
-		return false
-	}
-	rVal, ok := resolveTarget(affinity.RTarget, option)
-	if !ok {
-		return false
-	}
+	lVal, lOk := resolveTarget(affinity.LTarget, option)
+	rVal, rOk := resolveTarget(affinity.RTarget, option)
 
 	// Check if satisfied
-	return checkAffinity(ctx, affinity.Operand, lVal, rVal)
+	return checkAffinity(ctx, affinity.Operand, lVal, rVal, lOk, rOk)
 }
 
 // ScoreNormalizationIterator is used to combine scores from various prior

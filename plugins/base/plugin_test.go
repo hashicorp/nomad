@@ -112,10 +112,13 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 
 	var receivedData []byte
 	mock := &MockPlugin{
+		PluginInfoF: func() (*PluginInfoResponse, error) {
+			return &PluginInfoResponse{Type: PluginTypeDriver}, nil
+		},
 		ConfigSchemaF: func() (*hclspec.Spec, error) {
 			return TestSpec, nil
 		},
-		SetConfigF: func(data []byte) error {
+		SetConfigF: func(data []byte, cfg *ClientAgentConfig) error {
 			receivedData = data
 			return nil
 		},
@@ -144,7 +147,7 @@ func TestBasePlugin_SetConfig(t *testing.T) {
 	})
 	cdata, err := msgpack.Marshal(config, config.Type())
 	require.NoError(err)
-	require.NoError(impl.SetConfig(cdata))
+	require.NoError(impl.SetConfig(cdata, &ClientAgentConfig{}))
 	require.Equal(cdata, receivedData)
 
 	// Decode the value back

@@ -38,7 +38,7 @@ properly:
 ```bash
 $ consul members
 $ nomad server members
-$ nomad node-status
+$ nomad node status
 ```
 
 ## Unseal the Vault cluster (optional)
@@ -47,7 +47,7 @@ To initialize and unseal Vault, run:
 
 ```bash
 $ vault operator init -key-shares=1 -key-threshold=1
-$ vault unseal
+$ vault operator unseal
 $ export VAULT_TOKEN=[INITIAL_ROOT_TOKEN]
 ```
 

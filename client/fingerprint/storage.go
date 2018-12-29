@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,7 +23,7 @@ func NewStorageFingerprint(logger log.Logger) Fingerprint {
 	return fp
 }
 
-func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
 
 	// Guard against unset AllocDir

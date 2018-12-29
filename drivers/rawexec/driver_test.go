@@ -19,10 +19,13 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 func TestMain(m *testing.M) {
@@ -36,71 +39,87 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
 
 	// Disable raw exec.
 	config := &Config{}
 
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
-	require.Exactly(config, d.(*RawExecDriver).config)
+	require.NoError(harness.SetConfig(data, nil))
+	require.Exactly(config, d.(*Driver).config)
 
 	config.Enabled = true
 	config.NoCgroups = true
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
-	require.Exactly(config, d.(*RawExecDriver).config)
+	require.NoError(harness.SetConfig(data, nil))
+	require.Exactly(config, d.(*Driver).config)
 
 	config.NoCgroups = false
 	data = []byte{}
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
-	require.Exactly(config, d.(*RawExecDriver).config)
+	require.NoError(harness.SetConfig(data, nil))
+	require.Exactly(config, d.(*Driver).config)
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	fingerprintTest := func(config *Config, expected *drivers.Fingerprint) func(t *testing.T) {
+		return func(t *testing.T) {
+			require := require.New(t)
+			d := NewRawExecDriver(testlog.HCLogger(t)).(*Driver)
+			harness := dtestutil.NewDriverHarness(t, d)
+			defer harness.Kill()
 
-	// Disable raw exec.
-	config := &Config{}
+			var data []byte
+			require.NoError(basePlug.MsgPackEncode(&data, config))
+			require.NoError(harness.SetConfig(data, nil))
 
-	var data []byte
-	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
-
-	fingerCh, err := harness.Fingerprint(context.Background())
-	require.NoError(err)
-	select {
-	case finger := <-fingerCh:
-		require.Equal(drivers.HealthStateUndetected, finger.Health)
-		require.Empty(finger.Attributes["driver.raw_exec"])
-	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		require.Fail("timeout receiving fingerprint")
+			fingerCh, err := harness.Fingerprint(context.Background())
+			require.NoError(err)
+			select {
+			case result := <-fingerCh:
+				require.Equal(expected, result)
+			case <-time.After(time.Duration(testutil.TestMultiplier()) * time.Second):
+				require.Fail("timeout receiving fingerprint")
+			}
+		}
 	}
 
-	// Enable raw exec
-	config.Enabled = true
-	data = []byte{}
-	require.NoError(basePlug.MsgPackEncode(&data, config))
-	require.NoError(harness.SetConfig(data))
+	cases := []struct {
+		Name     string
+		Conf     Config
+		Expected drivers.Fingerprint
+	}{
+		{
+			Name: "Disabled",
+			Conf: Config{
+				Enabled: false,
+			},
+			Expected: drivers.Fingerprint{
+				Attributes:        nil,
+				Health:            drivers.HealthStateUndetected,
+				HealthDescription: "disabled",
+			},
+		},
+		{
+			Name: "Enabled",
+			Conf: Config{
+				Enabled: true,
+			},
+			Expected: drivers.Fingerprint{
+				Attributes:        map[string]*pstructs.Attribute{"driver.raw_exec": pstructs.NewBoolAttribute(true)},
+				Health:            drivers.HealthStateHealthy,
+				HealthDescription: "ready",
+			},
+		},
+	}
 
-FINGER_LOOP:
-	for {
-		select {
-		case finger := <-fingerCh:
-			if finger.Health == drivers.HealthStateHealthy {
-				break FINGER_LOOP
-			}
-		case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-			require.Fail("timeout receiving fingerprint")
-			break FINGER_LOOP
-		}
+	for _, tc := range cases {
+		t.Run(tc.Name, fingerprintTest(&tc.Conf, &tc.Expected))
 	}
 }
 
@@ -109,7 +128,8 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
@@ -130,6 +150,9 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 	require.NoError(err)
 	result := <-ch
 	require.Zero(result.ExitCode)
+	require.Zero(result.Signal)
+	require.False(result.OOMKilled)
+	require.NoError(result.Err)
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
@@ -138,7 +161,15 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	// Disable cgroups so test works without root
+	config := &Config{NoCgroups: true}
+	var data []byte
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	require.NoError(harness.SetConfig(data, nil))
+
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "test",
@@ -159,37 +190,34 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.Equal(2, result.Signal)
-	}()
-
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		err := harness.StopTask(task.ID, 2*time.Second, "SIGINT")
-		require.NoError(err)
-	}()
-
-	waitCh := make(chan struct{})
-	go func() {
-		defer close(waitCh)
-		wg.Wait()
+		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
 	}()
 
 	select {
-	case <-waitCh:
-		status, err := harness.InspectTask(task.ID)
-		require.NoError(err)
-		require.Equal(drivers.TaskStateExited, status.State)
-	case <-time.After(1 * time.Second):
+	case result := <-ch:
+		require.Equal(int(unix.SIGINT), result.Signal)
+	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
+
+	// Ensure that the task is marked as dead, but account
+	// for WaitTask() closing channel before internal state is updated
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := harness.InspectTask(task.ID)
+		if err != nil {
+			return false, fmt.Errorf("inspecting task failed: %v", err)
+		}
+		if status.State != drivers.TaskStateExited {
+			return false, fmt.Errorf("task hasn't exited yet; status: %v", status.State)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
@@ -199,7 +227,15 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	// Disable cgroups so test works without root
+	config := &Config{NoCgroups: true}
+	var data []byte
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	require.NoError(harness.SetConfig(data, nil))
+
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
@@ -233,7 +269,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	originalStatus, err := d.InspectTask(task.ID)
 	require.NoError(err)
 
-	d.(*RawExecDriver).tasks.Delete(task.ID)
+	d.(*Driver).tasks.Delete(task.ID)
 
 	wg.Wait()
 	require.True(waitDone)
@@ -274,7 +310,8 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -327,7 +364,8 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	pidFile := "pid"
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -415,7 +453,8 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	require := require.New(t)
 
 	d := NewRawExecDriver(testlog.HCLogger(t))
-	harness := drivers.NewDriverHarness(t, d)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -453,7 +492,7 @@ func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, t
 	evalCtx := &hcl.EvalContext{
 		Functions: shared.GetStdlibFuncs(),
 	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
+	spec, diag := hclspec.Convert(taskConfigSpec, evalCtx)
 	require.False(diag.HasErrors())
 	taskConfigCtyVal, diag := shared.ParseHclInterface(taskConfig, spec, evalCtx)
 	require.False(diag.HasErrors())

@@ -51,7 +51,6 @@ client {
 		cpu = 10
 		memory = 10
 		disk = 10
-		iops = 10
 		reserved_ports = "1,100,10-12"
 	}
 	client_min_port = 1000

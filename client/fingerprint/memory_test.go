@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -17,8 +16,8 @@ func TestMemoryFingerprint(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -47,8 +46,8 @@ func TestMemoryFingerprint_Override(t *testing.T) {
 	}
 
 	memoryMB := 15000
-	request := &cstructs.FingerprintRequest{Config: &config.Config{MemoryMB: memoryMB}, Node: node}
-	var response cstructs.FingerprintResponse
+	request := &FingerprintRequest{Config: &config.Config{MemoryMB: memoryMB}, Node: node}
+	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)

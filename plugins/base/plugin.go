@@ -3,6 +3,7 @@ package base
 import (
 	"bytes"
 	"context"
+	"errors"
 	"reflect"
 
 	plugin "github.com/hashicorp/go-plugin"
@@ -29,6 +30,9 @@ var (
 		MagicCookieKey:   "NOMAD_PLUGIN_MAGIC_COOKIE",
 		MagicCookieValue: "e4327c2e01eabfd75a8a67adb114fb34a757d57eee7728d857a8cec6e91a7255",
 	}
+
+	// ErrPluginShutdown is returned when the plugin has shutdown.
+	ErrPluginShutdown = errors.New("plugin is shut down")
 )
 
 // PluginBase is wraps a BasePlugin and implements go-plugins GRPCPlugin
@@ -47,14 +51,16 @@ func (p *PluginBase) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error
 }
 
 func (p *PluginBase) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &BasePluginClient{Client: proto.NewBasePluginClient(c)}, nil
+	return &BasePluginClient{
+		Client:  proto.NewBasePluginClient(c),
+		DoneCtx: ctx,
+	}, nil
 }
 
 // MsgpackHandle is a shared handle for encoding/decoding of structs
 var MsgpackHandle = func() *codec.MsgpackHandle {
 	h := &codec.MsgpackHandle{}
 	h.RawToString = true
-	h.TypeInfos = codec.NewTypeInfos([]string{"cty", "codec"})
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	return h
 }()

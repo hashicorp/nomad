@@ -5,6 +5,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // PluginFactory returns a new plugin instance
@@ -21,6 +22,8 @@ func Serve(f PluginFactory) {
 	switch p := plugin.(type) {
 	case device.DevicePlugin:
 		device.Serve(p, logger)
+	case drivers.DriverPlugin:
+		drivers.Serve(p, logger)
 	default:
 		fmt.Println("Unsupported plugin type")
 	}

@@ -369,15 +369,16 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 	}
 
 	// Convert the schema to hcl
-	spec, diag := hclspec.Convert(info.configSchema)
+	spec, diag := hclspec.Convert(info.configSchema, configParseCtx)
 	if diag.HasErrors() {
 		multierror.Append(&mErr, diag.Errs()...)
 		return multierror.Prefix(&mErr, "failed converting config schema:")
 	}
 
-	// If there is no config there is nothing to do
+	// If there is no config, initialize it to an empty map so we can still
+	// handle defaults
 	if info.config == nil {
-		return nil
+		info.config = map[string]interface{}{}
 	}
 
 	// Parse the config using the spec
@@ -397,7 +398,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 	info.msgpackConfig = cdata
 
 	// Dispense the plugin and set its config and ensure it is error free
-	instance, err := l.Dispense(id.Name, id.PluginType, l.logger)
+	instance, err := l.Dispense(id.Name, id.PluginType, nil, l.logger)
 	if err != nil {
 		return fmt.Errorf("failed to dispense plugin: %v", err)
 	}
@@ -408,7 +409,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 		return fmt.Errorf("dispensed plugin %s doesn't meet base plugin interface", id)
 	}
 
-	if err := base.SetConfig(cdata); err != nil {
+	if err := base.SetConfig(cdata, nil); err != nil {
 		return fmt.Errorf("setting config on plugin failed: %v", err)
 	}
 	return nil

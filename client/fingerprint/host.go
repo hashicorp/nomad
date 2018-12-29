@@ -4,7 +4,6 @@ import (
 	"runtime"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -20,7 +19,7 @@ func NewHostFingerprint(logger log.Logger) Fingerprint {
 	return f
 }
 
-func (f *HostFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *HostFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	hostInfo, err := host.Info()
 	if err != nil {
 		f.logger.Warn("error retrieving host information", "error", err)

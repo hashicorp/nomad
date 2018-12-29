@@ -115,7 +115,7 @@ func transformSecret(theirs *api.Secret) *Secret {
 
 // updateSecret updates our secret with the new data from the api, careful to
 // not overwrite missing data. Renewals don't include the original secret, and
-// we don't want to delete that data accidentially.
+// we don't want to delete that data accidentally.
 func updateSecret(ours *Secret, theirs *api.Secret) {
 	if theirs.RequestID != "" {
 		ours.RequestID = theirs.RequestID
