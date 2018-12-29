@@ -6,13 +6,12 @@ import (
 )
 
 var (
-
 	// The git commit that was compiled. This will be filled in by the compiler.
 	GitCommit   string
 	GitDescribe string
 
 	// The main version number that is being run at the moment.
-	Version = "0.6.3"
+	Version = "0.9.0"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release

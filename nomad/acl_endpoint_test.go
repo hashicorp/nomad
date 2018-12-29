@@ -10,6 +10,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -18,7 +19,7 @@ import (
 
 func TestACLEndpoint_GetPolicy(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -27,12 +28,17 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	policy := mock.ACLPolicy()
 	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy})
 
+	// Create a token with one the policy
+	token := mock.ACLToken()
+	token.Policies = []string{policy.Name}
+	s1.fsm.State().UpsertACLTokens(1001, []*structs.ACLToken{token})
+
 	// Lookup the policy
 	get := &structs.ACLPolicySpecificRequest{
 		Name: policy.Name,
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.SingleACLPolicyResponse
@@ -43,17 +49,32 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	assert.Equal(t, policy, resp.Policy)
 
 	// Lookup non-existing policy
-	get.Name = structs.GenerateUUID()
+	get.Name = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	assert.Equal(t, uint64(1000), resp.Index)
 	assert.Nil(t, resp.Policy)
+
+	// Lookup the policy with the token
+	get = &structs.ACLPolicySpecificRequest{
+		Name: policy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: token.SecretID,
+		},
+	}
+	var resp2 structs.SingleACLPolicyResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.EqualValues(t, 1000, resp2.Index)
+	assert.Equal(t, policy, resp2.Policy)
 }
 
 func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -85,7 +106,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.SingleACLPolicyResponse
@@ -132,7 +153,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -146,8 +167,8 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 	get := &structs.ACLPolicySetRequest{
 		Names: []string{policy.Name, policy2.Name},
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLPolicySetResponse
@@ -160,7 +181,7 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 	assert.Equal(t, policy2, resp.Policies[policy2.Name])
 
 	// Lookup non-existing policy
-	get.Names = []string{structs.GenerateUUID()}
+	get.Names = []string{uuid.Generate()}
 	resp = structs.ACLPolicySetResponse{}
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
@@ -171,7 +192,7 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, nil)
+	s1, _ := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -189,8 +210,8 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	get := &structs.ACLPolicySetRequest{
 		Names: []string{policy.Name},
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: token.SecretID,
+			Region:    "global",
+			AuthToken: token.SecretID,
 		},
 	}
 	var resp structs.ACLPolicySetResponse
@@ -211,7 +232,7 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -243,7 +264,7 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.ACLPolicySetResponse
@@ -289,8 +310,9 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_ListPolicies(t *testing.T) {
+	assert := assert.New(t)
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -303,39 +325,60 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 	p2.Name = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
 	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{p1, p2})
 
+	// Create a token with one of those policies
+	token := mock.ACLToken()
+	token.Policies = []string{p1.Name}
+	s1.fsm.State().UpsertACLTokens(1001, []*structs.ACLToken{token})
+
 	// Lookup the policies
 	get := &structs.ACLPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLPolicyListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	assert.Equal(t, uint64(1000), resp.Index)
-	assert.Equal(t, 2, len(resp.Policies))
+	assert.EqualValues(1000, resp.Index)
+	assert.Len(resp.Policies, 2)
 
 	// Lookup the policies by prefix
 	get = &structs.ACLPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			Prefix:   "aaaabb",
-			SecretID: root.SecretID,
+			Region:    "global",
+			Prefix:    "aaaabb",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp2 structs.ACLPolicyListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", get, &resp2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	assert.Equal(t, uint64(1000), resp2.Index)
-	assert.Equal(t, 1, len(resp2.Policies))
+	assert.EqualValues(1000, resp2.Index)
+	assert.Len(resp2.Policies, 1)
+
+	// List policies using the created token
+	get = &structs.ACLPolicyListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: token.SecretID,
+		},
+	}
+	var resp3 structs.ACLPolicyListResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", get, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.EqualValues(1000, resp3.Index)
+	if assert.Len(resp3.Policies, 1) {
+		assert.Equal(resp3.Policies[0].Name, p1.Name)
+	}
 }
 
 func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -355,7 +398,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 1,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	start := time.Now()
@@ -395,7 +438,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 
 func TestACLEndpoint_DeletePolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -408,8 +451,8 @@ func TestACLEndpoint_DeletePolicies(t *testing.T) {
 	req := &structs.ACLPolicyDeleteRequest{
 		Names: []string{p1.Name},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -421,7 +464,7 @@ func TestACLEndpoint_DeletePolicies(t *testing.T) {
 
 func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -433,8 +476,8 @@ func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 	req := &structs.ACLPolicyUpsertRequest{
 		Policies: []*structs.ACLPolicy{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -451,7 +494,7 @@ func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 
 func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -464,8 +507,8 @@ func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	req := &structs.ACLPolicyUpsertRequest{
 		Policies: []*structs.ACLPolicy{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -478,7 +521,7 @@ func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 
 func TestACLEndpoint_GetToken(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -491,8 +534,8 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 	get := &structs.ACLTokenSpecificRequest{
 		AccessorID: token.AccessorID,
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.SingleACLTokenResponse
@@ -503,17 +546,27 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 	assert.Equal(t, token, resp.Token)
 
 	// Lookup non-existing token
-	get.AccessorID = structs.GenerateUUID()
+	get.AccessorID = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetToken", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	assert.Equal(t, uint64(1000), resp.Index)
 	assert.Nil(t, resp.Token)
+
+	// Lookup the token by accessor id using the tokens secret ID
+	get.AccessorID = token.AccessorID
+	get.AuthToken = token.SecretID
+	var resp2 structs.SingleACLTokenResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetToken", get, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	assert.Equal(t, uint64(1000), resp2.Index)
+	assert.Equal(t, token, resp2.Token)
 }
 
 func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -545,7 +598,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.SingleACLTokenResponse
@@ -592,7 +645,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 func TestACLEndpoint_GetTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -606,8 +659,8 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 	get := &structs.ACLTokenSetRequest{
 		AccessorIDS: []string{token.AccessorID, token2.AccessorID},
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenSetResponse
@@ -619,7 +672,7 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 	assert.Equal(t, token, resp.Tokens[token.AccessorID])
 
 	// Lookup non-existing token
-	get.AccessorIDS = []string{structs.GenerateUUID()}
+	get.AccessorIDS = []string{uuid.Generate()}
 	resp = structs.ACLTokenSetResponse{}
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetTokens", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
@@ -630,7 +683,7 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 
 func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -662,7 +715,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 150,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenSetResponse
@@ -709,7 +762,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 func TestACLEndpoint_ListTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -726,8 +779,8 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	// Lookup the tokens
 	get := &structs.ACLTokenListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenListResponse
@@ -740,9 +793,9 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	// Lookup the tokens by prefix
 	get = &structs.ACLTokenListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			Prefix:   "aaaabb",
-			SecretID: root.SecretID,
+			Region:    "global",
+			Prefix:    "aaaabb",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp2 structs.ACLTokenListResponse
@@ -756,8 +809,8 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 	get = &structs.ACLTokenListRequest{
 		GlobalOnly: true,
 		QueryOptions: structs.QueryOptions{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp3 structs.ACLTokenListResponse
@@ -770,7 +823,7 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 
 func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -790,7 +843,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
 			MinQueryIndex: 2,
-			SecretID:      root.SecretID,
+			AuthToken:     root.SecretID,
 		},
 	}
 	start := time.Now()
@@ -830,7 +883,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 
 func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -843,8 +896,8 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	req := &structs.ACLTokenDeleteRequest{
 		AccessorIDs: []string{p1.AccessorID},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -854,9 +907,36 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	assert.NotEqual(t, uint64(0), resp.Index)
 }
 
+func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, root := TestACLServer(t, nil)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	nonexistentToken := mock.ACLToken()
+
+	// Lookup the policies
+	req := &structs.ACLTokenDeleteRequest{
+		AccessorIDs: []string{nonexistentToken.AccessorID},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ACL.DeleteTokens", req, &resp)
+
+	assert.NotNil(err)
+	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonexistentToken.AccessorID)
+	assert.Contains(expectedError, err.Error())
+}
+
 func TestACLEndpoint_Bootstrap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 	})
 	defer s1.Shutdown()
@@ -893,7 +973,7 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 	t.Parallel()
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		c.DataDir = dir
 		c.DevMode = false
@@ -955,7 +1035,7 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 
 func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -968,8 +1048,8 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	req := &structs.ACLTokenUpsertRequest{
 		Tokens: []*structs.ACLToken{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.ACLTokenUpsertResponse
@@ -1011,7 +1091,7 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 
 func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1024,8 +1104,8 @@ func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 	req := &structs.ACLTokenUpsertRequest{
 		Tokens: []*structs.ACLToken{p1},
 		WriteRequest: structs.WriteRequest{
-			Region:   "global",
-			SecretID: root.SecretID,
+			Region:    "global",
+			AuthToken: root.SecretID,
 		},
 	}
 	var resp structs.GenericResponse
@@ -1038,7 +1118,7 @@ func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 
 func TestACLEndpoint_ResolveToken(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, nil)
+	s1, _ := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1060,7 +1140,7 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 	assert.Equal(t, token, resp.Token)
 
 	// Lookup non-existing token
-	get.SecretID = structs.GenerateUUID()
+	get.SecretID = uuid.Generate()
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.ResolveToken", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}

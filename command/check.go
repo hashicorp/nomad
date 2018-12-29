@@ -47,6 +47,8 @@ func (c *AgentCheckCommand) Synopsis() string {
 	return "Displays health of the local Nomad agent"
 }
 
+func (c *AgentCheckCommand) Name() string { return "check" }
+
 func (c *AgentCheckCommand) Run(args []string) int {
 	var minPeers, minServers int
 
@@ -56,6 +58,13 @@ func (c *AgentCheckCommand) Run(args []string) int {
 	flags.IntVar(&minServers, "min-servers", 1, "")
 
 	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
+	args = flags.Args()
+	if len(args) > 0 {
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

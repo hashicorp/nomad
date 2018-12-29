@@ -33,7 +33,7 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient), nil)
+	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
 func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
@@ -105,21 +105,31 @@ func (c *StatusCommand) Run(args []string) int {
 	}
 
 	var match contexts.Context
-	matchCount := 0
+	exactMatches := 0
 	for ctx, vers := range res.Matches {
-		if l := len(vers); l == 1 {
+		if len(vers) > 0 && vers[0] == id {
 			match = ctx
-			matchCount++
-		} else if l > 0 && vers[0] == id {
-			// Exact match
-			match = ctx
-			break
+			exactMatches++
 		}
+	}
 
-		// Only a single result should return, as this is a match against a full id
-		if matchCount > 1 || len(vers) > 1 {
-			c.logMultiMatchError(id, res.Matches)
-			return 1
+	if exactMatches > 1 {
+		c.logMultiMatchError(id, res.Matches)
+		return 1
+	} else if exactMatches == 0 {
+		matchCount := 0
+		for ctx, vers := range res.Matches {
+			l := len(vers)
+			if l == 1 {
+				match = ctx
+				matchCount++
+			}
+
+			// Only a single result should return, as this is a match against a full id
+			if matchCount > 1 || l > 1 {
+				c.logMultiMatchError(id, res.Matches)
+				return 1
+			}
 		}
 	}
 
@@ -135,6 +145,10 @@ func (c *StatusCommand) Run(args []string) int {
 		cmd = &JobStatusCommand{Meta: c.Meta}
 	case contexts.Deployments:
 		cmd = &DeploymentStatusCommand{Meta: c.Meta}
+	case contexts.Namespaces:
+		cmd = &NamespaceStatusCommand{Meta: c.Meta}
+	case contexts.Quotas:
+		cmd = &QuotaStatusCommand{Meta: c.Meta}
 	default:
 		c.Ui.Error(fmt.Sprintf("Unable to resolve ID: %q", id))
 		return 1

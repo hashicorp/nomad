@@ -5,15 +5,18 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
-	"strings"
+	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/driver/env"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	tu "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -34,29 +37,31 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 	}
 
 	// Disable raw exec.
-	cfg := &config.Config{Options: map[string]string{rawExecConfigOption: "false"}}
+	cfg := &config.Config{Options: map[string]string{rawExecEnableOption: "false"}}
 
-	apply, err := d.Fingerprint(cfg, node)
+	request := &cstructs.FingerprintRequest{Config: cfg, Node: node}
+	var response cstructs.FingerprintResponse
+	err := d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if apply {
-		t.Fatalf("should not apply")
-	}
-	if node.Attributes["driver.raw_exec"] != "" {
+
+	if response.Attributes["driver.raw_exec"] != "" {
 		t.Fatalf("driver incorrectly enabled")
 	}
 
 	// Enable raw exec.
-	cfg.Options[rawExecConfigOption] = "true"
-	apply, err = d.Fingerprint(cfg, node)
+	request.Config.Options[rawExecEnableOption] = "true"
+	err = d.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !apply {
-		t.Fatalf("should apply")
+
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
-	if node.Attributes["driver.raw_exec"] != "1" {
+
+	if response.Attributes["driver.raw_exec"] != "1" {
 		t.Fatalf("driver not enabled")
 	}
 }
@@ -260,28 +265,31 @@ func TestRawExecDriver_Start_Kill_Wait(t *testing.T) {
 	}
 }
 
-func TestRawExecDriverUser(t *testing.T) {
+// This test creates a process tree such that without cgroups tracking the
+// processes cleanup of the children would not be possible. Thus the test
+// asserts that the processes get killed properly when using cgroups.
+func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
+	tu.ExecCompatible(t)
 	t.Parallel()
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux only test")
-	}
+	pidFile := "pid"
 	task := &structs.Task{
 		Name:   "sleep",
 		Driver: "raw_exec",
-		User:   "alice",
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
-			"args":    []string{"sleep", "45s"},
+			"args":    []string{"fork/exec", pidFile, "pgrp", "0", "sleep", "20s"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
 			MaxFileSizeMB: 10,
 		},
 		Resources: basicResources,
+		User:      "root",
 	}
 	testtask.SetTaskEnv(task)
 
 	ctx := testDriverContexts(t, task)
+	ctx.DriverCtx.node.Attributes["unique.cgroup.mountpoint"] = "foo" // Enable cgroups
 	defer ctx.AllocDir.Destroy()
 	d := NewRawExecDriver(ctx.DriverCtx)
 
@@ -289,14 +297,67 @@ func TestRawExecDriverUser(t *testing.T) {
 		t.Fatalf("prestart err: %v", err)
 	}
 	resp, err := d.Start(ctx.ExecCtx, task)
-	if err == nil {
-		resp.Handle.Kill()
-		t.Fatalf("Should've failed")
+	if err != nil {
+		t.Fatalf("err: %v", err)
 	}
-	msg := "unknown user alice"
-	if !strings.Contains(err.Error(), msg) {
-		t.Fatalf("Expecting '%v' in '%v'", msg, err)
+
+	// Find the process
+	var pidData []byte
+	testutil.WaitForResult(func() (bool, error) {
+		var err error
+		pidData, err = ioutil.ReadFile(filepath.Join(ctx.AllocDir.AllocDir, "sleep", pidFile))
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	pid, err := strconv.Atoi(string(pidData))
+	if err != nil {
+		t.Fatalf("failed to convert pid: %v", err)
 	}
+
+	// Check the pid is up
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		t.Fatalf("failed to find process")
+	}
+	if err := process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatalf("process doesn't exist: %v", err)
+	}
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		err := resp.Handle.Kill()
+
+		// Can't rely on the ordering between wait and kill on travis...
+		if !testutil.IsTravis() && err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	}()
+
+	// Task should terminate quickly
+	select {
+	case res := <-resp.Handle.WaitCh():
+		if res.Successful() {
+			t.Fatal("should err")
+		}
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		if err := process.Signal(syscall.Signal(0)); err == nil {
+			return false, fmt.Errorf("process should not exist: %v", pid)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 }
 
 func TestRawExecDriver_HandlerExec(t *testing.T) {
@@ -306,7 +367,7 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 		Driver: "raw_exec",
 		Config: map[string]interface{}{
 			"command": testtask.Path(),
-			"args":    []string{"sleep", "9000"},
+			"args":    []string{"sleep", "9000s"},
 		},
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      10,
@@ -349,6 +410,12 @@ func TestRawExecDriver_HandlerExec(t *testing.T) {
 	}
 	if expected := "No such file or directory"; !bytes.Contains(out, []byte(expected)) {
 		t.Fatalf("expected output to contain %q but found: %q", expected, out)
+	}
+
+	select {
+	case res := <-resp.Handle.WaitCh():
+		t.Fatalf("Shouldn't be exited: %v", res.String())
+	default:
 	}
 
 	if err := resp.Handle.Kill(); err != nil {

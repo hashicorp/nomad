@@ -17,7 +17,8 @@ description: |-
   </tr>
 </table>
 
-The `restart` stanza configures a group's behavior on task failure.
+The `restart` stanza configures a group's behavior on task failure. Restarts
+happen on the client that is running the task.
 
 ```hcl
 job "docs" {
@@ -46,7 +47,7 @@ job "docs" {
   controlled by `mode`. This is specified using a label suffix like "30s" or
   "1h". Defaults vary by job type, see below for more information.
 
-- `mode` `(string: "delay")` - Controls the behavior when the task fails more
+- `mode` `(string: "fail")` - Controls the behavior when the task fails more
   than `attempts` times in an interval. For a detailed explanation of these
   values and their behavior, please see the [mode values section](#mode-values).
 
@@ -62,7 +63,7 @@ defaults by job type:
       attempts = 15
       delay    = "15s"
       interval = "168h"
-      mode     = "delay"
+      mode     = "fail"
     }
     ```
 
@@ -73,7 +74,7 @@ defaults by job type:
       interval = "1m"
       attempts = 2
       delay    = "15s"
-      mode     = "delay"
+      mode     = "fail"
     }
     ```
 
@@ -94,4 +95,5 @@ restart {
 
 - `"fail"` - Instructs the scheduler to not attempt to restart the task on
   failure. This mode is useful for non-idempotent jobs which are unlikely to
-  succeed after a few failures.
+  succeed after a few failures. Failed jobs will be restarted according to
+  the [`reschedule`](/docs/job-specification/reschedule.html) stanza.

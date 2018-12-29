@@ -34,7 +34,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/acl/bootstrap
+    https://localhost:4646/v1/acl/bootstrap
 ```
 
 ### Sample Response
@@ -75,7 +75,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/tokens
+    https://localhost:4646/v1/acl/tokens
 ```
 
 ### Sample Response
@@ -139,7 +139,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/acl/token
+    https://localhost:4646/v1/acl/token
 ```
 
 ### Sample Response
@@ -205,7 +205,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
+    https://localhost:4646/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
 ```
 
 ### Sample Response
@@ -241,13 +241,56 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
-| `YES`            | `all`             | `management` |
+| `YES`            | `all`             | `management` or a SecretID matching the AccessorID |
 
 ### Sample Request
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
+    https://localhost:4646/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
+```
+
+### Sample Response
+
+```json
+{
+  "AccessorID": "aa534e09-6a07-0a45-2295-a7f77063d429",
+  "SecretID": "8176afd3-772d-0b71-8f85-7fa5d903e9d4",
+  "Name": "Read-write token",
+  "Type": "client",
+  "Policies": [
+    "readwrite"
+  ],
+  "Global": false,
+  "CreateTime": "2017-08-23T23:25:41.429154233Z",
+  "CreateIndex": 52,
+  "ModifyIndex": 64
+}
+```
+
+## Read Self Token
+
+This endpoint reads the ACL token given by the passed SecretID. If the token is a global token
+which has been replicated to the region it may lag behind the authoritative region.
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `GET` | `/acl/token/self`             | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries), [consistency modes](/api/index.html#consistency-modes) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required |
+| ---------------- | ----------------- | ------------ |
+| `YES`            | `all`             | Any valid ACL token |
+
+### Sample Request
+
+```text
+$ curl \
+    --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
+    https://localhost:4646/v1/acl/token/self
 ```
 
 ### Sample Response
@@ -294,6 +337,6 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
+    https://localhost:4646/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
 ```
 

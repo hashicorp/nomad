@@ -182,6 +182,36 @@ func TestACLTokens_Info(t *testing.T) {
 	assert.Equal(t, out, out2)
 }
 
+func TestACLTokens_Self(t *testing.T) {
+	t.Parallel()
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	token := &ACLToken{
+		Name:     "foo",
+		Type:     "client",
+		Policies: []string{"foo1"},
+	}
+
+	// Create the token
+	out, wm, err := at.Create(token, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out)
+
+	// Set the clients token to the new token
+	c.SetSecretID(out.SecretID)
+	at = c.ACLTokens()
+
+	// Query the token
+	out2, qm, err := at.Self(nil)
+	if assert.Nil(t, err) {
+		assertQueryMeta(t, qm)
+		assert.Equal(t, out, out2)
+	}
+}
+
 func TestACLTokens_Delete(t *testing.T) {
 	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)

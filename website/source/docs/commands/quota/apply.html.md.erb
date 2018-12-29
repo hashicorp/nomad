@@ -1,0 +1,40 @@
+---
+layout: "docs"
+page_title: "Commands: quota apply"
+sidebar_current: "docs-commands-quota-apply"
+description: >
+  The quota apply command is used to create or update quota specifications.
+---
+
+# Command: quota apply
+
+The `quota apply` command is used to create or update quota specifications.
+
+~> Quota commands are new in Nomad 0.7 and are only available with Nomad
+Enterprise.
+
+## Usage
+
+```
+nomad quota apply [options] <name> <path>
+```
+
+The `quota apply` command requires the path to the specification file. The
+specification can be read from stdin by setting the path to "-".
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Apply Options
+
+* `-json`: Parse the input as a JSON quota specification.
+
+## Examples
+
+Create a new quota specification:
+
+```
+$ nomad quota apply my-quota.hcl
+Successfully applied quota specification "my-quota"!
+```

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -177,7 +178,7 @@ func GetAbsolutePath(bin string) (string, error) {
 // dstructs.DefaultUnprivilegedUser if none was given.
 func getExecutorUser(task *structs.Task) string {
 	if task.User == "" {
-		return dstructs.DefaultUnpriviledgedUser
+		return dstructs.DefaultUnprivilegedUser
 	}
 	return task.User
 }
@@ -203,4 +204,19 @@ func SetEnvvars(envBuilder *env.Builder, fsi cstructs.FSIsolation, taskDir *allo
 		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
 		envBuilder.SetHostEnvvars(filter)
 	}
+}
+
+// getTaskKillSignal looks up the signal specified for the task if it has been
+// specified. If it is not supported on the platform, returns an error.
+func getTaskKillSignal(signal string) (os.Signal, error) {
+	if signal == "" {
+		return os.Interrupt, nil
+	}
+
+	taskKillSignal := signals.SignalLookup[signal]
+	if taskKillSignal == nil {
+		return nil, fmt.Errorf("Signal %s is not supported", signal)
+	}
+
+	return taskKillSignal, nil
 }

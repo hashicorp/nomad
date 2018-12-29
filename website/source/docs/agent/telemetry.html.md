@@ -15,7 +15,7 @@ second interval and are retained for one minute.
 This data can be accessed via an HTTP endpoint or via sending a signal to the
 Nomad process.
 
-Via HTTP, this data is available at `/metrics`. See
+Via HTTP, as of Nomad version 0.7, this data is available at `/metrics`. See
 [Metrics](/api/metrics.html) for more information.
 
 
@@ -136,7 +136,7 @@ when retrieving metrics using the above described signals.
   <tr>
     <td>`nomad.broker.total_blocked`</td>
     <td>
-        Evaluations that are blocked til an existing evaluation for the same job
+        Evaluations that are blocked until an existing evaluation for the same job
         completes
     </td>
     <td># of evaluations</td>
@@ -235,6 +235,32 @@ configuration block.
 
 Please see the [agent configuration](/docs/agent/configuration/telemetry.html)
 page for more details.
+
+As of Nomad 0.9, Nomad will emit additional labels for [parameterized](/docs/job-specification/parameterized.html) and
+[periodic](/docs/job-specification/parameterized.html) jobs. Nomad
+emits the parent job id as a new label `parent_id`. Also, the labels `dispatch_id`
+and `periodic_id` are emitted, containing the ID of the specific invocation of the
+parameterized or periodic job respectively. For example, a dispatch job with the id
+`myjob/dispatch-1312323423423`, will have the following labels.
+
+<table class="table table-bordered table-striped">
+<tr>
+    <th>Label</th>
+    <th>Value</th>
+</tr>
+<tr>
+<td>job</td>
+<td>`myjob/dispatch-1312323423423`</td>
+</tr>
+<tr>
+<td>parent_id</td>
+<td>myjob</td>
+</tr>
+<tr>
+<td>dispatch_id</td>
+<td>1312323423423</td>
+</tr>
+</table>
 
 ## Host Metrics (post Nomad version 0.7)
 
@@ -419,7 +445,52 @@ Starting in version 0.7, Nomad will emit tagged metrics, in the below format:
     <td>Gauge</td>
     <td>node_id, datacenter, disk</td>
   </tr>
+  <tr>
+    <td>`nomad.client.allocs.start`</td>
+    <td>Number of allocations starting</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.running`</td>
+    <td>Number of allocations starting to run</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.failed`</td>
+    <td>Number of allocations failing</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.restart`</td>
+    <td>Number of allocations restarting</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.complete`</td>
+    <td>Number of allocations completing</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.client.allocs.destroy`</td>
+    <td>Number of allocations being destroyed</td>
+    <td>Integer</td>
+    <td>Counter</td>
+    <td>node_id, job, task_group</td>
+  </tr>
 </table>
+
+Nomad 0.9 adds an additional "node_class" label from the client's
+`NodeClass` attribute. This label is set to the string "none" if empty.
 
 ## Host Metrics (deprecated post Nomad 0.7)
 
@@ -641,7 +712,7 @@ detailed above) but any new metrics will only be available in the new format.
     <td>Gauge</td>
   </tr>
   <tr>
-    <td>`nomad.client.allocs.<Job>.TaskGroup>.<AllocID>.<Task>.cpu.user`</td>
+    <td>`nomad.client.allocs.<Job>.<TaskGroup>.<AllocID>.<Task>.cpu.user`</td>
     <td>Total CPU resources consumed by the task in the user space</td>
     <td>Percentage</td>
     <td>Gauge</td>
@@ -657,6 +728,62 @@ detailed above) but any new metrics will only be available in the new format.
     <td>CPU ticks consumed by the process in the last collection interval</td>
     <td>Integer</td>
     <td>Gauge</td>
+  </tr>
+</table>
+
+# Job Metrics
+
+Job metrics are emitted by the Nomad leader server.
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Metric</th>
+    <th>Description</th>
+    <th>Unit</th>
+    <th>Type</th>
+    <th>Labels</th>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.queued`</td>
+    <td>Number of queued allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.complete`</td>
+    <td>Number of complete allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.failed`</td>
+    <td>Number of failed allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.running`</td>
+    <td>Number of running allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.starting`</td>
+    <td>Number of starting allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
+  </tr>
+  <tr>
+    <td>`nomad.job_summary.lost`</td>
+    <td>Number of lost allocations for a job</td>
+    <td>Integer</td>
+    <td>Gauge</td>
+    <td>job, task_group</td>
   </tr>
 </table>
 

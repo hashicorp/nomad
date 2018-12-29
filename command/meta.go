@@ -47,6 +47,9 @@ type Meta struct {
 	// namespace to send API requests
 	namespace string
 
+	// token is used for ACLs to access privileged information
+	token string
+
 	caCert     string
 	caPath     string
 	clientCert string
@@ -74,6 +77,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.clientKey, "client-key", "", "")
 		f.BoolVar(&m.insecure, "insecure", false, "")
 		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
+		f.StringVar(&m.token, "token", "", "")
 
 	}
 
@@ -110,6 +114,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-client-key":      complete.PredictFiles("*"),
 		"-insecure":        complete.PredictNothing,
 		"-tls-skip-verify": complete.PredictNothing,
+		"-token":           complete.PredictAnything,
 	}
 }
 
@@ -142,6 +147,10 @@ func (m *Meta) Client() (*api.Client, error) {
 		config.TLSConfig = t
 	}
 
+	if m.token != "" {
+		config.SecretID = m.token
+	}
+
 	return api.NewClient(config)
 }
 
@@ -172,7 +181,8 @@ func generalOptionsUsage() string {
     Defaults to the "default" namespace.
 
   -no-color
-    Disables colored command output.
+    Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
+    set.
 
   -ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the
@@ -198,6 +208,18 @@ func generalOptionsUsage() string {
   -tls-skip-verify
     Do not verify TLS certificate. This is highly not recommended. Verification
     will also be skipped if NOMAD_SKIP_VERIFY is set.
+
+  -token
+    The SecretID of an ACL token to use to authenticate API requests with.
+    Overrides the NOMAD_TOKEN environment variable if set.
 `
 	return strings.TrimSpace(helpText)
 }
+
+// funcVar is a type of flag that accepts a function that is the string given
+// by the user.
+type funcVar func(s string) error
+
+func (f funcVar) Set(s string) error { return f(s) }
+func (f funcVar) String() string     { return "" }
+func (f funcVar) IsBoolFlag() bool   { return false }

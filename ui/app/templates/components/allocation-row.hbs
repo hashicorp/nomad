@@ -1,0 +1,76 @@
+<td data-test-indicators class="is-narrow">
+  {{#if allocation.unhealthyDrivers.length}}
+    <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="Allocation depends on unhealthy drivers">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{/if}}
+  {{#if allocation.nextAllocation}}
+    <span data-test-icon="reschedule" class="tooltip text-center" aria-label="Allocation was rescheduled">
+      {{x-icon "history" class="is-faded"}}
+    </span>
+  {{/if}}
+</td>
+<td data-test-short-id>
+  {{#link-to "allocations.allocation" allocation class="is-primary"}}
+    {{allocation.shortId}}
+  {{/link-to}}
+</td>
+<td data-test-modify-time>{{moment-format allocation.modifyTime "MM/DD HH:mm:ss"}}</td>
+<td data-test-name>{{allocation.name}}</td>
+<td data-test-client-status class="is-one-line">
+  <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
+</td>
+{{#if (eq context "job")}}
+  <td data-test-job-version>{{allocation.jobVersion}}</td>
+  <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
+{{else if (eq context "node")}}
+  <td>
+    {{#if (or allocation.job.isPending allocation.job.isReloading)}}
+      ...
+    {{else}}
+      {{#link-to "jobs.job" allocation.job (query-params jobNamespace=allocation.job.namespace.id) data-test-job}}{{allocation.job.name}}{{/link-to}}
+      <span class="is-faded" data-test-task-group>/ {{allocation.taskGroup.name}}</span>
+    {{/if}}
+  </td>
+  <td data-test-job-version>{{allocation.jobVersion}}</td>
+{{/if}}
+<td data-test-cpu class="has-text-centered">
+  {{#if (and (not stats) fetchStats.isRunning)}}
+    ...
+  {{else if (not allocation)}}
+    {{! nothing when there's no allocation}}
+  {{else if statsError}}
+    <span class="tooltip text-center" aria-label="Couldn't collect stats">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{else}}
+    <div class="inline-chart tooltip" aria-label="{{stats.cpuUsed}} / {{stats.reservedCPU}} MHz">
+      <progress
+        class="progress is-info is-small"
+        value="{{stats.percentCPU}}"
+        max="1">
+        {{stats.percentCPU}}
+      </progress>
+    </div>
+  {{/if}}
+</td>
+<td data-test-mem class="has-text-centered">
+  {{#if (and (not stats) fetchStats.isRunning)}}
+    ...
+  {{else if (not allocation)}}
+    {{! nothing when there's no allocation}}
+  {{else if statsError}}
+    <span class="tooltip text-center" aria-label="Couldn't collect stats">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{else}}
+    <div class="inline-chart tooltip" aria-label="{{format-bytes stats.memoryUsed}} / {{stats.reservedMemory}} MiB">
+      <progress
+        class="progress is-danger is-small"
+        value="{{stats.percentMemory}}"
+        max="1">
+        {{stats.percentMemory}}
+      </progress>
+    </div>
+  {{/if}}
+</td>

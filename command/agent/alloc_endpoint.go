@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -32,6 +33,9 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 	setMeta(resp, &out.QueryMeta)
 	if out.Allocations == nil {
 		out.Allocations = make([]*structs.AllocListStub, 0)
+	}
+	for _, alloc := range out.Allocations {
+		alloc.SetEventDisplayMessages()
 	}
 	return out.Allocations, nil
 }
@@ -69,14 +73,12 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 		alloc = alloc.Copy()
 		alloc.Job.Payload = decoded
 	}
+	alloc.SetEventDisplayMessages()
 
 	return alloc, nil
 }
 
 func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if s.agent.client == nil {
-		return nil, clientNotRunning
-	}
 
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/client/allocation/")
 
@@ -91,6 +93,10 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	case "stats":
 		return s.allocStats(allocID, resp, req)
 	case "snapshot":
+		if s.agent.client == nil {
+			return nil, clientNotRunning
+		}
+
 		return s.allocSnapshot(allocID, resp, req)
 	case "gc":
 		return s.allocGC(allocID, resp, req)
@@ -100,17 +106,79 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 }
 
 func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if s.agent.client == nil {
-		return nil, clientNotRunning
+	// Get the requested Node ID
+	requestedNode := req.URL.Query().Get("node_id")
+
+	// Build the request and parse the ACL token
+	args := structs.NodeSpecificRequest{
+		NodeID: requestedNode,
 	}
-	return nil, s.agent.Client().CollectAllAllocs()
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(requestedNode)
+
+	// Make the RPC
+	var reply structs.GenericResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.GarbageCollectAll", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.GarbageCollectAll", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.GarbageCollectAll", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return nil, rpcErr
 }
 
 func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	return nil, s.agent.Client().CollectAllocation(allocID)
+	// Build the request and parse the ACL token
+	args := structs.AllocSpecificRequest{
+		AllocID: allocID,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply structs.GenericResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.GarbageCollect", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.GarbageCollect", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.GarbageCollect", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return nil, rpcErr
 }
 
 func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var secret string
+	s.parseToken(req, &secret)
+	if !s.agent.Client().ValidateMigrateToken(allocID, secret) {
+		return nil, structs.ErrPermissionDenied
+	}
+
 	allocFS, err := s.agent.Client().GetAllocFS(allocID)
 	if err != nil {
 		return nil, fmt.Errorf(allocNotFoundErr)
@@ -122,12 +190,36 @@ func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req
 }
 
 func (s *HTTPServer) allocStats(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	clientStats := s.agent.client.StatsReporter()
-	aStats, err := clientStats.GetAllocStats(allocID)
-	if err != nil {
-		return nil, err
+
+	// Build the request and parse the ACL token
+	task := req.URL.Query().Get("task")
+	args := cstructs.AllocStatsRequest{
+		AllocID: allocID,
+		Task:    task,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply cstructs.AllocStatsResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.Stats", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.Stats", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.Stats", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
 	}
 
-	task := req.URL.Query().Get("task")
-	return aStats.LatestAllocStats(task)
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return reply.Stats, rpcErr
 }

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,15 +24,8 @@ func NewStorageFingerprint(logger *log.Logger) Fingerprint {
 	return fp
 }
 
-func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
-
-	// Initialize these to empty defaults
-	node.Attributes["unique.storage.volume"] = ""
-	node.Attributes["unique.storage.bytestotal"] = ""
-	node.Attributes["unique.storage.bytesfree"] = ""
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
+func (f *StorageFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	cfg := req.Config
 
 	// Guard against unset AllocDir
 	storageDir := cfg.AllocDir
@@ -40,20 +33,24 @@ func (f *StorageFingerprint) Fingerprint(cfg *config.Config, node *structs.Node)
 		var err error
 		storageDir, err = os.Getwd()
 		if err != nil {
-			return false, fmt.Errorf("unable to get CWD from filesystem: %s", err)
+			return fmt.Errorf("unable to get CWD from filesystem: %s", err)
 		}
 	}
 
 	volume, total, free, err := f.diskFree(storageDir)
 	if err != nil {
-		return false, fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
+		return fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
 	}
 
-	node.Attributes["unique.storage.volume"] = volume
-	node.Attributes["unique.storage.bytestotal"] = strconv.FormatUint(total, 10)
-	node.Attributes["unique.storage.bytesfree"] = strconv.FormatUint(free, 10)
+	resp.AddAttribute("unique.storage.volume", volume)
+	resp.AddAttribute("unique.storage.bytestotal", strconv.FormatUint(total, 10))
+	resp.AddAttribute("unique.storage.bytesfree", strconv.FormatUint(free, 10))
 
-	node.Resources.DiskMB = int(free / bytesPerMegabyte)
+	// set the disk size for the response
+	resp.Resources = &structs.Resources{
+		DiskMB: int(free / bytesPerMegabyte),
+	}
+	resp.Detected = true
 
-	return true, nil
+	return nil
 }

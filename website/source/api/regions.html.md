@@ -14,7 +14,7 @@ The `/regions` endpoints list all known regions.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `GET`  | `/status/regions`            | `application/json`         |
+| `GET`  | `/regions`                   | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -28,7 +28,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/status/regions
+    https://localhost:4646/v1/regions
 ```
 
 ### Sample Response

@@ -6,6 +6,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -20,6 +21,13 @@ func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.Peri
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "periodic", "force"}, time.Now())
+
+	// Check for write-job permissions
+	if aclObj, err := p.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate the arguments
 	if args.JobID == "" {

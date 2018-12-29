@@ -74,7 +74,7 @@ func (s *Server) planApply() {
 		if waitCh == nil || snap == nil {
 			snap, err = s.fsm.State().Snapshot()
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to snapshot state: %v", err)
+				s.logger.Printf("[ERR] nomad.planner: failed to snapshot state: %v", err)
 				pending.respond(nil, err)
 				continue
 			}
@@ -83,7 +83,7 @@ func (s *Server) planApply() {
 		// Evaluate the plan
 		result, err := evaluatePlan(pool, snap, pending.plan, s.logger)
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to evaluate plan: %v", err)
+			s.logger.Printf("[ERR] nomad.planner: failed to evaluate plan: %v", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -100,7 +100,7 @@ func (s *Server) planApply() {
 			<-waitCh
 			snap, err = s.fsm.State().Snapshot()
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to snapshot state: %v", err)
+				s.logger.Printf("[ERR] nomad.planner: failed to snapshot state: %v", err)
 				pending.respond(nil, err)
 				continue
 			}
@@ -109,7 +109,7 @@ func (s *Server) planApply() {
 		// Dispatch the Raft transaction for the plan
 		future, err := s.applyPlan(pending.plan, result, snap)
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to submit plan: %v", err)
+			s.logger.Printf("[ERR] nomad.planner: failed to submit plan: %v", err)
 			pending.respond(nil, err)
 			continue
 		}
@@ -122,7 +122,7 @@ func (s *Server) planApply() {
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
-	// Determine the miniumum number of updates, could be more if there
+	// Determine the minimum number of updates, could be more if there
 	// are multiple updates per node
 	minUpdates := len(result.NodeUpdate)
 	minUpdates += len(result.NodeAllocation)
@@ -135,6 +135,7 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 		},
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
+		EvalID:            plan.EvalID,
 	}
 	for _, updateList := range result.NodeUpdate {
 		req.Alloc = append(req.Alloc, updateList...)
@@ -150,6 +151,7 @@ func (s *Server) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap 
 		if alloc.CreateTime == 0 {
 			alloc.CreateTime = now
 		}
+		alloc.ModifyTime = now
 	}
 
 	// Dispatch the Raft transaction
@@ -176,7 +178,7 @@ func (s *Server) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 
 	// Wait for the plan to apply
 	if err := future.Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to apply plan: %v", err)
+		s.logger.Printf("[ERR] nomad.planner: failed to apply plan: %v", err)
 		pending.respond(nil, err)
 		return
 	}
@@ -200,6 +202,30 @@ func (s *Server) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger *log.Logger) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
+	// Check if the plan exceeds quota
+	overQuota, err := evaluatePlanQuota(snap, plan)
+	if err != nil {
+		return nil, err
+	}
+
+	// Reject the plan and force the scheduler to refresh
+	if overQuota {
+		index, err := refreshIndex(snap)
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Printf("[DEBUG] nomad.planner: plan for evaluation %q exceeds quota limit. Forcing refresh to %d", plan.EvalID, index)
+		return &structs.PlanResult{RefreshIndex: index}, nil
+	}
+
+	return evaluatePlanPlacements(pool, snap, plan, logger)
+}
+
+// evaluatePlanPlacements is used to determine what portions of a plan can be
+// applied if any, looking for node over commitment. Returns if there should be
+// a plan application which may be partial or if there was an error
+func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger *log.Logger) (*structs.PlanResult, error) {
 	// Create a result holder for the plan
 	result := &structs.PlanResult{
 		NodeUpdate:        make(map[string][]*structs.Allocation),
@@ -239,7 +265,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 		if !fit {
 			// Log the reason why the node's allocations could not be made
 			if reason != "" {
-				logger.Printf("[DEBUG] nomad: plan for node %q rejected because: %v", nodeID, reason)
+				logger.Printf("[DEBUG] nomad.planner: plan for node %q rejected because: %v", nodeID, reason)
 			}
 			// Set that this is a partial commit
 			partialCommit = true
@@ -274,7 +300,7 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 	outstanding := 0
 	didCancel := false
 
-	// Evalute each node in the plan, handling results as they are ready to
+	// Evaluate each node in the plan, handling results as they are ready to
 	// avoid blocking.
 OUTER:
 	for len(nodeIDList) > 0 {
@@ -310,18 +336,14 @@ OUTER:
 	// a minimum refresh index to force the scheduler to work on a more
 	// up-to-date state to avoid the failures.
 	if partialCommit {
-		allocIndex, err := snap.Index("allocs")
+		index, err := refreshIndex(snap)
 		if err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
-		nodeIndex, err := snap.Index("nodes")
-		if err != nil {
-			mErr.Errors = append(mErr.Errors, err)
-		}
-		result.RefreshIndex = maxUint64(nodeIndex, allocIndex)
+		result.RefreshIndex = index
 
 		if result.RefreshIndex == 0 {
-			err := fmt.Errorf("partialCommit with RefreshIndex of 0 (%d node, %d alloc)", nodeIndex, allocIndex)
+			err := fmt.Errorf("partialCommit with RefreshIndex of 0")
 			mErr.Errors = append(mErr.Errors, err)
 		}
 
@@ -371,7 +393,7 @@ func correctDeploymentCanaries(result *structs.PlanResult) {
 	}
 }
 
-// evaluateNodePlan is used to evalute the plan for a single node,
+// evaluateNodePlan is used to evaluate the plan for a single node,
 // returning if the plan is valid or if an error is encountered
 func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID string) (bool, string, error) {
 	// If this is an evict-only plan, it always 'fits' since we are removing things.
@@ -386,14 +408,17 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "", fmt.Errorf("failed to get node '%s': %v", nodeID, err)
 	}
 
-	// If the node does not exist or is not ready for schduling it is not fit
+	// If the node does not exist or is not ready for scheduling it is not fit
 	// XXX: There is a potential race between when we do this check and when
 	// the Raft commit happens.
 	if node == nil {
 		return false, "node does not exist", nil
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
+	} else if node.SchedulingEligibility == structs.NodeSchedulingIneligible {
+		return false, "node is not eligible for draining", nil
 	} else if node.Drain {
+		// Deprecate in favor of scheduling eligibility and remove post-0.8
 		return false, "node is draining", nil
 	}
 
@@ -405,7 +430,6 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
-	proposed := existingAlloc
 	var remove []*structs.Allocation
 	if update := plan.NodeUpdate[nodeID]; len(update) > 0 {
 		remove = append(remove, update...)
@@ -415,7 +439,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 			remove = append(remove, alloc)
 		}
 	}
-	proposed = structs.RemoveAllocs(existingAlloc, remove)
+	proposed := structs.RemoveAllocs(existingAlloc, remove)
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
 	// Check if these allocations fit

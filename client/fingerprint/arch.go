@@ -4,8 +4,7 @@ import (
 	"log"
 	"runtime"
 
-	client "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // ArchFingerprint is used to fingerprint the architecture
@@ -20,7 +19,8 @@ func NewArchFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *ArchFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
-	node.Attributes["cpu.arch"] = runtime.GOARCH
-	return true, nil
+func (f *ArchFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	resp.AddAttribute("cpu.arch", runtime.GOARCH)
+	resp.Detected = true
+	return nil
 }

@@ -42,7 +42,7 @@ $ curl http://127.0.0.1:4646/v1/agent/members
 ```
 
 The conventions used in the API documentation do not list a port and use the
-standard URL `nomad.rocks`. Be sure to replace this with your Nomad agent URL
+standard URL `localhost:4646`. Be sure to replace this with your Nomad agent URL
 when using the examples.
 
 ## Data Model and Layout
@@ -86,7 +86,7 @@ Here is an example using curl:
 ```text
 $ curl \
     --header "X-Nomad-Token: aa534e09-6a07-0a45-2295-a7f77063d429" \
-    https://nomad.rocks/v1/jobs
+    https://localhost:4646/v1/jobs
 ```
 
 ## Blocking Queries
@@ -166,7 +166,7 @@ accepts gzip compression. This is achieved by passing the accept encoding:
 ```
 $ curl \
     --header "Accept-Encoding: gzip" \
-    https://nomad.rocks/v1/...
+    https://localhost:4646/v1/...
 ```
 
 ## Formatted JSON Output
@@ -179,7 +179,7 @@ server-formatted data. Asking the server to format the data takes away
 processing cycles from more important tasks.
 
 ```
-$ curl https://nomad.rocks/v1/page?pretty
+$ curl https://localhost:4646/v1/page?pretty
 ```
 
 ## HTTP Methods
@@ -196,3 +196,15 @@ GET /v1/jobs
 
 Even though these share a path, the `PUT` operation creates a new job whereas
 the `GET` operation reads all jobs.
+
+## HTTP Response Codes
+
+Individual API's will contain further documentation in the case that more
+specific response codes are returned but all clients should handle the following:
+
+* 200 and 204 as success codes.
+* 400 indicates a validation failure and if a parameter is modified in the
+  request, it could potentially succeed.
+* 403 marks that the client isn't authenticated for the request.
+* 404 indicates an unknown resource.
+* 5xx means that the client should not expect the request to succeed if retried.

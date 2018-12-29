@@ -11,6 +11,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -52,14 +53,17 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 			Namespace: job.Namespace,
 		},
 	}
-	_, index, err := s.raftApply(structs.JobRegisterRequestType, req)
+	fsmErr, index, err := s.raftApply(structs.JobRegisterRequestType, req)
+	if err, ok := fsmErr.(error); ok && err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a new evaluation
 	eval := &structs.Evaluation{
-		ID:             structs.GenerateUUID(),
+		ID:             uuid.Generate(),
 		Namespace:      job.Namespace,
 		Priority:       job.Priority,
 		Type:           job.Type,
@@ -159,7 +163,7 @@ func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 	wasRunning := p.enabled
 	p.enabled = enabled
 
-	// If we are transistioning from enabled to disabled, stop the daemon and
+	// If we are transitioning from enabled to disabled, stop the daemon and
 	// flush.
 	if !enabled && wasRunning {
 		p.stopFn()
@@ -186,7 +190,8 @@ func (p *PeriodicDispatch) Tracked() []*structs.Job {
 }
 
 // Add begins tracking of a periodic job. If it is already tracked, it acts as
-// an update to the jobs periodic spec.
+// an update to the jobs periodic spec. The method returns whether the job was
+// added and any error that may have occurred.
 func (p *PeriodicDispatch) Add(job *structs.Job) error {
 	p.l.Lock()
 	defer p.l.Unlock()
@@ -196,8 +201,9 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 		return nil
 	}
 
-	// If we were tracking a job and it has been disabled or made non-periodic remove it.
-	disabled := !job.IsPeriodic() || !job.Periodic.Enabled
+	// If we were tracking a job and it has been disabled, made non-periodic,
+	// stopped or is parameterized, remove it
+	disabled := !job.IsPeriodicActive()
 
 	tuple := structs.NamespacedID{
 		ID:        job.ID,
@@ -213,15 +219,12 @@ func (p *PeriodicDispatch) Add(job *structs.Job) error {
 		return nil
 	}
 
-	// Check if the job is also a parameterized job. If it is, then we do not want to
-	// treat it as a periodic job but only its dispatched children.
-	if job.IsParameterized() {
-		return nil
-	}
-
 	// Add or update the job.
 	p.tracked[tuple] = job
-	next := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
+	next, err := job.Periodic.Next(time.Now().In(job.Periodic.GetLocation()))
+	if err != nil {
+		return fmt.Errorf("failed adding job %s: %v", job.NamespacedID(), err)
+	}
 	if tracked {
 		if err := p.heap.Update(job, next); err != nil {
 			return fmt.Errorf("failed to update job %q (%s) launch time: %v", job.ID, job.Namespace, err)
@@ -344,9 +347,11 @@ func (p *PeriodicDispatch) run(ctx context.Context) {
 func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	p.l.Lock()
 
-	nextLaunch := job.Periodic.Next(launchTime)
-	if err := p.heap.Update(job, nextLaunch); err != nil {
-		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %q (%s): %v", job.ID, job.Namespace, err)
+	nextLaunch, err := job.Periodic.Next(launchTime)
+	if err != nil {
+		p.logger.Printf("[ERR] nomad.periodic: failed to parse next periodic launch for job %s: %v", job.NamespacedID(), err)
+	} else if err := p.heap.Update(job, nextLaunch); err != nil {
+		p.logger.Printf("[ERR] nomad.periodic: failed to update next launch of periodic job %s: %v", job.NamespacedID(), err)
 	}
 
 	// If the job prohibits overlapping and there are running children, we skip

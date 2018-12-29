@@ -22,7 +22,9 @@ the specific job is queried and displayed. Otherwise, a list of matching jobs an
 information will be displayed.
 
 If the ID is omitted, the command lists out all of the existing jobs and a few of
-the most useful status fields for each.
+the most useful status fields for each. As of Nomad 0.7.1, alloc status also shows allocation
+modification time in addition to create time. When the `-verbose` flag is not set, allocation
+creation and modify times are shown in a shortened relative time format like `5m ago`.
 
 ## General Options
 
@@ -38,7 +40,7 @@ the most useful status fields for each.
 * `-short`: Display short output. Used only when a single node is being queried.
   Drops verbose node allocation data from the output.
 
-* `-verbose`: Show full information.
+* `-verbose`: Show full information. Allocation create and modify times are shown in `yyyy/mm/dd hh:mm:ss` format.
 
 ## Examples
 
@@ -95,11 +97,11 @@ Task Group  Desired  Placed  Healthy  Unhealthy
 cache       1        1       1        0
 
 Allocations
-ID        Node ID   Task Group  Version  Desired  Status   Created At
-478ce836  5ed166e8  cache       0        run      running  07/25/17 15:53:04 UTC
+ID        Node ID   Task Group  Version  Desired  Status   Created   Modified
+478ce836  5ed166e8  cache       0        run      running  5m ago    5m ago
 ```
 
-Full status information of a perodic job:
+Full status information of a periodic job:
 
 ```
 $ nomad job status example
@@ -175,7 +177,7 @@ cache       1       0         4        0       0         0
 Placement Failure
 Task Group "cache":
   * Resources exhausted on 1 nodes
-  * Dimension "cpu exhausted" exhausted on 1 nodes
+  * Dimension "cpu" exhausted on 1 nodes
 
 Latest Deployment
 ID          = bb4b2fb1
@@ -187,11 +189,11 @@ Task Group  Desired  Placed  Healthy  Unhealthy
 cache       5        4       4        0
 
 Allocations
-ID        Node ID   Task Group  Version  Desired  Status   Created At
-048c1e9e  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
-250f9dec  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
-2eb772a1  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
-a17b7d3d  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+ID        Node ID   Task Group  Version  Desired  Status   Created   Modified
+048c1e9e  3f38ecb4  cache       0        run      running  5m ago    5m ago
+250f9dec  3f38ecb4  cache       0        run      running  5m ago    5m ago
+2eb772a1  3f38ecb4  cache       0        run      running  5m ago    5m ago
+a17b7d3d  3f38ecb4  cache       0        run      running  5m ago    5m ago
 ```
 
 Full status information showing evaluations with a placement failure. The in
@@ -240,9 +242,9 @@ Task Group  Desired  Placed  Healthy  Unhealthy
 cache       5        4       4        0
 
 Allocations
-ID        Node ID   Task Group  Version  Desired  Status   Created At
-048c1e9e  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
-250f9dec  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
-2eb772a1  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
-a17b7d3d  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC
+ID        Node ID   Task Group  Version  Desired  Status   Created                    Modified
+048c1e9e  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC      07/25/17 15:55:27 UTC
+250f9dec  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC      07/25/17 15:55:27 UTC
+2eb772a1  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC      07/25/17 15:55:27 UTC
+a17b7d3d  3f38ecb4  cache       0        run      running  07/25/17 15:55:27 UTC      07/25/17 15:55:27 UTC
 ```

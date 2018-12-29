@@ -41,7 +41,9 @@ job "docs" {
 - `migrate` `(bool: false)` - When `sticky` is true, this specifies that the
   Nomad client should make a best-effort attempt to migrate the data from a
   remote machine if placement cannot be made on the original node. During data
-  migration, the task will block starting until the data migration has completed.
+  migration, the task will block starting until the data migration has
+  completed. Migration is atomic and any partially migrated data will be
+  removed if an error is encountered.
 
 - `size` `(int: 300)` - Specifies the size of the ephemeral disk in MB.  The
   current Nomad ephemeral storage implementation does not enforce this limit;

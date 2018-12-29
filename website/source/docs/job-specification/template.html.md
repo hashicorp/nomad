@@ -94,14 +94,19 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   prevent a thundering herd problem where all task instances restart at the same
   time.
 
-- `vault_grace` `(string: "5m")` - Specifies the grace period between lease
-  renewal and secret re-acquisition. When renewing a secret, if the remaining
-  lease is less than or equal to the configured grace, the template will request
-  a new credential. This prevents Vault from revoking the secret at its
-  expiration and the task having a stale secret. If the grace is set to a value
-  that is higher than your default TTL or max TTL, the template will always read
-  a new secret. If the task defines several templates, the `vault_grace` will be
-  set to the lowest value across all the templates.
+-   `vault_grace` `(string: "15s")` - Specifies the grace period between lease
+    renewal and secret re-acquisition. When renewing a secret, if the remaining
+    lease is less than or equal to the configured grace, the template will request
+    a new credential. This prevents Vault from revoking the secret at its
+    expiration and the task having a stale secret.
+    
+    If the grace is set to a value that is higher than your default TTL or max
+    TTL, the template will always read a new secret. **If secrets are being
+    renewed constantly, decrease the `vault_grace`.**
+    
+    If the task defines several templates, the `vault_grace` will be set to the
+    lowest value across all the templates.
+
 
 ## `template` Examples
 
@@ -186,7 +191,7 @@ template {
 
 # Empty lines are also ignored
 LOG_LEVEL="{{key "service/geo-api/log-verbosity"}}"
-API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.key}}{{end}}"
+API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.value}}{{end}}"
 EOH
 
   destination = "secrets/file.env"
@@ -216,7 +221,24 @@ The parser will read the JSON string, so the `$CERT_PEM` environment variable
 will be identical to the contents of the file.
 
 For more details see [go-envparser's
-README](https://github.com/schmichael/go-envparse#readme).
+README](https://github.com/hashicorp/go-envparse#readme).
+
+## Vault Integration
+
+This example acquires a PKI certificate from Vault in PEM format and stores it into your application's secret directory.
+
+```hcl
+template {
+  data = <<EOH
+{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" "format=pem" }}
+{{ .Data.certificate }}
+{{ .Data.issuing_ca }}
+{{ .Data.private_key }}{{ end }}
+EOH
+  destination   = "${NOMAD_SECRETS_DIR}/bundle.pem"
+  change_mode   = "restart"
+}
+```
 
 ## Client Configuration
 

@@ -1,0 +1,6 @@
+{{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
+  {{partial "jobs/job/subnav"}}
+  <section class="section">
+    {{job-deployments-stream deployments=model.deployments}}
+  </section>
+{{/gutter-menu}}

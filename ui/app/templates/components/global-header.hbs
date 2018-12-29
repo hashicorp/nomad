@@ -1,0 +1,22 @@
+<nav class="navbar is-primary">
+  <div class="navbar-brand">
+    <span class="navbar-item is-logo">
+      <img src="/ui/images/nomad-logo.svg" alt="Nomad" />
+    </span>
+  </div>
+  <div class="navbar-end">
+    {{#if (eq config.environment "development")}}
+      {{#link-to "freestyle" class="navbar-item"}}Styleguide{{/link-to}}
+    {{/if}}
+    <a href="https://nomadproject.io/docs" class="navbar-item">Documentation</a>
+    {{#link-to "settings.tokens" class="navbar-item"}}ACL Tokens{{/link-to}}
+  </div>
+</nav>
+<div class="navbar is-secondary">
+  <div class="navbar-item is-gutter"></div>
+  <nav class="breadcrumb is-large">
+    <ul>
+      {{yield}}
+    </ul>
+  </nav>
+</div>

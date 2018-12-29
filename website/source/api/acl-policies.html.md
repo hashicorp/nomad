@@ -26,14 +26,14 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
-| `YES`            | `all`             | `management` |
+| `YES`            | `all`             | `management` for all policies.<br>Output when given a non-management token will be limited to the policies on the token itself |
 
 
 ### Sample Request
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/policies
+    https://localhost:4646/v1/acl/policies
 ```
 
 ### Sample Response
@@ -91,7 +91,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/acl/policy/my-policy
+    https://localhost:4646/v1/acl/policy/my-policy
 ```
 
 ## Read Policy
@@ -110,13 +110,13 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
-| `YES`            | `all`             | `management` |
+| `YES`            | `all`             | `management` or token with access to policy |
 
 ### Sample Request
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/policy/foo
+    https://localhost:4646/v1/acl/policy/foo
 ```
 
 ### Sample Response
@@ -157,6 +157,6 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/acl/policy/foo
+    https://localhost:4646/v1/acl/policy/foo
 ```
 

@@ -16,7 +16,7 @@ func (c *JobDeploymentsCommand) Help() string {
 	helpText := `
 Usage: nomad job deployments [options] <job>
 
-Deployments is used to display the deployments for a particular job.
+  Deployments is used to display the deployments for a particular job.
 
 General Options:
 
@@ -68,11 +68,13 @@ func (c *JobDeploymentsCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *JobDeploymentsCommand) Name() string { return "job deployments" }
+
 func (c *JobDeploymentsCommand) Run(args []string) int {
 	var json, latest, verbose bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("job deployments", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&latest, "latest", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -86,7 +88,8 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 	// Check that we got exactly one node
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <job>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

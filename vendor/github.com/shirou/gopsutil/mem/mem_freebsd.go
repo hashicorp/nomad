@@ -3,79 +3,62 @@
 package mem
 
 import (
+	"context"
 	"errors"
 	"os/exec"
 	"strconv"
 	"strings"
 
-	"github.com/shirou/gopsutil/internal/common"
+	"golang.org/x/sys/unix"
 )
 
 func VirtualMemory() (*VirtualMemoryStat, error) {
-	pageSize, err := common.DoSysctrl("vm.stats.vm.v_page_size")
+	return VirtualMemoryWithContext(context.Background())
+}
+
+func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
+	pageSize, err := unix.SysctlUint32("vm.stats.vm.v_page_size")
 	if err != nil {
 		return nil, err
 	}
-	p, err := strconv.ParseUint(pageSize[0], 10, 64)
+	pageCount, err := unix.SysctlUint32("vm.stats.vm.v_page_count")
+	if err != nil {
+		return nil, err
+	}
+	free, err := unix.SysctlUint32("vm.stats.vm.v_free_count")
+	if err != nil {
+		return nil, err
+	}
+	active, err := unix.SysctlUint32("vm.stats.vm.v_active_count")
+	if err != nil {
+		return nil, err
+	}
+	inactive, err := unix.SysctlUint32("vm.stats.vm.v_inactive_count")
+	if err != nil {
+		return nil, err
+	}
+	cached, err := unix.SysctlUint32("vm.stats.vm.v_cache_count")
+	if err != nil {
+		return nil, err
+	}
+	buffers, err := unix.SysctlUint32("vfs.bufspace")
+	if err != nil {
+		return nil, err
+	}
+	wired, err := unix.SysctlUint32("vm.stats.vm.v_wire_count")
 	if err != nil {
 		return nil, err
 	}
 
-	pageCount, err := common.DoSysctrl("vm.stats.vm.v_page_count")
-	if err != nil {
-		return nil, err
-	}
-	free, err := common.DoSysctrl("vm.stats.vm.v_free_count")
-	if err != nil {
-		return nil, err
-	}
-	active, err := common.DoSysctrl("vm.stats.vm.v_active_count")
-	if err != nil {
-		return nil, err
-	}
-	inactive, err := common.DoSysctrl("vm.stats.vm.v_inactive_count")
-	if err != nil {
-		return nil, err
-	}
-	cache, err := common.DoSysctrl("vm.stats.vm.v_cache_count")
-	if err != nil {
-		return nil, err
-	}
-	buffer, err := common.DoSysctrl("vfs.bufspace")
-	if err != nil {
-		return nil, err
-	}
-	wired, err := common.DoSysctrl("vm.stats.vm.v_wire_count")
-	if err != nil {
-		return nil, err
-	}
-
-	parsed := make([]uint64, 0, 7)
-	vv := []string{
-		pageCount[0],
-		free[0],
-		active[0],
-		inactive[0],
-		cache[0],
-		buffer[0],
-		wired[0],
-	}
-	for _, target := range vv {
-		t, err := strconv.ParseUint(target, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		parsed = append(parsed, t)
-	}
-
+	p := uint64(pageSize)
 	ret := &VirtualMemoryStat{
-		Total:    parsed[0] * p,
-		Free:     parsed[1] * p,
-		Active:   parsed[2] * p,
-		Inactive: parsed[3] * p,
-		Cached:   parsed[4] * p,
-		Buffers:  parsed[5],
-		Wired:    parsed[6] * p,
+		Total:    uint64(pageCount) * p,
+		Free:     uint64(free) * p,
+		Active:   uint64(active) * p,
+		Inactive: uint64(inactive) * p,
+		Cached:   uint64(cached) * p,
+		Buffers:  uint64(buffers),
+		Wired:    uint64(wired) * p,
 	}
 
 	ret.Available = ret.Inactive + ret.Cached + ret.Free
@@ -88,6 +71,10 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 // Return swapinfo
 // FreeBSD can have multiple swap devices. but use only first device
 func SwapMemory() (*SwapMemoryStat, error) {
+	return SwapMemoryWithContext(context.Background())
+}
+
+func SwapMemoryWithContext(ctx context.Context) (*SwapMemoryStat, error) {
 	swapinfo, err := exec.LookPath("swapinfo")
 	if err != nil {
 		return nil, err

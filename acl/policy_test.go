@@ -24,7 +24,7 @@ func TestParse(t *testing.T) {
 			"",
 			&Policy{
 				Namespaces: []*NamespacePolicy{
-					&NamespacePolicy{
+					{
 						Name:   "default",
 						Policy: PolicyRead,
 						Capabilities: []string{
@@ -55,11 +55,14 @@ func TestParse(t *testing.T) {
 			operator {
 				policy = "deny"
 			}
+			quota {
+				policy = "read"
+			}
 			`,
 			"",
 			&Policy{
 				Namespaces: []*NamespacePolicy{
-					&NamespacePolicy{
+					{
 						Name:   "default",
 						Policy: PolicyRead,
 						Capabilities: []string{
@@ -67,18 +70,19 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadJob,
 						},
 					},
-					&NamespacePolicy{
+					{
 						Name:   "other",
 						Policy: PolicyWrite,
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
 							NamespaceCapabilitySubmitJob,
+							NamespaceCapabilityDispatchJob,
 							NamespaceCapabilityReadLogs,
 							NamespaceCapabilityReadFS,
 						},
 					},
-					&NamespacePolicy{
+					{
 						Name: "secret",
 						Capabilities: []string{
 							NamespaceCapabilityDeny,
@@ -94,6 +98,9 @@ func TestParse(t *testing.T) {
 				},
 				Operator: &OperatorPolicy{
 					Policy: PolicyDeny,
+				},
+				Quota: &QuotaPolicy{
+					Policy: PolicyRead,
 				},
 			},
 		},
@@ -144,12 +151,51 @@ func TestParse(t *testing.T) {
 		},
 		{
 			`
+			quota {
+				policy = "foo"
+			}
+			`,
+			"Invalid quota policy",
+			nil,
+		},
+		{
+			`
+			{
+				"Name": "my-policy",
+				"Description": "This is a great policy",
+				"Rules": "anything"
+			}
+			`,
+			"Invalid policy",
+			nil,
+		},
+		{
+			`
 			namespace "has a space"{
 				policy = "read"
 			}
 			`,
 			"Invalid namespace name",
 			nil,
+		},
+		{
+			`
+			namespace "default" {
+				capabilities = ["sentinel-override"]
+			}
+			`,
+			"",
+			&Policy{
+				Namespaces: []*NamespacePolicy{
+					{
+						Name:   "default",
+						Policy: "",
+						Capabilities: []string{
+							NamespaceCapabilitySentinelOverride,
+						},
+					},
+				},
+			},
 		},
 	}
 

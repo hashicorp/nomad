@@ -1,0 +1,46 @@
+---
+layout: "docs"
+page_title: "Commands: sentinel read"
+sidebar_current: "docs-commands-sentinel-read"
+description: >
+  The sentinel read command is used to inspect a Sentinel policies.
+---
+
+# Command: sentinel read
+
+The `sentinel read` command is used to inspect a Sentinel policy.
+
+~> Sentinel commands are new in Nomad 0.7 and are only available with Nomad
+Enterprise.
+
+## Usage
+
+```
+nomad sentinel read [options] <Policy Name>
+```
+
+The `sentinel read` command requires a single argument, the policy name.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Read Options
+
+* `-raw` : Output the raw policy only.
+
+## Examples
+
+Read all policies:
+
+```
+$ nomad sentinel read foo
+Name              = foo
+Scope             = submit-job
+Enforcement Level = advisory
+Description       = my test policy
+Policy:
+
+main = rule { true }
+
+```

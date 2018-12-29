@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -47,7 +48,7 @@ type Factory func(*log.Logger, State, Planner) Scheduler
 // a time. The evaluation may result in task allocations which are computed
 // optimistically, as there are many concurrent evaluations being processed.
 // The task allocations are submitted as a plan, and the current leader will
-// coordinate the commmits to prevent oversubscription or improper allocations
+// coordinate the commits to prevent oversubscription or improper allocations
 // based on stale state.
 type Scheduler interface {
 	// Process is used to handle a new evaluation. The scheduler is free to
@@ -61,6 +62,9 @@ type Scheduler interface {
 // and to enforce complex constraints that require more information than
 // is available to a local state scheduler.
 type State interface {
+	// Config returns the configuration of the state store
+	Config() *state.StateStoreConfig
+
 	// Nodes returns an iterator over all the nodes.
 	// The type of each result is *structs.Node
 	Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error)

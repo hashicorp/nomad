@@ -82,7 +82,7 @@ job "docs" {
       # with Consul for service discovery and monitoring.
       service {
         # This tells Consul to monitor the service on the port
-        # labled "http". Since Nomad allocates high dynamic port
+        # labelled "http". Since Nomad allocates high dynamic port
         # numbers, we use labels to refer to them.
         port = "http"
 
@@ -95,14 +95,14 @@ job "docs" {
       }
 
       # It is possible to set environment variables which will be
-      # available to the job when it runs.
+      # available to the task when it runs.
       env {
         "DB_HOST" = "db01.example.com"
         "DB_USER" = "web"
         "DB_PASS" = "loremipsum"
       }
 
-      # Specify the maximum resources required to run the job,
+      # Specify the maximum resources required to run the task,
       # include CPU, memory, and bandwidth.
       resources {
         cpu    = 500 # MHz

@@ -28,6 +28,11 @@ filter on [attributes][interpolation] or [client metadata][client-meta].
 Additionally constraints may be specified at the [job][job], [group][group], or
 [task][task] levels for ultimate flexibility.
 
+~> **It is possible to define irreconcilable constraints in a job.**
+For example, because all [tasks within a group are scheduled on the same client node][group],
+specifying different [`${attr.unique.hostname}`][node-variables] constraints at
+the task level will cause a job to be unplaceable.
+
 ```hcl
 job "docs" {
   # All tasks in this job must run on linux.
@@ -214,7 +219,7 @@ constraint {
 A potential use case of the `distinct_property` constraint is to spread a
 service with `count > 1` across racks to minimize correlated failure. Nodes can
 be annotated with which rack they are on using [client
-metadata][client-metadata] with values such as "rack-12-1", "rack-12-2", etc.
+metadata][client-meta] with values such as "rack-12-1", "rack-12-2", etc.
 The following constraint would assure that an individual rack is not running
 more than 2 instances of the task group.
 
@@ -273,3 +278,4 @@ constraint {
 [client-meta]: /docs/agent/configuration/client.html#meta "Nomad meta Job Specification"
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [interpolation]: /docs/runtime/interpolation.html "Nomad interpolation"
+[node-variables]: /docs/runtime/interpolation.html#node-variables- "Nomad interpolation-Node variables"

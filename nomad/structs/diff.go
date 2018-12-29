@@ -234,6 +234,12 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
+	// Reschedule policy diff
+	reschedDiff := primitiveObjectDiff(tg.ReschedulePolicy, other.ReschedulePolicy, nil, "ReschedulePolicy", contextual)
+	if reschedDiff != nil {
+		diff.Objects = append(diff.Objects, reschedDiff)
+	}
+
 	// EphemeralDisk diff
 	diskDiff := primitiveObjectDiff(tg.EphemeralDisk, other.EphemeralDisk, nil, "EphemeralDisk", contextual)
 	if diskDiff != nil {
@@ -527,6 +533,15 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
+	if setDiff := stringSetDiff(old.CanaryTags, new.CanaryTags, "CanaryTags", contextual); setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	// Tag diffs
+	if setDiff := stringSetDiff(old.Tags, new.Tags, "Tags", contextual); setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
 	// Checks diffs
 	if cDiffs := serviceCheckDiffs(old.Checks, new.Checks, contextual); cDiffs != nil {
 		diff.Objects = append(diff.Objects, cDiffs...)
@@ -598,6 +613,11 @@ func serviceCheckDiff(old, new *ServiceCheck, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, headerDiff)
 	}
 
+	// Diff check_restart
+	if crDiff := checkRestartDiff(old.CheckRestart, new.CheckRestart, contextual); crDiff != nil {
+		diff.Objects = append(diff.Objects, crDiff)
+	}
+
 	return diff
 }
 
@@ -606,17 +626,48 @@ func serviceCheckDiff(old, new *ServiceCheck, contextual bool) *ObjectDiff {
 // occurred.
 func checkHeaderDiff(old, new map[string][]string, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Header"}
+	var oldFlat, newFlat map[string]string
+
 	if reflect.DeepEqual(old, new) {
 		return nil
 	} else if len(old) == 0 {
 		diff.Type = DiffTypeAdded
+		newFlat = flatmap.Flatten(new, nil, false)
 	} else if len(new) == 0 {
 		diff.Type = DiffTypeDeleted
+		oldFlat = flatmap.Flatten(old, nil, false)
 	} else {
 		diff.Type = DiffTypeEdited
+		oldFlat = flatmap.Flatten(old, nil, false)
+		newFlat = flatmap.Flatten(new, nil, false)
 	}
-	oldFlat := flatmap.Flatten(old, nil, false)
-	newFlat := flatmap.Flatten(new, nil, false)
+
+	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
+	return diff
+}
+
+// checkRestartDiff returns the diff of two service check check_restart
+// objects. If contextual diff is enabled, all fields will be returned, even if
+// no diff occurred.
+func checkRestartDiff(old, new *CheckRestart, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "CheckRestart"}
+	var oldFlat, newFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		diff.Type = DiffTypeAdded
+		newFlat = flatmap.Flatten(new, nil, true)
+		diff.Type = DiffTypeAdded
+	} else if new == nil {
+		diff.Type = DiffTypeDeleted
+		oldFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldFlat = flatmap.Flatten(old, nil, true)
+		newFlat = flatmap.Flatten(new, nil, true)
+	}
+
 	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
 	return diff
 }
@@ -1175,7 +1226,7 @@ func primitiveObjectDiff(old, new interface{}, filter []string, name string, con
 // primitiveObjectSetDiff does a set difference of the old and new sets. The
 // filter parameter can be used to filter a set of primitive fields in the
 // passed structs. The name corresponds to the name of the passed objects. If
-// contextual diff is enabled, objects' primtive fields will be returned even if
+// contextual diff is enabled, objects' primitive fields will be returned even if
 // no diff exists.
 func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string, contextual bool) []*ObjectDiff {
 	makeSet := func(objects []interface{}) map[string]interface{} {

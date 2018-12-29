@@ -6,6 +6,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -22,6 +23,13 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "get_deployment"}, time.Now())
+
+	// Check namespace read-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -66,6 +74,13 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "fail"}, time.Now())
 
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if args.DeploymentID == "" {
 		return fmt.Errorf("missing deployment ID")
@@ -100,6 +115,13 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "pause"}, time.Now())
+
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate the arguments
 	if args.DeploymentID == "" {
@@ -140,6 +162,13 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "promote"}, time.Now())
 
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if args.DeploymentID == "" {
 		return fmt.Errorf("missing deployment ID")
@@ -175,6 +204,13 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "set_alloc_health"}, time.Now())
+
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Validate the arguments
 	if args.DeploymentID == "" {
@@ -214,6 +250,13 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "list"}, time.Now())
+
+	// Check namespace read-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -263,6 +306,13 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "allocations"}, time.Now())
+
+	// Check namespace read-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Setup the blocking query
 	opts := blockingOptions{

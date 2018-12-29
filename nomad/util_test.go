@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -17,12 +17,14 @@ func TestIsNomadServer(t *testing.T) {
 		Addr:   net.IP([]byte{127, 0, 0, 1}),
 		Status: serf.StatusAlive,
 		Tags: map[string]string{
-			"role":   "nomad",
-			"region": "aws",
-			"dc":     "east-aws",
-			"port":   "10000",
-			"vsn":    "1",
-			"build":  "0.7.0+ent",
+			"role":     "nomad",
+			"region":   "aws",
+			"dc":       "east-aws",
+			"rpc_addr": "1.1.1.1",
+			"port":     "10000",
+			"vsn":      "1",
+			"raft_vsn": "2",
+			"build":    "0.7.0+ent",
 		},
 	}
 	valid, parts := isNomadServer(m)
@@ -41,6 +43,12 @@ func TestIsNomadServer(t *testing.T) {
 	}
 	if parts.Status != serf.StatusAlive {
 		t.Fatalf("bad: %v", parts.Status)
+	}
+	if parts.RaftVersion != 2 {
+		t.Fatalf("bad: %v", parts.RaftVersion)
+	}
+	if parts.RPCAddr.String() != "1.1.1.1:10000" {
+		t.Fatalf("bad: %v", parts.RPCAddr.String())
 	}
 	if seg := parts.Build.Segments(); len(seg) != 3 {
 		t.Fatalf("bad: %v", parts.Build)
@@ -156,7 +164,7 @@ func TestShuffleStrings(t *testing.T) {
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {
-		inp[idx] = structs.GenerateUUID()
+		inp[idx] = uuid.Generate()
 	}
 
 	// Copy the input

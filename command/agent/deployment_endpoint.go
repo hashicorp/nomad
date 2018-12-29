@@ -166,6 +166,9 @@ func (s *HTTPServer) deploymentAllocations(resp http.ResponseWriter, req *http.R
 	if out.Allocations == nil {
 		out.Allocations = make([]*structs.AllocListStub, 0)
 	}
+	for _, alloc := range out.Allocations {
+		alloc.SetEventDisplayMessages()
+	}
 	return out.Allocations, nil
 }
 

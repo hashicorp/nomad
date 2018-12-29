@@ -74,7 +74,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
       command = "my-command"
     }
     ```
-
+    
 * `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
 
@@ -82,6 +82,8 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `dns_servers` - (Optional) A list of DNS servers for the container to use
   (e.g. ["8.8.8.8", "8.8.4.4"]). Requires Docker v1.10 or greater.
+
+* `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
 * `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
@@ -96,6 +98,34 @@ The `docker` driver supports the following configuration in the job spec.  Only
 
 * `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
+
+* `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
+   containers on start.
+
+    ```hcl
+    config {
+      sysctl {
+        net.core.somaxconn = "16384"
+      }
+    }
+    ```
+
+* `ulimit` - (Optional) A key-value map of ulimit configurations to set to the
+  containers on start.
+
+    ```hcl
+    config {
+      ulimit {
+        nproc = "4242"
+        nofile = "2048:4096"
+      }
+    }
+    ```
+
+* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
+  the container access to devices on the host. Note that this also requires the
+  nomad agent and docker daemon to be configured to allow privileged
+  containers.
 
 * `ipc_mode` - (Optional) The IPC mode to be used for the container. The default
   is `none` for a private IPC namespace. Other values are `host` for sharing
@@ -122,18 +152,15 @@ The `docker` driver supports the following configuration in the job spec.  Only
     }
     ```
 
-* `load` - (Optional) A list of paths to image archive files. If
-  this key is not specified, Nomad assumes the `image` is hosted on a repository
-  and attempts to pull the image. The `artifact` blocks can be specified to
-  download each of the archive files. The equivalent of `docker load -i path`
-  would be run on each of the archive files.
+* `load` - (Optional) Load an image from a `tar` archive file instead of from a
+  remote repository. Equivalent to the `docker load -i <filename>` command.
 
     ```hcl
     artifact {
       source = "http://path.to/redis.tar"
     }
     config {
-      load = ["redis.tar"]
+      load = "redis.tar"
       image = "redis"
     }
     ```
@@ -184,11 +211,6 @@ The `docker` driver supports the following configuration in the job spec.  Only
   See below for more details.
 
 * `port_map` - (Optional) A key-value map of port labels (see below).
-
-* `privileged` - (Optional) `true` or `false` (default). Privileged mode gives
-  the container access to devices on the host. Note that this also requires the
-  nomad agent and docker daemon to be configured to allow privileged
-  containers.
 
 * `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
@@ -250,7 +272,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
         "name-of-the-volume:/path/in/container"
       ]
       # Name of the Docker Volume Driver used by the container
-      volume_driver = "flocker"
+      volume_driver = "pxd"
     }
     ```
 
@@ -273,7 +295,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
               foo = "bar"
             }
             driver_config {
-              name = "flocker"
+              name = "pxd"
               options = {
                 foo = "bar"
               }
@@ -283,6 +305,71 @@ The `docker` driver supports the following configuration in the job spec.  Only
       ]
     }
     ```
+* `devices` - (Optional) A list of
+  [devices](https://docs.docker.com/engine/reference/commandline/run/#add-host-device-to-container-device)
+  to be exposed the container. `host_path` is the only required field. By default, the container will be able to
+  `read`, `write` and `mknod` these devices. Use the optional `cgroup_permissions` field to restrict permissions.
+
+    ```hcl
+    config {
+      devices = [
+        {
+          host_path = "/dev/sda1"
+          container_path = "/dev/xvdc"
+          cgroup_permissions = "r"
+        },
+        {
+          host_path = "/dev/sda2"
+          container_path = "/dev/xvdd"
+        }
+      ]
+    }
+    ```
+
+* `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_add = [
+        "SYS_TIME",
+      ]
+    }
+    ```
+
+* `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
+  [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
+  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  For example:
+
+
+    ```hcl
+    config {
+      cap_drop = [
+        "MKNOD",
+      ]
+    }
+    ```
+
+* `cpu_hard_limit` - (Optional) `true` or `false` (default). Use hard CPU
+  limiting instead of soft limiting. By default this is `false` which means
+  soft limiting is used and containers are able to burst above their CPU limit
+  when there is idle capacity.
+
+* `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's 
+   IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
+   See [IPv6 Docker containers](/docs/job-specification/service.html#IPv6 Docker containers) for details.
+
+* `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
+  the container's filesystem as read only.
+
+* `pids_limit` - (Optional) An integer value that specifies the pid limit for
+  the container. Defaults to unlimited.
 
 ### Container Name
 
@@ -349,7 +436,17 @@ Example docker-config, using two helper scripts in $PATH,
 }
 ```
 
+Example agent configuration, using a helper script "docker-credential-ecr" in
+$PATH
 
+```hcl
+client {
+  enabled = true
+  options {
+    "docker.auth.helper" = "ecr"
+  }
+}
+```
 !> **Be Careful!** At this time these credentials are stored in Nomad in plain
 text. Secrets management will be added in a later release.
 
@@ -483,9 +580,12 @@ of the Linux Kernel and Docker daemon.
 The `docker` driver has the following [client configuration
 options](/docs/agent/configuration/client.html#options):
 
-* `docker.endpoint` - Defaults to `unix:///var/run/docker.sock`. You will need
-  to customize this if you use a non-standard socket (HTTP or another
-  location).
+* `docker.endpoint` - If using a non-standard socket, HTTP or another location,
+  or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
+  attempt to instantiate a Docker client using the `DOCKER_HOST` environment
+  variable and then fall back to the default listen address for the given
+  operating system. Defaults to `unix:///var/run/docker.sock` on Unix platforms
+  and `npipe:////./pipe/docker_engine` for Windows.
 
 * `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
   JSON file which is in the dockercfg format containing authentication
@@ -495,7 +595,8 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify
   a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
   -like script on $PATH to lookup authentication information from external
-  sources.
+  sources. The script's name must begin with `docker-credential-` and this
+  option should include only the basename of the script, not the path.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
@@ -515,10 +616,11 @@ options](/docs/agent/configuration/client.html#options):
 * `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
   prevent Nomad from removing images from stopped tasks.
 
-* `docker.cleanup.image.delay` A time duration that defaults to `3m`. The delay
-  controls how long Nomad will wait between an image being unused and deleting
-  it. If a tasks is received that uses the same image within the delay, the
-  image will be reused.
+* `docker.cleanup.image.delay` A time duration, as [defined
+  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
+  delay controls how long Nomad will wait between an image being unused and
+  deleting it. If a tasks is received that uses the same image within the delay,
+  the image will be reused.
 
 * `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container and use volume drivers (`volume_driver`).
@@ -534,6 +636,14 @@ options](/docs/agent/configuration/client.html#options):
   allow containers to use `privileged` mode, which gives the containers full
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
+
+* `docker.caps.whitelist`: A list of allowed Linux capabilities. Defaults to
+  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`,
+  which is the list of capabilities allowed by docker by default, as 
+  [defined here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Allows the operator to control which capabilities can be obtained by 
+  tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a 
+  shortcut for whitelisting all capabilities.
 
 Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
 `DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
@@ -614,9 +724,9 @@ need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
 [QEMU](/docs/drivers/qemu.html).
 
-## Docker For Mac Caveats
+## Docker for Mac Caveats
 
-Docker For Mac runs docker inside a small VM and then allows access to parts of
+Docker for Mac runs Docker inside a small VM and then allows access to parts of
 the host filesystem into that VM. At present, nomad uses a syslog server bound to
 a Unix socket within a path that both the host and the VM can access to forward
 log messages back to nomad. But at present, Docker For Mac does not work for
@@ -628,3 +738,11 @@ logs will be available to nomad. Users must use the native docker facilities to
 examine the logs of any jobs running under docker.
 
 In the future, we will resolve this issue, one way or another.
+
+## Docker for Windows Caveats
+
+Docker for Windows only supports running Windows containers. Because Docker for
+Windows is relatively new and rapidly evolving you may want to consult the
+[list of relevant issues on GitHub][WinIssues].
+
+[WinIssues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Adriver%2Fdocker+label%3Aplatform-windows

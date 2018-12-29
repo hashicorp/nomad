@@ -1,0 +1,10 @@
+{{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
+  {{partial "jobs/job/subnav"}}
+  <section class="section">
+    <div class="boxed-section">
+      <div class="boxed-section-body is-dark">
+        {{json-viewer data-test-definition-view json=model.definition}}
+      </div>
+    </div>
+  </section>
+{{/gutter-menu}}

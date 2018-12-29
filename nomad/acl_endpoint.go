@@ -5,10 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -43,7 +45,7 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -87,7 +89,7 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -120,10 +122,34 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	// If it is not a management token determine the policies that may be listed
+	mgt := acl.IsManagement()
+	var policies map[string]struct{}
+	if !mgt {
+		snap, err := a.srv.fsm.State().Snapshot()
+		if err != nil {
+			return err
+		}
+
+		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if token == nil {
+			return structs.ErrTokenNotFound
+		}
+
+		policies = make(map[string]struct{}, len(token.Policies))
+		for _, p := range token.Policies {
+			policies[p] = struct{}{}
+		}
 	}
 
 	// Setup the blocking query
@@ -151,7 +177,9 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 					break
 				}
 				policy := raw.(*structs.ACLPolicy)
-				reply.Policies = append(reply.Policies, policy.Stub())
+				if _, ok := policies[policy.Name]; ok || mgt {
+					reply.Policies = append(reply.Policies, policy.Stub())
+				}
 			}
 
 			// Use the last index that affected the policy table
@@ -182,10 +210,40 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policy"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if acl == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	// If it is not a management token determine if it can get this policy
+	mgt := acl.IsManagement()
+	if !mgt {
+		snap, err := a.srv.fsm.State().Snapshot()
+		if err != nil {
+			return err
+		}
+
+		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		if err != nil {
+			return err
+		}
+		if token == nil {
+			return structs.ErrTokenNotFound
+		}
+
+		found := false
+		for _, p := range token.Policies {
+			if p == args.Name {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Setup the blocking query
@@ -226,13 +284,21 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
 
-	// For client typed tokens, allow them to query any policies associated with that token.
-	// This is used by clients which are resolving the policies to enforce. Any associated
-	// policies need to be fetched so that the client can determine what to allow.
-	token, err := a.srv.State().ACLTokenBySecretID(nil, args.SecretID)
-	if err != nil {
-		return err
+	var token *structs.ACLToken
+	var err error
+	if args.AuthToken == "" {
+		// No need to look up the anonymous token
+		token = structs.AnonymousACLToken
+	} else {
+		// For client typed tokens, allow them to query any policies associated with that token.
+		// This is used by clients which are resolving the policies to enforce. Any associated
+		// policies need to be fetched so that the client can determine what to allow.
+		token, err = a.srv.State().ACLTokenBySecretID(nil, args.AuthToken)
+		if err != nil {
+			return err
+		}
 	}
+
 	if token == nil {
 		return structs.ErrTokenNotFound
 	}
@@ -283,7 +349,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "bootstrap"}, time.Now())
 
-	// Always ignore the reset index from the arguements
+	// Always ignore the reset index from the arguments
 	args.ResetIndex = 0
 
 	// Snapshot the state
@@ -313,8 +379,8 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 
 	// Create a new global management token, override any parameter
 	args.Token = &structs.ACLToken{
-		AccessorID: structs.GenerateUUID(),
-		SecretID:   structs.GenerateUUID(),
+		AccessorID: uuid.Generate(),
+		SecretID:   uuid.Generate(),
 		Name:       "Bootstrap Token",
 		Type:       structs.ACLManagementToken,
 		Global:     true,
@@ -411,7 +477,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -431,8 +497,8 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 
 		// Generate an accessor and secret ID if new
 		if token.AccessorID == "" {
-			token.AccessorID = structs.GenerateUUID()
-			token.SecretID = structs.GenerateUUID()
+			token.AccessorID = uuid.Generate()
+			token.SecretID = uuid.Generate()
 			token.CreateTime = time.Now().UTC()
 
 		} else {
@@ -498,7 +564,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -513,12 +579,14 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	// Determine if we are deleting local or global tokens
 	hasGlobal := false
 	allGlobal := true
+	nonexistentTokens := make([]string, 0)
 	for _, accessor := range args.AccessorIDs {
 		token, err := state.ACLTokenByAccessorID(nil, accessor)
 		if err != nil {
 			return fmt.Errorf("token lookup failed: %v", err)
 		}
 		if token == nil {
+			nonexistentTokens = append(nonexistentTokens, accessor)
 			continue
 		}
 		if token.Global {
@@ -526,6 +594,10 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 		} else {
 			allGlobal = false
 		}
+	}
+
+	if len(nonexistentTokens) != 0 {
+		return fmt.Errorf("Cannot delete nonexistent tokens: %v", strings.Join(nonexistentTokens, ", "))
 	}
 
 	// Disallow mixed requests with global and non-global tokens since we forward
@@ -565,7 +637,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -622,10 +694,13 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_token"}, time.Now())
 
-	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	acl, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	}
+
+	// Ensure ACLs are enabled and this call is made with one
+	if acl == nil {
 		return structs.ErrPermissionDenied
 	}
 
@@ -638,6 +713,19 @@ func (a *ACL) GetToken(args *structs.ACLTokenSpecificRequest, reply *structs.Sin
 			out, err := state.ACLTokenByAccessorID(ws, args.AccessorID)
 			if err != nil {
 				return err
+			}
+
+			if out == nil {
+				// If the token doesn't resolve, only allow management tokens to
+				// block.
+				if !acl.IsManagement() {
+					return structs.ErrPermissionDenied
+				}
+
+				// Check management level permissions or that the secret ID matches the
+				// accessor ID
+			} else if !acl.IsManagement() && out.SecretID != args.AuthToken {
+				return structs.ErrPermissionDenied
 			}
 
 			// Setup the output
@@ -668,7 +756,7 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.resolveToken(args.SecretID); err != nil {
+	if acl, err := a.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if acl == nil || !acl.IsManagement() {
 		return structs.ErrPermissionDenied

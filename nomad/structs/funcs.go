@@ -1,7 +1,8 @@
 package structs
 
 import (
-	crand "crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -17,18 +18,16 @@ import (
 
 // MergeMultierrorWarnings takes job warnings and canonicalize warnings and
 // merges them into a returnable string. Both the errors may be nil.
-func MergeMultierrorWarnings(warnings, canonicalizeWarnings error) string {
-	if warnings == nil && canonicalizeWarnings == nil {
-		return ""
-	}
-
+func MergeMultierrorWarnings(warnings ...error) string {
 	var warningMsg multierror.Error
-	if canonicalizeWarnings != nil {
-		multierror.Append(&warningMsg, canonicalizeWarnings)
+	for _, warn := range warnings {
+		if warn != nil {
+			multierror.Append(&warningMsg, warn)
+		}
 	}
 
-	if warnings != nil {
-		multierror.Append(&warningMsg, warnings)
+	if len(warningMsg.Errors) == 0 {
+		return ""
 	}
 
 	// Set the formatter
@@ -196,21 +195,6 @@ func ScoreFit(node *Node, util *Resources) float64 {
 	return score
 }
 
-// GenerateUUID is used to generate a random UUID
-func GenerateUUID() string {
-	buf := make([]byte, 16)
-	if _, err := crand.Read(buf); err != nil {
-		panic(fmt.Errorf("failed to read random bytes: %v", err))
-	}
-
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
-		buf[0:4],
-		buf[4:6],
-		buf[6:8],
-		buf[8:10],
-		buf[10:16])
-}
-
 func CopySliceConstraints(s []*Constraint) []*Constraint {
 	l := len(s)
 	if l == 0 {
@@ -309,4 +293,31 @@ func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL
 	// Update the cache
 	cache.Add(cacheKey, aclObj)
 	return aclObj, nil
+}
+
+// GenerateMigrateToken will create a token for a client to access an
+// authenticated volume of another client to migrate data for sticky volumes.
+func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return "", err
+	}
+	h.Write([]byte(allocID))
+	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
+}
+
+// CompareMigrateToken returns true if two migration tokens can be computed and
+// are equal.
+func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
+	h, err := blake2b.New512([]byte(nodeSecretID))
+	if err != nil {
+		return false
+	}
+	h.Write([]byte(allocID))
+
+	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(h.Sum(nil), otherBytes) == 1
 }

@@ -10,14 +10,20 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// resolveToken is used to translate an ACL Token Secret ID into
+// ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
-func (s *Server) resolveToken(secretID string) (*acl.ACL, error) {
+func (s *Server) ResolveToken(secretID string) (*acl.ACL, error) {
 	// Fast-path if ACLs are disabled
 	if !s.config.ACLEnabled {
 		return nil, nil
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolveToken"}, time.Now())
+
+	// Check if the secret ID is the leader secret ID, in which case treat it as
+	// a management token.
+	if leaderAcl := s.getLeaderAcl(); leaderAcl != "" && secretID == leaderAcl {
+		return acl.ManagementACL, nil
+	}
 
 	// Snapshot the state
 	snap, err := s.fsm.State().Snapshot()

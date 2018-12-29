@@ -2,11 +2,12 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -60,39 +61,42 @@ func TestDiffAllocs(t *testing.T) {
 
 	allocs := []*structs.Allocation{
 		// Update the 1st
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
 
 		// Ignore the 2rd
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[1]",
 			Job:    job,
 		},
 
 		// Evict 11th
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[10]",
 			Job:    oldJob,
 		},
 
 		// Migrate the 3rd
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: "drainNode",
 			Name:   "my-job.web[2]",
 			Job:    oldJob,
+			DesiredTransition: structs.DesiredTransition{
+				Migrate: helper.BoolToPtr(true),
+			},
 		},
 		// Mark the 4th lost
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: "dead",
 			Name:   "my-job.web[3]",
 			Job:    oldJob,
@@ -101,20 +105,20 @@ func TestDiffAllocs(t *testing.T) {
 
 	// Have three terminal allocs
 	terminalAllocs := map[string]*structs.Allocation{
-		"my-job.web[4]": &structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		"my-job.web[4]": {
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[4]",
 			Job:    job,
 		},
-		"my-job.web[5]": &structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		"my-job.web[5]": {
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[5]",
 			Job:    job,
 		},
-		"my-job.web[6]": &structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		"my-job.web[6]": {
+			ID:     uuid.Generate(),
 			NodeID: "zip",
 			Name:   "my-job.web[6]",
 			Job:    job,
@@ -197,31 +201,34 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 	allocs := []*structs.Allocation{
 		// Update allocation on baz
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: "baz",
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 		},
 
 		// Ignore allocation on bar
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: "bar",
 			Name:   "my-job.web[0]",
 			Job:    job,
 		},
 
 		// Stop allocation on draining node.
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: drainNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
+			DesiredTransition: structs.DesiredTransition{
+				Migrate: helper.BoolToPtr(true),
+			},
 		},
 		// Mark as lost on a dead node
-		&structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		{
+			ID:     uuid.Generate(),
 			NodeID: deadNode.ID,
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
@@ -230,8 +237,8 @@ func TestDiffSystemAllocs(t *testing.T) {
 
 	// Have three terminal allocs
 	terminalAllocs := map[string]*structs.Allocation{
-		"my-job.web[0]": &structs.Allocation{
-			ID:     structs.GenerateUUID(),
+		"my-job.web[0]": {
+			ID:     uuid.Generate(),
 			NodeID: "pipe",
 			Name:   "my-job.web[0]",
 			Job:    job,
@@ -257,12 +264,12 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	// We should stop the third alloc
-	if len(stop) != 1 || stop[0].Alloc != allocs[2] {
+	if len(stop) != 0 {
 		t.Fatalf("bad: %#v", stop)
 	}
 
 	// There should be no migrates.
-	if len(migrate) != 0 {
+	if len(migrate) != 1 || migrate[0].Alloc != allocs[2] {
 		t.Fatalf("bad: %#v", migrate)
 	}
 
@@ -290,11 +297,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 }
 
 func TestReadyNodesInDCs(t *testing.T) {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	state := state.TestStateStore(t)
 	node1 := mock.Node()
 	node2 := mock.Node()
 	node2.Datacenter = "dc2"
@@ -374,11 +377,7 @@ func TestRetryMax(t *testing.T) {
 }
 
 func TestTaintedNodes(t *testing.T) {
-	state, err := state.NewStateStore(os.Stderr)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	state := state.TestStateStore(t)
 	node1 := mock.Node()
 	node2 := mock.Node()
 	node2.Datacenter = "dc2"
@@ -393,11 +392,11 @@ func TestTaintedNodes(t *testing.T) {
 	noErr(t, state.UpsertNode(1003, node4))
 
 	allocs := []*structs.Allocation{
-		&structs.Allocation{NodeID: node1.ID},
-		&structs.Allocation{NodeID: node2.ID},
-		&structs.Allocation{NodeID: node3.ID},
-		&structs.Allocation{NodeID: node4.ID},
-		&structs.Allocation{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
+		{NodeID: node1.ID},
+		{NodeID: node2.ID},
+		{NodeID: node3.ID},
+		{NodeID: node4.ID},
+		{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
 	}
 	tainted, err := taintedNodes(state, allocs)
 	if err != nil {
@@ -576,10 +575,10 @@ func TestTasksUpdated(t *testing.T) {
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
 	diff := &diffResult{}
 
@@ -600,10 +599,10 @@ func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
 	diff := &diffResult{}
 
@@ -623,7 +622,7 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 
 func TestSetStatus(t *testing.T) {
 	h := NewHarness(t)
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
@@ -706,7 +705,7 @@ func TestSetStatus(t *testing.T) {
 	}
 
 	h = NewHarness(t)
-	dID := structs.GenerateUUID()
+	dID := uuid.Generate()
 	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
 	}
@@ -732,7 +731,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	// Register an alloc
 	alloc := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		EvalID:    eval.ID,
 		NodeID:    node.ID,
 		JobID:     job.ID,
@@ -781,7 +780,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	// Register an alloc
 	alloc := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		EvalID:    eval.ID,
 		NodeID:    node.ID,
 		JobID:     job.ID,
@@ -829,7 +828,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	// Register an alloc
 	alloc := &structs.Allocation{
 		Namespace: structs.DefaultNamespace,
-		ID:        structs.GenerateUUID(),
+		ID:        uuid.Generate(),
 		EvalID:    eval.ID,
 		NodeID:    node.ID,
 		JobID:     job.ID,
@@ -922,10 +921,10 @@ func TestInplaceUpdate_Success(t *testing.T) {
 func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
-		allocTuple{Alloc: &structs.Allocation{ID: structs.GenerateUUID()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
 	diff := &diffResult{}
 
@@ -954,7 +953,7 @@ func TestTaskGroupConstraints(t *testing.T) {
 		Constraints:   []*structs.Constraint{constr},
 		EphemeralDisk: &structs.EphemeralDisk{},
 		Tasks: []*structs.Task{
-			&structs.Task{
+			{
 				Driver: "exec",
 				Resources: &structs.Resources{
 					CPU:      500,
@@ -962,7 +961,7 @@ func TestTaskGroupConstraints(t *testing.T) {
 				},
 				Constraints: []*structs.Constraint{constr2},
 			},
-			&structs.Task{
+			{
 				Driver: "docker",
 				Resources: &structs.Resources{
 					CPU:      500,
@@ -975,7 +974,7 @@ func TestTaskGroupConstraints(t *testing.T) {
 
 	// Build the expected values.
 	expConstr := []*structs.Constraint{constr, constr2, constr3}
-	expDrivers := map[string]struct{}{"exec": struct{}{}, "docker": struct{}{}}
+	expDrivers := map[string]struct{}{"exec": {}, "docker": {}}
 	expSize := &structs.Resources{
 		CPU:      1000,
 		MemoryMB: 512,
@@ -1001,7 +1000,7 @@ func TestProgressMade(t *testing.T) {
 	}
 
 	m := map[string][]*structs.Allocation{
-		"foo": []*structs.Allocation{mock.Alloc()},
+		"foo": {mock.Alloc()},
 	}
 	both := &structs.PlanResult{
 		NodeAllocation: m,
@@ -1012,7 +1011,7 @@ func TestProgressMade(t *testing.T) {
 	deployment := &structs.PlanResult{Deployment: mock.Deployment()}
 	deploymentUpdates := &structs.PlanResult{
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{
-			{DeploymentID: structs.GenerateUUID()},
+			{DeploymentID: uuid.Generate()},
 		},
 	}
 	if !(progressMade(both) && progressMade(update) && progressMade(alloc) &&
@@ -1027,29 +1026,29 @@ func TestDesiredUpdates(t *testing.T) {
 	a2 := &structs.Allocation{TaskGroup: "bar"}
 
 	place := []allocTuple{
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg2},
+		{TaskGroup: tg1},
+		{TaskGroup: tg1},
+		{TaskGroup: tg1},
+		{TaskGroup: tg2},
 	}
 	stop := []allocTuple{
-		allocTuple{TaskGroup: tg2, Alloc: a2},
-		allocTuple{TaskGroup: tg2, Alloc: a2},
+		{TaskGroup: tg2, Alloc: a2},
+		{TaskGroup: tg2, Alloc: a2},
 	}
 	ignore := []allocTuple{
-		allocTuple{TaskGroup: tg1},
+		{TaskGroup: tg1},
 	}
 	migrate := []allocTuple{
-		allocTuple{TaskGroup: tg2},
+		{TaskGroup: tg2},
 	}
 	inplace := []allocTuple{
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg1},
+		{TaskGroup: tg1},
+		{TaskGroup: tg1},
 	}
 	destructive := []allocTuple{
-		allocTuple{TaskGroup: tg1},
-		allocTuple{TaskGroup: tg2},
-		allocTuple{TaskGroup: tg2},
+		{TaskGroup: tg1},
+		{TaskGroup: tg2},
+		{TaskGroup: tg2},
 	}
 	diff := &diffResult{
 		place:   place,
@@ -1080,7 +1079,7 @@ func TestDesiredUpdates(t *testing.T) {
 }
 
 func TestUtil_AdjustQueuedAllocations(t *testing.T) {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 	alloc2.CreateIndex = 4
@@ -1094,13 +1093,13 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 
 	planResult := structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
-			"node-1": []*structs.Allocation{alloc1},
+			"node-1": {alloc1},
 		},
 		NodeAllocation: map[string][]*structs.Allocation{
-			"node-1": []*structs.Allocation{
+			"node-1": {
 				alloc2,
 			},
-			"node-2": []*structs.Allocation{
+			"node-2": {
 				alloc3, alloc4,
 			},
 		},
@@ -1118,6 +1117,7 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 
 func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 	node := mock.Node()
+	node.Status = structs.NodeStatusDown
 	alloc1 := mock.Alloc()
 	alloc1.NodeID = node.ID
 	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
@@ -1150,6 +1150,22 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 		allocsLost = append(allocsLost, alloc.ID)
 	}
 	expected := []string{alloc1.ID, alloc2.ID}
+	if !reflect.DeepEqual(allocsLost, expected) {
+		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
+	}
+
+	// Update the node status to ready and try again
+	plan = structs.Plan{
+		NodeUpdate: make(map[string][]*structs.Allocation),
+	}
+	node.Status = structs.NodeStatusReady
+	updateNonTerminalAllocsToLost(&plan, tainted, allocs)
+
+	allocsLost = make([]string, 0, 2)
+	for _, alloc := range plan.NodeUpdate[node.ID] {
+		allocsLost = append(allocsLost, alloc.ID)
+	}
+	expected = []string{}
 	if !reflect.DeepEqual(allocsLost, expected) {
 		t.Fatalf("actual: %v, expected: %v", allocsLost, expected)
 	}

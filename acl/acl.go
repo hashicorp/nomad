@@ -47,6 +47,7 @@ type ACL struct {
 	agent    string
 	node     string
 	operator string
+	quota    string
 }
 
 // maxPrivilege returns the policy which grants the most privilege
@@ -115,11 +116,19 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		if policy.Operator != nil {
 			acl.operator = maxPrivilege(acl.operator, policy.Operator.Policy)
 		}
+		if policy.Quota != nil {
+			acl.quota = maxPrivilege(acl.quota, policy.Quota.Policy)
+		}
 	}
 
 	// Finalize the namespaces
 	acl.namespaces = nsTxn.Commit()
 	return acl, nil
+}
+
+// AllowNsOp is shorthand for AllowNamespaceOperation
+func (a *ACL) AllowNsOp(ns string, op string) bool {
+	return a.AllowNamespaceOperation(ns, op)
 }
 
 // AllowNamespaceOperation checks if a given operation is allowed for a namespace
@@ -138,6 +147,28 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 	// Check if the capability has been granted
 	capabilities := raw.(capabilitySet)
 	return capabilities.Check(op)
+}
+
+// AllowNamespace checks if any operations are allowed for a namespace
+func (a *ACL) AllowNamespace(ns string) bool {
+	// Hot path management tokens
+	if a.management {
+		return true
+	}
+
+	// Check for a matching capability set
+	raw, ok := a.namespaces.Get([]byte(ns))
+	if !ok {
+		return false
+	}
+
+	// Check if the capability has been granted
+	capabilities := raw.(capabilitySet)
+	if len(capabilities) == 0 {
+		return false
+	}
+
+	return !capabilities.Check(PolicyDeny)
 }
 
 // AllowAgentRead checks if read operations are allowed for an agent
@@ -212,6 +243,32 @@ func (a *ACL) AllowOperatorWrite() bool {
 	case a.management:
 		return true
 	case a.operator == PolicyWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowQuotaRead checks if read operations are allowed for all quotas
+func (a *ACL) AllowQuotaRead() bool {
+	switch {
+	case a.management:
+		return true
+	case a.quota == PolicyWrite:
+		return true
+	case a.quota == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowQuotaWrite checks if write operations are allowed for quotas
+func (a *ACL) AllowQuotaWrite() bool {
+	switch {
+	case a.management:
+		return true
+	case a.quota == PolicyWrite:
 		return true
 	default:
 		return false

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -29,7 +30,7 @@ func TestDiffAllocs(t *testing.T) {
 			alloc4.ID:  alloc4,
 		},
 		filtered: map[string]struct{}{
-			alloc1.ID: struct{}{},
+			alloc1.ID: {},
 		},
 	}
 
@@ -57,7 +58,7 @@ func TestShuffleStrings(t *testing.T) {
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {
-		inp[idx] = structs.GenerateUUID()
+		inp[idx] = uuid.Generate()
 	}
 
 	// Copy the input

@@ -1,20 +1,21 @@
 package structs
 
 import (
+	"encoding/base64"
 	"fmt"
-	"regexp"
 	"testing"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRemoveAllocs(t *testing.T) {
 	l := []*Allocation{
-		&Allocation{ID: "foo"},
-		&Allocation{ID: "bar"},
-		&Allocation{ID: "baz"},
-		&Allocation{ID: "zip"},
+		{ID: "foo"},
+		{ID: "bar"},
+		{ID: "baz"},
+		{ID: "zip"},
 	}
 
 	out := RemoveAllocs(l, []*Allocation{l[1], l[3]})
@@ -28,25 +29,25 @@ func TestRemoveAllocs(t *testing.T) {
 
 func TestFilterTerminalAllocs(t *testing.T) {
 	l := []*Allocation{
-		&Allocation{
+		{
 			ID:            "bar",
 			Name:          "myname1",
 			DesiredStatus: AllocDesiredStatusEvict,
 		},
-		&Allocation{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
-		&Allocation{
+		{ID: "baz", DesiredStatus: AllocDesiredStatusStop},
+		{
 			ID:            "foo",
 			DesiredStatus: AllocDesiredStatusRun,
 			ClientStatus:  AllocClientStatusPending,
 		},
-		&Allocation{
+		{
 			ID:            "bam",
 			Name:          "myname",
 			DesiredStatus: AllocDesiredStatusRun,
 			ClientStatus:  AllocClientStatusComplete,
 			CreateIndex:   5,
 		},
-		&Allocation{
+		{
 			ID:            "lol",
 			Name:          "myname",
 			DesiredStatus: AllocDesiredStatusRun,
@@ -80,7 +81,7 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 	n := &Node{
 		Resources: &Resources{
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "10.0.0.0/8",
 					MBits:  100,
@@ -99,9 +100,9 @@ func TestAllocsFit_PortsOvercommitted(t *testing.T) {
 			},
 		},
 		TaskResources: map[string]*Resources{
-			"web": &Resources{
+			"web": {
 				Networks: []*NetworkResource{
-					&NetworkResource{
+					{
 						Device:        "eth0",
 						IP:            "10.0.0.1",
 						MBits:         50,
@@ -139,7 +140,7 @@ func TestAllocsFit(t *testing.T) {
 			DiskMB:   10000,
 			IOPS:     100,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device: "eth0",
 					CIDR:   "10.0.0.0/8",
 					MBits:  100,
@@ -152,7 +153,7 @@ func TestAllocsFit(t *testing.T) {
 			DiskMB:   5000,
 			IOPS:     50,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
@@ -169,7 +170,7 @@ func TestAllocsFit(t *testing.T) {
 			DiskMB:   5000,
 			IOPS:     50,
 			Networks: []*NetworkResource{
-				&NetworkResource{
+				{
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
@@ -257,28 +258,12 @@ func TestScoreFit(t *testing.T) {
 	}
 }
 
-func TestGenerateUUID(t *testing.T) {
-	prev := GenerateUUID()
-	for i := 0; i < 100; i++ {
-		id := GenerateUUID()
-		if prev == id {
-			t.Fatalf("Should get a new ID!")
-		}
-
-		matched, err := regexp.MatchString(
-			"[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}", id)
-		if !matched || err != nil {
-			t.Fatalf("expected match %s %v %s", id, matched, err)
-		}
-	}
-}
-
 func TestACLPolicyListHash(t *testing.T) {
 	h1 := ACLPolicyListHash(nil)
 	assert.NotEqual(t, "", h1)
 
 	p1 := &ACLPolicy{
-		Name:        fmt.Sprintf("policy-%s", GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
@@ -302,7 +287,7 @@ func TestACLPolicyListHash(t *testing.T) {
 	// Create P2 as copy of P1 with new name
 	p2 := &ACLPolicy{}
 	*p2 = *p1
-	p2.Name = fmt.Sprintf("policy-%s", GenerateUUID())
+	p2.Name = fmt.Sprintf("policy-%s", uuid.Generate())
 
 	h3 := ACLPolicyListHash([]*ACLPolicy{p1, p2})
 	assert.NotEqual(t, "", h3)
@@ -321,7 +306,7 @@ func TestACLPolicyListHash(t *testing.T) {
 
 func TestCompileACLObject(t *testing.T) {
 	p1 := &ACLPolicy{
-		Name:        fmt.Sprintf("policy-%s", GenerateUUID()),
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
 		Description: "Super cool policy!",
 		Rules: `
 		namespace "default" {
@@ -341,7 +326,7 @@ func TestCompileACLObject(t *testing.T) {
 	// Create P2 as copy of P1 with new name
 	p2 := &ACLPolicy{}
 	*p2 = *p1
-	p2.Name = fmt.Sprintf("policy-%s", GenerateUUID())
+	p2.Name = fmt.Sprintf("policy-%s", uuid.Generate())
 
 	// Create a small cache
 	cache, err := lru.New2Q(16)
@@ -374,4 +359,26 @@ func TestCompileACLObject(t *testing.T) {
 	if aclObj3 != aclObj4 {
 		t.Fatalf("expected same object")
 	}
+}
+
+// TestGenerateMigrateToken asserts the migrate token is valid for use in HTTP
+// headers and CompareMigrateToken works as expected.
+func TestGenerateMigrateToken(t *testing.T) {
+	assert := assert.New(t)
+	allocID := uuid.Generate()
+	nodeSecret := uuid.Generate()
+	token, err := GenerateMigrateToken(allocID, nodeSecret)
+	assert.Nil(err)
+	_, err = base64.URLEncoding.DecodeString(token)
+	assert.Nil(err)
+
+	assert.True(CompareMigrateToken(allocID, nodeSecret, token))
+	assert.False(CompareMigrateToken("x", nodeSecret, token))
+	assert.False(CompareMigrateToken(allocID, "x", token))
+	assert.False(CompareMigrateToken(allocID, nodeSecret, "x"))
+
+	token2, err := GenerateMigrateToken("x", nodeSecret)
+	assert.Nil(err)
+	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
+	assert.True(CompareMigrateToken("x", nodeSecret, token2))
 }

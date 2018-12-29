@@ -43,6 +43,7 @@ func init() {
 		vaultAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
+		autopilotConfigTableSchema,
 	}...)
 }
 
@@ -69,7 +70,7 @@ func indexTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "index",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -91,12 +92,20 @@ func nodeTableSchema() *memdb.TableSchema {
 			// Primary index is used for node management
 			// and simple direct lookup. ID is required to be
 			// unique.
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "ID",
+				},
+			},
+			"secret_id": {
+				Name:         "secret_id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "SecretID",
 				},
 			},
 		},
@@ -112,7 +121,7 @@ func jobTableSchema() *memdb.TableSchema {
 			// Primary index is used for job management
 			// and simple direct lookup. ID is required to be
 			// unique within a namespace.
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -131,7 +140,7 @@ func jobTableSchema() *memdb.TableSchema {
 					},
 				},
 			},
-			"type": &memdb.IndexSchema{
+			"type": {
 				Name:         "type",
 				AllowMissing: false,
 				Unique:       false,
@@ -140,7 +149,7 @@ func jobTableSchema() *memdb.TableSchema {
 					Lowercase: false,
 				},
 			},
-			"gc": &memdb.IndexSchema{
+			"gc": {
 				Name:         "gc",
 				AllowMissing: false,
 				Unique:       false,
@@ -148,7 +157,7 @@ func jobTableSchema() *memdb.TableSchema {
 					Conditional: jobIsGCable,
 				},
 			},
-			"periodic": &memdb.IndexSchema{
+			"periodic": {
 				Name:         "periodic",
 				AllowMissing: false,
 				Unique:       false,
@@ -165,7 +174,7 @@ func jobSummarySchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "job_summary",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -194,7 +203,7 @@ func jobVersionSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "job_version",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -277,7 +286,7 @@ func deploymentSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "deployment",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -286,7 +295,7 @@ func deploymentSchema() *memdb.TableSchema {
 				},
 			},
 
-			"namespace": &memdb.IndexSchema{
+			"namespace": {
 				Name:         "namespace",
 				AllowMissing: false,
 				Unique:       false,
@@ -296,7 +305,7 @@ func deploymentSchema() *memdb.TableSchema {
 			},
 
 			// Job index is used to lookup deployments by job
-			"job": &memdb.IndexSchema{
+			"job": {
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
@@ -320,7 +329,7 @@ func deploymentSchema() *memdb.TableSchema {
 }
 
 // periodicLaunchTableSchema returns the MemDB schema tracking the most recent
-// launch time for a perioidic job.
+// launch time for a periodic job.
 func periodicLaunchTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "periodic_launch",
@@ -328,7 +337,7 @@ func periodicLaunchTableSchema() *memdb.TableSchema {
 			// Primary index is used for job management
 			// and simple direct lookup. ID is required to be
 			// unique.
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -359,7 +368,7 @@ func evalTableSchema() *memdb.TableSchema {
 		Name: "evals",
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is used for direct lookup.
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -368,7 +377,7 @@ func evalTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"namespace": &memdb.IndexSchema{
+			"namespace": {
 				Name:         "namespace",
 				AllowMissing: false,
 				Unique:       false,
@@ -378,7 +387,7 @@ func evalTableSchema() *memdb.TableSchema {
 			},
 
 			// Job index is used to lookup allocations by job
-			"job": &memdb.IndexSchema{
+			"job": {
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
@@ -412,7 +421,7 @@ func allocTableSchema() *memdb.TableSchema {
 		Name: "allocs",
 		Indexes: map[string]*memdb.IndexSchema{
 			// Primary index is a UUID
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -421,7 +430,7 @@ func allocTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"namespace": &memdb.IndexSchema{
+			"namespace": {
 				Name:         "namespace",
 				AllowMissing: false,
 				Unique:       false,
@@ -431,7 +440,7 @@ func allocTableSchema() *memdb.TableSchema {
 			},
 
 			// Node index is used to lookup allocations by node
-			"node": &memdb.IndexSchema{
+			"node": {
 				Name:         "node",
 				AllowMissing: true, // Missing is allow for failed allocations
 				Unique:       false,
@@ -460,7 +469,7 @@ func allocTableSchema() *memdb.TableSchema {
 			},
 
 			// Job index is used to lookup allocations by job
-			"job": &memdb.IndexSchema{
+			"job": {
 				Name:         "job",
 				AllowMissing: false,
 				Unique:       false,
@@ -479,7 +488,7 @@ func allocTableSchema() *memdb.TableSchema {
 			},
 
 			// Eval index is used to lookup allocations by eval
-			"eval": &memdb.IndexSchema{
+			"eval": {
 				Name:         "eval",
 				AllowMissing: false,
 				Unique:       false,
@@ -489,7 +498,7 @@ func allocTableSchema() *memdb.TableSchema {
 			},
 
 			// Deployment index is used to lookup allocations by deployment
-			"deployment": &memdb.IndexSchema{
+			"deployment": {
 				Name:         "deployment",
 				AllowMissing: true,
 				Unique:       false,
@@ -509,7 +518,7 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 		Name: "vault_accessors",
 		Indexes: map[string]*memdb.IndexSchema{
 			// The primary index is the accessor id
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -518,7 +527,7 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"alloc_id": &memdb.IndexSchema{
+			"alloc_id": {
 				Name:         "alloc_id",
 				AllowMissing: false,
 				Unique:       false,
@@ -527,7 +536,7 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"node_id": &memdb.IndexSchema{
+			"node_id": {
 				Name:         "node_id",
 				AllowMissing: false,
 				Unique:       false,
@@ -540,12 +549,12 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 }
 
 // aclPolicyTableSchema returns the MemDB schema for the policy table.
-// This table is used to store the policies which are refrenced by tokens
+// This table is used to store the policies which are referenced by tokens
 func aclPolicyTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "acl_policy",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -563,7 +572,7 @@ func aclTokenTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "acl_token",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -571,7 +580,7 @@ func aclTokenTableSchema() *memdb.TableSchema {
 					Field: "AccessorID",
 				},
 			},
-			"secret": &memdb.IndexSchema{
+			"secret": {
 				Name:         "secret",
 				AllowMissing: false,
 				Unique:       true,
@@ -579,7 +588,7 @@ func aclTokenTableSchema() *memdb.TableSchema {
 					Field: "SecretID",
 				},
 			},
-			"global": &memdb.IndexSchema{
+			"global": {
 				Name:         "global",
 				AllowMissing: false,
 				Unique:       false,

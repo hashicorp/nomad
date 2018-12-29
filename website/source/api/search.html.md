@@ -9,20 +9,26 @@ description: |-
 # Search HTTP API
 
 The `/search` endpoint returns matches for a given prefix and context, where a
-context can be jobs, allocations, evaluations, nodes, or deployments.
+context can be jobs, allocations, evaluations, nodes, or deployments. When using
+Nomad Enterprise, the allowed contexts include quotas and namespaces.
 Additionally, a prefix can be searched for within every context.
 
 | Method  | Path                         | Produces                   |
 | ------- | ---------------------------- | -------------------------- |
-| `POST`  | `/v1/search                  | `application/json`         |
+| `POST`  | `/v1/search`                 | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required                     |
+| ---------------- | -------------------------------- |
+| `NO`             | `node:read, namespace:read-jobs` |
+
+When ACLs are enabled, requests must have a token valid for `node:read` or
+`namespace:read-jobs` roles. If the token is only valid for `node:read`, then
+job related results will not be returned. If the token is only valid for
+`namespace:read-jobs`, then node results will not be returned.
 
 ### Parameters
 
@@ -48,7 +54,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/search
+    https://localhost:4646/v1/search
 ```
 
 ### Sample Response
@@ -80,7 +86,7 @@ $ curl \
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/search
+    https://localhost:4646/v1/search
 ```
 
 ### Sample Response

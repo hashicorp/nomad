@@ -4,8 +4,8 @@ set -e
 # Get the version from the command line
 VERSION=$1
 if [ -z "${VERSION}" ]; then
-    echo "Please specify a version. (format: 0.4.0-rc1)"
-    exit 1
+  echo "Please specify a version. (format: 0.4.0-rc1)"
+  exit 1
 fi
 
 # Get the parent directory of where this script is.
@@ -27,7 +27,12 @@ fi
 rm -rf ./pkg/dist
 mkdir -p ./pkg/dist
 
-find ./pkg -mindepth 1 -maxdepth 1 -type f -exec cp ./pkg/{} ./pkg/dist/nomad_"${VERSION}"_{} \;
+#find ./pkg -mindepth 1 -maxdepth 1 -type f -exec cp ./pkg/{} ./pkg/dist/nomad_"${VERSION}"_{} \;
+#for FILENAME in $(find ./pkg -mindepth 1 -maxdepth 1 -type f); do
+find ./pkg -mindepth 1 -maxdepth 1 -type f -print0 | while read -d '' -r FILENAME; do
+  FILENAME=$(basename "$FILENAME")
+  cp "./pkg/${FILENAME}" "./pkg/dist/nomad_${VERSION}_${FILENAME}"
+done
 
 # Make the checksums
 pushd ./pkg/dist

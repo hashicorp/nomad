@@ -66,7 +66,7 @@ type Worker struct {
 	evalToken string
 
 	// snapshotIndex is the index of the snapshot in which the scheduler was
-	// first envoked. It is used to mark the SnapshotIndex of evaluations
+	// first invoked. It is used to mark the SnapshotIndex of evaluations
 	// Created, Updated or Reblocked.
 	snapshotIndex uint64
 }
@@ -106,7 +106,7 @@ func (w *Worker) checkPaused() {
 func (w *Worker) run() {
 	for {
 		// Dequeue a pending evaluation
-		eval, token, shutdown := w.dequeueEvaluation(dequeueTimeout)
+		eval, token, waitIndex, shutdown := w.dequeueEvaluation(dequeueTimeout)
 		if shutdown {
 			return
 		}
@@ -118,7 +118,7 @@ func (w *Worker) run() {
 		}
 
 		// Wait for the raft log to catchup to the evaluation
-		if err := w.waitForIndex(eval.ModifyIndex, raftSyncLimit); err != nil {
+		if err := w.waitForIndex(waitIndex, raftSyncLimit); err != nil {
 			w.sendAck(eval.ID, token, false)
 			continue
 		}
@@ -136,7 +136,8 @@ func (w *Worker) run() {
 
 // dequeueEvaluation is used to fetch the next ready evaluation.
 // This blocks until an evaluation is available or a timeout is reached.
-func (w *Worker) dequeueEvaluation(timeout time.Duration) (*structs.Evaluation, string, bool) {
+func (w *Worker) dequeueEvaluation(timeout time.Duration) (
+	eval *structs.Evaluation, token string, waitIndex uint64, shutdown bool) {
 	// Setup the request
 	req := structs.EvalDequeueRequest{
 		Schedulers:       w.srv.config.EnabledSchedulers,
@@ -170,7 +171,7 @@ REQ:
 		}
 
 		if w.backoffErr(base, limit) {
-			return nil, "", true
+			return nil, "", 0, true
 		}
 		goto REQ
 	}
@@ -179,12 +180,12 @@ REQ:
 	// Check if we got a response
 	if resp.Eval != nil {
 		w.logger.Printf("[DEBUG] worker: dequeued evaluation %s", resp.Eval.ID)
-		return resp.Eval, resp.Token, false
+		return resp.Eval, resp.Token, resp.GetWaitIndex(), false
 	}
 
 	// Check for potential shutdown
 	if w.srv.IsShutdown() {
-		return nil, "", true
+		return nil, "", 0, true
 	}
 	goto REQ
 }
@@ -326,7 +327,7 @@ SUBMIT:
 		}
 		return nil, nil, err
 	} else {
-		w.logger.Printf("[DEBUG] worker: submitted plan for evaluation %s", plan.EvalID)
+		w.logger.Printf("[DEBUG] worker: submitted plan at index %d for evaluation %s", resp.Index, plan.EvalID)
 		w.backoffReset()
 	}
 
@@ -515,7 +516,7 @@ func (w *Worker) shouldResubmit(err error) bool {
 
 // backoffErr is used to do an exponential back off on error. This is
 // maintained statefully for the worker. Returns if attempts should be
-// abandoneded due to shutdown.
+// abandoned due to shutdown.
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	backoff := (1 << (2 * w.failures)) * base
 	if backoff > limit {

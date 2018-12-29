@@ -1,7 +1,6 @@
 package allocdir
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 )
@@ -26,11 +25,6 @@ func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 }
 
 // The windows version does nothing currently.
-func mountSharedDir(dir string) error {
-	return errors.New("Mount on Windows not supported.")
-}
-
-// The windows version does nothing currently.
 func linkDir(src, dst string) error {
 	return nil
 }
@@ -52,11 +46,6 @@ func removeSecretDir(dir string) error {
 
 // The windows version does nothing currently.
 func dropDirPermissions(path string, desired os.FileMode) error {
-	return nil
-}
-
-// The windows version does nothing currently.
-func unmountSharedDir(dir string) error {
 	return nil
 }
 

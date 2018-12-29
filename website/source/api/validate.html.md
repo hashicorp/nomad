@@ -28,9 +28,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required |
-| ---------------- | ------------ |
-| `NO`             | `none`       |
+| Blocking Queries | ACL Required               |
+| ---------------- | -------------------------- |
+| `NO`             | `namespace:read-job`       |
 
 ### Parameters
 
@@ -48,7 +48,7 @@ There are no parameters, but the request _body_ contains the entire job file.
 $ curl \
     --request POST \
     --data @my-job.nomad \
-    https://nomad.rocks/v1/validate/job
+    https://localhost:4646/v1/validate/job
 ```
 
 ### Sample Response

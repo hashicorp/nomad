@@ -7,7 +7,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/go-testing-interface"
@@ -36,8 +37,8 @@ type TestVault struct {
 // NewTestVault returns a new TestVault instance that has yet to be started
 func NewTestVault(t testing.T) *TestVault {
 	for i := 10; i >= 0; i-- {
-		port := getPort()
-		token := structs.GenerateUUID()
+		port := freeport.GetT(t, 1)[0]
+		token := uuid.Generate()
 		bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 		http := fmt.Sprintf("http://127.0.0.1:%d", port)
 		root := fmt.Sprintf("-dev-root-token-id=%s", token)
@@ -117,8 +118,8 @@ func NewTestVault(t testing.T) *TestVault {
 // Start must be called and it is the callers responsibility to deal with any
 // port conflicts that may occur and retry accordingly.
 func NewTestVaultDelayed(t testing.T) *TestVault {
-	port := getPort()
-	token := structs.GenerateUUID()
+	port := freeport.GetT(t, 1)[0]
+	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
 	root := fmt.Sprintf("-dev-root-token-id=%s", token)
@@ -208,10 +209,6 @@ func (tv *TestVault) waitForAPI() error {
 		waitErr = err
 	})
 	return waitErr
-}
-
-func getPort() int {
-	return 1030 + int(rand.Int31n(6440))
 }
 
 // VaultVersion returns the Vault version as a string or an error if it couldn't

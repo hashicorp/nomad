@@ -19,7 +19,7 @@ func main() {
 		return
 	}
 
-	total := 0
+	var total int
 	if len(os.Args) != 2 {
 		fmt.Println("need 1 arg")
 		return

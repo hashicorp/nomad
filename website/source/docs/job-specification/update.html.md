@@ -15,8 +15,7 @@ description: |-
     <th width="120">Placement</th>
     <td>
       <code>job -> **update**</code>
-    </td>
-    <td>
+      <br>
       <code>job -> group -> **update**</code>
     </td>
   </tr>
@@ -32,13 +31,14 @@ highest precedence and then the job.
 ```hcl
 job "docs" {
   update {
-    max_parallel     = 3
-    health_check     = "checks"
-    min_healthy_time = "10s"
-    healthy_deadline = "10m"
-    auto_revert      = true
-    canary           = 1
-    stagger          = "30s"
+    max_parallel      = 3
+    health_check      = "checks"
+    min_healthy_time  = "10s"
+    healthy_deadline  = "5m"
+    progress_deadline = "10m"
+    auto_revert       = true
+    canary            = 1
+    stagger           = "30s"
   }
 }
 ```
@@ -77,6 +77,15 @@ set of updates. The `system` scheduler will be updated to support the new
   allocation must be marked as healthy after which the allocation is
   automatically transitioned to unhealthy. This is specified using a label
   suffix like "2m" or "1h".
+
+- `progress_deadline` `(string: "10m")` - Specifies the deadline in which an
+  allocation must be marked as healthy. The deadline begins when the first
+  allocation for the deployment is created and is reset whenever an allocation
+  as part of the deployment transitions to a healthy state. If no allocation
+  transitions to the healthy state before the progress deadline, the deployment
+  is marked as failed. If the `progress_deadline` is set to `0`, the first
+  allocation to be marked as unhealthy causes the deployment to fail. This is
+  specified using a label suffix like "2m" or "1h".
 
 - `auto_revert` `(bool: false)` - Specifies if the job should auto-revert to the
   last stable job on deployment failure. A job is marked as stable if all the
