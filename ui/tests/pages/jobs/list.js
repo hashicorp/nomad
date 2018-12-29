@@ -31,6 +31,9 @@ export default create({
     clickName: clickable('[data-test-job-name] a'),
   }),
 
+  nextPage: clickable('[data-test-pager="next"]'),
+  prevPage: clickable('[data-test-pager="prev"]'),
+
   isEmpty: isPresent('[data-test-empty-jobs-list]'),
   emptyState: {
     headline: text('[data-test-empty-jobs-list-headline]'),
@@ -41,6 +44,8 @@ export default create({
     title: text('[data-test-error-title]'),
     message: text('[data-test-error-message]'),
     seekHelp: clickable('[data-test-error-message] a'),
+    gotoJobs: clickable('[data-test-error-jobs-link]'),
+    gotoClients: clickable('[data-test-error-clients-link]'),
   },
 
   namespaceSwitcher: {

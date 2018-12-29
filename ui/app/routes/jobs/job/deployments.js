@@ -7,12 +7,14 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 export default Route.extend(WithWatchers, {
   model() {
     const job = this.modelFor('jobs.job');
-    return RSVP.all([job.get('deployments'), job.get('versions')]).then(() => job);
+    return job && RSVP.all([job.get('deployments'), job.get('versions')]).then(() => job);
   },
 
   startWatchers(controller, model) {
-    controller.set('watchDeployments', this.get('watchDeployments').perform(model));
-    controller.set('watchVersions', this.get('watchVersions').perform(model));
+    if (model) {
+      controller.set('watchDeployments', this.get('watchDeployments').perform(model));
+      controller.set('watchVersions', this.get('watchVersions').perform(model));
+    }
   },
 
   watchDeployments: watchRelationship('deployments'),

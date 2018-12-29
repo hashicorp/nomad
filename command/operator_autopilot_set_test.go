@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOperator_Autopilot_SetConfig_Implements(t *testing.T) {
@@ -15,6 +16,7 @@ func TestOperator_Autopilot_SetConfig_Implements(t *testing.T) {
 
 func TestOperatorAutopilotSetConfigCommand(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
@@ -26,37 +28,27 @@ func TestOperatorAutopilotSetConfigCommand(t *testing.T) {
 		"-max-trailing-logs=99",
 		"-last-contact-threshold=123ms",
 		"-server-stabilization-time=123ms",
+		"-enable-redundancy-zones=true",
+		"-disable-upgrade-migration=true",
+		"-enable-custom-upgrades=true",
 	}
 
 	code := c.Run(args)
-	if code != 0 {
-		t.Fatalf("bad: %d. %#v", code, ui.ErrorWriter.String())
-	}
+	require.EqualValues(0, code)
 	output := strings.TrimSpace(ui.OutputWriter.String())
-	if !strings.Contains(output, "Configuration updated") {
-		t.Fatalf("bad: %s", output)
-	}
+	require.Contains(output, "Configuration updated")
 
 	client, err := c.Client()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 
 	conf, _, err := client.Operator().AutopilotGetConfiguration(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(err)
 
-	if conf.CleanupDeadServers {
-		t.Fatalf("bad: %#v", conf)
-	}
-	if conf.MaxTrailingLogs != 99 {
-		t.Fatalf("bad: %#v", conf)
-	}
-	if conf.LastContactThreshold != 123*time.Millisecond {
-		t.Fatalf("bad: %#v", conf)
-	}
-	if conf.ServerStabilizationTime != 123*time.Millisecond {
-		t.Fatalf("bad: %#v", conf)
-	}
+	require.False(conf.CleanupDeadServers)
+	require.EqualValues(99, conf.MaxTrailingLogs)
+	require.EqualValues(123*time.Millisecond, conf.LastContactThreshold)
+	require.EqualValues(123*time.Millisecond, conf.ServerStabilizationTime)
+	require.True(conf.EnableRedundancyZones)
+	require.True(conf.DisableUpgradeMigration)
+	require.True(conf.EnableCustomUpgrades)
 }

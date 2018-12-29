@@ -5,7 +5,11 @@
     <div class="columns">
       {{#if filteredJobs.length}}
         <div class="column">
-          {{search-box data-test-jobs-search searchTerm=(mut searchTerm) placeholder="Search jobs..."}}
+          {{search-box
+            data-test-jobs-search
+            searchTerm=(mut searchTerm)
+            onChange=(action resetPagination)
+            placeholder="Search jobs..."}}
         </div>
       {{/if}}
       <div class="column is-centered">

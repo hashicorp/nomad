@@ -51,11 +51,19 @@ func newFakeCheckRestarter(w *checkWatcher, allocID, taskName, checkName string,
 // watching and is normally fulfilled by a TaskRunner.
 //
 // Restarts are recorded in the []restarts field and re-Watch the check.
-func (c *fakeCheckRestarter) Restart(source, reason string, failure bool) {
-	c.restarts = append(c.restarts, checkRestartRecord{time.Now(), source, reason, failure})
+//func (c *fakeCheckRestarter) Restart(source, reason string, failure bool) {
+func (c *fakeCheckRestarter) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+	restart := checkRestartRecord{
+		timestamp: time.Now(),
+		source:    event.Type,
+		reason:    event.DisplayMessage,
+		failure:   failure,
+	}
+	c.restarts = append(c.restarts, restart)
 
 	// Re-Watch the check just like TaskRunner
 	c.watcher.Watch(c.allocID, c.taskName, c.checkName, c.check, c)
+	return nil
 }
 
 // String for debugging

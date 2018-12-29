@@ -4,6 +4,7 @@ package structs
 
 import (
 	"crypto/md5"
+	"errors"
 	"io"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/device"
 )
 
 // RpcError is used for serializing errors with a potential error code
@@ -215,11 +217,13 @@ func (cs *CpuStats) Add(other *CpuStats) {
 type ResourceUsage struct {
 	MemoryStats *MemoryStats
 	CpuStats    *CpuStats
+	DeviceStats []*device.DeviceGroupStats
 }
 
 func (ru *ResourceUsage) Add(other *ResourceUsage) {
 	ru.MemoryStats.Add(other.MemoryStats)
 	ru.CpuStats.Add(other.CpuStats)
+	ru.DeviceStats = append(ru.DeviceStats, other.DeviceStats...)
 }
 
 // TaskResourceUsage holds aggregated resource usage of all processes in a Task
@@ -354,9 +358,10 @@ type FingerprintRequest struct {
 // FingerprintResponse is the response which a fingerprinter annotates with the
 // results of the fingerprint method
 type FingerprintResponse struct {
-	Attributes map[string]string
-	Links      map[string]string
-	Resources  *structs.Resources
+	Attributes    map[string]string
+	Links         map[string]string
+	Resources     *structs.Resources // COMPAT(0.10): Remove in 0.10
+	NodeResources *structs.NodeResources
 
 	// Detected is a boolean indicating whether the fingerprinter detected
 	// if the resource was available
@@ -433,3 +438,10 @@ func (h *HealthCheckResponse) AddDriverInfo(name string, driverInfo *structs.Dri
 
 	h.Drivers[name] = driverInfo
 }
+
+// CheckBufSize is the size of the buffer that is used for job output
+const CheckBufSize = 4 * 1024
+
+// DriverStatsNotImplemented is the error to be returned if a driver doesn't
+// implement stats.
+var DriverStatsNotImplemented = errors.New("stats not implemented for driver")

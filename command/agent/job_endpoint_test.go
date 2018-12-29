@@ -1416,6 +1416,31 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									},
 								},
 							},
+							Devices: []*api.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: helper.Uint64ToPtr(4),
+									Constraints: []*api.Constraint{
+										{
+											LTarget: "x",
+											RTarget: "y",
+											Operand: "z",
+										},
+									},
+									Affinities: []*api.Affinity{
+										{
+											LTarget: "a",
+											RTarget: "b",
+											Operand: "c",
+											Weight:  50,
+										},
+									},
+								},
+								{
+									Name:  "gpu",
+									Count: nil,
+								},
+							},
 						},
 						Meta: map[string]string{
 							"lol": "code",
@@ -1688,6 +1713,31 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Value: 2000,
 										},
 									},
+								},
+							},
+							Devices: []*structs.RequestedDevice{
+								{
+									Name:  "nvidia/gpu",
+									Count: 4,
+									Constraints: []*structs.Constraint{
+										{
+											LTarget: "x",
+											RTarget: "y",
+											Operand: "z",
+										},
+									},
+									Affinities: []*structs.Affinity{
+										{
+											LTarget: "a",
+											RTarget: "b",
+											Operand: "c",
+											Weight:  50,
+										},
+									},
+								},
+								{
+									Name:  "gpu",
+									Count: 1,
 								},
 							},
 						},

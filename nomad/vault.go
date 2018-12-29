@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -127,7 +128,7 @@ type VaultClient interface {
 	Running() bool
 
 	// Stats returns the Vault clients statistics
-	Stats() *VaultStats
+	Stats() map[string]string
 
 	// EmitStats emits that clients statistics at the given period until stopCh
 	// is called.
@@ -140,6 +141,12 @@ type VaultStats struct {
 	// TrackedForRevoke is the count of tokens that are being tracked to be
 	// revoked since they could not be immediately revoked.
 	TrackedForRevoke int
+
+	// TokenTTL is the time-to-live duration for the current token
+	TokenTTL time.Duration
+
+	// TokenExpiry Time is the recoreded expiry time of the current token
+	TokenExpiry time.Time
 }
 
 // PurgeVaultAccessor is called to remove VaultAccessors from the system. If
@@ -200,18 +207,19 @@ type vaultClient struct {
 	// running indicates whether the vault client is started.
 	running bool
 
+	// renewLoopActive indicates whether the renewal goroutine is running
+	// It should be accessed and updated atomically
+	// used for testing purposes only
+	renewLoopActive int32
+
 	// childTTL is the TTL for child tokens.
 	childTTL string
 
-	// lastRenewed is the time the token was last renewed
-	lastRenewed time.Time
+	// currentExpiration is the time the current token lease expires
+	currentExpiration time.Time
 
 	tomb   *tomb.Tomb
 	logger log.Logger
-
-	// stats stores the stats
-	stats     *VaultStats
-	statsLock sync.RWMutex
 
 	// l is used to lock the configuration aspects of the client such that
 	// multiple callers can't cause conflicting config updates
@@ -236,7 +244,6 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 		revoking: make(map[*structs.VaultAccessor]time.Time),
 		purgeFn:  purgeFn,
 		tomb:     &tomb.Tomb{},
-		stats:    new(VaultStats),
 	}
 
 	if v.config.IsEnabled() {
@@ -456,9 +463,16 @@ OUTER:
 	v.l.Unlock()
 }
 
+func (v *vaultClient) isRenewLoopActive() bool {
+	return atomic.LoadInt32(&v.renewLoopActive) == 1
+}
+
 // renewalLoop runs the renew loop. This should only be called if we are given a
 // non-root token.
 func (v *vaultClient) renewalLoop() {
+	atomic.StoreInt32(&v.renewLoopActive, 1)
+	defer atomic.StoreInt32(&v.renewLoopActive, 0)
+
 	// Create the renewal timer and set initial duration to zero so it fires
 	// immediately
 	authRenewTimer := time.NewTimer(0)
@@ -473,14 +487,12 @@ func (v *vaultClient) renewalLoop() {
 			return
 		case <-authRenewTimer.C:
 			// Renew the token and determine the new expiration
-			err := v.renew()
-			currentExpiration := v.lastRenewed.Add(time.Duration(v.tokenData.CreationTTL) * time.Second)
+			recoverable, err := v.renew()
+			currentExpiration := v.currentExpiration
 
 			// Successfully renewed
 			if err == nil {
-				// If we take the expiration (lastRenewed + auth duration) and
-				// subtract the current time, we get a duration until expiry.
-				// Set the timer to poke us after half of that time is up.
+				// Attempt to renew the token at half the expiration time
 				durationUntilRenew := currentExpiration.Sub(time.Now()) / 2
 
 				v.logger.Info("successfully renewed token", "next_renewal", durationUntilRenew)
@@ -491,33 +503,15 @@ func (v *vaultClient) renewalLoop() {
 				break
 			}
 
-			// Back off, increasing the amount of backoff each time. There are some rules:
-			//
-			// * If we have an existing authentication that is going to expire,
-			// never back off more than half of the amount of time remaining
-			// until expiration
-			// * Never back off more than 30 seconds multiplied by a random
-			// value between 1 and 2
-			// * Use randomness so that many clients won't keep hitting Vault
-			// at the same time
+			metrics.IncrCounter([]string{"nomad", "vault", "renew_failed"}, 1)
+			v.logger.Warn("got error or bad auth, so backing off", "error", err, "recoverable", recoverable)
 
-			// Set base values and add some backoff
-
-			v.logger.Warn("got error or bad auth, so backing off", "error", err)
-			switch {
-			case backoff < 5:
-				backoff = 5
-			case backoff >= 24:
-				backoff = 30
-			default:
-				backoff = backoff * 1.25
+			if !recoverable {
+				return
 			}
 
-			// Add randomness
-			backoff = backoff * (1.0 + rand.Float64())
-
-			maxBackoff := currentExpiration.Sub(time.Now()) / 2
-			if maxBackoff < 0 {
+			backoff = nextBackoff(backoff, currentExpiration)
+			if backoff < 0 {
 				// We have failed to renew the token past its expiration. Stop
 				// renewing with Vault.
 				v.logger.Error("failed to renew Vault token before lease expiration. Shutting down Vault client")
@@ -526,9 +520,6 @@ func (v *vaultClient) renewalLoop() {
 				v.connEstablishedErr = err
 				v.l.Unlock()
 				return
-
-			} else if backoff > maxBackoff.Seconds() {
-				backoff = maxBackoff.Seconds()
 			}
 
 			durationUntilRetry := time.Duration(backoff) * time.Second
@@ -539,25 +530,82 @@ func (v *vaultClient) renewalLoop() {
 	}
 }
 
+// nextBackoff returns the delay for the next auto renew interval, in seconds.
+// Returns negative value if past expiration
+//
+// It should increase the amount of backoff each time, with the following rules:
+//
+// * If token expired already despite earlier renewal attempts,
+//   back off for 1 minute + jitter
+// * If we have an existing authentication that is going to expire,
+// never back off more than half of the amount of time remaining
+// until expiration (with 5s floor)
+// * Never back off more than 30 seconds multiplied by a random
+// value between 1 and 2
+// * Use randomness so that many clients won't keep hitting Vault
+// at the same time
+func nextBackoff(backoff float64, expiry time.Time) float64 {
+	maxBackoff := time.Until(expiry) / 2
+
+	if maxBackoff < 0 {
+		// expiry passed
+		return 60 * (1.0 + rand.Float64())
+	}
+
+	switch {
+	case backoff >= 24:
+		backoff = 30
+	default:
+		backoff = backoff * 1.25
+	}
+
+	// Add randomness
+	backoff = backoff * (1.0 + rand.Float64())
+
+	if backoff > maxBackoff.Seconds() {
+		backoff = maxBackoff.Seconds()
+	}
+
+	if backoff < 5 {
+		backoff = 5
+	}
+
+	return backoff
+}
+
 // renew attempts to renew our Vault token. If the renewal fails, an error is
-// returned. This method updates the lastRenewed time
-func (v *vaultClient) renew() error {
+// returned.  The boolean indicates whether it's safe to attempt to renew again.
+// This method updates the currentExpiration time
+func (v *vaultClient) renew() (bool, error) {
+	// Track how long the request takes
+	defer metrics.MeasureSince([]string{"nomad", "vault", "renew"}, time.Now())
+
 	// Attempt to renew the token
 	secret, err := v.auth.RenewSelf(v.tokenData.CreationTTL)
 	if err != nil {
-		return err
+		// Check if there is a permission denied
+		recoverable := !structs.VaultUnrecoverableError.MatchString(err.Error())
+		return recoverable, fmt.Errorf("failed to renew the vault token: %v", err)
 	}
 
+	if secret == nil {
+		// It's possible for RenewSelf to return (nil, nil) if the
+		// response body from Vault is empty.
+		return true, fmt.Errorf("renewal failed: empty response from vault")
+	}
+
+	// these treated as transient errors, where can keep renewing
 	auth := secret.Auth
 	if auth == nil {
-		return fmt.Errorf("renewal successful but not auth information returned")
+		return true, fmt.Errorf("renewal successful but not auth information returned")
 	} else if auth.LeaseDuration == 0 {
-		return fmt.Errorf("renewal successful but no lease duration returned")
+		return true, fmt.Errorf("renewal successful but no lease duration returned")
 	}
 
-	v.lastRenewed = time.Now()
+	v.currentExpiration = time.Now().Add(time.Duration(auth.LeaseDuration) * time.Second)
+
 	v.logger.Debug("successfully renewed server token")
-	return nil
+	return true, nil
 }
 
 // getWrappingFn returns an appropriate wrapping function for Nomad Servers
@@ -582,27 +630,17 @@ func (v *vaultClient) getWrappingFn() func(operation, path string) string {
 // it in the client. If the token is not valid for Nomads purposes an error is
 // returned.
 func (v *vaultClient) parseSelfToken() error {
-	// Get the initial lease duration
-	auth := v.client.Auth().Token()
-	var self *vapi.Secret
-
 	// Try looking up the token using the self endpoint
-	secret, err := auth.LookupSelf()
+	secret, err := v.lookupSelf()
 	if err != nil {
-		// Try looking up our token directly
-		self, err = auth.Lookup(v.client.Token())
-		if err != nil {
-			return fmt.Errorf("failed to lookup Vault periodic token: %v", err)
-		}
+		return err
 	}
-	self = secret
 
 	// Read and parse the fields
 	var data tokenData
-	if err := mapstructure.WeakDecode(self.Data, &data); err != nil {
+	if err := mapstructure.WeakDecode(secret.Data, &data); err != nil {
 		return fmt.Errorf("failed to parse Vault token's data block: %v", err)
 	}
-
 	root := false
 	for _, p := range data.Policies {
 		if p == "root" {
@@ -610,10 +648,9 @@ func (v *vaultClient) parseSelfToken() error {
 			break
 		}
 	}
-
-	// Store the token data
 	data.Root = root
 	v.tokenData = &data
+	v.currentExpiration = time.Now().Add(time.Duration(data.TTL) * time.Second)
 
 	// The criteria that must be met for the token to be valid are as follows:
 	// 1) If token is non-root or is but has a creation ttl
@@ -632,7 +669,7 @@ func (v *vaultClient) parseSelfToken() error {
 
 	var mErr multierror.Error
 	role := v.getRole()
-	if !root {
+	if !data.Root {
 		// All non-root tokens must be renewable
 		if !data.Renewable {
 			multierror.Append(&mErr, fmt.Errorf("Vault token is not renewable or root"))
@@ -664,7 +701,7 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 
 	// Check we have the correct capabilities
-	if err := v.validateCapabilities(role, root); err != nil {
+	if err := v.validateCapabilities(role, data.Root); err != nil {
 		multierror.Append(&mErr, err)
 	}
 
@@ -676,6 +713,29 @@ func (v *vaultClient) parseSelfToken() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// lookupSelf is a helper function that looks up latest self lease info.
+func (v *vaultClient) lookupSelf() (*vapi.Secret, error) {
+	// Get the initial lease duration
+	auth := v.client.Auth().Token()
+
+	secret, err := auth.LookupSelf()
+	if err == nil && secret != nil && secret.Data != nil {
+		return secret, nil
+	}
+
+	// Try looking up our token directly, even when we get an empty response,
+	// in case of an unexpected event - a true failure would occur in this lookup again
+	secret, err = auth.Lookup(v.client.Token())
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("failed to lookup Vault periodic token: %v", err)
+	case secret == nil || secret.Data == nil:
+		return nil, fmt.Errorf("failed to lookup Vault periodic token: got empty response")
+	default:
+		return secret, nil
+	}
 }
 
 // getRole returns the role name to be used when creating tokens
@@ -894,6 +954,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 
 	// Determine whether it is unrecoverable
 	if err != nil {
+		err = fmt.Errorf("failed to create an alloc vault token: %v", err)
 		if structs.VaultUnrecoverableError.MatchString(err.Error()) {
 			return secret, err
 		}
@@ -1030,13 +1091,11 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 // time.
 func (v *vaultClient) storeForRevocation(accessors []*structs.VaultAccessor) {
 	v.revLock.Lock()
-	v.statsLock.Lock()
+
 	now := time.Now()
 	for _, a := range accessors {
 		v.revoking[a] = now.Add(time.Duration(a.CreationTTL) * time.Second)
 	}
-	v.stats.TrackedForRevoke = len(v.revoking)
-	v.statsLock.Unlock()
 	v.revLock.Unlock()
 }
 
@@ -1157,12 +1216,9 @@ func (v *vaultClient) revokeDaemon() {
 
 			// Can delete from the tracked list now that we have purged
 			v.revLock.Lock()
-			v.statsLock.Lock()
 			for _, va := range revoking {
 				delete(v.revoking, va)
 			}
-			v.stats.TrackedForRevoke = len(v.revoking)
-			v.statsLock.Unlock()
 			v.revLock.Unlock()
 
 		}
@@ -1194,16 +1250,34 @@ func (v *vaultClient) setLimit(l rate.Limit) {
 	v.limiter = rate.NewLimiter(l, int(l))
 }
 
-// Stats is used to query the state of the blocked eval tracker.
-func (v *vaultClient) Stats() *VaultStats {
+func (v *vaultClient) Stats() map[string]string {
+	stat := v.stats()
+
+	expireTimeStr := ""
+
+	if !stat.TokenExpiry.IsZero() {
+		expireTimeStr = stat.TokenExpiry.Format(time.RFC3339)
+	}
+
+	return map[string]string{
+		"tracked_for_revoked": strconv.Itoa(stat.TrackedForRevoke),
+		"token_ttl":           stat.TokenTTL.Round(time.Second).String(),
+		"token_expire_time":   expireTimeStr,
+	}
+}
+
+func (v *vaultClient) stats() *VaultStats {
 	// Allocate a new stats struct
 	stats := new(VaultStats)
 
-	v.statsLock.RLock()
-	defer v.statsLock.RUnlock()
+	v.revLock.Lock()
+	stats.TrackedForRevoke = len(v.revoking)
+	v.revLock.Unlock()
 
-	// Copy all the stats
-	stats.TrackedForRevoke = v.stats.TrackedForRevoke
+	stats.TokenExpiry = v.currentExpiration
+	if !stats.TokenExpiry.IsZero() {
+		stats.TokenTTL = time.Until(stats.TokenExpiry)
+	}
 
 	return stats
 }
@@ -1213,8 +1287,10 @@ func (v *vaultClient) EmitStats(period time.Duration, stopCh chan struct{}) {
 	for {
 		select {
 		case <-time.After(period):
-			stats := v.Stats()
+			stats := v.stats()
 			metrics.SetGauge([]string{"nomad", "vault", "distributed_tokens_revoking"}, float32(stats.TrackedForRevoke))
+			metrics.SetGauge([]string{"nomad", "vault", "token_ttl"}, float32(stats.TokenTTL/time.Millisecond))
+
 		case <-stopCh:
 			return
 		}

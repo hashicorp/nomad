@@ -37,6 +37,7 @@ type CpuStats struct {
 type ResourceUsage struct {
 	MemoryStats *MemoryStats
 	CpuStats    *CpuStats
+	DeviceStats []*DeviceGroupStats
 }
 
 // TaskResourceUsage holds aggregated resource usage of all processes in a Task

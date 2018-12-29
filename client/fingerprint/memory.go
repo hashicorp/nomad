@@ -2,8 +2,8 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shirou/gopsutil/mem"
@@ -14,13 +14,13 @@ const bytesInMB = 1024 * 1024
 // MemoryFingerprint is used to fingerprint the available memory on the node
 type MemoryFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	logger log.Logger
 }
 
 // NewMemoryFingerprint is used to create a Memory fingerprint
-func NewMemoryFingerprint(logger *log.Logger) Fingerprint {
+func NewMemoryFingerprint(logger log.Logger) Fingerprint {
 	f := &MemoryFingerprint{
-		logger: logger,
+		logger: logger.Named("memory"),
 	}
 	return f
 }
@@ -33,7 +33,7 @@ func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	} else {
 		memInfo, err := mem.VirtualMemory()
 		if err != nil {
-			f.logger.Printf("[WARN] Error reading memory information: %s", err)
+			f.logger.Warn("error reading memory information", "error", err)
 			return err
 		}
 		if memInfo.Total > 0 {
@@ -43,8 +43,16 @@ func (f *MemoryFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 
 	if totalMemory > 0 {
 		resp.AddAttribute("memory.totalbytes", fmt.Sprintf("%d", totalMemory))
+
+		// COMPAT(0.10): Remove in 0.10
 		resp.Resources = &structs.Resources{
 			MemoryMB: totalMemory / bytesInMB,
+		}
+
+		resp.NodeResources = &structs.NodeResources{
+			Memory: structs.NodeMemoryResources{
+				MemoryMB: int64(totalMemory / bytesInMB),
+			},
 		}
 	}
 

@@ -28,3 +28,18 @@ test('each version mentions the version number, the stability, and the submitted
   assert.equal(versionRow.stability, version.stable.toString(), 'Stability');
   assert.equal(versionRow.submitTime, formattedSubmitTime, 'Submit time');
 });
+
+test('when the job for the versions is not found, an error message is shown, but the URL persists', function(assert) {
+  Versions.visit({ id: 'not-a-real-job' });
+
+  andThen(() => {
+    assert.equal(
+      server.pretender.handledRequests.findBy('status', 404).url,
+      '/v1/job/not-a-real-job',
+      'A request to the nonexistent job is made'
+    );
+    assert.equal(currentURL(), '/jobs/not-a-real-job/versions', 'The URL persists');
+    assert.ok(Versions.error.isPresent, 'Error message is shown');
+    assert.equal(Versions.error.title, 'Not Found', 'Error message is for 404');
+  });
+});

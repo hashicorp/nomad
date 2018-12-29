@@ -5,7 +5,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -61,7 +60,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate, structs.EvalTriggerFailedFollowUp,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate,
+		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate, structs.EvalTriggerPreemption,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
@@ -282,7 +281,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
-		option, _ := s.stack.Select(missing.TaskGroup, nil)
+		option := s.stack.Select(missing.TaskGroup, nil)
 
 		if option == nil {
 			// If nodes were filtered because of constraint mismatches and we
@@ -315,19 +314,27 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Set fields based on if we found an allocation option
 		if option != nil {
+			resources := &structs.AllocatedResources{
+				Tasks: option.TaskResources,
+				Shared: structs.AllocatedSharedResources{
+					DiskMB: int64(missing.TaskGroup.EphemeralDisk.SizeMB),
+				},
+			}
+
 			// Create an allocation for this
 			alloc := &structs.Allocation{
-				ID:            uuid.Generate(),
-				Namespace:     s.job.Namespace,
-				EvalID:        s.eval.ID,
-				Name:          missing.Name,
-				JobID:         s.job.ID,
-				TaskGroup:     missing.TaskGroup.Name,
-				Metrics:       s.ctx.Metrics(),
-				NodeID:        option.Node.ID,
-				TaskResources: option.TaskResources,
-				DesiredStatus: structs.AllocDesiredStatusRun,
-				ClientStatus:  structs.AllocClientStatusPending,
+				ID:                 uuid.Generate(),
+				Namespace:          s.job.Namespace,
+				EvalID:             s.eval.ID,
+				Name:               missing.Name,
+				JobID:              s.job.ID,
+				TaskGroup:          missing.TaskGroup.Name,
+				Metrics:            s.ctx.Metrics(),
+				NodeID:             option.Node.ID,
+				TaskResources:      resources.OldTaskResources(),
+				AllocatedResources: resources,
+				DesiredStatus:      structs.AllocDesiredStatusRun,
+				ClientStatus:       structs.AllocClientStatusPending,
 
 				SharedResources: &structs.Resources{
 					DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
@@ -338,6 +345,24 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// set the record the older allocation id so that they are chained
 			if missing.Alloc != nil {
 				alloc.PreviousAllocation = missing.Alloc.ID
+			}
+
+			// If this placement involves preemption, set DesiredState to evict for those allocations
+			if option.PreemptedAllocs != nil {
+				var preemptedAllocIDs []string
+				for _, stop := range option.PreemptedAllocs {
+					s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
+
+					preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
+					if s.eval.AnnotatePlan && s.plan.Annotations != nil {
+						s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
+						if s.plan.Annotations.DesiredTGUpdates != nil {
+							desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
+							desired.Preemptions += 1
+						}
+					}
+				}
+				alloc.PreemptedAllocations = preemptedAllocIDs
 			}
 
 			s.plan.AppendAlloc(alloc)

@@ -32,8 +32,6 @@ func validateConfig(config *PluginLoaderConfig) error {
 		return fmt.Errorf("nil config passed")
 	} else if config.Logger == nil {
 		multierror.Append(&mErr, fmt.Errorf("nil logger passed"))
-	} else if config.PluginDir == "" {
-		multierror.Append(&mErr, fmt.Errorf("invalid plugin dir %q passed", config.PluginDir))
 	}
 
 	// Validate that all plugins have a binary name
@@ -61,8 +59,11 @@ func validateConfig(config *PluginLoaderConfig) error {
 // init initializes the plugin loader by compiling both internal and external
 // plugins and selecting the highest versioned version of any given plugin.
 func (l *PluginLoader) init(config *PluginLoaderConfig) error {
+	// Create a mapping of name to config
+	configMap := configMap(config.Configs)
+
 	// Initialize the internal plugins
-	internal, err := l.initInternal(config.InternalPlugins)
+	internal, err := l.initInternal(config.InternalPlugins, configMap)
 	if err != nil {
 		return fmt.Errorf("failed to fingerprint internal plugins: %v", err)
 	}
@@ -74,7 +75,6 @@ func (l *PluginLoader) init(config *PluginLoaderConfig) error {
 	}
 
 	// Fingerprint the passed plugins
-	configMap := configMap(config.Configs)
 	external, err := l.fingerprintPlugins(plugins, configMap)
 	if err != nil {
 		return fmt.Errorf("failed to fingerprint plugins: %v", err)
@@ -92,7 +92,7 @@ func (l *PluginLoader) init(config *PluginLoaderConfig) error {
 }
 
 // initInternal initializes internal plugins.
-func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig) (map[PluginID]*pluginInfo, error) {
+func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, configs map[string]*config.PluginConfig) (map[PluginID]*pluginInfo, error) {
 	var mErr multierror.Error
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for k, config := range plugins {
@@ -107,6 +107,11 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig) 
 		info := &pluginInfo{
 			factory: config.Factory,
 			config:  config.Config,
+		}
+
+		// Try to retrieve a user specified config
+		if userConfig, ok := configs[k.Name]; ok && userConfig.Config != nil {
+			info.config = userConfig.Config
 		}
 
 		// Fingerprint base info
@@ -142,9 +147,19 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig) 
 
 // scan scans the plugin directory and retrieves potentially eligible binaries
 func (l *PluginLoader) scan() ([]os.FileInfo, error) {
+	if l.pluginDir == "" {
+		return nil, nil
+	}
+
 	// Capture the list of binaries in the plugins folder
 	f, err := os.Open(l.pluginDir)
 	if err != nil {
+		// There are no plugins to scan
+		if os.IsNotExist(err) {
+			l.logger.Debug("skipping external plugins since plugin_dir doesn't exist")
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("failed to open plugin directory %q: %v", l.pluginDir, err)
 	}
 	files, err := f.Readdirnames(-1)
@@ -360,9 +375,10 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 		return multierror.Prefix(&mErr, "failed converting config schema:")
 	}
 
-	// If there is no config there is nothing to do
+	// If there is no config, initialize it to an empty map so we can still
+	// handle defaults
 	if info.config == nil {
-		return nil
+		info.config = map[string]interface{}{}
 	}
 
 	// Parse the config using the spec
@@ -382,7 +398,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 	info.msgpackConfig = cdata
 
 	// Dispense the plugin and set its config and ensure it is error free
-	instance, err := l.Dispense(id.Name, id.PluginType, l.logger)
+	instance, err := l.Dispense(id.Name, id.PluginType, nil, l.logger)
 	if err != nil {
 		return fmt.Errorf("failed to dispense plugin: %v", err)
 	}
@@ -393,7 +409,7 @@ func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
 		return fmt.Errorf("dispensed plugin %s doesn't meet base plugin interface", id)
 	}
 
-	if err := base.SetConfig(cdata); err != nil {
+	if err := base.SetConfig(cdata, nil); err != nil {
 		return fmt.Errorf("setting config on plugin failed: %v", err)
 	}
 	return nil

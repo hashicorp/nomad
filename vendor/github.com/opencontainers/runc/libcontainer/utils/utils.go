@@ -7,7 +7,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"syscall"
+	"strings"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -39,7 +42,7 @@ func ResolveRootfs(uncleanRootfs string) (string, error) {
 
 // ExitStatus returns the correct exit status for a process based on if it
 // was signaled or exited cleanly
-func ExitStatus(status syscall.WaitStatus) int {
+func ExitStatus(status unix.WaitStatus) int {
 	if status.Signaled() {
 		return exitSignalOffset + int(status.Signal())
 	}
@@ -83,4 +86,42 @@ func CleanPath(path string) string {
 
 	// Clean the path again for good measure.
 	return filepath.Clean(path)
+}
+
+// SearchLabels searches a list of key-value pairs for the provided key and
+// returns the corresponding value. The pairs must be separated with '='.
+func SearchLabels(labels []string, query string) string {
+	for _, l := range labels {
+		parts := strings.SplitN(l, "=", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		if parts[0] == query {
+			return parts[1]
+		}
+	}
+	return ""
+}
+
+// Annotations returns the bundle path and user defined annotations from the
+// libcontainer state.  We need to remove the bundle because that is a label
+// added by libcontainer.
+func Annotations(labels []string) (bundle string, userAnnotations map[string]string) {
+	userAnnotations = make(map[string]string)
+	for _, l := range labels {
+		parts := strings.SplitN(l, "=", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		if parts[0] == "bundle" {
+			bundle = parts[1]
+		} else {
+			userAnnotations[parts[0]] = parts[1]
+		}
+	}
+	return
+}
+
+func GetIntSize() int {
+	return int(unsafe.Sizeof(1))
 }

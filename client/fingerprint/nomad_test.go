@@ -11,7 +11,7 @@ import (
 )
 
 func TestNomadFingerprint(t *testing.T) {
-	f := NewNomadFingerprint(testlog.Logger(t))
+	f := NewNomadFingerprint(testlog.HCLogger(t))
 
 	v := "foo"
 	r := "123"

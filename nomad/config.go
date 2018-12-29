@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -279,6 +280,10 @@ type Config struct {
 	// key/value/tag format, or simply a key/value format
 	DisableTaggedMetrics bool
 
+	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
+	// publishing Job summary metrics
+	DisableDispatchedJobSummaryMetrics bool
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
 	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
@@ -295,6 +300,13 @@ type Config struct {
 	// autopilot tasks, such as promoting eligible non-voters and removing
 	// dead servers.
 	AutopilotInterval time.Duration
+
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid

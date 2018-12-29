@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -45,6 +44,7 @@ const (
 	DeploymentSnapshot
 	ACLPolicySnapshot
 	ACLTokenSnapshot
+	SchedulerConfigSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -247,6 +247,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
 	case structs.BatchNodeUpdateDrainRequestType:
 		return n.applyBatchDrainUpdate(buf[1:], log.Index)
+	case structs.SchedulerConfigRequestType:
+		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -500,12 +502,14 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge); err != nil {
-		n.logger.Error("deregistering job failed", "error", err)
-		return err
-	}
+	return n.state.WithWriteTransaction(func(tx state.Txn) error {
+		if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx); err != nil {
+			n.logger.Error("deregistering job failed", "error", err)
+			return err
+		}
 
-	return nil
+		return nil
+	})
 }
 
 func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
@@ -515,18 +519,36 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	for jobNS, options := range req.Jobs {
-		if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge); err != nil {
-			n.logger.Error("deregistering job failed", "job", jobNS, "error", err)
+	// Perform all store updates atomically to ensure a consistent view for store readers.
+	// A partial update may increment the snapshot index, allowing eval brokers to process
+	// evals for jobs whose deregistering didn't get committed yet.
+	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
+		for jobNS, options := range req.Jobs {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
+				n.logger.Error("deregistering job failed", "job", jobNS, "error", err)
+				return err
+			}
+		}
+
+		if err := n.state.UpsertEvalsTxn(index, req.Evals, tx); err != nil {
+			n.logger.Error("UpsertEvals failed", "error", err)
 			return err
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
-	return n.upsertEvals(index, req.Evals)
+	// perform the side effects outside the transactions
+	n.handleUpsertedEvals(req.Evals)
+	return nil
 }
 
 // handleJobDeregister is used to deregister a job.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		n.logger.Error("periodicDispatcher.Remove failed", "error", err)
@@ -534,7 +556,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 	}
 
 	if purge {
-		if err := n.state.DeleteJob(index, namespace, jobID); err != nil {
+		if err := n.state.DeleteJobTxn(index, namespace, jobID, tx); err != nil {
 			n.logger.Error("DeleteJob failed", "error", err)
 			return err
 		}
@@ -542,11 +564,11 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		// We always delete from the periodic launch table because it is possible that
 		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
-		n.state.DeletePeriodicLaunch(index, namespace, jobID)
+		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
 		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByID(ws, namespace, jobID)
+		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
 		if err != nil {
 			n.logger.Error("JobByID lookup failed", "error", err)
 			return err
@@ -559,7 +581,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped := current.Copy()
 		stopped.Stop = true
 
-		if err := n.state.UpsertJob(index, stopped); err != nil {
+		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
 			n.logger.Error("UpsertJob failed", "error", err)
 			return err
 		}
@@ -609,7 +631,7 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 		len(eval.FailedTGAllocs) == 0 {
 		// If we have a successful evaluation for a node, untrack any
 		// blocked evaluation
-		n.blockedEvals.Untrack(eval.JobID)
+		n.blockedEvals.Untrack(eval.JobID, eval.Namespace)
 	}
 }
 
@@ -639,19 +661,12 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// prior to being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
+	// COMPAT(0.11): Remove in 0.11
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
 	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
 		if alloc.Resources != nil {
-			// COMPAT 0.4.1 -> 0.5
-			// Set the shared resources for allocations which don't have them
-			if alloc.SharedResources == nil {
-				alloc.SharedResources = &structs.Resources{
-					DiskMB: alloc.Resources.DiskMB,
-				}
-			}
-
 			continue
 		}
 
@@ -821,6 +836,8 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 		return err
 	}
 
+	// Add evals for jobs that were preempted
+	n.handleUpsertedEvals(req.PreemptionEvals)
 	return nil
 }
 
@@ -999,6 +1016,23 @@ func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
 		return act
 	}
 	return n.state.AutopilotSetConfig(index, &req.Config)
+}
+
+func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interface{} {
+	var req structs.SchedulerSetConfigRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_scheduler_config"}, time.Now())
+
+	if req.CAS {
+		applied, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
+		if err != nil {
+			return err
+		}
+		return applied
+	}
+	return n.state.SchedulerSetConfig(index, &req.Config)
 }
 
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
@@ -1218,6 +1252,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.ACLTokenRestore(token); err != nil {
+				return err
+			}
+
+		case SchedulerConfigSnapshot:
+			schedConfig := new(structs.SchedulerConfiguration)
+			if err := dec.Decode(schedConfig); err != nil {
+				return err
+			}
+			if err := restore.SchedulerConfigRestore(schedConfig); err != nil {
 				return err
 			}
 
@@ -1505,6 +1548,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistEnterpriseTables(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistSchedulerConfig(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1836,6 +1883,21 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		if err := encoder.Encode(token); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistSchedulerConfig(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get scheduler config
+	_, schedConfig, err := s.snap.SchedulerConfig()
+	if err != nil {
+		return err
+	}
+	// Write out scheduler config
+	sink.Write([]byte{byte(SchedulerConfigSnapshot)})
+	if err := encoder.Encode(schedConfig); err != nil {
+		return err
 	}
 	return nil
 }

@@ -15,14 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/lib"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
-
-	"github.com/hashicorp/consul/agent/consul/autopilot"
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
@@ -35,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -267,9 +266,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 		return nil, err
 	}
 
-	// Create a new blocked eval tracker.
-	blockedEvals := NewBlockedEvals(evalBroker)
-
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -304,7 +300,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 		reconcileCh:   make(chan serf.Member, 32),
 		eventCh:       make(chan serf.Event, 256),
 		evalBroker:    evalBroker,
-		blockedEvals:  blockedEvals,
+		blockedEvals:  NewBlockedEvals(evalBroker, logger),
 		rpcTLS:        incomingTLS,
 		aclCache:      aclCache,
 		shutdownCh:    make(chan struct{}),
@@ -401,7 +397,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI) (*Server, error)
 	go s.planQueue.EmitStats(time.Second, s.shutdownCh)
 
 	// Emit metrics for the blocked eval tracker.
-	go blockedEvals.EmitStats(time.Second, s.shutdownCh)
+	go s.blockedEvals.EmitStats(time.Second, s.shutdownCh)
 
 	// Emit metrics for the Vault client.
 	go s.vault.EmitStats(time.Second, s.shutdownCh)
@@ -1437,6 +1433,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
 		"runtime": stats.RuntimeStats(),
+		"vault":   s.vault.Stats(),
 	}
 
 	return stats

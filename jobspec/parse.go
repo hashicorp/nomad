@@ -655,8 +655,8 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 
 		// If "set_contains_any" is provided, set the operand
 		// to "set_contains_any" and the value to the "RTarget"
-		if affinity, ok := m[structs.ConstraintSetContaintsAny]; ok {
-			m["Operand"] = structs.ConstraintSetContaintsAny
+		if affinity, ok := m[structs.ConstraintSetContainsAny]; ok {
+			m["Operand"] = structs.ConstraintSetContainsAny
 			m["RTarget"] = affinity
 		}
 
@@ -755,7 +755,7 @@ func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
 		// Parse spread target
 		if o := listVal.Filter("target"); len(o.Items) > 0 {
 			if err := parseSpreadTarget(&s.SpreadTarget, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("error parsing spread target"))
+				return multierror.Prefix(err, fmt.Sprintf("target ->"))
 			}
 		}
 
@@ -766,9 +766,11 @@ func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
 }
 
 func parseSpreadTarget(result *[]*api.SpreadTarget, list *ast.ObjectList) error {
-
 	seen := make(map[string]struct{})
 	for _, item := range list.Items {
+		if len(item.Keys) != 1 {
+			return fmt.Errorf("missing spread target")
+		}
 		n := item.Keys[0].Token.Value().(string)
 
 		// Make sure we haven't already found this
@@ -1413,6 +1415,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		"disk",
 		"memory",
 		"network",
+		"device",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
@@ -1423,6 +1426,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		return err
 	}
 	delete(m, "network")
+	delete(m, "device")
 
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
@@ -1463,6 +1467,70 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		}
 
 		result.Networks = []*api.NetworkResource{&r}
+	}
+
+	// Parse the device resources
+	if o := listVal.Filter("device"); len(o.Items) > 0 {
+		result.Devices = make([]*api.RequestedDevice, len(o.Items))
+		for idx, do := range o.Items {
+			if l := len(do.Keys); l == 0 {
+				return multierror.Prefix(fmt.Errorf("missing device name"), fmt.Sprintf("resources, device[%d]->", idx))
+			} else if l > 1 {
+				return multierror.Prefix(fmt.Errorf("only one name may be specified"), fmt.Sprintf("resources, device[%d]->", idx))
+			}
+			name := do.Keys[0].Token.Value().(string)
+
+			// Value should be an object
+			var listVal *ast.ObjectList
+			if ot, ok := do.Val.(*ast.ObjectType); ok {
+				listVal = ot.List
+			} else {
+				return fmt.Errorf("device should be an object")
+			}
+
+			// Check for invalid keys
+			valid := []string{
+				"name",
+				"count",
+				"affinity",
+				"constraint",
+			}
+			if err := helper.CheckHCLKeys(do.Val, valid); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("resources, device[%d]->", idx))
+			}
+
+			// Set the name
+			var r api.RequestedDevice
+			r.Name = name
+
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, do.Val); err != nil {
+				return err
+			}
+
+			delete(m, "constraint")
+			delete(m, "affinity")
+
+			if err := mapstructure.WeakDecode(m, &r); err != nil {
+				return err
+			}
+
+			// Parse constraints
+			if o := listVal.Filter("constraint"); len(o.Items) > 0 {
+				if err := parseConstraints(&r.Constraints, o); err != nil {
+					return multierror.Prefix(err, "constraint ->")
+				}
+			}
+
+			// Parse affinities
+			if o := listVal.Filter("affinity"); len(o.Items) > 0 {
+				if err := parseAffinities(&r.Affinities, o); err != nil {
+					return multierror.Prefix(err, "affinity ->")
+				}
+			}
+
+			result.Devices[idx] = &r
+		}
 	}
 
 	return nil

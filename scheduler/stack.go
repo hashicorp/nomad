@@ -28,7 +28,7 @@ type Stack interface {
 	SetJob(job *structs.Job)
 
 	// Select is used to select a node for the task group
-	Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources)
+	Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode
 }
 
 type SelectOptions struct {
@@ -48,6 +48,7 @@ type GenericStack struct {
 	jobConstraint       *ConstraintChecker
 	taskGroupDrivers    *DriverChecker
 	taskGroupConstraint *ConstraintChecker
+	taskGroupDevices    *DeviceChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -87,12 +88,15 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on task group constraints second
 	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
 
+	// Filter on task group devices
+	s.taskGroupDevices = NewDeviceChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupDevices}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct host constraints.
@@ -105,10 +109,9 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
 
 	// Apply the bin packing, this depends on the resources needed
-	// by a particular task group. Only enable eviction for the service
-	// scheduler as that logic is expensive.
-	evict := !batch
-	s.binPack = NewBinPackIterator(ctx, rankSource, evict, 0)
+	// by a particular task group.
+
+	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job.
@@ -167,7 +170,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	}
 }
 
-func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources) {
+func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
 
 	// This block handles trying to select from preferred nodes if options specify them
 	// It also sets back the set of nodes to the original nodes
@@ -176,9 +179,9 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 		s.source.SetNodes(options.PreferredNodes)
 		optionsNew := *options
 		optionsNew.PreferredNodes = nil
-		if option, resources := s.Select(tg, &optionsNew); option != nil {
+		if option := s.Select(tg, &optionsNew); option != nil {
 			s.source.SetNodes(originalNodes)
-			return option, resources
+			return option
 		}
 		s.source.SetNodes(originalNodes)
 		return s.Select(tg, &optionsNew)
@@ -195,6 +198,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.taskGroupDevices.SetTaskGroup(tg)
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
@@ -217,28 +221,24 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*R
 	// Find the node with the max score
 	option := s.maxScore.Next()
 
-	// Ensure that the task resources were specified
-	if option != nil && len(option.TaskResources) != len(tg.Tasks) {
-		for _, task := range tg.Tasks {
-			option.SetTaskResources(task, task.Resources)
-		}
-	}
-
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
-	return option, tgConstr.size
+	return option
 }
 
 // SystemStack is the Stack used for the System scheduler. It is designed to
 // attempt to make placements on all nodes.
 type SystemStack struct {
-	ctx                        Context
-	source                     *StaticIterator
-	wrappedChecks              *FeasibilityWrapper
-	quota                      FeasibleIterator
-	jobConstraint              *ConstraintChecker
-	taskGroupDrivers           *DriverChecker
-	taskGroupConstraint        *ConstraintChecker
+	ctx    Context
+	source *StaticIterator
+
+	wrappedChecks       *FeasibilityWrapper
+	quota               FeasibleIterator
+	jobConstraint       *ConstraintChecker
+	taskGroupDrivers    *DriverChecker
+	taskGroupConstraint *ConstraintChecker
+	taskGroupDevices    *DeviceChecker
+
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
 	scoreNorm                  *ScoreNormalizationIterator
@@ -266,12 +266,15 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Filter on task group constraints second
 	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
 
+	// Filter on task group devices
+	s.taskGroupDevices = NewDeviceChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupDevices}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct property constraints.
@@ -283,7 +286,12 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Enable eviction as system jobs are high
 	// priority.
-	s.binPack = NewBinPackIterator(ctx, rankSource, true, 0)
+	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+	enablePreemption := true
+	if schedConfig != nil {
+		enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+	}
+	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0)
 
 	// Apply score normalization
 	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack)
@@ -306,7 +314,7 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 	}
 }
 
-func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*RankedNode, *structs.Resources) {
+func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
 	// Reset the binpack selector and context
 	s.scoreNorm.Reset()
 	s.ctx.Reset()
@@ -318,6 +326,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*Ra
 	// Update the parameters of iterators
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.taskGroupDevices.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)
@@ -329,14 +338,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) (*Ra
 	// Get the next option that satisfies the constraints.
 	option := s.scoreNorm.Next()
 
-	// Ensure that the task resources were specified
-	if option != nil && len(option.TaskResources) != len(tg.Tasks) {
-		for _, task := range tg.Tasks {
-			option.SetTaskResources(task, task.Resources)
-		}
-	}
-
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
-	return option, tgConstr.size
+	return option
 }

@@ -48,13 +48,25 @@ func allocUpdateFnDestructive(*structs.Allocation, *structs.Job, *structs.TaskGr
 func allocUpdateFnInplace(existing *structs.Allocation, _ *structs.Job, newTG *structs.TaskGroup) (bool, bool, *structs.Allocation) {
 	// Create a shallow copy
 	newAlloc := existing.CopySkipJob()
-	newAlloc.TaskResources = make(map[string]*structs.Resources)
+	newAlloc.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: int64(newTG.EphemeralDisk.SizeMB),
+		},
+	}
 
 	// Use the new task resources but keep the network from the old
 	for _, task := range newTG.Tasks {
-		r := task.Resources.Copy()
-		r.Networks = existing.TaskResources[task.Name].Networks
-		newAlloc.TaskResources[task.Name] = r
+		networks := existing.AllocatedResources.Tasks[task.Name].Copy().Networks
+		newAlloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: int64(task.Resources.CPU),
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: int64(task.Resources.MemoryMB),
+			},
+			Networks: networks,
+		}
 	}
 
 	return false, false, newAlloc
@@ -1079,6 +1091,68 @@ func TestReconciler_JobStopped(t *testing.T) {
 			})
 
 			assertNamesHaveIndexes(t, intRange(0, 9), stopResultsToNames(r.stop))
+		})
+	}
+}
+
+// Tests the reconciler doesn't update allocs in terminal state
+// when job is stopped or nil
+func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
+	job := mock.Job()
+	job.Stop = true
+
+	cases := []struct {
+		name             string
+		job              *structs.Job
+		jobID, taskGroup string
+	}{
+		{
+			name:      "stopped job",
+			job:       job,
+			jobID:     job.ID,
+			taskGroup: job.TaskGroups[0].Name,
+		},
+		{
+			name:      "nil job",
+			job:       nil,
+			jobID:     "foo",
+			taskGroup: "bar",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Create 10 terminal allocations
+			var allocs []*structs.Allocation
+			for i := 0; i < 10; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = c.job
+				alloc.JobID = c.jobID
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(c.jobID, c.taskGroup, uint(i))
+				alloc.TaskGroup = c.taskGroup
+				if i%2 == 0 {
+					alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				} else {
+					alloc.ClientStatus = structs.AllocClientStatusFailed
+				}
+				allocs = append(allocs, alloc)
+			}
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, c.jobID, c.job, nil, allocs, nil, "")
+			r := reconciler.Compute()
+			require.Len(t, r.stop, 0)
+			// Assert the correct results
+			assertResults(t, r, &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             0,
+				inplace:           0,
+				stop:              0,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					c.taskGroup: {},
+				},
+			})
 		})
 	}
 }

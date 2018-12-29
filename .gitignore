@@ -36,6 +36,9 @@ website/npm-debug.log
 *.old
 *.attr
 
+# Test file
+exit-code
+
 ui/.sass-cache
 ui/static/base.css
 

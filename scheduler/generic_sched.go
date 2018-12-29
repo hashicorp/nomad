@@ -6,7 +6,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -131,7 +130,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		structs.EvalTriggerRollingUpdate, structs.EvalTriggerQueuedAllocs,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
-		structs.EvalTriggerFailedFollowUp:
+		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -469,7 +468,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Compute penalty nodes for rescheduled allocs
 			selectOptions := getSelectOptions(prevAllocation, preferredNode)
-			option, _ := s.stack.Select(tg, selectOptions)
+			option := s.stack.Select(tg, selectOptions)
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
@@ -479,20 +478,28 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Set fields based on if we found an allocation option
 			if option != nil {
+				resources := &structs.AllocatedResources{
+					Tasks: option.TaskResources,
+					Shared: structs.AllocatedSharedResources{
+						DiskMB: int64(tg.EphemeralDisk.SizeMB),
+					},
+				}
+
 				// Create an allocation for this
 				alloc := &structs.Allocation{
-					ID:            uuid.Generate(),
-					Namespace:     s.job.Namespace,
-					EvalID:        s.eval.ID,
-					Name:          missing.Name(),
-					JobID:         s.job.ID,
-					TaskGroup:     tg.Name,
-					Metrics:       s.ctx.Metrics(),
-					NodeID:        option.Node.ID,
-					DeploymentID:  deploymentID,
-					TaskResources: option.TaskResources,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					ClientStatus:  structs.AllocClientStatusPending,
+					ID:                 uuid.Generate(),
+					Namespace:          s.job.Namespace,
+					EvalID:             s.eval.ID,
+					Name:               missing.Name(),
+					JobID:              s.job.ID,
+					TaskGroup:          tg.Name,
+					Metrics:            s.ctx.Metrics(),
+					NodeID:             option.Node.ID,
+					DeploymentID:       deploymentID,
+					TaskResources:      resources.OldTaskResources(),
+					AllocatedResources: resources,
+					DesiredStatus:      structs.AllocDesiredStatusRun,
+					ClientStatus:       structs.AllocClientStatusPending,
 
 					SharedResources: &structs.Resources{
 						DiskMB: tg.EphemeralDisk.SizeMB,

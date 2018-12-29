@@ -93,6 +93,16 @@ test('/clients/:id should list additional detail for the node below the title', 
   });
 });
 
+test('/clients/:id should include resource utilization graphs', function(assert) {
+  ClientDetail.visit({ id: node.id });
+
+  andThen(() => {
+    assert.equal(ClientDetail.resourceCharts.length, 2, 'Two resource utilization graphs');
+    assert.equal(ClientDetail.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
+    assert.equal(ClientDetail.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+  });
+});
+
 test('/clients/:id should list all allocations on the node', function(assert) {
   const allocationsCount = server.db.allocations.where({ nodeId: node.id }).length;
 

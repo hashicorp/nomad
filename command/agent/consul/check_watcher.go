@@ -24,7 +24,7 @@ type ChecksAPI interface {
 
 // TaskRestarter allows the checkWatcher to restart tasks.
 type TaskRestarter interface {
-	Restart(source, reason string, failure bool)
+	Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error
 }
 
 // checkRestart handles restarting a task if a check is unhealthy.
@@ -60,7 +60,7 @@ type checkRestart struct {
 //
 // Returns true if a restart was triggered in which case this check should be
 // removed (checks are added on task startup).
-func (c *checkRestart) apply(now time.Time, status string) bool {
+func (c *checkRestart) apply(ctx context.Context, now time.Time, status string) bool {
 	healthy := func() {
 		if !c.unhealthyState.IsZero() {
 			c.logger.Debug("canceling restart because check became healthy")
@@ -104,7 +104,13 @@ func (c *checkRestart) apply(now time.Time, status string) bool {
 
 		// Tell TaskRunner to restart due to failure
 		const failure = true
-		c.task.Restart("healthcheck", fmt.Sprintf("check %q unhealthy", c.checkName), failure)
+		reason := fmt.Sprintf("healthcheck: check %q unhealthy", c.checkName)
+		event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason(reason)
+		err := c.task.Restart(ctx, event, failure)
+		if err != nil {
+			// Error restarting
+			return false
+		}
 		return true
 	}
 
@@ -228,6 +234,11 @@ func (w *checkWatcher) Run(ctx context.Context) {
 
 			// Loop over watched checks and update their status from results
 			for cid, check := range checks {
+				// Shortcircuit if told to exit
+				if ctx.Err() != nil {
+					return
+				}
+
 				if _, ok := restartedTasks[check.taskKey]; ok {
 					// Check for this task already restarted; remove and skip check
 					delete(checks, cid)
@@ -243,7 +254,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 					continue
 				}
 
-				restarted := check.apply(now, result.Status)
+				restarted := check.apply(ctx, now, result.Status)
 				if restarted {
 					// Checks are registered+watched on
 					// startup, so it's safe to remove them

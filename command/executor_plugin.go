@@ -5,10 +5,11 @@ import (
 	"os"
 	"strings"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/hashicorp/nomad/client/driver"
-	dstructs "github.com/hashicorp/nomad/client/driver/structs"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/executor"
 )
 
 type ExecutorPluginCommand struct {
@@ -32,7 +33,7 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 		return 1
 	}
 	config := args[0]
-	var executorConfig dstructs.ExecutorConfig
+	var executorConfig executor.ExecutorConfig
 	if err := json.Unmarshal([]byte(config), &executorConfig); err != nil {
 		return 1
 	}
@@ -42,8 +43,12 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 		return 1
 	}
 	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig: driver.HandshakeConfig,
-		Plugins:         driver.GetPluginMap(stdo, executorConfig.LogLevel),
+		HandshakeConfig: base.Handshake,
+		Plugins: executor.GetPluginMap(
+			stdo,
+			hclog.LevelFromString(executorConfig.LogLevel),
+			executorConfig.FSIsolation,
+		),
 	})
 	return 0
 }
