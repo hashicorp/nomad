@@ -58,4 +58,7 @@ install:
   - if [[ "$RUN_UI_TESTS" ]]; then . $HOME/.nvm/nvm.sh && cd ui && nvm use && cd .. ; fi
 
 script:
-  - sudo -E "PATH=$PATH" make travis
+  - sudo -E "PATH=$PATH" GOTESTSUM_JUNITFILE=/tmp/results.xml make travis
+
+after_script:
+  - cat /tmp/results.xml

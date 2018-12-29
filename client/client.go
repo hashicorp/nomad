@@ -462,10 +462,21 @@ func (c *Client) init() error {
 	c.logger.Info("using state directory", "state_dir", c.config.StateDir)
 
 	// Open the state database
-	db, err := state.GetStateDBFactory(c.config.DevMode)(c.config.StateDir)
+	db, err := state.GetStateDBFactory(c.config.DevMode)(c.logger, c.config.StateDir)
 	if err != nil {
 		return fmt.Errorf("failed to open state database: %v", err)
 	}
+
+	// Upgrade the state database
+	if err := db.Upgrade(); err != nil {
+		// Upgrade only returns an error on critical persistence
+		// failures in which an operator should intervene before the
+		// node is accessible. Upgrade drops and logs corrupt state it
+		// encounters, so failing to start the agent should be extremely
+		// rare.
+		return fmt.Errorf("failed to upgrade state database: %v", err)
+	}
+
 	c.stateDB = db
 
 	// Ensure the alloc dir exists if we have one

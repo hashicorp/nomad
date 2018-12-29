@@ -2,8 +2,11 @@ package state
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"time"
 
+	hclog "github.com/hashicorp/go-hclog"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
@@ -14,34 +17,53 @@ import (
 /*
 The client has a boltDB backed state store. The schema as of 0.9 looks as follows:
 
-allocations/ (bucket)
-|--> <alloc-id>/ (bucket)
-    |--> alloc -> *structs.Allocation
-    |--> alloc_runner persisted objects (k/v)
-	|--> <task-name>/ (bucket)
-        |--> task_runner persisted objects (k/v)
+meta/
+|--> version -> '2' (not msgpack encoded)
+|--> upgraded -> time.Now().Format(timeRFC3339)
+allocations/
+|--> <alloc-id>/
+   |--> alloc         -> allocEntry{*structs.Allocation}
+   |--> deploy_status -> deployStatusEntry{*structs.AllocDeploymentStatus}
+   |--> task-<name>/
+      |--> local_state -> *trstate.LocalState # Local-only state
+      |--> task_state  -> *structs.TaskState  # Sync'd to servers
 
 devicemanager/
-|--> plugin-state -> *dmstate.PluginState
+|--> plugin_state -> *dmstate.PluginState
 
 drivermanager/
-|--> plugin-state -> *driverstate.PluginState
+|--> plugin_state -> *dmstate.PluginState
 */
 
 var (
+	// metaBucketName is the name of the metadata bucket
+	metaBucketName = []byte("meta")
+
+	// metaVersionKey is the key the state schema version is stored under.
+	metaVersionKey = []byte("version")
+
+	// metaVersion is the value of the state schema version to detect when
+	// an upgrade is needed. It skips the usual boltdd/msgpack backend to
+	// be as portable and futureproof as possible.
+	metaVersion = []byte{'2'}
+
+	// metaUpgradedKey is the key that stores the timestamp of the last
+	// time the schema was upgraded.
+	metaUpgradedKey = []byte("upgraded")
+
 	// allocationsBucketName is the bucket name containing all allocation related
 	// data
 	allocationsBucketName = []byte("allocations")
 
-	// allocKey is the key serialized Allocations are stored under
+	// allocKey is the key Allocations are stored under encapsulated in
+	// allocEntry structs.
 	allocKey = []byte("alloc")
 
-	// taskRunnerStateAllKey holds all the task runners state. At the moment
-	// there is no need to split it
-	//XXX Old key - going to need to migrate
-	//taskRunnerStateAllKey = []byte("simple-all")
+	// allocDeployStatusKey is the key *structs.AllocDeploymentStatus is
+	// stored under.
+	allocDeployStatusKey = []byte("deploy_status")
 
-	// allocations -> $allocid -> $taskname -> the keys below
+	// allocations -> $allocid -> task-$taskname -> the keys below
 	taskLocalStateKey = []byte("local_state")
 	taskStateKey      = []byte("task_state")
 
@@ -58,14 +80,19 @@ var (
 	managerPluginStateKey = []byte("plugin_state")
 )
 
+// taskBucketName returns the bucket name for the given task name.
+func taskBucketName(taskName string) []byte {
+	return []byte("task-" + taskName)
+}
+
 // NewStateDBFunc creates a StateDB given a state directory.
-type NewStateDBFunc func(stateDir string) (StateDB, error)
+type NewStateDBFunc func(logger hclog.Logger, stateDir string) (StateDB, error)
 
 // GetStateDBFactory returns a func for creating a StateDB
 func GetStateDBFactory(devMode bool) NewStateDBFunc {
 	// Return a noop state db implementation when in debug mode
 	if devMode {
-		return func(string) (StateDB, error) {
+		return func(hclog.Logger, string) (StateDB, error) {
 			return NoopDB{}, nil
 		}
 	}
@@ -76,21 +103,42 @@ func GetStateDBFactory(devMode bool) NewStateDBFunc {
 // BoltStateDB persists and restores Nomad client state in a boltdb. All
 // methods are safe for concurrent access.
 type BoltStateDB struct {
-	db *boltdd.DB
+	stateDir string
+	db       *boltdd.DB
+	logger   hclog.Logger
 }
 
 // NewBoltStateDB creates or opens an existing boltdb state file or returns an
 // error.
-func NewBoltStateDB(stateDir string) (StateDB, error) {
+func NewBoltStateDB(logger hclog.Logger, stateDir string) (StateDB, error) {
+	fn := filepath.Join(stateDir, "state.db")
+
+	// Check to see if the DB already exists
+	fi, err := os.Stat(fn)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	firstRun := fi == nil
+
 	// Create or open the boltdb state database
-	db, err := boltdd.Open(filepath.Join(stateDir, "state.db"), 0600, nil)
+	db, err := boltdd.Open(fn, 0600, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create state database: %v", err)
 	}
 
 	sdb := &BoltStateDB{
-		db: db,
+		stateDir: stateDir,
+		db:       db,
+		logger:   logger,
 	}
+
+	// If db did not already exist, initialize metadata fields
+	if firstRun {
+		if err := sdb.init(); err != nil {
+			return nil, err
+		}
+	}
+
 	return sdb, nil
 }
 
@@ -181,6 +229,64 @@ func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
 	})
 }
 
+// deployStatusEntry wraps values for DeploymentStatus keys.
+type deployStatusEntry struct {
+	DeploymentStatus *structs.AllocDeploymentStatus
+}
+
+// PutDeploymentStatus stores an allocation's DeploymentStatus or returns an
+// error.
+func (s *BoltStateDB) PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentStatus) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		return putDeploymentStatusImpl(tx, allocID, ds)
+	})
+}
+
+func putDeploymentStatusImpl(tx *boltdd.Tx, allocID string, ds *structs.AllocDeploymentStatus) error {
+	allocBkt, err := getAllocationBucket(tx, allocID)
+	if err != nil {
+		return err
+	}
+
+	entry := deployStatusEntry{
+		DeploymentStatus: ds,
+	}
+	return allocBkt.Put(allocDeployStatusKey, &entry)
+}
+
+// GetDeploymentStatus retrieves an allocation's DeploymentStatus or returns an
+// error.
+func (s *BoltStateDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploymentStatus, error) {
+	var entry deployStatusEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			// No state for alloc, return
+			return nil
+		}
+
+		return allocBkt.Get(allocDeployStatusKey, &entry)
+	})
+
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.DeploymentStatus, nil
+}
+
 // GetTaskRunnerState returns the LocalState and TaskState for a
 // TaskRunner. LocalState or TaskState will be nil if they do not exist.
 //
@@ -202,7 +308,7 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 			return nil
 		}
 
-		taskBkt := allocBkt.Bucket([]byte(taskName))
+		taskBkt := allocBkt.Bucket(taskBucketName(taskName))
 		if taskBkt == nil {
 			// No state for task, return
 			return nil
@@ -243,29 +349,41 @@ func (s *BoltStateDB) GetTaskRunnerState(allocID, taskName string) (*trstate.Loc
 // PutTaskRunnerLocalState stores TaskRunner's LocalState or returns an error.
 func (s *BoltStateDB) PutTaskRunnerLocalState(allocID, taskName string, val *trstate.LocalState) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
-		taskBkt, err := getTaskBucket(tx, allocID, taskName)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
-		}
-
-		if err := taskBkt.Put(taskLocalStateKey, val); err != nil {
-			return fmt.Errorf("failed to write task_runner state: %v", err)
-		}
-
-		return nil
+		return putTaskRunnerLocalStateImpl(tx, allocID, taskName, val)
 	})
+}
+
+// putTaskRunnerLocalStateImpl stores TaskRunner's LocalState in an ongoing
+// transaction or returns an error.
+func putTaskRunnerLocalStateImpl(tx *boltdd.Tx, allocID, taskName string, val *trstate.LocalState) error {
+	taskBkt, err := getTaskBucket(tx, allocID, taskName)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+	}
+
+	if err := taskBkt.Put(taskLocalStateKey, val); err != nil {
+		return fmt.Errorf("failed to write task_runner state: %v", err)
+	}
+
+	return nil
 }
 
 // PutTaskState stores a task's state or returns an error.
 func (s *BoltStateDB) PutTaskState(allocID, taskName string, state *structs.TaskState) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
-		taskBkt, err := getTaskBucket(tx, allocID, taskName)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
-		}
-
-		return taskBkt.Put(taskStateKey, state)
+		return putTaskStateImpl(tx, allocID, taskName, state)
 	})
+}
+
+// putTaskStateImpl stores a task's state in an ongoing transaction or returns
+// an error.
+func putTaskStateImpl(tx *boltdd.Tx, allocID, taskName string, state *structs.TaskState) error {
+	taskBkt, err := getTaskBucket(tx, allocID, taskName)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve allocation bucket: %v", err)
+	}
+
+	return taskBkt.Put(taskStateKey, state)
 }
 
 // DeleteTaskBucket is used to delete a task bucket if it exists.
@@ -284,7 +402,7 @@ func (s *BoltStateDB) DeleteTaskBucket(allocID, taskName string) error {
 		}
 
 		// Check if the bucket exists
-		key := []byte(taskName)
+		key := taskBucketName(taskName)
 		return alloc.DeleteBucket(key)
 	})
 }
@@ -359,7 +477,7 @@ func getTaskBucket(tx *boltdd.Tx, allocID, taskName string) (*boltdd.Bucket, err
 
 	// Retrieve the specific task bucket
 	w := tx.Writable()
-	key := []byte(taskName)
+	key := taskBucketName(taskName)
 	task := alloc.Bucket(key)
 	if task == nil {
 		if !w {
@@ -467,4 +585,60 @@ func (s *BoltStateDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 	}
 
 	return ps, nil
+}
+
+// init initializes metadata entries in a newly created state database.
+func (s *BoltStateDB) init() error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		return addMeta(tx.BoltTx())
+	})
+}
+
+// Upgrade bolt state db from 0.8 schema to 0.9 schema. Noop if already using
+// 0.9 schema. Creates a backup before upgrading.
+func (s *BoltStateDB) Upgrade() error {
+	// Check to see if the underlying DB needs upgrading.
+	upgrade, err := NeedsUpgrade(s.db.BoltDB())
+	if err != nil {
+		return err
+	}
+	if !upgrade {
+		// No upgrade needed!
+		return nil
+	}
+
+	// Upgraded needed. Backup the boltdb first.
+	backupFileName := filepath.Join(s.stateDir, "state.db.backup")
+	if err := backupDB(s.db.BoltDB(), backupFileName); err != nil {
+		return fmt.Errorf("error backing up state db: %v", err)
+	}
+
+	// Perform the upgrade
+	if err := s.db.Update(func(tx *boltdd.Tx) error {
+		if err := UpgradeAllocs(s.logger, tx); err != nil {
+			return err
+		}
+
+		// Add standard metadata
+		if err := addMeta(tx.BoltTx()); err != nil {
+			return err
+		}
+
+		// Write the time the upgrade was done
+		bkt, err := tx.CreateBucketIfNotExists(metaBucketName)
+		if err != nil {
+			return err
+		}
+		return bkt.Put(metaUpgradedKey, time.Now().Format(time.RFC3339))
+	}); err != nil {
+		return err
+	}
+
+	s.logger.Info("successfully upgraded state")
+	return nil
+}
+
+// DB allows access to the underlying BoltDB for testing purposes.
+func (s *BoltStateDB) DB() *boltdd.DB {
+	return s.db
 }

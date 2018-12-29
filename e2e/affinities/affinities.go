@@ -28,15 +28,19 @@ func init() {
 	})
 }
 
-func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
-	nomadClient := tc.Nomad()
+func (tc *BasicAffinityTest) BeforeAll(f *framework.F) {
+	// Ensure cluster has leader before running tests
+	framework.WaitForLeader(f.T(), tc.Nomad())
+}
 
+func (tc *BasicAffinityTest) registerAndWaitForAllocs(f *framework.F, jobFile string, prefix string) []*api.AllocationListStub {
+	nomadClient := tc.Nomad()
 	// Parse job
-	job, err := jobspec.ParseFile("affinities/input/aff1.nomad")
+	job, err := jobspec.ParseFile(jobFile)
 	require := require.New(f.T())
 	require.Nil(err)
 	uuid := uuid.Generate()
-	jobId := helper.StringToPtr("aff" + uuid[0:8])
+	jobId := helper.StringToPtr(prefix + uuid[0:8])
 	job.ID = jobId
 
 	tc.jobIds = append(tc.jobIds, *jobId)
@@ -54,19 +58,24 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 		// Look for allocations
 		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
 		return allocs
-	}, 5*time.Second, time.Second).ShouldNot(BeEmpty())
+	}, 10*time.Second, time.Second).ShouldNot(BeEmpty())
 
+	allocs, _, err := jobs.Allocations(*job.ID, false, nil)
+	require.Nil(err)
+	return allocs
+}
+
+func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
+	allocs := tc.registerAndWaitForAllocs(f, "affinities/input/single_affinity.nomad", "aff")
+
+	nomadClient := tc.Nomad()
 	jobAllocs := nomadClient.Allocations()
-
-	allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-
+	require := require.New(f.T())
 	// Verify affinity score metadata
 	for _, allocStub := range allocs {
 		alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
 		require.Nil(err)
 		require.NotEmpty(alloc.Metrics.ScoreMetaData)
-		// Expect node affinity score to be 1.0 (dc1 nodes) if found
-		// TODO(preetha) make this more realistic
 		for _, sm := range alloc.Metrics.ScoreMetaData {
 			score, ok := sm.Scores["node-affinity"]
 			if ok {
@@ -78,36 +87,11 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 }
 
 func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
+	allocs := tc.registerAndWaitForAllocs(f, "affinities/input/multiple_affinities.nomad", "aff")
+
 	nomadClient := tc.Nomad()
-
-	// Parse job
-	job, err := jobspec.ParseFile("affinities/input/aff2.nomad")
-	require := require.New(f.T())
-	require.Nil(err)
-	uuid := uuid.Generate()
-	jobId := helper.StringToPtr("aff" + uuid[0:8])
-	job.ID = jobId
-
-	tc.jobIds = append(tc.jobIds, *jobId)
-
-	// Register job
-	jobs := nomadClient.Jobs()
-	resp, _, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotEmpty(resp.EvalID)
-
-	g := NewGomegaWithT(f.T())
-
-	// Wrap in retry to wait until placement
-	g.Eventually(func() []*api.AllocationListStub {
-		// Look for allocations
-		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-		return allocs
-	}, 5*time.Second, time.Second).ShouldNot(BeEmpty())
-
 	jobAllocs := nomadClient.Allocations()
-
-	allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
+	require := require.New(f.T())
 
 	// Verify affinity score metadata
 	for _, allocStub := range allocs {
@@ -142,36 +126,11 @@ func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
 }
 
 func (tc *BasicAffinityTest) TestAntiAffinities(f *framework.F) {
+	allocs := tc.registerAndWaitForAllocs(f, "affinities/input/anti_affinities.nomad", "aff")
+
 	nomadClient := tc.Nomad()
-
-	// Parse job
-	job, err := jobspec.ParseFile("affinities/input/aff3.nomad")
-	require := require.New(f.T())
-	require.Nil(err)
-	uuid := uuid.Generate()
-	jobId := helper.StringToPtr("aff" + uuid[0:8])
-	job.ID = jobId
-
-	tc.jobIds = append(tc.jobIds, *jobId)
-
-	// Register job
-	jobs := nomadClient.Jobs()
-	resp, _, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotEmpty(resp.EvalID)
-
-	g := NewGomegaWithT(f.T())
-
-	// Wrap in retry to wait until placement
-	g.Eventually(func() []*api.AllocationListStub {
-		// Look for allocations
-		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
-		return allocs
-	}, 5*time.Second, time.Second).ShouldNot(BeEmpty())
-
 	jobAllocs := nomadClient.Allocations()
-
-	allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
+	require := require.New(f.T())
 
 	// Verify affinity score metadata
 	for _, allocStub := range allocs {
