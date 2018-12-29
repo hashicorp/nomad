@@ -210,6 +210,8 @@ func (tr *TaskRunner) prestart() error {
 				tr.localState.Hooks[name] = hookState
 				tr.stateLock.Unlock()
 
+				origHookState = hookState
+
 				if err := tr.persistLocalState(); err != nil {
 					return err
 				}
