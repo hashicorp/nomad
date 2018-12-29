@@ -13,7 +13,7 @@
         </thead>
         <tbody>
           {{#each sortedTags as |tag|}}
-            <tr>
+            <tr data-test-server-tag>
               <td>{{tag.name}}</td>
               <td>{{tag.value}}</td>
             </tr>

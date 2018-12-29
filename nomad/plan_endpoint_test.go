@@ -12,7 +12,7 @@ import (
 
 func TestPlanEndpoint_Submit(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	defer s1.Shutdown()

@@ -1,8 +1,6 @@
-import Ember from 'ember';
+import { getOwner } from '@ember/application';
 import { moduleForModel } from 'ember-qunit';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-
-const { getOwner } = Ember;
 
 export default function(modelName, description, options = { needs: [] }) {
   // moduleForModel correctly wires up #Serializer.store,
@@ -18,6 +16,9 @@ export default function(modelName, description, options = { needs: [] }) {
 
       // Reassign the subject to provide the serializer
       this.subject = () => model.store.serializerFor(modelName);
+
+      // Expose the store as well, since it is a parameter for many serializer methods
+      this.store = model.store;
 
       if (options.beforeEach) {
         options.beforeEach.apply(this, arguments);

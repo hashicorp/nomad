@@ -11,14 +11,30 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	// DefaultFilePerms are the default file permissions for files rendered onto
+	// disk when a specific file permission has not already been specified.
+	DefaultFilePerms = 0644
+)
+
+var (
+	// ErrNoParentDir is the error returned with the parent directory is missing
+	// and the user disabled it.
+	ErrNoParentDir = errors.New("parent directory is missing")
+
+	// ErrMissingDest is the error returned with the destination is empty.
+	ErrMissingDest = errors.New("missing destination")
+)
+
 // RenderInput is used as input to the render function.
 type RenderInput struct {
-	Backup    bool
-	Contents  []byte
-	Dry       bool
-	DryStream io.Writer
-	Path      string
-	Perms     os.FileMode
+	Backup         bool
+	Contents       []byte
+	CreateDestDirs bool
+	Dry            bool
+	DryStream      io.Writer
+	Path           string
+	Perms          os.FileMode
 }
 
 // RenderResult is returned and stored. It contains the status of the render
@@ -58,7 +74,7 @@ func Render(i *RenderInput) (*RenderResult, error) {
 	if i.Dry {
 		fmt.Fprintf(i.DryStream, "> %s\n%s", i.Path, i.Contents)
 	} else {
-		if err := AtomicWrite(i.Path, i.Contents, i.Perms, i.Backup); err != nil {
+		if err := AtomicWrite(i.Path, i.CreateDestDirs, i.Contents, i.Perms, i.Backup); err != nil {
 			return nil, errors.Wrap(err, "failed writing file")
 		}
 	}
@@ -85,15 +101,19 @@ func Render(i *RenderInput) (*RenderResult, error) {
 //
 // If no errors occur, the Tempfile is "renamed" (moved) to the destination
 // path.
-func AtomicWrite(path string, contents []byte, perms os.FileMode, backup bool) error {
+func AtomicWrite(path string, createDestDirs bool, contents []byte, perms os.FileMode, backup bool) error {
 	if path == "" {
-		return fmt.Errorf("missing destination")
+		return ErrMissingDest
 	}
 
 	parent := filepath.Dir(path)
 	if _, err := os.Stat(parent); os.IsNotExist(err) {
-		if err := os.MkdirAll(parent, 0755); err != nil {
-			return err
+		if createDestDirs {
+			if err := os.MkdirAll(parent, 0755); err != nil {
+				return err
+			}
+		} else {
+			return ErrNoParentDir
 		}
 	}
 
@@ -113,6 +133,22 @@ func AtomicWrite(path string, contents []byte, perms os.FileMode, backup bool) e
 
 	if err := f.Close(); err != nil {
 		return err
+	}
+
+	// If the user did not explicitly set permissions, attempt to lookup the
+	// current permissions on the file. If the file does not exist, fall back to
+	// the default. Otherwise, inherit the current permissions.
+	if perms == 0 {
+		currentInfo, err := os.Stat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				perms = DefaultFilePerms
+			} else {
+				return err
+			}
+		} else {
+			perms = currentInfo.Mode()
+		}
 	}
 
 	if err := os.Chmod(f.Name(), perms); err != nil {
@@ -158,5 +194,10 @@ func copyFile(src, dst string) error {
 		d.Close()
 		return err
 	}
-	return d.Close()
+	if err := d.Close(); err != nil {
+		return err
+	}
+
+	// io.Copy can restrict file permissions based on umask.
+	return os.Chmod(dst, stat.Mode())
 }

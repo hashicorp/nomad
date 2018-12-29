@@ -1,7 +1,6 @@
-import Ember from 'ember';
+import Component from '@ember/component';
+import { computed } from '@ember/object';
 import moment from 'moment';
-
-const { Component, computed } = Ember;
 
 export default Component.extend({
   tagName: 'ol',
@@ -13,7 +12,9 @@ export default Component.extend({
   verbose: true,
 
   annotatedVersions: computed('versions.[]', function() {
-    const versions = this.get('versions');
+    const versions = this.get('versions')
+      .sortBy('submitTime')
+      .reverse();
     return versions.map((version, index) => {
       const meta = {};
 
@@ -21,11 +22,9 @@ export default Component.extend({
         meta.showDate = true;
       } else {
         const previousVersion = versions.objectAt(index - 1);
-        if (
-          moment(previousVersion.get('submitTime'))
-            .startOf('day')
-            .diff(moment(version.get('submitTime')).startOf('day'), 'days') > 0
-        ) {
+        const previousStart = moment(previousVersion.get('submitTime')).startOf('day');
+        const currentStart = moment(version.get('submitTime')).startOf('day');
+        if (previousStart.diff(currentStart, 'days') > 0) {
           meta.showDate = true;
         }
       }

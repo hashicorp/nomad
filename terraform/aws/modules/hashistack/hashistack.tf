@@ -1,17 +1,19 @@
+variable "name" {}
 variable "region" {}
 variable "ami" {}
 variable "instance_type" {}
 variable "key_name" {}
 variable "server_count" {}
 variable "client_count" {}
-variable "cluster_tag_value" {}
+variable "retry_join" {}
+variable "nomad_binary" {}
 
 data "aws_vpc" "default" {
   default = true
 }
 
 resource "aws_security_group" "primary" {
-  name   = "hashistack"
+  name   = "${var.name}"
   vpc_id = "${data.aws_vpc.default.id}"
 
   ingress {
@@ -21,7 +23,15 @@ resource "aws_security_group" "primary" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Consul UI
+  # Nomad
+  ingress {
+    from_port   = 4646
+    to_port     = 4646
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Consul
   ingress {
     from_port   = 8500
     to_port     = 8500
@@ -68,13 +78,14 @@ resource "aws_security_group" "primary" {
   }
 }
 
-data "template_file" "user_data_server_primary" {
+data "template_file" "user_data_server" {
   template = "${file("${path.root}/user-data-server.sh")}"
 
   vars {
-    server_count      = "${var.server_count}"
-    region            = "${var.region}"
-    cluster_tag_value = "${var.cluster_tag_value}"
+    server_count = "${var.server_count}"
+    region       = "${var.region}"
+    retry_join   = "${var.retry_join}"
+    nomad_binary = "${var.nomad_binary}"
   }
 }
 
@@ -82,12 +93,13 @@ data "template_file" "user_data_client" {
   template = "${file("${path.root}/user-data-client.sh")}"
 
   vars {
-    region            = "${var.region}"
-    cluster_tag_value = "${var.cluster_tag_value}"
+    region     = "${var.region}"
+    retry_join = "${var.retry_join}"
+    nomad_binary = "${var.nomad_binary}"
   }
 }
 
-resource "aws_instance" "primary" {
+resource "aws_instance" "server" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_type}"
   key_name               = "${var.key_name}"
@@ -96,11 +108,11 @@ resource "aws_instance" "primary" {
 
   #Instance tags
   tags {
-    Name           = "hashistack-server-${count.index}"
-    ConsulAutoJoin = "${var.cluster_tag_value}"
+    Name           = "${var.name}-server-${count.index}"
+    ConsulAutoJoin = "auto-join"
   }
 
-  user_data            = "${data.template_file.user_data_server_primary.rendered}"
+  user_data            = "${data.template_file.user_data_server.rendered}"
   iam_instance_profile = "${aws_iam_instance_profile.instance_profile.name}"
 }
 
@@ -110,12 +122,19 @@ resource "aws_instance" "client" {
   key_name               = "${var.key_name}"
   vpc_security_group_ids = ["${aws_security_group.primary.id}"]
   count                  = "${var.client_count}"
-  depends_on             = ["aws_instance.primary"]
+  depends_on             = ["aws_instance.server"]
 
   #Instance tags
   tags {
-    Name           = "hashistack-client-${count.index}"
-    ConsulAutoJoin = "${var.cluster_tag_value}"
+    Name           = "${var.name}-client-${count.index}"
+    ConsulAutoJoin = "auto-join"
+  }
+
+  ebs_block_device =  {
+    device_name                 = "/dev/xvdd"
+    volume_type                 = "gp2"
+    volume_size                 = "50"
+    delete_on_termination       = "true"
   }
 
   user_data            = "${data.template_file.user_data_client.rendered}"
@@ -123,12 +142,12 @@ resource "aws_instance" "client" {
 }
 
 resource "aws_iam_instance_profile" "instance_profile" {
-  name_prefix = "hashistack"
+  name_prefix = "${var.name}"
   role        = "${aws_iam_role.instance_role.name}"
 }
 
 resource "aws_iam_role" "instance_role" {
-  name_prefix        = "hashistack"
+  name_prefix        = "${var.name}"
   assume_role_policy = "${data.aws_iam_policy_document.instance_role.json}"
 }
 
@@ -164,16 +183,8 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
   }
 }
 
-output "primary_server_private_ips" {
-  value = ["${aws_instance.primary.*.private_ip}"]
-}
-
-output "primary_server_public_ips" {
-  value = ["${aws_instance.primary.*.public_ip}"]
-}
-
-output "client_private_ips" {
-  value = ["${aws_instance.client.*.private_ip}"]
+output "server_public_ips" {
+  value = ["${aws_instance.server.*.public_ip}"]
 }
 
 output "client_public_ips" {

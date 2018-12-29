@@ -2,12 +2,11 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"sync"
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/go-testing-interface"
@@ -40,6 +39,7 @@ func (r *RejectPlan) ReblockEval(*structs.Evaluation) error {
 // store copy and provides the planner interface. It can be extended for various
 // testing uses or for invoking the scheduler without side effects.
 type Harness struct {
+	t     testing.T
 	State *state.StateStore
 
 	Planner  Planner
@@ -58,6 +58,7 @@ type Harness struct {
 func NewHarness(t testing.T) *Harness {
 	state := state.TestStateStore(t)
 	h := &Harness{
+		t:         t,
 		State:     state,
 		nextIndex: 1,
 	}
@@ -68,6 +69,7 @@ func NewHarness(t testing.T) *Harness {
 // purposes.
 func NewHarnessWithState(t testing.T, state *state.StateStore) *Harness {
 	return &Harness{
+		t:         t,
 		State:     state,
 		nextIndex: 1,
 	}
@@ -122,6 +124,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		},
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
+		EvalID:            plan.EvalID,
 	}
 
 	// Apply the full plan
@@ -200,7 +203,7 @@ func (h *Harness) Snapshot() State {
 // Scheduler is used to return a new scheduler from
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory Factory) Scheduler {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.Logger(h.t)
 	return factory(logger, h.Snapshot(), h)
 }
 

@@ -35,12 +35,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/evaluations
+    https://localhost:4646/v1/evaluations
 ```
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/evaluations?prefix=25ba81c
+    https://localhost:4646/v1/evaluations?prefix=25ba81c
 ```
 
 ### Sample Response
@@ -102,7 +102,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/evaluation/5456bd7a-9fc0-c0dd-6131-cbee77f57577
+    https://localhost:4646/v1/evaluation/5456bd7a-9fc0-c0dd-6131-cbee77f57577
 ```
 
 ### Sample Response
@@ -163,7 +163,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/evaluation/5456bd7a-9fc0-c0dd-6131-cbee77f57577/allocations
+    https://localhost:4646/v1/evaluation/5456bd7a-9fc0-c0dd-6131-cbee77f57577/allocations
 ```
 
 ### Sample Response

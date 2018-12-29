@@ -9,4 +9,8 @@ export default Factory.extend({
   withReservedPorts: trait({
     resources: () => generateResources({ networks: { minPorts: 1 } }),
   }),
+
+  withoutReservedPorts: trait({
+    resources: () => generateResources({ networks: { minPorts: 0, maxPorts: 0 } }),
+  }),
 });

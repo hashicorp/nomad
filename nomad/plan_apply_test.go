@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -61,11 +63,11 @@ func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
 
 func TestPlanApply_applyPlan(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Register ndoe
+	// Register node
 	node := mock.Node()
 	testRegisterNode(t, s1, node)
 
@@ -91,6 +93,13 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Register alloc, deployment and deployment update
 	alloc := mock.Alloc()
 	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
+	// Create an eval
+	eval := mock.Eval()
+	eval.JobID = alloc.JobID
+	if err := s1.State().UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -110,63 +119,55 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		Job:               alloc.Job,
 		Deployment:        dnew,
 		DeploymentUpdates: updates,
+		EvalID:            eval.ID,
 	}
 
 	// Apply the plan
 	future, err := s1.applyPlan(plan, planRes, snap)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert := assert.New(t)
+	assert.Nil(err)
 
 	// Verify our optimistic snapshot is updated
 	ws := memdb.NewWatchSet()
-	if out, err := snap.AllocByID(ws, alloc.ID); err != nil || out == nil {
-		t.Fatalf("bad: %v %v", out, err)
-	}
+	allocOut, err := snap.AllocByID(ws, alloc.ID)
+	assert.Nil(err)
+	assert.NotNil(allocOut)
 
-	if out, err := snap.DeploymentByID(ws, plan.Deployment.ID); err != nil || out == nil {
-		t.Fatalf("bad: %v %v", out, err)
-	}
+	deploymentOut, err := snap.DeploymentByID(ws, plan.Deployment.ID)
+	assert.Nil(err)
+	assert.NotNil(deploymentOut)
 
 	// Check plan does apply cleanly
 	index, err := planWaitFuture(future)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index == 0 {
-		t.Fatalf("bad: %d", index)
-	}
+	assert.Nil(err)
+	assert.NotEqual(0, index)
 
 	// Lookup the allocation
 	fsmState := s1.fsm.State()
-	out, err := fsmState.AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("missing alloc")
-	}
+	allocOut, err = fsmState.AllocByID(ws, alloc.ID)
+	assert.Nil(err)
+	assert.NotNil(allocOut)
+	assert.True(allocOut.CreateTime > 0)
+	assert.True(allocOut.ModifyTime > 0)
+	assert.Equal(allocOut.CreateTime, allocOut.ModifyTime)
 
 	// Lookup the new deployment
 	dout, err := fsmState.DeploymentByID(ws, plan.Deployment.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if dout == nil {
-		t.Fatalf("missing deployment")
-	}
+	assert.Nil(err)
+	assert.NotNil(dout)
 
 	// Lookup the updated deployment
 	dout2, err := fsmState.DeploymentByID(ws, oldDeployment.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if dout2 == nil {
-		t.Fatalf("missing deployment")
-	}
-	if dout2.Status != desiredStatus || dout2.StatusDescription != desiredStatusDescription {
-		t.Fatalf("bad status: %#v", dout2)
-	}
+	assert.Nil(err)
+	assert.NotNil(dout2)
+	assert.Equal(desiredStatus, dout2.Status)
+	assert.Equal(desiredStatusDescription, dout2.StatusDescription)
+
+	// Lookup updated eval
+	evalOut, err := fsmState.EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.NotNil(evalOut)
+	assert.Equal(index, evalOut.ModifyIndex)
 
 	// Evict alloc, Register alloc2
 	allocEvict := new(structs.Allocation)
@@ -187,56 +188,43 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Snapshot the state
 	snap, err = s1.State().Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(err)
 
 	// Apply the plan
 	plan = &structs.Plan{
-		Job: job,
+		Job:    job,
+		EvalID: eval.ID,
 	}
 	future, err = s1.applyPlan(plan, planRes, snap)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	assert.Nil(err)
 
 	// Check that our optimistic view is updated
-	if out, _ := snap.AllocByID(ws, allocEvict.ID); out.DesiredStatus != structs.AllocDesiredStatusEvict {
-		t.Fatalf("bad: %#v", out)
-	}
+	out, _ := snap.AllocByID(ws, allocEvict.ID)
+	assert.Equal(structs.AllocDesiredStatusEvict, out.DesiredStatus)
 
 	// Verify plan applies cleanly
 	index, err = planWaitFuture(future)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if index == 0 {
-		t.Fatalf("bad: %d", index)
-	}
+	assert.Nil(err)
+	assert.NotEqual(0, index)
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().AllocByID(ws, alloc.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out.DesiredStatus != structs.AllocDesiredStatusEvict {
-		t.Fatalf("should be evicted alloc: %#v", out)
-	}
-	if out.Job == nil {
-		t.Fatalf("missing job")
-	}
+	allocOut, err = s1.fsm.State().AllocByID(ws, alloc.ID)
+	assert.Nil(err)
+	assert.Equal(structs.AllocDesiredStatusEvict, allocOut.DesiredStatus)
+	assert.NotNil(allocOut.Job)
+	assert.True(allocOut.ModifyTime > 0)
 
 	// Lookup the allocation
-	out, err = s1.fsm.State().AllocByID(ws, alloc2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("missing alloc")
-	}
-	if out.Job == nil {
-		t.Fatalf("missing job")
-	}
+	allocOut, err = s1.fsm.State().AllocByID(ws, alloc2.ID)
+	assert.Nil(err)
+	assert.NotNil(allocOut)
+	assert.NotNil(allocOut.Job)
+
+	// Lookup updated eval
+	evalOut, err = fsmState.EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.NotNil(evalOut)
+	assert.Equal(index, evalOut.ModifyIndex)
 }
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
@@ -265,7 +253,7 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testLogger())
+	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -312,7 +300,7 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testLogger())
+	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -373,7 +361,7 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testLogger())
+	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

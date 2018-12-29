@@ -33,7 +33,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/agent/members
+    https://localhost:4646/v1/agent/members
 ```
 
 ### Sample Response
@@ -94,7 +94,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/agent/servers
+    https://localhost:4646/v1/agent/servers
 ```
 
 ### Sample Response
@@ -132,7 +132,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/agent/servers?address=1.2.3.4:4647&addres=5.6.7.8:4647
+    https://localhost:4646/v1/agent/servers?address=1.2.3.4:4647&address=5.6.7.8:4647
 ```
 
 ## Query Self
@@ -141,7 +141,7 @@ This endpoint queries the state of the target agent (self).
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
-| `POST` | `/agent/self`                | `application/json`         |
+| `GET`  | `/agent/self`                | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -155,7 +155,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/agent/self
+    https://localhost:4646/v1/agent/self
 ```
 
 ### Sample Response
@@ -279,6 +279,7 @@ $ curl \
       "CirconusSubmissionInterval": "",
       "CollectionInterval": "1s",
       "DataDogAddr": "",
+      "DataDogTags": [],
       "DisableHostname": false,
       "PublishAllocationMetrics": false,
       "PublishNodeMetrics": false,
@@ -414,7 +415,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/agent/join?address=1.2.3.4&address=5.6.7.8
+    https://localhost:4646/v1/agent/join?address=1.2.3.4&address=5.6.7.8
 ```
 
 ### Sample Response
@@ -453,7 +454,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://nomad.rocks/v1/agent/force-leave?node=client-ab2e23dc
+    https://localhost:4646/v1/agent/force-leave?node=client-ab2e23dc
 ```
 
 ## Health
@@ -480,7 +481,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/agent/health
+    https://localhost:4646/v1/agent/health
 ```
 
 ### Sample Response

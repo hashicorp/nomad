@@ -9,7 +9,7 @@ description: |-
 # ACL Policies HTTP API
 
 The `/acl/policies` and `/acl/policy/` endpoints are used to manage ACL policies.
-For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
+For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 
 ## List Policies
 
@@ -33,7 +33,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/policies
+    https://localhost:4646/v1/acl/policies
 ```
 
 ### Sample Response
@@ -91,7 +91,7 @@ The table below shows this endpoint's support for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/acl/policy/my-policy
+    https://localhost:4646/v1/acl/policy/my-policy
 ```
 
 ## Read Policy
@@ -116,7 +116,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://nomad.rocks/v1/acl/policy/foo
+    https://localhost:4646/v1/acl/policy/foo
 ```
 
 ### Sample Response
@@ -157,6 +157,6 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request DELETE \
-    https://nomad.rocks/v1/acl/policy/foo
+    https://localhost:4646/v1/acl/policy/foo
 ```
 

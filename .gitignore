@@ -27,6 +27,7 @@ _testmain.go
 *.test
 *.prof
 
+tags
 bin/
 /pkg/
 .vagrant/
@@ -52,7 +53,6 @@ nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
 codecgen-*.generated.go
-*.generated.go
 
 .terraform
 *.tfstate*
@@ -82,3 +82,6 @@ rkt-*
 
 # generated routes file
 command/agent/bindata_assetfs.go
+
+# auto-generated cert file for Terraform/Azure
+azure-hashistack.pem

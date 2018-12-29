@@ -4,6 +4,12 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"time"
+
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAllocations_List(t *testing.T) {
@@ -118,4 +124,125 @@ func TestAllocations_CreateIndexSort(t *testing.T) {
 	if !reflect.DeepEqual(allocs, expect) {
 		t.Fatalf("\n\n%#v\n\n%#v", allocs, expect)
 	}
+}
+
+func TestAllocations_RescheduleInfo(t *testing.T) {
+	t.Parallel()
+	// Create a job, task group and alloc
+	job := &Job{
+		Name:      helper.StringToPtr("foo"),
+		Namespace: helper.StringToPtr(DefaultNamespace),
+		ID:        helper.StringToPtr("bar"),
+		ParentID:  helper.StringToPtr("lol"),
+		TaskGroups: []*TaskGroup{
+			{
+				Name: helper.StringToPtr("bar"),
+				Tasks: []*Task{
+					{
+						Name: "task1",
+					},
+				},
+			},
+		},
+	}
+	job.Canonicalize()
+
+	alloc := &Allocation{
+		ID:        uuid.Generate(),
+		Namespace: DefaultNamespace,
+		EvalID:    uuid.Generate(),
+		Name:      "foo-bar[1]",
+		NodeID:    uuid.Generate(),
+		TaskGroup: *job.TaskGroups[0].Name,
+		JobID:     *job.ID,
+		Job:       job,
+	}
+
+	type testCase struct {
+		desc              string
+		reschedulePolicy  *ReschedulePolicy
+		rescheduleTracker *RescheduleTracker
+		time              time.Time
+		expAttempted      int
+		expTotal          int
+	}
+
+	testCases := []testCase{
+		{
+			desc:         "no reschedule policy",
+			expAttempted: 0,
+			expTotal:     0,
+		},
+		{
+			desc: "no reschedule events",
+			reschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(3),
+				Interval: helper.TimeToPtr(15 * time.Minute),
+			},
+			expAttempted: 0,
+			expTotal:     3,
+		},
+		{
+			desc: "all reschedule events within interval",
+			reschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(3),
+				Interval: helper.TimeToPtr(15 * time.Minute),
+			},
+			time: time.Now(),
+			rescheduleTracker: &RescheduleTracker{
+				Events: []*RescheduleEvent{
+					{
+						RescheduleTime: time.Now().Add(-5 * time.Minute).UTC().UnixNano(),
+					},
+				},
+			},
+			expAttempted: 1,
+			expTotal:     3,
+		},
+		{
+			desc: "some reschedule events outside interval",
+			reschedulePolicy: &ReschedulePolicy{
+				Attempts: helper.IntToPtr(3),
+				Interval: helper.TimeToPtr(15 * time.Minute),
+			},
+			time: time.Now(),
+			rescheduleTracker: &RescheduleTracker{
+				Events: []*RescheduleEvent{
+					{
+						RescheduleTime: time.Now().Add(-45 * time.Minute).UTC().UnixNano(),
+					},
+					{
+						RescheduleTime: time.Now().Add(-30 * time.Minute).UTC().UnixNano(),
+					},
+					{
+						RescheduleTime: time.Now().Add(-10 * time.Minute).UTC().UnixNano(),
+					},
+					{
+						RescheduleTime: time.Now().Add(-5 * time.Minute).UTC().UnixNano(),
+					},
+				},
+			},
+			expAttempted: 2,
+			expTotal:     3,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			alloc.RescheduleTracker = tc.rescheduleTracker
+			job.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+			attempted, total := alloc.RescheduleInfo(tc.time)
+			require.Equal(tc.expAttempted, attempted)
+			require.Equal(tc.expTotal, total)
+		})
+	}
+
+}
+
+func TestAllocations_ShouldMigrate(t *testing.T) {
+	t.Parallel()
+	require.True(t, DesiredTransition{Migrate: helper.BoolToPtr(true)}.ShouldMigrate())
+	require.False(t, DesiredTransition{}.ShouldMigrate())
+	require.False(t, DesiredTransition{Migrate: helper.BoolToPtr(false)}.ShouldMigrate())
 }

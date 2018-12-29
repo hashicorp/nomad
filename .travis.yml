@@ -4,23 +4,23 @@ services:
 language: go
 
 go:
-  -  1.9.x
+  -  "1.x"
+
+addons:
+  chrome: stable
 
 git:
   depth: 300
-
-branches:
-  only:
-    - master
-
-matrix:
-  include:
 
 matrix:
   include:
     - os: linux
       dist: trusty
       sudo: required
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: ENABLE_RACE=1
     - os: linux
       dist: trusty
       sudo: false
@@ -31,19 +31,23 @@ matrix:
       env: RUN_STATIC_CHECKS=1 SKIP_NOMAD_TESTS=1
     - os: osx
       osx_image: xcode9.1
-
-
-cache:
-  directories:
-    - ui/node_modules
+  allow_failures:
+    # Allow osx to fail as its flaky
+    - os: osx
+    #FIXME Allow race enabled builds to fail for now.
+    - env: ENABLE_RACE=1
+  fast_finish: true
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-mac-priv.sh ; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ -z "$SKIP_NOMAD_TESTS" ]]; then sudo -E bash ./scripts/travis-linux.sh ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.0.1 ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then export PATH="$HOME/.yarn/bin:$PATH" ; fi
 
 install:
   - if [[ -z "$SKIP_NOMAD_TESTS" ]]; then make deps ; fi
   - if [[ "$RUN_STATIC_CHECKS" ]]; then make lint-deps ; fi
+  - if [[ "$RUN_UI_TESTS" ]]; then . $HOME/.nvm/nvm.sh && cd ui && nvm use && cd .. ; fi
 
 script:
   - sudo -E "PATH=$PATH" make travis

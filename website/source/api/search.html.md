@@ -15,7 +15,7 @@ Additionally, a prefix can be searched for within every context.
 
 | Method  | Path                         | Produces                   |
 | ------- | ---------------------------- | -------------------------- |
-| `POST`  | `/v1/search                  | `application/json`         |
+| `POST`  | `/v1/search`                 | `application/json`         |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -54,7 +54,7 @@ job related results will not be returned. If the token is only valid for
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/search
+    https://localhost:4646/v1/search
 ```
 
 ### Sample Response
@@ -86,7 +86,7 @@ $ curl \
 $ curl \
     --request POST \
     --data @payload.json \
-    https://nomad.rocks/v1/search
+    https://localhost:4646/v1/search
 ```
 
 ### Sample Response

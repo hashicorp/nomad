@@ -72,8 +72,10 @@ func (c *UiCommand) Synopsis() string {
 	return "Open the Nomad Web UI"
 }
 
+func (c *UiCommand) Name() string { return "ui" }
+
 func (c *UiCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("deployment list", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -83,7 +85,8 @@ func (c *UiCommand) Run(args []string) int {
 	// Check that we got no more than one argument
 	args = flags.Args()
 	if l := len(args); l > 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no or one optional argument, [<identifier>]")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

@@ -52,9 +52,11 @@ func (c *QuotaInspectCommand) Synopsis() string {
 	return "Inspect a quota specification"
 }
 
+func (c *QuotaInspectCommand) Name() string { return "quota inspect" }
+
 func (c *QuotaInspectCommand) Run(args []string) int {
 	var tmpl string
-	flags := c.Meta.FlagSet("quota inspect", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&tmpl, "t", "", "")
 
@@ -65,7 +67,8 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 	// Check that we got one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <quota>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

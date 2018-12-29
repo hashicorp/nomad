@@ -1,12 +1,25 @@
-import Ember from 'ember';
+import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-
-const { Controller, computed, inject } = Ember;
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend(WithNamespaceResetting, {
-  jobController: inject.controller('jobs.job'),
+  job: alias('model.job'),
+  definition: alias('model.definition'),
 
-  job: computed.alias('model.job'),
+  isEditing: false,
 
-  breadcrumbs: computed.alias('jobController.breadcrumbs'),
+  edit() {
+    this.get('job').set('_newDefinition', JSON.stringify(this.get('definition'), null, 2));
+    this.set('isEditing', true);
+  },
+
+  onCancel() {
+    this.set('isEditing', false);
+  },
+
+  onSubmit(id, namespace) {
+    this.transitionToRoute('jobs.job', id, {
+      queryParams: { jobNamespace: namespace },
+    });
+  },
 });

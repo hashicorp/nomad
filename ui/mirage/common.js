@@ -41,8 +41,19 @@ export function generateNetworks(options = {}) {
       MBits: 10,
       ReservedPorts: Array(
         faker.random.number({
-          min: options.minPorts || 0,
-          max: options.maxPorts || 3,
+          min: options.minPorts != null ? options.minPorts : 0,
+          max: options.maxPorts != null ? options.maxPorts : 2,
+        })
+      )
+        .fill(null)
+        .map(() => ({
+          Label: faker.hacker.noun(),
+          Value: faker.random.number({ min: 5000, max: 60000 }),
+        })),
+      DynamicPorts: Array(
+        faker.random.number({
+          min: options.minPorts != null ? options.minPorts : 0,
+          max: options.maxPorts != null ? options.maxPorts : 2,
         })
       )
         .fill(null)
@@ -60,7 +71,7 @@ function ipv6() {
   for (var i = 0; i < 8; i++) {
     var subnet = [];
     for (var char = 0; char < 4; char++) {
-      subnet.push(faker.random.number(16).toString(16));
+      subnet.push(faker.random.number(15).toString(16));
     }
     subnets.push(subnet.join(''));
   }

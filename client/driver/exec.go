@@ -129,9 +129,15 @@ func (d *ExecDriver) Start(ctx *ExecContext, task *structs.Task) (*StartResponse
 		return nil, fmt.Errorf("failed to set executor context: %v", err)
 	}
 
+	taskKillSignal, err := getTaskKillSignal(task.KillSignal)
+	if err != nil {
+		return nil, err
+	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:            command,
 		Args:           driverConfig.Args,
+		TaskKillSignal: taskKillSignal,
 		FSIsolation:    true,
 		ResourceLimits: true,
 		User:           getExecutorUser(task),

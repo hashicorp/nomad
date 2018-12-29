@@ -57,7 +57,7 @@ type BlockedEvals struct {
 
 	// duplicates is the set of evaluations for jobs that had pre-existing
 	// blocked evaluations. These should be marked as cancelled since only one
-	// blocked eval is neeeded per job.
+	// blocked eval is needed per job.
 	duplicates []*structs.Evaluation
 
 	// duplicateCh is used to signal that a duplicate eval was added to the
@@ -65,7 +65,7 @@ type BlockedEvals struct {
 	// duplicates.
 	duplicateCh chan struct{}
 
-	// timetable is used to coorelate indexes with their insertion time. This
+	// timetable is used to correlate indexes with their insertion time. This
 	// allows us to prune based on time.
 	timetable *TimeTable
 
@@ -177,7 +177,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	}
 
 	// Check if the job already has a blocked evaluation. If it does add it to
-	// the list of duplicates. We omly ever want one blocked evaluation per job,
+	// the list of duplicates. We only ever want one blocked evaluation per job,
 	// otherwise we would create unnecessary work for the scheduler as multiple
 	// evals for the same job would be run, all producing the same outcome.
 	if _, existing := b.jobs[eval.JobID]; existing {

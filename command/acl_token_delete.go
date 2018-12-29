@@ -37,8 +37,10 @@ func (c *ACLTokenDeleteCommand) Synopsis() string {
 	return "Delete an existing ACL token"
 }
 
+func (c *ACLTokenDeleteCommand) Name() string { return "acl token delete" }
+
 func (c *ACLTokenDeleteCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("acl token delete", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -49,7 +51,8 @@ func (c *ACLTokenDeleteCommand) Run(args []string) int {
 	// such token was provided.
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <token_accessor_id>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

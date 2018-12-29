@@ -54,7 +54,7 @@ func (c *JobHistoryCommand) Synopsis() string {
 	return "Display all tracked versions of a job"
 }
 
-func (c *JobHistoryCommand) Autocompleteflags() complete.Flags {
+func (c *JobHistoryCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-p":       complete.PredictNothing,
@@ -80,11 +80,13 @@ func (c *JobHistoryCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *JobHistoryCommand) Name() string { return "job history" }
+
 func (c *JobHistoryCommand) Run(args []string) int {
 	var json, diff, full bool
 	var tmpl, versionStr string
 
-	flags := c.Meta.FlagSet("job history", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "p", false, "")
 	flags.BoolVar(&full, "full", false, "")
@@ -99,7 +101,8 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	// Check that we got exactly one node
 	args = flags.Args()
 	if l := len(args); l < 1 || l > 2 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <job>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -245,6 +248,10 @@ func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.
 }
 
 func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, nextVersion uint64, full bool) error {
+	if job == nil {
+		return fmt.Errorf("Error printing job history for non-existing job or job version")
+	}
+
 	basic := []string{
 		fmt.Sprintf("Version|%d", *job.Version),
 		fmt.Sprintf("Stable|%v", *job.Stable),

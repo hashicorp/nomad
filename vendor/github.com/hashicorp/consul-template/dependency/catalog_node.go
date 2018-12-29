@@ -16,7 +16,7 @@ var (
 	_ Dependency = (*CatalogNodeQuery)(nil)
 
 	// CatalogNodeQueryRe is the regular expression to use.
-	CatalogNodeQueryRe = regexp.MustCompile(`\A` + nameRe + dcRe + `\z`)
+	CatalogNodeQueryRe = regexp.MustCompile(`\A` + nodeNameRe + dcRe + `\z`)
 )
 
 func init() {

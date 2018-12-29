@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	dep "github.com/hashicorp/consul-template/dependency"
 	"github.com/hashicorp/consul-template/template"
+	"github.com/hashicorp/consul-template/version"
 	consulapi "github.com/hashicorp/consul/api"
 )
 
@@ -33,8 +34,14 @@ const (
 	templateDataFlag = 0x22b9a127a2c03520
 )
 
-// templateData is GOB encoded share the depdency values
+// templateData is GOB encoded share the dependency values
 type templateData struct {
+	// Version is the version of Consul Template which created this template data.
+	// This is important because users may be running multiple versions of CT
+	// with the same templates. This provides a nicer upgrade path.
+	Version string
+
+	// Data is the actual template data.
 	Data map[string]interface{}
 }
 
@@ -197,7 +204,8 @@ func (d *DedupManager) UpdateDeps(t *template.Template, deps []dep.Dependency) e
 
 	// Package up the dependency data
 	td := templateData{
-		Data: make(map[string]interface{}),
+		Version: version.Version,
+		Data:    make(map[string]interface{}),
 	}
 	for _, dp := range deps {
 		// Skip any dependencies that can't be shared
@@ -407,6 +415,11 @@ func (d *DedupManager) parseData(path string, raw []byte) {
 	if err := dec.Decode(&td); err != nil {
 		log.Printf("[ERR] (dedup) failed to decode '%s': %v",
 			path, err)
+		return
+	}
+	if td.Version != version.Version {
+		log.Printf("[WARN] (dedup) created with different version (%s vs %s)",
+			td.Version, version.Version)
 		return
 	}
 	log.Printf("[INFO] (dedup) loading %d dependencies from '%s'",

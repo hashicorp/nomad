@@ -26,7 +26,7 @@ description: |-
       <div class="col-sm-12">
         <h2>Simple and Lightweight</h2>
         <p class="lead">
-          Nomad is a single binary that schedules applications and services on
+          HashiCorp Nomad is a single binary that schedules applications and services on
           Linux, Windows, and Mac. It is an open source scheduler that uses a
           declarative job file for scheduling virtualized, containerized, and
           standalone applications.
@@ -319,13 +319,13 @@ description: |-
             <span>&nbsp;</span>
             <span>
               <span class="text-green">admin@hashicorp.com:</span>
-              <span>nomad validate example.nomad</span>
+              <span>nomad job validate example.nomad</span>
             </span>
             <span>Job validation successful</span>
             <span>&nbsp;</span>
             <span>
               <span class="text-green">admin@hashicorp.com:</span>
-              <span>nomad run example.nomad</span>
+              <span>nomad job run example.nomad</span>
             </span>
             <span>==> Monitoring evaluation "feb23392"</span>
             <span class="pre">    Evaluation triggered by job "example"</span>
@@ -364,7 +364,7 @@ description: |-
           <div class="terminal-content">
             <span>
               <span class="text-green">admin@hashicorp.com:</span>
-              <span>nomad plan example.nomad</span>
+              <span>nomad job plan example.nomad</span>
             </span>
             <span class="pre"><span class="text-orange">+/-</span> <span class="text-bold">Job: "example"</span></span>
             <span class="pre"><span class="text-bold text-orange">+/-</span> <span class="text-bold">Task Group: "cache"</span> (<span class="text-green">2 create</span>, <span class="text-blue">1 in-place update</span>)</span>
@@ -378,7 +378,7 @@ description: |-
             <span>&nbsp;</span>
             <span>
               <span class="text-green">admin@hashicorp.com:</span>
-              <span>nomad run -check-index 7 example.nomad</span>
+              <span>nomad job run -check-index 7 example.nomad</span>
             </span>
             <span>==> Monitoring evaluation "e338a6ae"</span>
             <span class="pre">    Evaluation triggered by job "example"</span>
@@ -412,7 +412,7 @@ description: |-
           <div class="terminal-content">
             <span>
               <span class="text-green">admin@hashicorp.com:</span>
-              <span>nomad logs -tail -job example</span>
+              <span>nomad alloc logs -tail -job example</span>
             </span>
             <span><%= Time.now.strftime("%d %b %H:%M:%S") %> # Server started, Redis version 3.2.9</span>
             <span><%= Time.now.strftime("%d %b %H:%M:%S") %> * The server is now ready to accept connections on port 6379</span>

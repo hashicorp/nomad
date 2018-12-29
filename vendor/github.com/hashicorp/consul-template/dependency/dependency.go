@@ -11,13 +11,14 @@ import (
 )
 
 const (
-	dcRe     = `(@(?P<dc>[[:word:]\.\-\_]+))?`
-	keyRe    = `/?(?P<key>[^@]+)`
-	filterRe = `(\|(?P<filter>[[:word:]\,]+))?`
-	nameRe   = `(?P<name>[[:word:]\-\_]+)`
-	nearRe   = `(~(?P<near>[[:word:]\.\-\_]+))?`
-	prefixRe = `/?(?P<prefix>[^@]+)`
-	tagRe    = `((?P<tag>[[:word:]\.\-\_]+)\.)?`
+	dcRe          = `(@(?P<dc>[[:word:]\.\-\_]+))?`
+	keyRe         = `/?(?P<key>[^@]+)`
+	filterRe      = `(\|(?P<filter>[[:word:]\,]+))?`
+	serviceNameRe = `(?P<name>[[:word:]\-\_]+)`
+	nodeNameRe    = `(?P<name>[[:word:]\.\-\_]+)`
+	nearRe        = `(~(?P<near>[[:word:]\.\-\_]+))?`
+	prefixRe      = `/?(?P<prefix>[^@]+)`
+	tagRe         = `((?P<tag>[[:word:]\.\-\_]+)\.)?`
 )
 
 type Type int

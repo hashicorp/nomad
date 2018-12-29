@@ -225,15 +225,28 @@ func TestPermissionDenied(t *testing.T) {
 	})
 	defer s.Shutdown()
 
-	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-		return nil, structs.ErrPermissionDenied
+	{
+		resp := httptest.NewRecorder()
+		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+			return nil, structs.ErrPermissionDenied
+		}
+
+		req, _ := http.NewRequest("GET", "/v1/job/foo", nil)
+		s.Server.wrap(handler)(resp, req)
+		assert.Equal(t, resp.Code, 403)
 	}
 
-	urlStr := "/v1/job/foo"
-	req, _ := http.NewRequest("GET", urlStr, nil)
-	s.Server.wrap(handler)(resp, req)
-	assert.Equal(t, resp.Code, 403)
+	// When remote RPC is used the errors have "rpc error: " prependend
+	{
+		resp := httptest.NewRecorder()
+		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+			return nil, fmt.Errorf("rpc error: %v", structs.ErrPermissionDenied)
+		}
+
+		req, _ := http.NewRequest("GET", "/v1/job/foo", nil)
+		s.Server.wrap(handler)(resp, req)
+		assert.Equal(t, resp.Code, 403)
+	}
 }
 
 func TestTokenNotFound(t *testing.T) {
@@ -527,6 +540,108 @@ func checkIndex(resp *httptest.ResponseRecorder) error {
 		return fmt.Errorf("Bad: %v", header)
 	}
 	return nil
+}
+
+func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	agentConfig := &Config{
+		TLSConfig: &config.TLSConfig{
+			EnableHTTP:        true,
+			VerifyHTTPSClient: true,
+			CAFile:            cafile,
+			CertFile:          foocert,
+			KeyFile:           fookey,
+		},
+	}
+
+	newConfig := &Config{
+		TLSConfig: &config.TLSConfig{
+			EnableHTTP:        true,
+			VerifyHTTPSClient: true,
+			CAFile:            cafile,
+			CertFile:          foocert2,
+			KeyFile:           fookey2,
+		},
+	}
+
+	s := makeHTTPServer(t, func(c *Config) {
+		c.TLSConfig = agentConfig.TLSConfig
+	})
+	defer s.Shutdown()
+
+	// Make an initial request that should fail.
+	// Requests that specify a valid hostname, CA cert, and client
+	// certificate succeed.
+	tlsConf := &tls.Config{
+		ServerName: "client.regionFoo.nomad",
+		RootCAs:    x509.NewCertPool(),
+		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			c, err := tls.LoadX509KeyPair(foocert, fookey)
+			if err != nil {
+				return nil, err
+			}
+			return &c, nil
+		},
+	}
+
+	// HTTPS request should succeed
+	httpsReqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
+
+	cacertBytes, err := ioutil.ReadFile(cafile)
+	assert.Nil(err)
+	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
+
+	transport := &http.Transport{TLSClientConfig: tlsConf}
+	client := &http.Client{Transport: transport}
+	req, err := http.NewRequest("GET", httpsReqURL, nil)
+	assert.Nil(err)
+
+	// Check that we get an error that the certificate isn't valid for the
+	// region we are contacting.
+	_, err = client.Do(req)
+	assert.Contains(err.Error(), "certificate is valid for")
+
+	// Reload the TLS configuration==
+	assert.Nil(s.Agent.Reload(newConfig))
+
+	// Requests that specify a valid hostname, CA cert, and client
+	// certificate succeed.
+	tlsConf = &tls.Config{
+		ServerName: "client.regionFoo.nomad",
+		RootCAs:    x509.NewCertPool(),
+		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			c, err := tls.LoadX509KeyPair(foocert2, fookey2)
+			if err != nil {
+				return nil, err
+			}
+			return &c, nil
+		},
+	}
+
+	cacertBytes, err = ioutil.ReadFile(cafile)
+	assert.Nil(err)
+	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
+
+	transport = &http.Transport{TLSClientConfig: tlsConf}
+	client = &http.Client{Transport: transport}
+	req, err = http.NewRequest("GET", httpsReqURL, nil)
+	assert.Nil(err)
+
+	resp, err := client.Do(req)
+	if assert.Nil(err) {
+		resp.Body.Close()
+		assert.Equal(resp.StatusCode, 200)
+	}
 }
 
 // getIndex parses X-Nomad-Index

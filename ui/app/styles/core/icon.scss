@@ -10,9 +10,10 @@ $icon-dimensions-large: 2rem;
   vertical-align: text-top;
   height: $icon-dimensions;
   width: $icon-dimensions;
-  fill: lighten($text, 25%);
+  fill: $text;
 
-  &.is-small {
+  &.is-small,
+  &.is-text {
     height: $icon-dimensions-small;
     width: $icon-dimensions-small;
   }
@@ -25,6 +26,10 @@ $icon-dimensions-large: 2rem;
   &.is-large {
     height: $icon-dimensions-large;
     width: $icon-dimensions-large;
+  }
+
+  &.is-faded {
+    fill: $grey-light;
   }
 
   @each $name, $pair in $colors {

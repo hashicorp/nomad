@@ -47,7 +47,7 @@ job "docs" {
 ```
 
 For information on how to interact with logs after they have been configured,
-please see the [`nomad logs`][logs-command] command.
+please see the [`nomad alloc logs`][logs-command] command.
 
 ## `logs` Parameters
 
@@ -78,7 +78,7 @@ parameters section above.
 
 This example asks Nomad to retain 3 rotated files for each of `stderr` and
 `stdout`, each a maximum size of 5 MB per file. The minimum disk space this
-would require is 60 MB (3 `stderr` &plus; 3 `stdout` &times; 5 MB &equals; 30 MB).
+would require is 30 MB (3 `stderr` &plus; 3 `stdout` &times; 5 MB &equals; 30 MB).
 
 ```hcl
 logs {
@@ -87,4 +87,4 @@ logs {
 }
 ```
 
-[logs-command]: /docs/commands/logs.html "Nomad logs command"
+[logs-command]: /docs/commands/alloc/logs.html "Nomad logs command"

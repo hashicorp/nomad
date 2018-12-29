@@ -14,7 +14,7 @@ import (
 
 func TestPeriodicEndpoint_Force(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	state := s1.fsm.State()
@@ -64,7 +64,7 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, func(c *Config) {
+	s1, root := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -77,7 +77,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	job := mock.PeriodicJob()
 	job.Periodic.ProhibitOverlap = true // Shouldn't affect anything.
 	assert.Nil(state.UpsertJob(100, job))
-	_, err := s1.periodicDispatcher.Add(job)
+	err := s1.periodicDispatcher.Add(job)
 	assert.Nil(err)
 
 	// Force launch it.
@@ -142,7 +142,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	state := s1.fsm.State()
@@ -168,6 +168,6 @@ func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 	// Fetch the response
 	var resp structs.PeriodicForceResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp); err == nil {
-		t.Fatalf("Force on non-perodic job should err")
+		t.Fatalf("Force on non-periodic job should err")
 	}
 }

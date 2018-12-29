@@ -5,8 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // SignalFingerprint is used to fingerprint the available signals
@@ -21,13 +20,14 @@ func NewSignalFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *SignalFingerprint) Fingerprint(cfg *config.Config, node *structs.Node) (bool, error) {
+func (f *SignalFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
 	// Build the list of available signals
 	sigs := make([]string, 0, len(signals.SignalLookup))
 	for signal := range signals.SignalLookup {
 		sigs = append(sigs, signal)
 	}
 
-	node.Attributes["os.signals"] = strings.Join(sigs, ",")
-	return true, nil
+	resp.AddAttribute("os.signals", strings.Join(sigs, ","))
+	resp.Detected = true
+	return nil
 }

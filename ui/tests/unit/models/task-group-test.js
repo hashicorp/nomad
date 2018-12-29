@@ -1,7 +1,6 @@
-import Ember from 'ember';
+import { get } from '@ember/object';
 import { moduleForModel, test } from 'ember-qunit';
 
-const { get } = Ember;
 const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
 
 moduleForModel('task-group', 'Unit | Model | task-group', {

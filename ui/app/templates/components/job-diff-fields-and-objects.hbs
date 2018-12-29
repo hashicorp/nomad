@@ -1,9 +1,12 @@
 <div class="diff-section-table">
   {{#each fields as |field|}}
-    <div class="diff-section-table-row {{concat
-      "diff-section-label is-"
-      (lowercase field.Type)
-    }}">
+    <div
+      data-test-diff-section-label="field"
+      data-test-diff-field="{{lowercase field.Type}}"
+      class="diff-section-table-row {{concat
+        "diff-section-label is-"
+        (lowercase field.Type)
+      }}">
       <span class="diff-section-table-cell">
         <span class="marker {{concat "is-" (lowercase field.Type)}}">
           {{#if (eq (lowercase field.Type) "added")}}
@@ -30,10 +33,13 @@
 </div>
 
 {{#each objects as |object|}}
-  <div class="{{concat
-    "diff-section-label is-"
-    (lowercase object.Type)
-  }}">
+  <div
+    data-test-diff-section-label="object"
+    data-test-diff-field="{{lowercase object.Type}}"
+    class="{{concat
+      "diff-section-label is-"
+      (lowercase object.Type)
+    }}">
     <span class="marker {{concat "is-" (lowercase object.Type)}}">
       {{#if (eq (lowercase object.Type) "added")}}
         +
@@ -44,7 +50,7 @@
       {{/if}}
     </span>
     {{object.Name}} {
-      <div class="diff-section-label">
+      <div data-test-diff-section-label="nested-object" class="diff-section-label">
         {{job-diff-fields-and-objects fields=object.Fields objects=object.Objects}}
       </div>
     }

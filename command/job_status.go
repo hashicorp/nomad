@@ -14,7 +14,7 @@ import (
 
 const (
 	// maxFailedTGs is the maximum number of task groups we show failure reasons
-	// for before defering to eval-status
+	// for before deferring to eval-status
 	maxFailedTGs = 5
 )
 
@@ -85,10 +85,12 @@ func (c *JobStatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *JobStatusCommand) Name() string { return "status" }
+
 func (c *JobStatusCommand) Run(args []string) int {
 	var short bool
 
-	flags := c.Meta.FlagSet("status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.evals, "evals", false, "")
@@ -102,7 +104,8 @@ func (c *JobStatusCommand) Run(args []string) int {
 	// Check that we either got no jobs or exactly one.
 	args = flags.Args()
 	if len(args) > 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes either no arguments or one: <job>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
@@ -182,10 +185,12 @@ func (c *JobStatusCommand) Run(args []string) int {
 			location, err := job.Periodic.GetLocation()
 			if err == nil {
 				now := time.Now().In(location)
-				next := job.Periodic.Next(now)
-				basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
-					fmt.Sprintf("%s (%s from now)",
-						formatTime(next), formatTimeDifference(now, next, time.Second))))
+				next, err := job.Periodic.Next(now)
+				if err == nil {
+					basic = append(basic, fmt.Sprintf("Next Periodic Launch|%s",
+						fmt.Sprintf("%s (%s from now)",
+							formatTime(next), formatTimeDifference(now, next, time.Second))))
+				}
 			}
 		}
 	}
@@ -371,6 +376,8 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 		c.outputFailedPlacements(latestFailedPlacement)
 	}
 
+	c.outputReschedulingEvals(client, job, jobAllocs, c.length)
+
 	if latestDeployment != nil {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Latest Deployment[reset]"))
 		c.Ui.Output(c.Colorize().Color(c.formatDeployment(latestDeployment)))
@@ -406,9 +413,9 @@ func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLen
 
 	allocs := make([]string, len(stubs)+1)
 	if verbose {
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range stubs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
@@ -416,19 +423,24 @@ func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLen
 				alloc.JobVersion,
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
-				formatUnixNanoTime(alloc.CreateTime))
+				formatUnixNanoTime(alloc.CreateTime),
+				formatUnixNanoTime(alloc.ModifyTime))
 		}
 	} else {
-		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range stubs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s",
+			now := time.Now()
+			createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
+			modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
 				alloc.TaskGroup,
 				alloc.JobVersion,
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
-				formatUnixNanoTime(alloc.CreateTime))
+				createTimePretty,
+				modTimePretty)
 		}
 	}
 
@@ -442,9 +454,9 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 
 	allocs := make([]string, len(allocations)+1)
 	if verbose {
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range allocations {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
@@ -452,19 +464,24 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 				getVersion(alloc.Job),
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
-				formatUnixNanoTime(alloc.CreateTime))
+				formatUnixNanoTime(alloc.CreateTime),
+				formatUnixNanoTime(alloc.ModifyTime))
 		}
 	} else {
-		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created At"
+		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range allocations {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s",
+			now := time.Now()
+			createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
+			modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
 				alloc.TaskGroup,
 				getVersion(alloc.Job),
 				alloc.DesiredStatus,
 				alloc.ClientStatus,
-				formatUnixNanoTime(alloc.CreateTime))
+				createTimePretty,
+				modTimePretty)
 		}
 	}
 
@@ -523,6 +540,66 @@ func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) er
 		c.Ui.Output(formatList(summaries))
 	}
 
+	return nil
+}
+
+// outputReschedulingEvals displays eval IDs and time for any
+// delayed evaluations by task group
+func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.Job, allocListStubs []*api.AllocationListStub, uuidLength int) error {
+	// Get the most recent alloc ID by task group
+
+	mostRecentAllocs := make(map[string]*api.AllocationListStub)
+	for _, alloc := range allocListStubs {
+		a, ok := mostRecentAllocs[alloc.TaskGroup]
+		if !ok || alloc.ModifyTime > a.ModifyTime {
+			mostRecentAllocs[alloc.TaskGroup] = alloc
+		}
+	}
+
+	followUpEvalIds := make(map[string]string)
+	for tg, alloc := range mostRecentAllocs {
+		if alloc.FollowupEvalID != "" {
+			followUpEvalIds[tg] = alloc.FollowupEvalID
+		}
+	}
+
+	if len(followUpEvalIds) == 0 {
+		return nil
+	}
+	// Print the reschedule info section
+	var delayedEvalInfos []string
+
+	taskGroups := make([]string, 0, len(followUpEvalIds))
+	for taskGroup := range followUpEvalIds {
+		taskGroups = append(taskGroups, taskGroup)
+	}
+	sort.Strings(taskGroups)
+	var evalDetails []string
+	for _, taskGroup := range taskGroups {
+		evalID := followUpEvalIds[taskGroup]
+		evaluation, _, err := client.Evaluations().Info(evalID, nil)
+		// Eval time is not critical output,
+		// so don't return it on errors, if its not set, or its already in the past
+		if err != nil || evaluation.WaitUntil.IsZero() || time.Now().After(evaluation.WaitUntil) {
+			continue
+		}
+		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())
+		if c.verbose {
+			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
+			rp := job.LookupTaskGroup(taskGroup).ReschedulePolicy
+			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s|%s", taskGroup, rp.String(), limit(evalID, uuidLength), evalTime))
+		} else {
+			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s", taskGroup, limit(evalID, uuidLength), evalTime))
+		}
+	}
+	if len(evalDetails) == 0 {
+		return nil
+	}
+	// Only show this section if there is pending evals
+	delayedEvalInfos = append(delayedEvalInfos, evalDetails...)
+	c.Ui.Output(c.Colorize().Color("\n[bold]Future Rescheduling Attempts[reset]"))
+	c.Ui.Output(formatList(delayedEvalInfos))
 	return nil
 }
 

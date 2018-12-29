@@ -13,7 +13,7 @@ This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
 for generating valid JSON versions of HCL jobs is:
 
 ```shell
-$ nomad run -output my-job.nomad
+$ nomad job run -output my-job.nomad
 ```
 
 ## Syntax
@@ -33,6 +33,12 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
         "TaskGroups": [{
             "Name": "cache",
             "Count": 1,
+            "Migrate": {
+                    "HealthCheck": "checks",
+                    "HealthyDeadline": 300000000000,
+                    "MaxParallel": 1,
+                    "MinHealthyTime": 10000000000
+            },
             "Tasks": [{
                 "Name": "redis",
                 "Driver": "docker",
@@ -45,7 +51,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 },
                 "Services": [{
                     "Id": "",
-                    "Name": "global-redis-check",
+                    "Name": "redis-cache",
                     "Tags": [
                         "global",
                         "cache"
@@ -69,7 +75,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                         "TLSSkipVerify": false,
                         "CheckRestart": {
                             "Limit": 3,
-                            "Grace": "30s",
+                            "Grace": 30000000000,
                             "IgnoreWarnings": false
                         }
                     }]
@@ -91,10 +97,18 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 "Leader": false
             }],
             "RestartPolicy": {
-                "Interval": 300000000000,
+                "Interval": 1800000000000,
+                "Attempts": 2,
+                "Delay": 15000000000,
+                "Mode": "fail"
+            },
+            "ReschedulePolicy": {
                 "Attempts": 10,
-                "Delay": 25000000000,
-                "Mode": "delay"
+                "Delay": 30000000000,
+                "DelayFunction": "exponential",
+                "Interval": 0,
+                "MaxDelay": 3600000000000,
+                "Unlimited": true
             },
             "EphemeralDisk": {
                 "SizeMB": 300
@@ -114,7 +128,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
 The example JSON could be submitted as a job using the following:
 
 ```text
-$ curl -XPUT @d example.json http://127.0.0.1:4646/v1/job/example
+$ curl -XPUT -d @example.json http://127.0.0.1:4646/v1/job/example
 {
   "EvalID": "5d6ded54-0b2a-8858-6583-be5f476dec9d",
   "EvalCreateIndex": 12,
@@ -156,7 +170,7 @@ The `Job` object supports the following keys:
   Values other than default are not allowed in non-Enterprise versions of Nomad.
 
 - `ParameterizedJob` - Specifies the job as a parameterized job such that it can
-  be dispatched against. The `ParamaterizedJob` object supports the following
+  be dispatched against. The `ParameterizedJob` object supports the following
   attributes:
 
   - `MetaOptional` - Specifies the set of metadata keys that may be provided
@@ -183,7 +197,7 @@ The `Job` object supports the following keys:
 - `Type` - Specifies the job type and switches which scheduler
   is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`. To learn more about each scheduler type visit
-  [here](/docs/runtime/schedulers.html)
+  [here](/docs/schedulers.html)
 
 - `Update` - Specifies an update strategy to be applied to all task groups
   within the job. When specified both at the job level and the task group level,
@@ -198,7 +212,7 @@ The `Job` object supports the following keys:
     - `Enabled` - `Enabled` determines whether the periodic job will spawn child
     jobs.
 
-    - `time_zone` - Specifies the time zone to evaluate the next launch interval
+    - `TimeZone` - Specifies the time zone to evaluate the next launch interval
       against. This is useful when wanting to account for day light savings in
       various time zones. The time zone must be parsable by Golang's
       [LoadLocation](https://golang.org/pkg/time/#LoadLocation). The default is
@@ -222,13 +236,19 @@ The `Job` object supports the following keys:
     ```json
     {
       "Periodic": {
-          "Spec": "*/15 - *"
+          "Spec": "*/15 - *",
+          "TimeZone": "Europe/Berlin",
           "SpecType": "cron",
           "Enabled": true,
           "ProhibitOverlap": true
       }
     }
     ```
+
+- `ReschedulePolicy` - Specifies a reschedule policy to be applied to all task groups
+  within the job. When specified both at the job level and the task group level,
+  the reschedule blocks are merged, with the task group's taking precedence. For more
+  details on `ReschedulePolicy`, please see below.
 
 ### Task Group
 
@@ -243,11 +263,30 @@ attributes:
 
 - `Meta` - A key-value map that annotates the task group with opaque metadata.
 
+- `Migrate` - Specifies a migration strategy to be applied during [node
+  drains][drain].
+
+  - `HealthCheck` - One of `checks` or `task_states`. Indicates how task health
+    should be determined: either via Consul health checks or whether the task
+    was able to run successfully.
+
+  - `HealthyDeadline` - Specifies duration a task must become healthy within
+    before it is considered unhealthy.
+
+  - `MaxParallel` - Specifies how many allocations may be migrated at once.
+
+  - `MinHealthyTime` - Specifies duration a task must be considered healthy
+    before the migration is considered healthy.
+
 - `Name` - The name of the task group. Must be specified.
 
 - `RestartPolicy` - Specifies the restart policy to be applied to tasks in this group.
   If omitted, a default policy for batch and non-batch jobs is used based on the
   job type. See the [restart policy reference](#restart_policy) for more details.
+
+- `ReschedulePolicy` - Specifies the reschedule policy to be applied to tasks in this group.
+  If omitted, a default policy is used for batch and service jobs. System jobs are not eligible
+  for rescheduling. See the [reschedule policy reference](#reschedule_policy) for more details.
 
 - `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
   [ephemeral disk reference](#ephemeral_disk) for more details.
@@ -299,13 +338,17 @@ The `Task` object supports the following keys:
     }
     ```
 
+- `KillSignal` - Specifies a configurable kill signal for a task, where the
+  default is SIGINT. Note that this is only supported for drivers which accept
+  sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
+
 - `KillTimeout` - `KillTimeout` is a time duration in nanoseconds. It can be
   used to configure the time between signaling a task it will be killed and
   actually killing it. Drivers first sends a task the `SIGINT` signal and then
   sends `SIGTERM` if the task doesn't die after the `KillTimeout` duration has
   elapsed. The default `KillTimeout` is 5 seconds.
 
-- `leader` - Specifies whether the task is the leader task of the task group. If
+- `Leader` - Specifies whether the task is the leader task of the task group. If
   set to true, when the leader task completes, all other tasks within the task
   group will be gracefully shutdown.
 
@@ -323,7 +366,7 @@ The `Task` object supports the following keys:
   Consul for service discovery. A `Service` object represents a routable and
   discoverable service on the network. Nomad automatically registers when a task
   is started and de-registers it when the task transitions to the dead state.
-  [Click here](/docs/service-discovery/index.html) to learn more about
+  [Click here](/guides/operations/consul-integration/index.html#service-discovery) to learn more about
   services. Below is the fields in the `Service` object:
 
      - `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
@@ -340,10 +383,32 @@ The `Task` object supports the following keys:
      - `Tags`: A list of string tags associated with this Service. String
        interpolation is supported in tags.
 
+     - `CanaryTags`: A list of string tags associated with this Service while it
+       is a canary. Once the canary is promoted, the registered tags will be
+       updated to the set defined in the `Tags` field. String interpolation is
+       supported in tags.
+
      - `PortLabel`: `PortLabel` is an optional string and is used to associate
        a port with the service.  If specified, the port label must match one
        defined in the resources block.  This could be a label of either a
        dynamic or a static port.
+
+     - `AddressMode`: Specifies what address (host or driver-specific) this
+       service should advertise.  This setting is supported in Docker since
+       Nomad 0.6 and rkt since Nomad 0.7. Valid options are:
+
+       - `auto` - Allows the driver to determine whether the host or driver
+         address should be used. Defaults to `host` and only implemented by
+	 Docker. If you use a Docker network plugin such as weave, Docker will
+         automatically use its address.
+
+       - `driver` - Use the IP specified by the driver, and the port specified
+         in a port map. A numeric port may be specified since port maps aren't
+	 required by all network plugins. Useful for advertising SDN and
+         overlay network addresses. Task will fail if driver network cannot be
+         determined. Only implemented for Docker and rkt.
+
+       - `host` - Use the host IP and port.
 
      - `Checks`: `Checks` is an array of check objects. A check object defines a
        health check associated with the service. Nomad supports the `script`,
@@ -355,6 +420,25 @@ The `Task` object supports the following keys:
            options are currently `script`, `http` and `tcp`.
 
          - `Name`: The name of the health check.
+
+	 - `AddressMode`: Same as `AddressMode` on `Service`.  Unlike services,
+	   checks do not have an `auto` address mode as there's no way for
+	   Nomad to know which is the best address to use for checks. Consul
+	   needs access to the address for any HTTP or TCP checks. Added in
+	   Nomad 0.7.1. Unlike `PortLabel`, this setting is *not* inherited
+           from the `Service`.
+
+	 - `PortLabel`: Specifies the label of the port on which the check will
+	   be performed. Note this is the _label_ of the port and not the port
+	   number unless `AddressMode: "driver"`. The port label must match one
+	   defined in the Network stanza. If a port value was declared on the
+	   `Service`, this will inherit from that value if not supplied. If
+	   supplied, this value takes precedence over the `Service.PortLabel`
+	   value. This is useful for services which operate on multiple ports.
+	  `http` and `tcp` checks require a port while `script` checks do not.
+	  Checks will use the host IP and ports by default. In Nomad 0.7.1 or
+	  later numeric ports may be used if `AddressMode: "driver"` is set on
+          the check.
 
 	 - `Header`: Headers for HTTP checks. Should be an object where the
 	   values are an array of values. Headers will be written once for each
@@ -371,7 +455,8 @@ The `Task` object supports the following keys:
          - `Path`: The path of the HTTP endpoint which Consul will query to query
            the health of a service if the type of the check is `http`. Nomad
            will add the IP of the service and the port, users are only required
-           to add the relative URL of the health check endpoint.
+           to add the relative URL of the health check endpoint. Absolute paths
+           are not allowed.
 
          - `Protocol`: This indicates the protocol for the HTTP checks. Valid
            options are `http` and `https`. We default it to `http`.
@@ -455,6 +540,37 @@ The `EphemeralDisk` object supports the following keys:
   `alloc/data` directories to the new allocation. Value is a boolean and the
   default is false.
 
+<a id="reschedule_policy"></a>
+
+### Reschedule Policy
+
+The `ReschedulePolicy` object supports the following keys:
+
+- `Attempts` - `Attempts` is the number of reschedule attempts allowed
+  in an `Interval`.
+
+- `Interval` - `Interval` is a time duration that is specified in nanoseconds.
+  The `Interval` is a sliding window within which at most `Attempts` number
+  of reschedule attempts are permitted.
+
+- `Delay` - A duration to wait before attempting rescheduling. It is specified in
+  nanoseconds.
+
+- `DelayFunction` - Specifies the function that is used to calculate subsequent reschedule delays.
+  The initial delay is specified by the `Delay` parameter. Allowed values for `DelayFunction` are listed below:
+    - `constant` - The delay between reschedule attempts stays at the `Delay` value.
+    - `exponential` - The delay between reschedule attempts doubles.
+    - `fibonacci` - The delay between reschedule attempts is calculated by adding the two most recent
+      delays applied. For example if `Delay` is set to 5 seconds, the next five reschedule attempts  will be
+      delayed by 5 seconds, 5 seconds, 10 seconds, 15 seconds, and 25 seconds respectively.
+
+- `MaxDelay`  - `MaxDelay` is an upper bound on the delay beyond which it will not increase. This parameter is used when
+   `DelayFunction` is `exponential` or `fibonacci`, and is ignored when `constant` delay is used.
+
+- `Unlimited` - `Unlimited` enables unlimited reschedule attempts. If this is set to true
+  the `Attempts` and `Interval` fields are not used.
+
+
 <a id="restart_policy"></a>
 
 ### Restart Policy
@@ -509,12 +625,19 @@ determined. The potential values are:
 
 - `MinHealthyTime` - Specifies the minimum time the allocation must be in the
   healthy state before it is marked as healthy and unblocks further allocations
-  from being updated. This is specified using a label suffix like "30s" or
-  "15m".
+  from being updated.
 
 - `HealthyDeadline` - Specifies the deadline in which the allocation must be
   marked as healthy after which the allocation is automatically transitioned to
-  unhealthy. This is specified using a label suffix like "2m" or "1h".
+  unhealthy.
+
+- `ProgressDeadline` - Specifies the deadline in which an allocation must be
+  marked as healthy. The deadline begins when the first allocation for the
+  deployment is created and is reset whenever an allocation as part of the
+  deployment transitions to a healthy state. If no allocation transitions to the
+  healthy state before the progress deadline, the deployment is marked as
+  failed. If the `progress_deadline` is set to `0`, the first allocation to be
+  marked as unhealthy causes the deployment to fail.
 
 - `AutoRevert` - Specifies if the job should auto-revert to the last stable job
   on deployment failure. A job is marked as stable if all the allocations as
@@ -527,7 +650,7 @@ determined. The potential values are:
   allocations at a rate of `max_parallel`.
 
 - `Stagger` - Specifies the delay between migrating allocations off nodes marked
-  for draining. This is specified using a label suffix like "30s" or "1h".
+  for draining.
 
 An example `Update` block:
 
@@ -586,7 +709,7 @@ The `Constraint` object supports the following keys:
         Placing the constraint at both the job level and at the task group level is
         redundant since when placed at the job level, the constraint will be applied
         to all task groups. When specified, `LTarget` should be the property
-        that should be distinct and and `RTarget` should be omitted.
+        that should be distinct and `RTarget` should be omitted.
 
   - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.
@@ -758,7 +881,7 @@ README][ct].
   does not conflict with the output file itself.
 
 - `Perms` - Specifies the rendered template's permissions. File permissions are
-  given as octal of the Unix file permissions rwxrwxrwx.
+  given as octal of the Unix file permissions `rwxrwxrwx`.
 
 - `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that
@@ -799,4 +922,5 @@ README][ct].
 ```
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
+[drain]: /docs/commands/node/drain.html
 [env]: /docs/runtime/environment.html "Nomad Runtime Environment"

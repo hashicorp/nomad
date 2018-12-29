@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { helper } from '@ember/component/helper';
 import { inlineSvg } from 'ember-inline-svg/helpers/inline-svg';
 
 // Generated at compile-time by ember-inline-svg
@@ -18,4 +18,4 @@ export function xIcon(params, options) {
   return inlineSvg(SVGs, name, { class: classes });
 }
 
-export default Ember.Helper.helper(xIcon);
+export default helper(xIcon);

@@ -37,6 +37,9 @@ type Config struct {
 	// DataDir is the directory to store our state in
 	DataDir string `mapstructure:"data_dir"`
 
+	// PluginDir is the directory to lookup plugins.
+	PluginDir string `mapstructure:"plugin_dir"`
+
 	// LogLevel is the level of the logs to putout
 	LogLevel string `mapstructure:"log_level"`
 
@@ -87,15 +90,12 @@ type Config struct {
 
 	// DisableUpdateCheck is used to disable the periodic update
 	// and security bulletin checking.
-	DisableUpdateCheck bool `mapstructure:"disable_update_check"`
+	DisableUpdateCheck *bool `mapstructure:"disable_update_check"`
 
 	// DisableAnonymousSignature is used to disable setting the
 	// anonymous signature when doing the update check and looking
 	// for security bulletins
 	DisableAnonymousSignature bool `mapstructure:"disable_anonymous_signature"`
-
-	// AtlasConfig is used to configure Atlas
-	Atlas *AtlasConfig `mapstructure:"atlas"`
 
 	// Consul contains the configuration for the Consul Agent and
 	// parameters necessary to register services, their checks, and
@@ -107,11 +107,11 @@ type Config struct {
 	Vault *config.VaultConfig `mapstructure:"vault"`
 
 	// NomadConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	NomadConfig *nomad.Config `mapstructure:"-" json:"-"`
 
 	// ClientConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	ClientConfig *client.Config `mapstructure:"-" json:"-"`
 
 	// DevMode is set by the -dev CLI flag.
@@ -128,29 +128,17 @@ type Config struct {
 	TLSConfig *config.TLSConfig `mapstructure:"tls"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
-	// set arbritrary headers on API responses
+	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
 
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `mapstructure:"sentinel"`
-}
 
-// AtlasConfig is used to enable an parameterize the Atlas integration
-type AtlasConfig struct {
-	// Infrastructure is the name of the infrastructure
-	// we belong to. e.g. hashicorp/stage
-	Infrastructure string `mapstructure:"infrastructure"`
+	// Autopilot contains the configuration for Autopilot behavior.
+	Autopilot *config.AutopilotConfig `mapstructure:"autopilot"`
 
-	// Token is our authentication token from Atlas
-	Token string `mapstructure:"token" json:"-"`
-
-	// Join controls if Atlas will attempt to auto-join the node
-	// to it's cluster. Requires Atlas integration.
-	Join bool `mapstructure:"join"`
-
-	// Endpoint is the SCADA endpoint used for Atlas integration. If
-	// empty, the defaults from the provider are used.
-	Endpoint string `mapstructure:"endpoint"`
+	// Plugins is the set of configured plugins
+	Plugins []*config.PluginConfig `hcl:"plugin,expand"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -193,6 +181,9 @@ type ClientConfig struct {
 	// CpuCompute is used to override any detected or default total CPU compute.
 	CpuCompute int `mapstructure:"cpu_total_compute"`
 
+	// MemoryMB is used to override any detected or default total memory.
+	MemoryMB int `mapstructure:"memory_total_mb"`
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `mapstructure:"max_kill_timeout"`
 
@@ -232,6 +223,9 @@ type ClientConfig struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -277,10 +271,13 @@ type ServerConfig struct {
 	// ProtocolVersionMin and ProtocolVersionMax.
 	ProtocolVersion int `mapstructure:"protocol_version"`
 
+	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
+	RaftProtocol int `mapstructure:"raft_protocol"`
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
-	NumSchedulers int `mapstructure:"num_schedulers"`
+	NumSchedulers *int `mapstructure:"num_schedulers"`
 
 	// EnabledSchedulers controls the set of sub-schedulers that are
 	// enabled for this server to handle. This will restrict the evaluations
@@ -323,9 +320,59 @@ type ServerConfig struct {
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
 	// addresses, then the agent will error and exit.
+	// Deprecated in Nomad 0.10
 	StartJoin []string `mapstructure:"start_join"`
 
 	// RetryJoin is a list of addresses to join with retry enabled.
+	// Deprecated in Nomad 0.10
+	RetryJoin []string `mapstructure:"retry_join"`
+
+	// RetryMaxAttempts specifies the maximum number of times to retry joining a
+	// host on startup. This is useful for cases where we know the node will be
+	// online eventually.
+	// Deprecated in Nomad 0.10
+	RetryMaxAttempts int `mapstructure:"retry_max"`
+
+	// RetryInterval specifies the amount of time to wait in between join
+	// attempts on agent start. The minimum allowed value is 1 second and
+	// the default is 30s.
+	// Deprecated in Nomad 0.10
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
+
+	// RejoinAfterLeave controls our interaction with the cluster after leave.
+	// When set to false (default), a leave causes Consul to not rejoin
+	// the cluster until an explicit join is received. If this is set to
+	// true, we ignore the leave, and rejoin the cluster on start.
+	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
+
+	// (Enterprise-only) NonVotingServer is whether this server will act as a
+	// non-voting member of the cluster to help provide read scalability.
+	NonVotingServer bool `mapstructure:"non_voting_server"`
+
+	// (Enterprise-only) RedundancyZone is the redundancy zone to use for this server.
+	RedundancyZone string `mapstructure:"redundancy_zone"`
+
+	// (Enterprise-only) UpgradeVersion is the custom upgrade version to use when
+	// performing upgrade migrations.
+	UpgradeVersion string `mapstructure:"upgrade_version"`
+
+	// Encryption key to use for the Serf communication
+	EncryptKey string `mapstructure:"encrypt" json:"-"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
+}
+
+// ServerJoin is used in both clients and servers to bootstrap connections to
+// servers
+type ServerJoin struct {
+	// StartJoin is a list of addresses to attempt to join when the
+	// agent starts. If Serf is unable to communicate with any of these
+	// addresses, then the agent will error and exit.
+	StartJoin []string `mapstructure:"start_join"`
+
+	// RetryJoin is a list of addresses to join with retry enabled, or a single
+	// value to find multiple servers using go-discover syntax.
 	RetryJoin []string `mapstructure:"retry_join"`
 
 	// RetryMaxAttempts specifies the maximum number of times to retry joining a
@@ -336,17 +383,34 @@ type ServerConfig struct {
 	// RetryInterval specifies the amount of time to wait in between join
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
-	RetryInterval string        `mapstructure:"retry_interval"`
-	retryInterval time.Duration `mapstructure:"-"`
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
+}
 
-	// RejoinAfterLeave controls our interaction with the cluster after leave.
-	// When set to false (default), a leave causes Consul to not rejoin
-	// the cluster until an explicit join is received. If this is set to
-	// true, we ignore the leave, and rejoin the cluster on start.
-	RejoinAfterLeave bool `mapstructure:"rejoin_after_leave"`
+func (s *ServerJoin) Merge(b *ServerJoin) *ServerJoin {
+	if s == nil {
+		return b
+	}
 
-	// Encryption key to use for the Serf communication
-	EncryptKey string `mapstructure:"encrypt" json:"-"`
+	result := *s
+
+	if b == nil {
+		return &result
+	}
+
+	if len(b.StartJoin) != 0 {
+		result.StartJoin = b.StartJoin
+	}
+	if len(b.RetryJoin) != 0 {
+		result.RetryJoin = b.RetryJoin
+	}
+	if b.RetryMaxAttempts != 0 {
+		result.RetryMaxAttempts = b.RetryMaxAttempts
+	}
+	if b.RetryInterval != 0 {
+		result.RetryInterval = b.RetryInterval
+	}
+
+	return &result
 }
 
 // EncryptBytes returns the encryption key configured.
@@ -359,6 +423,7 @@ type Telemetry struct {
 	StatsiteAddr             string        `mapstructure:"statsite_address"`
 	StatsdAddr               string        `mapstructure:"statsd_address"`
 	DataDogAddr              string        `mapstructure:"datadog_address"`
+	DataDogTags              []string      `mapstructure:"datadog_tags"`
 	PrometheusMetrics        bool          `mapstructure:"prometheus_metrics"`
 	DisableHostname          bool          `mapstructure:"disable_hostname"`
 	UseNodeName              bool          `mapstructure:"use_node_name"`
@@ -411,7 +476,7 @@ type Telemetry struct {
 	CirconusCheckID string `mapstructure:"circonus_check_id"`
 	// CirconusCheckForceMetricActivation will force enabling metrics, as they are encountered,
 	// if the metric already exists and is NOT active. If check management is enabled, the default
-	// behavior is to add new metrics as they are encoutered. If the metric already exists in the
+	// behavior is to add new metrics as they are encountered. If the metric already exists in the
 	// check, it will *NOT* be activated. This setting overrides that behavior.
 	// Default: "false"
 	CirconusCheckForceMetricActivation string `mapstructure:"circonus_check_force_metric_activation"`
@@ -566,6 +631,9 @@ func DevConfig() *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
+	conf.Telemetry.PrometheusMetrics = true
+	conf.Telemetry.PublishAllocationMetrics = true
+	conf.Telemetry.PublishNodeMetrics = true
 
 	return conf
 }
@@ -584,7 +652,6 @@ func DefaultConfig() *Config {
 		},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Atlas:          &AtlasConfig{},
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
 		Client: &ClientConfig{
@@ -599,13 +666,20 @@ func DefaultConfig() *Config {
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
 			NoHostUUID:            helper.BoolToPtr(true),
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		Server: &ServerConfig{
-			Enabled:          false,
-			StartJoin:        []string{},
-			RetryJoin:        []string{},
-			RetryInterval:    "30s",
-			RetryMaxAttempts: 0,
+			Enabled:   false,
+			StartJoin: []string{},
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -617,9 +691,11 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
-		TLSConfig: &config.TLSConfig{},
-		Sentinel:  &config.SentinelConfig{},
-		Version:   version.GetVersion(),
+		TLSConfig:          &config.TLSConfig{},
+		Sentinel:           &config.SentinelConfig{},
+		Version:            version.GetVersion(),
+		Autopilot:          config.DefaultAutopilotConfig(),
+		DisableUpdateCheck: helper.BoolToPtr(false),
 	}
 }
 
@@ -664,6 +740,9 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.DataDir != "" {
 		result.DataDir = b.DataDir
 	}
+	if b.PluginDir != "" {
+		result.PluginDir = b.PluginDir
+	}
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
 	}
@@ -685,8 +764,8 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.SyslogFacility != "" {
 		result.SyslogFacility = b.SyslogFacility
 	}
-	if b.DisableUpdateCheck {
-		result.DisableUpdateCheck = true
+	if b.DisableUpdateCheck != nil {
+		result.DisableUpdateCheck = helper.BoolToPtr(*b.DisableUpdateCheck)
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
@@ -702,8 +781,7 @@ func (c *Config) Merge(b *Config) *Config {
 
 	// Apply the TLS Config
 	if result.TLSConfig == nil && b.TLSConfig != nil {
-		tlsConfig := *b.TLSConfig
-		result.TLSConfig = &tlsConfig
+		result.TLSConfig = b.TLSConfig.Copy()
 	} else if b.TLSConfig != nil {
 		result.TLSConfig = result.TLSConfig.Merge(b.TLSConfig)
 	}
@@ -756,14 +834,6 @@ func (c *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
 	}
 
-	// Apply the Atlas configuration
-	if result.Atlas == nil && b.Atlas != nil {
-		atlasConfig := *b.Atlas
-		result.Atlas = &atlasConfig
-	} else if b.Atlas != nil {
-		result.Atlas = result.Atlas.Merge(b.Atlas)
-	}
-
 	// Apply the Consul Configuration
 	if result.Consul == nil && b.Consul != nil {
 		result.Consul = b.Consul.Copy()
@@ -785,6 +855,23 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Sentinel = &server
 	} else if b.Sentinel != nil {
 		result.Sentinel = result.Sentinel.Merge(b.Sentinel)
+	}
+
+	if result.Autopilot == nil && b.Autopilot != nil {
+		autopilot := *b.Autopilot
+		result.Autopilot = &autopilot
+	} else if b.Autopilot != nil {
+		result.Autopilot = result.Autopilot.Merge(b.Autopilot)
+	}
+
+	if len(result.Plugins) == 0 && len(b.Plugins) != 0 {
+		copy := make([]*config.PluginConfig, len(b.Plugins))
+		for i, v := range b.Plugins {
+			copy[i] = v.Copy()
+		}
+		result.Plugins = copy
+	} else if len(b.Plugins) != 0 {
+		result.Plugins = config.PluginConfigSetMerge(result.Plugins, b.Plugins)
 	}
 
 	// Merge config files lists
@@ -1004,8 +1091,11 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.ProtocolVersion != 0 {
 		result.ProtocolVersion = b.ProtocolVersion
 	}
-	if b.NumSchedulers != 0 {
-		result.NumSchedulers = b.NumSchedulers
+	if b.RaftProtocol != 0 {
+		result.RaftProtocol = b.RaftProtocol
+	}
+	if b.NumSchedulers != nil {
+		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
@@ -1031,15 +1121,26 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts
 	}
-	if b.RetryInterval != "" {
+	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
-		result.retryInterval = b.retryInterval
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
 	}
+	if b.NonVotingServer {
+		result.NonVotingServer = true
+	}
+	if b.RedundancyZone != "" {
+		result.RedundancyZone = b.RedundancyZone
+	}
+	if b.UpgradeVersion != "" {
+		result.UpgradeVersion = b.UpgradeVersion
+	}
 	if b.EncryptKey != "" {
 		result.EncryptKey = b.EncryptKey
+	}
+	if b.ServerJoin != nil {
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
 	// Add the schedulers
@@ -1082,6 +1183,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.CpuCompute != 0 {
 		result.CpuCompute = b.CpuCompute
+	}
+	if b.MemoryMB != 0 {
+		result.MemoryMB = b.MemoryMB
 	}
 	if b.MaxKillTimeout != "" {
 		result.MaxKillTimeout = b.MaxKillTimeout
@@ -1145,6 +1249,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.ChrootEnv[k] = v
 	}
 
+	if b.ServerJoin != nil {
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
 	return &result
 }
 
@@ -1160,6 +1268,9 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DataDogAddr != "" {
 		result.DataDogAddr = b.DataDogAddr
+	}
+	if b.DataDogTags != nil {
+		result.DataDogTags = b.DataDogTags
 	}
 	if b.PrometheusMetrics {
 		result.PrometheusMetrics = b.PrometheusMetrics
@@ -1278,25 +1389,6 @@ func (a *AdvertiseAddrs) Merge(b *AdvertiseAddrs) *AdvertiseAddrs {
 	}
 	if b.HTTP != "" {
 		result.HTTP = b.HTTP
-	}
-	return &result
-}
-
-// Merge merges two Atlas configurations together.
-func (a *AtlasConfig) Merge(b *AtlasConfig) *AtlasConfig {
-	result := *a
-
-	if b.Infrastructure != "" {
-		result.Infrastructure = b.Infrastructure
-	}
-	if b.Token != "" {
-		result.Token = b.Token
-	}
-	if b.Join {
-		result.Join = true
-	}
-	if b.Endpoint != "" {
-		result.Endpoint = b.Endpoint
 	}
 	return &result
 }

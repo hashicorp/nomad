@@ -2,7 +2,6 @@ package executor
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	dstructs "github.com/hashicorp/nomad/client/driver/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 )
 
@@ -41,13 +41,13 @@ func testExecutorContextWithChroot(t *testing.T) (*ExecutorContext, *allocdir.Al
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := env.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testLogger(), filepath.Join(os.TempDir(), alloc.ID))
+	allocDir := allocdir.NewAllocDir(testlog.Logger(t), filepath.Join(os.TempDir(), alloc.ID))
 	if err := allocDir.Build(); err != nil {
-		log.Fatalf("AllocDir.Build() failed: %v", err)
+		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
 	if err := allocDir.NewTaskDir(task.Name).Build(false, chrootEnv, cstructs.FSIsolationChroot); err != nil {
 		allocDir.Destroy()
-		log.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
+		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
 	ctx := &ExecutorContext{
@@ -69,9 +69,9 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 
 	execCmd.FSIsolation = true
 	execCmd.ResourceLimits = true
-	execCmd.User = dstructs.DefaultUnpriviledgedUser
+	execCmd.User = dstructs.DefaultUnprivilegedUser
 
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	executor := NewExecutor(testlog.Logger(t))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -84,12 +84,15 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	if ps.Pid == 0 {
 		t.Fatalf("expected process to start and have non zero pid")
 	}
-	_, err = executor.Wait()
+	state, err := executor.Wait()
 	if err != nil {
 		t.Fatalf("error in waiting for command: %v", err)
 	}
+	if state.ExitCode != 0 {
+		t.Errorf("exited with non-zero code: %v", state.ExitCode)
+	}
 
-	// Check if the resource contraints were applied
+	// Check if the resource constraints were applied
 	memLimits := filepath.Join(ps.IsolationConfig.CgroupPaths["memory"], "memory.limit_in_bytes")
 	data, err := ioutil.ReadFile(memLimits)
 	if err != nil {
@@ -135,7 +138,7 @@ ld.so.conf.d/`
 
 	act := strings.TrimSpace(string(output))
 	if act != expected {
-		t.Fatalf("Command output incorrectly: want %v; got %v", expected, act)
+		t.Errorf("Command output incorrectly: want %v; got %v", expected, act)
 	}
 }
 
@@ -148,7 +151,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	ctx.Task.LogConfig.MaxFileSizeMB = 300
 	defer allocDir.Destroy()
 
-	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
+	executor := NewExecutor(testlog.Logger(t))
 
 	if err := executor.SetContext(ctx); err != nil {
 		t.Fatalf("Unexpected error")

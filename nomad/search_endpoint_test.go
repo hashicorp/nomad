@@ -31,7 +31,7 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -65,7 +65,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	jobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
 	t.Parallel()
-	s, root := testACLServer(t, func(c *Config) {
+	s, root := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -178,7 +178,7 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	prefix := "example-test-------" // Assert that a job with more than 4 hyphens works
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -225,7 +225,7 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	prefix := strings.Repeat("a", 100)
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -272,7 +272,7 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -309,7 +309,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -347,7 +347,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -384,7 +384,7 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -429,7 +429,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -481,7 +481,7 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 func TestSearch_PrefixSearch_Node(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -522,7 +522,7 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -559,7 +559,7 @@ func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -612,7 +612,7 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -649,7 +649,7 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -684,7 +684,7 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 	prefix := "aaafa"
 
 	t.Parallel()
-	s := testServer(t, func(c *Config) {
+	s := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
@@ -711,4 +711,48 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
 	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+}
+
+func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
+	assert := assert.New(t)
+
+	jobName := "exampleexample"
+
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "foo"
+	})
+	defer s1.Shutdown()
+
+	s2 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Region = "bar"
+	})
+	defer s2.Shutdown()
+
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	job := registerAndVerifyJob(s1, t, jobName, 0)
+
+	req := &structs.SearchRequest{
+		Prefix:  "",
+		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "foo",
+			Namespace: job.Namespace,
+		},
+	}
+
+	codec := rpcClient(t, s2)
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Jobs]))
+	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
+	assert.Equal(uint64(jobIndex), resp.Index)
 }

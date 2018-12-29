@@ -3,134 +3,41 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
-	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/fingerprint"
+	consulApi "github.com/hashicorp/nomad/client/consul"
+	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/hashstructure"
 	"github.com/stretchr/testify/assert"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 )
 
 func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken) {
-	server, addr := testServer(t, func(c *nomad.Config) {
-		c.ACLEnabled = true
-		if cb != nil {
-			cb(c)
-		}
-	})
-	token := mock.ACLManagementToken()
-	err := server.State().BootstrapACLTokens(1, 0, token)
-	if err != nil {
-		t.Fatalf("failed to bootstrap ACL token: %v", err)
-	}
-	return server, addr, token
+	server, token := nomad.TestACLServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String(), token
 }
 
 func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
-	// Setup the default settings
-	config := nomad.DefaultConfig()
-	config.VaultConfig.Enabled = helper.BoolToPtr(false)
-	config.Build = "unittest"
-	config.DevMode = true
-
-	// Tighten the Serf timing
-	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
-	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
-	config.SerfConfig.MemberlistConfig.RetransmitMult = 2
-	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
-	config.SerfConfig.MemberlistConfig.ProbeInterval = 100 * time.Millisecond
-	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond
-
-	// Tighten the Raft timing
-	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
-	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
-	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
-	config.RaftConfig.StartAsLeader = true
-	config.RaftTimeout = 500 * time.Millisecond
-
-	logger := log.New(config.LogOutput, "", log.LstdFlags)
-	catalog := consul.NewMockCatalog(logger)
-
-	// Invoke the callback if any
-	if cb != nil {
-		cb(config)
-	}
-
-	for i := 10; i >= 0; i-- {
-		ports := freeport.GetT(t, 2)
-		config.RPCAddr = &net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: ports[0],
-		}
-		config.NodeName = fmt.Sprintf("Node %d", config.RPCAddr.Port)
-		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
-
-		// Create server
-		server, err := nomad.NewServer(config, catalog, logger)
-		if err == nil {
-			return server, config.RPCAddr.String()
-		} else if i == 0 {
-			t.Fatalf("err: %v", err)
-		} else {
-			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			time.Sleep(wait)
-		}
-	}
-	return nil, ""
-}
-
-func testClient(t *testing.T, cb func(c *config.Config)) *Client {
-	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = helper.BoolToPtr(false)
-	conf.DevMode = true
-	conf.Node = &structs.Node{
-		Reserved: &structs.Resources{
-			DiskMB: 0,
-		},
-	}
-
-	// Tighten the fingerprinter timeouts
-	if conf.Options == nil {
-		conf.Options = make(map[string]string)
-	}
-	conf.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
-
-	if cb != nil {
-		cb(conf)
-	}
-
-	logger := log.New(conf.LogOutput, "", log.LstdFlags)
-	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient()
-	mockService.logger = logger
-	client, err := NewClient(conf, catalog, mockService, logger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	return client
+	server := nomad.TestServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String()
 }
 
 func TestClient_StartStop(t *testing.T) {
 	t.Parallel()
-	client := testClient(t, nil)
+	client := TestClient(t, nil)
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -142,7 +49,7 @@ func TestClient_BaseLabels(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	client := testClient(t, nil)
+	client := TestClient(t, nil)
 	if err := client.Shutdown(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -167,7 +74,7 @@ func TestClient_RPC(t *testing.T) {
 	s1, addr := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
 	defer c1.Shutdown()
@@ -182,12 +89,40 @@ func TestClient_RPC(t *testing.T) {
 	})
 }
 
+func TestClient_RPC_FireRetryWatchers(t *testing.T) {
+	t.Parallel()
+	s1, addr := testServer(t, nil)
+	defer s1.Shutdown()
+
+	c1 := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+	})
+	defer c1.Shutdown()
+
+	watcher := c1.rpcRetryWatcher()
+
+	// RPC should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		var out struct{}
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		return err == nil, err
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	select {
+	case <-watcher:
+	default:
+		t.Fatal("watcher should be fired")
+	}
+}
+
 func TestClient_RPC_Passthrough(t *testing.T) {
 	t.Parallel()
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -204,210 +139,92 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 
 func TestClient_Fingerprint(t *testing.T) {
 	t.Parallel()
-	c := testClient(t, nil)
+
+	c := TestClient(t, nil)
 	defer c.Shutdown()
 
-	// Ensure kernel and arch are always present
-	node := c.Node()
-	if node.Attributes["kernel.name"] == "" {
-		t.Fatalf("missing kernel.name")
-	}
-	if node.Attributes["cpu.arch"] == "" {
-		t.Fatalf("missing cpu arch")
-	}
-}
-
-func TestClient_HasNodeChanged(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, nil)
-	defer c.Shutdown()
-
-	node := c.config.Node
-	attrHash, err := hashstructure.Hash(node.Attributes, nil)
-	if err != nil {
-		c.logger.Printf("[DEBUG] client: unable to calculate node attributes hash: %v", err)
-	}
-	// Calculate node meta map hash
-	metaHash, err := hashstructure.Hash(node.Meta, nil)
-	if err != nil {
-		c.logger.Printf("[DEBUG] client: unable to calculate node meta hash: %v", err)
-	}
-	if changed, _, _ := c.hasNodeChanged(attrHash, metaHash); changed {
-		t.Fatalf("Unexpected hash change.")
-	}
-
-	// Change node attribute
-	node.Attributes["arch"] = "xyz_86"
-	if changed, newAttrHash, _ := c.hasNodeChanged(attrHash, metaHash); !changed {
-		t.Fatalf("Expected hash change in attributes: %d vs %d", attrHash, newAttrHash)
-	}
-
-	// Change node meta map
-	node.Meta["foo"] = "bar"
-	if changed, _, newMetaHash := c.hasNodeChanged(attrHash, metaHash); !changed {
-		t.Fatalf("Expected hash change in meta map: %d vs %d", metaHash, newMetaHash)
-	}
-}
-
-func TestClient_Fingerprint_InWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
+	// Ensure we are fingerprinting
+	testutil.WaitForResult(func() (bool, error) {
+		node := c.Node()
+		if _, ok := node.Attributes["kernel.name"]; !ok {
+			return false, fmt.Errorf("Expected value for kernel.name")
 		}
-
-		// Weird spacing to test trimming. Whitelist all modules expect cpu.
-		c.Options["fingerprint.whitelist"] = "  arch, consul,cpu,env_aws,env_gce,host,memory,network,storage,foo,bar	"
+		if _, ok := node.Attributes["cpu.arch"]; !ok {
+			return false, fmt.Errorf("Expected value for cpu.arch")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
 	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["cpu.frequency"] == "" {
-		t.Fatalf("missing cpu fingerprint module")
-	}
 }
 
-func TestClient_Fingerprint_InBlacklist(t *testing.T) {
+func TestClient_Fingerprint_Periodic(t *testing.T) {
 	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
+
+	c1 := TestClient(t, func(c *config.Config) {
+		c.Options = map[string]string{
+			driver.ShutdownPeriodicAfter:    "true",
+			driver.ShutdownPeriodicDuration: "1",
 		}
-
-		// Weird spacing to test trimming. Blacklist cpu.
-		c.Options["fingerprint.blacklist"] = "  cpu	"
 	})
-	defer c.Shutdown()
+	defer c1.Shutdown()
 
-	node := c.Node()
-	if node.Attributes["cpu.frequency"] != "" {
-		t.Fatalf("cpu fingerprint module loaded despite blacklisting")
+	node := c1.config.Node
+	{
+		// Ensure the mock driver is registered on the client
+		testutil.WaitForResult(func() (bool, error) {
+			c1.configLock.Lock()
+			defer c1.configLock.Unlock()
+
+			// assert that the driver is set on the node attributes
+			mockDriverInfoAttr := node.Attributes["driver.mock_driver"]
+			if mockDriverInfoAttr == "" {
+				return false, fmt.Errorf("mock driver is empty when it should be set on the node attributes")
+			}
+
+			mockDriverInfo := node.Drivers["mock_driver"]
+
+			// assert that the Driver information for the node is also set correctly
+			if mockDriverInfo == nil {
+				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
+			}
+			if !mockDriverInfo.Detected {
+				return false, fmt.Errorf("mock driver should be set as detected")
+			}
+			if !mockDriverInfo.Healthy {
+				return false, fmt.Errorf("mock driver should be set as healthy")
+			}
+			if mockDriverInfo.HealthDescription == "" {
+				return false, fmt.Errorf("mock driver description should not be empty")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
 	}
-}
 
-func TestClient_Fingerprint_OutOfWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		c.Options["fingerprint.whitelist"] = "arch,consul,env_aws,env_gce,host,memory,network,storage,foo,bar"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["cpu.frequency"] != "" {
-		t.Fatalf("found cpu fingerprint module")
-	}
-}
-
-func TestClient_Fingerprint_WhitelistBlacklistCombination(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// With both white- and blacklist, should return the set difference of modules (arch, cpu)
-		c.Options["fingerprint.whitelist"] = "arch,memory,cpu"
-		c.Options["fingerprint.blacklist"] = "memory,nomad"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	// Check expected modules are present
-	if node.Attributes["cpu.frequency"] == "" {
-		t.Fatalf("missing cpu fingerprint module")
-	}
-	if node.Attributes["cpu.arch"] == "" {
-		t.Fatalf("missing arch fingerprint module")
-	}
-	// Check remainder _not_ present
-	if node.Attributes["memory.totalbytes"] != "" {
-		t.Fatalf("found memory fingerprint module")
-	}
-	if node.Attributes["nomad.version"] != "" {
-		t.Fatalf("found nomad fingerprint module")
-	}
-}
-
-func TestClient_Drivers_InWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Weird spacing to test trimming
-		c.Options["driver.raw_exec.enable"] = "1"
-		c.Options["driver.whitelist"] = "   raw_exec ,  foo	"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["driver.raw_exec"] == "" {
-		t.Fatalf("missing raw_exec driver")
-	}
-}
-
-func TestClient_Drivers_InBlacklist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Weird spacing to test trimming
-		c.Options["driver.raw_exec.enable"] = "1"
-		c.Options["driver.blacklist"] = "   raw_exec ,  foo	"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["driver.raw_exec"] != "" {
-		t.Fatalf("raw_exec driver loaded despite blacklist")
-	}
-}
-
-func TestClient_Drivers_OutOfWhitelist(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		c.Options["driver.whitelist"] = "foo,bar,baz"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	if node.Attributes["driver.exec"] != "" {
-		t.Fatalf("found exec driver")
-	}
-}
-
-func TestClient_Drivers_WhitelistBlacklistCombination(t *testing.T) {
-	t.Parallel()
-	c := testClient(t, func(c *config.Config) {
-		if c.Options == nil {
-			c.Options = make(map[string]string)
-		}
-
-		// Expected output is set difference (raw_exec)
-		c.Options["driver.whitelist"] = "raw_exec,exec"
-		c.Options["driver.blacklist"] = "exec"
-	})
-	defer c.Shutdown()
-
-	node := c.Node()
-	// Check expected present
-	if node.Attributes["driver.raw_exec"] == "" {
-		t.Fatalf("missing raw_exec driver")
-	}
-	// Check expected absent
-	if node.Attributes["driver.exec"] != "" {
-		t.Fatalf("exec driver loaded despite blacklist")
+	{
+		testutil.WaitForResult(func() (bool, error) {
+			c1.configLock.Lock()
+			defer c1.configLock.Unlock()
+			mockDriverInfo := node.Drivers["mock_driver"]
+			// assert that the Driver information for the node is also set correctly
+			if mockDriverInfo == nil {
+				return false, fmt.Errorf("mock driver is nil when it should be set on node Drivers")
+			}
+			if mockDriverInfo.Detected {
+				return false, fmt.Errorf("mock driver should be set as detected")
+			}
+			if mockDriverInfo.Healthy {
+				return false, fmt.Errorf("mock driver should be set as healthy")
+			}
+			if mockDriverInfo.HealthDescription == "" {
+				return false, fmt.Errorf("mock driver description should not be empty")
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf("err: %v", err)
+		})
 	}
 }
 
@@ -433,7 +250,7 @@ func TestClient_MixedTLS(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
 	defer c1.Shutdown()
@@ -483,7 +300,7 @@ func TestClient_BadTLS(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
@@ -521,7 +338,7 @@ func TestClient_Register(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -555,7 +372,7 @@ func TestClient_Heartbeat(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -587,12 +404,12 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
 
-	// Wait til the node is ready
+	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
 
 	job := mock.Job()
@@ -638,12 +455,12 @@ func TestClient_WatchAllocs(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
 
-	// Wait til the node is ready
+	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
 
 	// Create mock allocations
@@ -657,7 +474,6 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.JobID = job.ID
 	alloc2.Job = job
 
-	// Insert at zero so they are pulled
 	state := s1.State()
 	if err := state.UpsertJob(100, job); err != nil {
 		t.Fatal(err)
@@ -681,23 +497,20 @@ func TestClient_WatchAllocs(t *testing.T) {
 	})
 
 	// Delete one allocation
-	err = state.DeleteEval(103, nil, []string{alloc1.ID})
-	if err != nil {
+	if err := state.DeleteEval(103, nil, []string{alloc1.ID}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Update the other allocation. Have to make a copy because the allocs are
 	// shared in memory in the test and the modify index would be updated in the
 	// alloc runner.
-	alloc2_2 := new(structs.Allocation)
-	*alloc2_2 = *alloc2
+	alloc2_2 := alloc2.Copy()
 	alloc2_2.DesiredStatus = structs.AllocDesiredStatusStop
-	err = state.UpsertAllocs(104, []*structs.Allocation{alloc2_2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	if err := state.UpsertAllocs(104, []*structs.Allocation{alloc2_2}); err != nil {
+		t.Fatalf("err upserting stopped alloc: %v", err)
 	}
 
-	// One allocations should get de-registered
+	// One allocation should get GC'd and removed
 	testutil.WaitForResult(func() (bool, error) {
 		c1.allocLock.RLock()
 		num := len(c1.allocs)
@@ -737,13 +550,13 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
 
-	// Wait til the node is ready
+	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
 
 	// Create mock allocations
@@ -789,10 +602,10 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 
 	// Create a new client
-	logger := log.New(c1.config.LogOutput, "", log.LstdFlags)
+	logger := testlog.Logger(t)
 	catalog := consul.NewMockCatalog(logger)
-	mockService := newMockConsulServiceClient()
-	mockService.logger = logger
+	mockService := consulApi.NewMockConsulServiceClient(t)
+	mockService.Logger = logger
 	c2, err := NewClient(c1.config, catalog, mockService, logger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -837,7 +650,7 @@ func TestClient_Init(t *testing.T) {
 		config: &config.Config{
 			AllocDir: allocDir,
 		},
-		logger: log.New(os.Stderr, "", log.LstdFlags),
+		logger: testlog.Logger(t),
 	}
 	if err := client.init(); err != nil {
 		t.Fatalf("err: %s", err)
@@ -854,7 +667,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
 	defer c1.Shutdown()
@@ -965,13 +778,13 @@ func TestClient_ValidateMigrateToken_ValidToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := testClient(t, func(c *config.Config) {
+	c := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
 	defer c.Shutdown()
 
 	alloc := mock.Alloc()
-	validToken, err := nomad.GenerateMigrateToken(alloc.ID, c.secretNodeID())
+	validToken, err := structs.GenerateMigrateToken(alloc.ID, c.secretNodeID())
 	assert.Nil(err)
 
 	assert.Equal(c.ValidateMigrateToken(alloc.ID, validToken), true)
@@ -981,7 +794,7 @@ func TestClient_ValidateMigrateToken_InvalidToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := testClient(t, func(c *config.Config) {
+	c := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 	})
 	defer c.Shutdown()
@@ -997,8 +810,183 @@ func TestClient_ValidateMigrateToken_ACLDisabled(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	c := testClient(t, func(c *config.Config) {})
+	c := TestClient(t, func(c *config.Config) {})
 	defer c.Shutdown()
 
 	assert.Equal(c.ValidateMigrateToken("", ""), true)
+}
+
+func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.Region = "regionFoo"
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	c1 := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+	})
+	defer c1.Shutdown()
+
+	// Registering a node over plaintext should succeed
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return false, fmt.Errorf("client RPC failed when it should have succeeded:\n%+v", err)
+			}
+			return true, nil
+		},
+			func(err error) {
+				t.Fatalf(err.Error())
+			},
+		)
+	}
+
+	newConfig := &nconfig.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               cafile,
+		CertFile:             foocert,
+		KeyFile:              fookey,
+	}
+
+	err := c1.reloadTLSConnections(newConfig)
+	assert.Nil(err)
+
+	// Registering a node over plaintext should fail after the node has upgraded
+	// to TLS
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", err)
+			}
+			return true, nil
+		},
+			func(err error) {
+				t.Fatalf(err.Error())
+			},
+		)
+	}
+}
+
+func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s1, addr := testServer(t, func(c *nomad.Config) {
+		c.Region = "regionFoo"
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	const (
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	c1 := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.TLSConfig = &nconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer c1.Shutdown()
+
+	// assert that when one node is running in encrypted mode, a RPC request to a
+	// node running in plaintext mode should fail
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err == nil {
+				return false, fmt.Errorf("client RPC succeeded when it should have failed :\n%+v", err)
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf(err.Error())
+		},
+		)
+	}
+
+	newConfig := &nconfig.TLSConfig{}
+
+	err := c1.reloadTLSConnections(newConfig)
+	assert.Nil(err)
+
+	// assert that when both nodes are in plaintext mode, a RPC request should
+	// succeed
+	{
+		req := structs.NodeSpecificRequest{
+			NodeID:       c1.Node().ID,
+			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+		}
+		testutil.WaitForResult(func() (bool, error) {
+			var out structs.SingleNodeResponse
+			err := c1.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return false, fmt.Errorf("client RPC failed when it should have succeeded:\n%+v", err)
+			}
+			return true, nil
+		}, func(err error) {
+			t.Fatalf(err.Error())
+		},
+		)
+	}
+}
+
+// TestClient_ServerList tests client methods that interact with the internal
+// nomad server list.
+func TestClient_ServerList(t *testing.T) {
+	t.Parallel()
+	client := TestClient(t, func(c *config.Config) {})
+
+	if s := client.GetServers(); len(s) != 0 {
+		t.Fatalf("expected server lit to be empty but found: %+q", s)
+	}
+	if _, err := client.SetServers(nil); err != noServersErr {
+		t.Fatalf("expected setting an empty list to return a 'no servers' error but received %v", err)
+	}
+	if _, err := client.SetServers([]string{"123.456.13123.123.13:80"}); err == nil {
+		t.Fatalf("expected setting a bad server to return an error")
+	}
+	if _, err := client.SetServers([]string{"123.456.13123.123.13:80", "127.0.0.1:1234", "127.0.0.1"}); err == nil {
+		t.Fatalf("expected setting at least one good server to succeed but received: %v", err)
+	}
+	s := client.GetServers()
+	if len(s) != 0 {
+		t.Fatalf("expected 2 servers but received: %+q", s)
+	}
 }

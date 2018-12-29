@@ -2,14 +2,12 @@ package agent
 
 import (
 	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_Parse(t *testing.T) {
@@ -26,6 +24,7 @@ func TestConfig_Parse(t *testing.T) {
 				Datacenter:  "dc2",
 				NodeName:    "my-web",
 				DataDir:     "/tmp/nomad",
+				PluginDir:   "/tmp/nomad-plugins",
 				LogLevel:    "ERR",
 				BindAddr:    "192.168.0.1",
 				EnableDebug: true,
@@ -49,6 +48,11 @@ func TestConfig_Parse(t *testing.T) {
 					AllocDir:  "/tmp/alloc",
 					Servers:   []string{"a.b.c:80", "127.0.0.1:1234"},
 					NodeClass: "linux-medium-64bit",
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
+						RetryInterval:    time.Duration(15) * time.Second,
+						RetryMaxAttempts: 3,
+					},
 					Meta: map[string]string{
 						"foo": "bar",
 						"baz": "zip",
@@ -64,6 +68,7 @@ func TestConfig_Parse(t *testing.T) {
 					NetworkInterface: "eth0",
 					NetworkSpeed:     100,
 					CpuCompute:       4444,
+					MemoryMB:         0,
 					MaxKillTimeout:   "10s",
 					ClientMinPort:    1000,
 					ClientMaxPort:    2000,
@@ -88,7 +93,8 @@ func TestConfig_Parse(t *testing.T) {
 					BootstrapExpect:        5,
 					DataDir:                "/tmp/data",
 					ProtocolVersion:        3,
-					NumSchedulers:          2,
+					RaftProtocol:           3,
+					NumSchedulers:          helper.IntToPtr(2),
 					EnabledSchedulers:      []string{"test"},
 					NodeGCThreshold:        "12h",
 					EvalGCThreshold:        "12h",
@@ -99,10 +105,18 @@ func TestConfig_Parse(t *testing.T) {
 					MaxHeartbeatsPerSecond: 11.0,
 					RetryJoin:              []string{"1.1.1.1", "2.2.2.2"},
 					StartJoin:              []string{"1.1.1.1", "2.2.2.2"},
-					RetryInterval:          "15s",
+					RetryInterval:          15 * time.Second,
 					RejoinAfterLeave:       true,
 					RetryMaxAttempts:       3,
+					NonVotingServer:        true,
+					RedundancyZone:         "foo",
+					UpgradeVersion:         "0.8.0",
 					EncryptKey:             "abc",
+					ServerJoin: &ServerJoin{
+						RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
+						RetryInterval:    time.Duration(15) * time.Second,
+						RetryMaxAttempts: 3,
+					},
 				},
 				ACL: &ACLConfig{
 					Enabled:          true,
@@ -127,29 +141,27 @@ func TestConfig_Parse(t *testing.T) {
 				LeaveOnTerm:               true,
 				EnableSyslog:              true,
 				SyslogFacility:            "LOCAL1",
-				DisableUpdateCheck:        true,
+				DisableUpdateCheck:        helper.BoolToPtr(true),
 				DisableAnonymousSignature: true,
-				Atlas: &AtlasConfig{
-					Infrastructure: "armon/test",
-					Token:          "abcd",
-					Join:           true,
-					Endpoint:       "127.0.0.1:1234",
-				},
 				Consul: &config.ConsulConfig{
-					ServerServiceName:  "nomad",
-					ClientServiceName:  "nomad-client",
-					Addr:               "127.0.0.1:9500",
-					Token:              "token1",
-					Auth:               "username:pass",
-					EnableSSL:          &trueValue,
-					VerifySSL:          &trueValue,
-					CAFile:             "/path/to/ca/file",
-					CertFile:           "/path/to/cert/file",
-					KeyFile:            "/path/to/key/file",
-					ServerAutoJoin:     &trueValue,
-					ClientAutoJoin:     &trueValue,
-					AutoAdvertise:      &trueValue,
-					ChecksUseAdvertise: &trueValue,
+					ServerServiceName:   "nomad",
+					ServerHTTPCheckName: "nomad-server-http-health-check",
+					ServerSerfCheckName: "nomad-server-serf-health-check",
+					ServerRPCCheckName:  "nomad-server-rpc-health-check",
+					ClientServiceName:   "nomad-client",
+					ClientHTTPCheckName: "nomad-client-http-health-check",
+					Addr:                "127.0.0.1:9500",
+					Token:               "token1",
+					Auth:                "username:pass",
+					EnableSSL:           &trueValue,
+					VerifySSL:           &trueValue,
+					CAFile:              "/path/to/ca/file",
+					CertFile:            "/path/to/cert/file",
+					KeyFile:             "/path/to/key/file",
+					ServerAutoJoin:      &trueValue,
+					ClientAutoJoin:      &trueValue,
+					AutoAdvertise:       &trueValue,
+					ChecksUseAdvertise:  &trueValue,
 				},
 				Vault: &config.VaultConfig{
 					Addr:                 "127.0.0.1:9500",
@@ -166,13 +178,17 @@ func TestConfig_Parse(t *testing.T) {
 					Token:                "12345",
 				},
 				TLSConfig: &config.TLSConfig{
-					EnableHTTP:           true,
-					EnableRPC:            true,
-					VerifyServerHostname: true,
-					CAFile:               "foo",
-					CertFile:             "bar",
-					KeyFile:              "pipe",
-					VerifyHTTPSClient:    true,
+					EnableHTTP:                  true,
+					EnableRPC:                   true,
+					VerifyServerHostname:        true,
+					CAFile:                      "foo",
+					CertFile:                    "bar",
+					KeyFile:                     "pipe",
+					RPCUpgradeMode:              true,
+					VerifyHTTPSClient:           true,
+					TLSPreferServerCipherSuites: true,
+					TLSCipherSuites:             "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+					TLSMinVersion:               "tls12",
 				},
 				HTTPAPIResponseHeaders: map[string]string{
 					"Access-Control-Allow-Origin": "*",
@@ -191,6 +207,90 @@ func TestConfig_Parse(t *testing.T) {
 						},
 					},
 				},
+				Autopilot: &config.AutopilotConfig{
+					CleanupDeadServers:      &trueValue,
+					ServerStabilizationTime: 23057 * time.Second,
+					LastContactThreshold:    12705 * time.Second,
+					MaxTrailingLogs:         17849,
+					EnableRedundancyZones:   &trueValue,
+					DisableUpgradeMigration: &trueValue,
+					EnableCustomUpgrades:    &trueValue,
+				},
+				Plugins: []*config.PluginConfig{
+					{
+						Name: "docker",
+						Args: []string{"foo", "bar"},
+						Config: map[string]interface{}{
+							"foo": "bar",
+							"nested": []map[string]interface{}{
+								{
+									"bam": 2,
+								},
+							},
+						},
+					},
+					{
+						Name: "exec",
+						Config: map[string]interface{}{
+							"foo": true,
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"non-optional.hcl",
+			&Config{
+				Region:         "",
+				Datacenter:     "",
+				NodeName:       "",
+				DataDir:        "",
+				PluginDir:      "",
+				LogLevel:       "",
+				BindAddr:       "",
+				EnableDebug:    false,
+				Ports:          nil,
+				Addresses:      nil,
+				AdvertiseAddrs: nil,
+				Client: &ClientConfig{
+					Enabled:               false,
+					StateDir:              "",
+					AllocDir:              "",
+					Servers:               nil,
+					NodeClass:             "",
+					Meta:                  nil,
+					Options:               nil,
+					ChrootEnv:             nil,
+					NetworkInterface:      "",
+					NetworkSpeed:          0,
+					CpuCompute:            0,
+					MemoryMB:              5555,
+					MaxKillTimeout:        "",
+					ClientMinPort:         0,
+					ClientMaxPort:         0,
+					Reserved:              nil,
+					GCInterval:            0,
+					GCParallelDestroys:    0,
+					GCDiskUsageThreshold:  0,
+					GCInodeUsageThreshold: 0,
+					GCMaxAllocs:           0,
+					NoHostUUID:            nil,
+				},
+				Server:                    nil,
+				ACL:                       nil,
+				Telemetry:                 nil,
+				LeaveOnInt:                false,
+				LeaveOnTerm:               false,
+				EnableSyslog:              false,
+				SyslogFacility:            "",
+				DisableUpdateCheck:        nil,
+				DisableAnonymousSignature: false,
+				Consul:                    nil,
+				Vault:                     nil,
+				TLSConfig:                 nil,
+				HTTPAPIResponseHeaders:    nil,
+				Sentinel:                  nil,
 			},
 			false,
 		},
@@ -198,6 +298,7 @@ func TestConfig_Parse(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.File, func(t *testing.T) {
+			require := require.New(t)
 			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
 			if err != nil {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
@@ -208,9 +309,18 @@ func TestConfig_Parse(t *testing.T) {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
 
-			if !reflect.DeepEqual(actual, tc.Result) {
-				t.Errorf("file: %s  diff: (actual vs expected)\n\n%s", tc.File, strings.Join(pretty.Diff(actual, tc.Result), "\n"))
-			}
+			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
+			require.EqualValues(removeHelperAttributes(actual), tc.Result)
 		})
 	}
+}
+
+// In order to compare the Config struct after parsing, and from generating what
+// is expected in the test, we need to remove helper attributes that are
+// instantiated in the process of parsing the configuration
+func removeHelperAttributes(c *Config) *Config {
+	if c.TLSConfig != nil {
+		c.TLSConfig.KeyLoader = nil
+	}
+	return c
 }

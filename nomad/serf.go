@@ -154,7 +154,7 @@ func (s *Server) maybeBootstrap() {
 			if err := s.connPool.RPC(s.config.Region, server.Addr, server.MajorVersion,
 				"Status.Peers", req, &peers); err != nil {
 				nextRetry := (1 << attempt) * peerRetryBase
-				s.logger.Printf("[ERR] consul: Failed to confirm peer status for %s: %v. Retrying in "+
+				s.logger.Printf("[ERR] nomad: Failed to confirm peer status for %s: %v. Retrying in "+
 					"%v...", server.Name, err, nextRetry.String())
 				time.Sleep(nextRetry)
 			} else {
@@ -184,11 +184,22 @@ func (s *Server) maybeBootstrap() {
 	// Attempt a live bootstrap!
 	var configuration raft.Configuration
 	var addrs []string
+	minRaftVersion, err := s.autopilot.MinRaftProtocol()
+	if err != nil {
+		s.logger.Printf("[ERR] nomad: Failed to read server raft versions: %v", err)
+	}
+
 	for _, server := range servers {
 		addr := server.Addr.String()
 		addrs = append(addrs, addr)
+		var id raft.ServerID
+		if minRaftVersion >= 3 {
+			id = raft.ServerID(server.ID)
+		} else {
+			id = raft.ServerID(addr)
+		}
 		peer := raft.Server{
-			ID:      raft.ServerID(addr),
+			ID:      id,
 			Address: raft.ServerAddress(addr),
 		}
 		configuration.Servers = append(configuration.Servers, peer)

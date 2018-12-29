@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { helper } from '@ember/component/helper';
 
 /**
  * CSS Class
@@ -12,4 +12,4 @@ export function cssClass([updateType]) {
   return updateType.replace(/\//g, '-').dasherize();
 }
 
-export default Ember.Helper.helper(cssClass);
+export default helper(cssClass);

@@ -38,7 +38,7 @@ type LogCollectorContext struct {
 	PortLowerBound uint
 }
 
-// SyslogCollectorState holds the address and islation information of a launched
+// SyslogCollectorState holds the address and isolation information of a launched
 // syslog server
 type SyslogCollectorState struct {
 	IsolationConfig *cstructs.IsolationConfig

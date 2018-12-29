@@ -36,7 +36,7 @@ General Options:
 Apply Options:
 
   -json
-    Parse the input as a JSON quota specification. 
+    Parse the input as a JSON quota specification.
 `
 
 	return strings.TrimSpace(helpText)
@@ -57,9 +57,11 @@ func (c *QuotaApplyCommand) Synopsis() string {
 	return "Create or update a quota specification"
 }
 
+func (c *QuotaApplyCommand) Name() string { return "quota apply" }
+
 func (c *QuotaApplyCommand) Run(args []string) int {
 	var jsonInput bool
-	flags := c.Meta.FlagSet("quota apply", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&jsonInput, "json", false, "")
 
@@ -70,7 +72,8 @@ func (c *QuotaApplyCommand) Run(args []string) int {
 	// Check that we get exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <input>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
