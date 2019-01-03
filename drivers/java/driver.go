@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -19,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
@@ -201,9 +201,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	if runtime.GOOS == "linux" {
 		// Only enable if w are root and cgroups are mounted when running on linux system
-		if syscall.Geteuid() != 0 {
-			fp.Health = drivers.HealthStateUnhealthy
-			fp.HealthDescription = "run as root"
+		if !utils.IsUnixRoot() {
+			fp.Health = drivers.HealthStateUndetected
+			fp.HealthDescription = drivers.DriverRequiresRootMessage
 			return fp
 		}
 

@@ -272,7 +272,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if syscall.Geteuid() != 0 {
 		d.logger.Debug("must run as root user, disabling")
 		fingerprint.Health = drivers.HealthStateUndetected
-		fingerprint.HealthDescription = "driver must run as root user"
+		fingerprint.HealthDescription = drivers.DriverRequiresRootMessage
 		return fingerprint
 	}
 
