@@ -3,7 +3,7 @@ Terraform provisioner for end to end tests
 
 This folder contains terraform resources for provisioning a nomad cluster on AWS for end to end tests.
 It uses a nomad binary identified by its commit SHA that's stored in a shared s3 bucket that Nomad team
-developers can access.
+developers can access. The commit SHA can be from any branch that's pushed to remote.
 
 Use [envchain](https://github.com/sorah/envchain) to store your AWS credentials.
 
