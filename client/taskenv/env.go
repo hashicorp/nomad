@@ -490,7 +490,7 @@ func (b *Builder) SetHookEnv(hook string, envs map[string]string) *Builder {
 	return b.setHookEnvLocked(hook, envs)
 }
 
-// setHookEnvLocked is the implementation of setting hook environemnt variables
+// setHookEnvLocked is the implementation of setting hook environment variables
 // and should be called with the lock held
 func (b *Builder) setHookEnvLocked(hook string, envs map[string]string) *Builder {
 	if _, exists := b.hookEnvs[hook]; !exists {
