@@ -1345,7 +1345,7 @@ type TaskConfig struct {
 	// Env is the a set of key/value pairs to be set as environment variables
 	Env map[string]string `protobuf:"bytes,4,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// DeviceEnv is the set of environment variables that are defined by device
-	// plugins. This allows the driver to differentiate environemnt variables
+	// plugins. This allows the driver to differentiate environment variables
 	// set by the device plugins and those by the user. When populating the
 	// task's environment env should be used.
 	DeviceEnv map[string]string `protobuf:"bytes,5,rep,name=device_env,json=deviceEnv,proto3" json:"device_env,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
