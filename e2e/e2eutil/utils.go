@@ -50,7 +50,7 @@ func RegisterAndWaitForAllocs(f *framework.F, nomadClient *api.Client, jobFile s
 		// Look for allocations
 		allocs, _, _ := jobs.Allocations(*job.ID, false, nil)
 		return allocs
-	}, 10*time.Second, time.Second).ShouldNot(BeEmpty())
+	}, 20*time.Second, time.Second).ShouldNot(BeEmpty())
 
 	allocs, _, err := jobs.Allocations(*job.ID, false, nil)
 	require.Nil(err)
