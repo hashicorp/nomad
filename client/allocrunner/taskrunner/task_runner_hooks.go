@@ -218,9 +218,9 @@ func (tr *TaskRunner) prestart() error {
 
 		// Store the environment variables returned by the hook
 		if name == HookNameDevices {
-			tr.envBuilder.SetDeviceHookEnv(name, origHookState.Env)
+			tr.envBuilder.SetDeviceHookEnv(name, resp.Env)
 		} else {
-			tr.envBuilder.SetHookEnv(name, origHookState.Env)
+			tr.envBuilder.SetHookEnv(name, resp.Env)
 		}
 
 		// Store the resources
