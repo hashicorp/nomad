@@ -311,7 +311,7 @@ message TaskConfig {
     map<string, string> env = 4;
 
     // DeviceEnv is the set of environment variables that are defined by device
-    // plugins. This allows the driver to differentiate environemnt variables
+    // plugins. This allows the driver to differentiate environment variables
     // set by the device plugins and those by the user. When populating the
     // task's environment env should be used.
     map<string, string> device_env = 5;
