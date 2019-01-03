@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 type SpreadTest struct {
@@ -25,12 +26,15 @@ func init() {
 func (tc *SpreadTest) BeforeAll(f *framework.F) {
 	// Ensure cluster has leader before running tests
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
+	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 4)
 }
 
 func (tc *SpreadTest) TestEvenSpread(f *framework.F) {
 	nomadClient := tc.Nomad()
-	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/even_spread.nomad", "spr")
-	tc.jobIds = append(tc.jobIds, jobID)
+	uuid := uuid.Generate()
+	jobId := "spread" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/even_spread.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	dcToAllocs := make(map[string]int)
@@ -54,8 +58,10 @@ func (tc *SpreadTest) TestEvenSpread(f *framework.F) {
 
 func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 	nomadClient := tc.Nomad()
-	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/multiple_spread.nomad", "spr")
-	tc.jobIds = append(tc.jobIds, jobID)
+	uuid := uuid.Generate()
+	jobId := "spread" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/multiple_spread.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	dcToAllocs := make(map[string]int)
@@ -65,6 +71,7 @@ func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 	// Verify spread score and alloc distribution
 	for _, allocStub := range allocs {
 		alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
+
 		require.Nil(err)
 		require.NotEmpty(alloc.Metrics.ScoreMetaData)
 

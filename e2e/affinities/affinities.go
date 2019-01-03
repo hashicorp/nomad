@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 type BasicAffinityTest struct {
@@ -25,12 +26,16 @@ func init() {
 func (tc *BasicAffinityTest) BeforeAll(f *framework.F) {
 	// Ensure cluster has leader before running tests
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
+	// Ensure that we have four client nodes in ready state
+	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 4)
 }
 
 func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 	nomadClient := tc.Nomad()
-	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/single_affinity.nomad", "aff")
-	tc.jobIds = append(tc.jobIds, jobID)
+	uuid := uuid.Generate()
+	jobId := "aff" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/single_affinity.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
@@ -51,8 +56,10 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 
 func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
 	nomadClient := tc.Nomad()
-	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/multiple_affinities.nomad", "aff")
-	tc.jobIds = append(tc.jobIds, jobID)
+	uuid := uuid.Generate()
+	jobId := "multiaff" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/multiple_affinities.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
@@ -91,8 +98,10 @@ func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
 
 func (tc *BasicAffinityTest) TestAntiAffinities(f *framework.F) {
 	nomadClient := tc.Nomad()
-	jobID, allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/anti_affinities.nomad", "aff")
-	tc.jobIds = append(tc.jobIds, jobID)
+	uuid := uuid.Generate()
+	jobId := "antiaff" + uuid[0:8]
+	tc.jobIds = append(tc.jobIds, jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/anti_affinities.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
