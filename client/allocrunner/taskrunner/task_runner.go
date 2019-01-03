@@ -473,7 +473,10 @@ MAIN:
 	tr.logger.Debug("task run loop exiting")
 }
 
-// TODO(alex) is this a good return type? Should these be separate methods?
+// handleTaskExitResult handles the results returned by the task exiting. If
+// retryWait is true, the caller should attempt to wait on the task again since
+// it has not actually finished running. This can happen if the driver plugin
+// has exited.
 func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWait bool) {
 	if result == nil {
 		return false
@@ -776,7 +779,6 @@ func (tr *TaskRunner) Restore() error {
 	return nil
 }
 
-// TODO(alex) Is the return optimal?
 // restoreHandle ensures a TaskHandle is valid by calling Driver.RecoverTask
 // and sets the driver handle. If the TaskHandle is not valid, DestroyTask is
 // called.

@@ -19,8 +19,8 @@ const (
 	// retrieving a handle.
 	retrieveBackoffLimit = 5 * time.Second
 
-	// retrieveFailureLimit is how many times we will attempt to retireve a
-	// handle giving up and potentially leaking resources.
+	// retrieveFailureLimit is how many times we will attempt to retrieve a
+	// new handle before giving up.
 	retrieveFailureLimit = 5
 )
 
