@@ -3,7 +3,7 @@ End to End Tests
 
 This package contains integration tests. 
 
-The `terraform` folder has provisioning code to spin up a Nomad cluster on AWS. The tests work with the `NOMAD_ADDR` environment variable which can be set either to a local dev Nomad agent or a client on AWS. 
+The `terraform` folder has provisioning code to spin up a Nomad cluster on AWS. The tests work with the `NOMAD_ADDR` environment variable which can be set either to a local dev Nomad agent or a Nomad client on AWS. 
 
 Local Development
 =================
