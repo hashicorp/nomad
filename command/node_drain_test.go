@@ -113,6 +113,9 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 		if len(nodes) == 0 {
 			return false, fmt.Errorf("missing node")
 		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
 		nodeID = nodes[0].ID
 		return true, nil
 	}, func(err error) {

@@ -237,6 +237,10 @@ type Client struct {
 
 	// batchNodeUpdates is used to batch initial updates to the node
 	batchNodeUpdates *batchNodeUpdates
+
+	// fpInitialized chan is closed when the first batch of fingerprints are
+	// applied to the node and the server is updated
+	fpInitialized chan struct{}
 }
 
 var (
@@ -281,6 +285,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerDiscoveryCh:   make(chan struct{}),
 		triggerNodeUpdate:    make(chan struct{}, 8),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
+		fpInitialized:        make(chan struct{}),
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -434,6 +439,11 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 
 	c.logger.Info("started client", "node_id", c.NodeID())
 	return c, nil
+}
+
+// Ready returns a chan that is closed when the client is fully initialized
+func (c *Client) Ready() <-chan struct{} {
+	return c.fpInitialized
 }
 
 // init is used to initialize the client and perform any setup

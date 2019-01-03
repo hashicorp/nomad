@@ -96,7 +96,8 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 			return false, err
 		}
 		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
+			if _, ok := node.Drivers["mock_driver"]; ok &&
+				node.Status == structs.NodeStatusReady {
 				return true, nil
 			}
 		}

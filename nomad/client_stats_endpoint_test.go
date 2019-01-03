@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
@@ -187,6 +188,13 @@ func TestClientStats_Stats_Remote(t *testing.T) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
 	defer cleanup()
+
+	// Wait for client initialization
+	select {
+	case <-c.Ready():
+	case <-time.After(10 * time.Second):
+		require.Fail("client timedout on initialize")
+	}
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
