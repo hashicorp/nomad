@@ -164,7 +164,7 @@ type Raft struct {
 // configuration on all the Voter servers. There is no need to bootstrap
 // Nonvoter and Staging servers.
 //
-// One sane approach is to boostrap a single server with a configuration
+// One sane approach is to bootstrap a single server with a configuration
 // listing just itself as a Voter, then invoke AddVoter() on it to add other
 // servers to the cluster.
 func BootstrapCluster(conf *Config, logs LogStore, stable StableStore,
@@ -717,12 +717,12 @@ func (r *Raft) RemovePeer(peer ServerAddress) Future {
 }
 
 // AddVoter will add the given server to the cluster as a staging server. If the
-// server is already in the cluster as a voter, this does nothing. This must be
-// run on the leader or it will fail. The leader will promote the staging server
-// to a voter once that server is ready. If nonzero, prevIndex is the index of
-// the only configuration upon which this change may be applied; if another
-// configuration entry has been added in the meantime, this request will fail.
-// If nonzero, timeout is how long this server should wait before the
+// server is already in the cluster as a voter, this updates the server's address.
+// This must be run on the leader or it will fail. The leader will promote the
+// staging server to a voter once that server is ready. If nonzero, prevIndex is
+// the index of the only configuration upon which this change may be applied; if
+// another configuration entry has been added in the meantime, this request will
+// fail. If nonzero, timeout is how long this server should wait before the
 // configuration change log entry is appended.
 func (r *Raft) AddVoter(id ServerID, address ServerAddress, prevIndex uint64, timeout time.Duration) IndexFuture {
 	if r.protocolVersion < 2 {
@@ -739,9 +739,9 @@ func (r *Raft) AddVoter(id ServerID, address ServerAddress, prevIndex uint64, ti
 
 // AddNonvoter will add the given server to the cluster but won't assign it a
 // vote. The server will receive log entries, but it won't participate in
-// elections or log entry commitment. If the server is already in the cluster as
-// a staging server or voter, this does nothing. This must be run on the leader
-// or it will fail. For prevIndex and timeout, see AddVoter.
+// elections or log entry commitment. If the server is already in the cluster,
+// this updates the server's address. This must be run on the leader or it will
+// fail. For prevIndex and timeout, see AddVoter.
 func (r *Raft) AddNonvoter(id ServerID, address ServerAddress, prevIndex uint64, timeout time.Duration) IndexFuture {
 	if r.protocolVersion < 3 {
 		return errorFuture{ErrUnsupportedProtocol}
