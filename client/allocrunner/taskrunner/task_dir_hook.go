@@ -44,7 +44,7 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 
 	// Build the task directory structure
 	fsi := h.runner.driverCapabilities.FSIsolation
-	err := h.runner.taskDir.Build(false, chroot, fsi)
+	err := h.runner.taskDir.Build(fsi == cstructs.FSIsolationChroot, chroot)
 	if err != nil {
 		return err
 	}
