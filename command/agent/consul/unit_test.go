@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -1113,7 +1112,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1217,7 +1216,7 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1281,7 +1280,7 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1558,7 +1557,7 @@ func TestGetAddress(t *testing.T) {
 		Mode      string
 		PortLabel string
 		Host      map[string]int // will be converted to structs.Networks
-		Driver    *cstructs.DriverNetwork
+		Driver    *drivers.DriverNetwork
 
 		// Results
 		ExpectedIP   string
@@ -1571,7 +1570,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeAuto,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12435},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1583,7 +1582,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeHost,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1595,7 +1594,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1607,7 +1606,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeAuto,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap:       map[string]int{"db": 6379},
 				IP:            "10.1.2.3",
 				AutoAdvertise: true,
@@ -1620,7 +1619,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "7890",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1642,7 +1641,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "bad-port-label",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1652,7 +1651,7 @@ func TestGetAddress(t *testing.T) {
 			Name:      "DriverZeroPort",
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "0",
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
 			ExpectedErr: "invalid port",
@@ -1682,7 +1681,7 @@ func TestGetAddress(t *testing.T) {
 		{
 			Name: "NoPort_DriverMode",
 			Mode: structs.AddressModeDriver,
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
 			ExpectedIP: "10.1.2.3",

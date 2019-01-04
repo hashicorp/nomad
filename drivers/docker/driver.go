@@ -153,7 +153,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *structs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
@@ -260,7 +260,7 @@ CREATE:
 	// Detect container address
 	ip, autoUse := d.detectIP(container, &driverConfig)
 
-	net := &structs.DriverNetwork{
+	net := &drivers.DriverNetwork{
 		PortMap:       driverConfig.PortMap,
 		IP:            ip,
 		AutoAdvertise: autoUse,

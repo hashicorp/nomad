@@ -13,11 +13,11 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 const (
@@ -1174,7 +1174,7 @@ func isOldNomadService(id string) bool {
 // getAddress returns the IP and port to use for a service or check. If no port
 // label is specified (an empty value), zero values are returned because no
 // address could be resolved.
-func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *cstructs.DriverNetwork) (string, int, error) {
+func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *drivers.DriverNetwork) (string, int, error) {
 	switch addrMode {
 	case structs.AddressModeAuto:
 		if driverNet.Advertise() {

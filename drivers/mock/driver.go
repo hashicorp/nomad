@@ -379,7 +379,7 @@ func newTaskHandle(cfg *drivers.TaskConfig, driverConfig *TaskConfig, logger hcl
 	return h
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	driverConfig, err := parseDriverConfig(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -400,7 +400,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	// Create the driver network
-	net := &cstructs.DriverNetwork{
+	net := &drivers.DriverNetwork{
 		IP:            driverConfig.DriverIP,
 		AutoAdvertise: driverConfig.DriverAdvertise,
 	}

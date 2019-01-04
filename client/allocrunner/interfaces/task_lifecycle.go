@@ -96,7 +96,7 @@ type TaskPoststartRequest struct {
 	DriverExec interfaces.ScriptExecutor
 
 	// Network info (may be nil)
-	DriverNetwork *cstructs.DriverNetwork
+	DriverNetwork *drivers.DriverNetwork
 
 	// TaskEnv is the task's environment
 	TaskEnv *taskenv.TaskEnv

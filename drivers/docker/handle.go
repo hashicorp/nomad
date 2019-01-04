@@ -35,7 +35,7 @@ type taskHandle struct {
 	doneCh                chan bool
 	waitCh                chan struct{}
 	removeContainerOnExit bool
-	net                   *cstructs.DriverNetwork
+	net                   *drivers.DriverNetwork
 
 	exitResult     *drivers.ExitResult
 	exitResultLock sync.Mutex
@@ -52,7 +52,7 @@ type taskHandleState struct {
 	ReattachConfig *shared.ReattachConfig
 
 	ContainerID   string
-	DriverNetwork *cstructs.DriverNetwork
+	DriverNetwork *drivers.DriverNetwork
 }
 
 func (h *taskHandle) buildState() *taskHandleState {

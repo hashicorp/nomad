@@ -290,7 +290,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
 	}
@@ -467,9 +467,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	d.tasks.Set(cfg.ID, h)
 	go h.run()
 
-	var driverNetwork *cstructs.DriverNetwork
+	var driverNetwork *drivers.DriverNetwork
 	if len(driverConfig.PortMap) == 1 {
-		driverNetwork = &cstructs.DriverNetwork{
+		driverNetwork = &drivers.DriverNetwork{
 			PortMap: driverConfig.PortMap,
 		}
 	}

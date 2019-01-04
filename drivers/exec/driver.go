@@ -269,7 +269,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
