@@ -309,7 +309,7 @@ func (n *NetworkTransport) getProviderAddressOrFallback(id ServerID, target Serv
 	if n.serverAddressProvider != nil {
 		serverAddressOverride, err := n.serverAddressProvider.ServerAddr(id)
 		if err != nil {
-			n.logger.Printf("[WARN] Unable to get address for server id %v, using fallback address %v: %v", id, target, err)
+			n.logger.Printf("[WARN] raft: Unable to get address for server id %v, using fallback address %v: %v", id, target, err)
 		} else {
 			return serverAddressOverride
 		}
@@ -461,16 +461,38 @@ func (n *NetworkTransport) DecodePeer(buf []byte) ServerAddress {
 
 // listen is used to handling incoming connections.
 func (n *NetworkTransport) listen() {
+	const baseDelay = 5 * time.Millisecond
+	const maxDelay = 1 * time.Second
+
+	var loopDelay time.Duration
 	for {
 		// Accept incoming connections
 		conn, err := n.stream.Accept()
 		if err != nil {
-			if n.IsShutdown() {
-				return
+			if loopDelay == 0 {
+				loopDelay = baseDelay
+			} else {
+				loopDelay *= 2
 			}
-			n.logger.Printf("[ERR] raft-net: Failed to accept connection: %v", err)
-			continue
+
+			if loopDelay > maxDelay {
+				loopDelay = maxDelay
+			}
+
+			if !n.IsShutdown() {
+				n.logger.Printf("[ERR] raft-net: Failed to accept connection: %v", err)
+			}
+
+			select {
+			case <-n.shutdownCh:
+				return
+			case <-time.After(loopDelay):
+				continue
+			}
 		}
+		// No error, reset loop delay
+		loopDelay = 0
+
 		n.logger.Printf("[DEBUG] raft-net: %v accepted connection from: %v", n.LocalAddr(), conn.RemoteAddr())
 
 		// Handle the connection in dedicated routine
