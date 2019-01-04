@@ -1,6 +1,9 @@
 package e2eutil
 
 import (
+	"testing"
+	"time"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper"
@@ -8,8 +11,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 // retries is used to control how many times to retry checking if the cluster has a leader yet
