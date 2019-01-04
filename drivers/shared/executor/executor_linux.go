@@ -506,7 +506,9 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 	}
 
-	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	// we bind-mount /dev to preserve pre-0.9 behavior; so avoid setting up individual devices
+	cfg.Devices = []*lconfigs.Device{}
+
 	if len(command.Devices) > 0 {
 		devs, err := cmdDevices(command.Devices)
 		if err != nil {
@@ -517,36 +519,15 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 
 	cfg.Mounts = []*lconfigs.Mount{
 		{
-			Source:      "tmpfs",
+			Source:      "/dev",
 			Destination: "/dev",
-			Device:      "tmpfs",
-			Flags:       syscall.MS_NOSUID | syscall.MS_STRICTATIME,
-			Data:        "mode=755",
+			Device:      "bind",
+			Flags:       syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_NOEXEC,
 		},
 		{
 			Source:      "proc",
 			Destination: "/proc",
 			Device:      "proc",
-			Flags:       defaultMountFlags,
-		},
-		{
-			Source:      "devpts",
-			Destination: "/dev/pts",
-			Device:      "devpts",
-			Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
-			Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
-		},
-		{
-			Device:      "tmpfs",
-			Source:      "shm",
-			Destination: "/dev/shm",
-			Data:        "mode=1777,size=65536k",
-			Flags:       defaultMountFlags,
-		},
-		{
-			Source:      "mqueue",
-			Destination: "/dev/mqueue",
-			Device:      "mqueue",
 			Flags:       defaultMountFlags,
 		},
 		{

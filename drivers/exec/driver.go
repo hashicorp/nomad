@@ -297,11 +297,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
+	user := cfg.User
+	if user == "" {
+		user = "nobody"
+	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:            driverConfig.Command,
 		Args:           driverConfig.Args,
 		Env:            cfg.EnvList(),
-		User:           cfg.User,
+		User:           user,
 		ResourceLimits: true,
 		Resources:      cfg.Resources,
 		TaskDir:        cfg.TaskDir().Dir,
