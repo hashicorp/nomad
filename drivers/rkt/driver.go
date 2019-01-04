@@ -375,7 +375,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
 	}
@@ -712,7 +712,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	//  - "host" means the container itself has no networking metadata
 	//  - "none" means no network is configured
 	// https://coreos.com/rkt/docs/latest/networking/overview.html#no-loopback-only-networking
-	var driverNetwork *cstructs.DriverNetwork
+	var driverNetwork *drivers.DriverNetwork
 	if network != "host" && network != "none" {
 		d.logger.Debug("retrieving network information for pod", "pod", img, "UUID", uuid, "task_name", cfg.Name)
 		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap, d.logger)
@@ -860,7 +860,7 @@ func GetAbsolutePath(bin string) (string, error) {
 	return filepath.EvalSymlinks(lp)
 }
 
-func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, logger hclog.Logger) (*cstructs.DriverNetwork, error) {
+func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, logger hclog.Logger) (*drivers.DriverNetwork, error) {
 	deadline := time.Now().Add(networkDeadline)
 	var lastErr error
 	try := 0
@@ -891,7 +891,7 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 				if try > 1 {
 					logger.Debug("retrieved network info for pod", "uuid", uuid, "attempt", try)
 				}
-				return &cstructs.DriverNetwork{
+				return &drivers.DriverNetwork{
 					PortMap: portmap,
 					IP:      status.Networks[0].IP.String(),
 				}, nil

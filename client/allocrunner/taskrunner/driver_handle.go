@@ -10,7 +10,7 @@ import (
 )
 
 // NewDriverHandle returns a handle for task operations on a specific task
-func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.Task, net *cstructs.DriverNetwork) *DriverHandle {
+func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.Task, net *drivers.DriverNetwork) *DriverHandle {
 	return &DriverHandle{
 		driver: driver,
 		net:    net,
@@ -23,7 +23,7 @@ func NewDriverHandle(driver drivers.DriverPlugin, taskID string, task *structs.T
 // an api to perform driver operations on the task
 type DriverHandle struct {
 	driver drivers.DriverPlugin
-	net    *cstructs.DriverNetwork
+	net    *drivers.DriverNetwork
 	task   *structs.Task
 	taskID string
 }
@@ -61,6 +61,6 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 	return res.Stdout, res.ExitResult.ExitCode, res.ExitResult.Err
 }
 
-func (h *DriverHandle) Network() *cstructs.DriverNetwork {
+func (h *DriverHandle) Network() *drivers.DriverNetwork {
 	return h.net
 }

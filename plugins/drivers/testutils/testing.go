@@ -194,7 +194,7 @@ type MockDriver struct {
 	FingerprintF      func(context.Context) (<-chan *drivers.Fingerprint, error)
 	CapabilitiesF     func() (*drivers.Capabilities, error)
 	RecoverTaskF      func(*drivers.TaskHandle) error
-	StartTaskF        func(*drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error)
+	StartTaskF        func(*drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error)
 	WaitTaskF         func(context.Context, string) (<-chan *drivers.ExitResult, error)
 	StopTaskF         func(string, time.Duration, string) error
 	DestroyTaskF      func(string, bool) error
@@ -211,7 +211,7 @@ func (d *MockDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerpri
 }
 func (d *MockDriver) Capabilities() (*drivers.Capabilities, error) { return d.CapabilitiesF() }
 func (d *MockDriver) RecoverTask(h *drivers.TaskHandle) error      { return d.RecoverTaskF(h) }
-func (d *MockDriver) StartTask(c *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *MockDriver) StartTask(c *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	return d.StartTaskF(c)
 }
 func (d *MockDriver) WaitTask(ctx context.Context, id string) (<-chan *drivers.ExitResult, error) {

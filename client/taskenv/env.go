@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	hargs "github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -304,7 +304,7 @@ type Builder struct {
 
 	// driverNetwork is the network defined by the driver (or nil if none
 	// was defined).
-	driverNetwork *cstructs.DriverNetwork
+	driverNetwork *drivers.DriverNetwork
 
 	// network resources from the task; must be lazily turned into env vars
 	// because portMaps and advertiseIP can change after builder creation
@@ -665,7 +665,7 @@ func (b *Builder) SetSecretsDir(dir string) *Builder {
 }
 
 // SetDriverNetwork defined by the driver.
-func (b *Builder) SetDriverNetwork(n *cstructs.DriverNetwork) *Builder {
+func (b *Builder) SetDriverNetwork(n *drivers.DriverNetwork) *Builder {
 	ncopy := n.Copy()
 	b.mu.Lock()
 	b.driverNetwork = ncopy
@@ -682,7 +682,7 @@ func (b *Builder) SetDriverNetwork(n *cstructs.DriverNetwork) *Builder {
 //
 //	Task:   NOMAD_TASK_{IP,PORT,ADDR}_<task>_<label> # Always host values
 //
-func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *cstructs.DriverNetwork) {
+func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *drivers.DriverNetwork) {
 	for _, n := range nets {
 		for _, p := range n.ReservedPorts {
 			buildPortEnv(envMap, p, n.IP, driverNet)
@@ -693,7 +693,7 @@ func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet 
 	}
 }
 
-func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *cstructs.DriverNetwork) {
+func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *drivers.DriverNetwork) {
 	// Host IP, port, and address
 	portStr := strconv.Itoa(p.Value)
 	envMap[IpPrefix+p.Label] = ip

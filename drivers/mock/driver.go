@@ -308,7 +308,7 @@ func (d *Driver) RecoverTask(h *drivers.TaskHandle) error {
 	return fmt.Errorf("%s cannot recover tasks", pluginName)
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	var driverConfig TaskConfig
 	if err := cfg.DecodeDriverConfig(&driverConfig); err != nil {
 		return nil, nil, err
@@ -342,7 +342,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	// Create the driver network
-	net := &cstructs.DriverNetwork{
+	net := &drivers.DriverNetwork{
 		IP:            driverConfig.DriverIP,
 		AutoAdvertise: driverConfig.DriverAdvertise,
 	}

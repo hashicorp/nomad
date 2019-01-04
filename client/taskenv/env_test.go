@@ -11,9 +11,9 @@ import (
 	"github.com/hashicorp/hcl2/gohcl"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcl/hclsyntax"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -166,7 +166,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"taskEnvKey": "taskEnvVal",
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
-		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
+		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
 
 	act := env.Build().List()
@@ -277,7 +277,7 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 		},
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
-		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
+		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
 
 	act := env.Build().List()
@@ -362,7 +362,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		".":                 "c",
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
-		&cstructs.DriverNetwork{PortMap: map[string]int{"https": 443}},
+		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
 
 	values, errs, err := env.Build().AllValues()
@@ -499,7 +499,7 @@ func TestEnvironment_Envvars(t *testing.T) {
 	a := mock.Alloc()
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = envMap
-	net := &cstructs.DriverNetwork{PortMap: portMap}
+	net := &drivers.DriverNetwork{PortMap: portMap}
 	act := NewBuilder(n, a, task, "global").SetDriverNetwork(net).Build().All()
 	for k, v := range envMap {
 		actV, ok := act[k]
