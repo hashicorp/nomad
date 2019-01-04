@@ -94,7 +94,7 @@ type Capabilities struct {
 	Exec bool
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
-	FSIsolation cstructs.FSIsolation
+	FSIsolation FSIsolation
 }
 
 type TaskConfig struct {

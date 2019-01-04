@@ -7,7 +7,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -48,11 +47,11 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 	}
 
 	switch caps.FSIsolation {
-	case cstructs.FSIsolationNone:
+	case FSIsolationNone:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
-	case cstructs.FSIsolationChroot:
+	case FSIsolationChroot:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_CHROOT
-	case cstructs.FSIsolationImage:
+	case FSIsolationImage:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_IMAGE
 	default:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE

@@ -5,16 +5,16 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
-func SetEnvvars(envBuilder *taskenv.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
 	// Set driver-specific environment variables
 	switch fsi {
-	case cstructs.FSIsolationNone:
+	case drivers.FSIsolationNone:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
 		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
@@ -27,7 +27,7 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsi cstructs.FSIsolation, taskDir *
 	}
 
 	// Set the host environment variables for non-image based drivers
-	if fsi != cstructs.FSIsolationImage {
+	if fsi != drivers.FSIsolationImage {
 		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
 		envBuilder.SetHostEnvvars(filter)
 	}

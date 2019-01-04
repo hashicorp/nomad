@@ -8,9 +8,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cconfig "github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type taskDirHook struct {
@@ -44,7 +44,7 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 
 	// Build the task directory structure
 	fsi := h.runner.driverCapabilities.FSIsolation
-	err := h.runner.taskDir.Build(fsi == cstructs.FSIsolationChroot, chroot)
+	err := h.runner.taskDir.Build(fsi == drivers.FSIsolationChroot, chroot)
 	if err != nil {
 		return err
 	}
@@ -56,10 +56,10 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 }
 
 // setEnvvars sets path and host env vars depending on the FS isolation used.
-func setEnvvars(envBuilder *taskenv.Builder, fsi cstructs.FSIsolation, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
+func setEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
 	// Set driver-specific environment variables
 	switch fsi {
-	case cstructs.FSIsolationNone:
+	case drivers.FSIsolationNone:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
 		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
@@ -72,7 +72,7 @@ func setEnvvars(envBuilder *taskenv.Builder, fsi cstructs.FSIsolation, taskDir *
 	}
 
 	// Set the host environment variables for non-image based drivers
-	if fsi != cstructs.FSIsolationImage {
+	if fsi != drivers.FSIsolationImage {
 		filter := strings.Split(conf.ReadDefault("env.blacklist", cconfig.DefaultEnvBlacklist), ",")
 		envBuilder.SetHostEnvvars(filter)
 	}
