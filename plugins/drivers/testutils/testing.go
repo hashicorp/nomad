@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -21,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
@@ -114,7 +114,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	}
 
 	taskBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, "global")
-	utils.SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
+	SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
 
 	taskEnv := taskBuilder.Build()
 	if t.Env == nil {
@@ -237,4 +237,27 @@ func (d *MockDriver) SignalTask(taskID string, signal string) error {
 }
 func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	return d.ExecTaskF(taskID, cmd, timeout)
+}
+
+// SetEnvvars sets path and host env vars depending on the FS isolation used.
+func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+	// Set driver-specific environment variables
+	switch fsi {
+	case drivers.FSIsolationNone:
+		// Use host paths
+		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
+		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
+		envBuilder.SetSecretsDir(taskDir.SecretsDir)
+	default:
+		// filesystem isolation; use container paths
+		envBuilder.SetAllocDir(allocdir.SharedAllocContainerPath)
+		envBuilder.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		envBuilder.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+	}
+
+	// Set the host environment variables for non-image based drivers
+	if fsi != drivers.FSIsolationImage {
+		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+		envBuilder.SetHostEnvvars(filter)
+	}
 }
