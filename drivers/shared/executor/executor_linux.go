@@ -519,10 +519,9 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 
 	cfg.Mounts = []*lconfigs.Mount{
 		{
-			Source:      "/dev",
+			Source:      "dev",
 			Destination: "/dev",
-			Device:      "bind",
-			Flags:       syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_NOEXEC,
+			Device:      "devtmpfs",
 		},
 		{
 			Source:      "proc",
