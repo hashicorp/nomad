@@ -81,7 +81,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        false,
-		FSIsolation: cstructs.FSIsolationNone,
+		FSIsolation: drivers.FSIsolationNone,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -89,7 +89,7 @@ var (
 
 func init() {
 	if runtime.GOOS == "linux" {
-		capabilities.FSIsolation = cstructs.FSIsolationChroot
+		capabilities.FSIsolation = drivers.FSIsolationChroot
 	}
 }
 

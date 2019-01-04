@@ -93,7 +93,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: cstructs.FSIsolationNone,
+		FSIsolation: drivers.FSIsolationNone,
 	}
 )
 

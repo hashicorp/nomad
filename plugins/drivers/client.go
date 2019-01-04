@@ -56,13 +56,13 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 
 		switch resp.Capabilities.FsIsolation {
 		case proto.DriverCapabilities_NONE:
-			caps.FSIsolation = cstructs.FSIsolationNone
+			caps.FSIsolation = FSIsolationNone
 		case proto.DriverCapabilities_CHROOT:
-			caps.FSIsolation = cstructs.FSIsolationChroot
+			caps.FSIsolation = FSIsolationChroot
 		case proto.DriverCapabilities_IMAGE:
-			caps.FSIsolation = cstructs.FSIsolationImage
+			caps.FSIsolation = FSIsolationImage
 		default:
-			caps.FSIsolation = cstructs.FSIsolationNone
+			caps.FSIsolation = FSIsolationNone
 		}
 	}
 

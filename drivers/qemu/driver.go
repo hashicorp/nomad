@@ -98,7 +98,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        false,
-		FSIsolation: cstructs.FSIsolationImage,
+		FSIsolation: drivers.FSIsolationImage,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)

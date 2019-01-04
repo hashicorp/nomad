@@ -124,7 +124,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: cstructs.FSIsolationImage,
+		FSIsolation: drivers.FSIsolationImage,
 	}
 
 	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
