@@ -10,7 +10,7 @@ variable "region" {
 
 variable "indexed" {
   description = "Different configurations per client/server"
-  default = true
+  default     = true
 }
 
 variable "instance_type" {
@@ -72,3 +72,21 @@ output "clients" {
   value = "${aws_instance.client.*.public_ip}"
 }
 
+output "message" {
+  value = <<EOM
+Your cluster has been provisioned! - To prepare your environment, run the
+following:
+
+```
+export NOMAD_ADDR=http://${aws_instance.client.0.public_ip}:4646
+export CONSUL_HTTP_ADDR=http://${aws_instance.client.0.public_ip}:8500
+export NOMAD_E2E=1
+```
+
+Then you can run e2e tests with:
+
+```
+go test -v ./e2e
+```
+EOM
+}
