@@ -80,12 +80,20 @@ type Fingerprint struct {
 	Err error
 }
 
+// FSIsolation is an enumeration to describe what kind of filesystem isolation
+// a driver supports.
 type FSIsolation string
 
 var (
-	FSIsolationNone   = FSIsolation("none")
+	// FSIsolationNone means no isolation. The host filesystem is used.
+	FSIsolationNone = FSIsolation("none")
+
+	// FSIsolationChroot means the driver will use a chroot on the host
+	// filesystem.
 	FSIsolationChroot = FSIsolation("chroot")
-	FSIsolationImage  = FSIsolation("image")
+
+	// FSIsolationImage means the driver uses an image.
+	FSIsolationImage = FSIsolation("image")
 )
 
 type Capabilities struct {
