@@ -309,6 +309,9 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	// Initialize base labels
 	tr.initLabels()
 
+	// Initialize initial task received event
+	tr.appendEvent(structs.NewTaskEvent(structs.TaskReceived))
+
 	return tr, nil
 }
 
