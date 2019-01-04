@@ -8,6 +8,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/fifo"
+	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -16,6 +17,7 @@ type taskHandle struct {
 	logger hclog.Logger
 
 	runFor          time.Duration
+	pluginExitAfter time.Duration
 	killAfter       time.Duration
 	waitCh          chan struct{}
 	exitCode        int
@@ -86,11 +88,25 @@ func (h *taskHandle) run() {
 	timer := time.NewTimer(h.runFor)
 	defer timer.Stop()
 
+	var pluginExitTimer <-chan time.Time
+	if h.pluginExitAfter != 0 {
+		timer := time.NewTimer(h.pluginExitAfter)
+		defer timer.Stop()
+		pluginExitTimer = timer.C
+	}
+
 	select {
 	case <-timer.C:
 		h.logger.Debug("run_for time elapsed; exiting", "run_for", h.runFor)
 	case <-h.killCh:
 		h.logger.Debug("killed; exiting")
+	case <-pluginExitTimer:
+		h.logger.Debug("exiting plugin")
+		h.exitResult = &drivers.ExitResult{
+			Err: bstructs.ErrPluginShutdown,
+		}
+
+		return
 	case err := <-errCh:
 		h.logger.Error("error running mock task; exiting", "error", err)
 		h.exitResult = &drivers.ExitResult{

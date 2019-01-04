@@ -421,10 +421,10 @@ MAIN:
 				tr.logger.Error("wait task failed", "error", err)
 			} else {
 				select {
-				case result = <-resultCh:
 				case <-tr.ctx.Done():
 					// TaskRunner was told to exit immediately
 					return
+				case result = <-resultCh:
 				}
 
 				// WaitCh returned a result

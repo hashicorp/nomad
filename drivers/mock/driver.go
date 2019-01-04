@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,6 +68,7 @@ var (
 		"start_error_recoverable": hclspec.NewAttr("start_error_recoverable", "bool", false),
 		"start_block_for":         hclspec.NewAttr("start_block_for", "string", false),
 		"kill_after":              hclspec.NewAttr("kill_after", "string", false),
+		"plugin_exit_after":       hclspec.NewAttr("plugin_exit_after", "string", false),
 		"run_for":                 hclspec.NewAttr("run_for", "string", false),
 		"exit_code":               hclspec.NewAttr("exit_code", "number", false),
 		"exit_signal":             hclspec.NewAttr("exit_signal", "number", false),
@@ -153,6 +155,10 @@ type Config struct {
 
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
+	// PluginExitAfter is the duration after which the mock driver indicates the
+	// plugin has exited via the WaitTask call.
+	PluginExitAfter         string `codec:"plugin_exit_after"`
+	pluginExitAfterDuration time.Duration
 
 	// StartErr specifies the error that should be returned when starting the
 	// mock driver.
@@ -213,8 +219,7 @@ type TaskConfig struct {
 }
 
 type MockTaskState struct {
-	TaskConfig *drivers.TaskConfig
-	StartedAt  time.Time
+	StartedAt time.Time
 }
 
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
@@ -289,42 +294,95 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	}
 }
 
-func (d *Driver) RecoverTask(h *drivers.TaskHandle) error {
-	if h == nil {
+func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
+	if handle == nil {
 		return fmt.Errorf("handle cannot be nil")
 	}
 
-	if _, ok := d.tasks.Get(h.Config.ID); ok {
-		d.logger.Debug("nothing to recover; task already exists",
-			"task_id", h.Config.ID,
-			"task_name", h.Config.Name,
-		)
-		return nil
+	// Unmarshall the driver state and create a new handle
+	var taskState MockTaskState
+	if err := handle.GetDriverState(&taskState); err != nil {
+		d.logger.Error("failed to decode task state from handle", "error", err, "task_id", handle.Config.ID)
+		return fmt.Errorf("failed to decode task state from handle: %v", err)
 	}
 
-	// Recovering a task requires the task to be running external to the
-	// plugin. Since the mock_driver runs all tasks in process it cannot
-	// recover tasks.
-	return fmt.Errorf("%s cannot recover tasks", pluginName)
+	driverCfg, err := parseDriverConfig(handle.Config)
+	if err != nil {
+		d.logger.Error("failed to parse driver config from handle", "error", err, "task_id", handle.Config.ID, "config", hclog.Fmt("%+v", handle.Config))
+		return fmt.Errorf("failed to parse driver config from handle: %v", err)
+	}
+
+	// Remove the plugin exit time if set
+	driverCfg.pluginExitAfterDuration = 0
+
+	// Correct the run_for time based on how long it has already been running
+	now := time.Now()
+	d.logger.Info("runFor - now - started at", "run_for", driverCfg.runForDuration, "now", now, "started_at", taskState.StartedAt, "diff", now.Sub(taskState.StartedAt))
+	driverCfg.runForDuration = driverCfg.runForDuration - now.Sub(taskState.StartedAt)
+
+	h := newTaskHandle(handle.Config, driverCfg, d.logger)
+	d.tasks.Set(handle.Config.ID, h)
+	go h.run()
+	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func parseDriverConfig(cfg *drivers.TaskConfig) (*TaskConfig, error) {
 	var driverConfig TaskConfig
 	if err := cfg.DecodeDriverConfig(&driverConfig); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var err error
 	if driverConfig.startBlockForDuration, err = parseDuration(driverConfig.StartBlockFor); err != nil {
-		return nil, nil, fmt.Errorf("start_block_for %v not a valid duration: %v", driverConfig.StartBlockFor, err)
+		return nil, fmt.Errorf("start_block_for %v not a valid duration: %v", driverConfig.StartBlockFor, err)
 	}
 
 	if driverConfig.runForDuration, err = parseDuration(driverConfig.RunFor); err != nil {
-		return nil, nil, fmt.Errorf("run_for %v not a valid duration: %v", driverConfig.RunFor, err)
+		return nil, fmt.Errorf("run_for %v not a valid duration: %v", driverConfig.RunFor, err)
+	}
+
+	if driverConfig.pluginExitAfterDuration, err = parseDuration(driverConfig.PluginExitAfter); err != nil {
+		return nil, fmt.Errorf("plugin_exit_after %v not a valid duration: %v", driverConfig.PluginExitAfter, err)
 	}
 
 	if driverConfig.stdoutRepeatDuration, err = parseDuration(driverConfig.StdoutRepeatDur); err != nil {
-		return nil, nil, fmt.Errorf("stdout_repeat_duration %v not a valid duration: %v", driverConfig.stdoutRepeatDuration, err)
+		return nil, fmt.Errorf("stdout_repeat_duration %v not a valid duration: %v", driverConfig.stdoutRepeatDuration, err)
+	}
+
+	return &driverConfig, nil
+}
+
+func newTaskHandle(cfg *drivers.TaskConfig, driverConfig *TaskConfig, logger hclog.Logger) *taskHandle {
+	killCtx, killCancel := context.WithCancel(context.Background())
+	h := &taskHandle{
+		taskConfig:      cfg,
+		runFor:          driverConfig.runForDuration,
+		pluginExitAfter: driverConfig.pluginExitAfterDuration,
+		killAfter:       driverConfig.killAfterDuration,
+		exitCode:        driverConfig.ExitCode,
+		exitSignal:      driverConfig.ExitSignal,
+		stdoutString:    driverConfig.StdoutString,
+		stdoutRepeat:    driverConfig.StdoutRepeat,
+		stdoutRepeatDur: driverConfig.stdoutRepeatDuration,
+		logger:          logger.With("task_name", cfg.Name),
+		waitCh:          make(chan struct{}),
+		killCh:          killCtx.Done(),
+		kill:            killCancel,
+		startedAt:       time.Now(),
+	}
+	if driverConfig.ExitErrMsg != "" {
+		h.exitErr = errors.New(driverConfig.ExitErrMsg)
+	}
+	if driverConfig.SignalErr != "" {
+		h.signalErr = fmt.Errorf(driverConfig.SignalErr)
+	}
+	return h
+}
+
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+	driverConfig, err := parseDriverConfig(cfg)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if driverConfig.startBlockForDuration != 0 {
@@ -334,7 +392,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	// Store last configs
 	d.lastMu.Lock()
 	d.lastDriverTaskConfig = cfg
-	d.lastTaskConfig = &driverConfig
+	d.lastTaskConfig = driverConfig
 	d.lastMu.Unlock()
 
 	if driverConfig.StartErr != "" {
@@ -358,32 +416,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		net.PortMap = map[string]int{parts[0]: port}
 	}
 
-	killCtx, killCancel := context.WithCancel(context.Background())
-
-	h := &taskHandle{
-		taskConfig:      cfg,
-		runFor:          driverConfig.runForDuration,
-		killAfter:       driverConfig.killAfterDuration,
-		exitCode:        driverConfig.ExitCode,
-		exitSignal:      driverConfig.ExitSignal,
-		stdoutString:    driverConfig.StdoutString,
-		stdoutRepeat:    driverConfig.StdoutRepeat,
-		stdoutRepeatDur: driverConfig.stdoutRepeatDuration,
-		logger:          d.logger.With("task_name", cfg.Name),
-		waitCh:          make(chan struct{}),
-		killCh:          killCtx.Done(),
-		kill:            killCancel,
-	}
-	if driverConfig.ExitErrMsg != "" {
-		h.exitErr = errors.New(driverConfig.ExitErrMsg)
-	}
-	if driverConfig.SignalErr != "" {
-		h.signalErr = fmt.Errorf(driverConfig.SignalErr)
-	}
-
+	h := newTaskHandle(cfg, driverConfig, d.logger)
 	driverState := MockTaskState{
-		TaskConfig: cfg,
-		StartedAt:  h.startedAt,
+		StartedAt: h.startedAt,
 	}
 	handle := drivers.NewTaskHandle(pluginName)
 	handle.Config = cfg
@@ -461,8 +496,17 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 }
 
 func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
-	//TODO return an error?
-	return nil, nil
+	// Generate random value for the memory usage
+	s := &cstructs.TaskResourceUsage{
+		ResourceUsage: &cstructs.ResourceUsage{
+			MemoryStats: &cstructs.MemoryStats{
+				RSS:      rand.Uint64(),
+				Measured: []string{"RSS"},
+			},
+		},
+		Timestamp: time.Now().UTC().UnixNano(),
+	}
+	return s, nil
 }
 
 func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
