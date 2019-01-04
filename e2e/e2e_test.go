@@ -7,6 +7,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/consultemplate"
 	_ "github.com/hashicorp/nomad/e2e/example"
 	_ "github.com/hashicorp/nomad/e2e/spread"
+	_ "github.com/hashicorp/nomad/e2e/taskevents"
 )
 
 func TestE2E(t *testing.T) {
