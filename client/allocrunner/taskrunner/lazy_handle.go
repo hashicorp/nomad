@@ -43,7 +43,7 @@ type LazyHandle struct {
 	sync.Mutex
 }
 
-// NewLazyHandle takes the function to recieve the latest handle and a logger
+// NewLazyHandle takes the function to receive the latest handle and a logger
 // and returns a LazyHandle
 func NewLazyHandle(fn retrieveHandleFn, logger log.Logger) *LazyHandle {
 	return &LazyHandle{
@@ -83,9 +83,9 @@ func (l *LazyHandle) refreshHandleLocked() (*DriverHandle, error) {
 		}
 
 		// Calculate the new backoff
-		backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
-		if backoff > killBackoffLimit {
-			backoff = killBackoffLimit
+		backoff := (1 << (2 * uint64(i))) * retrieveBackoffBaseline
+		if backoff > retrieveBackoffLimit {
+			backoff = retrieveBackoffLimit
 		}
 
 		l.logger.Debug("failed to retrieve handle", "backoff", backoff)
