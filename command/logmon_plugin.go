@@ -25,10 +25,15 @@ func (e *LogMonPluginCommand) Synopsis() string {
 }
 
 func (e *LogMonPluginCommand) Run(args []string) int {
+	logger := hclog.New(&hclog.LoggerOptions{
+		Level:      hclog.Trace,
+		JSONFormat: true,
+		Name:       "logmon",
+	})
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
-			"logmon": logmon.NewPlugin(logmon.NewLogMon(hclog.Default().Named("logmon"))),
+			"logmon": logmon.NewPlugin(logmon.NewLogMon(logger)),
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
 	})

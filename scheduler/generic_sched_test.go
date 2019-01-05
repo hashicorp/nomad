@@ -86,14 +86,19 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	}
 
 	// Ensure different ports were used.
-	used := make(map[int]struct{})
+	used := make(map[int]map[string]struct{})
 	for _, alloc := range out {
 		for _, resource := range alloc.TaskResources {
 			for _, port := range resource.Networks[0].DynamicPorts {
-				if _, ok := used[port.Value]; ok {
-					t.Fatalf("Port collision %v", port.Value)
+				nodeMap, ok := used[port.Value]
+				if !ok {
+					nodeMap = make(map[string]struct{})
+					used[port.Value] = nodeMap
 				}
-				used[port.Value] = struct{}{}
+				if _, ok := nodeMap[alloc.NodeID]; ok {
+					t.Fatalf("Port collision on node %q %v", alloc.NodeID, port.Value)
+				}
+				nodeMap[alloc.NodeID] = struct{}{}
 			}
 		}
 	}

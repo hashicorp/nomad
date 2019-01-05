@@ -15,7 +15,7 @@ import (
 // LaunchLogMon an instance of logmon
 // TODO: Integrate with base plugin loader
 func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
-	logger = logger.Named("logmon-launcher")
+	logger = logger.Named("logmon")
 	bin, err := discover.NomadExecutable()
 	if err != nil {
 		return nil, nil, err
@@ -24,12 +24,13 @@ func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
-			"logmon": NewPlugin(NewLogMon(hclog.L().Named("logmon"))),
+			"logmon": &Plugin{},
 		},
 		Cmd: exec.Command(bin, "logmon"),
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
+		Logger: logger,
 	})
 
 	rpcClient, err := client.Client()

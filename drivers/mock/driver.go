@@ -317,10 +317,10 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 
 	// Correct the run_for time based on how long it has already been running
 	now := time.Now()
-	d.logger.Info("runFor - now - started at", "run_for", driverCfg.runForDuration, "now", now, "started_at", taskState.StartedAt, "diff", now.Sub(taskState.StartedAt))
 	driverCfg.runForDuration = driverCfg.runForDuration - now.Sub(taskState.StartedAt)
 
 	h := newTaskHandle(handle.Config, driverCfg, d.logger)
+	h.Recovered = true
 	d.tasks.Set(handle.Config.ID, h)
 	go h.run()
 	return nil
@@ -542,4 +542,11 @@ func (d *Driver) GetTaskConfig() (*drivers.TaskConfig, *TaskConfig) {
 	d.lastMu.Lock()
 	defer d.lastMu.Unlock()
 	return d.lastDriverTaskConfig, d.lastTaskConfig
+}
+
+// GetHandle is unique to the mock driver and for testing purposes only. It
+// returns the handle of the given task ID
+func (d *Driver) GetHandle(taskID string) *taskHandle {
+	h, _ := d.tasks.Get(taskID)
+	return h
 }

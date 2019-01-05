@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -84,12 +85,22 @@ type TaskLogger struct {
 }
 
 func (tl *TaskLogger) Close() {
+	var wg sync.WaitGroup
 	if tl.lro != nil {
-		tl.lro.Close()
+		wg.Add(1)
+		go func() {
+			tl.lro.Close()
+			wg.Done()
+		}()
 	}
 	if tl.lre != nil {
-		tl.lre.Close()
+		wg.Add(1)
+		go func() {
+			tl.lre.Close()
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 }
 
 func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {

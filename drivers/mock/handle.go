@@ -41,6 +41,9 @@ type taskHandle struct {
 	// Calling kill closes killCh if it is not already closed
 	kill   context.CancelFunc
 	killCh <-chan struct{}
+
+	// Recovered is set to true if the handle was created while being recovered
+	Recovered bool
 }
 
 func (h *taskHandle) TaskStatus() *drivers.TaskStatus {
@@ -81,9 +84,7 @@ func (h *taskHandle) run() {
 	errCh := make(chan error, 1)
 
 	// Setup logging output
-	if h.stdoutString != "" {
-		go h.handleLogging(errCh)
-	}
+	go h.handleLogging(errCh)
 
 	timer := time.NewTimer(h.runFor)
 	defer timer.Stop()
@@ -130,6 +131,18 @@ func (h *taskHandle) handleLogging(errCh chan<- error) {
 		errCh <- err
 		return
 	}
+	stderr, err := fifo.Open(h.taskConfig.StderrPath)
+	if err != nil {
+		h.logger.Error("failed to write to stderr", "error", err)
+		errCh <- err
+		return
+	}
+	defer stderr.Close()
+
+	if h.stdoutString == "" {
+		return
+	}
+
 	if _, err := io.WriteString(stdout, h.stdoutString); err != nil {
 		h.logger.Error("failed to write to stdout", "error", err)
 		errCh <- err

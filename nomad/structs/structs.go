@@ -28,7 +28,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
@@ -1658,13 +1658,13 @@ func (n *Node) Stub() *NodeListStub {
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
 	return &NodeListStub{
-		Address:               addr,
-		ID:                    n.ID,
-		Datacenter:            n.Datacenter,
-		Name:                  n.Name,
-		NodeClass:             n.NodeClass,
-		Version:               n.Attributes["nomad.version"],
-		Drain:                 n.Drain,
+		Address:    addr,
+		ID:         n.ID,
+		Datacenter: n.Datacenter,
+		Name:       n.Name,
+		NodeClass:  n.NodeClass,
+		Version:    n.Attributes["nomad.version"],
+		Drain:      n.Drain,
 		SchedulingEligibility: n.SchedulingEligibility,
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
@@ -5743,17 +5743,7 @@ func (ts *TaskState) Copy() *TaskState {
 // have meaning on a non-batch allocation because a service and system
 // allocation should not finish.
 func (ts *TaskState) Successful() bool {
-	l := len(ts.Events)
-	if ts.State != TaskStateDead || l == 0 {
-		return false
-	}
-
-	e := ts.Events[l-1]
-	if e.Type != TaskTerminated {
-		return false
-	}
-
-	return e.ExitCode == 0
+	return ts.State == TaskStateDead && !ts.Failed
 }
 
 const (
