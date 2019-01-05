@@ -859,10 +859,17 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		config.Cmd = driverConfig.Args
 	}
 
-	if len(driverConfig.Labels) > 0 {
-		config.Labels = driverConfig.Labels
-		logger.Debug("applied labels on the container", "labels", config.Labels)
+	config.Labels = map[string]string{
+		"com.hashicorp.nomad.task_id":   task.ID,
+		"com.hashicorp.nomad.task_name": task.Name,
+		"com.hashicorp.nomad.alloc_id":  task.AllocID,
+		"com.hashicorp.nomad.job_name":  task.JobName,
 	}
+
+	for k, v := range driverConfig.Labels {
+		config.Labels[k] = v
+	}
+	logger.Debug("applied labels on the container", "labels", config.Labels)
 
 	config.Env = task.EnvList()
 
