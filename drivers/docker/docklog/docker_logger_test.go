@@ -14,9 +14,7 @@ import (
 )
 
 func TestDockerLogger(t *testing.T) {
-	if !ctu.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	ctu.DockerCompatible(t)
 
 	t.Parallel()
 	require := require.New(t)

@@ -195,9 +195,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 
 func newTestDockerClient(t *testing.T) *docker.Client {
 	t.Helper()
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
@@ -253,9 +251,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("requires Docker")
-	}
+	testutil.DockerCompatible(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("expect only on linux")
 	}
@@ -305,9 +301,7 @@ func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("requires Docker")
-	}
+	testutil.DockerCompatible(t)
 	if runtime.GOOS != "linux" {
 		t.Skip("expect only on linux")
 	}
@@ -343,9 +337,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
@@ -385,9 +377,7 @@ func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
@@ -434,9 +424,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
@@ -488,9 +476,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
@@ -547,9 +533,7 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
 		Image:   "127.0.0.1:32121/foo", // bad path
@@ -650,9 +634,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
@@ -700,9 +682,7 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	timeout := 2 * time.Second
 	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
@@ -755,9 +735,7 @@ func TestDockerDriver_StartN(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	require := require.New(t)
 
 	task1, _, _ := dockerTask(t)
@@ -801,9 +779,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	require := require.New(t)
 
 	task1, cfg1, _ := dockerTask(t)
@@ -862,9 +838,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	expected := "host"
 
 	taskCfg := TaskConfig{
@@ -912,9 +886,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	require := require.New(t)
 
 	// Because go-dockerclient doesn't provide api for query network aliases, just check that
@@ -965,9 +937,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	expectedUlimits := map[string]string{
@@ -1014,9 +984,7 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	brokenConfigs := []map[string]string{
 		{
@@ -1059,9 +1027,7 @@ func TestDockerDriver_Labels(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.Labels = map[string]string{
@@ -1089,9 +1055,7 @@ func TestDockerDriver_ForcePull(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.ForcePull = true
@@ -1112,9 +1076,7 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.LoadImage = ""
@@ -1138,9 +1100,7 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.SecurityOpt = []string{"seccomp=unconfined"}
@@ -1180,9 +1140,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("Capabilities not supported on windows")
 	}
@@ -1292,9 +1250,7 @@ func TestDockerDriver_DNS(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.DNSServers = []string{"8.8.8.8", "8.8.4.4"}
@@ -1319,9 +1275,7 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.MacAddress = "00:16:3e:00:00:00"
@@ -1341,9 +1295,7 @@ func TestDockerWorkDir(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.WorkDir = "/some/path"
@@ -1372,9 +1324,7 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, _, port := dockerTask(t)
 	res := port[0]
@@ -1412,9 +1362,7 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, port := dockerTask(t)
 	res := port[0]
@@ -1456,9 +1404,7 @@ func TestDockerDriver_User(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	task, cfg, _ := dockerTask(t)
 	task.User = "alice"
 	cfg.Command = "/bin/sleep"
@@ -1485,9 +1431,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.Command = "/bin/echo"
@@ -1522,9 +1466,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.Command = "/bin/sleep"
@@ -1561,9 +1503,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 }
 
 func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath string) (*drivers.TaskConfig, *dtestutil.DriverHarness, *TaskConfig, string, func()) {
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	randfn := fmt.Sprintf("test-%d", rand.Int())
 	hostfile := filepath.Join(hostpath, randfn)
@@ -1597,9 +1537,7 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	cfg := map[string]interface{}{
 		"volumes": map[string]interface{}{
@@ -1805,9 +1743,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	require.NoError(t, err)
@@ -1843,9 +1779,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	goodMount := DockerMount{
 		Target: "/nomad",
@@ -2158,9 +2092,7 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 
 // TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
 func TestDockerDriver_Cleanup(t *testing.T) {
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	// using a small image and an specific point release to avoid accidental conflicts with other tasks
 	imageName := "busybox:1.27.1"
@@ -2205,9 +2137,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	path := "./test-resources/docker/auth.json"
 	cases := []struct {
@@ -2258,9 +2188,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
 		Image:     busyboxImageID,
@@ -2311,9 +2239,7 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	brokenConfigs := []DockerDevice{
 		{
@@ -2352,9 +2278,7 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	if runtime.GOOS != "linux" {
 		t.Skip("test device mounts only on linux")
@@ -2393,9 +2317,7 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	entrypoint := []string{"/bin/sh", "-c"}
 	task, cfg, _ := dockerTask(t)
@@ -2421,9 +2343,7 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.ReadonlyRootfs = true
@@ -2476,9 +2396,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	expectedPrefix := "2001:db8:1::242:ac11"
 	expectedAdvertise := true
@@ -2567,9 +2485,7 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 
 	task, cfg, _ := dockerTask(t)
 	cfg.CPUHardLimit = true

@@ -48,9 +48,7 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
+	testutil.DockerCompatible(t)
 	require := require.New(t)
 
 	task, cfg, _ := dockerTask(t)
