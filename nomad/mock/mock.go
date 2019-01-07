@@ -2,6 +2,7 @@ package mock
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -166,7 +167,7 @@ func Job() *structs.Job {
 		Constraints: []*structs.Constraint{
 			{
 				LTarget: "${attr.kernel.name}",
-				RTarget: "linux",
+				RTarget: runtime.GOOS,
 				Operand: "=",
 			},
 		},
