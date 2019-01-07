@@ -965,6 +965,10 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	task, cfg, _ := dockerTask(t)
 	expectedUlimits := map[string]string{
 		"nproc":  "4242",
@@ -1010,6 +1014,10 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 }
 
 func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
 	brokenConfigs := []map[string]string{
 		{
 			"nofile": "",
