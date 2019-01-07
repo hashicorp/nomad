@@ -3,6 +3,7 @@ package framework
 import (
 	"fmt"
 
+	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 )
 
@@ -63,6 +64,11 @@ type TC struct {
 // Nomad returns a configured nomad api client
 func (tc *TC) Nomad() *api.Client {
 	return tc.cluster.NomadClient
+}
+
+// Consul returns a configured consul api client
+func (tc *TC) Consul() *capi.Client {
+	return tc.cluster.ConsulClient
 }
 
 // Name returns the name of the test case which is set to the name of the
