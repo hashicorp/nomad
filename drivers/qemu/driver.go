@@ -207,7 +207,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "ready",
+		HealthDescription: drivers.DriverHealthy,
 	}
 
 	bin := "qemu-system-x86_64"
@@ -229,7 +229,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	matches := versionRegex.FindStringSubmatch(out)
 	if len(matches) != 2 {
 		fingerprint.Health = drivers.HealthStateUndetected
-		fingerprint.HealthDescription = fmt.Sprintf("failed to parse qemu version from %v", out)
+		fingerprint.HealthDescription = fmt.Sprintf("Failed to parse qemu version from %v", out)
 		return fingerprint
 	}
 	currentQemuVersion := matches[1]

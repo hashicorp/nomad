@@ -121,7 +121,7 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 			Expected: drivers.Fingerprint{
 				Attributes:        map[string]*pstructs.Attribute{"driver.raw_exec": pstructs.NewBoolAttribute(true)},
 				Health:            drivers.HealthStateHealthy,
-				HealthDescription: "ready",
+				HealthDescription: drivers.DriverHealthy,
 			},
 		},
 	}
