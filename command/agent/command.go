@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -186,11 +187,18 @@ func (c *Command) readConfig() *Config {
 	// Parse the meta flags.
 	metaLength := len(meta)
 	if metaLength != 0 {
+		validKeyRe, _ := regexp.Compile(`^[^.]+(\.[^.]+)*$`)
+
 		cmdConfig.Client.Meta = make(map[string]string, metaLength)
 		for _, kv := range meta {
 			parts := strings.SplitN(kv, "=", 2)
 			if len(parts) != 2 {
 				c.Ui.Error(fmt.Sprintf("Error parsing Client.Meta value: %v", kv))
+				return nil
+			}
+
+			if !validKeyRe.MatchString(parts[0]) {
+				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", parts[0]))
 				return nil
 			}
 

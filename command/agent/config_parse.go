@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -435,6 +436,13 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 			}
 			if err := mapstructure.WeakDecode(m, &config.Meta); err != nil {
 				return err
+			}
+		}
+
+		validKeyRe, _ := regexp.Compile(`^[^.]+(\.[^.]+)*$`)
+		for k, _ := range config.Meta {
+			if !validKeyRe.MatchString(k) {
+				return fmt.Errorf("invalid Client.Meta key: %v", k)
 			}
 		}
 	}

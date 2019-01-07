@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -415,6 +416,30 @@ func TestConfig_ParseConfigFile(t *testing.T) {
 	}
 	if config.Region != "west" {
 		t.Fatalf("bad region: %q", config.Region)
+	}
+}
+
+func TestConfig_ParseInvalidClientMeta(t *testing.T) {
+	tcases := []string{
+		"foo..invalid",
+		".invalid",
+		"invalid.",
+	}
+
+	for _, tc := range tcases {
+		reader := strings.NewReader(fmt.Sprintf(`client{
+			enabled = true
+			meta = {
+				"valid" = "yes"
+				"` + tc + `" = "kaboom!"
+				"nested.var" = "is nested"
+				"deeply.nested.var" = "is deeply nested"
+			}
+    	}`))
+
+		if _, err := ParseConfig(reader); err == nil {
+			t.Fatalf("expected load error, got nothing")
+		}
 	}
 }
 
