@@ -8,6 +8,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/fifo"
+	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -16,6 +17,7 @@ type taskHandle struct {
 	logger hclog.Logger
 
 	runFor          time.Duration
+	pluginExitAfter time.Duration
 	killAfter       time.Duration
 	waitCh          chan struct{}
 	exitCode        int
@@ -39,6 +41,9 @@ type taskHandle struct {
 	// Calling kill closes killCh if it is not already closed
 	kill   context.CancelFunc
 	killCh <-chan struct{}
+
+	// Recovered is set to true if the handle was created while being recovered
+	Recovered bool
 }
 
 func (h *taskHandle) TaskStatus() *drivers.TaskStatus {
@@ -79,18 +84,30 @@ func (h *taskHandle) run() {
 	errCh := make(chan error, 1)
 
 	// Setup logging output
-	if h.stdoutString != "" {
-		go h.handleLogging(errCh)
-	}
+	go h.handleLogging(errCh)
 
 	timer := time.NewTimer(h.runFor)
 	defer timer.Stop()
+
+	var pluginExitTimer <-chan time.Time
+	if h.pluginExitAfter != 0 {
+		timer := time.NewTimer(h.pluginExitAfter)
+		defer timer.Stop()
+		pluginExitTimer = timer.C
+	}
 
 	select {
 	case <-timer.C:
 		h.logger.Debug("run_for time elapsed; exiting", "run_for", h.runFor)
 	case <-h.killCh:
 		h.logger.Debug("killed; exiting")
+	case <-pluginExitTimer:
+		h.logger.Debug("exiting plugin")
+		h.exitResult = &drivers.ExitResult{
+			Err: bstructs.ErrPluginShutdown,
+		}
+
+		return
 	case err := <-errCh:
 		h.logger.Error("error running mock task; exiting", "error", err)
 		h.exitResult = &drivers.ExitResult{
@@ -114,6 +131,18 @@ func (h *taskHandle) handleLogging(errCh chan<- error) {
 		errCh <- err
 		return
 	}
+	stderr, err := fifo.Open(h.taskConfig.StderrPath)
+	if err != nil {
+		h.logger.Error("failed to write to stderr", "error", err)
+		errCh <- err
+		return
+	}
+	defer stderr.Close()
+
+	if h.stdoutString == "" {
+		return
+	}
+
 	if _, err := io.WriteString(stdout, h.stdoutString); err != nil {
 		h.logger.Error("failed to write to stdout", "error", err)
 		errCh <- err

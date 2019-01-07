@@ -18,8 +18,8 @@ import (
 	"github.com/hashicorp/hcl2/hcldec"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty/msgpack"
@@ -198,10 +198,10 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 	c.logger.Trace("raw hcl config", "config", hclog.Fmt("% #v", pretty.Formatter(configVal)))
 
 	ctx := &hcl2.EvalContext{
-		Functions: shared.GetStdlibFuncs(),
+		Functions: hclutils.GetStdlibFuncs(),
 	}
 
-	val, diag := shared.ParseHclInterface(configVal, spec, ctx)
+	val, diag := hclutils.ParseHclInterface(configVal, spec, ctx)
 	if diag.HasErrors() {
 		errStr := "failed to parse config"
 		for _, err := range diag.Errs() {

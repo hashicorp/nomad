@@ -622,9 +622,6 @@ func (c *Client) Shutdown() error {
 	}
 	c.logger.Info("shutting down")
 
-	// Shutdown the plugin managers
-	c.pluginManagers.Shutdown()
-
 	// Stop renewing tokens and secrets
 	if c.vaultClient != nil {
 		c.vaultClient.Stop()
@@ -648,6 +645,9 @@ func (c *Client) Shutdown() error {
 		}
 	}
 	arGroup.Wait()
+
+	// Shutdown the plugin managers
+	c.pluginManagers.Shutdown()
 
 	c.shutdown = true
 	close(c.shutdownCh)

@@ -16,14 +16,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	appcschema "github.com/appc/spec/schema"
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/go-version"
+	hclog "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -193,6 +194,10 @@ type Driver struct {
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
+
+	// hasFingerprinted is used to store whether we have fingerprinted before
+	hasFingerprinted bool
+	fingerprintLock  sync.Mutex
 }
 
 func NewRktDriver(logger hclog.Logger) drivers.DriverPlugin {
@@ -261,7 +266,25 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	}
 }
 
+// setFingerprinted marks the driver as having fingerprinted once before
+func (d *Driver) setFingerprinted() {
+	d.fingerprintLock.Lock()
+	d.hasFingerprinted = true
+	d.fingerprintLock.Unlock()
+}
+
+// fingerprinted returns whether the driver has fingerprinted before
+func (d *Driver) fingerprinted() bool {
+	d.fingerprintLock.Lock()
+	defer d.fingerprintLock.Unlock()
+	return d.hasFingerprinted
+}
+
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
+	defer func() {
+		d.setFingerprinted()
+	}()
+
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
@@ -270,6 +293,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	// Only enable if we are root
 	if syscall.Geteuid() != 0 {
+		if !d.fingerprinted() {
+			d.logger.Debug("must run as root user, disabling")
+		}
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = drivers.DriverRequiresRootMessage
 		return fingerprint
@@ -297,6 +323,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		// Do not allow ancient rkt versions
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("Unsuported rkt version %s", currentVersion)
+		if !d.fingerprinted() {
+			d.logger.Warn("unsupported rkt version please upgrade to >= "+minVersion.String(),
+				"rkt_version", currentVersion)
+		}
 		return fingerprint
 	}
 

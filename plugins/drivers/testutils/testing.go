@@ -43,7 +43,7 @@ func (d *DriverHarness) Impl() drivers.DriverPlugin {
 func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 	logger := testlog.HCLogger(t).Named("driver_harness")
 
-	pd := drivers.NewDriverPlugin(d, logger).(*drivers.PluginDriver)
+	pd := drivers.NewDriverPlugin(d).(*drivers.PluginDriver)
 
 	client, server := plugin.TestPluginGRPCConn(t,
 		map[string]plugin.Plugin{

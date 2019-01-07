@@ -17,8 +17,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -203,11 +203,11 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 //encodeDriverhelper sets up the task config spec and encodes qemu specific driver configuration
 func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
 	evalCtx := &hcl.EvalContext{
-		Functions: shared.GetStdlibFuncs(),
+		Functions: hclutils.GetStdlibFuncs(),
 	}
 	spec, diag := hclspec.Convert(taskConfigSpec)
 	require.False(diag.HasErrors(), diag.Error())
-	taskConfigCtyVal, diag := shared.ParseHclInterface(taskConfig, spec, evalCtx)
+	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
 	require.False(diag.HasErrors(), diag.Error())
 	err := task.EncodeDriverConfig(taskConfigCtyVal)
 	require.Nil(err)

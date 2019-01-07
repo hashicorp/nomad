@@ -19,10 +19,9 @@ type PluginDriver struct {
 	logger hclog.Logger
 }
 
-func NewDriverPlugin(d DriverPlugin, logger hclog.Logger) plugin.GRPCPlugin {
+func NewDriverPlugin(d DriverPlugin) plugin.GRPCPlugin {
 	return &PluginDriver{
-		impl:   d,
-		logger: logger.Named("driver_plugin"),
+		impl: d,
 	}
 }
 
@@ -42,7 +41,6 @@ func (p *PluginDriver) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker
 			Client:  baseproto.NewBasePluginClient(c),
 		},
 		client:  proto.NewDriverClient(c),
-		logger:  p.logger,
 		doneCtx: ctx,
 	}, nil
 }
