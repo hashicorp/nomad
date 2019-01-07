@@ -14,28 +14,11 @@ var (
 	ErrInvalidObjectPath = errors.New("invalid object path")
 )
 
-type ErrKeyExists struct {
-	msg string
-}
-
-func NewErrKeyExists(newKey, oldKey string) *ErrKeyExists {
-	return &ErrKeyExists{
-		msg: fmt.Sprintf(
-			"cannot add key %q because %q already exists with a different type",
-			newKey, oldKey,
-		),
-	}
-}
-
-func (e *ErrKeyExists) Error() string {
-	return e.msg
-}
-
 // addNestedKey expands keys into their nested form:
 //
 //	k="foo.bar", v="quux" -> {"foo": {"bar": "quux"}}
 //
-// Existing keys are overwritten.
+// Existing keys are overwritten. Map values take precedence over primitives.
 //
 // If the key has dots but cannot be converted to a valid nested data structure
 // (eg "foo...bar", "foo.", or non-object value exists for key), an error is
@@ -64,13 +47,17 @@ func addNestedKey(dst map[string]interface{}, k, v string) error {
 
 		var target map[string]interface{}
 		if existingI, ok := dst[newKey]; ok {
-			existing, ok := existingI.(map[string]interface{})
-			if !ok {
-				// Existing value is not a map, unable to support this key
-				cleanup()
-				return NewErrKeyExists(k, newKey)
+			if existing, ok := existingI.(map[string]interface{}); ok {
+				// Target already exists
+				target = existing
+			} else {
+				// Existing value is not a map. Maps should
+				// take precedence over primitive values (eg
+				// overwrite attr.driver.qemu = "1" with
+				// attr.driver.qemu.version = "...")
+				target = make(map[string]interface{})
+				dst[newKey] = target
 			}
-			target = existing
 		} else {
 			// Does not exist, create
 			target = make(map[string]interface{})
@@ -96,6 +83,13 @@ func addNestedKey(dst map[string]interface{}, k, v string) error {
 		return ErrInvalidObjectPath
 	}
 
+	if existingI, ok := dst[newKey]; ok {
+		if _, ok := existingI.(map[string]interface{}); ok {
+			// Existing value is a map which takes precedence over
+			// a primitive value. Drop primitive.
+			return nil
+		}
+	}
 	dst[newKey] = v
 	return nil
 }
