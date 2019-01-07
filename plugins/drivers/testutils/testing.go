@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/logmon"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -199,7 +198,7 @@ type MockDriver struct {
 	StopTaskF         func(string, time.Duration, string) error
 	DestroyTaskF      func(string, bool) error
 	InspectTaskF      func(string) (*drivers.TaskStatus, error)
-	TaskStatsF        func(string) (*cstructs.TaskResourceUsage, error)
+	TaskStatsF        func(string) (*drivers.TaskResourceUsage, error)
 	TaskEventsF       func(context.Context) (<-chan *drivers.TaskEvent, error)
 	SignalTaskF       func(string, string) error
 	ExecTaskF         func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
@@ -226,7 +225,7 @@ func (d *MockDriver) DestroyTask(taskID string, force bool) error {
 func (d *MockDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return d.InspectTaskF(taskID)
 }
-func (d *MockDriver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *MockDriver) TaskStats(taskID string) (*drivers.TaskResourceUsage, error) {
 	return d.TaskStats(taskID)
 }
 func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {

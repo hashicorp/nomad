@@ -11,7 +11,6 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -495,11 +494,11 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	panic("not implemented")
 }
 
-func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(taskID string) (*drivers.TaskResourceUsage, error) {
 	// Generate random value for the memory usage
-	s := &cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
-			MemoryStats: &cstructs.MemoryStats{
+	s := &drivers.TaskResourceUsage{
+		ResourceUsage: &drivers.ResourceUsage{
+			MemoryStats: &drivers.MemoryStats{
 				RSS:      rand.Uint64(),
 				Measured: []string{"RSS"},
 			},

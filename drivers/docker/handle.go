@@ -13,7 +13,6 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -31,7 +30,7 @@ type taskHandle struct {
 	containerID           string
 	containerImage        string
 	resourceUsageLock     sync.RWMutex
-	resourceUsage         *cstructs.TaskResourceUsage
+	resourceUsage         *drivers.TaskResourceUsage
 	doneCh                chan bool
 	waitCh                chan struct{}
 	removeContainerOnExit bool
@@ -82,8 +81,8 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	}
 
 	execResult := &drivers.ExecTaskResult{ExitResult: &drivers.ExitResult{}}
-	stdout, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
-	stderr, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	stdout, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
+	stderr, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 	startOpts := docker.StartExecOptions{
 		Detach:       false,
 		Tty:          false,
@@ -161,7 +160,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	return nil
 }
 
-func (h *taskHandle) Stats() (*cstructs.TaskResourceUsage, error) {
+func (h *taskHandle) Stats() (*drivers.TaskResourceUsage, error) {
 	h.resourceUsageLock.RLock()
 	defer h.resourceUsageLock.RUnlock()
 	var err error
@@ -241,7 +240,7 @@ func (h *taskHandle) collectStats() {
 		select {
 		case s := <-statsCh:
 			if s != nil {
-				ms := &cstructs.MemoryStats{
+				ms := &drivers.MemoryStats{
 					RSS:      s.MemoryStats.Stats.Rss,
 					Cache:    s.MemoryStats.Stats.Cache,
 					Swap:     s.MemoryStats.Stats.Swap,
@@ -249,7 +248,7 @@ func (h *taskHandle) collectStats() {
 					Measured: DockerMeasuredMemStats,
 				}
 
-				cs := &cstructs.CpuStats{
+				cs := &drivers.CpuStats{
 					ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
 					ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
 					Measured:         DockerMeasuredCpuStats,
@@ -268,8 +267,8 @@ func (h *taskHandle) collectStats() {
 				cs.TotalTicks = (cs.Percent / 100) * stats.TotalTicksAvailable() / float64(numCores)
 
 				h.resourceUsageLock.Lock()
-				h.resourceUsage = &cstructs.TaskResourceUsage{
-					ResourceUsage: &cstructs.ResourceUsage{
+				h.resourceUsage = &drivers.TaskResourceUsage{
+					ResourceUsage: &drivers.ResourceUsage{
 						MemoryStats: ms,
 						CpuStats:    cs,
 					},

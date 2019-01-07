@@ -11,7 +11,6 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/stats"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	lxc "gopkg.in/lxc/go-lxc.v2"
 )
@@ -87,7 +86,7 @@ func (h *taskHandle) run() {
 	// TODO: detect if the task OOMed
 }
 
-func (h *taskHandle) stats() (*cstructs.TaskResourceUsage, error) {
+func (h *taskHandle) stats() (*drivers.TaskResourceUsage, error) {
 	cpuStats, err := h.container.CPUStats()
 	if err != nil {
 		h.logger.Error("failed to get container cpu stats", "error", err)
@@ -104,7 +103,7 @@ func (h *taskHandle) stats() (*cstructs.TaskResourceUsage, error) {
 	// Get the cpu stats
 	system := cpuStats["system"]
 	user := cpuStats["user"]
-	cs := &cstructs.CpuStats{
+	cs := &drivers.CpuStats{
 		SystemMode: h.systemCpuStats.Percent(float64(system)),
 		UserMode:   h.systemCpuStats.Percent(float64(user)),
 		Percent:    h.totalCpuStats.Percent(float64(total)),
@@ -130,7 +129,7 @@ func (h *taskHandle) stats() (*cstructs.TaskResourceUsage, error) {
 
 		}
 	}
-	ms := &cstructs.MemoryStats{
+	ms := &drivers.MemoryStats{
 		RSS:      memData["rss"],
 		Cache:    memData["cache"],
 		Swap:     memData["swap"],
@@ -166,8 +165,8 @@ func (h *taskHandle) stats() (*cstructs.TaskResourceUsage, error) {
 		ms.KernelMaxUsage = val
 	}
 
-	taskResUsage := cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
+	taskResUsage := drivers.TaskResourceUsage{
+		ResourceUsage: &drivers.ResourceUsage{
 			CpuStats:    cs,
 			MemoryStats: ms,
 		},

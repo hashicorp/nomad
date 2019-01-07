@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -40,7 +39,7 @@ type DriverPlugin interface {
 	StopTask(taskID string, timeout time.Duration, signal string) error
 	DestroyTask(taskID string, force bool) error
 	InspectTask(taskID string) (*TaskStatus, error)
-	TaskStats(taskID string) (*cstructs.TaskResourceUsage, error)
+	TaskStats(taskID string) (*TaskResourceUsage, error)
 	TaskEvents(context.Context) (<-chan *TaskEvent, error)
 
 	SignalTask(taskID string, signal string) error

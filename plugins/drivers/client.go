@@ -8,7 +8,6 @@ import (
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
@@ -253,7 +252,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 }
 
 // TaskStats returns resource usage statistics for the task
-func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *driverPluginClient) TaskStats(taskID string) (*TaskResourceUsage, error) {
 	req := &proto.TaskStatsRequest{TaskId: taskID}
 
 	resp, err := d.client.TaskStats(d.doneCtx, req)

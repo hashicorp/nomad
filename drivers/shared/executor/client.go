@@ -9,7 +9,6 @@ import (
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -100,7 +99,7 @@ func (c *grpcExecutorClient) Version() (*ExecutorVersion, error) {
 	return &ExecutorVersion{Version: resp.Version}, nil
 }
 
-func (c *grpcExecutorClient) Stats() (*cstructs.TaskResourceUsage, error) {
+func (c *grpcExecutorClient) Stats() (*drivers.TaskResourceUsage, error) {
 	ctx := context.Background()
 	resp, err := c.client.Stats(ctx, &proto.StatsRequest{})
 	if err != nil {
