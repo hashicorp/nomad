@@ -99,12 +99,9 @@ func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, sto
 					return
 				}
 
-				// We do not log when the plugin is shutdown as this is either:
-				// - A race between the stopCollection channel being closed and
-				//	 calling Stats on the handle.
-				// - The driver plugin has unexpectedly exited
-				//
-				// In either case sleeping and trying again or returning based
+				// We do not log when the plugin is shutdown since this is
+				// likely because the driver plugin has unexpectedly exited,
+				// in which case sleeping and trying again or returning based
 				// on the stop channel is the correct behavior
 				if err != bstructs.ErrPluginShutdown {
 					h.logger.Debug("error fetching stats of task", "error", err)

@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -196,6 +197,7 @@ type Driver struct {
 
 	// hasFingerprinted is used to store whether we have fingerprinted before
 	hasFingerprinted bool
+	fingerprintLock  sync.Mutex
 }
 
 func NewRktDriver(logger hclog.Logger) drivers.DriverPlugin {
@@ -264,9 +266,23 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	}
 }
 
+// setFingerprinted marks the driver as having fingerprinted once before
+func (d *Driver) setFingerprinted() {
+	d.fingerprintLock.Lock()
+	d.hasFingerprinted = true
+	d.fingerprintLock.Unlock()
+}
+
+// fingerprinted returns whether the driver has fingerprinted before
+func (d *Driver) fingerprinted() bool {
+	d.fingerprintLock.Lock()
+	defer d.fingerprintLock.Unlock()
+	return d.hasFingerprinted
+}
+
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	defer func() {
-		d.hasFingerprinted = true
+		d.setFingerprinted()
 	}()
 
 	fingerprint := &drivers.Fingerprint{
@@ -277,7 +293,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	// Only enable if we are root
 	if syscall.Geteuid() != 0 {
-		if !d.hasFingerprinted {
+		if !d.fingerprinted() {
 			d.logger.Debug("must run as root user, disabling")
 		}
 		fingerprint.Health = drivers.HealthStateUndetected
@@ -307,7 +323,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		// Do not allow ancient rkt versions
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("Unsuported rkt version %s", currentVersion)
-		if !d.hasFingerprinted {
+		if !d.fingerprinted() {
 			d.logger.Warn("unsupported rkt version please upgrade to >= "+minVersion.String(),
 				"rkt_version", currentVersion)
 		}

@@ -483,11 +483,12 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWai
 	}
 
 	if result.Err == bstructs.ErrPluginShutdown {
-		tr.logger.Warn("driver plugin has shutdown; attempting to recover task")
+		dn := tr.Task().Driver
+		tr.logger.Debug("driver plugin has shutdown; attempting to recover task", "driver", dn)
 
 		// Initialize a new driver handle
 		if err := tr.initDriver(); err != nil {
-			tr.logger.Error("failed to initialize driver after it exited unexpectedly", "error", err)
+			tr.logger.Error("failed to initialize driver after it exited unexpectedly", "error", err, "driver", dn)
 			return false
 		}
 
@@ -497,11 +498,11 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWai
 		net := tr.localState.DriverNetwork
 		tr.stateLock.RUnlock()
 		if !tr.restoreHandle(h, net) {
-			tr.logger.Error("failed to restore handle on driver after it exited unexpectedly")
+			tr.logger.Error("failed to restore handle on driver after it exited unexpectedly", "driver", dn)
 			return false
 		}
 
-		tr.logger.Info("task successfully recovered on driver")
+		tr.logger.Debug("task successfully recovered on driver", "driver", dn)
 		return true
 	}
 
@@ -622,14 +623,12 @@ func (tr *TaskRunner) runDriver() error {
 		if err == bstructs.ErrPluginShutdown {
 			tr.logger.Info("failed to start task because plugin shutdown unexpectedly; attempting to recover")
 			if err := tr.initDriver(); err != nil {
-				tr.logger.Error("failed to initialize driver after it exited unexpectedly", "error", err)
-				return fmt.Errorf("driver exited and couldn't be started again: %v", err)
+				return fmt.Errorf("failed to initialize driver after it exited unexpectedly: %v", err)
 			}
 
 			handle, net, err = tr.driver.StartTask(taskConfig)
 			if err != nil {
-				tr.logger.Error("failed to start task after driver exited unexpectedly", "error", err)
-				return fmt.Errorf("driver start failed: %v", err)
+				return fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
 			}
 		} else {
 			return fmt.Errorf("driver start failed: %v", err)

@@ -1,3 +1,8 @@
+// This package provides a mechanism to build the Docker driver plugin as an
+// external binary. The binary has two entry points; the docker driver and the
+// docker plugin's logging child binary. An example of using this is `go build
+// -o </nomad/plugin/dir/docker`. When Nomad agent is then launched, the
+// external docker plugin will be used.
 package main
 
 import (
@@ -33,7 +38,7 @@ func main() {
 	plugins.Serve(factory)
 }
 
-// factory returns a new instance of the Nvidia GPU plugin
+// factory returns a new instance of the docker driver plugin
 func factory(log log.Logger) interface{} {
 	return docker.NewDockerDriver(log)
 }

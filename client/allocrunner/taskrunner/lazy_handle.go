@@ -1,6 +1,7 @@
 package taskrunner
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -39,16 +40,20 @@ type LazyHandle struct {
 	// h is the current handle and may be nil
 	h *DriverHandle
 
+	// shutdownCtx is used to cancel retries if the agent is shutting down
+	shutdownCtx context.Context
+
 	logger log.Logger
 	sync.Mutex
 }
 
 // NewLazyHandle takes the function to receive the latest handle and a logger
 // and returns a LazyHandle
-func NewLazyHandle(fn retrieveHandleFn, logger log.Logger) *LazyHandle {
+func NewLazyHandle(shutdownCtx context.Context, fn retrieveHandleFn, logger log.Logger) *LazyHandle {
 	return &LazyHandle{
 		retrieveHandle: fn,
 		h:              fn(),
+		shutdownCtx:    shutdownCtx,
 		logger:         logger.Named("lazy_handle"),
 	}
 }
@@ -89,7 +94,12 @@ func (l *LazyHandle) refreshHandleLocked() (*DriverHandle, error) {
 		}
 
 		l.logger.Debug("failed to retrieve handle", "backoff", backoff)
-		time.Sleep(backoff)
+
+		select {
+		case <-l.shutdownCtx.Done():
+			return nil, l.shutdownCtx.Err()
+		case <-time.After(backoff):
+		}
 	}
 
 	return nil, fmt.Errorf("no driver handle")
