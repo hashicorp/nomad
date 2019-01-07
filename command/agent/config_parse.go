@@ -440,7 +440,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		}
 
 		validKeyRe, _ := regexp.Compile(`^[^.]+(\.[^.]+)*$`)
-		for k, _ := range config.Meta {
+		for k := range config.Meta {
 			if !validKeyRe.MatchString(k) {
 				return fmt.Errorf("invalid Client.Meta key: %v", k)
 			}
