@@ -265,7 +265,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "ready",
+		HealthDescription: drivers.DriverHealthy,
 	}
 
 	// Only enable if we are root
@@ -278,7 +278,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	outBytes, err := exec.Command(rktCmd, "version").Output()
 	if err != nil {
 		fingerprint.Health = drivers.HealthStateUndetected
-		fingerprint.HealthDescription = fmt.Sprintf("failed to executor %s version: %v", rktCmd, err)
+		fingerprint.HealthDescription = fmt.Sprintf("Failed to execute %s version: %v", rktCmd, err)
 		return fingerprint
 	}
 	out := strings.TrimSpace(string(outBytes))
@@ -287,7 +287,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	appcMatches := reAppcVersion.FindStringSubmatch(out)
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		fingerprint.Health = drivers.HealthStateUndetected
-		fingerprint.HealthDescription = "unable to parse rkt version string"
+		fingerprint.HealthDescription = "Unable to parse rkt version string"
 		return fingerprint
 	}
 
@@ -296,7 +296,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if currentVersion.LessThan(minVersion) {
 		// Do not allow ancient rkt versions
 		fingerprint.Health = drivers.HealthStateUndetected
-		fingerprint.HealthDescription = fmt.Sprintf("unsuported rkt version %s", currentVersion)
+		fingerprint.HealthDescription = fmt.Sprintf("Unsuported rkt version %s", currentVersion)
 		return fingerprint
 	}
 
