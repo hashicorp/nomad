@@ -210,6 +210,35 @@ func TestQuotaSpec_SetHash(t *testing.T) {
 	assert.NotEqual(out1, out2)
 }
 
+// Test that changing a region limit will also stimulate a hash change
+func TestQuotaSpec_SetHash2(t *testing.T) {
+	assert := assert.New(t)
+	qs := &QuotaSpec{
+		Name:        "test",
+		Description: "test limits",
+		Limits: []*QuotaLimit{
+			{
+				Region: "foo",
+				RegionLimit: &Resources{
+					CPU: 5000,
+				},
+			},
+		},
+	}
+
+	out1 := qs.SetHash()
+	assert.NotNil(out1)
+	assert.NotNil(qs.Hash)
+	assert.Equal(out1, qs.Hash)
+
+	qs.Limits[0].RegionLimit.CPU = 2000
+	out2 := qs.SetHash()
+	assert.NotNil(out2)
+	assert.NotNil(qs.Hash)
+	assert.Equal(out2, qs.Hash)
+	assert.NotEqual(out1, out2)
+}
+
 func TestQuotaUsage_Diff(t *testing.T) {
 	cases := []struct {
 		Name   string
