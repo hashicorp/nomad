@@ -9,24 +9,25 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/helper"
+
+	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
-	checkpoint "github.com/hashicorp/go-checkpoint"
-	discover "github.com/hashicorp/go-discover"
-	gsyslog "github.com/hashicorp/go-syslog"
+	"github.com/hashicorp/go-checkpoint"
+	"github.com/hashicorp/go-discover"
+	"github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
-	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/helper/flag-helpers"
+	"github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -187,8 +188,6 @@ func (c *Command) readConfig() *Config {
 	// Parse the meta flags.
 	metaLength := len(meta)
 	if metaLength != 0 {
-		validKeyRe, _ := regexp.Compile(`^[^.]+(\.[^.]+)*$`)
-
 		cmdConfig.Client.Meta = make(map[string]string, metaLength)
 		for _, kv := range meta {
 			parts := strings.SplitN(kv, "=", 2)
@@ -197,7 +196,7 @@ func (c *Command) readConfig() *Config {
 				return nil
 			}
 
-			if !validKeyRe.MatchString(parts[0]) {
+			if !helper.IsValidInterpVariable(parts[0]) {
 				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", parts[0]))
 				return nil
 			}
