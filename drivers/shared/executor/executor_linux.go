@@ -484,6 +484,13 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
 	return nil
 }
 
+// configureIsolation prepares the isolation primitives of the container.
+// The process runs in a container configured with the following:
+//
+// * the task directory as the chroot
+// * dedicated mount points namespace, but shares the PID, User, domain, network namespaces with host
+// * small subset of devices (e.g. stdout/stderr/stdin, tty, shm, pts); default to using the same set of devices as Docker
+// * some special filesystems: `/proc`, `/sys`.  Some case is given to avoid exec escaping or setting malicious values through them.
 func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
