@@ -16,13 +16,8 @@ ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
 $(error Building Nomad is currently only supported on Darwin and Linux.)
 endif
 
-# On Linux we build for Linux, Windows, and potentially Linux+LXC
+# On Linux we build for Linux and Windows
 ifeq (Linux,$(THIS_OS))
-
-# Detect if we have LXC on the path
-ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
-HAS_LXC="true"
-endif
 
 ifeq ($(TRAVIS),true)
 $(info Running in Travis, verbose mode is disabled)
@@ -38,9 +33,6 @@ ALL_TARGETS += linux_386 \
 	windows_386 \
 	windows_amd64
 
-ifeq ("true",$(HAS_LXC))
-ALL_TARGETS += linux_amd64-lxc
-endif
 endif
 
 # On MacOS, we only build for MacOS
@@ -121,14 +113,6 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
-
-pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-		go build \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS) lxc" \
-		-o "$@"
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
@@ -222,7 +206,7 @@ changelogfmt:
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
-dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
+dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
 dev: vendorfmt changelogfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
@@ -268,7 +252,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
-		-tags="$(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
