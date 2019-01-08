@@ -655,7 +655,6 @@ func TestClient_Init(t *testing.T) {
 }
 
 func TestClient_BlockedAllocations(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	s1, _ := testServer(t, nil)
 	defer s1.Shutdown()
@@ -691,7 +690,6 @@ func TestClient_BlockedAllocations(t *testing.T) {
 		"run_for":     "100s",
 		"exit_code":   0,
 		"exit_signal": 0,
-		"exit_err":    "",
 	}
 
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))

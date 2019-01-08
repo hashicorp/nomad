@@ -74,48 +74,31 @@ func TestFS_Stat_NoAlloc(t *testing.T) {
 }
 
 func TestFS_Stat(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
-	// Start a client
-	c, cleanup := TestClient(t, nil)
+	// Start a server and client
+	s := nomad.TestServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
 	defer cleanup()
 
 	// Create and add an alloc
-	a := mock.Alloc()
-	task := a.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "500ms",
 	}
-	c.addAlloc(a, "")
-
-	// Wait for the client to start it
-	testutil.WaitForResult(func() (bool, error) {
-		ar, ok := c.allocs[a.ID]
-		if !ok {
-			return false, fmt.Errorf("alloc doesn't exist")
-		}
-
-		alloc := ar.Alloc()
-		running := false
-		for _, s := range alloc.TaskStates {
-			if s.State == structs.TaskStateRunning {
-				running = true
-			} else {
-				running = false
-			}
-		}
-
-		return running, fmt.Errorf("tasks not running")
-	}, func(err error) {
-		t.Fatal(err)
-	})
+	// Wait for alloc to be running
+	alloc := testutil.WaitForRunning(t, s.RPC, job)[0]
 
 	// Make the request with bad allocation id
 	req := &cstructs.FsStatRequest{
-		AllocID:      a.ID,
+		AllocID:      alloc.ID,
 		Path:         "/",
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
@@ -215,48 +198,31 @@ func TestFS_List_NoAlloc(t *testing.T) {
 }
 
 func TestFS_List(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
-	// Start a client
-	c, cleanup := TestClient(t, nil)
+	// Start a server and client
+	s := nomad.TestServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
 	defer cleanup()
 
 	// Create and add an alloc
-	a := mock.Alloc()
-	task := a.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "500ms",
 	}
-	c.addAlloc(a, "")
-
-	// Wait for the client to start it
-	testutil.WaitForResult(func() (bool, error) {
-		ar, ok := c.allocs[a.ID]
-		if !ok {
-			return false, fmt.Errorf("alloc doesn't exist")
-		}
-
-		alloc := ar.Alloc()
-		running := false
-		for _, s := range alloc.TaskStates {
-			if s.State == structs.TaskStateRunning {
-				running = true
-			} else {
-				running = false
-			}
-		}
-
-		return running, fmt.Errorf("tasks not running")
-	}, func(err error) {
-		t.Fatal(err)
-	})
+	// Wait for alloc to be running
+	alloc := testutil.WaitForRunning(t, s.RPC, job)[0]
 
 	// Make the request
 	req := &cstructs.FsListRequest{
-		AllocID:      a.ID,
+		AllocID:      alloc.ID,
 		Path:         "/",
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
@@ -529,7 +495,6 @@ func TestFS_Stream_ACL(t *testing.T) {
 }
 
 func TestFS_Stream(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
@@ -557,7 +522,7 @@ func TestFS_Stream(t *testing.T) {
 	// Make the request
 	req := &cstructs.FsStreamRequest{
 		AllocID:      alloc.ID,
-		Path:         "alloc/logs/worker.stdout.0",
+		Path:         "alloc/logs/web.stdout.0",
 		PlainText:    true,
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
@@ -640,7 +605,6 @@ func (r *ReadWriteCloseChecker) Close() error {
 }
 
 func TestFS_Stream_Follow(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
@@ -672,7 +636,7 @@ func TestFS_Stream_Follow(t *testing.T) {
 	// Make the request
 	req := &cstructs.FsStreamRequest{
 		AllocID:      alloc.ID,
-		Path:         "alloc/logs/worker.stdout.0",
+		Path:         "alloc/logs/web.stdout.0",
 		PlainText:    true,
 		Follow:       true,
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -738,7 +702,6 @@ OUTER:
 }
 
 func TestFS_Stream_Limit(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
@@ -911,7 +874,6 @@ OUTER:
 // TestFS_Logs_TaskPending asserts that trying to stream logs for tasks which
 // have not started returns a 404 error.
 func TestFS_Logs_TaskPending(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
@@ -1140,7 +1102,6 @@ func TestFS_Logs_ACL(t *testing.T) {
 }
 
 func TestFS_Logs(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
@@ -1242,7 +1203,6 @@ OUTER:
 }
 
 func TestFS_Logs_Follow(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 
