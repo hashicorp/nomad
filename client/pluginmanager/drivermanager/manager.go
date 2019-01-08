@@ -242,6 +242,7 @@ func (m *manager) waitForFirstFingerprint(ctx context.Context, cancel context.Ca
 		return
 	}
 
+	var mu sync.Mutex
 	var availDrivers []string
 	var wg sync.WaitGroup
 
@@ -253,7 +254,9 @@ func (m *manager) waitForFirstFingerprint(ctx context.Context, cancel context.Ca
 			defer wg.Done()
 			instance.WaitForFirstFingerprint(ctx)
 			if instance.getLastHealth() != drivers.HealthStateUndetected {
+				mu.Lock()
 				availDrivers = append(availDrivers, name)
+				mu.Unlock()
 			}
 		}(n, i)
 	}
