@@ -16,15 +16,18 @@ files or directories to configure the Nomad agent.
 ## Load Order and Merging
 
 The Nomad agent supports multiple configuration files, which can be provided
-using the `-config` CLI flag. The flag can accept either a file or folder:
+using the `-config` CLI flag. The flag can accept either a file or folder. In
+the case of a folder, any `.hcl` and `.json` files in the folder will be loaded
+and merged in lexicographical order. Directories are not loaded recursively.
+
+For example:
 
 ```shell
 $ nomad agent -config=server.conf -config=/etc/nomad -config=extra.json
 ```
 
 This will load configuration from `server.conf`, from `.hcl` and `.json` files
-under `/etc/nomad`, and finally from `extra.json`. Files are loaded and merged
-in lexicographical order. Directories are not loaded recursively.
+under `/etc/nomad`, and finally from `extra.json`.
 
 As each file is processed, its contents are merged into the existing
 configuration. When merging, any non-empty values from the latest config file
