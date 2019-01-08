@@ -194,9 +194,9 @@ func Job() *structs.Job {
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
-						Driver: "exec",
+						Driver: "mock_driver",
 						Config: map[string]interface{}{
-							"command": "/bin/date",
+							"run_for": "1ms",
 						},
 						Env: map[string]string{
 							"FOO": "bar",
