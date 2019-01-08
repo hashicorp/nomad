@@ -546,6 +546,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	case structs.TaskKilled:
 		// Never restart an explicitly killed task. Kill method handles
 		// updating the server.
+		tr.EmitEvent(structs.NewTaskEvent(state))
 		return false, 0
 	case structs.TaskNotRestarting, structs.TaskTerminated:
 		tr.logger.Info("not restarting task", "reason", reason)
