@@ -902,6 +902,8 @@ func (c *Client) setServersImpl(in []string, force bool) (int, error) {
 }
 
 // restoreState is used to restore our state from the data dir
+// If there are errors restoring a specific allocation it is marked
+// as failed whenever possible.
 func (c *Client) restoreState() error {
 	if c.config.DevMode {
 		return nil
@@ -930,7 +932,6 @@ func (c *Client) restoreState() error {
 	}
 
 	// Load each alloc back
-	var mErr multierror.Error
 	for _, alloc := range allocs {
 
 		//XXX On Restore we give up on watching previous allocs because
@@ -959,14 +960,16 @@ func (c *Client) restoreState() error {
 		ar, err := allocrunner.NewAllocRunner(arConf)
 		if err != nil {
 			c.logger.Error("error running alloc", "error", err, "alloc_id", alloc.ID)
-			mErr.Errors = append(mErr.Errors, err)
+			c.handleInvalidAllocs(alloc, err)
 			continue
 		}
 
 		// Restore state
 		if err := ar.Restore(); err != nil {
 			c.logger.Error("error restoring alloc", "error", err, "alloc_id", alloc.ID)
-			mErr.Errors = append(mErr.Errors, err)
+			c.handleInvalidAllocs(alloc, err)
+			// Destroy the alloc runner since this is a failed restore
+			ar.Destroy()
 			//TODO Cleanup allocrunner
 			continue
 		}
@@ -977,21 +980,23 @@ func (c *Client) restoreState() error {
 		c.allocLock.Unlock()
 	}
 
-	// Don't run any allocs if there were any failures
-	//XXX removing this check would switch from all-or-nothing restores to
-	//    best-effort. went with all-or-nothing for now
-	if err := mErr.ErrorOrNil(); err != nil {
-		return err
-	}
-
 	// All allocs restored successfully, run them!
 	c.allocLock.Lock()
 	for _, ar := range c.allocs {
 		go ar.Run()
 	}
 	c.allocLock.Unlock()
-
 	return nil
+}
+
+func (c *Client) handleInvalidAllocs(alloc *structs.Allocation, err error) {
+	c.invalidAllocs[alloc.ID] = struct{}{}
+	// Mark alloc as failed so server can handle this
+	failed := makeFailedAlloc(alloc, err)
+	select {
+	case c.allocUpdates <- failed:
+	case <-c.shutdownCh:
+	}
 }
 
 // saveState is used to snapshot our state into the data dir.
@@ -1780,7 +1785,10 @@ OUTER:
 			currentAR, ok := c.allocs[allocID]
 			c.allocLock.RUnlock()
 
-			if !ok || modifyIndex > currentAR.Alloc().AllocModifyIndex {
+			// Ignore alloc updates for allocs that are invalid because of initialization errors
+			_, isInvalid := c.invalidAllocs[allocID]
+
+			if (!ok || modifyIndex > currentAR.Alloc().AllocModifyIndex) && !isInvalid {
 				// Only pull allocs that are required. Filtered
 				// allocs might be at a higher index, so ignore
 				// it.
@@ -1944,16 +1952,10 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		migrateToken := update.migrateTokens[add.ID]
 		if err := c.addAlloc(add, migrateToken); err != nil {
 			c.logger.Error("error adding alloc", "error", err, "alloc_id", add.ID)
-			_, ok := c.invalidAllocs[add.ID]
 			// We mark the alloc as failed and send an update to the server
 			// We track the fact that creating an allocrunner failed so that we don't send updates again
-			if !ok && add.ClientStatus != structs.AllocClientStatusFailed {
-				c.invalidAllocs[add.ID] = struct{}{}
-				stripped := makeFailedAlloc(add, err)
-				select {
-				case c.allocUpdates <- stripped:
-				case <-c.shutdownCh:
-				}
+			if add.ClientStatus != structs.AllocClientStatusFailed {
+				c.handleInvalidAllocs(add, err)
 			}
 		}
 	}
