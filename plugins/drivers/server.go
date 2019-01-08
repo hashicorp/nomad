@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/golang/protobuf/ptypes"
-	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -20,7 +19,6 @@ import (
 type driverPluginServer struct {
 	broker *plugin.GRPCBroker
 	impl   DriverPlugin
-	logger hclog.Logger
 }
 
 func (b *driverPluginServer) TaskConfigSchema(ctx context.Context, req *proto.TaskConfigSchemaRequest) (*proto.TaskConfigSchemaResponse, error) {
