@@ -171,7 +171,7 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
 		confs := []*nconfig.PluginConfig{
-			&nconfig.PluginConfig{
+			{
 				Name: "mock_driver",
 				Config: map[string]interface{}{
 					"shutdown_periodic_after":    true,
