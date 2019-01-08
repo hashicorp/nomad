@@ -366,6 +366,4 @@ func FormatFloat(f float64, maxPrec int) string {
 	}
 
 	return v[:sublen]
-
-	return v
 }
