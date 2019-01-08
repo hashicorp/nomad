@@ -180,6 +180,10 @@ type MemoryStats struct {
 }
 
 func (ms *MemoryStats) Add(other *MemoryStats) {
+	if other == nil {
+		return
+	}
+
 	ms.RSS += other.RSS
 	ms.Cache += other.Cache
 	ms.Swap += other.Swap
@@ -203,6 +207,10 @@ type CpuStats struct {
 }
 
 func (cs *CpuStats) Add(other *CpuStats) {
+	if other == nil {
+		return
+	}
+
 	cs.SystemMode += other.SystemMode
 	cs.UserMode += other.UserMode
 	cs.TotalTicks += other.TotalTicks
@@ -229,7 +237,7 @@ func (ru *ResourceUsage) Add(other *ResourceUsage) {
 // and the resource usage of the individual pids
 type TaskResourceUsage struct {
 	ResourceUsage *ResourceUsage
-	Timestamp     int64
+	Timestamp     int64 // UnixNano
 	Pids          map[string]*ResourceUsage
 }
 

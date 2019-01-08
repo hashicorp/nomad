@@ -230,7 +230,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	attrs := map[string]*pstructs.Attribute{}
 	if d.config.Enabled {
 		health = drivers.HealthStateHealthy
-		desc = "ready"
+		desc = drivers.DriverHealthy
 		attrs["driver.raw_exec"] = pstructs.NewBoolAttribute(true)
 	} else {
 		health = drivers.HealthStateUndetected

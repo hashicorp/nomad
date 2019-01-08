@@ -19,8 +19,8 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -272,11 +272,11 @@ func encodeDriverHelper(t *testing.T, task *drivers.TaskConfig, taskConfig map[s
 	t.Helper()
 
 	evalCtx := &hcl.EvalContext{
-		Functions: shared.GetStdlibFuncs(),
+		Functions: hclutils.GetStdlibFuncs(),
 	}
 	spec, diag := hclspec.Convert(taskConfigSpec)
 	require.False(t, diag.HasErrors())
-	taskConfigCtyVal, diag := shared.ParseHclInterface(taskConfig, spec, evalCtx)
+	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
 	require.Empty(t, diag.Errs())
 	err := task.EncodeDriverConfig(taskConfigCtyVal)
 	require.Nil(t, err)

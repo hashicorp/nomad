@@ -34,14 +34,14 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
+		HealthDescription: drivers.DriverHealthy,
 	}
 	client, _, err := d.dockerClients()
 	if err != nil {
 		d.logger.Info("failed to initialize client", "error", err)
 		return &drivers.Fingerprint{
 			Health:            drivers.HealthStateUndetected,
-			HealthDescription: "failed to initialize docker client",
+			HealthDescription: "Failed to initialize docker client",
 		}
 	}
 
@@ -50,7 +50,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
 		return &drivers.Fingerprint{
 			Health:            drivers.HealthStateUnhealthy,
-			HealthDescription: "failed to connect to docker daemon",
+			HealthDescription: "Failed to connect to docker daemon",
 		}
 	}
 

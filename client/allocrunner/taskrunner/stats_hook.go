@@ -2,13 +2,13 @@ package taskrunner
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 )
 
 // StatsUpdater is the interface required by the StatsHook to update stats.
@@ -99,11 +99,11 @@ func (h *statsHook) collectResourceUsageStats(handle interfaces.DriverStats, sto
 					return
 				}
 
-				//XXX This is a net/rpc specific error
-				// We do not log when the plugin is shutdown as this is simply a
-				// race between the stopCollection channel being closed and calling
-				// Stats on the handle.
-				if !strings.Contains(err.Error(), "connection is shut down") {
+				// We do not log when the plugin is shutdown since this is
+				// likely because the driver plugin has unexpectedly exited,
+				// in which case sleeping and trying again or returning based
+				// on the stop channel is the correct behavior
+				if err != bstructs.ErrPluginShutdown {
 					h.logger.Debug("error fetching stats of task", "error", err)
 				}
 

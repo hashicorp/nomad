@@ -5,7 +5,7 @@ import (
 	"net"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 )
 
 // ExecutorConfig is the config that Nomad passes to the executor

@@ -21,8 +21,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
@@ -606,11 +606,11 @@ touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`
 
 func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
 	evalCtx := &hcl.EvalContext{
-		Functions: shared.GetStdlibFuncs(),
+		Functions: hclutils.GetStdlibFuncs(),
 	}
 	spec, diag := hclspec.Convert(taskConfigSpec)
 	require.False(diag.HasErrors())
-	taskConfigCtyVal, diag := shared.ParseHclInterface(taskConfig, spec, evalCtx)
+	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
 	require.False(diag.HasErrors())
 	err := task.EncodeDriverConfig(taskConfigCtyVal)
 	require.Nil(err)

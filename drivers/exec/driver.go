@@ -189,7 +189,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
-		HealthDescription: "healthy",
+		HealthDescription: drivers.DriverHealthy,
 	}
 
 	if !utils.IsUnixRoot() {
@@ -201,14 +201,14 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	mount, err := fingerprint.FindCgroupMountpointDir()
 	if err != nil {
 		fp.Health = drivers.HealthStateUnhealthy
-		fp.HealthDescription = "failed to discover cgroup mount point"
+		fp.HealthDescription = drivers.NoCgroupMountMessage
 		d.logger.Warn(fp.HealthDescription, "error", err)
 		return fp
 	}
 
 	if mount == "" {
 		fp.Health = drivers.HealthStateUnhealthy
-		fp.HealthDescription = "requires cgroup"
+		fp.HealthDescription = drivers.CgroupMountEmpty
 		return fp
 	}
 

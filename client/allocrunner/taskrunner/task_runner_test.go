@@ -337,3 +337,90 @@ func TestTaskRunner_Restore_HookEnv(t *testing.T) {
 	require.Contains(env, "mock_hook")
 	require.Equal("1", env["mock_hook"])
 }
+
+// This test asserts that we can recover from an "external" plugin exiting by
+// retrieving a new instance of the driver and recovering the task.
+func TestTaskRunner_RecoverFromDriverExiting(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Create an allocation using the mock driver that exits simulating the
+	// driver crashing. We can then test that the task runner recovers from this
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"plugin_exit_after": "1s",
+		"run_for":           "5s",
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf.StateDB = cstate.NewMemDB() // "persist" state between prestart calls
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(err)
+
+	start := time.Now()
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for the task to be running
+	testWaitForTaskToStart(t, tr)
+
+	// Get the task ID
+	tr.stateLock.RLock()
+	l := tr.localState.TaskHandle
+	require.NotNil(l)
+	require.NotNil(l.Config)
+	require.NotEmpty(l.Config.ID)
+	id := l.Config.ID
+	tr.stateLock.RUnlock()
+
+	// Get the mock driver plugin
+	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
+	require.NoError(err)
+	mockDriver := driverPlugin.(*mockdriver.Driver)
+
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		// Get the handle and check that it was recovered
+		handle := mockDriver.GetHandle(id)
+		if handle == nil {
+			return false, fmt.Errorf("nil handle")
+		}
+		if !handle.Recovered {
+			return false, fmt.Errorf("handle not recovered")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatal(err.Error())
+	})
+
+	// Wait for task to complete
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(10 * time.Second):
+	}
+
+	// Ensure that we actually let the task complete
+	require.True(time.Now().Sub(start) > 5*time.Second)
+
+	// Check it finished successfully
+	state := tr.TaskState()
+	require.True(state.Successful())
+}
+
+// testWaitForTaskToStart waits for the task to or fails the test
+func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
+	// Wait for the task to start
+	testutil.WaitForResult(func() (bool, error) {
+		tr.stateLock.RLock()
+		started := !tr.state.StartedAt.IsZero()
+		tr.stateLock.RUnlock()
+
+		return started, nil
+	}, func(err error) {
+		t.Fatalf("not started")
+	})
+}
