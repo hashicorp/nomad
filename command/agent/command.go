@@ -264,11 +264,6 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
-	if dev {
-		// Skip validation for dev mode
-		return config
-	}
-
 	if !c.isValidConfig(config) {
 		return nil
 	}
@@ -277,13 +272,24 @@ func (c *Command) readConfig() *Config {
 }
 
 func (c *Command) isValidConfig(config *Config) bool {
+
+	if config.DevMode {
+		// Skip the rest of the validation for dev mode
+		return true
+	}
+
+	// Check that the server is running in at least one mode.
+	if !(config.Server.Enabled || config.Client.Enabled) {
+		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
+		return false
+	}
+
 	// Set up the TLS configuration properly if we have one.
 	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
 	// constructor-type actions like this.
 	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
 		if err := config.TLSConfig.SetChecksum(); err != nil {
 			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
-			return false
 		}
 	}
 
@@ -296,12 +302,6 @@ func (c *Command) isValidConfig(config *Config) bool {
 		if _, err := os.Stat(keyfile); err == nil {
 			c.Ui.Warn("WARNING: keyring exists but -encrypt given, using keyring")
 		}
-	}
-
-	// Check that the server is running in at least one mode.
-	if !(config.Server.Enabled || config.Client.Enabled) {
-		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
-		return false
 	}
 
 	// Verify the paths are absolute.
