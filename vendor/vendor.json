@@ -437,7 +437,6 @@
 		{"path":"google.golang.org/grpc/transport","checksumSHA1":"oFGr0JoquaPGVnV86fVL8MVTc3A=","revision":"0c41876308d45bc82e587965971e28be659a1aca","revisionTime":"2017-07-21T17:58:12Z"},
 		{"path":"gopkg.in/fsnotify.v1","checksumSHA1":"eIhF+hmL/XZhzTiAwhLD0M65vlY=","revision":"629574ca2a5df945712d3079857300b5e4da0236","revisionTime":"2016-10-11T02:33:12Z"},
 		{"path":"gopkg.in/inf.v0","checksumSHA1":"6f8MEU31llHM1sLM/GGH4/Qxu0A=","revision":"3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4","revisionTime":"2015-09-11T12:57:57Z"},
-		{"path":"gopkg.in/lxc/go-lxc.v2","checksumSHA1":"oAflbBrzWC7OMmZQixkp9bnPQW8=","revision":"0aadfc37157c2e3f0e63bedd10f8615e66e91cad","revisionTime":"2018-11-01T16:03:35Z"},
 		{"path":"gopkg.in/tomb.v1","checksumSHA1":"TO8baX+t1Qs7EmOYth80MkbKzFo=","revision":"dd632973f1e7218eb1089048e0798ec9ae7dceb8","revisionTime":"2014-10-24T13:56:13Z"},
 		{"path":"gopkg.in/tomb.v2","checksumSHA1":"WiyCOMvfzRdymImAJ3ME6aoYUdM=","revision":"14b3d72120e8d10ea6e6b7f87f7175734b1faab8","revisionTime":"2014-06-26T14:46:23Z"},
 		{"path":"gopkg.in/yaml.v2","checksumSHA1":"12GqsW8PiRPnezDDy0v4brZrndM=","revision":"a5b47d31c556af34a302ce5d659e6fea44d90de0","revisionTime":"2016-09-28T15:37:09Z"}
