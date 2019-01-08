@@ -181,6 +181,11 @@ type Client struct {
 	allocs    map[string]AllocRunner
 	allocLock sync.RWMutex
 
+	// invalidAllocs is a map that tracks allocations that failed because
+	// the client couldn't initialize alloc or task runners for it. This can
+	// happen due to driver errors
+	invalidAllocs map[string]struct{}
+
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
@@ -286,6 +291,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerNodeUpdate:    make(chan struct{}, 8),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 		fpInitialized:        make(chan struct{}),
+		invalidAllocs:        make(map[string]struct{}),
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -961,6 +967,9 @@ func (c *Client) restoreState() error {
 		if err := ar.Restore(); err != nil {
 			c.logger.Error("error restoring alloc", "error", err, "alloc_id", alloc.ID)
 			mErr.Errors = append(mErr.Errors, err)
+			// Mark alloc as failed so server can handle this
+			failed := makeFailedAlloc(alloc, err)
+			c.allocUpdates <- failed
 			//TODO Cleanup allocrunner
 			continue
 		}
@@ -1938,12 +1947,63 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		migrateToken := update.migrateTokens[add.ID]
 		if err := c.addAlloc(add, migrateToken); err != nil {
 			c.logger.Error("error adding alloc", "error", err, "alloc_id", add.ID)
+			_, ok := c.invalidAllocs[add.ID]
+			// We mark the alloc as failed and send an update to the server
+			// We track the fact that creating an allocrunner failed so that we don't send updates again
+			if !ok && add.ClientStatus != structs.AllocClientStatusFailed {
+				c.invalidAllocs[add.ID] = struct{}{}
+				stripped := makeFailedAlloc(add, err)
+				select {
+				case c.allocUpdates <- stripped:
+				case <-c.shutdownCh:
+				}
+			}
 		}
 	}
 
 	// Trigger the GC once more now that new allocs are started that could
 	// have caused thresholds to be exceeded
 	c.garbageCollector.Trigger()
+}
+
+// makeFailedAlloc creates a stripped down version of the allocation passed in
+// with its status set to failed and other fields needed for the server to be
+// able to examine deployment and task states
+func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
+	stripped := new(structs.Allocation)
+	stripped.ID = add.ID
+	stripped.NodeID = add.NodeID
+	stripped.ClientStatus = structs.AllocClientStatusFailed
+	stripped.ClientDescription = fmt.Sprintf("Unable to add allocation due to err: %v", err)
+
+	// Copy task states if it exists in the original allocation
+	if add.TaskStates != nil {
+		stripped.TaskStates = add.TaskStates
+	} else {
+		stripped.TaskStates = make(map[string]*structs.TaskState)
+	}
+
+	failTime := time.Now()
+	stripped.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy:   helper.BoolToPtr(false),
+		Timestamp: failTime,
+	}
+
+	taskGroup := add.Job.LookupTaskGroup(add.TaskGroup)
+	if taskGroup == nil {
+		return stripped
+	}
+	for _, task := range taskGroup.Tasks {
+		ts, ok := stripped.TaskStates[task.Name]
+		if !ok {
+			ts = &structs.TaskState{}
+			stripped.TaskStates[task.Name] = ts
+		}
+		if ts.FinishedAt.IsZero() {
+			ts.FinishedAt = failTime
+		}
+	}
+	return stripped
 }
 
 // removeAlloc is invoked when we should remove an allocation because it has
