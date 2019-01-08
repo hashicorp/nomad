@@ -195,12 +195,6 @@ func (c *Command) readConfig() *Config {
 				c.Ui.Error(fmt.Sprintf("Error parsing Client.Meta value: %v", kv))
 				return nil
 			}
-
-			if !helper.IsValidInterpVariable(parts[0]) {
-				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", parts[0]))
-				return nil
-			}
-
 			cmdConfig.Client.Meta[parts[0]] = parts[1]
 		}
 	}
@@ -264,15 +258,6 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	// Set up the TLS configuration properly if we have one.
-	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
-	// constructor-type actions like this.
-	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
-		if err := config.TLSConfig.SetChecksum(); err != nil {
-			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
-		}
-	}
-
 	// Default the plugin directory to be under that of the data directory if it
 	// isn't explicitly specified.
 	if config.PluginDir == "" && config.DataDir != "" {
@@ -284,10 +269,28 @@ func (c *Command) readConfig() *Config {
 		return config
 	}
 
+	if !c.isValidConfig(config) {
+		return nil
+	}
+
+	return config
+}
+
+func (c *Command) isValidConfig(config *Config) bool {
+	// Set up the TLS configuration properly if we have one.
+	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
+	// constructor-type actions like this.
+	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
+		if err := config.TLSConfig.SetChecksum(); err != nil {
+			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
+			return false
+		}
+	}
+
 	if config.Server.EncryptKey != "" {
 		if _, err := config.Server.EncryptBytes(); err != nil {
 			c.Ui.Error(fmt.Sprintf("Invalid encryption key: %s", err))
-			return nil
+			return false
 		}
 		keyfile := filepath.Join(config.DataDir, serfKeyring)
 		if _, err := os.Stat(keyfile); err == nil {
@@ -298,7 +301,7 @@ func (c *Command) readConfig() *Config {
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
-		return nil
+		return false
 	}
 
 	// Verify the paths are absolute.
@@ -315,14 +318,14 @@ func (c *Command) readConfig() *Config {
 
 		if !filepath.IsAbs(dir) {
 			c.Ui.Error(fmt.Sprintf("%s must be given as an absolute path: got %v", k, dir))
-			return nil
+			return false
 		}
 	}
 
 	// Ensure that we have the directories we need to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
-		return nil
+		return false
 	}
 
 	// The config is valid if the top-level data-dir is set or if both
@@ -330,20 +333,29 @@ func (c *Command) readConfig() *Config {
 	if config.Client.Enabled && config.DataDir == "" {
 		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
 			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
-			return nil
+			return false
+		}
+	}
+
+	if config.Client.Enabled {
+		for k := range config.Client.Meta {
+			if !helper.IsValidInterpVariable(k) {
+				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", k))
+				return false
+			}
 		}
 	}
 
 	// Check the bootstrap flags
 	if config.Server.BootstrapExpect > 0 && !config.Server.Enabled {
 		c.Ui.Error("Bootstrap requires server mode to be enabled")
-		return nil
+		return false
 	}
 	if config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
-	return config
+	return true
 }
 
 // setupLoggers is used to setup the logGate, logWriter, and our logOutput

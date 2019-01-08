@@ -437,12 +437,6 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 				return err
 			}
 		}
-
-		for k := range config.Meta {
-			if !helper.IsValidInterpVariable(k) {
-				return fmt.Errorf("invalid Client.Meta key: %v", k)
-			}
-		}
 	}
 
 	// Parse out chroot_env fields. These are in HCL as a list so we need to
