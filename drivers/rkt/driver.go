@@ -1054,3 +1054,7 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	case ch <- result:
 	}
 }
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
+}
