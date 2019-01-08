@@ -967,9 +967,6 @@ func (c *Client) restoreState() error {
 		if err := ar.Restore(); err != nil {
 			c.logger.Error("error restoring alloc", "error", err, "alloc_id", alloc.ID)
 			mErr.Errors = append(mErr.Errors, err)
-			// Mark alloc as failed so server can handle this
-			failed := makeFailedAlloc(alloc, err)
-			c.allocUpdates <- failed
 			//TODO Cleanup allocrunner
 			continue
 		}
