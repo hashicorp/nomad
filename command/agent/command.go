@@ -15,8 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
-
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
@@ -26,6 +24,7 @@ import (
 	"github.com/hashicorp/go-discover"
 	"github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/flag-helpers"
 	"github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -273,11 +272,6 @@ func (c *Command) readConfig() *Config {
 
 func (c *Command) isValidConfig(config *Config) bool {
 
-	if config.DevMode {
-		// Skip the rest of the validation for dev mode
-		return true
-	}
-
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
@@ -322,6 +316,20 @@ func (c *Command) isValidConfig(config *Config) bool {
 		}
 	}
 
+	if config.Client.Enabled {
+		for k := range config.Client.Meta {
+			if !helper.IsValidInterpVariable(k) {
+				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", k))
+				return false
+			}
+		}
+	}
+
+	if config.DevMode {
+		// Skip the rest of the validation for dev mode
+		return true
+	}
+
 	// Ensure that we have the directories we need to run.
 	if config.Server.Enabled && config.DataDir == "" {
 		c.Ui.Error("Must specify data directory")
@@ -334,15 +342,6 @@ func (c *Command) isValidConfig(config *Config) bool {
 		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
 			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
 			return false
-		}
-	}
-
-	if config.Client.Enabled {
-		for k := range config.Client.Meta {
-			if !helper.IsValidInterpVariable(k) {
-				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", k))
-				return false
-			}
 		}
 	}
 
