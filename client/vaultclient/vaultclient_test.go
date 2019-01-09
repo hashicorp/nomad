@@ -9,10 +9,12 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVaultClient_TokenRenewals(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
@@ -67,9 +69,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 			for {
 				select {
 				case err := <-errCh:
-					if err != nil {
-						t.Fatalf("error while renewing the token: %v", err)
-					}
+					require.NoError(err, "unexpected error while renewing vault token")
 				}
 			}
 		}(errCh)
@@ -83,7 +83,7 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 
 	for i := 0; i < num; i++ {
 		if err := c.StopRenewToken(tokens[i]); err != nil {
-			t.Fatal(err)
+			require.NoError(err)
 		}
 	}
 
