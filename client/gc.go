@@ -187,7 +187,7 @@ func (a *AllocGarbageCollector) destroyAllocRunner(allocID string, ar AllocRunne
 	case <-a.shutdownCh:
 	}
 
-	a.logger.Debug("garbage collected %s", "alloc_id", allocID)
+	a.logger.Debug("alloc garbage collected", "alloc_id", allocID)
 
 	// Release the lock
 	<-a.destroyCh

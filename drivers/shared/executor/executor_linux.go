@@ -95,7 +95,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	l.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	l.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 	// Find the nomad executable to launch the executor process with
 	bin, err := discover.NomadExecutable()
 	if err != nil {

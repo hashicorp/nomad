@@ -3,7 +3,6 @@ package executor
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os/exec"
 
 	"github.com/golang/protobuf/ptypes"
@@ -26,7 +25,7 @@ const (
 
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDriverConfig,
+func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 	executorConfig *ExecutorConfig) (Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
@@ -39,11 +38,12 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 	}
 
 	config := &plugin.ClientConfig{
-		Cmd: exec.Command(bin, "executor", string(c)),
+		HandshakeConfig:  base.Handshake,
+		Plugins:          map[string]plugin.Plugin{"executor": &ExecutorPlugin{}},
+		Cmd:              exec.Command(bin, "executor", string(c)),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+		Logger:           logger.Named("executor"),
 	}
-	config.HandshakeConfig = base.Handshake
-	config.Plugins = GetPluginMap(w, level, executorConfig.FSIsolation)
-	config.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}
 
 	if driverConfig != nil {
 		config.MaxPort = driverConfig.ClientMaxPort
@@ -74,15 +74,17 @@ func CreateExecutor(w io.Writer, level hclog.Level, driverConfig *base.ClientDri
 }
 
 // CreateExecutorWithConfig launches a plugin with a given plugin config
-func CreateExecutorWithConfig(config *plugin.ClientConfig, w io.Writer) (Executor, *plugin.Client, error) {
-	config.HandshakeConfig = base.Handshake
+func CreateExecutorWithConfig(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
+	config := &plugin.ClientConfig{
+		HandshakeConfig: base.Handshake,
+		Reattach:        reattachConfig,
+		Plugins:         map[string]plugin.Plugin{"executor": &ExecutorPlugin{}},
 
-	// Setting this to DEBUG since the log level at the executor server process
-	// is already set, and this effects only the executor client.
-	// TODO: Use versioned plugin map to support backwards compatibility with
-	// existing pre-0.9 executors
-	config.Plugins = GetPluginMap(w, hclog.Debug, false)
-	config.AllowedProtocols = []plugin.Protocol{plugin.ProtocolGRPC}
+		// TODO: Use versioned plugin map to support backwards compatibility with
+		// existing pre-0.9 executors
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+		Logger:           logger.Named("executor"),
+	}
 
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()

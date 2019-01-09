@@ -248,7 +248,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	e.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	e.commandCfg = command
 
@@ -419,7 +419,7 @@ var (
 // Exit cleans up the alloc directory, destroys resource container and kills the
 // user process
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
-	e.logger.Info("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
+	e.logger.Debug("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.

@@ -63,7 +63,7 @@ func (e *UniversalExecutor) shutdownProcess(_ os.Signal, proc *os.Process) error
 	if err := sendCtrlBreak(proc.Pid); err != nil {
 		return fmt.Errorf("executor shutdown error: %v", err)
 	}
-	e.logger.Info("sent Ctrl-Break to process", "pid", proc.Pid)
+	e.logger.Debug("sent Ctrl-Break to process", "pid", proc.Pid)
 
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -14,8 +13,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-semver/semver"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -263,11 +261,8 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
-	pluginConfig := &plugin.ClientConfig{
-		Reattach: plugRC,
-	}
-
-	execImpl, pluginClient, err := executor.CreateExecutorWithConfig(pluginConfig, os.Stderr)
+	execImpl, pluginClient, err := executor.CreateExecutorWithConfig(plugRC,
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -417,7 +412,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		LogLevel: "debug",
 	}
 
-	execImpl, pluginClient, err := executor.CreateExecutor(os.Stderr, hclog.Debug, d.nomadConfig, executorConfig)
+	execImpl, pluginClient, err := executor.CreateExecutor(
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}

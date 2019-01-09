@@ -3,7 +3,7 @@ package command
 import (
 	"strings"
 
-	hclog "github.com/hashicorp/go-hclog"
+	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -25,12 +25,19 @@ func (e *DockerLoggerPluginCommand) Synopsis() string {
 }
 
 func (e *DockerLoggerPluginCommand) Run(args []string) int {
+	logger := log.New(&log.LoggerOptions{
+		Level:      log.Trace,
+		JSONFormat: true,
+		Name:       docklog.PluginName,
+	})
+
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
-			docklog.PluginName: docklog.NewPlugin(docklog.NewDockerLogger(hclog.Default().Named(docklog.PluginName))),
+			docklog.PluginName: docklog.NewPlugin(docklog.NewDockerLogger(logger)),
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
+		Logger:     logger,
 	})
 	return 0
 }

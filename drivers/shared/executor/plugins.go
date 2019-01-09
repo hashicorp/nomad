@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"io"
 	"net"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -22,18 +21,12 @@ type ExecutorConfig struct {
 	FSIsolation bool
 }
 
-func GetPluginMap(w io.Writer, logLevel hclog.Level, fsIsolation bool) map[string]plugin.Plugin {
-	e := new(ExecutorPlugin)
-
-	e.logger = hclog.New(&hclog.LoggerOptions{
-		Output: w,
-		Level:  logLevel,
-	})
-
-	e.fsIsolation = fsIsolation
-
+func GetPluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{
-		"executor": e,
+		"executor": &ExecutorPlugin{
+			logger:      logger,
+			fsIsolation: fsIsolation,
+		},
 	}
 }
 
