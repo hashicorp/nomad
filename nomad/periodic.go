@@ -360,7 +360,7 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	if job.Periodic.ProhibitOverlap {
 		running, err := p.dispatcher.RunningChildren(job)
 		if err != nil {
-			p.logger.Error("failed to determine if periodic job has running children", "job", "error", err)
+			p.logger.Error("failed to determine if periodic job has running children", "job", job.NamespacedID(), "error", err)
 			p.l.Unlock()
 			return
 		}
