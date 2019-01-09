@@ -85,3 +85,31 @@ func (tr *TaskRunner) clearDriverHandle() {
 	}
 	tr.handle = nil
 }
+
+// setKillErr stores any error that arouse while killing the task
+func (tr *TaskRunner) setKillErr(err error) {
+	tr.killErrLock.Lock()
+	defer tr.killErrLock.Unlock()
+	tr.killErr = err
+}
+
+// getKillErr returns any error that arouse while killing the task
+func (tr *TaskRunner) getKillErr() error {
+	tr.killErrLock.Lock()
+	defer tr.killErrLock.Unlock()
+	return tr.killErr
+}
+
+// setRunLaunched marks the fact that the Run loop has been started
+func (tr *TaskRunner) setRunLaunched() {
+	tr.runLaunchedLock.Lock()
+	defer tr.runLaunchedLock.Unlock()
+	tr.runLaunched = true
+}
+
+// hasRunLaunched returns whether the Run loop has been started
+func (tr *TaskRunner) hasRunLaunched() bool {
+	tr.runLaunchedLock.Lock()
+	defer tr.runLaunchedLock.Unlock()
+	return tr.runLaunched
+}

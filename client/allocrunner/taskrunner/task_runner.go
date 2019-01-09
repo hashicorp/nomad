@@ -85,6 +85,13 @@ type TaskRunner struct {
 	// stateDB is for persisting localState and taskState
 	stateDB cstate.StateDB
 
+	// shutdownCtx is used to exit the TaskRunner *without* affecting task state.
+	shutdownCtx context.Context
+
+	// shutdownCtxCancel causes the TaskRunner to exit immediately without
+	// affecting task state. Useful for testing or graceful agent shutdown.
+	shutdownCtxCancel context.CancelFunc
+
 	// killCtx is the task runner's context representing the tasks's lifecycle.
 	// The context is canceled when the task is killed.
 	killCtx context.Context
@@ -92,12 +99,10 @@ type TaskRunner struct {
 	// killCtxCancel is called when killing a task.
 	killCtxCancel context.CancelFunc
 
-	// ctx is used to exit the TaskRunner *without* affecting task state.
-	ctx context.Context
-
-	// ctxCancel causes the TaskRunner to exit immediately without
-	// affecting task state. Useful for testing or graceful agent shutdown.
-	ctxCancel context.CancelFunc
+	// killErr is populatd when killing a task. Access should be done use the
+	// getter/setter
+	killErr     error
+	killErrLock sync.Mutex
 
 	// Logger is the logger for the task runner.
 	logger log.Logger
@@ -181,6 +186,11 @@ type TaskRunner struct {
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
+
+	// runLaunched marks whether the Run goroutine has been started. It should
+	// be accessed via helpers
+	runLaunched     bool
+	runLaunchedLock sync.Mutex
 }
 
 type Config struct {
@@ -251,8 +261,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		deviceStatsReporter: config.DeviceStatsReporter,
 		killCtx:             killCtx,
 		killCtxCancel:       killCancel,
-		ctx:                 trCtx,
-		ctxCancel:           trCancel,
+		shutdownCtx:         trCtx,
+		shutdownCtxCancel:   trCancel,
 		triggerUpdateCh:     make(chan struct{}, triggerUpdateChCap),
 		waitCh:              make(chan struct{}),
 		devicemanager:       config.DeviceManager,
@@ -360,6 +370,10 @@ func (tr *TaskRunner) initLabels() {
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
 // Run closes WaitCh when it exits. Should be started in a goroutine.
 func (tr *TaskRunner) Run() {
+	// Mark that the run routine has been launched so that other functions can
+	// decide to use the wait channel or not.
+	tr.setRunLaunched()
+
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
 
@@ -372,8 +386,9 @@ MAIN:
 	for {
 		select {
 		case <-tr.killCtx.Done():
+			tr.handleKill()
 			break MAIN
-		case <-tr.ctx.Done():
+		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
 			return
 		default:
@@ -388,8 +403,9 @@ MAIN:
 
 		select {
 		case <-tr.killCtx.Done():
+			tr.handleKill()
 			break MAIN
-		case <-tr.ctx.Done():
+		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
 			return
 		default:
@@ -421,7 +437,11 @@ MAIN:
 				tr.logger.Error("wait task failed", "error", err)
 			} else {
 				select {
-				case <-tr.ctx.Done():
+				case <-tr.killCtx.Done():
+					// We can go through the normal should restart check since
+					// the restart tracker knowns it is killed
+					tr.handleKill()
+				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately
 					return
 				case result = <-resultCh:
@@ -455,8 +475,9 @@ MAIN:
 		case <-time.After(restartDelay):
 		case <-tr.killCtx.Done():
 			tr.logger.Trace("task killed between restarts", "delay", restartDelay)
+			tr.handleKill()
 			break MAIN
-		case <-tr.ctx.Done():
+		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
 			return
 		}
@@ -680,6 +701,50 @@ func (tr *TaskRunner) initDriver() error {
 	tr.driverCapabilities = caps
 
 	return nil
+}
+
+// handleKill is used to handle the a request to kill a task. It will store any
+// error in the task runner killErr value.
+func (tr *TaskRunner) handleKill() {
+	// Run the hooks prior to killing the task
+	tr.killing()
+
+	// Tell the restart tracker that the task has been killed so it doesn't
+	// attempt to restart it.
+	tr.restartTracker.SetKilled()
+
+	// Check it is running
+	handle := tr.getDriverHandle()
+	if handle == nil {
+		return
+	}
+
+	// Kill the task using an exponential backoff in-case of failures.
+	killErr := tr.killTask(handle)
+	if killErr != nil {
+		// We couldn't successfully destroy the resource created.
+		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", killErr)
+		tr.setKillErr(killErr)
+	}
+
+	// Block until task has exited.
+	waitCh, err := handle.WaitCh(tr.shutdownCtx)
+
+	// The error should be nil or TaskNotFound, if it's something else then a
+	// failure in the driver or transport layer occurred
+	if err != nil {
+		if err == drivers.ErrTaskNotFound {
+			return
+		}
+		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
+		tr.setKillErr(killErr)
+		return
+	}
+
+	select {
+	case <-waitCh:
+	case <-tr.shutdownCtx.Done():
+	}
 }
 
 // killTask kills the task handle. In the case that killing fails,
@@ -1009,7 +1074,7 @@ func (tr *TaskRunner) triggerUpdateHooks() {
 // Shutdown blocks until the main Run loop exits.
 func (tr *TaskRunner) Shutdown() {
 	tr.logger.Trace("shutting down")
-	tr.ctxCancel()
+	tr.shutdownCtxCancel()
 
 	<-tr.WaitCh()
 

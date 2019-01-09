@@ -199,6 +199,10 @@ func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {
 // interpolateServices returns an interpolated copy of services and checks with
 // values from the task's environment.
 func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) []*structs.Service {
+	if taskEnv == nil || len(services) == 0 {
+		return nil
+	}
+
 	interpolated := make([]*structs.Service, len(services))
 
 	for i, origService := range services {
