@@ -268,7 +268,7 @@ func (c *Client) listenConn(s *yamux.Session) {
 				return
 			}
 
-			c.rpcLogger.Error("[ERR] client.rpc: failed to accept RPC conn: %v", err)
+			c.rpcLogger.Error("failed to accept RPC conn", "error", err)
 			continue
 		}
 

@@ -978,7 +978,7 @@ func rktGetStatus(uuid string, logger hclog.Logger) (*rktv1.Pod, error) {
 	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {
 		if outBuf.Len() > 0 {
-			logger.Debug("status output for UUID", "uuid", uuid, elide(outBuf))
+			logger.Debug("status output for UUID", "uuid", uuid, "error", elide(outBuf))
 		}
 		if errBuf.Len() == 0 {
 			return nil, err
