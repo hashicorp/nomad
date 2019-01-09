@@ -160,7 +160,7 @@ func (p *Preemptor) SetPreemptions(allocs []*structs.Allocation) {
 
 	// Initialize counts
 	for _, alloc := range allocs {
-		id := structs.NamespacedID{alloc.JobID, alloc.Namespace}
+		id := structs.NewNamespacedID(alloc.JobID, alloc.Namespace)
 		countMap, ok := p.currentPreemptions[id]
 		if !ok {
 			countMap = make(map[string]int)
@@ -173,7 +173,7 @@ func (p *Preemptor) SetPreemptions(allocs []*structs.Allocation) {
 // getNumPreemptions counts the number of other allocations being preempted that match the job and task group of
 // the alloc under consideration. This is used as a scoring factor to minimize too many allocs of the same job being preempted at once
 func (p *Preemptor) getNumPreemptions(alloc *structs.Allocation) int {
-	c, ok := p.currentPreemptions[structs.NamespacedID{alloc.JobID, alloc.Namespace}][alloc.TaskGroup]
+	c, ok := p.currentPreemptions[structs.NewNamespacedID(alloc.JobID, alloc.Namespace)][alloc.TaskGroup]
 	if !ok {
 		return 0
 	}
