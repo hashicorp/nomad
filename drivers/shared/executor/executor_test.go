@@ -311,7 +311,7 @@ func setupRootfsBinary(t *testing.T, rootfs, path string) {
 
 	src := filepath.Join(
 		"test-resources", "busybox",
-		fmt.Sprintf("busybox-%s-%s", runtime.GOOS, runtime.GOARCH),
+		fmt.Sprintf("busybox-%s", runtime.GOARCH),
 	)
 
 	err = os.Link(src, dst)

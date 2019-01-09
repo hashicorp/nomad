@@ -11,8 +11,9 @@ import (
 // DockerIsConnected checks to see if a docker daemon is available (local or remote)
 func DockerIsConnected(t *testing.T) bool {
 	// We have docker on travis so we should try to test
-	if testutil.IsTravis() && runtime.GOOS == "linux" {
-		return true
+	if testutil.IsTravis() {
+		// Travis supports Docker on Linux only; MacOS setup does not support Docker
+		return runtime.GOOS == "linux"
 	}
 
 	client, err := docker.NewClientFromEnv()
@@ -30,4 +31,11 @@ func DockerIsConnected(t *testing.T) bool {
 
 	t.Logf("Successfully connected to docker daemon running version %s", env.Get("Version"))
 	return true
+}
+
+// DockerCompatible skips tests if docker is not present
+func DockerCompatible(t *testing.T) {
+	if !DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
 }
