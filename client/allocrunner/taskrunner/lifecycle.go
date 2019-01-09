@@ -78,7 +78,9 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	tr.EmitEvent(event)
 
 	// Check if the Run method has started yet. If it hasn't we return early,
-	// since the task hasn't even started so there is nothing to wait for
+	// since the task hasn't even started so there is nothing to wait for. This
+	// is still correct since the Run method no-op since the kill context has
+	// already been cancelled.
 	if !tr.hasRunLaunched() {
 		return nil
 	}
