@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/state"
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/require"
@@ -603,8 +602,8 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	c1.config.Logger = logger
 	catalog := consul.NewMockCatalog(logger)
 	mockService := consulApi.NewMockConsulServiceClient(t, logger)
-	statedbFunc := cstate.GetStateDBFactory(c1.config.DevMode)
-	c2, err := NewClient(c1.config, catalog, mockService, statedbFunc)
+
+	c2, err := NewClient(c1.config, catalog, mockService)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -702,11 +701,12 @@ func TestClient_RestoreError(t *testing.T) {
 	mockService := consulApi.NewMockConsulServiceClient(t, logger)
 
 	// This stateDB returns errors for all methods called by restore
-	statedbFunc := func(hclog.Logger, string) (cstate.StateDB, error) {
+	stateDBFunc := func(hclog.Logger, string) (cstate.StateDB, error) {
 		return &cstate.ErrDB{[]*structs.Allocation{alloc1}}, nil
 	}
+	c1.config.StateDBFactory = stateDBFunc
 
-	c2, err := NewClient(c1.config, catalog, mockService, statedbFunc)
+	c2, err := NewClient(c1.config, catalog, mockService)
 	require.Nil(err)
 	defer c2.Shutdown()
 
@@ -736,12 +736,13 @@ func TestClient_Init(t *testing.T) {
 
 	client := &Client{
 		config: &config.Config{
-			AllocDir: allocDir,
+			AllocDir:       allocDir,
+			StateDBFactory: cstate.GetStateDBFactory(true),
 		},
 		logger: testlog.HCLogger(t),
 	}
-	stateDBFunc := state.GetStateDBFactory(true)
-	if err := client.init(stateDBFunc); err != nil {
+
+	if err := client.init(); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

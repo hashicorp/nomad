@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/shared/catalog"
@@ -22,13 +21,6 @@ import (
 // and removed in the returned cleanup function. If they are overridden in the
 // callback then the caller still must run the returned cleanup func.
 func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func() error) {
-	return TestClientWithCustomStateDB(t, cb, nil)
-}
-
-// TestClientWithCustomStateDB creates an in-memory client for testing purposes
-// where the state DB factory can be overridden. It is used in tests that
-// simulate state restore failures
-func TestClientWithCustomStateDB(t testing.T, cb func(c *config.Config), stateDBFunc state.NewStateDBFunc) (*Client, func() error) {
 	conf, cleanup := config.TestClientConfig(t)
 
 	// Tighten the fingerprinter timeouts (must be done in client package
@@ -54,10 +46,7 @@ func TestClientWithCustomStateDB(t testing.T, cb func(c *config.Config), stateDB
 	}
 	catalog := consul.NewMockCatalog(logger)
 	mockService := consulApi.NewMockConsulServiceClient(t, logger)
-	if stateDBFunc == nil {
-		stateDBFunc = state.GetStateDBFactory(conf.DevMode)
-	}
-	client, err := NewClient(conf, catalog, mockService, stateDBFunc)
+	client, err := NewClient(conf, catalog, mockService)
 	if err != nil {
 		cleanup()
 		t.Fatalf("err: %v", err)

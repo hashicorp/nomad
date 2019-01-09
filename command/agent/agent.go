@@ -731,8 +731,11 @@ func (a *Agent) setupClient() error {
 			return err
 		}
 	}
-	statedbFactory := state.GetStateDBFactory(conf.DevMode)
-	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, statedbFactory)
+	if conf.StateDBFactory == nil {
+		conf.StateDBFactory = state.GetStateDBFactory(conf.DevMode)
+	}
+
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
