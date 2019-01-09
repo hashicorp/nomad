@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -409,6 +411,95 @@ func TestTaskRunner_RecoverFromDriverExiting(t *testing.T) {
 	// Check it finished successfully
 	state := tr.TaskState()
 	require.True(state.Successful())
+}
+
+// TestTaskRunner_ShutdownDelay asserts services are removed from Consul
+// ${shutdown_delay} seconds before killing the process.
+func TestTaskRunner_ShutdownDelay(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Services[0].Tags = []string{"tag1"}
+	task.Services = task.Services[:1] // only need 1 for this test
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1000s",
+	}
+
+	// No shutdown escape hatch for this delay, so don't set it too high
+	task.ShutdownDelay = 500 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	mockConsul := conf.Consul.(*consul.MockConsulServiceClient)
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for the task to start
+	testWaitForTaskToStart(t, tr)
+
+	testutil.WaitForResult(func() (bool, error) {
+		ops := mockConsul.GetOps()
+		if n := len(ops); n != 1 {
+			return false, fmt.Errorf("expected 1 consul operation. Found %d", n)
+		}
+		return ops[0].Op == "add", fmt.Errorf("consul operation was not a registration: %#v", ops[0])
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	// Asynchronously kill task
+	killSent := time.Now()
+	killed := make(chan struct{})
+	go func() {
+		defer close(killed)
+		assert.NoError(t, tr.Kill(context.Background(), structs.NewTaskEvent("test")))
+	}()
+
+	// Wait for *2* deregistration calls (due to needing to remove both
+	// canary tag variants)
+WAIT:
+	for {
+		ops := mockConsul.GetOps()
+		switch n := len(ops); n {
+		case 1, 2:
+			// Waiting for both deregistration calls
+		case 3:
+			require.Equalf(t, "remove", ops[1].Op, "expected deregistration but found: %#v", ops[1])
+			require.Equalf(t, "remove", ops[2].Op, "expected deregistration but found: %#v", ops[2])
+			break WAIT
+		default:
+			// ?!
+			t.Fatalf("unexpected number of consul operations: %d\n%s", n, pretty.Sprint(ops))
+
+		}
+
+		select {
+		case <-killed:
+			t.Fatal("killed while service still registered")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	// Wait for actual exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	<-killed
+	killDur := time.Now().Sub(killSent)
+	if killDur < task.ShutdownDelay {
+		t.Fatalf("task killed before shutdown_delay (killed_after: %s; shutdown_delay: %s",
+			killDur, task.ShutdownDelay,
+		)
+	}
 }
 
 // testWaitForTaskToStart waits for the task to or fails the test
