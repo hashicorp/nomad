@@ -389,7 +389,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.Ui.Output(formatList(hostResources))
 		}
 
-		if err == nil && len(node.NodeResources.Devices) > 0 {
+		if err == nil && node.NodeResources != nil && len(node.NodeResources.Devices) > 0 {
 			c.Ui.Output(c.Colorize().Color("\n[bold]Device Resource Utilization[reset]"))
 			c.Ui.Output(formatList(getDeviceResourcesForNode(hostStats.DeviceStats, node)))
 		}
