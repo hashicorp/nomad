@@ -788,6 +788,7 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		"server_serf_check_name",
 		"server_rpc_check_name",
 		"ssl",
+                "tags",
 		"timeout",
 		"token",
 		"verify_ssl",

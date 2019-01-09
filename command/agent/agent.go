@@ -580,7 +580,7 @@ func (a *Agent) setupServer() error {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      []string{consul.ServiceTagHTTP},
+			Tags:      append(a.config.Consul.Tags, consul.ServiceTagHTTP),
 		}
 		const isServer = true
 		if check := a.agentHTTPCheck(isServer); check != nil {
@@ -589,7 +589,7 @@ func (a *Agent) setupServer() error {
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.RPC,
-			Tags:      []string{consul.ServiceTagRPC},
+			Tags:      append(a.config.Consul.Tags, consul.ServiceTagRPC),
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:      a.config.Consul.ServerRPCCheckName,
@@ -603,7 +603,7 @@ func (a *Agent) setupServer() error {
 		serfServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.Serf,
-			Tags:      []string{consul.ServiceTagSerf},
+			Tags:      append(a.config.Consul.Tags, consul.ServiceTagSerf),
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:      a.config.Consul.ServerSerfCheckName,
@@ -742,7 +742,7 @@ func (a *Agent) setupClient() error {
 		httpServ := &structs.Service{
 			Name:      a.config.Consul.ClientServiceName,
 			PortLabel: a.config.AdvertiseAddrs.HTTP,
-			Tags:      []string{consul.ServiceTagHTTP},
+			Tags:      append(a.config.Consul.Tags, consul.ServiceTagHTTP),
 		}
 		const isServer = false
 		if check := a.agentHTTPCheck(isServer); check != nil {
