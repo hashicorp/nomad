@@ -2013,7 +2013,13 @@ func (c *Client) removeAlloc(allocID string) {
 
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		c.logger.Warn("cannot remove alloc", "alloc_id", allocID, "error", "alloc not found")
+		if _, ok := c.invalidAllocs[allocID]; ok {
+			// Removing from invalid allocs map if present
+			delete(c.invalidAllocs, allocID)
+		} else {
+			// Alloc is unknown, log a warning.
+			c.logger.Warn("cannot remove nonexistent alloc", "alloc_id", allocID, "error", "alloc not found")
+		}
 		return
 	}
 
