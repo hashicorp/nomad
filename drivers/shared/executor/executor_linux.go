@@ -18,7 +18,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -355,7 +354,7 @@ func (l *LibcontainerExecutor) Version() (*ExecutorVersion, error) {
 }
 
 // Stats returns the resource statistics for processes managed by the executor
-func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+func (l *LibcontainerExecutor) Stats() (*drivers.TaskResourceUsage, error) {
 	lstats, err := l.container.Stats()
 	if err != nil {
 		return nil, err
@@ -374,7 +373,7 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	maxUsage := stats.MemoryStats.Usage.MaxUsage
 	rss := stats.MemoryStats.Stats["rss"]
 	cache := stats.MemoryStats.Stats["cache"]
-	ms := &cstructs.MemoryStats{
+	ms := &drivers.MemoryStats{
 		RSS:            rss,
 		Cache:          cache,
 		Swap:           swap.Usage,
@@ -390,7 +389,7 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
 
 	totalPercent := l.totalCpuStats.Percent(totalProcessCPUUsage)
-	cs := &cstructs.CpuStats{
+	cs := &drivers.CpuStats{
 		SystemMode:       l.systemCpuStats.Percent(kernelModeTime),
 		UserMode:         l.userCpuStats.Percent(userModeTime),
 		Percent:          totalPercent,
@@ -399,8 +398,8 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
 		Measured:         ExecutorCgroupMeasuredCpuStats,
 	}
-	taskResUsage := cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
+	taskResUsage := drivers.TaskResourceUsage{
+		ResourceUsage: &drivers.ResourceUsage{
 			MemoryStats: ms,
 			CpuStats:    cs,
 		},
@@ -420,7 +419,7 @@ func (l *LibcontainerExecutor) Signal(s os.Signal) error {
 func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
 	combined := append([]string{cmd}, args...)
 	// Capture output
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	buf, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 
 	process := &libcontainer.Process{
 		Args:   combined,
@@ -484,6 +483,13 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
 	return nil
 }
 
+// configureIsolation prepares the isolation primitives of the container.
+// The process runs in a container configured with the following:
+//
+// * the task directory as the chroot
+// * dedicated mount points namespace, but shares the PID, User, domain, network namespaces with host
+// * small subset of devices (e.g. stdout/stderr/stdin, tty, shm, pts); default to using the same set of devices as Docker
+// * some special filesystems: `/proc`, `/sys`.  Some case is given to avoid exec escaping or setting malicious values through them.
 func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	defaultMountFlags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
@@ -506,9 +512,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 	}
 
-	// we bind-mount /dev to preserve pre-0.9 behavior; so avoid setting up individual devices
-	cfg.Devices = []*lconfigs.Device{}
-
+	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
 	if len(command.Devices) > 0 {
 		devs, err := cmdDevices(command.Devices)
 		if err != nil {
@@ -519,14 +523,36 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 
 	cfg.Mounts = []*lconfigs.Mount{
 		{
-			Source:      "dev",
+			Source:      "tmpfs",
 			Destination: "/dev",
-			Device:      "devtmpfs",
+			Device:      "tmpfs",
+			Flags:       syscall.MS_NOSUID | syscall.MS_STRICTATIME,
+			Data:        "mode=755",
 		},
 		{
 			Source:      "proc",
 			Destination: "/proc",
 			Device:      "proc",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Source:      "devpts",
+			Destination: "/dev/pts",
+			Device:      "devpts",
+			Flags:       syscall.MS_NOSUID | syscall.MS_NOEXEC,
+			Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
+		},
+		{
+			Device:      "tmpfs",
+			Source:      "shm",
+			Destination: "/dev/shm",
+			Data:        "mode=1777,size=65536k",
+			Flags:       defaultMountFlags,
+		},
+		{
+			Source:      "mqueue",
+			Destination: "/dev/mqueue",
+			Device:      "mqueue",
 			Flags:       defaultMountFlags,
 		},
 		{

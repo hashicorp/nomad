@@ -8,7 +8,6 @@ import (
 
 	"github.com/LK4D4/joincontext"
 	"github.com/golang/protobuf/ptypes"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
@@ -56,13 +55,13 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 
 		switch resp.Capabilities.FsIsolation {
 		case proto.DriverCapabilities_NONE:
-			caps.FSIsolation = cstructs.FSIsolationNone
+			caps.FSIsolation = FSIsolationNone
 		case proto.DriverCapabilities_CHROOT:
-			caps.FSIsolation = cstructs.FSIsolationChroot
+			caps.FSIsolation = FSIsolationChroot
 		case proto.DriverCapabilities_IMAGE:
-			caps.FSIsolation = cstructs.FSIsolationImage
+			caps.FSIsolation = FSIsolationImage
 		default:
-			caps.FSIsolation = cstructs.FSIsolationNone
+			caps.FSIsolation = FSIsolationNone
 		}
 	}
 
@@ -128,7 +127,7 @@ func (d *driverPluginClient) RecoverTask(h *TaskHandle) error {
 // StartTask starts execution of a task with the given TaskConfig. A TaskHandle
 // is returned to the caller that can be used to recover state of the task,
 // should the driver crash or exit prematurely.
-func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *DriverNetwork, error) {
 	req := &proto.StartTaskRequest{
 		Task: taskConfigToProto(c),
 	}
@@ -144,9 +143,9 @@ func (d *driverPluginClient) StartTask(c *TaskConfig) (*TaskHandle, *cstructs.Dr
 		return nil, nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
-	var net *cstructs.DriverNetwork
+	var net *DriverNetwork
 	if resp.NetworkOverride != nil {
-		net = &cstructs.DriverNetwork{
+		net = &DriverNetwork{
 			PortMap:       map[string]int{},
 			IP:            resp.NetworkOverride.Addr,
 			AutoAdvertise: resp.NetworkOverride.AutoAdvertise,
@@ -239,7 +238,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 		status.DriverAttributes = resp.Driver.Attributes
 	}
 	if resp.NetworkOverride != nil {
-		status.NetworkOverride = &cstructs.DriverNetwork{
+		status.NetworkOverride = &DriverNetwork{
 			PortMap:       map[string]int{},
 			IP:            resp.NetworkOverride.Addr,
 			AutoAdvertise: resp.NetworkOverride.AutoAdvertise,
@@ -253,7 +252,7 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 }
 
 // TaskStats returns resource usage statistics for the task
-func (d *driverPluginClient) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *driverPluginClient) TaskStats(taskID string) (*TaskResourceUsage, error) {
 	req := &proto.TaskStatsRequest{TaskId: taskID}
 
 	resp, err := d.client.TaskStats(d.doneCtx, req)

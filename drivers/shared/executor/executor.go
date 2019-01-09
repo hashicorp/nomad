@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
@@ -68,7 +67,7 @@ type Executor interface {
 	Version() (*ExecutorVersion, error)
 
 	// Stats fetchs process usage stats for the executor and each pid if available
-	Stats() (*cstructs.TaskResourceUsage, error)
+	Stats() (*drivers.TaskResourceUsage, error)
 
 	// Signal sends the given signal to the user process
 	Signal(os.Signal) error
@@ -332,7 +331,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 	cmd.Env = env
 
 	// Capture output
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	buf, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 	cmd.Stdout = buf
 	cmd.Stderr = buf
 
@@ -507,7 +506,7 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	return nil
 }
 
-func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+func (e *UniversalExecutor) Stats() (*drivers.TaskResourceUsage, error) {
 	pidStats, err := e.pidCollector.pidStats()
 	if err != nil {
 		return nil, err

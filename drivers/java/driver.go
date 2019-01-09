@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -81,7 +80,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        false,
-		FSIsolation: cstructs.FSIsolationNone,
+		FSIsolation: drivers.FSIsolationNone,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -89,7 +88,7 @@ var (
 
 func init() {
 	if runtime.GOOS == "linux" {
-		capabilities.FSIsolation = cstructs.FSIsolationChroot
+		capabilities.FSIsolation = drivers.FSIsolationChroot
 	}
 }
 
@@ -291,7 +290,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
@@ -497,7 +496,7 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return handle.TaskStatus(), nil
 }
 
-func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(taskID string) (*drivers.TaskResourceUsage, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -555,4 +554,8 @@ func GetAbsolutePath(bin string) (string, error) {
 	}
 
 	return filepath.EvalSymlinks(lp)
+}
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
 }

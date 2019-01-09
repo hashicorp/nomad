@@ -173,7 +173,7 @@ func (p *PeriodicDispatch) SetEnabled(enabled bool) {
 		// If we are transitioning from disabled to enabled, run the daemon.
 		ctx, cancel := context.WithCancel(context.Background())
 		p.stopFn = cancel
-		go p.run(ctx)
+		go p.run(ctx, p.updateCh)
 	}
 }
 
@@ -320,7 +320,7 @@ func (p *PeriodicDispatch) shouldRun() bool {
 
 // run is a long-lived function that waits till a job's periodic spec is met and
 // then creates an evaluation to run the job.
-func (p *PeriodicDispatch) run(ctx context.Context) {
+func (p *PeriodicDispatch) run(ctx context.Context, updateCh <-chan struct{}) {
 	var launchCh <-chan time.Time
 	for p.shouldRun() {
 		job, launch := p.nextLaunch()
@@ -335,7 +335,7 @@ func (p *PeriodicDispatch) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-p.updateCh:
+		case <-updateCh:
 			continue
 		case <-launchCh:
 			p.dispatch(job, launch)
@@ -360,7 +360,7 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	if job.Periodic.ProhibitOverlap {
 		running, err := p.dispatcher.RunningChildren(job)
 		if err != nil {
-			p.logger.Error("failed to determine if periodic job has running children", "job", "error", err)
+			p.logger.Error("failed to determine if periodic job has running children", "job", job.NamespacedID(), "error", err)
 			p.l.Unlock()
 			return
 		}

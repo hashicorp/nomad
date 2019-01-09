@@ -11,7 +11,6 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -87,7 +86,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        true,
-		FSIsolation: cstructs.FSIsolationNone,
+		FSIsolation: drivers.FSIsolationNone,
 	}
 )
 
@@ -379,7 +378,7 @@ func newTaskHandle(cfg *drivers.TaskConfig, driverConfig *TaskConfig, logger hcl
 	return h
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	driverConfig, err := parseDriverConfig(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -400,7 +399,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	// Create the driver network
-	net := &cstructs.DriverNetwork{
+	net := &drivers.DriverNetwork{
 		IP:            driverConfig.DriverIP,
 		AutoAdvertise: driverConfig.DriverAdvertise,
 	}
@@ -495,11 +494,11 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	panic("not implemented")
 }
 
-func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(taskID string) (*drivers.TaskResourceUsage, error) {
 	// Generate random value for the memory usage
-	s := &cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
-			MemoryStats: &cstructs.MemoryStats{
+	s := &drivers.TaskResourceUsage{
+		ResourceUsage: &drivers.ResourceUsage{
+			MemoryStats: &drivers.MemoryStats{
 				RSS:      rand.Uint64(),
 				Measured: []string{"RSS"},
 			},
@@ -549,4 +548,8 @@ func (d *Driver) GetTaskConfig() (*drivers.TaskConfig, *TaskConfig) {
 func (d *Driver) GetHandle(taskID string) *taskHandle {
 	h, _ := d.tasks.Get(taskID)
 	return h
+}
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
 }

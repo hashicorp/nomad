@@ -30,7 +30,7 @@ func gcConfig() *GCConfig {
 // runners to be terminal
 func exitAllocRunner(runners ...AllocRunner) {
 	for _, ar := range runners {
-		terminalAlloc := ar.Alloc()
+		terminalAlloc := ar.Alloc().Copy()
 		terminalAlloc.DesiredStatus = structs.AllocDesiredStatusStop
 		ar.Update(terminalAlloc)
 	}

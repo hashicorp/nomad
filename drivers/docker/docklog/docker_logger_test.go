@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	docker "github.com/fsouza/go-dockerclient"
+	ctu "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -13,6 +14,8 @@ import (
 )
 
 func TestDockerLogger(t *testing.T) {
+	ctu.DockerCompatible(t)
+
 	t.Parallel()
 	require := require.New(t)
 

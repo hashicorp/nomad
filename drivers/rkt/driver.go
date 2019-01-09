@@ -26,7 +26,6 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -124,7 +123,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: cstructs.FSIsolationImage,
+		FSIsolation: drivers.FSIsolationImage,
 	}
 
 	reRktVersion  = regexp.MustCompile(`rkt [vV]ersion[:]? (\d[.\d]+)`)
@@ -402,7 +401,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
 	}
@@ -739,7 +738,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	//  - "host" means the container itself has no networking metadata
 	//  - "none" means no network is configured
 	// https://coreos.com/rkt/docs/latest/networking/overview.html#no-loopback-only-networking
-	var driverNetwork *cstructs.DriverNetwork
+	var driverNetwork *drivers.DriverNetwork
 	if network != "host" && network != "none" {
 		d.logger.Debug("retrieving network information for pod", "pod", img, "UUID", uuid, "task_name", cfg.Name)
 		driverNetwork, err = rktGetDriverNetwork(uuid, driverConfig.PortMap, d.logger)
@@ -819,7 +818,7 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return handle.TaskStatus(), nil
 }
 
-func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
+func (d *Driver) TaskStats(taskID string) (*drivers.TaskResourceUsage, error) {
 	handle, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -887,7 +886,7 @@ func GetAbsolutePath(bin string) (string, error) {
 	return filepath.EvalSymlinks(lp)
 }
 
-func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, logger hclog.Logger) (*cstructs.DriverNetwork, error) {
+func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, logger hclog.Logger) (*drivers.DriverNetwork, error) {
 	deadline := time.Now().Add(networkDeadline)
 	var lastErr error
 	try := 0
@@ -918,7 +917,7 @@ func rktGetDriverNetwork(uuid string, driverConfigPortMap map[string]string, log
 				if try > 1 {
 					logger.Debug("retrieved network info for pod", "uuid", uuid, "attempt", try)
 				}
-				return &cstructs.DriverNetwork{
+				return &drivers.DriverNetwork{
 					PortMap: portmap,
 					IP:      status.Networks[0].IP.String(),
 				}, nil
@@ -978,7 +977,7 @@ func rktGetStatus(uuid string, logger hclog.Logger) (*rktv1.Pod, error) {
 	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {
 		if outBuf.Len() > 0 {
-			logger.Debug("status output for UUID", "uuid", uuid, elide(outBuf))
+			logger.Debug("status output for UUID", "uuid", uuid, "error", elide(outBuf))
 		}
 		if errBuf.Len() == 0 {
 			return nil, err
@@ -1053,4 +1052,8 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	case <-d.ctx.Done():
 	case ch <- result:
 	}
+}
+
+func (d *Driver) Shutdown() {
+	d.signalShutdown()
 }

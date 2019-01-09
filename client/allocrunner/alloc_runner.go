@@ -458,7 +458,23 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
 			}
 
+			// Emit kill event for live runners
+			for _, tr := range liveRunners {
+				tr.EmitEvent(killEvent)
+			}
+
+			// Kill 'em all
 			states = ar.killTasks()
+
+			// Wait for TaskRunners to exit before continuing to
+			// prevent looping before TaskRunners have transitioned
+			// to Dead.
+			for _, tr := range liveRunners {
+				select {
+				case <-tr.WaitCh():
+				case <-ar.waitCh:
+				}
+			}
 		}
 
 		// Get the client allocation
@@ -485,7 +501,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			continue
 		}
 
-		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
+		err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilling))
 		if err != nil && err != taskrunner.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
@@ -505,7 +521,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		wg.Add(1)
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
-			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilled))
+			err := tr.Kill(context.TODO(), structs.NewTaskEvent(structs.TaskKilling))
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}

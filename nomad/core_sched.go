@@ -494,7 +494,7 @@ OUTER:
 		}
 		var resp structs.NodeUpdateResponse
 		if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
-			c.logger.Error("node reap failed", "node_id", nodeID, err)
+			c.logger.Error("node reap failed", "node_id", nodeID, "error", err)
 			return err
 		}
 	}

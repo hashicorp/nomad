@@ -546,6 +546,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	case structs.TaskKilled:
 		// Never restart an explicitly killed task. Kill method handles
 		// updating the server.
+		tr.EmitEvent(structs.NewTaskEvent(state))
 		return false, 0
 	case structs.TaskNotRestarting, structs.TaskTerminated:
 		tr.logger.Info("not restarting task", "reason", reason)
@@ -781,7 +782,7 @@ func (tr *TaskRunner) Restore() error {
 // restoreHandle ensures a TaskHandle is valid by calling Driver.RecoverTask
 // and sets the driver handle. If the TaskHandle is not valid, DestroyTask is
 // called.
-func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstructs.DriverNetwork) (success bool) {
+func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *drivers.DriverNetwork) (success bool) {
 	// Ensure handle is well-formed
 	if taskHandle.Config == nil {
 		return true

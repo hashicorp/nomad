@@ -10,7 +10,7 @@ import (
 
 	"context"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/delayheap"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -167,7 +167,7 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 		// start the go routine for delayed evals
 		ctx, cancel := context.WithCancel(context.Background())
 		b.delayedEvalCancelFunc = cancel
-		go b.runDelayedEvalsWatcher(ctx)
+		go b.runDelayedEvalsWatcher(ctx, b.delayedEvalsUpdateCh)
 	}
 	b.l.Unlock()
 	if !enabled {
@@ -741,7 +741,7 @@ func (d *evalWrapper) Namespace() string {
 
 // runDelayedEvalsWatcher is a long-lived function that waits till a time deadline is met for
 // pending evaluations before enqueuing them
-func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
+func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context, updateCh <-chan struct{}) {
 	var timerChannel <-chan time.Time
 	var delayTimer *time.Timer
 	for {
@@ -768,7 +768,7 @@ func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context) {
 			b.stats.TotalWaiting -= 1
 			b.enqueueLocked(eval, eval.Type)
 			b.l.Unlock()
-		case <-b.delayedEvalsUpdateCh:
+		case <-updateCh:
 			continue
 		}
 	}
