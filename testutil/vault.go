@@ -167,13 +167,15 @@ func NewTestVaultDelayed(t testing.T) *TestVault {
 // Start starts the test Vault server and waits for it to respond to its HTTP
 // API
 func (tv *TestVault) Start() error {
-	if err := tv.cmd.Start(); err != nil {
-		tv.t.Fatalf("failed to start vault: %v", err)
-	}
-
 	// Start the waiter
 	tv.waitCh = make(chan error, 1)
+
 	go func() {
+		if err := tv.cmd.Start(); err != nil {
+			tv.waitCh <- err
+			return
+		}
+
 		err := tv.cmd.Wait()
 		tv.waitCh <- err
 	}()
