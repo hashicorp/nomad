@@ -21,6 +21,7 @@ import (
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -730,8 +731,8 @@ func (a *Agent) setupClient() error {
 			return err
 		}
 	}
-
-	client, err := client.NewClient(conf, a.consulCatalog, a.consulService)
+	statedbFactory := state.GetStateDBFactory(conf.DevMode)
+	client, err := client.NewClient(conf, a.consulCatalog, a.consulService, statedbFactory)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

@@ -256,7 +256,7 @@ var (
 )
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI, stateDBFunc state.NewStateDBFunc) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -303,7 +303,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.servers = servers.New(c.logger, c.shutdownCh, c)
 
 	// Initialize the client
-	if err := c.init(); err != nil {
+	if err := c.init(stateDBFunc); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
 
@@ -454,7 +454,7 @@ func (c *Client) Ready() <-chan struct{} {
 
 // init is used to initialize the client and perform any setup
 // needed before we begin starting its various components.
-func (c *Client) init() error {
+func (c *Client) init(statedbFunc state.NewStateDBFunc) error {
 	// Ensure the state dir exists if we have one
 	if c.config.StateDir != "" {
 		if err := os.MkdirAll(c.config.StateDir, 0700); err != nil {
@@ -478,7 +478,7 @@ func (c *Client) init() error {
 	c.logger.Info("using state directory", "state_dir", c.config.StateDir)
 
 	// Open the state database
-	db, err := state.GetStateDBFactory(c.config.DevMode)(c.logger, c.config.StateDir)
+	db, err := statedbFunc(c.logger, c.config.StateDir)
 	if err != nil {
 		return fmt.Errorf("failed to open state database: %v", err)
 	}
@@ -967,10 +967,10 @@ func (c *Client) restoreState() error {
 		// Restore state
 		if err := ar.Restore(); err != nil {
 			c.logger.Error("error restoring alloc", "error", err, "alloc_id", alloc.ID)
-			c.handleInvalidAllocs(alloc, err)
+			// Override the status of the alloc to failed
+			ar.SetClientStatus(structs.AllocClientStatusFailed)
 			// Destroy the alloc runner since this is a failed restore
 			ar.Destroy()
-			//TODO Cleanup allocrunner
 			continue
 		}
 
