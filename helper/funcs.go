@@ -15,6 +15,11 @@ import (
 // validUUID is used to check if a given string looks like a UUID
 var validUUID = regexp.MustCompile(`(?i)^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$`)
 
+// validInterpVarKey matches valid dotted variable names for interpolation. The
+// string must begin with one or more non-dot characters which may be followed
+// by sequences containing a dot followed by a one or more non-dot characters.
+var validInterpVarKey = regexp.MustCompile(`^[^.]+(\.[^.]+)*$`)
+
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
 	const uuidLen = 36
@@ -23,6 +28,14 @@ func IsUUID(str string) bool {
 	}
 
 	return validUUID.MatchString(str)
+}
+
+// IsValidInterpVariable returns true if a valid dotted variable names for
+// interpolation. The string must begin with one or more non-dot characters
+// which may be followed by sequences containing a dot followed by a one or more
+// non-dot characters.
+func IsValidInterpVariable(str string) bool {
+	return validInterpVarKey.MatchString(str)
 }
 
 // HashUUID takes an input UUID and returns a hashed version of the UUID to

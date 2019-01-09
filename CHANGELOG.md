@@ -7,6 +7,9 @@ __BACKWARDS INCOMPATIBILITIES:__
  * client: Task config interpolation requires names to be valid identifiers
    (`node.region` or `NOMAD_DC`). Interpolating other variables requires a new
    indexing syntax: `env[".invalid.identifier."]`. [[GH-4843](https://github.com/hashicorp/nomad/issues/4843)]
+ * client: Node metadata variables must have valid identifiers, whether 
+   specified in the config file (`client.meta` stanza) or on the command line 
+   (`-meta`). [[GH-5158](https://github.com/hashicorp/nomad/pull/5158)]
 
 IMPROVEMENTS:
  * core: Added advertise address to client node meta data [[GH-4390](https://github.com/hashicorp/nomad/issues/4390)]
