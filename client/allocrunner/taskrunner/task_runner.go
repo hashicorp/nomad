@@ -782,7 +782,7 @@ func (tr *TaskRunner) Restore() error {
 // restoreHandle ensures a TaskHandle is valid by calling Driver.RecoverTask
 // and sets the driver handle. If the TaskHandle is not valid, DestroyTask is
 // called.
-func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *cstructs.DriverNetwork) (success bool) {
+func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *drivers.DriverNetwork) (success bool) {
 	// Ensure handle is well-formed
 	if taskHandle.Config == nil {
 		return true

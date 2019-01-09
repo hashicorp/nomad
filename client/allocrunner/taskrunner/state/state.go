@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -13,7 +12,7 @@ type LocalState struct {
 
 	// DriverNetwork is the network information returned by the task
 	// driver's Start method
-	DriverNetwork *structs.DriverNetwork
+	DriverNetwork *drivers.DriverNetwork
 
 	// TaskHandle is the handle used to reattach to the task during recovery
 	TaskHandle *drivers.TaskHandle

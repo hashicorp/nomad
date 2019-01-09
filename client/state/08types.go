@@ -2,7 +2,6 @@ package state
 
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -36,7 +35,7 @@ type taskRunnerState08 struct {
 	ArtifactDownloaded bool
 	TaskDirBuilt       bool
 	PayloadRendered    bool
-	DriverNetwork      *cstructs.DriverNetwork
+	DriverNetwork      *drivers.DriverNetwork
 	// Created Resources are no longer used.
 	//CreatedResources   *driver.CreatedResources
 }

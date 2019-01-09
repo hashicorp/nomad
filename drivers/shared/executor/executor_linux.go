@@ -18,7 +18,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -355,7 +354,7 @@ func (l *LibcontainerExecutor) Version() (*ExecutorVersion, error) {
 }
 
 // Stats returns the resource statistics for processes managed by the executor
-func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
+func (l *LibcontainerExecutor) Stats() (*drivers.TaskResourceUsage, error) {
 	lstats, err := l.container.Stats()
 	if err != nil {
 		return nil, err
@@ -374,7 +373,7 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	maxUsage := stats.MemoryStats.Usage.MaxUsage
 	rss := stats.MemoryStats.Stats["rss"]
 	cache := stats.MemoryStats.Stats["cache"]
-	ms := &cstructs.MemoryStats{
+	ms := &drivers.MemoryStats{
 		RSS:            rss,
 		Cache:          cache,
 		Swap:           swap.Usage,
@@ -390,7 +389,7 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 	kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
 
 	totalPercent := l.totalCpuStats.Percent(totalProcessCPUUsage)
-	cs := &cstructs.CpuStats{
+	cs := &drivers.CpuStats{
 		SystemMode:       l.systemCpuStats.Percent(kernelModeTime),
 		UserMode:         l.userCpuStats.Percent(userModeTime),
 		Percent:          totalPercent,
@@ -399,8 +398,8 @@ func (l *LibcontainerExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
 		TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
 		Measured:         ExecutorCgroupMeasuredCpuStats,
 	}
-	taskResUsage := cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
+	taskResUsage := drivers.TaskResourceUsage{
+		ResourceUsage: &drivers.ResourceUsage{
 			MemoryStats: ms,
 			CpuStats:    cs,
 		},
@@ -420,7 +419,7 @@ func (l *LibcontainerExecutor) Signal(s os.Signal) error {
 func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error) {
 	combined := append([]string{cmd}, args...)
 	// Capture output
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	buf, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 
 	process := &libcontainer.Process{
 		Args:   combined,

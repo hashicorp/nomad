@@ -10,10 +10,10 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type serviceHookConfig struct {
@@ -37,7 +37,7 @@ type serviceHook struct {
 	// The following fields may be updated
 	delay      time.Duration
 	driverExec tinterfaces.ScriptExecutor
-	driverNet  *cstructs.DriverNetwork
+	driverNet  *drivers.DriverNetwork
 	canary     bool
 	services   []*structs.Service
 	networks   structs.Networks

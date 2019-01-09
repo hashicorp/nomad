@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
@@ -381,7 +380,7 @@ func taskStatusFromProto(pb *proto.TaskStatus) (*TaskStatus, error) {
 	}, nil
 }
 
-func TaskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, error) {
+func TaskStatsToProto(stats *TaskResourceUsage) (*proto.TaskStats, error) {
 	timestamp, err := ptypes.TimestampProto(time.Unix(0, stats.Timestamp))
 	if err != nil {
 		return nil, err
@@ -399,18 +398,18 @@ func TaskStatsToProto(stats *cstructs.TaskResourceUsage) (*proto.TaskStats, erro
 	}, nil
 }
 
-func TaskStatsFromProto(pb *proto.TaskStats) (*cstructs.TaskResourceUsage, error) {
+func TaskStatsFromProto(pb *proto.TaskStats) (*TaskResourceUsage, error) {
 	timestamp, err := ptypes.Timestamp(pb.Timestamp)
 	if err != nil {
 		return nil, err
 	}
 
-	pids := map[string]*cstructs.ResourceUsage{}
+	pids := map[string]*ResourceUsage{}
 	for pid, ru := range pb.ResourceUsageByPid {
 		pids[pid] = resourceUsageFromProto(ru)
 	}
 
-	stats := &cstructs.TaskResourceUsage{
+	stats := &TaskResourceUsage{
 		Timestamp:     timestamp.Unix(),
 		ResourceUsage: resourceUsageFromProto(pb.AggResourceUsage),
 		Pids:          pids,
@@ -419,7 +418,7 @@ func TaskStatsFromProto(pb *proto.TaskStats) (*cstructs.TaskResourceUsage, error
 	return stats, nil
 }
 
-func resourceUsageToProto(ru *cstructs.ResourceUsage) *proto.TaskResourceUsage {
+func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
 	cpu := &proto.CPUUsage{}
 	for _, field := range ru.CpuStats.Measured {
 		switch field {
@@ -471,8 +470,8 @@ func resourceUsageToProto(ru *cstructs.ResourceUsage) *proto.TaskResourceUsage {
 	}
 }
 
-func resourceUsageFromProto(pb *proto.TaskResourceUsage) *cstructs.ResourceUsage {
-	cpu := cstructs.CpuStats{}
+func resourceUsageFromProto(pb *proto.TaskResourceUsage) *ResourceUsage {
+	cpu := CpuStats{}
 	if pb.Cpu != nil {
 		for _, field := range pb.Cpu.MeasuredFields {
 			switch field {
@@ -498,7 +497,7 @@ func resourceUsageFromProto(pb *proto.TaskResourceUsage) *cstructs.ResourceUsage
 		}
 	}
 
-	memory := cstructs.MemoryStats{}
+	memory := MemoryStats{}
 	if pb.Memory != nil {
 		for _, field := range pb.Memory.MeasuredFields {
 			switch field {
@@ -521,7 +520,7 @@ func resourceUsageFromProto(pb *proto.TaskResourceUsage) *cstructs.ResourceUsage
 		}
 	}
 
-	return &cstructs.ResourceUsage{
+	return &ResourceUsage{
 		CpuStats:    &cpu,
 		MemoryStats: &memory,
 	}
