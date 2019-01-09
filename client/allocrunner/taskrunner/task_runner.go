@@ -99,7 +99,7 @@ type TaskRunner struct {
 	// killCtxCancel is called when killing a task.
 	killCtxCancel context.CancelFunc
 
-	// killErr is populatd when killing a task. Access should be done use the
+	// killErr is populated when killing a task. Access should be done use the
 	// getter/setter
 	killErr     error
 	killErrLock sync.Mutex
