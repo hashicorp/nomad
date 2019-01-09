@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
 )
 
 // TestVault is a test helper. It uses a fork/exec model to create a test Vault
@@ -198,7 +198,12 @@ func (tv *TestVault) Stop() {
 		tv.t.Errorf("err: %s", err)
 	}
 	if tv.waitCh != nil {
-		<-tv.waitCh
+		select {
+		case <-tv.waitCh:
+			return
+		case <-time.After(1 * time.Second):
+			tv.t.Error("Timed out waiting for vault to terminate")
+		}
 	}
 }
 
