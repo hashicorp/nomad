@@ -1,6 +1,7 @@
 package e2eutil
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,18 +28,25 @@ func WaitForLeader(t *testing.T, nomadClient *api.Client) {
 	})
 }
 
+// WaitForNodesReady waits until at least `nodes` number of nodes are ready or
+// fails the test.
 func WaitForNodesReady(t *testing.T, nomadClient *api.Client, nodes int) {
 	nodesAPI := nomadClient.Nodes()
 
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		nodesList, _, err := nodesAPI.List(nil)
+		if err != nil {
+			return false, fmt.Errorf("error listing nodes: %v", err)
+		}
+
 		eligibleNodes := 0
 		for _, node := range nodesList {
 			if node.Status == "ready" {
 				eligibleNodes++
 			}
 		}
-		return eligibleNodes == nodes, err
+
+		return eligibleNodes >= nodes, fmt.Errorf("only %d nodes ready (wanted at least %d)", eligibleNodes, nodes)
 	}, func(err error) {
 		t.Fatalf("failed to get enough ready nodes: %v", err)
 	})
