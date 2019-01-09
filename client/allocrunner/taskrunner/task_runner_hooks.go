@@ -256,7 +256,7 @@ func (tr *TaskRunner) poststart() error {
 
 	// Pass the lazy handle to the hooks so even if the driver exits and we
 	// launch a new one (external plugin), the handle will refresh.
-	lazyHandle := NewLazyHandle(tr.ctx, tr.getDriverHandle, tr.logger)
+	lazyHandle := NewLazyHandle(tr.shutdownCtx, tr.getDriverHandle, tr.logger)
 
 	var merr multierror.Error
 	for _, hook := range tr.runnerHooks {
