@@ -6,6 +6,7 @@ clone_folder: c:\gopath\src\github.com\hashicorp\nomad
 environment:
   GOPATH: c:\gopath
   GOBIN: c:\gopath\bin
+  GOMAXPROCS: 1
 
 install:
   - cmd: set PATH=%GOBIN%;c:\go\bin;%PATH%
