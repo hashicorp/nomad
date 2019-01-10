@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1523,7 +1524,11 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 	err := c.endpoints.FileSystem.streamFile(
 		context.Background(), 0, "foo", 0, ad, framer, nil)
 	require.NotNil(err)
-	require.Contains(err.Error(), "no such file")
+	if runtime.GOOS == "windows" {
+		require.Contains(err.Error(), "cannot find the file")
+	} else {
+		require.Contains(err.Error(), "no such file")
+	}
 }
 
 func TestFS_streamFile_Modify(t *testing.T) {
