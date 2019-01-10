@@ -6,7 +6,6 @@ clone_folder: c:\gopath\src\github.com\hashicorp\nomad
 environment:
   GOPATH: c:\gopath
   GOBIN: c:\gopath\bin
-  GOTESTSUM_JUNITFILE: c:\results.xml
 
 install:
   - cmd: set PATH=%GOBIN%;c:\go\bin;%PATH%
@@ -33,8 +32,8 @@ build_script:
       mkdir -p $GOPATH\bin
       go build -o $GOPATH\bin\nomad
 test_script:
-  - cmd: gotestsum -f short-verbose
+  - cmd: gotestsum -f short-verbose --junitfile results.xml
 on_finish:
   - ps: |
       $wc = New-Object 'System.Net.WebClient'
-      $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path "c:\\results.xml"))
+      $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\results.xml))
