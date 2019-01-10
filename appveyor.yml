@@ -16,8 +16,8 @@ install:
   - ps: mkdir C:\gopath\bin
   - ps: appveyor DownloadFile "https://releases.hashicorp.com/vault/0.10.2/vault_0.10.2_windows_amd64.zip" -FileName "C:\\gopath\\bin\\vault.zip"
   - ps: Expand-Archive C:\gopath\bin\vault.zip -DestinationPath C:\gopath\bin
-  - ps: appveyor DownloadFile "https://releases.hashicorp.com/consul/1.0.0/consul_1.0.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\consul.zip"
-  - ps: Expand-Archive C:\gopath\bin\consul.zip -DestinationPath C:\gopath\bin
+    #  - ps: appveyor DownloadFile "https://releases.hashicorp.com/consul/1.0.0/consul_1.0.0_windows_amd64.zip" -FileName "C:\\gopath\\bin\\consul.zip"
+    #  - ps: Expand-Archive C:\gopath\bin\consul.zip -DestinationPath C:\gopath\bin
   - ps: choco install make
   - ps: |
       go get -u github.com/kardianos/govendor
