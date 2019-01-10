@@ -5,10 +5,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
-	"runtime"
 
 	log "github.com/hashicorp/go-hclog"
 	version "github.com/hashicorp/go-version"

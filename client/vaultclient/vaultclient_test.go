@@ -275,7 +275,7 @@ func TestVaultClient_RenewNonexistentLease(t *testing.T) {
 	_, err = c.RenewToken(c.client.Token(), 10)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
-	// The Vault error message changed between 0.10.2 and 1.0.1
+		// The Vault error message changed between 0.10.2 and 1.0.1
 	} else if !strings.Contains(err.Error(), "lease not found") && !strings.Contains(err.Error(), "lease is not renewable") {
 		t.Fatalf("expected \"%s\" or \"%s\" in error message, got \"%v\"", "lease not found", "lease is not renewable", err.Error())
 	}
