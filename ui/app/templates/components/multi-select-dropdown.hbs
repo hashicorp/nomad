@@ -1,0 +1,18 @@
+{{#basic-dropdown matchTriggerWidth=true as |dd|}}
+  {{#dd.trigger class="dropdown-trigger"}}
+    <span class="dropdown-trigger-label">{{label}}</span>
+    <span class="dropdown-trigger-icon ember-power-select-status-icon"></span>
+  {{/dd.trigger}}
+  {{#dd.content class="dropdown-options"}}
+    <ul role="listbox">
+      {{#each options key="key" as |option|}}
+        <li class="dropdown-option">
+          <label>
+            <input type="checkbox" checked={{includes option.key selection}} />
+            {{option.label}}
+          </label>
+        </li>
+      {{/each}}
+    </ul>
+  {{/dd.content}}
+{{/basic-dropdown}}
