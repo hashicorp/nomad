@@ -21,9 +21,3 @@ client {
 ports {
   http = 5656
 }
-
-plugin "raw_exec" {
-    config {
-        enabled = true
-    }
-}
