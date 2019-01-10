@@ -1,4 +1,4 @@
-// +build unix
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package testtask
 
