@@ -274,7 +274,7 @@ func (d *driverPluginClient) TaskStats(ctx context.Context, taskID string, inter
 	}
 
 	ch := make(chan *cstructs.TaskResourceUsage, 1)
-	d.handleStats(ctx, ch, stream)
+	go d.handleStats(ctx, ch, stream)
 
 	return ch, nil
 }

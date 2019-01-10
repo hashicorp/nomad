@@ -57,7 +57,7 @@ func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskRes
 		// receive stats from docker and emit nomad stats
 		// statsCh will always be closed by docker client.
 		statsCh := make(chan *docker.Stats)
-		go h.collector(ch, statsCh, interval)
+		go dockerStatsCollector(ch, statsCh, interval)
 
 		statsOpts := docker.StatsOptions{
 			ID:      h.containerID,
@@ -86,7 +86,7 @@ func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskRes
 		return
 	}
 }
-func (h *taskHandle) collector(destCh chan *cstructs.TaskResourceUsage, statsCh <-chan *docker.Stats, interval time.Duration) {
+func dockerStatsCollector(destCh chan *cstructs.TaskResourceUsage, statsCh <-chan *docker.Stats, interval time.Duration) {
 	var resourceUsage *cstructs.TaskResourceUsage
 
 	// hasSentInitialStats is used so as to emit the first stats received from

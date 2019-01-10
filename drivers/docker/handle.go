@@ -27,8 +27,6 @@ type taskHandle struct {
 	task                  *drivers.TaskConfig
 	containerID           string
 	containerImage        string
-	resourceUsageLock     sync.RWMutex
-	resourceUsage         *drivers.TaskResourceUsage
 	doneCh                chan bool
 	waitCh                chan struct{}
 	removeContainerOnExit bool
