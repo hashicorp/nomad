@@ -1,6 +1,7 @@
 package api
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -364,7 +365,7 @@ func TestTask_Artifact(t *testing.T) {
 	if *a.GetterMode != "file" {
 		t.Errorf("expected file but found %q", *a.GetterMode)
 	}
-	if *a.RelativeDest != "local/foo.txt" {
+	if filepath.ToSlash(*a.RelativeDest) != "local/foo.txt" {
 		t.Errorf("expected local/foo.txt but found %q", *a.RelativeDest)
 	}
 }
