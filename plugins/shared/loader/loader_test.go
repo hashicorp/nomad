@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"runtime"
 
 	log "github.com/hashicorp/go-hclog"
 	version "github.com/hashicorp/go-version"
@@ -55,8 +56,12 @@ func newHarness(t *testing.T, plugins []string) *harness {
 		t.Fatalf("failed to get self executable path: %v", err)
 	}
 
+	exeSuffix := ""
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
 	for _, p := range plugins {
-		dest := filepath.Join(h.tmpDir, p)
+		dest := strings.Join([]string{filepath.Join(h.tmpDir, p), exeSuffix}, "")
 		if err := copyFile(selfExe, dest); err != nil {
 			t.Fatalf("failed to copy file: %v", err)
 		}
@@ -1217,6 +1222,9 @@ func TestPluginLoader_Bad_Executable(t *testing.T) {
 
 // Test that we skip directories, non-executables and follow symlinks
 func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows currently does not skip non exe files")
+	}
 	t.Parallel()
 	require := require.New(t)
 
