@@ -35,5 +35,6 @@ test_script:
   - cmd: gotestsum -f short-verbose --junitfile results.xml
 on_finish:
   - ps: |
+      Push-AppveyorArtifact (Resolve-Path .\results.xml)
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\results.xml))
