@@ -1308,7 +1308,6 @@ func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resour
 		TaskResources: map[string]*structs.Resources{
 			"web": resource,
 		},
-		Resources:     resource,
 		Namespace:     structs.DefaultNamespace,
 		EvalID:        uuid.Generate(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
