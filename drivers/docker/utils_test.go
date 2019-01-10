@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func TestExpandPath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.expected, func(t *testing.T) {
-			require.Equal(t, c.expected, expandPath(c.base, c.target))
+			require.Equal(t, c.expected, filepath.ToSlash(expandPath(c.base, c.target)))
 		})
 	}
 }
