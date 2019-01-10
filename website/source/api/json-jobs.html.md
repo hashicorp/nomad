@@ -161,6 +161,9 @@ The `Job` object supports the following keys:
 - `Affinities` - A list to define placement preferences on nodes where a job can be
   run. See the affinity reference for more details.
 
+- `Spread` - A list to define allocation spread across attributes. See the spread reference
+  for more details.
+
 - `Datacenters` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
@@ -264,6 +267,9 @@ attributes:
 - `Affinities` - This is a list of `Affinity` objects. See the affinity
     reference for more details.
 
+- `Spreads` - This is a list of `Spread` objects. See the spread
+  reference for more details.
+
 - `Count` - Specifies the number of the task groups that should
   be running. Must be non-negative, defaults to one.
 
@@ -321,6 +327,9 @@ The `Task` object supports the following keys:
 
 - `Affinities` - This is a list of `Affinity` objects. See the affinity
     reference for more details.
+
+- `Spreads` - This is a list of `Spread` objects. See the spread
+  reference for more details.
 
 - `DispatchPayload` - Configures the task to have access to dispatch payloads.
   The `DispatchPayload` object supports the following attributes:
@@ -958,6 +967,27 @@ README][ct].
   ]
 }
 ```
+
+### Spread
+
+Spread allow operators to target specific percentages of allocations based on
+any node attribute or metadata. More details on how they work are described
+in [spread](/docs/job-specification/spread.html).
+
+The `Spread` object supports the following keys:
+
+- `Attribute` - Specifies the attribute to examine for the
+  spread. See the [table of attributes](/docs/runtime/interpolation.html#interpreted_node_vars) for examples.
+
+- `SpreadTarget` - Specifies a list of attribute values and percentages. This is an optional field, when
+  left empty Nomad will evenly spread allocations across values of the attribute.
+     - `Value` - The value of a specific target attribute, like "dc1" for `${node.datacenter}`.
+     - `Percent` - Desired percentage of allocations for this attribute value. The sum of
+       all spread target percentages must add up to 100.
+
+- `Weight` - A non zero weight, valid values are from -100 to 100. Used to express
+   relative preference when there is more than one spread or affinity.
+
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
 [drain]: /docs/commands/node/drain.html

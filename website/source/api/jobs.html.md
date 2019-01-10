@@ -599,6 +599,13 @@ $ curl \
           "Delay": 25000000000,
           "Mode": "delay"
         },
+        "Spreads": [
+           {
+           "Attribute": "${node.datacenter}",
+           "SpreadTarget": null,
+           "Weight": 100
+           }
+        ],
         "Tasks": [
           {
             "Name": "redis",
@@ -642,6 +649,7 @@ $ curl \
             "Templates": null,
             "Constraints": null,
             "Affinities":null,
+            "Spreads":null,
             "Resources": {
               "CPU": 500,
               "MemoryMB": 256,
@@ -695,6 +703,7 @@ $ curl \
     "Payload": null,
     "Meta": null,
     "VaultToken": "",
+    "Spreads": null,
     "Status": "pending",
     "StatusDescription": "",
     "Stable": false,

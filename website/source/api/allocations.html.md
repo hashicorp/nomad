@@ -234,6 +234,7 @@ $ curl \
           "Delay": 25000000000,
           "Mode": "delay"
         },
+        "Spreads": null,
         "Tasks": [
           {
             "Name": "redis",
@@ -296,6 +297,7 @@ $ curl \
                 }
               ]
             },
+            "Spreads": null,
             "DispatchPayload": null,
             "Meta": null,
             "KillTimeout": 5000000000,
@@ -322,6 +324,7 @@ $ curl \
     "Periodic": null,
     "ParameterizedJob": null,
     "Payload": null,
+    "Spreads": null,
     "Meta": null,
     "VaultToken": "",
     "Status": "pending",
