@@ -14,7 +14,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
 )
 
 var _ Executor = (*grpcExecutorClient)(nil)
@@ -121,14 +120,7 @@ func (c *grpcExecutorClient) handleStats(ctx context.Context, stream proto.Execu
 		resp, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
-				c.logger.Error("error receiving stream from Stats executor RPC", "error", err)
-				truErr := &cstructs.TaskResourceUsage{
-					Err: grpcutils.HandleReqCtxGrpcErr(err, ctx, c.doneCtx),
-				}
-				select {
-				case ch <- truErr:
-				case <-ctx.Done():
-				}
+				c.logger.Error("error receiving stream from Stats executor RPC, closing stream", "error", err)
 			}
 
 			// End stream
@@ -137,13 +129,8 @@ func (c *grpcExecutorClient) handleStats(ctx context.Context, stream proto.Execu
 
 		stats, err := drivers.TaskStatsFromProto(resp.Stats)
 		if err != nil {
-			truErr := &cstructs.TaskResourceUsage{
-				Err: fmt.Errorf("failed to decode stats from RPC: %v", err),
-			}
-			select {
-			case ch <- truErr:
-			case <-ctx.Done():
-			}
+			c.logger.Error("failed to decode stats from RPC", "error", err, "stats", resp.Stats)
+			continue
 		}
 
 		select {

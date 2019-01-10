@@ -78,6 +78,8 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 	pt.Parallel()
 	invalid := "/bin/foobar"
 	for name, factory := range executorFactories {
+		name := name
+		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -96,6 +98,8 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
+		name := name
+		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -118,6 +122,8 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 func TestExecutor_Start_Wait(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
+		name := name
+		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -155,6 +161,8 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 func TestExecutor_WaitExitSignal(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
+		name := name
+		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -170,18 +178,32 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			go func() {
 				// Give process time to start
 				time.Sleep(time.Second)
-				ch, err := executor.Stats(context.Background(), time.Second)
-				assert.NoError(t, err)
-				select {
-				case <-time.After(time.Second):
-					assert.Fail(t, "stats failed to send on interval")
-				case ru := <-ch:
-					assert.NotEmpty(t, ru.Pids)
-				}
-				proc, err := os.FindProcess(ps.Pid)
-				assert.NoError(t, err)
-				err = proc.Signal(syscall.SIGKILL)
-				assert.NoError(t, err)
+				tu.WaitForResult(func() (bool, error) {
+					ch, err := executor.Stats(context.Background(), time.Second)
+					if err != nil {
+						return false, err
+					}
+					select {
+					case <-time.After(time.Second):
+						return false, fmt.Errorf("stats failed to send on interval")
+					case ru := <-ch:
+						if len(ru.Pids) == 0 {
+							return false, fmt.Errorf("no pids recorded in stats")
+						}
+					}
+					proc, err := os.FindProcess(ps.Pid)
+					if err != nil {
+						return false, err
+					}
+					err = proc.Signal(syscall.SIGKILL)
+					if err != nil {
+						return false, err
+					}
+					return true, nil
+				}, func(err error) {
+					assert.NoError(t, err)
+					executor.Shutdown("SIGINT", 0)
+				})
 			}()
 
 			ps, err = executor.Wait(context.Background())
@@ -194,6 +216,8 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 func TestExecutor_Start_Kill(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
+		name := name
+		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -296,7 +320,7 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 // than mounting the underlying host filesystem
 func setupRootfs(t *testing.T, rootfs string) {
 	paths := []string{
-		"/bin/sh",
+		//		"/bin/sh",
 		"/bin/sleep",
 		"/bin/echo",
 		"/bin/date",

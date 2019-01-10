@@ -6,8 +6,12 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type grpcExecutorServer struct {
@@ -88,45 +92,42 @@ func (s *grpcExecutorServer) Version(context.Context, *proto.VersionRequest) (*p
 }
 
 func (s *grpcExecutorServer) Stats(req *proto.StatsRequest, stream proto.Executor_StatsServer) error {
-	ctx := stream.Context()
-
 	interval := time.Duration(req.Interval)
-	if interval.Nanoseconds() == 0 {
+	if interval == 0 {
 		interval = time.Second
 	}
 
 	outCh, err := s.impl.Stats(stream.Context(), time.Duration(req.Interval))
 	if err != nil {
+		if rec, ok := err.(structs.Recoverable); ok {
+			st := status.New(codes.FailedPrecondition, rec.Error())
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			if err != nil {
+				// If this error, it will always error
+				panic(err)
+			}
+			return st.Err()
+		}
 		return err
 	}
 
-	for {
+	for resp := range outCh {
+		pbStats, err := drivers.TaskStatsToProto(resp)
+		if err != nil {
+			return err
+		}
 
-		select {
-		case <-ctx.Done():
-			return nil
-		case resp, ok := <-outCh:
-			// chan closed, end stream
-			if !ok {
-				return nil
-			}
+		presp := &proto.StatsResponse{
+			Stats: pbStats,
+		}
 
-			pbStats, err := drivers.TaskStatsToProto(resp)
-			if err != nil {
-				return err
-			}
-
-			presp := &proto.StatsResponse{
-				Stats: pbStats,
-			}
-
-			// Send the stats
-			if err := stream.Send(presp); err != nil {
-				return err
-			}
-
+		// Send the stats
+		if err := stream.Send(presp); err != nil {
+			return err
 		}
 	}
+
+	return nil
 }
 
 func (s *grpcExecutorServer) Signal(ctx context.Context, req *proto.SignalRequest) (*proto.SignalResponse, error) {

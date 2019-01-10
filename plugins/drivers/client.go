@@ -3,7 +3,6 @@ package drivers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
@@ -285,14 +284,7 @@ func (d *driverPluginClient) handleStats(ctx context.Context, ch chan<- *cstruct
 		resp, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
-				d.logger.Error("error receiving stream from TaskStats driver RPC", "error", err)
-				truErr := &cstructs.TaskResourceUsage{
-					Err: grpcutils.HandleReqCtxGrpcErr(err, ctx, d.doneCtx),
-				}
-				select {
-				case ch <- truErr:
-				case <-ctx.Done():
-				}
+				d.logger.Error("error receiving stream from TaskStats driver RPC, closing stream", "error", err)
 			}
 
 			// End of stream
@@ -301,13 +293,8 @@ func (d *driverPluginClient) handleStats(ctx context.Context, ch chan<- *cstruct
 
 		stats, err := TaskStatsFromProto(resp.Stats)
 		if err != nil {
-			truErr := &cstructs.TaskResourceUsage{
-				Err: fmt.Errorf("failed to decode stats from RPC: %v", err),
-			}
-			select {
-			case ch <- truErr:
-			case <-ctx.Done():
-			}
+			d.logger.Error("failed to decode stats from RPC", "error", err, "stats", resp.Stats)
+			continue
 		}
 
 		select {

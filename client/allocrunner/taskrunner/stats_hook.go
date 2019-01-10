@@ -121,10 +121,6 @@ func (h *statsHook) collectResourceUsageStats(ctx context.Context, handle interf
 				continue
 			}
 
-			if ru.Err != nil {
-				h.logger.Warn("stats collection for task failed", "error", err)
-			}
-
 			// Update stats on TaskRunner and emit them
 			h.updater.UpdateStats(ru)
 
