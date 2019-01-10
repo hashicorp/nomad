@@ -123,7 +123,7 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 		}
 
 		for _, alloc := range resp.Allocations {
-			if alloc.ClientStatus != structs.AllocClientStatusRunning {
+			if alloc.ClientStatus == structs.AllocClientStatusPending {
 				return false, fmt.Errorf("alloc not running: id=%v tg=%v status=%v",
 					alloc.ID, alloc.TaskGroup, alloc.ClientStatus)
 			}
