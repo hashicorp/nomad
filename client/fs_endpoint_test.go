@@ -1706,6 +1706,9 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 }
 
 func TestFS_streamImpl_Delete(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not allow us to delete a file while it is open")
+	}
 	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
@@ -1730,7 +1733,11 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 	frames := make(chan *sframer.StreamFrame, 4)
 	go func() {
 		for {
-			frame := <-frames
+			frame, ok := <-frames
+			if !ok {
+				return
+			}
+
 			if frame.IsHeartbeat() {
 				continue
 			}
