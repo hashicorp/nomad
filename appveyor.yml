@@ -29,6 +29,7 @@ install:
       go get -u gotest.tools/gotestsum
 build_script:
   - cmd: |
+      set PATH=%GOPATH%/bin;%PATH%
       mkdir -p $GOPATH\bin
       go build -o $GOPATH\bin\nomad
 test_script:
