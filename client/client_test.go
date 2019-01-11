@@ -754,6 +754,10 @@ func TestClient_AddAllocError(t *testing.T) {
 	}
 	alloc1.ClientStatus = structs.AllocClientStatusPending
 
+	// Set these two fields to nil to cause alloc runner creation to fail
+	alloc1.AllocatedResources = nil
+	alloc1.TaskResources = nil
+
 	state := s1.State()
 	err := state.UpsertJob(100, job)
 	require.Nil(err)
@@ -764,9 +768,13 @@ func TestClient_AddAllocError(t *testing.T) {
 	err = state.UpsertAllocs(102, []*structs.Allocation{alloc1})
 	require.Nil(err)
 
-	// Manipulate state store alloc to make its task group invalid
-	stateStoreAlloc, _ := s1.State().AllocByID(nil, alloc1.ID)
-	stateStoreAlloc.TaskGroup = "invalid"
+	// Push this alloc update to the client
+	allocUpdates := &allocUpdates{
+		pulled: map[string]*structs.Allocation{
+			alloc1.ID: alloc1,
+		},
+	}
+	c1.runAllocs(allocUpdates)
 
 	// Ensure the allocation has been marked as invalid and failed on the server
 	testutil.WaitForResult(func() (bool, error) {
@@ -780,8 +788,6 @@ func TestClient_AddAllocError(t *testing.T) {
 		if !isInvalid {
 			return false, fmt.Errorf("expected alloc to be marked as invalid")
 		}
-		// Make the task group name valid again so that the client update to mark it failed works
-		stateStoreAlloc.TaskGroup = "web"
 		alloc, err := s1.State().AllocByID(nil, alloc1.ID)
 		require.Nil(err)
 		failed := alloc.ClientStatus == structs.AllocClientStatusFailed
