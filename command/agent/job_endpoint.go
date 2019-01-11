@@ -956,7 +956,7 @@ func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {
 func ApiSpreadToStructs(a1 *api.Spread) *structs.Spread {
 	ret := &structs.Spread{}
 	ret.Attribute = a1.Attribute
-	ret.Weight = a1.Weight
+	ret.Weight = *a1.Weight
 	if a1.SpreadTarget != nil {
 		ret.SpreadTarget = make([]*structs.SpreadTarget, len(a1.SpreadTarget))
 		for i, st := range a1.SpreadTarget {

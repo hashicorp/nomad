@@ -1413,7 +1413,7 @@ func TestJobs_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    100,
+			Weight:    helper.IntToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -1423,7 +1423,7 @@ func TestJobs_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    100,
+			Weight:    helper.IntToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",

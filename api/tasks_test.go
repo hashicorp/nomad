@@ -143,7 +143,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    100,
+			Weight:    helper.IntToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -153,7 +153,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    100,
+			Weight:    helper.IntToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",
@@ -751,4 +751,58 @@ func TestService_CheckRestart(t *testing.T) {
 	assert.Equal(t, service.Checks[2].CheckRestart.Limit, 11)
 	assert.Equal(t, *service.Checks[2].CheckRestart.Grace, 11*time.Second)
 	assert.True(t, service.Checks[2].CheckRestart.IgnoreWarnings)
+}
+
+// TestSpread_Canonicalize asserts that the spread stanza is canonicalized correctly
+func TestSpread_Canonicalize(t *testing.T) {
+	job := &Job{
+		ID:   helper.StringToPtr("test"),
+		Type: helper.StringToPtr("batch"),
+	}
+	job.Canonicalize()
+	tg := &TaskGroup{
+		Name: helper.StringToPtr("foo"),
+	}
+	type testCase struct {
+		desc           string
+		spread         *Spread
+		expectedWeight int
+	}
+	cases := []testCase{
+		{
+			"Nil spread",
+			&Spread{
+				Attribute: "test",
+				Weight:    nil,
+			},
+			50,
+		},
+		{
+			"Zero spread",
+			&Spread{
+				Attribute: "test",
+				Weight:    helper.IntToPtr(0),
+			},
+			0,
+		},
+		{
+			"Non Zero spread",
+			&Spread{
+				Attribute: "test",
+				Weight:    helper.IntToPtr(100),
+			},
+			100,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			require := require.New(t)
+			tg.Spreads = []*Spread{tc.spread}
+			tg.Canonicalize(job)
+			for _, spr := range tg.Spreads {
+				require.Equal(tc.expectedWeight, *spr.Weight)
+			}
+		})
+	}
 }

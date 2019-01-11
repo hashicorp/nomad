@@ -707,6 +707,10 @@ func (j *Job) Canonicalize() {
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
+
+	for _, spread := range j.Spreads {
+		spread.Canonicalize()
+	}
 }
 
 // LookupTaskGroup finds a task group by name
