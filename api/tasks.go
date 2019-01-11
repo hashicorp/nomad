@@ -223,7 +223,7 @@ func (p *ReschedulePolicy) String() string {
 // Spread is used to serialize task group allocation spread preferences
 type Spread struct {
 	Attribute    string
-	Weight       int
+	Weight       *int
 	SpreadTarget []*SpreadTarget
 }
 
@@ -243,8 +243,14 @@ func NewSpreadTarget(value string, percent uint32) *SpreadTarget {
 func NewSpread(attribute string, weight int, spreadTargets []*SpreadTarget) *Spread {
 	return &Spread{
 		Attribute:    attribute,
-		Weight:       weight,
+		Weight:       helper.IntToPtr(weight),
 		SpreadTarget: spreadTargets,
+	}
+}
+
+func (s *Spread) Canonicalize() {
+	if s.Weight == nil {
+		s.Weight = helper.IntToPtr(50)
 	}
 }
 
@@ -568,6 +574,11 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		defaultRestartPolicy.Merge(g.RestartPolicy)
 	}
 	g.RestartPolicy = defaultRestartPolicy
+
+	for _, spread := range g.Spreads {
+		spread.Canonicalize()
+	}
+
 }
 
 // Constrain is used to add a constraint to a task group.

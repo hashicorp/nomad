@@ -87,7 +87,7 @@ func TestCompose(t *testing.T) {
 				Spreads: []*Spread{
 					{
 						Attribute: "${node.datacenter}",
-						Weight:    30,
+						Weight:    helper.IntToPtr(30),
 						SpreadTarget: []*SpreadTarget{
 							{
 								Value:   "dc1",

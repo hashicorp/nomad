@@ -1232,7 +1232,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Spreads: []*api.Spread{
 			{
 				Attribute: "${meta.rack}",
-				Weight:    100,
+				Weight:    helper.IntToPtr(100),
 				SpreadTarget: []*api.SpreadTarget{
 					{
 						Value:   "r1",
@@ -1299,7 +1299,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Spreads: []*api.Spread{
 					{
 						Attribute: "${node.datacenter}",
-						Weight:    100,
+						Weight:    helper.IntToPtr(100),
 						SpreadTarget: []*api.SpreadTarget{
 							{
 								Value:   "dc1",
