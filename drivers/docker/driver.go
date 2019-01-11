@@ -88,6 +88,10 @@ type Driver struct {
 
 	// gpuRuntime indicates nvidia-docker runtime availability
 	gpuRuntime bool
+
+	// hasFingerprinted is used to store whether we have fingerprinted before
+	hasFingerprinted bool
+	fingerprintLock  sync.Mutex
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin

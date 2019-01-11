@@ -16,6 +16,20 @@ func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, 
 	return ch, nil
 }
 
+// fingerprinted returns whether the driver has fingerprinted before
+func (d *Driver) fingerprinted() bool {
+	d.fingerprintLock.Lock()
+	defer d.fingerprintLock.Unlock()
+	return d.hasFingerprinted
+}
+
+// setFingerprinted marks the driver as having fingerprinted once before
+func (d *Driver) setFingerprinted() {
+	d.fingerprintLock.Lock()
+	d.hasFingerprinted = true
+	d.fingerprintLock.Unlock()
+}
+
 func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
 	defer close(ch)
 	ticker := time.NewTimer(0)
@@ -33,6 +47,10 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 }
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
+	defer func() {
+		d.setFingerprinted()
+	}()
+
 	fp := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
@@ -40,7 +58,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	}
 	client, _, err := d.dockerClients()
 	if err != nil {
-		d.logger.Info("failed to initialize client", "error", err)
+		if !d.fingerprinted() {
+			d.logger.Info("failed to initialize client", "error", err)
+		}
 		return &drivers.Fingerprint{
 			Health:            drivers.HealthStateUndetected,
 			HealthDescription: "Failed to initialize docker client",
@@ -49,7 +69,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	env, err := client.Version()
 	if err != nil {
-		d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
+		if !d.fingerprinted() {
+			d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
+		}
 		return &drivers.Fingerprint{
 			Health:            drivers.HealthStateUnhealthy,
 			HealthDescription: "Failed to connect to docker daemon",
@@ -84,7 +106,9 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			} else {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
-				d.logger.Debug("bridge_ip could not be discovered")
+				if !d.fingerprinted() {
+					d.logger.Debug("bridge_ip could not be discovered")
+				}
 			}
 			break
 		}
