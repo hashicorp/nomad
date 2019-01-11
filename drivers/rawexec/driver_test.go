@@ -417,13 +417,13 @@ func TestRawExecDriver_Exec(t *testing.T) {
 
 	if runtime.GOOS == "windows" {
 		// Exec a command that should work
-		res, err := harness.ExecTask(task.ID, []string{"echo", "hello"}, 1*time.Second)
+		res, err := harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "echo", "hello"}, 1*time.Second)
 		require.NoError(err)
 		require.True(res.ExitResult.Successful())
-		require.True(len(res.Stdout) > 100)
+		require.Equal(string(res.Stdout), "hello\r\n")
 
 		// Exec a command that should fail
-		res, err = harness.ExecTask(task.ID, []string{"stat", "notarealfile123abc"}, 1*time.Second)
+		res, err = harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "stat", "notarealfile123abc"}, 1*time.Second)
 		require.NoError(err)
 		require.False(res.ExitResult.Successful())
 		require.Contains(string(res.Stdout), "not recognized")
