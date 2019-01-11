@@ -1,4 +1,4 @@
-## 0.8.7 (Unreleased)
+## 0.8.7 (January 11, 19)
 
 IMPROVEMENTS:
 * core: Added `filter_default`, `prefix_filter` and `disable_dispatched_job_summary_metrics`
