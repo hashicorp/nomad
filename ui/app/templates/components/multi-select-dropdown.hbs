@@ -1,6 +1,11 @@
 {{#basic-dropdown matchTriggerWidth=true as |dd|}}
   {{#dd.trigger class="dropdown-trigger"}}
-    <span class="dropdown-trigger-label">{{label}}</span>
+    <span class="dropdown-trigger-label">
+      {{label}}
+      {{#if selection.length}}
+        <span class="tag is-light">{{selection.length}}</span>
+      {{/if}}
+    </span>
     <span class="dropdown-trigger-icon ember-power-select-status-icon"></span>
   {{/dd.trigger}}
   {{#dd.content class="dropdown-options"}}
@@ -8,7 +13,10 @@
       {{#each options key="key" as |option|}}
         <li class="dropdown-option">
           <label>
-            <input type="checkbox" checked={{includes option.key selection}} />
+            <input
+              type="checkbox"
+              checked={{includes option.key selection}}
+              onchange={{action "toggle" option}} />
             {{option.label}}
           </label>
         </li>
