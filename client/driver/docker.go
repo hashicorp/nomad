@@ -17,15 +17,15 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/fsouza/go-dockerclient"
+	docker "github.com/fsouza/go-dockerclient"
 
 	"github.com/docker/docker/cli/config/configfile"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-plugin"
+	metrics "github.com/armon/go-metrics"
+	multierror "github.com/hashicorp/go-multierror"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/driver/env"
 	"github.com/hashicorp/nomad/client/driver/executor"
@@ -393,8 +393,8 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 	}
 
 	for i, m := range dconf.Mounts {
-		dconf.Mounts[i].Target = env.ReplaceEnv(m.Target)
-		dconf.Mounts[i].Source = env.ReplaceEnv(m.Source)
+		m.Target = env.ReplaceEnv(m.Target)
+		m.Source = env.ReplaceEnv(m.Source)
 
 		if m.Type == "" {
 			// default to `volume` type for backwards compatibility
@@ -456,6 +456,9 @@ func NewDockerDriverConfig(task *structs.Task, env *env.TaskEnv) (*DockerDriverC
 				}
 			}
 		}
+
+		// Copy altered version back into slice
+		dconf.Mounts[i] = m
 	}
 
 	if len(dconf.Logging) > 0 {

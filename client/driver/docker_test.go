@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1890,7 +1891,82 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	}
 }
 
-func TestDockerDriver_VolumeMounts(t *testing.T) {
+// TestDockerDriver_VolumesMounts_Ok asserts Docker can run a task with volume
+// mounts.
+func TestDockerDriver_VolumeMounts_Ok(t *testing.T) {
+	if !tu.IsTravis() {
+		t.Parallel()
+	}
+	if !testutil.DockerIsConnected(t) {
+		t.Skip("Docker not connected")
+	}
+
+	cfg := testConfig(t)
+
+	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumemounts")
+	if err != nil {
+		t.Fatalf("error creating temporary dir: %v", err)
+	}
+
+	// Evaluate symlinks so it works on MacOS
+	tmpvol, err = filepath.EvalSymlinks(tmpvol)
+	if err != nil {
+		t.Fatalf("error evaluating symlinks: %v", err)
+	}
+
+	// Create test volume
+	volName := fmt.Sprintf("nomad_testvol_%s", uuid.Generate()[:4])
+	dockerClient := newTestDockerClient(t)
+	dockerVol, err := dockerClient.CreateVolume(docker.CreateVolumeOptions{
+		Name: volName,
+	})
+	require.NoError(t, err)
+	defer dockerClient.RemoveVolume(volName)
+
+	task, driver, execCtx, _, cleanup := setupDockerVolumes(t, cfg, tmpvol)
+	defer cleanup()
+
+	// Alter task to test volume mounts, not the old volumes config
+	delete(task.Config, "volumes")
+	task.Config["args"] = []string{"${VOL_PATH}/foo"}
+	task.Config["mounts"] = []interface{}{
+		map[string]interface{}{
+			// omit `type` to make sure defaulting works
+			"target": "${VOL_PATH}",
+			"source": volName,
+		},
+	}
+
+	_, err = driver.Prestart(execCtx, task)
+	if err != nil {
+		t.Fatalf("error in prestart: %v", err)
+	}
+	resp, err := driver.Start(execCtx, task)
+	if err != nil {
+		t.Fatalf("Failed to start docker driver: %v", err)
+	}
+	defer resp.Handle.Kill()
+
+	select {
+	case res := <-resp.Handle.WaitCh():
+		if !res.Successful() {
+			t.Fatalf("unexpected err: %v", res)
+		}
+	case <-time.After(time.Duration(tu.TestMultiplier()*10) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+	// Reading from the docker volume host path requires root
+	if syscall.Geteuid() != 0 {
+		t.Skip("Must run as root on Unix")
+	}
+	hostfile := filepath.Join(dockerVol.Mountpoint, "foo")
+	if _, err := ioutil.ReadFile(hostfile); err != nil {
+		t.Fatalf("unexpected error reading %s: %v", hostfile, err)
+	}
+}
+
+func TestDockerDriver_VolumeMounts_Validation(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
 	}
