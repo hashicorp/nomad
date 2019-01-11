@@ -180,7 +180,7 @@ func distCrossdomainXml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/crossdomain.xml", size: 585, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/crossdomain.xml", size: 585, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -220,7 +220,7 @@ func distFavicon1c2527a7a07d130ecbafce75e4615a69Png() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/favicon-1c2527a7a07d130ecbafce75e4615a69.png", size: 6714, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/favicon-1c2527a7a07d130ecbafce75e4615a69.png", size: 6714, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -280,7 +280,7 @@ func distImagesIconsMediaPauseSvg() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/images/icons/media-pause.svg", size: 160, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/images/icons/media-pause.svg", size: 160, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -300,7 +300,7 @@ func distImagesIconsMediaPlaySvg() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/images/icons/media-play.svg", size: 145, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/images/icons/media-play.svg", size: 145, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -320,7 +320,7 @@ func distImagesIconsWarningSvg() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/images/icons/warning.svg", size: 312, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/images/icons/warning.svg", size: 312, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -360,7 +360,7 @@ func distIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/index.html", size: 1307, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/index.html", size: 1307, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -380,7 +380,7 @@ func distRobotsTxt() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "dist/robots.txt", size: 51, mode: os.FileMode(511), modTime: time.Unix(1480000000, 0)}
+	info := bindataFileInfo{name: "dist/robots.txt", size: 51, mode: os.FileMode(420), modTime: time.Unix(1480000000, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
