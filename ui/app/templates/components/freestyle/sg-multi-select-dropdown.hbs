@@ -2,7 +2,8 @@
   {{multi-select-dropdown
     label="Example Dropdown"
     options=options
-    selection=selection}}
+    selection=selection
+    onSelect=(action (mut selection))}}
 {{/freestyle-usage}}
 {{#freestyle-annotation}}
   A wrapper around basic-dropdown for creating a list of checkboxes and tracking the state thereof.
