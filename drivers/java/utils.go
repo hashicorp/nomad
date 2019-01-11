@@ -29,6 +29,10 @@ func parseJavaVersionOutput(infoString string) (version, runtime, vm string, err
 	infoString = strings.TrimSpace(infoString)
 
 	lines := strings.Split(infoString, "\n")
+	if strings.Contains(lines[0], "Picked up _JAVA_OPTIONS") {
+		lines = lines[1:]
+	}
+
 	if len(lines) != 3 {
 		return "", "", "", fmt.Errorf("unexpected java version info output, expected 3 lines but got: %v", infoString)
 	}

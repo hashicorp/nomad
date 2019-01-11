@@ -77,7 +77,6 @@ func TestAllocations_GarbageCollectAll_ACL(t *testing.T) {
 }
 
 func TestAllocations_GarbageCollect(t *testing.T) {
-	t.Skip("missing mock driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 	client, cleanup := TestClient(t, func(c *config.Config) {

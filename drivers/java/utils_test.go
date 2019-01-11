@@ -38,6 +38,16 @@ func TestDriver_parseJavaVersionOutput(t *testing.T) {
 			"OpenJDK 64-Bit Server VM 18.9 (build 11.0.1+13, mixed mode)",
 		},
 		{
+			"OpenJDK",
+			`Picked up _JAVA_OPTIONS: -Xmx2048m -Xms512m
+			openjdk version "11.0.1" 2018-10-16
+			OpenJDK Runtime Environment 18.9 (build 11.0.1+13)
+			OpenJDK 64-Bit Server VM 18.9 (build 11.0.1+13, mixed mode)`,
+			"11.0.1",
+			"OpenJDK Runtime Environment 18.9 (build 11.0.1+13)",
+			"OpenJDK 64-Bit Server VM 18.9 (build 11.0.1+13, mixed mode)",
+		},
+		{
 			"IcedTea",
 			`java version "1.6.0_36"
 			 OpenJDK Runtime Environment (IcedTea6 1.13.8) (6b36-1.13.8-0ubuntu1~12.04)

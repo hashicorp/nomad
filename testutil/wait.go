@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/go-testing-interface"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -87,8 +88,7 @@ func WaitForLeader(t testing.T, rpc rpcFn) {
 	})
 }
 
-// WaitForRunning runs a job and blocks until all allocs are out of pending.
-func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocListStub {
+func RegisterJob(t testing.T, rpc rpcFn, job *structs.Job) {
 	WaitForResult(func() (bool, error) {
 		args := &structs.JobRegisterRequest{}
 		args.Job = job
@@ -101,6 +101,11 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 	})
 
 	t.Logf("Job %q registered", job.ID)
+}
+
+// WaitForRunning runs a job and blocks until all allocs are out of pending.
+func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocListStub {
+	RegisterJob(t, rpc, job)
 
 	var resp structs.JobAllocationsResponse
 
@@ -118,7 +123,7 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 		}
 
 		for _, alloc := range resp.Allocations {
-			if alloc.ClientStatus != structs.AllocClientStatusRunning {
+			if alloc.ClientStatus == structs.AllocClientStatusPending {
 				return false, fmt.Errorf("alloc not running: id=%v tg=%v status=%v",
 					alloc.ID, alloc.TaskGroup, alloc.ClientStatus)
 			}
@@ -126,7 +131,7 @@ func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocLi
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("job not running: %v", err)
+		require.NoError(t, err)
 	})
 
 	return resp.Allocations
