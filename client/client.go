@@ -1977,7 +1977,7 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 	stripped.ID = add.ID
 	stripped.NodeID = add.NodeID
 	stripped.ClientStatus = structs.AllocClientStatusFailed
-	stripped.ClientDescription = fmt.Sprintf("Unable to add allocation due to err: %v", err)
+	stripped.ClientDescription = fmt.Sprintf("Unable to add allocation due to error: %v", err)
 
 	// Copy task states if it exists in the original allocation
 	if add.TaskStates != nil {

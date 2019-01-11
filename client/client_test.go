@@ -720,7 +720,7 @@ func TestClient_RestoreError(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		require.NoError(err)
 	})
 
 }
