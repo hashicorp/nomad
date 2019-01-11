@@ -9,7 +9,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/helper"
@@ -80,6 +80,7 @@ func parseConfig(result *Config, list *ast.ObjectList) error {
 		"data_dir",
 		"plugin_dir",
 		"log_level",
+		"log_json",
 		"bind_addr",
 		"enable_debug",
 		"ports",

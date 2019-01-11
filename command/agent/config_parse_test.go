@@ -26,6 +26,7 @@ func TestConfig_Parse(t *testing.T) {
 				DataDir:     "/tmp/nomad",
 				PluginDir:   "/tmp/nomad-plugins",
 				LogLevel:    "ERR",
+				LogJson:     true,
 				BindAddr:    "192.168.0.1",
 				EnableDebug: true,
 				Ports: &Ports{

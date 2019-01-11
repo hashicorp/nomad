@@ -99,7 +99,7 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 		Name:       "agent",
 		Level:      log.LevelFromString(config.LogLevel),
 		Output:     logOutput,
-		JSONFormat: false, // TODO(alex,hclog) Add a config option
+		JSONFormat: config.LogJson,
 	})
 	a.httpLogger = a.logger.ResetNamed("http")
 
