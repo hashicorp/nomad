@@ -702,7 +702,7 @@ func TestClient_RestoreError(t *testing.T) {
 
 	// This stateDB returns errors for all methods called by restore
 	stateDBFunc := func(hclog.Logger, string) (cstate.StateDB, error) {
-		return &cstate.ErrDB{[]*structs.Allocation{alloc1}}, nil
+		return &cstate.ErrDB{Allocs: []*structs.Allocation{alloc1}}, nil
 	}
 	c1.config.StateDBFactory = stateDBFunc
 
