@@ -21,6 +21,7 @@ import (
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -729,6 +730,9 @@ func (a *Agent) setupClient() error {
 		if err := a.reservePortsForClient(conf); err != nil {
 			return err
 		}
+	}
+	if conf.StateDBFactory == nil {
+		conf.StateDBFactory = state.GetStateDBFactory(conf.DevMode)
 	}
 
 	client, err := client.NewClient(conf, a.consulCatalog, a.consulService)

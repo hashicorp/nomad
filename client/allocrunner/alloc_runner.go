@@ -628,6 +628,15 @@ func getClientStatus(taskStates map[string]*structs.TaskState) (status, descript
 	return "", ""
 }
 
+// SetClientStatus is a helper for forcing a specific client
+// status on the alloc runner. This is used during restore errors
+// when the task state can't be restored.
+func (ar *allocRunner) SetClientStatus(clientStatus string) {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	ar.state.ClientStatus = clientStatus
+}
+
 // AllocState returns a copy of allocation state including a snapshot of task
 // states.
 func (ar *allocRunner) AllocState() *state.State {

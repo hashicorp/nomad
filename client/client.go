@@ -181,6 +181,11 @@ type Client struct {
 	allocs    map[string]AllocRunner
 	allocLock sync.RWMutex
 
+	// invalidAllocs is a map that tracks allocations that failed because
+	// the client couldn't initialize alloc or task runners for it. This can
+	// happen due to driver errors
+	invalidAllocs map[string]struct{}
+
 	// allocUpdates stores allocations that need to be synced to the server.
 	allocUpdates chan *structs.Allocation
 
@@ -265,6 +270,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		}
 	}
 
+	if cfg.StateDBFactory == nil {
+		cfg.StateDBFactory = state.GetStateDBFactory(cfg.DevMode)
+	}
+
 	// Create the logger
 	logger := cfg.Logger.ResetNamed("client")
 
@@ -286,6 +295,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		triggerNodeUpdate:    make(chan struct{}, 8),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 		fpInitialized:        make(chan struct{}),
+		invalidAllocs:        make(map[string]struct{}),
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -472,7 +482,7 @@ func (c *Client) init() error {
 	c.logger.Info("using state directory", "state_dir", c.config.StateDir)
 
 	// Open the state database
-	db, err := state.GetStateDBFactory(c.config.DevMode)(c.logger, c.config.StateDir)
+	db, err := c.config.StateDBFactory(c.logger, c.config.StateDir)
 	if err != nil {
 		return fmt.Errorf("failed to open state database: %v", err)
 	}
@@ -896,6 +906,8 @@ func (c *Client) setServersImpl(in []string, force bool) (int, error) {
 }
 
 // restoreState is used to restore our state from the data dir
+// If there are errors restoring a specific allocation it is marked
+// as failed whenever possible.
 func (c *Client) restoreState() error {
 	if c.config.DevMode {
 		return nil
@@ -924,7 +936,6 @@ func (c *Client) restoreState() error {
 	}
 
 	// Load each alloc back
-	var mErr multierror.Error
 	for _, alloc := range allocs {
 
 		//XXX On Restore we give up on watching previous allocs because
@@ -953,15 +964,17 @@ func (c *Client) restoreState() error {
 		ar, err := allocrunner.NewAllocRunner(arConf)
 		if err != nil {
 			c.logger.Error("error running alloc", "error", err, "alloc_id", alloc.ID)
-			mErr.Errors = append(mErr.Errors, err)
+			c.handleInvalidAllocs(alloc, err)
 			continue
 		}
 
 		// Restore state
 		if err := ar.Restore(); err != nil {
 			c.logger.Error("error restoring alloc", "error", err, "alloc_id", alloc.ID)
-			mErr.Errors = append(mErr.Errors, err)
-			//TODO Cleanup allocrunner
+			// Override the status of the alloc to failed
+			ar.SetClientStatus(structs.AllocClientStatusFailed)
+			// Destroy the alloc runner since this is a failed restore
+			ar.Destroy()
 			continue
 		}
 
@@ -971,21 +984,23 @@ func (c *Client) restoreState() error {
 		c.allocLock.Unlock()
 	}
 
-	// Don't run any allocs if there were any failures
-	//XXX removing this check would switch from all-or-nothing restores to
-	//    best-effort. went with all-or-nothing for now
-	if err := mErr.ErrorOrNil(); err != nil {
-		return err
-	}
-
 	// All allocs restored successfully, run them!
 	c.allocLock.Lock()
 	for _, ar := range c.allocs {
 		go ar.Run()
 	}
 	c.allocLock.Unlock()
-
 	return nil
+}
+
+func (c *Client) handleInvalidAllocs(alloc *structs.Allocation, err error) {
+	c.invalidAllocs[alloc.ID] = struct{}{}
+	// Mark alloc as failed so server can handle this
+	failed := makeFailedAlloc(alloc, err)
+	select {
+	case c.allocUpdates <- failed:
+	case <-c.shutdownCh:
+	}
 }
 
 // saveState is used to snapshot our state into the data dir.
@@ -1774,7 +1789,10 @@ OUTER:
 			currentAR, ok := c.allocs[allocID]
 			c.allocLock.RUnlock()
 
-			if !ok || modifyIndex > currentAR.Alloc().AllocModifyIndex {
+			// Ignore alloc updates for allocs that are invalid because of initialization errors
+			_, isInvalid := c.invalidAllocs[allocID]
+
+			if (!ok || modifyIndex > currentAR.Alloc().AllocModifyIndex) && !isInvalid {
 				// Only pull allocs that are required. Filtered
 				// allocs might be at a higher index, so ignore
 				// it.
@@ -1938,12 +1956,62 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		migrateToken := update.migrateTokens[add.ID]
 		if err := c.addAlloc(add, migrateToken); err != nil {
 			c.logger.Error("error adding alloc", "error", err, "alloc_id", add.ID)
+			// We mark the alloc as failed and send an update to the server
+			// We track the fact that creating an allocrunner failed so that we don't send updates again
+			if add.ClientStatus != structs.AllocClientStatusFailed {
+				c.handleInvalidAllocs(add, err)
+			}
 		}
 	}
 
 	// Trigger the GC once more now that new allocs are started that could
 	// have caused thresholds to be exceeded
 	c.garbageCollector.Trigger()
+}
+
+// makeFailedAlloc creates a stripped down version of the allocation passed in
+// with its status set to failed and other fields needed for the server to be
+// able to examine deployment and task states
+func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
+	stripped := new(structs.Allocation)
+	stripped.ID = add.ID
+	stripped.NodeID = add.NodeID
+	stripped.ClientStatus = structs.AllocClientStatusFailed
+	stripped.ClientDescription = fmt.Sprintf("Unable to add allocation due to error: %v", err)
+
+	// Copy task states if it exists in the original allocation
+	if add.TaskStates != nil {
+		stripped.TaskStates = add.TaskStates
+	} else {
+		stripped.TaskStates = make(map[string]*structs.TaskState)
+	}
+
+	failTime := time.Now()
+	if add.DeploymentStatus.HasHealth() {
+		// Never change deployment health once it has been set
+		stripped.DeploymentStatus = add.DeploymentStatus.Copy()
+	} else {
+		stripped.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy:   helper.BoolToPtr(false),
+			Timestamp: failTime,
+		}
+	}
+
+	taskGroup := add.Job.LookupTaskGroup(add.TaskGroup)
+	if taskGroup == nil {
+		return stripped
+	}
+	for _, task := range taskGroup.Tasks {
+		ts, ok := stripped.TaskStates[task.Name]
+		if !ok {
+			ts = &structs.TaskState{}
+			stripped.TaskStates[task.Name] = ts
+		}
+		if ts.FinishedAt.IsZero() {
+			ts.FinishedAt = failTime
+		}
+	}
+	return stripped
 }
 
 // removeAlloc is invoked when we should remove an allocation because it has
@@ -1954,7 +2022,13 @@ func (c *Client) removeAlloc(allocID string) {
 
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		c.logger.Warn("cannot remove alloc", "alloc_id", allocID, "error", "alloc not found")
+		if _, ok := c.invalidAllocs[allocID]; ok {
+			// Removing from invalid allocs map if present
+			delete(c.invalidAllocs, allocID)
+		} else {
+			// Alloc is unknown, log a warning.
+			c.logger.Warn("cannot remove nonexistent alloc", "alloc_id", allocID, "error", "alloc not found")
+		}
 		return
 	}
 
