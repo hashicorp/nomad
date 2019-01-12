@@ -46,10 +46,11 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.stateLock.Lock()
 	a.ar.state.SetDeploymentStatus(time.Now(), healthy)
 	a.ar.persistDeploymentStatus(a.ar.state.DeploymentStatus)
+	isTerminal := a.ar.alloc.TerminalStatus()
 	a.ar.stateLock.Unlock()
 
 	// If deployment is unhealthy emit task events explaining why
-	if !healthy && isDeploy {
+	if !healthy && isDeploy && !isTerminal {
 		for task, event := range trackerTaskEvents {
 			if tr, ok := a.ar.tasks[task]; ok {
 				// Append but don't emit event since the server
