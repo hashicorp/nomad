@@ -97,7 +97,7 @@ func (s *grpcExecutorServer) Stats(req *proto.StatsRequest, stream proto.Executo
 		interval = time.Second
 	}
 
-	outCh, err := s.impl.Stats(stream.Context(), time.Duration(req.Interval))
+	outCh, err := s.impl.Stats(stream.Context(), interval)
 	if err != nil {
 		if rec, ok := err.(structs.Recoverable); ok {
 			st := status.New(codes.FailedPrecondition, rec.Error())

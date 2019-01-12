@@ -15,12 +15,14 @@ import (
 // interface to expose the the interface over gRPC
 type PluginDriver struct {
 	plugin.NetRPCUnsupportedPlugin
-	impl DriverPlugin
+	impl   DriverPlugin
+	logger hclog.Logger
 }
 
-func NewDriverPlugin(d DriverPlugin) plugin.GRPCPlugin {
+func NewDriverPlugin(d DriverPlugin, logger hclog.Logger) plugin.GRPCPlugin {
 	return &PluginDriver{
-		impl: d,
+		impl:   d,
+		logger: logger,
 	}
 }
 
@@ -40,6 +42,7 @@ func (p *PluginDriver) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker
 		},
 		client:  proto.NewDriverClient(c),
 		doneCtx: ctx,
+		logger:  p.logger,
 	}, nil
 }
 
@@ -49,7 +52,7 @@ func Serve(d DriverPlugin, logger hclog.Logger) {
 		HandshakeConfig: base.Handshake,
 		Plugins: map[string]plugin.Plugin{
 			base.PluginTypeBase:   &base.PluginBase{Impl: d},
-			base.PluginTypeDriver: &PluginDriver{impl: d},
+			base.PluginTypeDriver: &PluginDriver{impl: d, logger: logger},
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
 		Logger:     logger,

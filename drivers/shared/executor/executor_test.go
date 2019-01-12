@@ -78,8 +78,6 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 	pt.Parallel()
 	invalid := "/bin/foobar"
 	for name, factory := range executorFactories {
-		name := name
-		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -98,8 +96,6 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
-		name := name
-		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -122,8 +118,6 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 func TestExecutor_Start_Wait(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
-		name := name
-		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -161,13 +155,12 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 func TestExecutor_WaitExitSignal(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
-		name := name
-		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10000"}
+			execCmd.ResourceLimits = true
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
@@ -176,8 +169,6 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			require.NoError(err)
 
 			go func() {
-				// Give process time to start
-				time.Sleep(time.Second)
 				tu.WaitForResult(func() (bool, error) {
 					ch, err := executor.Stats(context.Background(), time.Second)
 					if err != nil {
@@ -201,8 +192,8 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 					}
 					return true, nil
 				}, func(err error) {
+					assert.NoError(t, executor.Signal(os.Kill))
 					assert.NoError(t, err)
-					executor.Shutdown("SIGINT", 0)
 				})
 			}()
 
@@ -216,8 +207,6 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 func TestExecutor_Start_Kill(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
-		name := name
-		factory := factory
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
 			execCmd, allocDir := testExecutorCommand(t)
@@ -320,7 +309,7 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 // than mounting the underlying host filesystem
 func setupRootfs(t *testing.T, rootfs string) {
 	paths := []string{
-		//		"/bin/sh",
+		"/bin/sh",
 		"/bin/sleep",
 		"/bin/echo",
 		"/bin/date",
