@@ -8539,6 +8539,10 @@ func (r *RecoverableError) IsRecoverable() bool {
 	return r.Recoverable
 }
 
+func (r *RecoverableError) IsUnrecoverable() bool {
+	return !r.Recoverable
+}
+
 // Recoverable is an interface for errors to implement to indicate whether or
 // not they are fatal or recoverable.
 type Recoverable interface {

@@ -93,14 +93,19 @@ func (h *statsHook) collectResourceUsageStats(ctx context.Context, handle interf
 		h.logger.Error("failed to start stats collection for task", "error", err)
 	}
 
+	var backoff time.Duration
+	var retry int
+	limit := time.Second * 5
 	for {
+		time.Sleep(backoff)
 		select {
 		case ru, ok := <-ch:
 			// Channel is closed
 			if !ok {
+				var re *structs.RecoverableError
 				ch, err = handle.Stats(ctx, h.interval)
 				if err == nil {
-					continue
+					goto RETRY
 				}
 
 				// We do not log when the plugin is shutdown since this is
@@ -109,15 +114,24 @@ func (h *statsHook) collectResourceUsageStats(ctx context.Context, handle interf
 				// on the stop channel is the correct behavior
 				if err != bstructs.ErrPluginShutdown {
 					h.logger.Debug("error fetching stats of task", "error", err)
-					continue
+					goto RETRY
 				}
 				// check if the error is terminal otherwise it's likely a
 				// transport error and we should retry
-				re, ok := err.(*structs.RecoverableError)
-				if ok && !re.IsRecoverable() {
+				re, ok = err.(*structs.RecoverableError)
+				if ok && re.IsUnrecoverable() {
 					return
 				}
 				h.logger.Warn("stats collection for task failed", "error", err)
+			RETRY:
+				// Calculate the new backoff
+				backoff = (1 << (2 * uint64(retry))) * time.Second
+				if backoff > limit {
+					backoff = limit
+				}
+				// Increment retry counter
+				retry++
+
 				continue
 			}
 
