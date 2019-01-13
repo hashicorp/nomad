@@ -2,7 +2,6 @@ package qemu
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
