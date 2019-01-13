@@ -5,6 +5,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/drivers/shared/executor/legacy"
 )
 
 // ExecutorConfig is the config that Nomad passes to the executor
@@ -26,6 +27,20 @@ func GetPluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugi
 		"executor": &ExecutorPlugin{
 			logger:      logger,
 			fsIsolation: fsIsolation,
+		},
+	}
+}
+
+func GetVersionedPluginMap(logger hclog.Logger, fsIsolation bool) map[int]map[string]plugin.Plugin {
+	return map[int]map[string]plugin.Plugin{
+		1: {
+			"executor": legacy.NewExecutorPlugin(logger),
+		},
+		2: {
+			"executor": ExecutorPlugin{
+				logger:      logger,
+				fsIsolation: fsIsolation,
+			},
 		},
 	}
 }
