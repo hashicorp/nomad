@@ -362,7 +362,7 @@ func TestQemuDriver_Stats(t *testing.T) {
 
 	select {
 	case stats := <-statsCh:
-		fmt.Printf("CPU:%+v Memory:%+v\n", stats.ResourceUsage.CpuStats, stats.ResourceUsage.MemoryStats)
+		t.Logf("CPU:%+v Memory:%+v\n", stats.ResourceUsage.CpuStats, stats.ResourceUsage.MemoryStats)
 		require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
 		require.NoError(harness.DestroyTask(task.ID, true))
 	case <-time.After(time.Second * 1):
