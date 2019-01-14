@@ -4,6 +4,9 @@ package docker
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -11,6 +14,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -640,4 +644,52 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 		return foundDevices[i].PathInContainer < foundDevices[j].PathInContainer
 	})
 	require.EqualValues(t, expectedDevices, foundDevices)
+}
+
+func newTaskConfig(variant string, command []string) TaskConfig {
+	// busyboxImageID is the ID stored in busybox.tar
+	busyboxImageID := "busybox:1.29.3"
+
+	image := busyboxImageID
+	loadImage := "busybox.tar"
+	if variant != "" {
+		image = fmt.Sprintf("%s-%s", busyboxImageID, variant)
+		loadImage = fmt.Sprintf("busybox_%s.tar", variant)
+	}
+
+	return TaskConfig{
+		Image:     image,
+		LoadImage: loadImage,
+		Command:   command[0],
+		Args:      command[1:],
+	}
+}
+
+func copyImage(t *testing.T, taskDir *allocdir.TaskDir, image string) {
+	dst := filepath.Join(taskDir.LocalDir, image)
+	copyFile(filepath.Join("./test-resources/docker", image), dst, t)
+}
+
+// copyFile moves an existing file to the destination
+func copyFile(src, dst string, t *testing.T) {
+	in, err := os.Open(src)
+	if err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
+	defer func() {
+		if err := out.Close(); err != nil {
+			t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
+	if err := out.Sync(); err != nil {
+		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+	}
 }

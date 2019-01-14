@@ -3,7 +3,7 @@
 package docker
 
 import (
-	testing "github.com/mitchellh/go-testing-interface"
+	"testing"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 )
@@ -21,5 +21,5 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 	}
 }
 
-func copyImage(t testing.T, taskDir *allocdir.TaskDir, image string) {
+func copyImage(t *testing.T, taskDir *allocdir.TaskDir, image string) {
 }
