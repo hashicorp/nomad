@@ -54,7 +54,12 @@ func (h *statsHook) Poststart(ctx context.Context, req *interfaces.TaskPoststart
 		h.cancel()
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	// Using a new context here because the existing context is for the scope of
+	// the Poststart request. If that context was used, stats collection would
+	// stop when the task was killed. It makes for more readable code and better
+	// follows the taskrunner hook model to create a new context that can be
+	// canceled on the Exited hook.
+	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
 	go h.collectResourceUsageStats(ctx, req.DriverStats)
 
