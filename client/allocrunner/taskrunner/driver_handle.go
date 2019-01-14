@@ -44,8 +44,8 @@ func (h *DriverHandle) Kill() error {
 	return h.driver.StopTask(h.taskID, h.task.KillTimeout, h.task.KillSignal)
 }
 
-func (h *DriverHandle) Stats() (*cstructs.TaskResourceUsage, error) {
-	return h.driver.TaskStats(h.taskID)
+func (h *DriverHandle) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	return h.driver.TaskStats(ctx, h.taskID, interval)
 }
 
 func (h *DriverHandle) Signal(s string) error {

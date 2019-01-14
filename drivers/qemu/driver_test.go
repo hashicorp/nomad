@@ -2,7 +2,6 @@ package qemu
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -355,16 +354,19 @@ func TestQemuDriver_Stats(t *testing.T) {
 	// Wait until task started
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 	time.Sleep(30 * time.Second)
-	stats, err := harness.TaskStats(task.ID)
+	statsCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	statsCh, err := harness.TaskStats(statsCtx, task.ID, time.Second*10)
 	require.NoError(err)
 
-	// Ask for stats again
-	stats, err = harness.TaskStats(task.ID)
-	require.NoError(err)
-
-	fmt.Printf("CPU:%+v Memory:%+v\n", stats.ResourceUsage.CpuStats, stats.ResourceUsage.MemoryStats)
-	require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
-	require.NoError(harness.DestroyTask(task.ID, true))
+	select {
+	case stats := <-statsCh:
+		t.Logf("CPU:%+v Memory:%+v\n", stats.ResourceUsage.CpuStats, stats.ResourceUsage.MemoryStats)
+		require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
+		require.NoError(harness.DestroyTask(task.ID, true))
+	case <-time.After(time.Second * 1):
+		require.Fail("timeout receiving from stats")
+	}
 
 }
 

@@ -6,8 +6,12 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type grpcExecutorServer struct {
@@ -87,20 +91,43 @@ func (s *grpcExecutorServer) Version(context.Context, *proto.VersionRequest) (*p
 	}, nil
 }
 
-func (s *grpcExecutorServer) Stats(context.Context, *proto.StatsRequest) (*proto.StatsResponse, error) {
-	stats, err := s.impl.Stats()
-	if err != nil {
-		return nil, err
+func (s *grpcExecutorServer) Stats(req *proto.StatsRequest, stream proto.Executor_StatsServer) error {
+	interval := time.Duration(req.Interval)
+	if interval == 0 {
+		interval = time.Second
 	}
 
-	pbStats, err := drivers.TaskStatsToProto(stats)
+	outCh, err := s.impl.Stats(stream.Context(), interval)
 	if err != nil {
-		return nil, err
+		if rec, ok := err.(structs.Recoverable); ok {
+			st := status.New(codes.FailedPrecondition, rec.Error())
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			if err != nil {
+				// If this error, it will always error
+				panic(err)
+			}
+			return st.Err()
+		}
+		return err
 	}
 
-	return &proto.StatsResponse{
-		Stats: pbStats,
-	}, nil
+	for resp := range outCh {
+		pbStats, err := drivers.TaskStatsToProto(resp)
+		if err != nil {
+			return err
+		}
+
+		presp := &proto.StatsResponse{
+			Stats: pbStats,
+		}
+
+		// Send the stats
+		if err := stream.Send(presp); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *grpcExecutorServer) Signal(ctx context.Context, req *proto.SignalRequest) (*proto.SignalResponse, error) {

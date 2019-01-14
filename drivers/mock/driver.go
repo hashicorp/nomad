@@ -494,18 +494,37 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	panic("not implemented")
 }
 
-func (d *Driver) TaskStats(taskID string) (*drivers.TaskResourceUsage, error) {
-	// Generate random value for the memory usage
-	s := &drivers.TaskResourceUsage{
-		ResourceUsage: &drivers.ResourceUsage{
-			MemoryStats: &drivers.MemoryStats{
-				RSS:      rand.Uint64(),
-				Measured: []string{"RSS"},
-			},
-		},
-		Timestamp: time.Now().UTC().UnixNano(),
+func (d *Driver) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
+	ch := make(chan *drivers.TaskResourceUsage)
+	go d.handleStats(ctx, ch)
+	return ch, nil
+}
+
+func (d *Driver) handleStats(ctx context.Context, ch chan<- *drivers.TaskResourceUsage) {
+	timer := time.NewTimer(0)
+	for {
+		select {
+		case <-timer.C:
+			// Generate random value for the memory usage
+			s := &drivers.TaskResourceUsage{
+				ResourceUsage: &drivers.ResourceUsage{
+					MemoryStats: &drivers.MemoryStats{
+						RSS:      rand.Uint64(),
+						Measured: []string{"RSS"},
+					},
+				},
+				Timestamp: time.Now().UTC().UnixNano(),
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- s:
+			default:
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
-	return s, nil
 }
 
 func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {

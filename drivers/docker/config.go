@@ -131,6 +131,7 @@ var (
 	// and is used to parse the contents of the 'plugin "docker" {...}' block.
 	// Example:
 	//	plugin "docker" {
+	//		config {
 	//		endpoint = "unix:///var/run/docker.sock"
 	//		auth {
 	//			config = "/etc/docker-auth.json"
@@ -152,6 +153,7 @@ var (
 	//		}
 	//		allow_privileged = false
 	//		allow_caps = ["CHOWN", "NET_RAW" ... ]
+	//		}
 	//	}
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"endpoint": hclspec.NewAttr("endpoint", "string", false),

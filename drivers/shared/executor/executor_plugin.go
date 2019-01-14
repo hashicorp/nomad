@@ -29,5 +29,6 @@ func (p *ExecutorPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBrok
 	return &grpcExecutorClient{
 		client:  proto.NewExecutorClient(c),
 		doneCtx: ctx,
+		logger:  p.logger,
 	}, nil
 }

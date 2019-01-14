@@ -18,6 +18,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -37,8 +38,10 @@ const (
 )
 
 var (
-	// The statistics the executor exposes when using cgroups
+	// ExecutorCgroupMeasuredMemStats is the list of memory stats captured by the executor
 	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+
+	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
 
 	// allCaps is all linux capabilities which is used to configure libcontainer
@@ -354,60 +357,86 @@ func (l *LibcontainerExecutor) Version() (*ExecutorVersion, error) {
 }
 
 // Stats returns the resource statistics for processes managed by the executor
-func (l *LibcontainerExecutor) Stats() (*drivers.TaskResourceUsage, error) {
-	lstats, err := l.container.Stats()
-	if err != nil {
-		return nil, err
+func (l *LibcontainerExecutor) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	ch := make(chan *cstructs.TaskResourceUsage)
+	go l.handleStats(ch, ctx, interval)
+	return ch, nil
+
+}
+
+func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx context.Context, interval time.Duration) {
+	defer close(ch)
+	timer := time.NewTimer(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-timer.C:
+			timer.Reset(interval)
+		}
+
+		lstats, err := l.container.Stats()
+		if err != nil {
+			l.logger.Warn("error collecting stats", "error", err)
+			return
+		}
+
+		pidStats, err := l.pidCollector.pidStats()
+		if err != nil {
+			l.logger.Warn("error collecting stats", "error", err)
+			return
+		}
+
+		ts := time.Now()
+		stats := lstats.CgroupStats
+
+		// Memory Related Stats
+		swap := stats.MemoryStats.SwapUsage
+		maxUsage := stats.MemoryStats.Usage.MaxUsage
+		rss := stats.MemoryStats.Stats["rss"]
+		cache := stats.MemoryStats.Stats["cache"]
+		ms := &cstructs.MemoryStats{
+			RSS:            rss,
+			Cache:          cache,
+			Swap:           swap.Usage,
+			MaxUsage:       maxUsage,
+			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
+			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
+			Measured:       ExecutorCgroupMeasuredMemStats,
+		}
+
+		// CPU Related Stats
+		totalProcessCPUUsage := float64(stats.CpuStats.CpuUsage.TotalUsage)
+		userModeTime := float64(stats.CpuStats.CpuUsage.UsageInUsermode)
+		kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
+
+		totalPercent := l.totalCpuStats.Percent(totalProcessCPUUsage)
+		cs := &cstructs.CpuStats{
+			SystemMode:       l.systemCpuStats.Percent(kernelModeTime),
+			UserMode:         l.userCpuStats.Percent(userModeTime),
+			Percent:          totalPercent,
+			ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
+			ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
+			TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
+			Measured:         ExecutorCgroupMeasuredCpuStats,
+		}
+		taskResUsage := cstructs.TaskResourceUsage{
+			ResourceUsage: &cstructs.ResourceUsage{
+				MemoryStats: ms,
+				CpuStats:    cs,
+			},
+			Timestamp: ts.UTC().UnixNano(),
+			Pids:      pidStats,
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- &taskResUsage:
+		}
+
 	}
-
-	pidStats, err := l.pidCollector.pidStats()
-	if err != nil {
-		return nil, err
-	}
-
-	ts := time.Now()
-	stats := lstats.CgroupStats
-
-	// Memory Related Stats
-	swap := stats.MemoryStats.SwapUsage
-	maxUsage := stats.MemoryStats.Usage.MaxUsage
-	rss := stats.MemoryStats.Stats["rss"]
-	cache := stats.MemoryStats.Stats["cache"]
-	ms := &drivers.MemoryStats{
-		RSS:            rss,
-		Cache:          cache,
-		Swap:           swap.Usage,
-		MaxUsage:       maxUsage,
-		KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
-		KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
-		Measured:       ExecutorCgroupMeasuredMemStats,
-	}
-
-	// CPU Related Stats
-	totalProcessCPUUsage := float64(stats.CpuStats.CpuUsage.TotalUsage)
-	userModeTime := float64(stats.CpuStats.CpuUsage.UsageInUsermode)
-	kernelModeTime := float64(stats.CpuStats.CpuUsage.UsageInKernelmode)
-
-	totalPercent := l.totalCpuStats.Percent(totalProcessCPUUsage)
-	cs := &drivers.CpuStats{
-		SystemMode:       l.systemCpuStats.Percent(kernelModeTime),
-		UserMode:         l.userCpuStats.Percent(userModeTime),
-		Percent:          totalPercent,
-		ThrottledPeriods: stats.CpuStats.ThrottlingData.ThrottledPeriods,
-		ThrottledTime:    stats.CpuStats.ThrottlingData.ThrottledTime,
-		TotalTicks:       l.systemCpuStats.TicksConsumed(totalPercent),
-		Measured:         ExecutorCgroupMeasuredCpuStats,
-	}
-	taskResUsage := drivers.TaskResourceUsage{
-		ResourceUsage: &drivers.ResourceUsage{
-			MemoryStats: ms,
-			CpuStats:    cs,
-		},
-		Timestamp: ts.UTC().UnixNano(),
-		Pids:      pidStats,
-	}
-
-	return &taskResUsage, nil
 }
 
 // Signal sends a signal to the process managed by the executor

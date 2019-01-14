@@ -341,9 +341,16 @@ func TestExecDriver_Stats(t *testing.T) {
 	require.NotNil(handle)
 
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
-	stats, err := harness.TaskStats(task.ID)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	statsCh, err := harness.TaskStats(ctx, task.ID, time.Second*10)
 	require.NoError(err)
-	require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
+	select {
+	case stats := <-statsCh:
+		require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
+	case <-time.After(time.Second):
+		require.Fail("timeout receiving from channel")
+	}
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 }

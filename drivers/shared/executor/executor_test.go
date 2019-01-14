@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -159,6 +160,7 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10000"}
+			execCmd.ResourceLimits = true
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
@@ -167,14 +169,32 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			require.NoError(err)
 
 			go func() {
-				time.Sleep(2 * time.Second)
-				_, err := executor.Stats()
-				require.NoError(err)
-				//require.NotEmpty(ru.Pids)
-				proc, err := os.FindProcess(ps.Pid)
-				require.NoError(err)
-				err = proc.Signal(syscall.SIGKILL)
-				require.NoError(err)
+				tu.WaitForResult(func() (bool, error) {
+					ch, err := executor.Stats(context.Background(), time.Second)
+					if err != nil {
+						return false, err
+					}
+					select {
+					case <-time.After(time.Second):
+						return false, fmt.Errorf("stats failed to send on interval")
+					case ru := <-ch:
+						if len(ru.Pids) == 0 {
+							return false, fmt.Errorf("no pids recorded in stats")
+						}
+					}
+					proc, err := os.FindProcess(ps.Pid)
+					if err != nil {
+						return false, err
+					}
+					err = proc.Signal(syscall.SIGKILL)
+					if err != nil {
+						return false, err
+					}
+					return true, nil
+				}, func(err error) {
+					assert.NoError(t, executor.Signal(os.Kill))
+					assert.NoError(t, err)
+				})
 			}()
 
 			ps, err = executor.Wait(context.Background())

@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
@@ -88,7 +89,7 @@ type TaskPrestartHook interface {
 
 // DriverStats is the interface implemented by DriverHandles to return task stats.
 type DriverStats interface {
-	Stats() (*cstructs.TaskResourceUsage, error)
+	Stats(context.Context, time.Duration) (<-chan *cstructs.TaskResourceUsage, error)
 }
 
 type TaskPoststartRequest struct {
