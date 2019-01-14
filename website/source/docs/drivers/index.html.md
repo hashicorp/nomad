@@ -12,7 +12,7 @@ Task drivers are used by Nomad clients to execute a task and provide resource
 isolation. By having extensible task drivers, Nomad has the flexibility to
 support a broad set of workloads across all major operating systems.
 
-Starting with Nomad 0.9, task drivers are now pluggable. This gives users the flexibility to introduce their own drivers without having to re-compile Nomad. You can view the [plugin stanza][plugin] documentation for examples on how to use the `plugin` stanza in Nomad's client configuration. Note that we have introduced new syntax when specifying driver options in the client configuration (see [raw_exec][raw_exec] for an example). Keep in mind that even though all built-in drivers are now plugins, Nomad remains a single binary and maintains backwards compatibility. 
+Starting with Nomad 0.9, task drivers are now pluggable. This gives users the flexibility to introduce their own drivers without having to recompile Nomad. You can view the [plugin stanza][plugin] documentation for examples on how to use the `plugin` stanza in Nomad's client configuration. Note that we have introduced new syntax when specifying driver options in the client configuration (see [raw_exec][raw_exec] for an example). Keep in mind that even though all built-in drivers are now plugins, Nomad remains a single binary and maintains backwards compatibility. 
 
 The list of supported task drivers is provided on the left of this page.
 Each task driver documents the configuration available in a
