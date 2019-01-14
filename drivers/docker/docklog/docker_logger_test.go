@@ -3,6 +3,7 @@ package docklog
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"testing"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -13,11 +14,23 @@ import (
 	"golang.org/x/net/context"
 )
 
+func testContainerDetails() (string, string, string) {
+	if runtime.GOOS == "windows" {
+		return "dantoml/busybox-windows:08012019",
+			"dantoml/busybox-windows",
+			"08012019"
+	}
+
+	return "busybox:1", "busybox", "1"
+}
+
 func TestDockerLogger(t *testing.T) {
 	ctu.DockerCompatible(t)
 
 	t.Parallel()
 	require := require.New(t)
+
+	containerImage, containerImageName, containerImageTag := testContainerDetails()
 
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
