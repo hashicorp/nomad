@@ -156,7 +156,17 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	return nil
 }
 
+func (h *taskHandle) shutdownLogger() {
+	if err := h.dlogger.Stop(); err != nil {
+		h.logger.Error("failed to stop docker logger process during StopTask",
+			"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)
+	}
+	h.dloggerPluginClient.Kill()
+}
+
 func (h *taskHandle) run() {
+	defer h.shutdownLogger()
+
 	exitCode, werr := h.waitClient.WaitContainer(h.containerID)
 	if werr != nil {
 		h.logger.Error("failed to wait for container; already terminated")
