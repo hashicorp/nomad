@@ -269,7 +269,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	// Create client for reattached executor
-	exec, pluginClient, err := executor.CreateExecutorWithConfig(plugRC,
+	exec, pluginClient, err := executor.ReattachToExecutor(plugRC,
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
@@ -303,7 +303,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(1)
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")

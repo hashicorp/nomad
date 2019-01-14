@@ -64,37 +64,36 @@ func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 		isolateCommand(config.Cmd)
 	}
 
-	executorClient := plugin.NewClient(config)
-	rpcClient, err := executorClient.Client()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
-	}
-
-	raw, err := rpcClient.Dispense("executor")
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
-	}
-	executorPlugin := raw.(Executor)
-	return executorPlugin, executorClient, nil
+	return newExecutorClient(config, logger)
 }
 
-// CreateExecutorWithConfig launches a plugin with a given plugin config
-func CreateExecutorWithConfig(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
-	p := &ExecutorPlugin{
-		logger: logger,
-	}
-
+// ReattachToExecutor launches a plugin with a given plugin config
+func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
 	config := &plugin.ClientConfig{
-		HandshakeConfig: base.Handshake,
-		Reattach:        reattachConfig,
-		Plugins:         map[string]plugin.Plugin{"executor": p},
-
-		// TODO: Use versioned plugin map to support backwards compatibility with
-		// existing pre-0.9 executors
+		HandshakeConfig:  base.Handshake,
+		Reattach:         reattachConfig,
+		Plugins:          GetPluginMap(logger, false),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Logger:           logger.Named("executor"),
 	}
 
+	return newExecutorClient(config, logger)
+}
+
+// ReattachToPre09Executor creates a plugin client that reattaches to an existing
+// pre 0.9 Nomad executor
+func ReattachToPre09Executor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
+	config := &plugin.ClientConfig{
+		HandshakeConfig:  base.Handshake,
+		Reattach:         reattachConfig,
+		Plugins:          GetPre09PluginMap(logger, false),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC},
+		Logger:           logger.Named("executor"),
+	}
+	return newExecutorClient(config, logger)
+}
+
+func newExecutorClient(config *plugin.ClientConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
 	executorClient := plugin.NewClient(config)
 	rpcClient, err := executorClient.Client()
 	if err != nil {

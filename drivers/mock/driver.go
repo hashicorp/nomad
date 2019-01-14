@@ -419,7 +419,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	driverState := MockTaskState{
 		StartedAt: h.startedAt,
 	}
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(1)
 	handle.Config = cfg
 	if err := handle.SetDriverState(&driverState); err != nil {
 		d.logger.Error("failed to start task, error setting driver state", "error", err, "task_name", cfg.Name)

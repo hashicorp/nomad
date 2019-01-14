@@ -211,7 +211,7 @@ func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bolt.Bucket, al
 		}
 
 		// Convert 0.8 task state to 0.9 task state
-		localTaskState := oldState.Upgrade()
+		localTaskState := oldState.Upgrade(allocID, taskName)
 
 		// Insert the new task state
 		if err := putTaskRunnerLocalStateImpl(tx, allocID, taskName, localTaskState); err != nil {

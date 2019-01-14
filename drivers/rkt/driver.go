@@ -375,7 +375,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
-	execImpl, pluginClient, err := executor.CreateExecutorWithConfig(plugRC,
+	execImpl, pluginClient, err := executor.ReattachToExecutor(plugRC,
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
@@ -418,7 +418,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(1)
 	handle.Config = cfg
 
 	// todo(preetha) - port map in client v1 is a slice of maps that get merged. figure out if the caller will do this
