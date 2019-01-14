@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 )
 
 func TestMain(m *testing.M) {
