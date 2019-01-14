@@ -39,7 +39,7 @@ const (
 
 var (
 	// ExecutorCgroupMeasuredMemStats is the list of memory stats captured by the executor
-	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
 
 	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
@@ -400,6 +400,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			RSS:            rss,
 			Cache:          cache,
 			Swap:           swap.Usage,
+			Usage:          stats.MemoryStats.Usage.Usage,
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
 			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,

@@ -16,6 +16,7 @@ type MemoryStats struct {
 	RSS            uint64
 	Cache          uint64
 	Swap           uint64
+	Usage          uint64
 	MaxUsage       uint64
 	KernelUsage    uint64
 	KernelMaxUsage uint64
