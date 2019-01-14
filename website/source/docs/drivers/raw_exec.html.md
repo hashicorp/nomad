@@ -89,6 +89,15 @@ client {
 }
 ```
 
+Nomad 0.9 introduces new syntax for configuring Nomad clients:
+
+```
+plugin "raw_exec" {
+  config {
+    enabled = "true"
+  }
+}
+```
 ## Client Options
 
 * `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
