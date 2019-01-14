@@ -1552,45 +1552,6 @@ func TestDockerDriver_Mounts(t *testing.T) {
 	}
 }
 
-// TestDockerDriver_Cleanup ensures Cleanup removes only downloaded images.
-func TestDockerDriver_Cleanup(t *testing.T) {
-	testutil.DockerCompatible(t)
-
-	// using a small image and an specific point release to avoid accidental conflicts with other tasks
-	cfg := newTaskConfig("", []string{"sleep", "100"})
-	cfg.LoadImage = ""
-	task := &drivers.TaskConfig{
-		ID:        uuid.Generate(),
-		Name:      "cleanup_test",
-		Resources: basicResources,
-	}
-
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
-
-	client, driver, handle, cleanup := dockerSetup(t, task)
-	defer cleanup()
-
-	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
-	// Cleanup
-	require.NoError(t, driver.DestroyTask(task.ID, true))
-
-	// Ensure image was removed
-	tu.WaitForResult(func() (bool, error) {
-		if _, err := client.InspectImage(cfg.Image); err == nil {
-			return false, fmt.Errorf("image exists but should have been removed. Does another %v container exist?", cfg.Image)
-		}
-
-		return true, nil
-	}, func(err error) {
-		require.NoError(t, err)
-	})
-
-	// The image doesn't exist which shouldn't be an error when calling
-	// Cleanup, so call it again to make sure.
-	require.NoError(t, driver.Impl().(*Driver).cleanupImage(handle))
-
-}
-
 func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	if !tu.IsTravis() {
 		t.Parallel()
