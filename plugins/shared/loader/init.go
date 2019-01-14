@@ -256,7 +256,7 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 		// actually validate the executability of a file, so here we skip executability checks
 		// for windows systems.
 		if runtime.GOOS != "windows" {
-			if s.Mode().Perm()&0111 == 0 {
+			if runtime.GOOS != "windows" && s.Mode().Perm()&0111 == 0 {
 				l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
 				continue
 			}
