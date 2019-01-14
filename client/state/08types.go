@@ -1,9 +1,13 @@
 package state
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared"
 )
 
 // allocRunnerMutableState08 is state that had to be written on each save as it
@@ -40,7 +44,23 @@ type taskRunnerState08 struct {
 	//CreatedResources   *driver.CreatedResources
 }
 
-func (t *taskRunnerState08) Upgrade() *state.LocalState {
+type taskRunnerHandle08 struct {
+	PluginConfig struct {
+		Pid      int    `json:"Pid"`
+		AddrNet  string `json:"AddrNet"`
+		AddrName string `json:"AddrName"`
+	} `json:"PluginConfig"`
+}
+
+func (t *taskRunnerHandle08) reattachConfig() *shared.ReattachConfig {
+	return &shared.ReattachConfig{
+		Network: t.PluginConfig.AddrNet,
+		Addr:    t.PluginConfig.AddrName,
+		Pid:     t.PluginConfig.Pid,
+	}
+}
+
+func (t *taskRunnerState08) Upgrade(allocID, taskName string) *state.LocalState {
 	ls := state.NewLocalState()
 
 	// Reuse DriverNetwork
@@ -56,22 +76,40 @@ func (t *taskRunnerState08) Upgrade() *state.LocalState {
 		PrestartDone: t.TaskDirBuilt,
 	}
 
+	// Don't need logmon in pre09 tasks
+	ls.Hooks["logmon"] = &state.HookState{
+		PrestartDone: true,
+	}
+
 	// Upgrade dispatch payload state
 	ls.Hooks["dispatch_payload"] = &state.HookState{
 		PrestartDone: t.PayloadRendered,
 	}
 
 	//TODO How to convert handles?! This does not work.
-	ls.TaskHandle = drivers.NewTaskHandle("TODO")
+	ls.TaskHandle = drivers.NewTaskHandle(0)
 
 	//TODO where do we get this from?
-	ls.TaskHandle.Config = nil
+	ls.TaskHandle.Config = &drivers.TaskConfig{
+		Name:    taskName,
+		AllocID: allocID,
+	}
 
 	//TODO do we need to se this accurately? Or will RecoverTask handle it?
 	ls.TaskHandle.State = drivers.TaskStateUnknown
 
-	//TODO do we need an envelope so drivers know this is an old state?
-	ls.TaskHandle.SetDriverState(t.HandleID)
+	// A ReattachConfig to the pre09 executor is sent
+	var raw []byte
+	var handle taskRunnerHandle08
+	if err := json.Unmarshal([]byte(t.HandleID), &handle); err != nil {
+		fmt.Println("ERR: ", err)
+	}
+	raw, err := json.Marshal(handle.reattachConfig())
+	if err != nil {
+		fmt.Println("ERR: ", err)
+	}
+
+	ls.TaskHandle.DriverState = raw
 
 	return ls
 }
