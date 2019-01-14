@@ -83,6 +83,7 @@ extern pid_t go_lxc_init_pid(struct lxc_container *c);
 extern bool go_lxc_checkpoint(struct lxc_container *c, char *directory, bool stop, bool verbose);
 extern bool go_lxc_restore(struct lxc_container *c, char *directory, bool verbose);
 extern bool go_lxc_config_item_is_supported(const char *key);
+extern bool go_lxc_has_api_extension(const char *extension);
 
 /* n.b. that we're just adding the fields here to shorten the definition
  * of go_lxc_migrate; in the case where we don't have the ->migrate API call,
