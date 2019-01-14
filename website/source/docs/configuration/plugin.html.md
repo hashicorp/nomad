@@ -17,7 +17,7 @@ description: |-
   </tr>
 </table>
 
-The `plugin` stanza is used to configure an individual plugin.
+The `plugin` stanza is used to configure an individual plugin. You may use this section to introduce new task or device drivers or simply modify their options.
 
 ```hcl
 plugin "example-plugin" {
