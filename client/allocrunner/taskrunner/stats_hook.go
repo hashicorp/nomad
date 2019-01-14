@@ -23,7 +23,7 @@ type statsHook struct {
 	updater  StatsUpdater
 	interval time.Duration
 
-	// cancel is called by Exited or Canceled
+	// cancel is called by Exited
 	cancel context.CancelFunc
 
 	mu sync.Mutex
