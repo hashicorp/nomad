@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared"
@@ -193,9 +194,10 @@ type Driver struct {
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 
-	// hasFingerprinted is used to store whether we have fingerprinted before
-	hasFingerprinted bool
-	fingerprintLock  sync.Mutex
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
+	fingerprintLock    sync.Mutex
 }
 
 func NewRktDriver(logger hclog.Logger) drivers.DriverPlugin {
@@ -264,25 +266,21 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 	}
 }
 
-// setFingerprinted marks the driver as having fingerprinted once before
-func (d *Driver) setFingerprinted() {
+// setFingerprintSuccess marks the driver as having fingerprinted successfully
+func (d *Driver) setFingerprintSuccess() {
 	d.fingerprintLock.Lock()
-	d.hasFingerprinted = true
+	d.fingerprintSuccess = helper.BoolToPtr(true)
 	d.fingerprintLock.Unlock()
 }
 
-// fingerprinted returns whether the driver has fingerprinted before
-func (d *Driver) fingerprinted() bool {
+// setFingerprintFailure marks the driver as having failed fingerprinting
+func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Lock()
-	defer d.fingerprintLock.Unlock()
-	return d.hasFingerprinted
+	d.fingerprintSuccess = helper.BoolToPtr(false)
+	d.fingerprintLock.Unlock()
 }
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
-	defer func() {
-		d.setFingerprinted()
-	}()
-
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
@@ -291,9 +289,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	// Only enable if we are root
 	if syscall.Geteuid() != 0 {
-		if !d.fingerprinted() {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Debug("must run as root user, disabling")
 		}
+		d.setFingerprintFailure()
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = drivers.DriverRequiresRootMessage
 		return fingerprint
@@ -303,6 +302,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if err != nil {
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("Failed to execute %s version: %v", rktCmd, err)
+		d.setFingerprintFailure()
 		return fingerprint
 	}
 	out := strings.TrimSpace(string(outBytes))
@@ -312,6 +312,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if len(rktMatches) != 2 || len(appcMatches) != 2 {
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = "Unable to parse rkt version string"
+		d.setFingerprintFailure()
 		return fingerprint
 	}
 
@@ -321,10 +322,11 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		// Do not allow ancient rkt versions
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("Unsuported rkt version %s", currentVersion)
-		if !d.fingerprinted() {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Warn("unsupported rkt version please upgrade to >= "+minVersion.String(),
 				"rkt_version", currentVersion)
 		}
+		d.setFingerprintFailure()
 		return fingerprint
 	}
 
@@ -334,7 +336,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if d.config.VolumesEnabled {
 		fingerprint.Attributes["driver.rkt.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
-
+	d.setFingerprintSuccess()
 	return fingerprint
 
 }

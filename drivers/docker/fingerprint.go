@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -16,17 +17,17 @@ func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, 
 	return ch, nil
 }
 
-// fingerprinted returns whether the driver has fingerprinted before
-func (d *Driver) fingerprinted() bool {
+// setFingerprintSuccess marks the driver as having fingerprinted successfully
+func (d *Driver) setFingerprintSuccess() {
 	d.fingerprintLock.Lock()
-	defer d.fingerprintLock.Unlock()
-	return d.hasFingerprinted
+	d.fingerprintSuccess = helper.BoolToPtr(true)
+	d.fingerprintLock.Unlock()
 }
 
-// setFingerprinted marks the driver as having fingerprinted once before
-func (d *Driver) setFingerprinted() {
+// setFingerprintFailure marks the driver as having failed fingerprinting
+func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Lock()
-	d.hasFingerprinted = true
+	d.fingerprintSuccess = helper.BoolToPtr(false)
 	d.fingerprintLock.Unlock()
 }
 
@@ -47,10 +48,6 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 }
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
-	defer func() {
-		d.setFingerprinted()
-	}()
-
 	fp := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
@@ -58,9 +55,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	}
 	client, _, err := d.dockerClients()
 	if err != nil {
-		if !d.fingerprinted() {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Info("failed to initialize client", "error", err)
 		}
+		d.setFingerprintFailure()
 		return &drivers.Fingerprint{
 			Health:            drivers.HealthStateUndetected,
 			HealthDescription: "Failed to initialize docker client",
@@ -69,9 +67,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	env, err := client.Version()
 	if err != nil {
-		if !d.fingerprinted() {
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 			d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
 		}
+		d.setFingerprintFailure()
 		return &drivers.Fingerprint{
 			Health:            drivers.HealthStateUnhealthy,
 			HealthDescription: "Failed to connect to docker daemon",
@@ -106,7 +105,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			} else {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
-				if !d.fingerprinted() {
+				if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
 					d.logger.Debug("bridge_ip could not be discovered")
 				}
 			}
@@ -131,6 +130,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		fp.Attributes["runtimes"] = pstructs.NewStringAttribute(
 			strings.Join(runtimeNames, ","))
 	}
+
+	d.setFingerprintSuccess()
 
 	return fp
 }

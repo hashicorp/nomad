@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -20,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"sync"
 )
 
 const (
@@ -95,6 +97,11 @@ type Driver struct {
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
+	fingerprintLock    sync.Mutex
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -124,6 +131,20 @@ func NewExecDriver(logger hclog.Logger) drivers.DriverPlugin {
 		signalShutdown: cancel,
 		logger:         logger,
 	}
+}
+
+// setFingerprintSuccess marks the driver as having fingerprinted successfully
+func (d *Driver) setFingerprintSuccess() {
+	d.fingerprintLock.Lock()
+	d.fingerprintSuccess = helper.BoolToPtr(true)
+	d.fingerprintLock.Unlock()
+}
+
+// setFingerprintFailure marks the driver as having failed fingerprinting
+func (d *Driver) setFingerprintFailure() {
+	d.fingerprintLock.Lock()
+	d.fingerprintSuccess = helper.BoolToPtr(false)
+	d.fingerprintLock.Unlock()
 }
 
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
@@ -177,6 +198,7 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan<- *drivers.Finge
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if runtime.GOOS != "linux" {
+		d.setFingerprintFailure()
 		return &drivers.Fingerprint{
 			Health:            drivers.HealthStateUndetected,
 			HealthDescription: "exec driver unsupported on client OS",
@@ -192,6 +214,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if !utils.IsUnixRoot() {
 		fp.Health = drivers.HealthStateUndetected
 		fp.HealthDescription = drivers.DriverRequiresRootMessage
+		d.setFingerprintFailure()
 		return fp
 	}
 
@@ -199,17 +222,22 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if err != nil {
 		fp.Health = drivers.HealthStateUnhealthy
 		fp.HealthDescription = drivers.NoCgroupMountMessage
-		d.logger.Warn(fp.HealthDescription, "error", err)
+		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+			d.logger.Warn(fp.HealthDescription, "error", err)
+		}
+		d.setFingerprintFailure()
 		return fp
 	}
 
 	if mount == "" {
 		fp.Health = drivers.HealthStateUnhealthy
 		fp.HealthDescription = drivers.CgroupMountEmpty
+		d.setFingerprintFailure()
 		return fp
 	}
 
 	fp.Attributes["driver.exec"] = pstructs.NewBoolAttribute(true)
+	d.setFingerprintSuccess()
 	return fp
 }
 
