@@ -101,6 +101,18 @@ func (c *Container) setCgroupItemWithByteSize(filename string, limit ByteSize, m
 	return nil
 }
 
+// Release decrements the reference counter of the container object.
+// nil on success or if reference was successfully dropped and container has been freed, and ErrReleaseFailed on error.
+func (c *Container) Release() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if C.lxc_container_put(c.container) == -1 {
+		return ErrReleaseFailed
+	}
+	return nil
+}
+
 func (c *Container) name() string {
 	return C.GoString(c.container.name)
 }
@@ -527,6 +539,11 @@ func (c *Container) Execute(args ...string) ([]byte, error) {
 	// go-nuts thread: https://groups.google.com/forum/#!msg/golang-nuts/h9GbvfYv83w/5Ly_jvOr86wJ
 	output, err := exec.Command(cargs[0], cargs[1:]...).CombinedOutput()
 	if err != nil {
+		// Do not suppress stderr if the exit code != 0. Return with err.
+		if len(output) > 1 {
+			return output, ErrExecuteFailed
+		}
+
 		return nil, ErrExecuteFailed
 	}
 
@@ -835,21 +852,24 @@ func (c *Container) ConfigKeys(key ...string) []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	var keys *_Ctype_char
-
+	var ret string
 	if key != nil && len(key) == 1 {
 		ckey := C.CString(key[0])
 		defer C.free(unsafe.Pointer(ckey))
 
 		// allocated in lxc.c
-		keys = C.go_lxc_get_keys(c.container, ckey)
+		keys := C.go_lxc_get_keys(c.container, ckey)
 		defer C.free(unsafe.Pointer(keys))
+
+		ret = strings.TrimSpace(C.GoString(keys))
 	} else {
 		// allocated in lxc.c
-		keys = C.go_lxc_get_keys(c.container, nil)
+		keys := C.go_lxc_get_keys(c.container, nil)
 		defer C.free(unsafe.Pointer(keys))
+
+		ret = strings.TrimSpace(C.GoString(keys))
 	}
-	ret := strings.TrimSpace(C.GoString(keys))
+
 	return strings.Split(ret, "\n")
 }
 
@@ -992,7 +1012,7 @@ func (c *Container) KernelMemoryLimit() (ByteSize, error) {
 		return -1, err
 	}
 
-	return c.cgroupItemAsByteSize("memory.kmem.usage_in_bytes", ErrKMemLimit)
+	return c.cgroupItemAsByteSize("memory.kmem.limit_in_bytes", ErrKMemLimit)
 }
 
 // SetKernelMemoryLimit sets kernel memory limit of the container in bytes.
@@ -1163,7 +1183,7 @@ func (c *Container) ConsoleFd(ttynum int) (int, error) {
 
 	ret := int(C.go_lxc_console_getfd(c.container, C.int(ttynum)))
 	if ret < 0 {
-		return -1, ErrAttachFailed
+		return ret, ErrAttachFailed
 	}
 	return ret, nil
 }
@@ -1282,7 +1302,12 @@ func (c *Container) runCommandStatus(args []string, options AttachOptions) (int,
 		cargs,
 	))
 
-	return ret, nil
+	if ret < 0 {
+		return ret, nil
+	}
+
+	// Mirror the behavior of WEXITSTATUS().
+	return int((ret & 0xFF00) >> 8), nil
 }
 
 // RunCommandStatus attachs a shell and runs the command within the container.
@@ -1349,7 +1374,7 @@ func (c *Container) RunCommandNoWait(args []string, options AttachOptions) (int,
 	))
 
 	if ret < 0 {
-		return -1, ErrAttachFailed
+		return ret, ErrAttachFailed
 	}
 
 	return int(attachedPid), nil
