@@ -18,12 +18,13 @@ import "C"
 
 import (
 	"fmt"
-	"runtime"
+	"strconv"
 	"strings"
 	"unsafe"
 )
 
 // NewContainer returns a new container struct.
+// Caller needs to call Release() on the returned container to release its resources.
 func NewContainer(name string, lxcpath ...string) (*Container, error) {
 	var container *C.struct_lxc_container
 
@@ -44,8 +45,6 @@ func NewContainer(name string, lxcpath ...string) (*Container, error) {
 	}
 	c := &Container{container: container, verbosity: Quiet}
 
-	// http://golang.org/pkg/runtime/#SetFinalizer
-	runtime.SetFinalizer(c, Release)
 	return c, nil
 }
 
@@ -56,10 +55,10 @@ func Acquire(c *Container) bool {
 
 // Release decrements the reference counter of the container object.
 func Release(c *Container) bool {
-	// http://golang.org/pkg/runtime/#SetFinalizer
-	runtime.SetFinalizer(c, nil)
-
-	return C.lxc_container_put(c.container) == 1
+	if C.lxc_container_put(c.container) == -1 {
+		return false
+	}
+	return true
 }
 
 // Version returns the LXC version.
@@ -120,6 +119,7 @@ func ContainerNames(lxcpath ...string) []string {
 
 // Containers returns the defined and active containers on the system. Only
 // containers that could retrieved successfully are returned.
+// Caller needs to call Release() on the returned containers to release resources.
 func Containers(lxcpath ...string) []*Container {
 	var containers []*Container
 
@@ -155,6 +155,7 @@ func DefinedContainerNames(lxcpath ...string) []string {
 
 // DefinedContainers returns the defined containers on the system.  Only
 // containers that could retrieved successfully are returned.
+// Caller needs to call Release() on the returned containers to release resources.
 func DefinedContainers(lxcpath ...string) []*Container {
 	var containers []*Container
 
@@ -190,6 +191,7 @@ func ActiveContainerNames(lxcpath ...string) []string {
 
 // ActiveContainers returns the active containers on the system. Only
 // containers that could retrieved successfully are returned.
+// Caller needs to call Release() on the returned containers to release resources.
 func ActiveContainers(lxcpath ...string) []*Container {
 	var containers []*Container
 
@@ -239,4 +241,84 @@ func IsSupportedConfigItem(key string) bool {
 	configItem := C.CString(key)
 	defer C.free(unsafe.Pointer(configItem))
 	return bool(C.go_lxc_config_item_is_supported(configItem))
+}
+
+// runtimeLiblxcVersionAtLeast checks if the system's liblxc matches the
+// provided version requirement
+func runtimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
+	version := Version()
+	version = strings.Replace(version, " (devel)", "-devel", 1)
+	parts := strings.Split(version, ".")
+	partsLen := len(parts)
+	if partsLen == 0 {
+		return false
+	}
+
+	develParts := strings.Split(parts[partsLen-1], "-")
+	if len(develParts) == 2 && develParts[1] == "devel" {
+		return true
+	}
+
+	maj := -1
+	min := -1
+	mic := -1
+
+	for i, v := range parts {
+		if i > 2 {
+			break
+		}
+
+		num, err := strconv.Atoi(v)
+		if err != nil {
+			return false
+		}
+
+		switch i {
+		case 0:
+			maj = num
+		case 1:
+			min = num
+		case 2:
+			mic = num
+		}
+	}
+
+	/* Major version is greater. */
+	if maj > major {
+		return true
+	}
+
+	if maj < major {
+		return false
+	}
+
+	/* Minor number is greater.*/
+	if min > minor {
+		return true
+	}
+
+	if min < minor {
+		return false
+	}
+
+	/* Patch number is greater. */
+	if mic > micro {
+		return true
+	}
+
+	if mic < micro {
+		return false
+	}
+
+	return true
+}
+
+// HasApiExtension returns true if the extension is supported.
+func HasApiExtension(extension string) bool {
+	if runtimeLiblxcVersionAtLeast(3, 1, 0) {
+		apiExtension := C.CString(extension)
+		defer C.free(unsafe.Pointer(apiExtension))
+		return bool(C.go_lxc_has_api_extension(apiExtension))
+	}
+	return false
 }
