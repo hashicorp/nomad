@@ -78,8 +78,18 @@ task "example" {
 
 The `raw_exec` driver can run on all supported operating systems. For security
 reasons, it is disabled by default. To enable raw exec, the Nomad client
-configuration must explicitly enable the `raw_exec` driver in the client's
-[options](/docs/configuration/client.html#options):
+configuration must explicitly enable the `raw_exec` driver in the plugin's options:
+
+```
+plugin "raw_exec" {
+  config {
+    enabled = true
+  }
+}
+```
+
+Prior to Nomad 0.9, the client configuration would look like this (this syntax
+will soon be deprecated):
 
 ```
 client {
@@ -89,19 +99,24 @@ client {
 }
 ```
 
-Nomad 0.9 introduces new syntax for configuring Nomad clients:
+## Plugin Options
 
-```
-plugin "raw_exec" {
-  config {
-    enabled = true
-  }
-}
-```
+* `enabled` - Specifies whether the driver should be enabled or disabled.
+  Defaults to `false`.
+
+* `no_cgroups` - Specifies whether the driver should not use
+  cgroups to manage the process group launched by the driver. By default,
+  cgroups are used to manage the process tree to ensure full cleanup of all
+  processes started by the task. The driver only uses cgroups when Nomad is
+  launched as root, on Linux and when cgroups are detected.
+
 ## Client Options
 
+~> Please note using client options will soon be deprecated. Please start using
+[plugin options][plugin-options]. See the [plugin stanza][plugin-stanza] documentation for more information.
+
 * `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
-  disabled.
+  disabled. Defaults to `false`.
 
 * `driver.raw_exec.no_cgroups` - Specifies whether the driver should not use
   cgroups to manage the process group launched by the driver. By default,
@@ -125,3 +140,6 @@ properly. Nomad will not leak any processes if cgroups are being used to manage
 the process tree. Cgroups are used on Linux when Nomad is being run with
 appropriate priviledges, the cgroup system is mounted and the operator hasn't
 disabled cgroups for the driver.
+
+[plugin-options]: #plugin-options
+[plugin-stanza]: /docs/configuration/plugin.html
