@@ -614,7 +614,58 @@ user to the `docker` group so you can run Nomad without root:
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
+If you would like to change any of the options related to the `docker` driver on
+a Nomad client, you can modify them with the [plugin stanza][plugin-stanza] syntax. Below is an example of a configuration (many of the values are the default). See the next section for more information on the options.
+
+```hcl
+plugin "docker" {
+  config {
+    endpoint = "unix:///var/run/docker.sock"
+
+    auth {
+      config = "/etc/docker-auth.json"
+      helper = "docker-credential-aws"
+    }
+
+    tls {
+      cert = "/etc/nomad/nomad.pub"
+      key  = "/etc/nomad/nomad.pem"
+      ca   = "/etc/nomad/nomad.cert"
+    }
+
+    gc {
+      image       = true
+      image_delay = "3m"
+      container   = true
+    }
+
+    volumes {
+      enabled      = true
+      selinuxlabel = "z"
+    }
+
+    allow_privileged = false
+    allow_caps       = ["CHOWN", "NET_RAW"]
+
+    # values can also be set to "ALL"
+    #allow_caps = ["ALL"]
+  }
+}
+```
+## Plugin Options
+
+* `endpoint`: If using a non-standard socket, HTTP or another location, or if TLS is being used, docker.endpoint must be set. If unset, Nomad will attempt to instantiate a Docker client using the DOCKER_HOST environment variable and then fall back to the default listen address for the given operating system. Defaults to unix:///var/run/docker.sock on Unix platforms and npipe:////./pipe/docker_engine for Windows.
+
+* `allow_privileged`: Defaults to `false`. Changing this to true will allow containers to use privileged mode, which gives the containers full access to the host's devices. Note that you must set a similar setting on the Docker daemon for this to work.
+
+* `allow_caps`: A list of allowed Linux capabilities. Defaults to
+"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
+NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE", which is the list of capabilities allowed by docker by default, as defined here. Allows the operator to control which capabilities can be obtained by tasks using cap_add and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting all capabilities.
+
+
 ## Client Configuration
+
+~> Please note using client configuration options will soon be deprecated. Please start using [plugin options][plugin-options]. See the [plugin stanza][plugin-stanza] documentation for more information.
 
 The `docker` driver has the following [client configuration
 options](/docs/configuration/client.html#options):
@@ -677,8 +728,8 @@ options](/docs/configuration/client.html#options):
   Docker daemon for this to work.
 
 * `docker.caps.whitelist`: A list of allowed Linux capabilities. Defaults to
-  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`,
-  which is the list of capabilities allowed by docker by default, as
+  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,
+   SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`, which is the list of  capabilities allowed by docker by default, as
   [defined here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Allows the operator to control which capabilities can be obtained by
   tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
@@ -789,3 +840,5 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [list of relevant issues on GitHub][WinIssues].
 
 [WinIssues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Adriver%2Fdocker+label%3Aplatform-windows
+[plugin-options]: #plugin-options
+[plugin-stanza]: /docs/configuration/plugin.html
