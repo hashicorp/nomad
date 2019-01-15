@@ -31,7 +31,7 @@ import (
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
+	"github.com/hashicorp/nomad/pluginutils/hclutils"
 )
 
 const (

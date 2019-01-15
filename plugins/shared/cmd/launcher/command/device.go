@@ -19,7 +19,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
+	"github.com/hashicorp/nomad/pluginutils/hclutils"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty/msgpack"
