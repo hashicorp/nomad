@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/pluginutils/loader"
 )
 
@@ -103,7 +103,7 @@ type manager struct {
 	instances map[loader.PluginID]*instanceManager
 
 	// reattachConfigs stores the plugin reattach configs
-	reattachConfigs    map[loader.PluginID]*shared.ReattachConfig
+	reattachConfigs    map[loader.PluginID]*pstructs.ReattachConfig
 	reattachConfigLock sync.Mutex
 }
 
@@ -119,7 +119,7 @@ func New(c *Config) *manager {
 		pluginConfig:     c.PluginConfig,
 		updater:          c.Updater,
 		instances:        make(map[loader.PluginID]*instanceManager),
-		reattachConfigs:  make(map[loader.PluginID]*shared.ReattachConfig),
+		reattachConfigs:  make(map[loader.PluginID]*pstructs.ReattachConfig),
 		fingerprintResCh: make(chan struct{}, 1),
 	}
 }
@@ -280,7 +280,7 @@ func (m *manager) cleanupStalePlugins() error {
 	// For each plugin go through and try to shut it down
 	var mErr multierror.Error
 	for name, c := range s.ReattachConfigs {
-		rc, err := shared.ReattachConfigToGoPlugin(c)
+		rc, err := pstructs.ReattachConfigToGoPlugin(c)
 		if err != nil {
 			multierror.Append(&mErr, fmt.Errorf("failed to convert reattach config: %v", err))
 			continue
@@ -306,11 +306,11 @@ func (m *manager) storePluginReattachConfig(id loader.PluginID, c *plugin.Reatta
 	defer m.reattachConfigLock.Unlock()
 
 	// Store the new reattach config
-	m.reattachConfigs[id] = shared.ReattachConfigFromGoPlugin(c)
+	m.reattachConfigs[id] = pstructs.ReattachConfigFromGoPlugin(c)
 
 	// Persist the state
 	s := &state.PluginState{
-		ReattachConfigs: make(map[string]*shared.ReattachConfig, len(m.reattachConfigs)),
+		ReattachConfigs: make(map[string]*pstructs.ReattachConfig, len(m.reattachConfigs)),
 	}
 
 	for id, c := range m.reattachConfigs {

@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/pluginutils/loader"
 )
 
@@ -117,7 +117,7 @@ type manager struct {
 	instancesMu sync.RWMutex
 
 	// reattachConfigs stores the plugin reattach configs
-	reattachConfigs    map[loader.PluginID]*shared.ReattachConfig
+	reattachConfigs    map[loader.PluginID]*pstructs.ReattachConfig
 	reattachConfigLock sync.Mutex
 
 	// allows/block lists
@@ -141,7 +141,7 @@ func New(c *Config) *manager {
 		updater:             c.Updater,
 		eventHandlerFactory: c.EventHandlerFactory,
 		instances:           make(map[string]*instanceManager),
-		reattachConfigs:     make(map[loader.PluginID]*shared.ReattachConfig),
+		reattachConfigs:     make(map[loader.PluginID]*pstructs.ReattachConfig),
 		allowedDrivers:      c.AllowedDrivers,
 		blockedDrivers:      c.BlockedDrivers,
 		readyCh:             make(chan struct{}),
@@ -296,8 +296,8 @@ func (m *manager) loadReattachConfigs() error {
 
 // shutdownBlockedDriver is used to forcefully shutdown a running driver plugin
 // when it has been blocked due to allow/block lists
-func (m *manager) shutdownBlockedDriver(name string, reattach *shared.ReattachConfig) {
-	c, err := shared.ReattachConfigToGoPlugin(reattach)
+func (m *manager) shutdownBlockedDriver(name string, reattach *pstructs.ReattachConfig) {
+	c, err := pstructs.ReattachConfigToGoPlugin(reattach)
 	if err != nil {
 		m.logger.Warn("failed to reattach and kill blocked driver plugin",
 			"driver", name, "error", err)
@@ -323,11 +323,11 @@ func (m *manager) storePluginReattachConfig(id loader.PluginID, c *plugin.Reatta
 	defer m.reattachConfigLock.Unlock()
 
 	// Store the new reattach config
-	m.reattachConfigs[id] = shared.ReattachConfigFromGoPlugin(c)
+	m.reattachConfigs[id] = pstructs.ReattachConfigFromGoPlugin(c)
 
 	// Persist the state
 	s := &state.PluginState{
-		ReattachConfigs: make(map[string]*shared.ReattachConfig, len(m.reattachConfigs)),
+		ReattachConfigs: make(map[string]*pstructs.ReattachConfig, len(m.reattachConfigs)),
 	}
 
 	for id, c := range m.reattachConfigs {
@@ -345,7 +345,7 @@ func (m *manager) fetchPluginReattachConfig(id loader.PluginID) (*plugin.Reattac
 	defer m.reattachConfigLock.Unlock()
 
 	if cfg, ok := m.reattachConfigs[id]; ok {
-		c, err := shared.ReattachConfigToGoPlugin(cfg)
+		c, err := pstructs.ReattachConfigToGoPlugin(cfg)
 		if err != nil {
 			m.logger.Warn("failed to read plugin reattach config", "config", cfg, "error", err)
 			delete(m.reattachConfigs, id)

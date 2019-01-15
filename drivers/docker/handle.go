@@ -14,7 +14,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"golang.org/x/net/context"
 )
 
@@ -44,7 +44,7 @@ func (h *taskHandle) ExitResult() *drivers.ExitResult {
 
 type taskHandleState struct {
 	// ReattachConfig for the docker logger plugin
-	ReattachConfig *shared.ReattachConfig
+	ReattachConfig *pstructs.ReattachConfig
 
 	ContainerID   string
 	DriverNetwork *drivers.DriverNetwork
@@ -52,7 +52,7 @@ type taskHandleState struct {
 
 func (h *taskHandle) buildState() *taskHandleState {
 	return &taskHandleState{
-		ReattachConfig: shared.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
+		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(h.dloggerPluginClient.ReattachConfig()),
 		ContainerID:    h.containerID,
 		DriverNetwork:  h.net,
 	}
