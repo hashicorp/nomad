@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/pluginutils/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
+	"github.com/hashicorp/nomad/pluginutils/singleton"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 

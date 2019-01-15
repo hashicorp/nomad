@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/nomad/pluginutils/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
+	"github.com/hashicorp/nomad/pluginutils/loader"
+	"github.com/hashicorp/nomad/pluginutils/singleton"
 )
 
 // setupPlugins is used to setup the plugin loaders.

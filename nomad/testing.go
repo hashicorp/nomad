@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/pluginutils/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
+	"github.com/hashicorp/nomad/pluginutils/singleton"
 	"github.com/mitchellh/go-testing-interface"
 )
 

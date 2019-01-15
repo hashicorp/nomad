@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
+	"github.com/hashicorp/nomad/pluginutils/loader"
 	"github.com/hashicorp/nomad/version"
 )
 

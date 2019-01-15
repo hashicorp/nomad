@@ -3,7 +3,7 @@ package catalog
 import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
+	"github.com/hashicorp/nomad/pluginutils/loader"
 	"github.com/mitchellh/go-testing-interface"
 )
 

@@ -5,7 +5,7 @@ package catalog
 import (
 	"sync"
 
-	"github.com/hashicorp/nomad/plugins/shared/loader"
+	"github.com/hashicorp/nomad/pluginutils/loader"
 )
 
 var (
