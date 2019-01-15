@@ -5,7 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/client/allochealth"
+	cconsul "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -344,88 +349,192 @@ func TestAllocRunner_Update_Semantics(t *testing.T) {
 	require.Len(ar.allocUpdatedCh, 0)
 }
 
-/*
+// TestAllocRunner_DeploymentHealth_Healthy_Migration asserts that health is
+// reported for services that got migrated; not just part of deployments.
+func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
+	t.Parallel()
 
-import (
-	"testing"
+	alloc := mock.Alloc()
 
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
-)
+	// Ensure the alloc is *not* part of a deployment
+	alloc.DeploymentID = ""
 
-func testAllocRunnerFromAlloc(t *testing.T, alloc *structs.Allocation) *allocRunner {
-	cconf := clientconfig.DefaultConfig()
-	config := &Config{
-		ClientConfig: cconf,
-		Logger:       testlog.HCLogger(t).With("unit_test", t.Name()),
-		Alloc:        alloc,
+	// Shorten the default migration healthy time
+	tg := alloc.Job.TaskGroups[0]
+	tg.Migrate = structs.DefaultMigrateStrategy()
+	tg.Migrate.MinHealthyTime = 100 * time.Millisecond
+	tg.Migrate.HealthCheck = structs.MigrateStrategyHealthStates
+
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "30s",
 	}
 
-	ar := NewAllocRunner(config)
-	return ar
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	go ar.Run()
+	defer ar.Destroy()
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if !last.DeploymentStatus.HasHealth() {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if !*last.DeploymentStatus.Healthy {
+			// This is fatal
+			t.Fatal("want deployment status healthy; got unhealthy")
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }
 
-func testAllocRunner(t *testing.T) *allocRunner {
-	return testAllocRunnerFromAlloc(t, mock.Alloc())
-}
-
-// preRun is a test RunnerHook that captures whether Prerun was called on it
-type preRun struct{ run bool }
-
-func (p *preRun) Name() string { return "pre" }
-func (p *preRun) Prerun() error {
-	p.run = true
-	return nil
-}
-
-// postRun is a test RunnerHook that captures whether Postrun was called on it
-type postRun struct{ run bool }
-
-func (p *postRun) Name() string { return "post" }
-func (p *postRun) Postrun() error {
-	p.run = true
-	return nil
-}
-
-// Tests that prerun only runs pre run hooks.
-func TestAllocRunner_Prerun_Basic(t *testing.T) {
+// TestAllocRunner_DeploymentHealth_Healthy_NoChecks asserts that the health
+// watcher will mark the allocation as healthy based on task states alone.
+func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
-	ar := testAllocRunner(t)
 
-	// Overwrite the hooks with test hooks
-	pre := &preRun{}
-	post := &postRun{}
-	ar.runnerHooks = []interfaces.RunnerHook{pre, post}
+	alloc := mock.Alloc()
 
-	// Run the hooks
-	require.NoError(ar.prerun())
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 
-	// Assert only the pre is run
-	require.True(pre.run)
-	require.False(post.run)
+	// Create a task that takes longer to become healthy
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task.Copy())
+	alloc.AllocatedResources.Tasks["task2"] = alloc.AllocatedResources.Tasks["web"].Copy()
+	task2 := alloc.Job.TaskGroups[0].Tasks[1]
+	task2.Name = "task2"
+	task2.Config["start_block_for"] = "500ms"
+
+	// Make the alloc be part of a deployment that uses task states for
+	// health checks
+	alloc.DeploymentID = uuid.Generate()
+	alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_TaskStates
+	alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	alloc.Job.TaskGroups[0].Update.MinHealthyTime = 100 * time.Millisecond
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+
+	start, done := time.Now(), time.Time{}
+	go ar.Run()
+	defer ar.Destroy()
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if !last.DeploymentStatus.HasHealth() {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if !*last.DeploymentStatus.Healthy {
+			// This is fatal
+			t.Fatal("want deployment status healthy; got unhealthy")
+		}
+
+		// Capture the done timestamp
+		done = last.DeploymentStatus.Timestamp
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	if d := done.Sub(start); d < 500*time.Millisecond {
+		t.Fatalf("didn't wait for second task group. Only took %v", d)
+	}
 }
 
-// Tests that postrun only runs post run hooks.
-func TestAllocRunner_Postrun_Basic(t *testing.T) {
+// TestAllocRunner_DeploymentHealth_Unhealthy_Checks asserts that the health
+// watcher will mark the allocation as unhealthy with failing checks.
+func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
+	t.Skip("FIXME(schmichael): fails and needs fixing")
 	t.Parallel()
-	require := require.New(t)
-	ar := testAllocRunner(t)
 
-	// Overwrite the hooks with test hooks
-	pre := &preRun{}
-	post := &postRun{}
-	ar.runnerHooks = []interfaces.RunnerHook{pre, post}
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 
-	// Run the hooks
-	require.NoError(ar.postrun())
+	// Make the alloc be part of a deployment
+	alloc.DeploymentID = uuid.Generate()
+	alloc.Job.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	alloc.Job.TaskGroups[0].Update.HealthCheck = structs.UpdateStrategyHealthCheck_Checks
+	alloc.Job.TaskGroups[0].Update.MaxParallel = 1
+	alloc.Job.TaskGroups[0].Update.MinHealthyTime = 100 * time.Millisecond
+	alloc.Job.TaskGroups[0].Update.HealthyDeadline = 1 * time.Second
 
-	// Assert only the pre is run
-	require.True(post.run)
-	require.False(pre.run)
+	checkUnhealthy := &api.AgentCheck{
+		CheckID: uuid.Generate(),
+		Status:  api.HealthWarning,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	// Only return the check as healthy after a duration
+	consulClient := conf.Consul.(*cconsul.MockConsulServiceClient)
+	consulClient.AllocRegistrationsFn = func(allocID string) (*consul.AllocRegistration, error) {
+		return &consul.AllocRegistration{
+			Tasks: map[string]*consul.TaskRegistration{
+				task.Name: {
+					Services: map[string]*consul.ServiceRegistration{
+						"123": {
+							Service: &api.AgentService{Service: "foo"},
+							Checks:  []*api.AgentCheck{checkUnhealthy},
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	go ar.Run()
+	defer ar.Destroy()
+
+	var lastUpdate *structs.Allocation
+	upd := conf.StateUpdater.(*MockStateUpdater)
+	testutil.WaitForResult(func() (bool, error) {
+		lastUpdate = upd.Last()
+		if lastUpdate == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if !lastUpdate.DeploymentStatus.HasHealth() {
+			return false, fmt.Errorf("want deployment status unhealthy; got unset")
+		} else if *lastUpdate.DeploymentStatus.Healthy {
+			// This is fatal
+			t.Fatal("want deployment status unhealthy; got healthy")
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Assert that we have an event explaining why we are unhealthy.
+	require.Len(t, lastUpdate.TaskStates, 1)
+	state := lastUpdate.TaskStates[task.Name]
+	require.NotNil(t, state)
+	require.NotEmpty(t, state.Events)
+	last := state.Events[len(state.Events)-1]
+	require.Equal(t, allochealth.AllocHealthEventSource, last.Type)
+	require.Contains(t, last.Message, "Services not healthy by deadline")
 }
-*/

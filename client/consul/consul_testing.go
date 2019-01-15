@@ -7,7 +7,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
 )
 
 // MockConsulOp represents the register/deregister operations.
@@ -50,18 +50,22 @@ func NewMockConsulServiceClient(t testing.T, logger log.Logger) *MockConsulServi
 	return &m
 }
 
-func (m *MockConsulServiceClient) UpdateTask(old, new *consul.TaskServices) error {
+func (m *MockConsulServiceClient) UpdateTask(old, newSvcs *consul.TaskServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("UpdateTask", "alloc_id", new.AllocID, "task", new.Name)
-	m.ops = append(m.ops, NewMockConsulOp("update", new.AllocID, new.Name))
+	m.logger.Trace("UpdateTask", "alloc_id", newSvcs.AllocID, "task", newSvcs.Name,
+		"old_services", len(old.Services), "new_services", len(newSvcs.Services),
+	)
+	m.ops = append(m.ops, NewMockConsulOp("update", newSvcs.AllocID, newSvcs.Name))
 	return nil
 }
 
 func (m *MockConsulServiceClient) RegisterTask(task *consul.TaskServices) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("RegisterTask", "alloc_id", task.AllocID, "task", task.Name)
+	m.logger.Trace("RegisterTask", "alloc_id", task.AllocID, "task", task.Name,
+		"services", len(task.Services),
+	)
 	m.ops = append(m.ops, NewMockConsulOp("add", task.AllocID, task.Name))
 	return nil
 }
@@ -69,7 +73,9 @@ func (m *MockConsulServiceClient) RegisterTask(task *consul.TaskServices) error 
 func (m *MockConsulServiceClient) RemoveTask(task *consul.TaskServices) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger.Trace("RemoveTask", "alloc_id", task.AllocID, "task", task.Name)
+	m.logger.Trace("RemoveTask", "alloc_id", task.AllocID, "task", task.Name,
+		"services", len(task.Services),
+	)
 	m.ops = append(m.ops, NewMockConsulOp("remove", task.AllocID, task.Name))
 }
 

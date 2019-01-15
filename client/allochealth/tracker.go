@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	// allocHealthEventSource is the source used for emitting task events
-	allocHealthEventSource = "Alloc Unhealthy"
+	// AllocHealthEventSource is the source used for emitting task events
+	AllocHealthEventSource = "Alloc Unhealthy"
 
 	// consulCheckLookupInterval is the  interval at which we check if the
 	// Consul checks are healthy or unhealthy.
@@ -157,7 +157,7 @@ func (t *Tracker) TaskEvents() map[string]*structs.TaskEvent {
 	for task, state := range t.taskHealth {
 		useChecks := t.tg.Update.HealthCheck == structs.UpdateStrategyHealthCheck_Checks
 		if e, ok := state.event(deadline, t.tg.Update.MinHealthyTime, useChecks); ok {
-			events[task] = structs.NewTaskEvent(allocHealthEventSource).SetMessage(e)
+			events[task] = structs.NewTaskEvent(AllocHealthEventSource).SetMessage(e)
 		}
 	}
 
