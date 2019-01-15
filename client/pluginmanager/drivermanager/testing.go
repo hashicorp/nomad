@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
+	"github.com/hashicorp/nomad/pluginutils/catalog"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
 )

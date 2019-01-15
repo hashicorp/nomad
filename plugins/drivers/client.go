@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
-	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
+	"github.com/hashicorp/nomad/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"

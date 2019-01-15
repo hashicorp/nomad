@@ -3,7 +3,7 @@ package agent
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
+	"github.com/hashicorp/nomad/pluginutils/catalog"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/plugins/shared/singleton"
 )

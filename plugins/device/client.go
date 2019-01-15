@@ -9,7 +9,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device/proto"
-	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
+	"github.com/hashicorp/nomad/pluginutils/grpcutils"
 )
 
 // devicePluginClient implements the client side of a remote device plugin, using

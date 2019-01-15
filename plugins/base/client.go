@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/nomad/plugins/base/proto"
-	"github.com/hashicorp/nomad/plugins/shared/grpcutils"
+	"github.com/hashicorp/nomad/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
