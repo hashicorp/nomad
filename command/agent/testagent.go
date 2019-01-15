@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib/freeport"

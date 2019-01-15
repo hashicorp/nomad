@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	testing "github.com/mitchellh/go-testing-interface"
+
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -22,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 )
 

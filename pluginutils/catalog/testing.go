@@ -1,10 +1,11 @@
 package catalog
 
 import (
+	testing "github.com/mitchellh/go-testing-interface"
+
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/pluginutils/loader"
-	"github.com/mitchellh/go-testing-interface"
 )
 
 // TestPluginLoader returns a plugin loader populated only with internal plugins

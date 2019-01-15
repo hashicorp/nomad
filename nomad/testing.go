@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	testing "github.com/mitchellh/go-testing-interface"
+
 	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -14,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/pluginutils/catalog"
 	"github.com/hashicorp/nomad/pluginutils/singleton"
-	"github.com/mitchellh/go-testing-interface"
 )
 
 var (
