@@ -6,6 +6,12 @@
   box-shadow: $button-box-shadow-standard;
   background: $white-bis;
   border: 1px solid $grey-light;
+  outline: none;
+  cursor: pointer;
+
+  &:focus {
+    box-shadow: $button-box-shadow-standard, inset 0 0 0 2px $grey-lighter;
+  }
 
   &.is-outlined {
     border-color: rgba($white, 0.5);
@@ -41,6 +47,10 @@
   .dropdown-trigger {
     border-radius: 0;
     box-shadow: none;
+
+    &:focus {
+      box-shadow: inset 0 0 0 2px $grey-lighter;
+    }
   }
 
   .dropdown:first-child {
@@ -107,8 +117,14 @@
       border-top: 1px solid $grey-lighter;
     }
 
-    &:hover {
+    &:hover,
+    &:focus {
       background: $white-bis;
+      outline: none;
+      border-left: 2px solid $blue;
+      label {
+        padding-left: 6px;
+      }
     }
   }
 }

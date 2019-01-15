@@ -1,5 +1,8 @@
-{{#basic-dropdown as |dd|}}
-  {{#dd.trigger class="dropdown-trigger"}}
+{{#basic-dropdown
+  onOpen=(action (mut isOpen) true)
+  onClose=(action (mut isOpen) false)
+  as |dd|}}
+  {{#dd.trigger class="dropdown-trigger" onKeyDown=(action "openOnArrowDown")}}
     <span class="dropdown-trigger-label">
       {{label}}
       {{#if selection.length}}
@@ -11,10 +14,11 @@
   {{#dd.content class="dropdown-options"}}
     <ul role="listbox">
       {{#each options key="key" as |option|}}
-        <li class="dropdown-option">
+        <li class="dropdown-option" tabindex="1" onkeydown={{action "traverseList" option}}>
           <label>
             <input
               type="checkbox"
+              tabindex="-1"
               checked={{includes option.key selection}}
               onchange={{action "toggle" option}} />
             {{option.label}}
