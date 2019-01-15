@@ -94,7 +94,7 @@ Nomad 0.9 introduces new syntax for configuring Nomad clients:
 ```
 plugin "raw_exec" {
   config {
-    enabled = "true"
+    enabled = true
   }
 }
 ```
