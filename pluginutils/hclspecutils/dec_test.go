@@ -45,11 +45,11 @@ func TestDec_Convert_Object(t *testing.T) {
 			Name: "Object w/ only attributes",
 			Input: &hclspec.Spec{
 				Block: &hclspec.Spec_Object{
-					&hclspec.Object{
+					Object: &hclspec.Object{
 						Attributes: map[string]*hclspec.Spec{
 							"foo": {
 								Block: &hclspec.Spec_Attr{
-									&hclspec.Attr{
+									Attr: &hclspec.Attr{
 										Type:     "string",
 										Required: false,
 									},
@@ -57,7 +57,7 @@ func TestDec_Convert_Object(t *testing.T) {
 							},
 							"bar": {
 								Block: &hclspec.Spec_Attr{
-									&hclspec.Attr{
+									Attr: &hclspec.Attr{
 										Type:     "number",
 										Required: true,
 									},
@@ -65,7 +65,7 @@ func TestDec_Convert_Object(t *testing.T) {
 							},
 							"baz": {
 								Block: &hclspec.Spec_Attr{
-									&hclspec.Attr{
+									Attr: &hclspec.Attr{
 										Type: "bool",
 									},
 								},
@@ -109,7 +109,7 @@ func TestDec_Convert_Array(t *testing.T) {
 						Values: []*hclspec.Spec{
 							{
 								Block: &hclspec.Spec_Attr{
-									&hclspec.Attr{
+									Attr: &hclspec.Attr{
 										Name:     "foo",
 										Required: true,
 										Type:     "string",
@@ -118,7 +118,7 @@ func TestDec_Convert_Array(t *testing.T) {
 							},
 							{
 								Block: &hclspec.Spec_Attr{
-									&hclspec.Attr{
+									Attr: &hclspec.Attr{
 										Name:     "bar",
 										Required: true,
 										Type:     "string",
@@ -155,7 +155,7 @@ func TestDec_Convert_Attr(t *testing.T) {
 			Name: "attr basic type",
 			Input: &hclspec.Spec{
 				Block: &hclspec.Spec_Attr{
-					&hclspec.Attr{
+					Attr: &hclspec.Attr{
 						Name:     "foo",
 						Required: true,
 						Type:     "string",
@@ -172,7 +172,7 @@ func TestDec_Convert_Attr(t *testing.T) {
 			Name: "attr object type",
 			Input: &hclspec.Spec{
 				Block: &hclspec.Spec_Attr{
-					&hclspec.Attr{
+					Attr: &hclspec.Attr{
 						Name:     "foo",
 						Required: true,
 						Type:     "object({name1 = string, name2 = bool})",
@@ -192,7 +192,7 @@ func TestDec_Convert_Attr(t *testing.T) {
 			Name: "attr no name",
 			Input: &hclspec.Spec{
 				Block: &hclspec.Spec_Attr{
-					&hclspec.Attr{
+					Attr: &hclspec.Attr{
 						Required: true,
 						Type:     "string",
 					},
@@ -218,7 +218,7 @@ func TestDec_Convert_Block(t *testing.T) {
 						Required: true,
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -251,7 +251,7 @@ func TestDec_Convert_Block(t *testing.T) {
 									Required: true,
 									Nested: &hclspec.Spec{
 										Block: &hclspec.Spec_Attr{
-											&hclspec.Attr{
+											Attr: &hclspec.Attr{
 												Name: "foo",
 												Type: "string",
 											},
@@ -334,7 +334,7 @@ func TestDec_Convert_BlockList(t *testing.T) {
 						MaxItems: 3,
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -363,7 +363,7 @@ func TestDec_Convert_BlockList(t *testing.T) {
 						MaxItems: 3,
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -393,7 +393,7 @@ func TestDec_Convert_BlockSet(t *testing.T) {
 						MaxItems: 3,
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -422,7 +422,7 @@ func TestDec_Convert_BlockSet(t *testing.T) {
 						MaxItems: 3,
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -451,7 +451,7 @@ func TestDec_Convert_BlockMap(t *testing.T) {
 						Labels: []string{"key1", "key2"},
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -478,7 +478,7 @@ func TestDec_Convert_BlockMap(t *testing.T) {
 						Labels: []string{"key1", "key2"},
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -497,7 +497,7 @@ func TestDec_Convert_BlockMap(t *testing.T) {
 						Name: "foo",
 						Nested: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name: "foo",
 									Type: "string",
 								},
@@ -524,7 +524,7 @@ func TestDec_Convert_Default(t *testing.T) {
 					Default: &hclspec.Default{
 						Primary: &hclspec.Spec{
 							Block: &hclspec.Spec_Attr{
-								&hclspec.Attr{
+								Attr: &hclspec.Attr{
 									Name:     "foo",
 									Type:     "string",
 									Required: true,
@@ -533,7 +533,7 @@ func TestDec_Convert_Default(t *testing.T) {
 						},
 						Default: &hclspec.Spec{
 							Block: &hclspec.Spec_Literal{
-								&hclspec.Literal{
+								Literal: &hclspec.Literal{
 									Value: "\"hi\"",
 								},
 							},
