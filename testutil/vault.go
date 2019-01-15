@@ -171,6 +171,7 @@ func (tv *TestVault) Start() error {
 	tv.waitCh = make(chan error, 1)
 
 	go func() {
+		// Must call Start and Wait in the same goroutine on Windows #5174
 		if err := tv.cmd.Start(); err != nil {
 			tv.waitCh <- err
 			return
