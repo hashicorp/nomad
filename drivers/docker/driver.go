@@ -171,7 +171,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(1)
 	handle.Config = cfg
 
 	// Initialize docker API clients
