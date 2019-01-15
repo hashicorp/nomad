@@ -1019,15 +1019,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return fmt.Errorf("must call StopTask for the given task before Destroy or set force to true")
 	}
 
-	defer h.dloggerPluginClient.Kill()
-
 	if err := h.client.StopContainer(h.containerID, 0); err != nil {
 		h.logger.Warn("failed to stop container during destroy", "error", err)
-	}
-
-	if err := h.dlogger.Stop(); err != nil {
-		h.logger.Error("failed to stop docker logger process during destroy",
-			"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)
 	}
 
 	if err := d.cleanupImage(h); err != nil {
