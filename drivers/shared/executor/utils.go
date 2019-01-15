@@ -37,9 +37,14 @@ func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 		return nil, nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
+	p := &ExecutorPlugin{
+		logger:      logger,
+		fsIsolation: executorConfig.FSIsolation,
+	}
+
 	config := &plugin.ClientConfig{
 		HandshakeConfig:  base.Handshake,
-		Plugins:          map[string]plugin.Plugin{"executor": &ExecutorPlugin{}},
+		Plugins:          map[string]plugin.Plugin{"executor": p},
 		Cmd:              exec.Command(bin, "executor", string(c)),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Logger:           logger.Named("executor"),
@@ -75,10 +80,14 @@ func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 
 // CreateExecutorWithConfig launches a plugin with a given plugin config
 func CreateExecutorWithConfig(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
+	p := &ExecutorPlugin{
+		logger: logger,
+	}
+
 	config := &plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
 		Reattach:        reattachConfig,
-		Plugins:         map[string]plugin.Plugin{"executor": &ExecutorPlugin{}},
+		Plugins:         map[string]plugin.Plugin{"executor": p},
 
 		// TODO: Use versioned plugin map to support backwards compatibility with
 		// existing pre-0.9 executors
