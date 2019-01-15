@@ -1,4 +1,4 @@
-package hclspec
+package hclspecutils
 
 import (
 	"github.com/zclconf/go-cty/cty/function"

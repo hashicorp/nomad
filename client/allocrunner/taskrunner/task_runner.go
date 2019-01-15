@@ -30,7 +30,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/pluginutils/hclutils"
 )
 
@@ -697,7 +697,7 @@ func (tr *TaskRunner) initDriver() error {
 	if err != nil {
 		return err
 	}
-	spec, diag := hclspec.Convert(schema)
+	spec, diag := hclspecutils.Convert(schema)
 	if diag.HasErrors() {
 		return multierror.Append(errors.New("failed to convert task schema"), diag.Errs()...)
 	}

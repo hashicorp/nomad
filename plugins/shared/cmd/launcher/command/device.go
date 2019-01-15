@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/hcl2/hcldec"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/pluginutils/hclutils"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
@@ -176,7 +176,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 	c.logger.Trace("device spec", "spec", hclog.Fmt("% #v", pretty.Formatter(spec)))
 
 	// Convert the schema
-	schema, diag := hclspec.Convert(spec)
+	schema, diag := hclspecutils.Convert(spec)
 	if diag.HasErrors() {
 		errStr := "failed to convert HCL schema: "
 		for _, err := range diag.Errs() {
