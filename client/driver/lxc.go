@@ -283,6 +283,7 @@ func (d *LxcDriver) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs
 	if d.config.ReadBoolDefault(lxcVolumesConfigOption, lxcVolumesConfigDefault) {
 		resp.AddAttribute("driver."+lxcVolumesConfigOption, "1")
 	}
+	resp.AddAttribute("driver.lxc.execute", "true")
 
 	return nil
 }
