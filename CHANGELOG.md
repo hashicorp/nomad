@@ -42,7 +42,7 @@ BUG FIXES:
  * driver/raw_exec: Fix an issue where tasks that used an interpolated command in driver configuration would not start [[GH-4813](https://github.com/hashicorp/nomad/pull/4813)]
  * server/vault: Fixed bug in Vault token renewal that could panic on a malformed Vault response [[GH-4904](https://github.com/hashicorp/nomad/issues/4904)], [[GH-4937](https://github.com/hashicorp/nomad/pull/4937)]
 
-## 0.8.7 (Unreleased)
+## 0.8.7 (January 14, 2019)
 
 IMPROVEMENTS:
 * core: Added `filter_default`, `prefix_filter` and `disable_dispatched_job_summary_metrics`
