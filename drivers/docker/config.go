@@ -101,6 +101,12 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	if v, err := strconv.ParseBool(opts["docker.privileged.enabled"]); err == nil {
 		conf["allow_privileged"] = v
 	}
+
+	// nvidia_runtime
+	if v, ok := opts["docker.nvidia_runtime"]; ok {
+		conf["nvidia_runtime"] = v
+	}
+
 	return conf, nil
 }
 
@@ -153,6 +159,7 @@ var (
 	//		}
 	//		allow_privileged = false
 	//		allow_caps = ["CHOWN", "NET_RAW" ... ]
+	//		nvidia_runtime = "nvidia"
 	//		}
 	//	}
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
@@ -203,6 +210,10 @@ var (
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","NET_RAW","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
+		),
+		"nvidia_runtime": hclspec.NewDefault(
+			hclspec.NewAttr("nvidia_runtime", "string", false),
+			hclspec.NewLiteral(`"nvidia"`),
 		),
 	})
 
@@ -470,6 +481,7 @@ type DriverConfig struct {
 	Volumes         VolumeConfig `codec:"volumes"`
 	AllowPrivileged bool         `codec:"allow_privileged"`
 	AllowCaps       []string     `codec:"allow_caps"`
+	GPURuntimeName  string       `codec:"nvidia_runtime"`
 }
 
 type AuthConfig struct {
