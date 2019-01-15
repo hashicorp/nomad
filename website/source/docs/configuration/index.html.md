@@ -172,6 +172,8 @@ testing.
   agent will output. Valid log levels include `WARN`, `INFO`, or `DEBUG` in
   increasing order of verbosity.
 
+- `log_json` `(bool: false)` - Output logs in a JSON format.
+
 - `name` `(string: [hostname])` - Specifies the name of the local node. This
   value is used to identify individual agents. When specified on a server, the
   name must be unique within the region.

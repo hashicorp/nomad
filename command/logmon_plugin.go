@@ -36,6 +36,7 @@ func (e *LogMonPluginCommand) Run(args []string) int {
 			"logmon": logmon.NewPlugin(logmon.NewLogMon(logger)),
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
+		Logger:     logger,
 	})
 	return 0
 }

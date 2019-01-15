@@ -40,8 +40,11 @@ type Config struct {
 	// PluginDir is the directory to lookup plugins.
 	PluginDir string `mapstructure:"plugin_dir"`
 
-	// LogLevel is the level of the logs to putout
+	// LogLevel is the level of the logs to put out
 	LogLevel string `mapstructure:"log_level"`
+
+	// LogJson enables log output in a JSON format
+	LogJson bool `mapstructure:"log_json"`
 
 	// BindAddr is the address on which all of nomad's services will
 	// be bound. If not specified, this defaults to 127.0.0.1.
@@ -721,6 +724,9 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
+	}
+	if b.LogJson {
+		result.LogJson = true
 	}
 	if b.BindAddr != "" {
 		result.BindAddr = b.BindAddr

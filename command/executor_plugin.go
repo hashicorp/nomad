@@ -2,10 +2,12 @@ package command
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 
 	hclog "github.com/hashicorp/go-hclog"
+	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -32,24 +34,38 @@ func (e *ExecutorPluginCommand) Run(args []string) int {
 		e.Ui.Error("json configuration not provided")
 		return 1
 	}
+
 	config := args[0]
 	var executorConfig executor.ExecutorConfig
 	if err := json.Unmarshal([]byte(config), &executorConfig); err != nil {
 		return 1
 	}
-	stdo, err := os.OpenFile(executorConfig.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+
+	f, err := os.OpenFile(executorConfig.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
 		e.Ui.Error(err.Error())
 		return 1
 	}
+
+	// Tee the logs to stderr and the file so that they are streamed to the
+	// client
+	out := io.MultiWriter(f, os.Stderr)
+
+	// Create the logger
+	logger := log.New(&log.LoggerOptions{
+		Level:      hclog.LevelFromString(executorConfig.LogLevel),
+		JSONFormat: true,
+		Output:     out,
+	})
+
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: base.Handshake,
 		Plugins: executor.GetPluginMap(
-			stdo,
-			hclog.LevelFromString(executorConfig.LogLevel),
+			logger,
 			executorConfig.FSIsolation,
 		),
 		GRPCServer: plugin.DefaultGRPCServer,
+		Logger:     logger,
 	})
 	return 0
 }

@@ -109,6 +109,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.PluginDir, "plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
+	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
@@ -494,6 +495,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-plugin-dir":                    complete.PredictDirs("*"),
 		"-dc":                            complete.PredictAnything,
 		"-log-level":                     complete.PredictAnything,
+		"-json-logs":                     complete.PredictNothing,
 		"-node":                          complete.PredictAnything,
 		"-consul-auth":                   complete.PredictAnything,
 		"-consul-auto-advertise":         complete.PredictNothing,
@@ -1126,6 +1128,9 @@ General Options (clients and servers):
     Specify the verbosity level of Nomad's logs. Valid values include
     DEBUG, INFO, and WARN, in decreasing order of verbosity. The
     default is INFO.
+
+  -log-json
+    Output logs in a JSON format. The default is false.
 
   -node=<name>
     The name of the local agent. This name is used to identify the node
