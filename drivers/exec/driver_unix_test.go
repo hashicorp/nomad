@@ -35,7 +35,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 		"command": "/bin/sleep",
 		"args":    []string{"600"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()

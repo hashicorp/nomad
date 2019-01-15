@@ -260,13 +260,13 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 
 	// pre 0.9 upgrade path check
 	if handle.Version == 0 {
-		var reattach shared.ReattachConfig
+		var reattach pstructs.ReattachConfig
 		d.logger.Debug("parsing pre09 driver state", "state", string(handle.DriverState))
 		if err := json.Unmarshal(handle.DriverState, &reattach); err != nil {
 			return err
 		}
 
-		reattachConfig, err := shared.ReattachConfigToGoPlugin(&reattach)
+		reattachConfig, err := pstructs.ReattachConfigToGoPlugin(&reattach)
 		if err != nil {
 			return err
 		}

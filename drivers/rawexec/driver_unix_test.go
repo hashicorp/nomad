@@ -43,11 +43,11 @@ func TestRawExecDriver_User(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = testtask.Path()
-	taskConfig["args"] = []string{"sleep", "45s"}
-
-	encodeDriverHelper(require, task, taskConfig)
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "45s"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	_, _, err := harness.StartTask(task)
@@ -74,11 +74,11 @@ func TestRawExecDriver_Signal(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "/bin/bash"
-	taskConfig["args"] = []string{"test.sh"}
-
-	encodeDriverHelper(require, task, taskConfig)
+	tc := &TaskConfig{
+		Command: "/bin/bash",
+		Args:    []string{"test.sh"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	testFile := filepath.Join(task.TaskDir().Dir, "test.sh")
@@ -94,7 +94,6 @@ done
 	`)
 	require.NoError(ioutil.WriteFile(testFile, testData, 0777))
 
-	testtask.SetTaskConfigEnv(task)
 	_, _, err := harness.StartTask(task)
 	require.NoError(err)
 
@@ -155,7 +154,7 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	taskConfig["command"] = testtask.Path()
 	taskConfig["args"] = []string{"sleep", "100s"}
 
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
