@@ -86,10 +86,8 @@ func (t *taskRunnerState08) Upgrade(allocID, taskName string) *state.LocalState 
 		PrestartDone: t.PayloadRendered,
 	}
 
-	//TODO How to convert handles?! This does not work.
+	// Add nessicary fields to TaskConfig
 	ls.TaskHandle = drivers.NewTaskHandle(0)
-
-	//TODO where do we get this from?
 	ls.TaskHandle.Config = &drivers.TaskConfig{
 		Name:    taskName,
 		AllocID: allocID,
