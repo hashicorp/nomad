@@ -138,7 +138,7 @@ func TestBaseDriver_StartTask(t *testing.T) {
 	var handle *drivers.TaskHandle
 	impl := &MockDriver{
 		StartTaskF: func(c *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
-			handle = drivers.NewTaskHandle("test")
+			handle = drivers.NewTaskHandle(1)
 			handle.Config = c
 			handle.State = drivers.TaskStateRunning
 			handle.SetDriverState(state)
