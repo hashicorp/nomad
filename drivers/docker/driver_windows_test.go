@@ -21,5 +21,6 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 	}
 }
 
+// No-op on windows because we don't load images.
 func copyImage(t *testing.T, taskDir *allocdir.TaskDir, image string) {
 }

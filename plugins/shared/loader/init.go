@@ -255,11 +255,9 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 		// extension and the file begins with MZ, however, there is no easy way for us to
 		// actually validate the executability of a file, so here we skip executability checks
 		// for windows systems.
-		if runtime.GOOS != "windows" {
-			if runtime.GOOS != "windows" && s.Mode().Perm()&0111 == 0 {
-				l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
-				continue
-			}
+		if runtime.GOOS != "windows" && s.Mode().Perm()&0111 == 0 {
+			l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
+			continue
 		}
 		plugins = append(plugins, s)
 	}

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func testContainerDetails() (string, string, string) {
+func testContainerDetails() (image string, imageName string, imageTag string) {
 	if runtime.GOOS == "windows" {
 		return "dantoml/busybox-windows:08012019",
 			"dantoml/busybox-windows",

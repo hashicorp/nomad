@@ -61,7 +61,7 @@ func newHarness(t *testing.T, plugins []string) *harness {
 		exeSuffix = ".exe"
 	}
 	for _, p := range plugins {
-		dest := strings.Join([]string{filepath.Join(h.tmpDir, p), exeSuffix}, "")
+		dest := filepath.Join(h.tmpDir, p) + exeSuffix
 		if err := copyFile(selfExe, dest); err != nil {
 			t.Fatalf("failed to copy file: %v", err)
 		}
