@@ -147,6 +147,14 @@ func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Unlock()
 }
 
+// fingerprintSuccessful returns true if the driver has
+// never fingerprinted or has successfully fingerprinted
+func (d *Driver) fingerprintSuccessful() bool {
+	d.fingerprintLock.Lock()
+	defer d.fingerprintLock.Unlock()
+	return d.fingerprintSuccess == nil || *d.fingerprintSuccess
+}
+
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
 	return pluginInfo, nil
 }
@@ -222,7 +230,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if err != nil {
 		fp.Health = drivers.HealthStateUnhealthy
 		fp.HealthDescription = drivers.NoCgroupMountMessage
-		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+		if d.fingerprintSuccessful() {
 			d.logger.Warn(fp.HealthDescription, "error", err)
 		}
 		d.setFingerprintFailure()

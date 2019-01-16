@@ -92,7 +92,7 @@ type Driver struct {
 	// A tri-state boolean to know if the fingerprinting has happened and
 	// whether it has been successful
 	fingerprintSuccess *bool
-	fingerprintLock    sync.Mutex
+	fingerprintLock    sync.RWMutex
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin

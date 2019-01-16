@@ -31,6 +31,14 @@ func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Unlock()
 }
 
+// fingerprintSuccessful returns true if the driver has
+// never fingerprinted or has successfully fingerprinted
+func (d *Driver) fingerprintSuccessful() bool {
+	d.fingerprintLock.Lock()
+	defer d.fingerprintLock.Unlock()
+	return d.fingerprintSuccess == nil || *d.fingerprintSuccess
+}
+
 func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerprint) {
 	defer close(ch)
 	ticker := time.NewTimer(0)
@@ -55,7 +63,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	}
 	client, _, err := d.dockerClients()
 	if err != nil {
-		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+		if d.fingerprintSuccessful() {
 			d.logger.Info("failed to initialize client", "error", err)
 		}
 		d.setFingerprintFailure()
@@ -67,7 +75,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	env, err := client.Version()
 	if err != nil {
-		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+		if d.fingerprintSuccessful() {
 			d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
 		}
 		d.setFingerprintFailure()
@@ -105,7 +113,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			} else {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
-				if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+				if d.fingerprintSuccessful() {
 					d.logger.Debug("bridge_ip could not be discovered")
 				}
 			}

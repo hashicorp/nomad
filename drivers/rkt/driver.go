@@ -280,6 +280,14 @@ func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Unlock()
 }
 
+// fingerprintSuccessful returns true if the driver has
+// never fingerprinted or has successfully fingerprinted
+func (d *Driver) fingerprintSuccessful() bool {
+	d.fingerprintLock.Lock()
+	defer d.fingerprintLock.Unlock()
+	return d.fingerprintSuccess == nil || *d.fingerprintSuccess
+}
+
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fingerprint := &drivers.Fingerprint{
 		Attributes:        map[string]*pstructs.Attribute{},
@@ -289,7 +297,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	// Only enable if we are root
 	if syscall.Geteuid() != 0 {
-		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+		if d.fingerprintSuccessful() {
 			d.logger.Debug("must run as root user, disabling")
 		}
 		d.setFingerprintFailure()
@@ -322,7 +330,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		// Do not allow ancient rkt versions
 		fingerprint.Health = drivers.HealthStateUndetected
 		fingerprint.HealthDescription = fmt.Sprintf("Unsuported rkt version %s", currentVersion)
-		if d.fingerprintSuccess == nil || *d.fingerprintSuccess {
+		if d.fingerprintSuccessful() {
 			d.logger.Warn("unsupported rkt version please upgrade to >= "+minVersion.String(),
 				"rkt_version", currentVersion)
 		}
