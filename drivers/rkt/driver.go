@@ -552,7 +552,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	prepareArgs = append(prepareArgs, fmt.Sprintf("--memory=%v", cfg.Resources.LinuxResources.MemoryLimitBytes))
 
 	// Add CPU isolator
-	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu-shares=%v", cfg.Resources.LinuxResources.CPUShares))
+	prepareArgs = append(prepareArgs, fmt.Sprintf("--cpu=%v", cfg.Resources.LinuxResources.CPUShares))
 
 	// Add DNS servers
 	if len(driverConfig.DNSServers) == 1 && (driverConfig.DNSServers[0] == "host" || driverConfig.DNSServers[0] == "none") {
