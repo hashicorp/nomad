@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -251,11 +250,7 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 			continue
 		}
 
-		// Check if it is executable by anyone. On windows, an executable is any file with any
-		// extension and the file begins with MZ, however, there is no easy way for us to
-		// actually validate the executability of a file, so here we skip executability checks
-		// for windows systems.
-		if runtime.GOOS != "windows" && s.Mode().Perm()&0111 == 0 {
+		if !executable(f, s) {
 			l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
 			continue
 		}
