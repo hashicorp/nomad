@@ -9,8 +9,13 @@ export default Fragment.extend({
   attributes: attr(),
 
   attributesStructured: computed('attributes', function() {
-    // `unflatten` doesn't sort keys before unflattening, so manual preprocessing is necessary.
     const original = this.get('attributes');
+
+    if (!original) {
+      return;
+    }
+
+    // `unflatten` doesn't sort keys before unflattening, so manual preprocessing is necessary.
     const attrs = Object.keys(original)
       .sort()
       .reduce((obj, key) => {

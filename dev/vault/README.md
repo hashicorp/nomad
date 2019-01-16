@@ -14,9 +14,9 @@ for the Nomad servers (must be in nomad/dev/vault):
 
 ```shell
 export VAULT_ADDR='http://127.0.0.1:8200'
-vault policy-write nomad-server nomad-server-policy.hcl
+vault policy write nomad-server nomad-server-policy.hcl
 vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
-vault token-create -policy nomad-server -period 72h -orphan
+vault token create -policy nomad-server -period 72h -orphan
 ```
 
 You can then run Nomad using the generated token. An example would be:

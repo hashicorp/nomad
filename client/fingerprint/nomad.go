@@ -3,8 +3,7 @@ package fingerprint
 import (
 	"log"
 
-	client "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
 // NomadFingerprint is used to fingerprint the Nomad version
@@ -19,8 +18,9 @@ func NewNomadFingerprint(logger *log.Logger) Fingerprint {
 	return f
 }
 
-func (f *NomadFingerprint) Fingerprint(config *client.Config, node *structs.Node) (bool, error) {
-	node.Attributes["nomad.version"] = config.Version.VersionNumber()
-	node.Attributes["nomad.revision"] = config.Version.Revision
-	return true, nil
+func (f *NomadFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+	resp.AddAttribute("nomad.version", req.Config.Version.VersionNumber())
+	resp.AddAttribute("nomad.revision", req.Config.Version.Revision)
+	resp.Detected = true
+	return nil
 }

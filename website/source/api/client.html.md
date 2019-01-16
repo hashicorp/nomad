@@ -3,15 +3,23 @@ layout: api
 page_title: Client - HTTP API
 sidebar_current: api-client
 description: |-
-  The /client endpoints interact with the local Nomad agent to interact with
-  client members.
+  The /client endpoints are used to access client statistics and inspect
+  allocations running on a particular client.
 ---
 
 # Client HTTP API
 
-The `/client` endpoints are used to interact with the Nomad clients. The API
-endpoints are hosted by the Nomad client and requests have to be made to the
-Client where the particular allocation was placed.
+The `/client` endpoints are used to interact with the Nomad clients. 
+
+Since Nomad 0.8.0, both a client and server can handle client endpoints. This is
+particularly useful for when a direct connection to a client is not possible due
+to the network configuration. For high volume access to the client endpoints,
+particularly endpoints streaming file contents, direct access to the node should
+be preferred as it avoids adding additional load to the servers.
+
+When accessing the endpoints via the server, if the desired node is ambiguous
+based on the URL, an additional `?node_id` query parameter must be provided to
+disambiguate.
 
 ## Read Stats
 
@@ -30,6 +38,13 @@ The table below shows this endpoint's support for
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
 | `NO`             | `node:read`  |
+
+### Parameters
+
+- `node_id` `(string: <optional>)` - Specifies the node to query. This is
+  required when the endpoint is being accessed via a server. This is specified as
+  part of the URL. Note, this must be the _full_ node ID, not the short
+  8-character one. This is specified as part of the path.
 
 ### Sample Request
 
@@ -132,12 +147,10 @@ $ curl \
 }
 ```
 
-## Read Allocation
+## Read Allocation Statistics
 
 The client `allocation` endpoint is used to query the actual resources consumed
-by an allocation. The API endpoint is hosted by the Nomad client and requests
-have to be made to the nomad client whose resource usage metrics are of
-interest.
+by an allocation.
 
 | Method | Path                                 | Produces                   |
 | ------ | ------------------------------------ | -------------------------- |
@@ -563,9 +576,37 @@ $ curl \
 
 ## GC Allocation
 
+This endpoint forces a garbage collection of a particular, stopped allocation
+on a node.
+
+| Method | Path                              | Produces                   |
+| ------ | --------------------------------- | -------------------------- |
+| `GET`  | `/client/allocation/:alloc_id/gc` | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required           |
+| ---------------- | ---------------------- |
+| `NO`             | `namespace:submit-job` |
+
+### Parameters
+
+- `:alloc_id` `(string: <required>)` - Specifies the allocation ID to query.
+  This is specified as part of the URL. Note, this must be the _full_ allocation
+  ID, not the short 8-character one. This is specified as part of the path.
+
+### Sample Request
+
+```text
+$ curl \
+    https://nomad.rocks/v1/client/allocation/5fc98185-17ff-26bc-a802-0c74fa471c99/gc
+```
+
+## GC All Allocation
+
 This endpoint forces a garbage collection of all stopped allocations on a node.
-The API endpoint is hosted by the Nomad client and requests have to be made to
-the Nomad client whose allocations should be garbage collected.
 
 | Method | Path                         | Produces                   |
 | ------ | ---------------------------- | -------------------------- |
@@ -578,6 +619,13 @@ The table below shows this endpoint's support for
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
 | `NO`             | `node:write` |
+
+### Parameters
+
+- `node_id` `(string: <optional>)` - Specifies the node to target. This is
+  required when the endpoint is being accessed via a server. This is specified as
+  part of the URL. Note, this must be the _full_ node ID, not the short
+  8-character one. This is specified as part of the path.
 
 ### Sample Request
 

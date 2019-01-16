@@ -1,3 +1,8 @@
+variable "name" {
+  description = "Used to name various infrastructure components"
+  default     = "hashistack"
+}
+
 variable "region" {
   description = "The AWS region to deploy to."
   default     = "us-east-1"
@@ -27,6 +32,11 @@ variable "retry_join" {
   default     = "provider=aws tag_key=ConsulAutoJoin tag_value=auto-join"
 }
 
+variable "nomad_binary" {
+  description = "Used to replace the machine image installed Nomad binary."
+  default     = "none"
+}
+
 provider "aws" {
   region = "${var.region}"
 }
@@ -34,6 +44,7 @@ provider "aws" {
 module "hashistack" {
   source = "../../modules/hashistack"
 
+  name          = "${var.name}"
   region        = "${var.region}"
   ami           = "${var.ami}"
   instance_type = "${var.instance_type}"
@@ -41,6 +52,7 @@ module "hashistack" {
   server_count  = "${var.server_count}"
   client_count  = "${var.client_count}"
   retry_join    = "${var.retry_join}"
+  nomad_binary  = "${var.nomad_binary}"
 }
 
 output "IP_Addresses" {
@@ -57,7 +69,7 @@ To connect, add your private key and SSH into any client or server with
   $ nomad node-status
 
 If you see an error message like the following when running any of the above
-commands, it usuallly indicates that the configuration script has not finished
+commands, it usually indicates that the configuration script has not finished
 executing:
 
 "Error querying servers: Get http://127.0.0.1:4646/v1/agent/members: dial tcp

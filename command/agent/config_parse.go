@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
@@ -356,6 +357,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"chroot_env",
 		"network_interface",
 		"network_speed",
+		"memory_total_mb",
 		"cpu_total_compute",
 		"max_kill_timeout",
 		"client_max_port",
@@ -368,6 +370,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 		"gc_parallel_destroys",
 		"gc_max_allocs",
 		"no_host_uuid",
+		"server_join",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -383,6 +386,7 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	delete(m, "chroot_env")
 	delete(m, "reserved")
 	delete(m, "stats")
+	delete(m, "server_join")
 
 	var config ClientConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -443,6 +447,13 @@ func parseClient(result **ClientConfig, list *ast.ObjectList) error {
 	if o := listVal.Filter("reserved"); len(o.Items) > 0 {
 		if err := parseReserved(&config.Reserved, o); err != nil {
 			return multierror.Prefix(err, "reserved ->")
+		}
+	}
+
+	// Parse ServerJoin config
+	if o := listVal.Filter("server_join"); len(o.Items) > 0 {
+		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
+			return multierror.Prefix(err, "server_join->")
 		}
 	}
 
@@ -529,16 +540,20 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		"heartbeat_grace",
 		"min_heartbeat_ttl",
 		"max_heartbeats_per_second",
-		"start_join",
-		"retry_join",
-		"retry_max",
-		"retry_interval",
 		"rejoin_after_leave",
 		"encrypt",
 		"authoritative_region",
 		"non_voting_server",
 		"redundancy_zone",
 		"upgrade_version",
+
+		"server_join",
+
+		// For backwards compatibility
+		"start_join",
+		"retry_join",
+		"retry_max",
+		"retry_interval",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -548,6 +563,8 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 	if err := hcl.DecodeObject(&m, listVal); err != nil {
 		return err
 	}
+
+	delete(m, "server_join")
 
 	var config ServerConfig
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -568,7 +585,56 @@ func parseServer(result **ServerConfig, list *ast.ObjectList) error {
 		}
 	}
 
+	// Parse ServerJoin config
+	if o := listVal.Filter("server_join"); len(o.Items) > 0 {
+		if err := parseServerJoin(&config.ServerJoin, o); err != nil {
+			return multierror.Prefix(err, "server_join->")
+		}
+	}
+
 	*result = &config
+	return nil
+}
+
+func parseServerJoin(result **ServerJoin, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'server_join' block allowed")
+	}
+
+	// Get our object
+	listVal := list.Items[0].Val
+
+	// Check for invalid keys
+	valid := []string{
+		"start_join",
+		"retry_join",
+		"retry_max",
+		"retry_interval",
+	}
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, listVal); err != nil {
+		return err
+	}
+
+	var serverJoinInfo ServerJoin
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &serverJoinInfo,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dec.Decode(m); err != nil {
+		return err
+	}
+
+	*result = &serverJoinInfo
 	return nil
 }
 
@@ -641,6 +707,7 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"publish_allocation_metrics",
 		"publish_node_metrics",
 		"datadog_address",
+		"datadog_tags",
 		"prometheus_metrics",
 		"circonus_api_token",
 		"circonus_api_app",
@@ -657,6 +724,9 @@ func parseTelemetry(result **Telemetry, list *ast.ObjectList) error {
 		"circonus_broker_select_tag",
 		"disable_tagged_metrics",
 		"backwards_compatible_metrics",
+		"prefix_filter",
+		"filter_default",
+		"disable_dispatched_job_summary_metrics",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return err
@@ -701,9 +771,13 @@ func parseConsulConfig(result **config.ConsulConfig, list *ast.ObjectList) error
 		"checks_use_advertise",
 		"client_auto_join",
 		"client_service_name",
+		"client_http_check_name",
 		"key_file",
 		"server_auto_join",
 		"server_service_name",
+		"server_http_check_name",
+		"server_serf_check_name",
+		"server_rpc_check_name",
 		"ssl",
 		"timeout",
 		"token",
@@ -754,6 +828,9 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 		"cert_file",
 		"key_file",
 		"verify_https_client",
+		"tls_cipher_suites",
+		"tls_min_version",
+		"tls_prefer_server_cipher_suites",
 	}
 
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
@@ -767,6 +844,14 @@ func parseTLSConfig(result **config.TLSConfig, list *ast.ObjectList) error {
 
 	var tlsConfig config.TLSConfig
 	if err := mapstructure.WeakDecode(m, &tlsConfig); err != nil {
+		return err
+	}
+
+	if _, err := tlsutil.ParseCiphers(tlsConfig.TLSCipherSuites); err != nil {
+		return err
+	}
+
+	if _, err := tlsutil.ParseMinVersion(tlsConfig.TLSMinVersion); err != nil {
 		return err
 	}
 

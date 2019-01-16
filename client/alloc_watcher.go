@@ -204,7 +204,7 @@ func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) e
 	return moveErr
 }
 
-// remotePrevAlloc is a prevAllcWatcher for previous allocations on remote
+// remotePrevAlloc is a prevAllocWatcher for previous allocations on remote
 // nodes as an updated allocation.
 type remotePrevAlloc struct {
 	// allocID is the ID of the alloc being blocked
@@ -260,7 +260,7 @@ func (p *remotePrevAlloc) IsMigrating() bool {
 	return b
 }
 
-// Wait until the remote previousl allocation has terminated.
+// Wait until the remote previous allocation has terminated.
 func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 	p.waitingLock.Lock()
 	p.waiting = true
@@ -421,9 +421,10 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	apiConfig := nomadapi.DefaultConfig()
 	apiConfig.Address = nodeAddr
 	apiConfig.TLSConfig = &nomadapi.TLSConfig{
-		CACert:     p.config.TLSConfig.CAFile,
-		ClientCert: p.config.TLSConfig.CertFile,
-		ClientKey:  p.config.TLSConfig.KeyFile,
+		CACert:        p.config.TLSConfig.CAFile,
+		ClientCert:    p.config.TLSConfig.CertFile,
+		ClientKey:     p.config.TLSConfig.KeyFile,
+		TLSServerName: fmt.Sprintf("client.%s.nomad", p.config.Region),
 	}
 	apiClient, err := nomadapi.NewClient(apiConfig)
 	if err != nil {
@@ -489,7 +490,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 			// Error snapshotting on the remote side, try to read
 			// the message out of the file and return it.
 			errBuf := make([]byte, int(hdr.Size))
-			if _, err := tr.Read(errBuf); err != nil {
+			if _, err := tr.Read(errBuf); err != nil && err != io.EOF {
 				return fmt.Errorf("error streaming previous alloc %q for new alloc %q; failed reading error message: %v",
 					p.prevAllocID, p.allocID, err)
 			}
@@ -542,16 +543,19 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 			// is still alive
 			for !canceled() {
 				n, err := tr.Read(buf)
+				if n > 0 && (err == nil || err == io.EOF) {
+					if _, err := f.Write(buf[:n]); err != nil {
+						f.Close()
+						return fmt.Errorf("error writing to file %q: %v", f.Name(), err)
+					}
+				}
+
 				if err != nil {
 					f.Close()
 					if err != io.EOF {
 						return fmt.Errorf("error reading snapshot: %v", err)
 					}
 					break
-				}
-				if _, err := f.Write(buf[:n]); err != nil {
-					f.Close()
-					return fmt.Errorf("error writing to file %q: %v", f.Name(), err)
 				}
 			}
 

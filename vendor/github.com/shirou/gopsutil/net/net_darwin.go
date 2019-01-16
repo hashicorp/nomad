@@ -3,6 +3,7 @@
 package net
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -164,6 +165,10 @@ func (min mapInterfaceNameUsage) notTruncated() []string {
 // lo0   16384 ::1/128     ::1                 869107     -  169411755   869107     -  169411755     -   -
 // lo0   16384 127           127.0.0.1         869107     -  169411755   869107     -  169411755     -   -
 func IOCounters(pernic bool) ([]IOCountersStat, error) {
+	return IOCountersWithContext(context.Background(), pernic)
+}
+
+func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, error) {
 	var (
 		ret      []IOCountersStat
 		retIndex int
@@ -251,10 +256,18 @@ func IOCounters(pernic bool) ([]IOCountersStat, error) {
 
 // NetIOCountersByFile is an method which is added just a compatibility for linux.
 func IOCountersByFile(pernic bool, filename string) ([]IOCountersStat, error) {
+	return IOCountersByFileWithContext(context.Background(), pernic, filename)
+}
+
+func IOCountersByFileWithContext(ctx context.Context, pernic bool, filename string) ([]IOCountersStat, error) {
 	return IOCounters(pernic)
 }
 
 func FilterCounters() ([]FilterStat, error) {
+	return FilterCountersWithContext(context.Background())
+}
+
+func FilterCountersWithContext(ctx context.Context) ([]FilterStat, error) {
 	return nil, errors.New("NetFilterCounters not implemented for darwin")
 }
 
@@ -263,5 +276,9 @@ func FilterCounters() ([]FilterStat, error) {
 // just the protocols in the list are returned.
 // Not Implemented for Darwin
 func ProtoCounters(protocols []string) ([]ProtoCountersStat, error) {
+	return ProtoCountersWithContext(context.Background(), protocols)
+}
+
+func ProtoCountersWithContext(ctx context.Context, protocols []string) ([]ProtoCountersStat, error) {
 	return nil, errors.New("NetProtoCounters not implemented for darwin")
 }

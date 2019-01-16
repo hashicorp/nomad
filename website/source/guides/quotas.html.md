@@ -105,10 +105,10 @@ Successfully applied namespace "default"!
 Lets now run a job in the default namespace now that we have attached a quota:
 
 ```
-$ nomad init
+$ nomad job init
 Example job file written to example.nomad
 
-$ nomad run -detach example.nomad
+$ nomad job run -detach example.nomad
 Job registration successful
 Evaluation ID: 985a1df8-0221-b891-5dc1-4d31ad4e2dc3
 
@@ -128,7 +128,7 @@ scale up the job from `count = 1` to `count = 4`:
 
 ```
 # Change count
-$ nomad run -detach example.nomad
+$ nomad job run -detach example.nomad
 Job registration successful
 Evaluation ID: ce8e1941-0189-b866-3dc4-7cd92dc38a69
 
@@ -200,7 +200,7 @@ When specifying resource limits the following enforcement behaviors are defined:
 ## Federation
 
 Nomad makes working with quotas in a federated cluster simple by replicating
-quota specifications from the [authoratative Nomad
+quota specifications from the [authoritative Nomad
 region](/docs/agent/configuration/server.html#authoritative_region). This allows
 operators to interact with a single cluster but create quota specifications that
 apply to all Nomad clusters.

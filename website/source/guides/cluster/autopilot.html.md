@@ -13,11 +13,9 @@ operator-friendly management of Nomad servers. It includes cleanup of dead
 servers, monitoring the state of the Raft cluster, and stable server introduction.
 
 To enable Autopilot features (with the exception of dead server cleanup),
-the [`raft_protocol`](/docs/agent/configuration/server.html#raft_protocol) setting in
-the Agent configuration must be set to 3 or higher on all servers. In Nomad
-0.8 this setting defaults to 2; in Nomad 0.9 it will default to 3. For more
-information, see the [Version Upgrade section]
-(/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
+the `raft_protocol` setting in the [server stanza](/docs/agent/configuration/server.html)
+must be set to 3 on all servers. In Nomad 0.8 this setting defaults to 2; in Nomad 0.9 it will default to 3.
+For more information, see the [Version Upgrade section](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility)
 on Raft Protocol versions.
 
 ## Configuration
@@ -95,9 +93,9 @@ A server is considered healthy if all of the following conditions are true:
 - The number of Raft log entries it trails the leader by does not exceed
 `MaxTrailingLogs`
 
-The status of these health checks can be viewed through the [`/v1/operator/autopilot/health`]
-(/api/operator.html#read-health) HTTP endpoint, with a top level
-`Healthy` field indicating the overall status of the cluster:
+The status of these health checks can be viewed through the 
+[`/v1/operator/autopilot/health`](/api/operator.html#read-health) HTTP endpoint, with
+a top level `Healthy` field indicating the overall status of the cluster:
 
 ```
 $ curl localhost:8500/v1/operator/autopilot/health
@@ -149,13 +147,14 @@ setting.
 ~> The following Autopilot features are available only in
    [Nomad Enterprise](https://www.hashicorp.com/products/nomad/) version 0.8.0 and later.
 
-## Server Read Scaling
+## Server Read and Scheduling Scaling
 
 With the [`non_voting_server`](/docs/agent/configuration/server.html#non_voting_server) option, a
 server can be explicitly marked as a non-voter and will never be promoted to a voting
 member. This can be useful when more read scaling is needed; being a non-voter means
 that the server will still have data replicated to it, but it will not be part of the
-quorum that the leader must wait for before committing log entries.
+quorum that the leader must wait for before committing log entries. Non voting servers can also
+act as scheduling workers to increase scheduling throughput in large clusters.
 
 ## Redundancy Zones
 
@@ -165,8 +164,8 @@ have an overly-large quorum (2-3 nodes per AZ) or give up redundancy within an A
 deploying just one server in each.
 
 If the `EnableRedundancyZones` setting is set, Nomad will use its value to look for a
-zone in each server's specified [`redundancy_zone`]
-(/docs/agent/configuration/server.html#redundancy_zone) field.
+zone in each server's specified [`redundancy_zone`](/docs/agent/configuration/server.html#redundancy_zone)
+field.
 
 Here's an example showing how to configure this:
 
@@ -198,12 +197,11 @@ equals or exceeds that of the old servers, Autopilot will begin promoting the ne
 to voters and demoting the old servers. After this is finished, the old servers can be
 safely removed from the cluster.
 
-To check the Nomad version of the servers, either the [autopilot health]
-(/api/operator.html#read-health) endpoint or the `nomad members`
-command can be used:
+To check the Nomad version of the servers, either the [autopilot health](/api/operator.html#read-health)
+endpoint or the `nomad members`command can be used:
 
 ```
-$ nomad server-members
+$ nomad server members
 Name   Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
 node1  127.0.0.1  4648  alive   true    3         0.7.1  dc1         global
 node2  127.0.0.1  4748  alive   false   3         0.7.1  dc1         global

@@ -238,16 +238,6 @@ func (e *EvalEligibility) HasEscaped() bool {
 func (e *EvalEligibility) GetClasses() map[string]bool {
 	elig := make(map[string]bool)
 
-	// Go through the job.
-	for class, feas := range e.job {
-		switch feas {
-		case EvalComputedClassEligible:
-			elig[class] = true
-		case EvalComputedClassIneligible:
-			elig[class] = false
-		}
-	}
-
 	// Go through the task groups.
 	for _, classes := range e.taskGroups {
 		for class, feas := range classes {
@@ -262,6 +252,21 @@ func (e *EvalEligibility) GetClasses() map[string]bool {
 					elig[class] = false
 				}
 			}
+		}
+	}
+
+	// Go through the job.
+	for class, feas := range e.job {
+		switch feas {
+		case EvalComputedClassEligible:
+			// Only mark as eligible if it hasn't been marked before. This
+			// prevents the job marking a class as eligible when it is ineligible
+			// to all the task groups.
+			if _, ok := elig[class]; !ok {
+				elig[class] = true
+			}
+		case EvalComputedClassIneligible:
+			elig[class] = false
 		}
 	}
 

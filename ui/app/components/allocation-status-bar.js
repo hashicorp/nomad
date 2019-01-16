@@ -6,6 +6,8 @@ export default DistributionBar.extend({
 
   allocationContainer: null,
 
+  'data-test-allocation-status-bar': true,
+
   data: computed(
     'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs}',
     function() {

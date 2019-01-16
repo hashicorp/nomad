@@ -1,18 +1,21 @@
 import { Factory, faker, trait } from 'ember-cli-mirage';
 import { provide } from '../utils';
 import { DATACENTERS, HOSTS } from '../common';
+import moment from 'moment';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const NODE_STATUSES = ['initializing', 'ready', 'down'];
+const REF_DATE = new Date();
 
 export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
   name: i => `nomad@${HOSTS[i % HOSTS.length]}`,
 
   datacenter: faker.list.random(...DATACENTERS),
-  isDraining: faker.random.boolean,
+  drain: faker.random.boolean,
   status: faker.list.random(...NODE_STATUSES),
   tls_enabled: faker.random.boolean,
+  schedulingEligibility: () => (faker.random.boolean() ? 'eligible' : 'ineligible'),
 
   createIndex: i => i,
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
@@ -27,6 +30,40 @@ export default Factory.extend({
       return `nomad@${ipv4Hosts[i % ipv4Hosts.length]}`;
     },
   }),
+
+  draining: trait({
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: faker.random.number({ min: 30 * 1000, max: 5 * 60 * 60 * 1000 }) * 1000000,
+      ForceDeadline: moment(REF_DATE).add(faker.random.number({ min: 1, max: 5 }), 'd'),
+      IgnoreSystemJobs: faker.random.boolean(),
+    },
+  }),
+
+  forcedDraining: trait({
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: -1,
+      ForceDeadline: '0001-01-01T00:00:00Z',
+      IgnoreSystemJobs: faker.random.boolean(),
+    },
+  }),
+
+  noDeadlineDraining: trait({
+    drain: true,
+    schedulingEligibility: 'ineligible',
+    drainStrategy: {
+      Deadline: 0,
+      ForceDeadline: '0001-01-01T00:00:00Z',
+      IgnoreSystemJobs: faker.random.boolean(),
+    },
+  }),
+
+  drainStrategy: null,
+
+  drivers: makeDrivers,
 
   attributes() {
     // TODO add variability to these
@@ -58,11 +95,56 @@ export default Factory.extend({
     };
   },
 
+  withMeta: trait({
+    meta: {
+      just: 'some',
+      prop: 'erties',
+      'over.here': 100,
+    },
+  }),
+
   afterCreate(node, server) {
     // Each node has a corresponding client stats resource that's queried via node IP.
     // Create that record, even though it's not a relationship.
     server.create('client-stats', {
       id: node.httpAddr,
     });
+
+    const events = server.createList('node-event', faker.random.number({ min: 1, max: 10 }), {
+      nodeId: node.id,
+    });
+
+    node.update({
+      eventIds: events.mapBy('id'),
+    });
   },
 });
+
+function makeDrivers() {
+  const generate = name => {
+    const detected = Math.random() > 0.3;
+    const healthy = detected && Math.random() > 0.3;
+    const attributes = {
+      [`driver.${name}.version`]: '1.0.0',
+      [`driver.${name}.status`]: 'awesome',
+      [`driver.${name}.more.details`]: 'yeah',
+      [`driver.${name}.more.again`]: 'we got that',
+    };
+    return {
+      Detected: detected,
+      Healthy: healthy,
+      HealthDescription: healthy ? 'Driver is healthy' : 'Uh oh',
+      UpdateTime: faker.date.past(5 / 365, REF_DATE),
+      Attributes: Math.random() > 0.3 && detected ? attributes : null,
+    };
+  };
+
+  return {
+    docker: generate('docker'),
+    rkt: generate('rkt'),
+    qemu: generate('qemu'),
+    exec: generate('exec'),
+    raw_exec: generate('raw_exec'),
+    java: generate('java'),
+  };
+}

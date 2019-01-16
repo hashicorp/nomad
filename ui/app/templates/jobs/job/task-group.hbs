@@ -3,10 +3,7 @@
     <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
       {{#link-to
         data-test-breadcrumb=breadcrumb.label
-        params=(append
-          breadcrumb.args
-          (query-params jobNamespace=(or model.namespace.id "default"))
-        )}}
+        params=breadcrumb.args}}
         {{breadcrumb.label}}
       {{/link-to}}
     </li>
@@ -76,6 +73,7 @@
             sortDescending=sortDescending
             class="with-foot" as |t|}}
             {{#t.head}}
+              <th class="is-narrow"></th>
               {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
               {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
               {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
@@ -86,7 +84,7 @@
               <th>Memory</th>
             {{/t.head}}
             {{#t.body as |row|}}
-              {{allocation-row data-test-allocation allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
+              {{allocation-row data-test-allocation=row.model.id allocation=row.model context="job" onClick=(action "gotoAllocation" row.model)}}
             {{/t.body}}
           {{/list-table}}
           <div class="table-foot">
@@ -100,12 +98,21 @@
             </nav>
           </div>
         {{else}}
-          <div class="boxed-section-body">
-            <div class="empty-message" data-test-empty-allocations-list>
-              <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
-              <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
+          {{#if allocations.length}}
+            <div class="boxed-section-body">
+              <div class="empty-message" data-test-empty-allocations-list>
+                <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
+                <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
+              </div>
             </div>
-          </div>
+          {{else}}
+            <div class="boxed-section-body">
+              <div class="empty-message" data-test-empty-allocations-list>
+                <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Allocations</h3>
+                <p class="empty-message-body">No allocations have been placed.</p>
+              </div>
+            </div>
+          {{/if}}
         {{/list-pagination}}
       </div>
     </div>

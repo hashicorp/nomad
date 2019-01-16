@@ -6,7 +6,13 @@ package testlog
 import (
 	"io"
 	"log"
+	"os"
 )
+
+// UseStdout returns true if NOMAD_TEST_STDOUT=1 and sends logs to stdout.
+func UseStdout() bool {
+	return os.Getenv("NOMAD_TEST_STDOUT") == "1"
+}
 
 // LogPrinter is the methods of testing.T (or testing.B) needed by the test
 // logger.
@@ -27,11 +33,17 @@ func (w *writer) Write(p []byte) (n int, err error) {
 
 // NewWriter creates a new io.Writer backed by a Logger.
 func NewWriter(t LogPrinter) io.Writer {
+	if UseStdout() {
+		return os.Stdout
+	}
 	return &writer{t}
 }
 
 // New returns a new test logger. See https://golang.org/pkg/log/#New
 func New(t LogPrinter, prefix string, flag int) *log.Logger {
+	if UseStdout() {
+		return log.New(os.Stdout, prefix, flag)
+	}
 	return log.New(&writer{t}, prefix, flag)
 }
 
@@ -42,5 +54,5 @@ func WithPrefix(t LogPrinter, prefix string) *log.Logger {
 
 // NewLog logger with "TEST" prefix and the Lmicroseconds flag.
 func Logger(t LogPrinter) *log.Logger {
-	return WithPrefix(t, "TEST ")
+	return WithPrefix(t, "")
 }

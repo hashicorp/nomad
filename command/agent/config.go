@@ -87,7 +87,7 @@ type Config struct {
 
 	// DisableUpdateCheck is used to disable the periodic update
 	// and security bulletin checking.
-	DisableUpdateCheck bool `mapstructure:"disable_update_check"`
+	DisableUpdateCheck *bool `mapstructure:"disable_update_check"`
 
 	// DisableAnonymousSignature is used to disable setting the
 	// anonymous signature when doing the update check and looking
@@ -104,11 +104,11 @@ type Config struct {
 	Vault *config.VaultConfig `mapstructure:"vault"`
 
 	// NomadConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	NomadConfig *nomad.Config `mapstructure:"-" json:"-"`
 
 	// ClientConfig is used to override the default config.
-	// This is largly used for testing purposes.
+	// This is largely used for testing purposes.
 	ClientConfig *client.Config `mapstructure:"-" json:"-"`
 
 	// DevMode is set by the -dev CLI flag.
@@ -125,7 +125,7 @@ type Config struct {
 	TLSConfig *config.TLSConfig `mapstructure:"tls"`
 
 	// HTTPAPIResponseHeaders allows users to configure the Nomad http agent to
-	// set arbritrary headers on API responses
+	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
 
 	// Sentinel holds sentinel related settings
@@ -175,6 +175,9 @@ type ClientConfig struct {
 	// CpuCompute is used to override any detected or default total CPU compute.
 	CpuCompute int `mapstructure:"cpu_total_compute"`
 
+	// MemoryMB is used to override any detected or default total memory.
+	MemoryMB int `mapstructure:"memory_total_mb"`
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `mapstructure:"max_kill_timeout"`
 
@@ -214,6 +217,9 @@ type ClientConfig struct {
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `mapstructure:"no_host_uuid"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -265,7 +271,7 @@ type ServerConfig struct {
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
-	NumSchedulers int `mapstructure:"num_schedulers"`
+	NumSchedulers *int `mapstructure:"num_schedulers"`
 
 	// EnabledSchedulers controls the set of sub-schedulers that are
 	// enabled for this server to handle. This will restrict the evaluations
@@ -308,21 +314,24 @@ type ServerConfig struct {
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
 	// addresses, then the agent will error and exit.
+	// Deprecated in Nomad 0.10
 	StartJoin []string `mapstructure:"start_join"`
 
 	// RetryJoin is a list of addresses to join with retry enabled.
+	// Deprecated in Nomad 0.10
 	RetryJoin []string `mapstructure:"retry_join"`
 
 	// RetryMaxAttempts specifies the maximum number of times to retry joining a
 	// host on startup. This is useful for cases where we know the node will be
 	// online eventually.
+	// Deprecated in Nomad 0.10
 	RetryMaxAttempts int `mapstructure:"retry_max"`
 
 	// RetryInterval specifies the amount of time to wait in between join
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
-	RetryInterval string        `mapstructure:"retry_interval"`
-	retryInterval time.Duration `mapstructure:"-"`
+	// Deprecated in Nomad 0.10
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
 	// When set to false (default), a leave causes Consul to not rejoin
@@ -343,6 +352,59 @@ type ServerConfig struct {
 
 	// Encryption key to use for the Serf communication
 	EncryptKey string `mapstructure:"encrypt" json:"-"`
+
+	// ServerJoin contains information that is used to attempt to join servers
+	ServerJoin *ServerJoin `mapstructure:"server_join"`
+}
+
+// ServerJoin is used in both clients and servers to bootstrap connections to
+// servers
+type ServerJoin struct {
+	// StartJoin is a list of addresses to attempt to join when the
+	// agent starts. If Serf is unable to communicate with any of these
+	// addresses, then the agent will error and exit.
+	StartJoin []string `mapstructure:"start_join"`
+
+	// RetryJoin is a list of addresses to join with retry enabled, or a single
+	// value to find multiple servers using go-discover syntax.
+	RetryJoin []string `mapstructure:"retry_join"`
+
+	// RetryMaxAttempts specifies the maximum number of times to retry joining a
+	// host on startup. This is useful for cases where we know the node will be
+	// online eventually.
+	RetryMaxAttempts int `mapstructure:"retry_max"`
+
+	// RetryInterval specifies the amount of time to wait in between join
+	// attempts on agent start. The minimum allowed value is 1 second and
+	// the default is 30s.
+	RetryInterval time.Duration `mapstructure:"retry_interval"`
+}
+
+func (s *ServerJoin) Merge(b *ServerJoin) *ServerJoin {
+	if s == nil {
+		return b
+	}
+
+	result := *s
+
+	if b == nil {
+		return &result
+	}
+
+	if len(b.StartJoin) != 0 {
+		result.StartJoin = b.StartJoin
+	}
+	if len(b.RetryJoin) != 0 {
+		result.RetryJoin = b.RetryJoin
+	}
+	if b.RetryMaxAttempts != 0 {
+		result.RetryMaxAttempts = b.RetryMaxAttempts
+	}
+	if b.RetryInterval != 0 {
+		result.RetryInterval = b.RetryInterval
+	}
+
+	return &result
 }
 
 // EncryptBytes returns the encryption key configured.
@@ -355,6 +417,7 @@ type Telemetry struct {
 	StatsiteAddr             string        `mapstructure:"statsite_address"`
 	StatsdAddr               string        `mapstructure:"statsd_address"`
 	DataDogAddr              string        `mapstructure:"datadog_address"`
+	DataDogTags              []string      `mapstructure:"datadog_tags"`
 	PrometheusMetrics        bool          `mapstructure:"prometheus_metrics"`
 	DisableHostname          bool          `mapstructure:"disable_hostname"`
 	UseNodeName              bool          `mapstructure:"use_node_name"`
@@ -370,6 +433,19 @@ type Telemetry struct {
 	// BackwardsCompatibleMetrics allows for generating metrics in a simple
 	// key/value structure as done in older versions of Nomad
 	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
+
+	// PrefixFilter allows for filtering out metrics from being collected
+	PrefixFilter []string `mapstructure:"prefix_filter"`
+
+	// FilterDefault controls whether to allow metrics that have not been specified
+	// by the filter
+	FilterDefault *bool `mapstructure:"filter_default"`
+
+	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
+	// publishing Job summary metrics. This is useful in environment that produce
+	// high numbers of single count dispatch jobs as the metrics for each take up
+	// a small memory overhead.
+	DisableDispatchedJobSummaryMetrics bool `mapstructure:"disable_dispatched_job_summary_metrics"`
 
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
@@ -407,7 +483,7 @@ type Telemetry struct {
 	CirconusCheckID string `mapstructure:"circonus_check_id"`
 	// CirconusCheckForceMetricActivation will force enabling metrics, as they are encountered,
 	// if the metric already exists and is NOT active. If check management is enabled, the default
-	// behavior is to add new metrics as they are encoutered. If the metric already exists in the
+	// behavior is to add new metrics as they are encountered. If the metric already exists in the
 	// check, it will *NOT* be activated. This setting overrides that behavior.
 	// Default: "false"
 	CirconusCheckForceMetricActivation string `mapstructure:"circonus_check_force_metric_activation"`
@@ -441,6 +517,24 @@ type Telemetry struct {
 	// (e.g. a specific geo location or datacenter, dc:sfo)
 	// Default: none
 	CirconusBrokerSelectTag string `mapstructure:"circonus_broker_select_tag"`
+}
+
+// PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
+func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range t.PrefixFilter {
+		if rule == "" {
+			continue
+		}
+		switch rule[0] {
+		case '+':
+			allowed = append(allowed, rule[1:])
+		case '-':
+			blocked = append(blocked, rule[1:])
+		default:
+			return nil, nil, fmt.Errorf("Filter rule must begin with either '+' or '-': %q", rule)
+		}
+	}
+	return allowed, blocked, nil
 }
 
 // Ports encapsulates the various ports we bind to for network services. If any
@@ -597,13 +691,20 @@ func DefaultConfig() *Config {
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
 			NoHostUUID:            helper.BoolToPtr(true),
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		Server: &ServerConfig{
-			Enabled:          false,
-			StartJoin:        []string{},
-			RetryJoin:        []string{},
-			RetryInterval:    "30s",
-			RetryMaxAttempts: 0,
+			Enabled:   false,
+			StartJoin: []string{},
+			ServerJoin: &ServerJoin{
+				RetryJoin:        []string{},
+				RetryInterval:    30 * time.Second,
+				RetryMaxAttempts: 0,
+			},
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -615,10 +716,11 @@ func DefaultConfig() *Config {
 			CollectionInterval: "1s",
 			collectionInterval: 1 * time.Second,
 		},
-		TLSConfig: &config.TLSConfig{},
-		Sentinel:  &config.SentinelConfig{},
-		Version:   version.GetVersion(),
-		Autopilot: config.DefaultAutopilotConfig(),
+		TLSConfig:          &config.TLSConfig{},
+		Sentinel:           &config.SentinelConfig{},
+		Version:            version.GetVersion(),
+		Autopilot:          config.DefaultAutopilotConfig(),
+		DisableUpdateCheck: helper.BoolToPtr(false),
 	}
 }
 
@@ -684,8 +786,8 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.SyslogFacility != "" {
 		result.SyslogFacility = b.SyslogFacility
 	}
-	if b.DisableUpdateCheck {
-		result.DisableUpdateCheck = true
+	if b.DisableUpdateCheck != nil {
+		result.DisableUpdateCheck = helper.BoolToPtr(*b.DisableUpdateCheck)
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
@@ -1004,8 +1106,8 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RaftProtocol != 0 {
 		result.RaftProtocol = b.RaftProtocol
 	}
-	if b.NumSchedulers != 0 {
-		result.NumSchedulers = b.NumSchedulers
+	if b.NumSchedulers != nil {
+		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
@@ -1031,9 +1133,8 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts
 	}
-	if b.RetryInterval != "" {
+	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
-		result.retryInterval = b.retryInterval
 	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
@@ -1049,6 +1150,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.EncryptKey != "" {
 		result.EncryptKey = b.EncryptKey
+	}
+	if b.ServerJoin != nil {
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
 	// Add the schedulers
@@ -1091,6 +1195,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.CpuCompute != 0 {
 		result.CpuCompute = b.CpuCompute
+	}
+	if b.MemoryMB != 0 {
+		result.MemoryMB = b.MemoryMB
 	}
 	if b.MaxKillTimeout != "" {
 		result.MaxKillTimeout = b.MaxKillTimeout
@@ -1154,6 +1261,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.ChrootEnv[k] = v
 	}
 
+	if b.ServerJoin != nil {
+		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
 	return &result
 }
 
@@ -1169,6 +1280,9 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DataDogAddr != "" {
 		result.DataDogAddr = b.DataDogAddr
+	}
+	if b.DataDogTags != nil {
+		result.DataDogTags = b.DataDogTags
 	}
 	if b.PrometheusMetrics {
 		result.PrometheusMetrics = b.PrometheusMetrics
@@ -1238,6 +1352,18 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.BackwardsCompatibleMetrics {
 		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
+	}
+
+	if b.PrefixFilter != nil {
+		result.PrefixFilter = b.PrefixFilter
+	}
+
+	if b.FilterDefault != nil {
+		result.FilterDefault = b.FilterDefault
+	}
+
+	if b.DisableDispatchedJobSummaryMetrics {
+		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
 	}
 
 	return &result

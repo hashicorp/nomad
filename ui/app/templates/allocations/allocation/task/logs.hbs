@@ -1,15 +1,13 @@
 {{#global-header class="page-header"}}
-  <li><a href="#">Allocations</a></li>
-  <li>
-    {{#link-to "allocations.allocation" model.allocation}}
-      {{model.allocation.shortId}}
-    {{/link-to}}
-  </li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation.task" model.allocation model}}
-      {{model.name}}
-    {{/link-to}}
-  </li>
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to
+        data-test-breadcrumb=breadcrumb.label
+        params=breadcrumb.args}}
+        {{breadcrumb.label}}
+      {{/link-to}}
+    </li>
+  {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   {{partial "allocations/allocation/task/subnav"}}

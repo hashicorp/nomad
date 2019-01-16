@@ -4,6 +4,8 @@ import attr from 'ember-data/attr';
 import { fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 
+const maybe = arr => arr || [];
+
 export default Fragment.extend({
   job: fragmentOwner(),
 
@@ -12,8 +14,14 @@ export default Fragment.extend({
 
   tasks: fragmentArray('task'),
 
+  drivers: computed('tasks.@each.driver', function() {
+    return this.get('tasks')
+      .mapBy('driver')
+      .uniq();
+  }),
+
   allocations: computed('job.allocations.@each.taskGroup', function() {
-    return this.get('job.allocations').filterBy('taskGroupName', this.get('name'));
+    return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.get('name'));
   }),
 
   reservedCPU: sumAggregation('tasks', 'reservedCPU'),
@@ -32,6 +40,6 @@ export default Fragment.extend({
   }),
 
   summary: computed('job.taskGroupSummaries.[]', function() {
-    return this.get('job.taskGroupSummaries').findBy('name', this.get('name'));
+    return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.get('name'));
   }),
 });

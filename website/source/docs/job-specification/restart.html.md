@@ -17,7 +17,8 @@ description: |-
   </tr>
 </table>
 
-The `restart` stanza configures a group's behavior on task failure.
+The `restart` stanza configures a group's behavior on task failure. Restarts
+happen on the client that is running the task.
 
 ```hcl
 job "docs" {
@@ -62,7 +63,7 @@ defaults by job type:
       attempts = 15
       delay    = "15s"
       interval = "168h"
-      mode     = "delay"
+      mode     = "fail"
     }
     ```
 
@@ -73,7 +74,7 @@ defaults by job type:
       interval = "1m"
       attempts = 2
       delay    = "15s"
-      mode     = "delay"
+      mode     = "fail"
     }
     ```
 

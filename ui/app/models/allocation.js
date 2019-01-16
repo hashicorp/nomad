@@ -1,14 +1,12 @@
 import { inject as service } from '@ember/service';
-import { readOnly } from '@ember/object/computed';
 import { computed } from '@ember/object';
-import RSVP from 'rsvp';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import PromiseObject from '../utils/classes/promise-object';
-import timeout from '../utils/timeout';
+import intersection from 'npm:lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
+import AllocationStats from '../utils/classes/allocation-stats';
 
 const STATUS_ORDER = {
   pending: 1,
@@ -40,6 +38,13 @@ export default Model.extend({
     return STATUS_ORDER[this.get('clientStatus')] || 100;
   }),
 
+  // When allocations are server-side rescheduled, a paper trail
+  // is left linking all reschedule attempts.
+  previousAllocation: belongsTo('allocation', { inverse: 'nextAllocation' }),
+  nextAllocation: belongsTo('allocation', { inverse: 'previousAllocation' }),
+
+  followUpEvaluation: belongsTo('evaluation'),
+
   statusClass: computed('clientStatus', function() {
     const classMap = {
       pending: 'is-pending',
@@ -57,51 +62,46 @@ export default Model.extend({
     return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
   }),
 
-  memoryUsed: readOnly('stats.ResourceUsage.MemoryStats.RSS'),
-  cpuUsed: computed('stats.ResourceUsage.CpuStats.TotalTicks', function() {
-    return Math.floor(this.get('stats.ResourceUsage.CpuStats.TotalTicks') || 0);
-  }),
+  unhealthyDrivers: computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]', function() {
+    const taskGroupUnhealthyDrivers = this.get('taskGroup.drivers');
+    const nodeUnhealthyDrivers = this.get('node.unhealthyDriverNames');
 
-  percentMemory: computed('taskGroup.reservedMemory', 'memoryUsed', function() {
-    const used = this.get('memoryUsed') / 1024 / 1024;
-    const total = this.get('taskGroup.reservedMemory');
-    if (!total || !used) {
-      return 0;
+    if (taskGroupUnhealthyDrivers && nodeUnhealthyDrivers) {
+      return intersection(taskGroupUnhealthyDrivers, nodeUnhealthyDrivers);
     }
-    return used / total;
+
+    return [];
   }),
 
-  percentCPU: computed('cpuUsed', 'taskGroup.reservedCPU', function() {
-    const used = this.get('cpuUsed');
-    const total = this.get('taskGroup.reservedCPU');
-    if (!total || !used) {
-      return 0;
-    }
-    return used / total;
-  }),
-
-  stats: computed('node.{isPartial,httpAddr}', function() {
-    const nodeIsPartial = this.get('node.isPartial');
-
-    // If the node doesn't have an httpAddr, it's a partial record.
-    // Once it reloads, this property will be dirtied and stats will load.
-    if (nodeIsPartial) {
-      return PromiseObject.create({
-        // Never resolve, so the promise object is always in a state of pending
-        promise: new RSVP.Promise(() => {}),
+  fetchStats() {
+    return this.get('token')
+      .authorizedRequest(`/v1/client/allocation/${this.get('id')}/stats`)
+      .then(res => res.json())
+      .then(json => {
+        return new AllocationStats({
+          stats: json,
+          allocation: this,
+        });
       });
-    }
-
-    const url = `//${this.get('node.httpAddr')}/v1/client/allocation/${this.get('id')}/stats`;
-    return PromiseObject.create({
-      promise: RSVP.Promise.race([
-        this.get('token')
-          .authorizedRequest(url)
-          .then(res => res.json()),
-        timeout(2000),
-      ]),
-    });
-  }),
+  },
 
   states: fragmentArray('task-state'),
+  rescheduleEvents: fragmentArray('reschedule-event'),
+
+  hasRescheduleEvents: computed('rescheduleEvents.length', 'nextAllocation', function() {
+    return this.get('rescheduleEvents.length') > 0 || this.get('nextAllocation');
+  }),
+
+  hasStoppedRescheduling: computed(
+    'nextAllocation',
+    'clientStatus',
+    'followUpEvaluation',
+    function() {
+      return (
+        !this.get('nextAllocation.content') &&
+        !this.get('followUpEvaluation.content') &&
+        this.get('clientStatus') === 'failed'
+      );
+    }
+  ),
 });

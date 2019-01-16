@@ -1,4 +1,4 @@
-import { bool } from '@ember/object/computed';
+import { bool, equal } from '@ember/object/computed';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
@@ -15,6 +15,7 @@ export default Model.extend({
   failedTGAllocs: fragmentArray('placement-failure', { defaultValue: () => [] }),
 
   hasPlacementFailures: bool('failedTGAllocs.length'),
+  isBlocked: equal('status', 'blocked'),
 
   // TEMPORARY: https://github.com/emberjs/data/issues/5209
   originalJobId: attr('string'),
@@ -22,4 +23,6 @@ export default Model.extend({
   job: belongsTo('job'),
 
   modifyIndex: attr('number'),
+
+  waitUntil: attr('date'),
 });

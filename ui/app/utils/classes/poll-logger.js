@@ -1,6 +1,7 @@
 import EmberObject from '@ember/object';
 import { task, timeout } from 'ember-concurrency';
 import AbstractLogger from './abstract-logger';
+import { fetchFailure } from './log';
 
 export default EmberObject.extend(AbstractLogger, {
   interval: 1000,
@@ -18,15 +19,26 @@ export default EmberObject.extend(AbstractLogger, {
   poll: task(function*() {
     const { interval, logFetch } = this.getProperties('interval', 'logFetch');
     while (true) {
-      let text = yield logFetch(this.get('fullUrl')).then(res => res.text());
+      const url = this.get('fullUrl');
+      let response = yield logFetch(url).then(res => res, fetchFailure(url));
+
+      if (!response) {
+        return;
+      }
+
+      let text = yield response.text();
 
       if (text) {
         const lines = text.replace(/\}\{/g, '}\n{').split('\n');
-        const frames = lines.map(line => JSON.parse(line));
-        frames.forEach(frame => (frame.Data = window.atob(frame.Data)));
+        const frames = lines
+          .map(line => JSON.parse(line))
+          .filter(frame => frame.Data != null && frame.Offset != null);
 
-        this.set('endOffset', frames[frames.length - 1].Offset);
-        this.get('write')(frames.mapBy('Data').join(''));
+        if (frames.length) {
+          frames.forEach(frame => (frame.Data = window.atob(frame.Data)));
+          this.set('endOffset', frames[frames.length - 1].Offset);
+          this.get('write')(frames.mapBy('Data').join(''));
+        }
       }
 
       yield timeout(interval);

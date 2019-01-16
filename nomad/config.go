@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -81,11 +80,17 @@ type Config struct {
 	// by the other servers and clients
 	RPCAddr *net.TCPAddr
 
-	// RPCAdvertise is the address that is advertised to other nodes for
+	// ClientRPCAdvertise is the address that is advertised to client nodes for
 	// the RPC endpoint. This can differ from the RPC address, if for example
 	// the RPCAddr is unspecified "0.0.0.0:4646", but this address must be
 	// reachable
-	RPCAdvertise *net.TCPAddr
+	ClientRPCAdvertise *net.TCPAddr
+
+	// ServerRPCAdvertise is the address that is advertised to other servers for
+	// the RPC endpoint. This can differ from the RPC address, if for example
+	// the RPCAddr is unspecified "0.0.0.0:4646", but this address must be
+	// reachable
+	ServerRPCAdvertise *net.TCPAddr
 
 	// RaftConfig is the configuration used for Raft in the local DC
 	RaftConfig *raft.Config
@@ -195,7 +200,7 @@ type Config struct {
 	// an evaluation that has been Nacked more than once. This delay is
 	// compounding after the first Nack. This value should be significantly
 	// longer than the initial delay as the purpose it severs is to apply
-	// back-pressure as evaluatiions are being Nacked either due to scheduler
+	// back-pressure as evaluations are being Nacked either due to scheduler
 	// failures or because they are hitting their Nack timeout, both of which
 	// are signs of high server resource usage.
 	EvalNackSubsequentReenqueueDelay time.Duration
@@ -269,8 +274,12 @@ type Config struct {
 	// key/value/tag format, or simply a key/value format
 	DisableTaggedMetrics bool
 
+	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
+	// publishing Job summary metrics
+	DisableDispatchedJobSummaryMetrics bool
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
-	// displaying metrics for older verions, or to only show the new format
+	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
 
 	// AutopilotConfig is used to apply the initial autopilot config when
@@ -362,7 +371,7 @@ func DefaultConfig() *Config {
 	}
 	c.EnabledSchedulers = append(c.EnabledSchedulers, structs.JobTypeCore)
 
-	// Default the number of schedulers to match the coores
+	// Default the number of schedulers to match the cores
 	c.NumSchedulers = runtime.NumCPU()
 
 	// Increase our reap interval to 3 days instead of 24h.
@@ -381,17 +390,4 @@ func DefaultConfig() *Config {
 	c.RaftConfig.ProtocolVersion = 2
 
 	return c
-}
-
-// tlsConfig returns a TLSUtil Config based on the server configuration
-func (c *Config) tlsConfig() *tlsutil.Config {
-	return &tlsutil.Config{
-		VerifyIncoming:       true,
-		VerifyOutgoing:       true,
-		VerifyServerHostname: c.TLSConfig.VerifyServerHostname,
-		CAFile:               c.TLSConfig.CAFile,
-		CertFile:             c.TLSConfig.CertFile,
-		KeyFile:              c.TLSConfig.KeyFile,
-		KeyLoader:            c.TLSConfig.GetKeyLoader(),
-	}
 }

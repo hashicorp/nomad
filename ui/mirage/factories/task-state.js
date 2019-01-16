@@ -14,13 +14,10 @@ export default Factory.extend({
     return new Date(this.startedAt + Math.random(1000 * 60 * 3) + 50);
   },
 
-  useMessagePassthru: false,
-
   afterCreate(state, server) {
     const props = [
       'task-event',
       faker.random.number({ min: 1, max: 10 }),
-      state.useMessagePassthru && 'messagePassthru',
       {
         taskStateId: state.id,
       },

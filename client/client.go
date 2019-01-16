@@ -6,8 +6,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,19 +22,19 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/driver"
-	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/stats"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pool"
+	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/mitchellh/hashstructure"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -41,7 +43,7 @@ const (
 	// open to a server
 	clientRPCCache = 5 * time.Minute
 
-	// clientMaxStreams controsl how many idle streams we keep
+	// clientMaxStreams controls how many idle streams we keep
 	// open to a server
 	clientMaxStreams = 2
 
@@ -108,10 +110,15 @@ type Client struct {
 
 	logger *log.Logger
 
-	connPool *nomad.ConnPool
+	connPool *pool.ConnPool
 
-	// servers is the (optionally prioritized) list of nomad servers
-	servers *serverlist
+	// tlsWrap is used to wrap outbound connections using TLS. It should be
+	// accessed using the lock.
+	tlsWrap     tlsutil.RegionWrapper
+	tlsWrapLock sync.RWMutex
+
+	// servers is the list of nomad servers
+	servers *servers.Manager
 
 	// heartbeat related times for tracking how often to heartbeat
 	lastHeartbeat   time.Time
@@ -122,9 +129,19 @@ type Client struct {
 	// triggerDiscoveryCh triggers Consul discovery; see triggerDiscovery
 	triggerDiscoveryCh chan struct{}
 
-	// discovered will be ticked whenever Consul discovery completes
-	// successfully
-	serversDiscoveredCh chan struct{}
+	// triggerNodeUpdate triggers the client to mark the Node as changed and
+	// update it.
+	triggerNodeUpdate chan struct{}
+
+	// triggerEmitNodeEvent sends an event and triggers the client to update the
+	// server for the node event
+	triggerEmitNodeEvent chan *structs.NodeEvent
+
+	// rpcRetryCh is closed when there an event such as server discovery or a
+	// successful RPC occurring happens such that a retry should happen. Access
+	// should only occur via the getter method
+	rpcRetryCh   chan struct{}
+	rpcRetryLock sync.Mutex
 
 	// allocs maps alloc IDs to their AllocRunner. This map includes all
 	// AllocRunners - running and GC'd - until the server GCs them.
@@ -158,6 +175,11 @@ type Client struct {
 	// clientACLResolver holds the ACL resolution state
 	clientACLResolver
 
+	// rpcServer is used to serve RPCs by the local agent.
+	rpcServer     *rpc.Server
+	endpoints     rpcEndpoints
+	streamingRpcs *structs.StreamingRpcRegistry
+
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -175,33 +197,44 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
-		tw, err := cfg.TLSConfiguration().OutgoingTLSWrapper()
+		tw, err := tlsutil.NewTLSConfiguration(cfg.TLSConfig, true, true)
 		if err != nil {
 			return nil, err
 		}
-		tlsWrap = tw
+		tlsWrap, err = tw.OutgoingTLSWrapper()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Create the client
 	c := &Client{
-		config:              cfg,
-		consulCatalog:       consulCatalog,
-		consulService:       consulService,
-		start:               time.Now(),
-		connPool:            nomad.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
-		logger:              logger,
-		allocs:              make(map[string]*AllocRunner),
-		allocUpdates:        make(chan *structs.Allocation, 64),
-		shutdownCh:          make(chan struct{}),
-		servers:             newServerList(),
-		triggerDiscoveryCh:  make(chan struct{}),
-		serversDiscoveredCh: make(chan struct{}),
+		config:               cfg,
+		consulCatalog:        consulCatalog,
+		consulService:        consulService,
+		start:                time.Now(),
+		connPool:             pool.NewPool(cfg.LogOutput, clientRPCCache, clientMaxStreams, tlsWrap),
+		tlsWrap:              tlsWrap,
+		streamingRpcs:        structs.NewStreamingRpcRegistry(),
+		logger:               logger,
+		allocs:               make(map[string]*AllocRunner),
+		allocUpdates:         make(chan *structs.Allocation, 64),
+		shutdownCh:           make(chan struct{}),
+		triggerDiscoveryCh:   make(chan struct{}),
+		triggerNodeUpdate:    make(chan struct{}, 8),
+		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
 	}
+
+	// Initialize the server manager
+	c.servers = servers.New(c.logger, c.shutdownCh, c)
 
 	// Initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
+
+	// Setup the clients RPC server
+	c.setupClientRpc()
 
 	// Initialize the ACL state
 	if err := c.clientACLResolver.init(); err != nil {
@@ -229,29 +262,28 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	// Fingerprint the node
-	if err := c.fingerprint(); err != nil {
-		return nil, fmt.Errorf("fingerprinting failed: %v", err)
-	}
-
-	// Scan for drivers
-	if err := c.setupDrivers(); err != nil {
-		return nil, fmt.Errorf("driver setup failed: %v", err)
-	}
-
-	// Setup the reserved resources
-	c.reservePorts()
-
 	// Store the config copy before restoring state but after it has been
 	// initialized.
 	c.configLock.Lock()
 	c.configCopy = c.config.Copy()
 	c.configLock.Unlock()
 
+	fingerprintManager := NewFingerprintManager(c.GetConfig, c.configCopy.Node,
+		c.shutdownCh, c.updateNodeFromFingerprint, c.updateNodeFromDriver,
+		c.logger)
+
+	// Fingerprint the node and scan for drivers
+	if err := fingerprintManager.Run(); err != nil {
+		return nil, fmt.Errorf("fingerprinting failed: %v", err)
+	}
+
+	// Setup the reserved resources
+	c.reservePorts()
+
 	// Set the preconfigured list of static servers
 	c.configLock.RLock()
 	if len(c.configCopy.Servers) > 0 {
-		if err := c.SetServers(c.configCopy.Servers); err != nil {
+		if _, err := c.setServersImpl(c.configCopy.Servers, true); err != nil {
 			logger.Printf("[WARN] client: None of the configured servers are valid: %v", err)
 		}
 	}
@@ -260,7 +292,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Setup Consul discovery if enabled
 	if c.configCopy.ConsulConfig.ClientAutoJoin != nil && *c.configCopy.ConsulConfig.ClientAutoJoin {
 		go c.consulDiscovery()
-		if len(c.servers.all()) == 0 {
+		if c.servers.NumServers() == 0 {
 			// No configured servers; trigger discovery manually
 			c.triggerDiscoveryCh <- struct{}{}
 		}
@@ -314,7 +346,7 @@ func (c *Client) init() error {
 		}
 
 	} else {
-		// Othewise make a temp directory to use.
+		// Otherwise make a temp directory to use.
 		p, err := ioutil.TempDir("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the StateDir: %v", err)
@@ -342,7 +374,7 @@ func (c *Client) init() error {
 			return fmt.Errorf("failed creating alloc dir: %s", err)
 		}
 	} else {
-		// Othewise make a temp directory to use.
+		// Otherwise make a temp directory to use.
 		p, err := ioutil.TempDir("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
@@ -370,12 +402,22 @@ func (c *Client) init() error {
 func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	var tlsWrap tlsutil.RegionWrapper
 	if newConfig != nil && newConfig.EnableRPC {
-		tw, err := tlsutil.NewTLSConfiguration(newConfig).OutgoingTLSWrapper()
+		tw, err := tlsutil.NewTLSConfiguration(newConfig, true, true)
 		if err != nil {
 			return err
 		}
-		tlsWrap = tw
+
+		twWrap, err := tw.OutgoingTLSWrapper()
+		if err != nil {
+			return err
+		}
+		tlsWrap = twWrap
 	}
+
+	// Store the new tls wrapper.
+	c.tlsWrapLock.Lock()
+	c.tlsWrap = tlsWrap
+	c.tlsWrapLock.Unlock()
 
 	// Keep the client configuration up to date as we use configuration values to
 	// decide on what type of connections to accept
@@ -399,9 +441,11 @@ func (c *Client) Leave() error {
 	return nil
 }
 
-// GetConfig returns the config of the client for testing purposes only
+// GetConfig returns the config of the client
 func (c *Client) GetConfig() *config.Config {
-	return c.config
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+	return c.configCopy
 }
 
 // Datacenter returns the datacenter for the given client
@@ -475,35 +519,6 @@ func (c *Client) Shutdown() error {
 	return c.saveState()
 }
 
-// RPC is used to forward an RPC call to a nomad server, or fail if no servers.
-func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
-	// Invoke the RPCHandler if it exists
-	if c.config.RPCHandler != nil {
-		return c.config.RPCHandler.RPC(method, args, reply)
-	}
-
-	servers := c.servers.all()
-	if len(servers) == 0 {
-		return noServersErr
-	}
-
-	var mErr multierror.Error
-	for _, s := range servers {
-		// Make the RPC request
-		if err := c.connPool.RPC(c.Region(), s.addr, c.RPCMajorVersion(), method, args, reply); err != nil {
-			errmsg := fmt.Errorf("RPC failed to server %s: %v", s.addr, err)
-			mErr.Errors = append(mErr.Errors, errmsg)
-			c.logger.Printf("[DEBUG] client: %v", errmsg)
-			c.servers.failed(s)
-			continue
-		}
-		c.servers.good(s)
-		return nil
-	}
-
-	return mErr.ErrorOrNil()
-}
-
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (c *Client) Stats() map[string]map[string]string {
@@ -512,12 +527,12 @@ func (c *Client) Stats() map[string]map[string]string {
 	stats := map[string]map[string]string{
 		"client": {
 			"node_id":         c.NodeID(),
-			"known_servers":   c.servers.all().String(),
+			"known_servers":   strings.Join(c.GetServers(), ","),
 			"num_allocations": strconv.Itoa(c.NumAllocs()),
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
-		"runtime": nomad.RuntimeStats(),
+		"runtime": hstats.RuntimeStats(),
 	}
 	return stats
 }
@@ -552,7 +567,7 @@ func (c *Client) GetAllocStats(allocID string) (AllocStatsReporter, error) {
 	defer c.allocLock.RUnlock()
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.StatsReporter(), nil
 }
@@ -570,7 +585,7 @@ func (c *Client) ValidateMigrateToken(allocID, migrateToken string) bool {
 		return true
 	}
 
-	return nomad.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
+	return structs.CompareMigrateToken(allocID, c.secretNodeID(), migrateToken)
 }
 
 // GetAllocFS returns the AllocFS interface for the alloc dir of an allocation
@@ -580,7 +595,7 @@ func (c *Client) GetAllocFS(allocID string) (allocdir.AllocDirFS, error) {
 
 	ar, ok := c.allocs[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return ar.GetAllocDir(), nil
 }
@@ -590,49 +605,85 @@ func (c *Client) GetClientAlloc(allocID string) (*structs.Allocation, error) {
 	all := c.allAllocs()
 	alloc, ok := all[allocID]
 	if !ok {
-		return nil, fmt.Errorf("unknown allocation ID %q", allocID)
+		return nil, structs.NewErrUnknownAllocation(allocID)
 	}
 	return alloc, nil
 }
 
 // GetServers returns the list of nomad servers this client is aware of.
 func (c *Client) GetServers() []string {
-	endpoints := c.servers.all()
+	endpoints := c.servers.GetServers()
 	res := make([]string, len(endpoints))
 	for i := range endpoints {
-		res[i] = endpoints[i].addr.String()
+		res[i] = endpoints[i].String()
 	}
+	sort.Strings(res)
 	return res
 }
 
 // SetServers sets a new list of nomad servers to connect to. As long as one
 // server is resolvable no error is returned.
-func (c *Client) SetServers(servers []string) error {
-	endpoints := make([]*endpoint, 0, len(servers))
-	var merr multierror.Error
-	for _, s := range servers {
-		addr, err := resolveServer(s)
-		if err != nil {
-			c.logger.Printf("[DEBUG] client: ignoring server %s due to resolution error: %v", s, err)
-			merr.Errors = append(merr.Errors, err)
-			continue
-		}
+func (c *Client) SetServers(in []string) (int, error) {
+	return c.setServersImpl(in, false)
+}
 
-		// Valid endpoint, append it without a priority as this API
-		// doesn't support different priorities for different servers
-		endpoints = append(endpoints, &endpoint{name: s, addr: addr})
+// setServersImpl sets a new list of nomad servers to connect to. If force is
+// set, we add the server to the internal serverlist even if the server could not
+// be pinged. An error is returned if no endpoints were valid when non-forcing.
+//
+// Force should be used when setting the servers from the initial configuration
+// since the server may be starting up in parallel and initial pings may fail.
+func (c *Client) setServersImpl(in []string, force bool) (int, error) {
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	var merr multierror.Error
+
+	endpoints := make([]*servers.Server, 0, len(in))
+	wg.Add(len(in))
+
+	for _, s := range in {
+		go func(srv string) {
+			defer wg.Done()
+			addr, err := resolveServer(srv)
+			if err != nil {
+				c.logger.Printf("[DEBUG] client: ignoring server %s due to resolution error: %v", srv, err)
+				mu.Lock()
+				merr.Errors = append(merr.Errors, err)
+				mu.Unlock()
+				return
+			}
+
+			// Try to ping to check if it is a real server
+			if err := c.Ping(addr); err != nil {
+				mu.Lock()
+				merr.Errors = append(merr.Errors, fmt.Errorf("Server at address %s failed ping: %v", addr, err))
+				mu.Unlock()
+
+				// If we are forcing the setting of the servers, inject it to
+				// the serverlist even if we can't ping immediately.
+				if !force {
+					return
+				}
+			}
+
+			mu.Lock()
+			endpoints = append(endpoints, &servers.Server{Addr: addr})
+			mu.Unlock()
+		}(s)
 	}
+
+	wg.Wait()
 
 	// Only return errors if no servers are valid
 	if len(endpoints) == 0 {
 		if len(merr.Errors) > 0 {
-			return merr.ErrorOrNil()
+			return 0, merr.ErrorOrNil()
 		}
-		return noServersErr
+		return 0, noServersErr
 	}
 
-	c.servers.set(endpoints)
-	return nil
+	c.servers.SetServers(endpoints)
+	return len(endpoints), nil
 }
 
 // restoreState is used to restore our state from the data dir
@@ -642,7 +693,7 @@ func (c *Client) restoreState() error {
 	}
 
 	// COMPAT: Remove in 0.7.0
-	// 0.6.0 transistioned from individual state files to a single bolt-db.
+	// 0.6.0 transitioned from individual state files to a single bolt-db.
 	// The upgrade path is to:
 	// Check if old state exists
 	//   If so, restore from that and delete old state
@@ -687,7 +738,7 @@ func (c *Client) restoreState() error {
 		watcher := noopPrevAlloc{}
 
 		c.configLock.RLock()
-		ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, watcher)
+		ar := NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, watcher)
 		c.configLock.RUnlock()
 
 		c.allocLock.Lock()
@@ -857,6 +908,9 @@ func (c *Client) setupNode() error {
 	if node.Links == nil {
 		node.Links = make(map[string]string)
 	}
+	if node.Drivers == nil {
+		node.Drivers = make(map[string]*structs.DriverInfo)
+	}
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
 	}
@@ -921,126 +975,185 @@ func (c *Client) reservePorts() {
 	for _, net := range reservedIndex {
 		node.Reserved.Networks = append(node.Reserved.Networks, net)
 	}
+
+	// Make the changes available to the config copy.
+	c.configCopy = c.config.Copy()
 }
 
-// fingerprint is used to fingerprint the client and setup the node
-func (c *Client) fingerprint() error {
-	whitelist := c.config.ReadStringListToMap("fingerprint.whitelist")
-	whitelistEnabled := len(whitelist) > 0
-	blacklist := c.config.ReadStringListToMap("fingerprint.blacklist")
+// updateNodeFromFingerprint updates the node with the result of
+// fingerprinting the node from the diff that was created
+func (c *Client) updateNodeFromFingerprint(response *cstructs.FingerprintResponse) *structs.Node {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
 
-	c.logger.Printf("[DEBUG] client: built-in fingerprints: %v", fingerprint.BuiltinFingerprints())
+	nodeHasChanged := false
 
-	var applied []string
-	var skipped []string
-	for _, name := range fingerprint.BuiltinFingerprints() {
-		// Skip modules that are not in the whitelist if it is enabled.
-		if _, ok := whitelist[name]; whitelistEnabled && !ok {
-			skipped = append(skipped, name)
+	for name, newVal := range response.Attributes {
+		oldVal := c.config.Node.Attributes[name]
+		if oldVal == newVal {
 			continue
 		}
-		// Skip modules that are in the blacklist
-		if _, ok := blacklist[name]; ok {
-			skipped = append(skipped, name)
+
+		nodeHasChanged = true
+		if newVal == "" {
+			delete(c.config.Node.Attributes, name)
+		} else {
+			c.config.Node.Attributes[name] = newVal
+		}
+	}
+
+	// update node links and resources from the diff created from
+	// fingerprinting
+	for name, newVal := range response.Links {
+		oldVal := c.config.Node.Links[name]
+		if oldVal == newVal {
 			continue
 		}
-		f, err := fingerprint.NewFingerprint(name, c.logger)
-		if err != nil {
-			return err
-		}
 
-		c.configLock.Lock()
-		applies, err := f.Fingerprint(c.config, c.config.Node)
-		c.configLock.Unlock()
-		if err != nil {
-			return err
-		}
-		if applies {
-			applied = append(applied, name)
-		}
-		p, period := f.Periodic()
-		if p {
-			// TODO: If more periodic fingerprinters are added, then
-			// fingerprintPeriodic should be used to handle all the periodic
-			// fingerprinters by using a priority queue.
-			go c.fingerprintPeriodic(name, f, period)
+		nodeHasChanged = true
+		if newVal == "" {
+			delete(c.config.Node.Links, name)
+		} else {
+			c.config.Node.Links[name] = newVal
 		}
 	}
-	c.logger.Printf("[DEBUG] client: applied fingerprints %v", applied)
-	if len(skipped) != 0 {
-		c.logger.Printf("[DEBUG] client: fingerprint modules skipped due to white/blacklist: %v", skipped)
+
+	if response.Resources != nil && !resourcesAreEqual(c.config.Node.Resources, response.Resources) {
+		nodeHasChanged = true
+		c.config.Node.Resources.Merge(response.Resources)
 	}
-	return nil
+
+	if nodeHasChanged {
+		c.updateNodeLocked()
+	}
+
+	return c.configCopy.Node
 }
 
-// fingerprintPeriodic runs a fingerprinter at the specified duration.
-func (c *Client) fingerprintPeriodic(name string, f fingerprint.Fingerprint, d time.Duration) {
-	c.logger.Printf("[DEBUG] client: fingerprinting %v every %v", name, d)
-	for {
-		select {
-		case <-time.After(d):
-			c.configLock.Lock()
-			if _, err := f.Fingerprint(c.config, c.config.Node); err != nil {
-				c.logger.Printf("[DEBUG] client: periodic fingerprinting for %v failed: %v", name, err)
+// updateNodeFromDriver receives either a fingerprint of the driver or its
+// health and merges this into a single DriverInfo object
+func (c *Client) updateNodeFromDriver(name string, fingerprint, health *structs.DriverInfo) *structs.Node {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	var hasChanged bool
+
+	hadDriver := c.config.Node.Drivers[name] != nil
+	if fingerprint != nil {
+		if !hadDriver {
+			// If the driver info has not yet been set, do that here
+			hasChanged = true
+			c.config.Node.Drivers[name] = fingerprint
+			for attrName, newVal := range fingerprint.Attributes {
+				c.config.Node.Attributes[attrName] = newVal
 			}
-			c.configLock.Unlock()
-		case <-c.shutdownCh:
-			return
+		} else {
+			// The driver info has already been set, fix it up
+			if c.config.Node.Drivers[name].Detected != fingerprint.Detected {
+				hasChanged = true
+				c.config.Node.Drivers[name].Detected = fingerprint.Detected
+			}
+
+			for attrName, newVal := range fingerprint.Attributes {
+				oldVal := c.config.Node.Drivers[name].Attributes[attrName]
+				if oldVal == newVal {
+					continue
+				}
+
+				hasChanged = true
+				if newVal == "" {
+					delete(c.config.Node.Attributes, attrName)
+				} else {
+					c.config.Node.Attributes[attrName] = newVal
+				}
+			}
+		}
+
+		// COMPAT Remove in Nomad 0.10
+		// We maintain the driver enabled attribute until all drivers expose
+		// their attributes as DriverInfo
+		driverName := fmt.Sprintf("driver.%s", name)
+		if fingerprint.Detected {
+			c.config.Node.Attributes[driverName] = "1"
+		} else {
+			delete(c.config.Node.Attributes, driverName)
 		}
 	}
+
+	if health != nil {
+		if !hadDriver {
+			hasChanged = true
+			if info, ok := c.config.Node.Drivers[name]; !ok {
+				c.config.Node.Drivers[name] = health
+			} else {
+				info.MergeHealthCheck(health)
+			}
+		} else {
+			oldVal := c.config.Node.Drivers[name]
+			if health.HealthCheckEquals(oldVal) {
+				// Make sure we accurately reflect the last time a health check has been
+				// performed for the driver.
+				oldVal.UpdateTime = health.UpdateTime
+			} else {
+				hasChanged = true
+
+				// Only emit an event if the health status has changed after node
+				// initial startup (the health description will not get populated until
+				// a health check has run; the initial status is equal to whether the
+				// node is detected or not).
+				if health.Healthy != oldVal.Healthy && health.HealthDescription != "" {
+					event := &structs.NodeEvent{
+						Subsystem: "Driver",
+						Message:   health.HealthDescription,
+						Timestamp: time.Now(),
+						Details:   map[string]string{"driver": name},
+					}
+					c.triggerNodeEvent(event)
+				}
+
+				// Update the node with the latest information
+				c.config.Node.Drivers[name].MergeHealthCheck(health)
+			}
+		}
+	}
+
+	if hasChanged {
+		c.config.Node.Drivers[name].UpdateTime = time.Now()
+		c.updateNodeLocked()
+	}
+
+	return c.configCopy.Node
 }
 
-// setupDrivers is used to find the available drivers
-func (c *Client) setupDrivers() error {
-	// Build the white/blacklists of drivers.
-	whitelist := c.config.ReadStringListToMap("driver.whitelist")
-	whitelistEnabled := len(whitelist) > 0
-	blacklist := c.config.ReadStringListToMap("driver.blacklist")
-
-	var avail []string
-	var skipped []string
-	driverCtx := driver.NewDriverContext("", "", c.config, c.config.Node, c.logger, nil)
-	for name := range driver.BuiltinDrivers {
-		// Skip fingerprinting drivers that are not in the whitelist if it is
-		// enabled.
-		if _, ok := whitelist[name]; whitelistEnabled && !ok {
-			skipped = append(skipped, name)
-			continue
-		}
-		// Skip fingerprinting drivers that are in the blacklist
-		if _, ok := blacklist[name]; ok {
-			skipped = append(skipped, name)
-			continue
-		}
-
-		d, err := driver.NewDriver(name, driverCtx)
-		if err != nil {
-			return err
-		}
-		c.configLock.Lock()
-		applies, err := d.Fingerprint(c.config, c.config.Node)
-		c.configLock.Unlock()
-		if err != nil {
-			return err
-		}
-		if applies {
-			avail = append(avail, name)
-		}
-
-		p, period := d.Periodic()
-		if p {
-			go c.fingerprintPeriodic(name, d, period)
-		}
-
+// resourcesAreEqual is a temporary function to compare whether resources are
+// equal. We can use this until we change fingerprinters to set pointers on a
+// return type.
+func resourcesAreEqual(first, second *structs.Resources) bool {
+	if first.CPU != second.CPU {
+		return false
 	}
-
-	c.logger.Printf("[DEBUG] client: available drivers %v", avail)
-
-	if len(skipped) != 0 {
-		c.logger.Printf("[DEBUG] client: drivers skipped due to white/blacklist: %v", skipped)
+	if first.MemoryMB != second.MemoryMB {
+		return false
 	}
-
-	return nil
+	if first.DiskMB != second.DiskMB {
+		return false
+	}
+	if first.IOPS != second.IOPS {
+		return false
+	}
+	if len(first.Networks) != len(second.Networks) {
+		return false
+	}
+	for i, e := range first.Networks {
+		if len(second.Networks) < i {
+			return false
+		}
+		f := second.Networks[i]
+		if !e.Equals(f) {
+			return false
+		}
+	}
+	return true
 }
 
 // retryIntv calculates a retry interval value given the base
@@ -1052,23 +1165,16 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 }
 
 // registerAndHeartbeat is a long lived goroutine used to register the client
-// and then start heartbeatng to the server.
+// and then start heartbeating to the server.
 func (c *Client) registerAndHeartbeat() {
-	// Before registering capture the hashes of the Node's attribute and
-	// metadata maps. The hashes may be out of date with what registers but this
-	// is okay since the loop checking for node updates will detect this and
-	// reregister. This is necessary to avoid races between the periodic
-	// fingerprinters and the node registering.
-	attrHash, metaHash, err := nodeMapHashes(c.Node())
-	if err != nil {
-		c.logger.Printf("[ERR] client: failed to determine initial node hashes. May result in stale node being registered: %v", err)
-	}
-
 	// Register the node
 	c.retryRegisterNode()
 
 	// Start watching changes for node changes
-	go c.watchNodeUpdates(attrHash, metaHash)
+	go c.watchNodeUpdates()
+
+	// Start watching for emitting node events
+	go c.watchNodeEvents()
 
 	// Setup the heartbeat timer, for the initial registration
 	// we want to do this quickly. We want to do it extra quickly
@@ -1082,7 +1188,7 @@ func (c *Client) registerAndHeartbeat() {
 
 	for {
 		select {
-		case <-c.serversDiscoveredCh:
+		case <-c.rpcRetryWatcher():
 		case <-heartbeat:
 		case <-c.shutdownCh:
 			return
@@ -1097,11 +1203,11 @@ func (c *Client) registerAndHeartbeat() {
 				c.retryRegisterNode()
 				heartbeat = time.After(lib.RandomStagger(initialHeartbeatStagger))
 			} else {
-				intv := c.retryIntv(registerRetryIntv)
+				intv := c.getHeartbeatRetryIntv(err)
 				c.logger.Printf("[ERR] client: heartbeating failed. Retrying in %v: %v", intv, err)
 				heartbeat = time.After(intv)
 
-				// if heartbeating fails, trigger Consul discovery
+				// If heartbeating fails, trigger Consul discovery
 				c.triggerDiscovery()
 			}
 		} else {
@@ -1109,6 +1215,56 @@ func (c *Client) registerAndHeartbeat() {
 			heartbeat = time.After(c.heartbeatTTL)
 			c.heartbeatLock.Unlock()
 		}
+	}
+}
+
+// getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
+// another heartbeat.
+func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
+	if c.config.DevMode {
+		return devModeRetryIntv
+	}
+
+	// Collect the useful heartbeat info
+	c.heartbeatLock.Lock()
+	haveHeartbeated := c.haveHeartbeated
+	last := c.lastHeartbeat
+	ttl := c.heartbeatTTL
+	c.heartbeatLock.Unlock()
+
+	// If we haven't even successfully heartbeated once or there is no leader
+	// treat it as a registration. In the case that there is a leadership loss,
+	// we will have our heartbeat timer reset to a much larger threshold, so
+	// do not put unnecessary pressure on the new leader.
+	if !haveHeartbeated || err == structs.ErrNoLeader {
+		return c.retryIntv(registerRetryIntv)
+	}
+
+	// Determine how much time we have left to heartbeat
+	left := last.Add(ttl).Sub(time.Now())
+
+	// Logic for retrying is:
+	// * Do not retry faster than once a second
+	// * Do not retry less that once every 30 seconds
+	// * If we have missed the heartbeat by more than 30 seconds, start to use
+	// the absolute time since we do not want to retry indefinitely
+	switch {
+	case left < -30*time.Second:
+		// Make left the absolute value so we delay and jitter properly.
+		left *= -1
+	case left < 0:
+		return time.Second + lib.RandomStagger(time.Second)
+	default:
+	}
+
+	stagger := lib.RandomStagger(left)
+	switch {
+	case stagger < time.Second:
+		return time.Second + lib.RandomStagger(time.Second)
+	case stagger > 30*time.Second:
+		return 25*time.Second + lib.RandomStagger(5*time.Second)
+	default:
+		return stagger
 	}
 }
 
@@ -1149,38 +1305,73 @@ func (c *Client) run() {
 	}
 }
 
-// nodeMapHashes returns the hashes of the passed Node's attribute and metadata
-// maps.
-func nodeMapHashes(node *structs.Node) (attrHash, metaHash uint64, err error) {
-	attrHash, err = hashstructure.Hash(node.Attributes, nil)
-	if err != nil {
-		return 0, 0, fmt.Errorf("unable to calculate node attributes hash: %v", err)
+// submitNodeEvents is used to submit a client-side node event. Examples of
+// these kinds of events include when a driver moves from healthy to unhealthy
+// (and vice versa)
+func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
+	nodeID := c.NodeID()
+	nodeEvents := map[string][]*structs.NodeEvent{
+		nodeID: events,
 	}
-	// Calculate node meta map hash
-	metaHash, err = hashstructure.Hash(node.Meta, nil)
-	if err != nil {
-		return 0, 0, fmt.Errorf("unable to calculate node meta hash: %v", err)
+	req := structs.EmitNodeEventsRequest{
+		NodeEvents:   nodeEvents,
+		WriteRequest: structs.WriteRequest{Region: c.Region()},
 	}
-	return attrHash, metaHash, nil
+	var resp structs.EmitNodeEventsResponse
+	if err := c.RPC("Node.EmitEvents", &req, &resp); err != nil {
+		return fmt.Errorf("Emitting node events failed: %v", err)
+	}
+	return nil
 }
 
-// hasNodeChanged calculates a hash for the node attributes- and meta map.
-// The new hash values are compared against the old (passed-in) hash values to
-// determine if the node properties have changed. It returns the new hash values
-// in case they are different from the old hash values.
-func (c *Client) hasNodeChanged(oldAttrHash uint64, oldMetaHash uint64) (bool, uint64, uint64) {
-	c.configLock.RLock()
-	defer c.configLock.RUnlock()
+// watchNodeEvents is a handler which receives node events and on a interval
+// and submits them in batch format to the server
+func (c *Client) watchNodeEvents() {
+	// batchEvents stores events that have yet to be published
+	var batchEvents []*structs.NodeEvent
 
-	// Check if the Node that is being updated by fingerprinters has changed.
-	newAttrHash, newMetaHash, err := nodeMapHashes(c.config.Node)
-	if err != nil {
-		c.logger.Printf("[DEBUG] client: unable to calculate node hashes: %v", err)
+	// Create and drain the timer
+	timer := time.NewTimer(0)
+	timer.Stop()
+	select {
+	case <-timer.C:
+	default:
 	}
-	if newAttrHash != oldAttrHash || newMetaHash != oldMetaHash {
-		return true, newAttrHash, newMetaHash
+	defer timer.Stop()
+
+	for {
+		select {
+		case event := <-c.triggerEmitNodeEvent:
+			if l := len(batchEvents); l <= structs.MaxRetainedNodeEvents {
+				batchEvents = append(batchEvents, event)
+			} else {
+				// Drop the oldest event
+				c.logger.Printf("[WARN] client: dropping node event: %v", batchEvents[0])
+				batchEvents = append(batchEvents[1:], event)
+			}
+			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
+		case <-timer.C:
+			if err := c.submitNodeEvents(batchEvents); err != nil {
+				c.logger.Printf("[ERR] client: submitting node events failed: %v", err)
+				timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
+			} else {
+				// Reset the events since we successfully sent them.
+				batchEvents = []*structs.NodeEvent{}
+			}
+		case <-c.shutdownCh:
+			return
+		}
 	}
-	return false, oldAttrHash, oldMetaHash
+}
+
+// triggerNodeEvent triggers a emit node event
+func (c *Client) triggerNodeEvent(nodeEvent *structs.NodeEvent) {
+	select {
+	case c.triggerEmitNodeEvent <- nodeEvent:
+		// emit node event goroutine was released to execute
+	default:
+		// emit node event goroutine was already running
+	}
 }
 
 // retryRegisterNode is used to register the node or update the registration and
@@ -1200,7 +1391,7 @@ func (c *Client) retryRegisterNode() {
 			c.logger.Printf("[ERR] client: registration failure: %v", err)
 		}
 		select {
-		case <-c.serversDiscoveredCh:
+		case <-c.rpcRetryWatcher():
 		case <-time.After(c.retryIntv(registerRetryIntv)):
 		case <-c.shutdownCh:
 			return
@@ -1223,6 +1414,7 @@ func (c *Client) registerNode() error {
 	// Update the node status to ready after we register.
 	c.configLock.Lock()
 	node.Status = structs.NodeStatusReady
+	c.config.Node.Status = structs.NodeStatusReady
 	c.configLock.Unlock()
 
 	c.logger.Printf("[INFO] client: node registration complete")
@@ -1277,26 +1469,25 @@ func (c *Client) updateNodeStatus() error {
 		}
 	}
 
-	// Convert []*NodeServerInfo to []*endpoints
-	localdc := c.Datacenter()
-	servers := make(endpoints, 0, len(resp.Servers))
+	// Update the number of nodes in the cluster so we can adjust our server
+	// rebalance rate.
+	c.servers.SetNumNodes(resp.NumNodes)
+
+	// Convert []*NodeServerInfo to []*servers.Server
+	nomadServers := make([]*servers.Server, 0, len(resp.Servers))
 	for _, s := range resp.Servers {
 		addr, err := resolveServer(s.RPCAdvertiseAddr)
 		if err != nil {
 			c.logger.Printf("[WARN] client: ignoring invalid server %q: %v", s.RPCAdvertiseAddr, err)
 			continue
 		}
-		e := endpoint{name: s.RPCAdvertiseAddr, addr: addr}
-		if s.Datacenter != localdc {
-			// server is non-local; de-prioritize
-			e.priority = 1
-		}
-		servers = append(servers, &e)
+		e := &servers.Server{DC: s.Datacenter, Addr: addr}
+		nomadServers = append(nomadServers, e)
 	}
-	if len(servers) == 0 {
-		return fmt.Errorf("server returned no valid servers")
+	if len(nomadServers) == 0 {
+		return fmt.Errorf("heartbeat response returned no valid servers")
 	}
-	c.servers.set(servers)
+	c.servers.SetServers(nomadServers)
 
 	// Begin polling Consul if there is no Nomad leader.  We could be
 	// heartbeating to a Nomad server that is in the minority of a
@@ -1460,7 +1651,7 @@ OUTER:
 			}
 			retry := c.retryIntv(getAllocRetryIntv)
 			select {
-			case <-c.serversDiscoveredCh:
+			case <-c.rpcRetryWatcher():
 				continue
 			case <-time.After(retry):
 				continue
@@ -1515,7 +1706,7 @@ OUTER:
 				c.logger.Printf("[ERR] client: failed to query updated allocations: %v", err)
 				retry := c.retryIntv(getAllocRetryIntv)
 				select {
-				case <-c.serversDiscoveredCh:
+				case <-c.rpcRetryWatcher():
 					continue
 				case <-time.After(retry):
 					continue
@@ -1576,28 +1767,41 @@ OUTER:
 	}
 }
 
-// watchNodeUpdates periodically checks for changes to the node attributes or
-// meta map. The passed hashes are the initial hash values for the attribute and
-// metadata of the node respectively.
-func (c *Client) watchNodeUpdates(attrHash, metaHash uint64) {
-	c.logger.Printf("[DEBUG] client: periodically checking for node changes at duration %v", nodeUpdateRetryIntv)
+// updateNode updates the Node copy and triggers the client to send the updated
+// Node to the server. This should be done while the caller holds the
+// configLock lock.
+func (c *Client) updateNodeLocked() {
+	// Update the config copy.
+	node := c.config.Node.Copy()
+	c.configCopy.Node = node
 
-	var changed bool
+	select {
+	case c.triggerNodeUpdate <- struct{}{}:
+		// Node update goroutine was released to execute
+	default:
+		// Node update goroutine was already running
+	}
+}
+
+// watchNodeUpdates blocks until it is edge triggered. Once triggered,
+// it will update the client node copy and re-register the node.
+func (c *Client) watchNodeUpdates() {
+	var hasChanged bool
+	timer := time.NewTimer(c.retryIntv(nodeUpdateRetryIntv))
+	defer timer.Stop()
+
 	for {
 		select {
-		case <-time.After(c.retryIntv(nodeUpdateRetryIntv)):
-			changed, attrHash, metaHash = c.hasNodeChanged(attrHash, metaHash)
-			if changed {
-				c.logger.Printf("[DEBUG] client: state changed, updating node.")
-
-				// Update the config copy.
-				c.configLock.Lock()
-				node := c.config.Node.Copy()
-				c.configCopy.Node = node
-				c.configLock.Unlock()
-
-				c.retryRegisterNode()
+		case <-timer.C:
+			c.logger.Printf("[DEBUG] client: state changed, updating node and re-registering.")
+			c.retryRegisterNode()
+			hasChanged = false
+		case <-c.triggerNodeUpdate:
+			if hasChanged {
+				continue
 			}
+			hasChanged = true
+			timer.Reset(c.retryIntv(nodeUpdateRetryIntv))
 		case <-c.shutdownCh:
 			return
 		}
@@ -1646,7 +1850,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	}
 
 	// Trigger the GC once more now that new allocs are started that could
-	// have caused thesholds to be exceeded
+	// have caused thresholds to be exceeded
 	c.garbageCollector.Trigger()
 }
 
@@ -1707,7 +1911,10 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	c.configLock.RLock()
 	prevAlloc := newAllocWatcher(alloc, prevAR, c, c.configCopy, c.logger, migrateToken)
 
-	ar := NewAllocRunner(c.logger, c.configCopy, c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
+	// Copy the config since the node can be swapped out as it is being updated.
+	// The long term fix is to pass in the config and node separately and then
+	// we don't have to do a copy.
+	ar := NewAllocRunner(c.logger, c.configCopy.Copy(), c.stateDB, c.updateAllocStatus, alloc, c.vaultClient, c.consulService, prevAlloc)
 	c.configLock.RUnlock()
 
 	// Store the alloc runner.
@@ -1769,7 +1976,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		}
 		if !found {
 			c.logger.Printf("[ERR] task %q not found in the allocation", taskName)
-			return nil, fmt.Errorf("task %q not found in the allocaition", taskName)
+			return nil, fmt.Errorf("task %q not found in the allocation", taskName)
 		}
 		verifiedTasks = append(verifiedTasks, taskName)
 	}
@@ -1795,7 +2002,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	}
 	if resp.Error != nil {
 		c.logger.Printf("[ERR] client.vault: failed to derive vault tokens: %v", resp.Error)
-		return nil, resp.Error
+		return nil, structs.NewWrappedServerError(resp.Error)
 	}
 	if resp.Tasks == nil {
 		c.logger.Printf("[ERR] client.vault: failed to derive vault token: invalid response")
@@ -1816,10 +2023,27 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 		// Unwrap the vault token
 		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err)
+			if structs.VaultUnrecoverableError.MatchString(err.Error()) {
+				return nil, err
+			}
+
+			// The error is recoverable
+			return nil, structs.NewRecoverableError(
+				fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err), true)
 		}
-		if unwrapResp == nil || unwrapResp.Auth == nil || unwrapResp.Auth.ClientToken == "" {
-			return nil, fmt.Errorf("failed to unwrap the token for task %q", taskName)
+
+		// Validate the response
+		var validationErr error
+		if unwrapResp == nil {
+			validationErr = fmt.Errorf("Vault returned nil secret when unwrapping")
+		} else if unwrapResp.Auth == nil {
+			validationErr = fmt.Errorf("Vault returned unwrap secret with nil Auth. Secret warnings: %v", unwrapResp.Warnings)
+		} else if unwrapResp.Auth.ClientToken == "" {
+			validationErr = fmt.Errorf("Vault returned unwrap secret with empty Auth.ClientToken. Secret warnings: %v", unwrapResp.Warnings)
+		}
+		if validationErr != nil {
+			c.logger.Printf("[WARN] client.vault: failed to unwrap token: %v", err)
+			return nil, structs.NewRecoverableError(validationErr, true)
 		}
 
 		// Append the unwrapped token to the return value
@@ -1829,7 +2053,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	return unwrappedTokens, nil
 }
 
-// triggerDiscovery causes a Consul discovery to begin (if one hasn't alread)
+// triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
 func (c *Client) triggerDiscovery() {
 	select {
 	case c.triggerDiscoveryCh <- struct{}{}:
@@ -1889,7 +2113,7 @@ func (c *Client) consulDiscoveryImpl() error {
 
 	serviceName := c.configCopy.ConsulConfig.ServerServiceName
 	var mErr multierror.Error
-	var servers endpoints
+	var nomadServers servers.Servers
 	c.logger.Printf("[DEBUG] client.consul: bootstrap contacting following Consul DCs: %+q", dcs)
 DISCOLOOP:
 	for _, dc := range dcs {
@@ -1929,33 +2153,35 @@ DISCOLOOP:
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 				}
-				servers = append(servers, &endpoint{name: p, addr: addr})
+				srv := &servers.Server{Addr: addr}
+				nomadServers = append(nomadServers, srv)
 			}
-			if len(servers) > 0 {
+			if len(nomadServers) > 0 {
 				break DISCOLOOP
 			}
 		}
 	}
-	if len(servers) == 0 {
+	if len(nomadServers) == 0 {
 		if len(mErr.Errors) > 0 {
 			return mErr.ErrorOrNil()
 		}
 		return fmt.Errorf("no Nomad Servers advertising service %q in Consul datacenters: %+q", serviceName, dcs)
 	}
 
-	c.logger.Printf("[INFO] client.consul: discovered following Servers: %s", servers)
-	c.servers.set(servers)
+	c.logger.Printf("[INFO] client.consul: discovered following Servers: %s", nomadServers)
 
-	// Notify waiting rpc calls. If a goroutine just failed an RPC call and
-	// isn't receiving on this chan yet they'll still retry eventually.
-	// This is a shortcircuit for the longer retry intervals.
-	for {
-		select {
-		case c.serversDiscoveredCh <- struct{}{}:
-		default:
-			return nil
-		}
+	// Fire the retry trigger if we have updated the set of servers.
+	if c.servers.SetServers(nomadServers) {
+		// Start rebalancing
+		c.servers.RebalanceServers()
+
+		// Notify waiting rpc calls. If a goroutine just failed an RPC call and
+		// isn't receiving on this chan yet they'll still retry eventually.
+		// This is a shortcircuit for the longer retry intervals.
+		c.fireRpcRetryWatcher()
 	}
+
+	return nil
 }
 
 // emitStats collects host resource usage stats periodically
@@ -2138,13 +2364,13 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	}
 }
 
-// No lables are required so we emit with only a key/value syntax
+// No labels are required so we emit with only a key/value syntax
 func (c *Client) setGaugeForUptime(hStats *stats.HostStats) {
 	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"uptime"}, float32(hStats.Uptime), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), c.baseLabels)
 	}
 	if c.config.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"uptime"}, float32(hStats.Uptime))
+		metrics.SetGauge([]string{"client", "uptime"}, float32(hStats.Uptime))
 	}
 }
 
@@ -2255,20 +2481,4 @@ func (c *Client) allAllocs() map[string]*structs.Allocation {
 		allocs[a.ID] = a
 	}
 	return allocs
-}
-
-// resolveServer given a sever's address as a string, return it's resolved
-// net.Addr or an error.
-func resolveServer(s string) (net.Addr, error) {
-	const defaultClientPort = "4647" // default client RPC port
-	host, port, err := net.SplitHostPort(s)
-	if err != nil {
-		if strings.Contains(err.Error(), "missing port") {
-			host = s
-			port = defaultClientPort
-		} else {
-			return nil, err
-		}
-	}
-	return net.ResolveTCPAddr("tcp", net.JoinHostPort(host, port))
 }

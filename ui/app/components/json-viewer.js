@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { run } from '@ember/runloop';
+import { copy } from '@ember/object/internals';
 import JSONFormatterPkg from 'npm:json-formatter-js';
 
 // json-formatter-js is packaged in a funny way that ember-cli-browserify
@@ -14,7 +15,7 @@ export default Component.extend({
   expandDepth: Infinity,
 
   formatter: computed('json', 'expandDepth', function() {
-    return new JSONFormatter(this.get('json'), this.get('expandDepth'), {
+    return new JSONFormatter(copy(this.get('json'), true), this.get('expandDepth'), {
       theme: 'nomad',
     });
   }),

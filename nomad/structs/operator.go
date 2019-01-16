@@ -33,7 +33,7 @@ type RaftServer struct {
 	RaftProtocol string
 }
 
-// RaftConfigrationResponse is returned when querying for the current Raft
+// RaftConfigurationResponse is returned when querying for the current Raft
 // configuration.
 type RaftConfigurationResponse struct {
 	// Servers has the list of servers in the Raft configuration.

@@ -16,7 +16,7 @@ import (
 
 func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -47,7 +47,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 
 func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -100,7 +100,7 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -149,7 +149,7 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -198,7 +198,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -273,7 +273,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -350,7 +350,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 
 func TestDeploymentEndpoint_Pause(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -392,7 +392,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 
 func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -460,7 +460,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Promote(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -472,9 +472,9 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
-	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.Canary = 1
 	d := mock.Deployment()
-	d.TaskGroups["web"].DesiredCanaries = 2
+	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
@@ -524,7 +524,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 
 func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -536,9 +536,9 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	j := mock.Job()
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
-	j.TaskGroups[0].Update.Canary = 2
+	j.TaskGroups[0].Update.Canary = 1
 	d := mock.Deployment()
-	d.TaskGroups["web"].DesiredCanaries = 2
+	d.TaskGroups["web"].DesiredCanaries = 1
 	d.JobID = j.ID
 	a := mock.Alloc()
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
@@ -614,7 +614,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -681,7 +681,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 	t.Parallel()
-	s1, _ := testACLServer(t, func(c *Config) {
+	s1, _ := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -774,7 +774,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -863,7 +863,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 // tests rollback upon alloc health failure to job with identical spec does not succeed
 func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, func(c *Config) {
+	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer s1.Shutdown()
@@ -949,7 +949,7 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 
 func TestDeploymentEndpoint_List(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -995,7 +995,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 
 func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1063,7 +1063,7 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -1120,7 +1120,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1157,7 +1157,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := testACLServer(t, nil)
+	s1, root := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1231,7 +1231,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 
 func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
@@ -1280,7 +1280,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	a2.ClientStatus = structs.AllocClientStatusRunning
 	time.AfterFunc(100*time.Millisecond, func() {
 		assert.Nil(state.UpsertJobSummary(5, mock.JobSummary(a2.JobID)), "UpsertJobSummary")
-		assert.Nil(state.UpdateAllocsFromClient(6, []*structs.Allocation{a2}), "bpdateAllocsFromClient")
+		assert.Nil(state.UpdateAllocsFromClient(6, []*structs.Allocation{a2}), "updateAllocsFromClient")
 	})
 
 	req.MinQueryIndex = 4
@@ -1298,7 +1298,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 
 func TestDeploymentEndpoint_Reap(t *testing.T) {
 	t.Parallel()
-	s1 := testServer(t, nil)
+	s1 := TestServer(t, nil)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)

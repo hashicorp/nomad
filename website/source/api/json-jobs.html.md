@@ -13,7 +13,7 @@ This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
 for generating valid JSON versions of HCL jobs is:
 
 ```shell
-$ nomad run -output my-job.nomad
+$ nomad job run -output my-job.nomad
 ```
 
 ## Syntax
@@ -33,6 +33,12 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
         "TaskGroups": [{
             "Name": "cache",
             "Count": 1,
+            "Migrate": {
+                    "HealthCheck": "checks",
+                    "HealthyDeadline": 300000000000,
+                    "MaxParallel": 1,
+                    "MinHealthyTime": 10000000000
+            },
             "Tasks": [{
                 "Name": "redis",
                 "Driver": "docker",
@@ -91,10 +97,18 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
                 "Leader": false
             }],
             "RestartPolicy": {
-                "Interval": 300000000000,
+                "Interval": 1800000000000,
+                "Attempts": 2,
+                "Delay": 15000000000,
+                "Mode": "fail"
+            },
+            "ReschedulePolicy": {
                 "Attempts": 10,
-                "Delay": 25000000000,
-                "Mode": "delay"
+                "Delay": 30000000000,
+                "DelayFunction": "exponential",
+                "Interval": 0,
+                "MaxDelay": 3600000000000,
+                "Unlimited": true
             },
             "EphemeralDisk": {
                 "SizeMB": 300
@@ -156,7 +170,7 @@ The `Job` object supports the following keys:
   Values other than default are not allowed in non-Enterprise versions of Nomad.
 
 - `ParameterizedJob` - Specifies the job as a parameterized job such that it can
-  be dispatched against. The `ParamaterizedJob` object supports the following
+  be dispatched against. The `ParameterizedJob` object supports the following
   attributes:
 
   - `MetaOptional` - Specifies the set of metadata keys that may be provided
@@ -231,6 +245,11 @@ The `Job` object supports the following keys:
     }
     ```
 
+- `ReschedulePolicy` - Specifies a reschedule policy to be applied to all task groups
+  within the job. When specified both at the job level and the task group level,
+  the reschedule blocks are merged, with the task group's taking precedence. For more
+  details on `ReschedulePolicy`, please see below.
+
 ### Task Group
 
 `TaskGroups` is a list of `TaskGroup` objects, each supports the following
@@ -244,11 +263,30 @@ attributes:
 
 - `Meta` - A key-value map that annotates the task group with opaque metadata.
 
+- `Migrate` - Specifies a migration strategy to be applied during [node
+  drains][drain].
+
+  - `HealthCheck` - One of `checks` or `task_states`. Indicates how task health
+    should be determined: either via Consul health checks or whether the task
+    was able to run successfully.
+
+  - `HealthyDeadline` - Specifies duration a task must become healthy within
+    before it is considered unhealthy.
+
+  - `MaxParallel` - Specifies how many allocations may be migrated at once.
+
+  - `MinHealthyTime` - Specifies duration a task must be considered healthy
+    before the migration is considered healthy.
+
 - `Name` - The name of the task group. Must be specified.
 
 - `RestartPolicy` - Specifies the restart policy to be applied to tasks in this group.
   If omitted, a default policy for batch and non-batch jobs is used based on the
   job type. See the [restart policy reference](#restart_policy) for more details.
+
+- `ReschedulePolicy` - Specifies the reschedule policy to be applied to tasks in this group.
+  If omitted, a default policy is used for batch and service jobs. System jobs are not eligible
+  for rescheduling. See the [reschedule policy reference](#reschedule_policy) for more details.
 
 - `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
   [ephemeral disk reference](#ephemeral_disk) for more details.
@@ -344,6 +382,11 @@ The `Task` object supports the following keys:
 
      - `Tags`: A list of string tags associated with this Service. String
        interpolation is supported in tags.
+
+     - `CanaryTags`: A list of string tags associated with this Service while it
+       is a canary. Once the canary is promoted, the registered tags will be
+       updated to the set defined in the `Tags` field. String interpolation is
+       supported in tags.
 
      - `PortLabel`: `PortLabel` is an optional string and is used to associate
        a port with the service.  If specified, the port label must match one
@@ -497,6 +540,37 @@ The `EphemeralDisk` object supports the following keys:
   `alloc/data` directories to the new allocation. Value is a boolean and the
   default is false.
 
+<a id="reschedule_policy"></a>
+
+### Reschedule Policy
+
+The `ReschedulePolicy` object supports the following keys:
+
+- `Attempts` - `Attempts` is the number of reschedule attempts allowed
+  in an `Interval`.
+
+- `Interval` - `Interval` is a time duration that is specified in nanoseconds.
+  The `Interval` is a sliding window within which at most `Attempts` number
+  of reschedule attempts are permitted.
+
+- `Delay` - A duration to wait before attempting rescheduling. It is specified in
+  nanoseconds.
+
+- `DelayFunction` - Specifies the function that is used to calculate subsequent reschedule delays.
+  The initial delay is specified by the `Delay` parameter. Allowed values for `DelayFunction` are listed below:
+    - `constant` - The delay between reschedule attempts stays at the `Delay` value.
+    - `exponential` - The delay between reschedule attempts doubles.
+    - `fibonacci` - The delay between reschedule attempts is calculated by adding the two most recent
+      delays applied. For example if `Delay` is set to 5 seconds, the next five reschedule attempts  will be
+      delayed by 5 seconds, 5 seconds, 10 seconds, 15 seconds, and 25 seconds respectively.
+
+- `MaxDelay`  - `MaxDelay` is an upper bound on the delay beyond which it will not increase. This parameter is used when
+   `DelayFunction` is `exponential` or `fibonacci`, and is ignored when `constant` delay is used.
+
+- `Unlimited` - `Unlimited` enables unlimited reschedule attempts. If this is set to true
+  the `Attempts` and `Interval` fields are not used.
+
+
 <a id="restart_policy"></a>
 
 ### Restart Policy
@@ -551,12 +625,19 @@ determined. The potential values are:
 
 - `MinHealthyTime` - Specifies the minimum time the allocation must be in the
   healthy state before it is marked as healthy and unblocks further allocations
-  from being updated. This is specified using a label suffix like "30s" or
-  "15m".
+  from being updated.
 
 - `HealthyDeadline` - Specifies the deadline in which the allocation must be
   marked as healthy after which the allocation is automatically transitioned to
-  unhealthy. This is specified using a label suffix like "2m" or "1h".
+  unhealthy.
+
+- `ProgressDeadline` - Specifies the deadline in which an allocation must be
+  marked as healthy. The deadline begins when the first allocation for the
+  deployment is created and is reset whenever an allocation as part of the
+  deployment transitions to a healthy state. If no allocation transitions to the
+  healthy state before the progress deadline, the deployment is marked as
+  failed. If the `progress_deadline` is set to `0`, the first allocation to be
+  marked as unhealthy causes the deployment to fail.
 
 - `AutoRevert` - Specifies if the job should auto-revert to the last stable job
   on deployment failure. A job is marked as stable if all the allocations as
@@ -569,7 +650,7 @@ determined. The potential values are:
   allocations at a rate of `max_parallel`.
 
 - `Stagger` - Specifies the delay between migrating allocations off nodes marked
-  for draining. This is specified using a label suffix like "30s" or "1h".
+  for draining.
 
 An example `Update` block:
 
@@ -628,7 +709,7 @@ The `Constraint` object supports the following keys:
         Placing the constraint at both the job level and at the task group level is
         redundant since when placed at the job level, the constraint will be applied
         to all task groups. When specified, `LTarget` should be the property
-        that should be distinct and and `RTarget` should be omitted.
+        that should be distinct and `RTarget` should be omitted.
 
   - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.
@@ -800,7 +881,7 @@ README][ct].
   does not conflict with the output file itself.
 
 - `Perms` - Specifies the rendered template's permissions. File permissions are
-  given as octal of the Unix file permissions rwxrwxrwx.
+  given as octal of the Unix file permissions `rwxrwxrwx`.
 
 - `RightDelim` - Specifies the right delimiter to use in the template. The default
   is "}}" for some templates, it may be easier to use a different delimiter that
@@ -841,4 +922,5 @@ README][ct].
 ```
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
+[drain]: /docs/commands/node/drain.html
 [env]: /docs/runtime/environment.html "Nomad Runtime Environment"

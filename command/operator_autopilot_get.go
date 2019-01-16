@@ -19,6 +19,7 @@ func (c *OperatorAutopilotGetCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
 }
 
+func (c *OperatorAutopilotGetCommand) Name() string { return "operator autopilot get-config" }
 func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("autopilot", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -36,7 +37,7 @@ func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 	}
 
 	// Fetch the current configuration.
-	config, err := client.Operator().AutopilotGetConfiguration(nil)
+	config, _, err := client.Operator().AutopilotGetConfiguration(nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying Autopilot configuration: %s", err))
 		return 1

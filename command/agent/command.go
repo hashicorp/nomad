@@ -21,6 +21,7 @@ import (
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
 	checkpoint "github.com/hashicorp/go-checkpoint"
+	discover "github.com/hashicorp/go-discover"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
@@ -62,9 +63,11 @@ func (c *Command) readConfig() *Config {
 		Client: &ClientConfig{},
 		Consul: &config.ConsulConfig{},
 		Ports:  &Ports{},
-		Server: &ServerConfig{},
-		Vault:  &config.VaultConfig{},
-		ACL:    &ACLConfig{},
+		Server: &ServerConfig{
+			ServerJoin: &ServerJoin{},
+		},
+		Vault: &config.VaultConfig{},
+		ACL:   &ACLConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -77,13 +80,16 @@ func (c *Command) readConfig() *Config {
 
 	// Server-only options
 	flags.IntVar(&cmdConfig.Server.BootstrapExpect, "bootstrap-expect", 0, "")
-	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.StartJoin), "join", "")
-	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.RetryJoin), "retry-join", "")
-	flags.IntVar(&cmdConfig.Server.RetryMaxAttempts, "retry-max", 0, "")
-	flags.StringVar(&cmdConfig.Server.RetryInterval, "retry-interval", "", "")
 	flags.StringVar(&cmdConfig.Server.EncryptKey, "encrypt", "", "gossip encryption key")
 	flags.IntVar(&cmdConfig.Server.RaftProtocol, "raft-protocol", 0, "")
+	flags.BoolVar(&cmdConfig.Server.RejoinAfterLeave, "rejoin", false, "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.StartJoin), "join", "")
+	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.RetryJoin), "retry-join", "")
+	flags.IntVar(&cmdConfig.Server.ServerJoin.RetryMaxAttempts, "retry-max", 0, "")
+	flags.Var((flaghelper.FuncDurationVar)(func(d time.Duration) error {
+		cmdConfig.Server.ServerJoin.RetryInterval = d
+		return nil
+	}), "retry-interval", "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -120,8 +126,12 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "consul-client-auto-join", "")
 	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
 	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
 	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
+	flags.StringVar(&cmdConfig.Consul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
 		cmdConfig.Consul.ServerAutoJoin = &b
 		return nil
@@ -194,6 +204,10 @@ func (c *Command) readConfig() *Config {
 	} else {
 		config = DefaultConfig()
 	}
+
+	// Merge in the enterprise overlay
+	config.Merge(DefaultEntConfig())
+
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
 		if err != nil {
@@ -258,14 +272,6 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
-	// Parse the RetryInterval.
-	dur, err := time.ParseDuration(config.Server.RetryInterval)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing retry interval: %s", err))
-		return nil
-	}
-	config.Server.retryInterval = dur
-
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
@@ -311,6 +317,15 @@ func (c *Command) readConfig() *Config {
 	}
 	if config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+	}
+
+	// Set up the TLS configuration properly if we have one.
+	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
+	// constructor-type actions like this.
+	if config.TLSConfig != nil && !config.TLSConfig.IsEmpty() {
+		if err := config.TLSConfig.SetChecksum(); err != nil {
+			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
+		}
 	}
 
 	return config
@@ -378,8 +393,9 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 	}
 	c.httpServer = http
 
-	// Setup update checking
-	if !config.DisableUpdateCheck {
+	// If DisableUpdateCheck is not enabled, set up update checking
+	// (DisableUpdateCheck is false by default)
+	if config.DisableUpdateCheck != nil && !*config.DisableUpdateCheck {
 		version := config.Version.Version
 		if config.Version.VersionPrerelease != "" {
 			version += fmt.Sprintf("-%s", config.Version.VersionPrerelease)
@@ -401,6 +417,7 @@ func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics
 			c.checkpointResults(checkpoint.Check(updateParams))
 		}()
 	}
+
 	return nil
 }
 
@@ -460,9 +477,9 @@ func (c *Command) Run(args []string) int {
 
 	// Log config files
 	if len(config.Files) > 0 {
-		c.Ui.Info(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
+		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
 	} else {
-		c.Ui.Info("No configuration files loaded")
+		c.Ui.Output("No configuration files loaded")
 	}
 
 	// Initialize the telemetry
@@ -479,7 +496,7 @@ func (c *Command) Run(args []string) int {
 	}
 	defer c.agent.Shutdown()
 
-	// Shudown the HTTP server at the end
+	// Shutdown the HTTP server at the end
 	defer func() {
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
@@ -499,6 +516,8 @@ func (c *Command) Run(args []string) int {
 	info["log level"] = config.LogLevel
 	info["server"] = strconv.FormatBool(config.Server.Enabled)
 	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
+	info["bind addrs"] = c.getBindAddrSynopsis()
+	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))
@@ -526,11 +545,87 @@ func (c *Command) Run(args []string) int {
 	logGate.Flush()
 
 	// Start retry join process
-	c.retryJoinErrCh = make(chan struct{})
-	go c.retryJoin(config)
+	if err := c.handleRetryJoin(config); err != nil {
+		c.Ui.Error(err.Error())
+		return 1
+	}
 
 	// Wait for exit
 	return c.handleSignals()
+}
+
+// handleRetryJoin is used to start retry joining if it is configured.
+func (c *Command) handleRetryJoin(config *Config) error {
+	c.retryJoinErrCh = make(chan struct{})
+
+	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger,
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		// Remove the duplicate fields
+		if len(config.Server.RetryJoin) != 0 {
+			config.Server.ServerJoin.RetryJoin = config.Server.RetryJoin
+			config.Server.RetryJoin = nil
+		}
+		if config.Server.RetryMaxAttempts != 0 {
+			config.Server.ServerJoin.RetryMaxAttempts = config.Server.RetryMaxAttempts
+			config.Server.RetryMaxAttempts = 0
+		}
+		if config.Server.RetryInterval != 0 {
+			config.Server.ServerJoin.RetryInterval = config.Server.RetryInterval
+			config.Server.RetryInterval = 0
+		}
+
+		c.agent.logger.Printf("[WARN] agent: Using deprecated retry_join fields. Upgrade configuration to use server_join")
+	}
+
+	if config.Server.Enabled &&
+		config.Server.ServerJoin != nil &&
+		len(config.Server.ServerJoin.RetryJoin) != 0 {
+
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger,
+			serverJoin:    c.agent.server.Join,
+			serverEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		go joiner.RetryJoin(config.Server.ServerJoin)
+	}
+
+	if config.Client.Enabled &&
+		config.Client.ServerJoin != nil &&
+		len(config.Client.ServerJoin.RetryJoin) != 0 {
+		joiner := retryJoiner{
+			discover:      &discover.Discover{},
+			errCh:         c.retryJoinErrCh,
+			logger:        c.agent.logger,
+			clientJoin:    c.agent.client.SetServers,
+			clientEnabled: true,
+		}
+
+		if err := joiner.Validate(config); err != nil {
+			return err
+		}
+
+		go joiner.RetryJoin(config.Client.ServerJoin)
+	}
+
+	return nil
 }
 
 // handleSignals blocks until we get an exit-causing signal
@@ -636,7 +731,7 @@ func (c *Command) handleReload() {
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
 	}
 
-	shouldReloadAgent, shouldReloadHTTPServer := c.agent.ShouldReload(newConf)
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := c.agent.ShouldReload(newConf)
 	if shouldReloadAgent {
 		c.agent.logger.Printf("[DEBUG] agent: starting reload of agent config")
 		err := c.agent.Reload(newConf)
@@ -644,20 +739,23 @@ func (c *Command) handleReload() {
 			c.agent.logger.Printf("[ERR] agent: failed to reload the config: %v", err)
 			return
 		}
+	}
 
-		if s := c.agent.Server(); s != nil {
-			sconf, err := convertServerConfig(newConf, c.logOutput)
-			c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
-			if err != nil {
-				c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+	if s := c.agent.Server(); s != nil {
+		c.agent.logger.Printf("[DEBUG] agent: starting reload of server config")
+		sconf, err := convertServerConfig(newConf, c.logOutput)
+		if err != nil {
+			c.agent.logger.Printf("[ERR] agent: failed to convert server config: %v", err)
+			return
+		} else {
+			if err := s.Reload(sconf); err != nil {
+				c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
 				return
-			} else {
-				if err := s.Reload(sconf); err != nil {
-					c.agent.logger.Printf("[ERR] agent: reloading server config failed: %v", err)
-					return
-				}
 			}
 		}
+	}
+
+	if shouldReloadRPC {
 
 		if s := c.agent.Client(); s != nil {
 			clientConfig, err := c.agent.clientConfig()
@@ -677,7 +775,7 @@ func (c *Command) handleReload() {
 	// we error in either of the above cases. For example, reloading the http
 	// server to a TLS connection could succeed, while reloading the server's rpc
 	// connections could fail.
-	if shouldReloadHTTPServer {
+	if shouldReloadHTTP {
 		err := c.reloadHTTPServer()
 		if err != nil {
 			c.agent.logger.Printf("[ERR] http: failed to reload the config: %v", err)
@@ -714,6 +812,18 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		metricsConf.EnableHostname = true
 	}
 
+	allowedPrefixes, blockedPrefixes, err := telConfig.PrefixFilters()
+	if err != nil {
+		return inm, err
+	}
+
+	metricsConf.AllowedPrefixes = allowedPrefixes
+	metricsConf.BlockedPrefixes = blockedPrefixes
+
+	if telConfig.FilterDefault != nil {
+		metricsConf.FilterDefault = *telConfig.FilterDefault
+	}
+
 	// Configure the statsite sink
 	var fanout metrics.FanoutSink
 	if telConfig.StatsiteAddr != "" {
@@ -748,6 +858,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		if err != nil {
 			return inm, err
 		}
+		sink.SetTags(telConfig.DataDogTags)
 		fanout = append(fanout, sink)
 	}
 
@@ -796,53 +907,89 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		metricsConf.EnableHostname = false
 		metrics.NewGlobal(metricsConf, inm)
 	}
+
 	return inm, nil
 }
 
 func (c *Command) startupJoin(config *Config) error {
-	if len(config.Server.StartJoin) == 0 || !config.Server.Enabled {
+	// Nothing to do
+	if !config.Server.Enabled {
 		return nil
 	}
 
+	// Validate both old and new aren't being set
+	old := len(config.Server.StartJoin)
+	var new int
+	if config.Server.ServerJoin != nil {
+		new = len(config.Server.ServerJoin.StartJoin)
+	}
+	if old != 0 && new != 0 {
+		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
+	}
+
+	// Nothing to do
+	if old+new == 0 {
+		return nil
+	}
+
+	// Combine the lists and join
+	joining := config.Server.StartJoin
+	if new != 0 {
+		joining = append(joining, config.Server.ServerJoin.StartJoin...)
+	}
+
 	c.Ui.Output("Joining cluster...")
-	n, err := c.agent.server.Join(config.Server.StartJoin)
+	n, err := c.agent.server.Join(joining)
 	if err != nil {
 		return err
 	}
 
-	c.Ui.Info(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
+	c.Ui.Output(fmt.Sprintf("Join completed. Synced with %d initial agents", n))
 	return nil
 }
 
-// retryJoin is used to handle retrying a join until it succeeds or all retries
-// are exhausted.
-func (c *Command) retryJoin(config *Config) {
-	if len(config.Server.RetryJoin) == 0 || !config.Server.Enabled {
-		return
+// getBindAddrSynopsis returns a string that describes the addresses the agent
+// is bound to.
+func (c *Command) getBindAddrSynopsis() string {
+	if c == nil || c.agent == nil || c.agent.config == nil || c.agent.config.normalizedAddrs == nil {
+		return ""
 	}
 
-	logger := c.agent.logger
-	logger.Printf("[INFO] agent: Joining cluster...")
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "HTTP: %s", c.agent.config.normalizedAddrs.HTTP)
 
-	attempt := 0
-	for {
-		n, err := c.agent.server.Join(config.Server.RetryJoin)
-		if err == nil {
-			logger.Printf("[INFO] agent: Join completed. Synced with %d initial agents", n)
-			return
+	if c.agent.server != nil {
+		if c.agent.config.normalizedAddrs.RPC != "" {
+			fmt.Fprintf(b, "; RPC: %s", c.agent.config.normalizedAddrs.RPC)
 		}
-
-		attempt++
-		if config.Server.RetryMaxAttempts > 0 && attempt > config.Server.RetryMaxAttempts {
-			logger.Printf("[ERR] agent: max join retry exhausted, exiting")
-			close(c.retryJoinErrCh)
-			return
+		if c.agent.config.normalizedAddrs.Serf != "" {
+			fmt.Fprintf(b, "; Serf: %s", c.agent.config.normalizedAddrs.Serf)
 		}
-
-		logger.Printf("[WARN] agent: Join failed: %v, retrying in %v", err,
-			config.Server.RetryInterval)
-		time.Sleep(config.Server.retryInterval)
 	}
+
+	return b.String()
+}
+
+// getAdvertiseAddrSynopsis returns a string that describes the addresses the agent
+// is advertising.
+func (c *Command) getAdvertiseAddrSynopsis() string {
+	if c == nil || c.agent == nil || c.agent.config == nil || c.agent.config.AdvertiseAddrs == nil {
+		return ""
+	}
+
+	b := new(strings.Builder)
+	fmt.Fprintf(b, "HTTP: %s", c.agent.config.AdvertiseAddrs.HTTP)
+
+	if c.agent.server != nil {
+		if c.agent.config.AdvertiseAddrs.RPC != "" {
+			fmt.Fprintf(b, "; RPC: %s", c.agent.config.AdvertiseAddrs.RPC)
+		}
+		if c.agent.config.AdvertiseAddrs.Serf != "" {
+			fmt.Fprintf(b, "; Serf: %s", c.agent.config.AdvertiseAddrs.Serf)
+		}
+	}
+
+	return b.String()
 }
 
 func (c *Command) Synopsis() string {
@@ -915,7 +1062,7 @@ Server Options:
 
   -bootstrap-expect=<num>
     Configures the expected number of servers nodes to wait for before
-    bootstrapping the cluster. Once <num> servers have joined eachother,
+    bootstrapping the cluster. Once <num> servers have joined each other,
     Nomad initiates the bootstrap process.
 
   -encrypt=<key>
@@ -955,7 +1102,7 @@ Client Options:
     specified a subdirectory under the "-data-dir" will be used.
 
   -alloc-dir
-    The directory used to store allocation data such as downloaded artificats as
+    The directory used to store allocation data such as downloaded artifacts as
     well as data produced by tasks. If not specified, a subdirectory under the
     "-data-dir" will be used.
 
@@ -986,8 +1133,8 @@ ACL Options:
 
   -acl-replication-token
     The replication token for servers to use when replicating from the
-    authoratative region. The token must be a valid management token from the
-    authoratative region.
+    authoritative region. The token must be a valid management token from the
+    authoritative region.
 
 Consul Options:
 
@@ -1026,12 +1173,24 @@ Consul Options:
   -consul-client-service-name=<name>
     Specifies the name of the service in Consul for the Nomad clients.
 
+  -consul-client-http-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad clients.
+
   -consul-key-file=<path>
     Specifies the path to the private key used for Consul communication. If this
     is set then you need to also set cert_file.
 
   -consul-server-service-name=<name>
     Specifies the name of the service in Consul for the Nomad servers.
+
+  -consul-server-http-check-name=<name>
+    Specifies the HTTP health check name in Consul for the Nomad servers.
+
+  -consul-server-serf-check-name=<name>
+    Specifies the Serf health check name in Consul for the Nomad servers.
+
+  -consul-server-rpc-check-name=<name>
+    Specifies the RPC health check name in Consul for the Nomad servers.
 
   -consul-server-auto-join
     Specifies if the Nomad servers should automatically discover and join other
@@ -1068,7 +1227,7 @@ Vault Options:
     The role name to create tokens for tasks from.
 
   -vault-allow-unauthenticated
-    Whether to allow jobs to be sumbitted that request Vault Tokens but do not
+    Whether to allow jobs to be submitted that request Vault Tokens but do not
     authentication. The flag only applies to Servers.
 
   -vault-ca-file=<path>

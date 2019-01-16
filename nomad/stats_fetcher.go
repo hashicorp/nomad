@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -18,14 +19,14 @@ import (
 // as we run the health check fairly frequently.
 type StatsFetcher struct {
 	logger       *log.Logger
-	pool         *ConnPool
+	pool         *pool.ConnPool
 	region       string
 	inflight     map[string]struct{}
 	inflightLock sync.Mutex
 }
 
 // NewStatsFetcher returns a stats fetcher.
-func NewStatsFetcher(logger *log.Logger, pool *ConnPool, region string) *StatsFetcher {
+func NewStatsFetcher(logger *log.Logger, pool *pool.ConnPool, region string) *StatsFetcher {
 	return &StatsFetcher{
 		logger:   logger,
 		pool:     pool,
@@ -41,7 +42,7 @@ func NewStatsFetcher(logger *log.Logger, pool *ConnPool, region string) *StatsFe
 func (f *StatsFetcher) fetch(server *serverParts, replyCh chan *autopilot.ServerStats) {
 	var args struct{}
 	var reply autopilot.ServerStats
-	err := f.pool.RPC(f.region, server.RPCAddr, server.MajorVersion, "Status.RaftStats", &args, &reply)
+	err := f.pool.RPC(f.region, server.Addr, server.MajorVersion, "Status.RaftStats", &args, &reply)
 	if err != nil {
 		f.logger.Printf("[WARN] nomad: error getting server health from %q: %v",
 			server.Name, err)

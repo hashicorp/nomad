@@ -92,7 +92,7 @@
           "thresholds": [],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Client Consul Check Regisrations",
+          "title": "Client Consul Check Registrations",
           "tooltip": {
             "shared": true,
             "sort": 0,

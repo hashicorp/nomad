@@ -108,7 +108,7 @@ type FSMConfig struct {
 	// added/removed from
 	Periodic *PeriodicDispatch
 
-	// BlockedEvals is the blocked eval tracker that blocked evaulations should
+	// BlockedEvals is the blocked eval tracker that blocked evaluations should
 	// be added to.
 	Blocked *BlockedEvals
 
@@ -210,7 +210,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyReconcileSummaries(buf[1:], log.Index)
 	case structs.VaultAccessorRegisterRequestType:
 		return n.applyUpsertVaultAccessor(buf[1:], log.Index)
-	case structs.VaultAccessorDegisterRequestType:
+	case structs.VaultAccessorDeregisterRequestType:
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
 	case structs.ApplyPlanResultsRequestType:
 		return n.applyPlanResults(buf[1:], log.Index)
@@ -236,6 +236,16 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLTokenBootstrap(buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
+	case structs.UpsertNodeEventsType:
+		return n.applyUpsertNodeEvent(buf[1:], log.Index)
+	case structs.JobBatchDeregisterRequestType:
+		return n.applyBatchDeregisterJob(buf[1:], log.Index)
+	case structs.AllocUpdateDesiredTransitionRequestType:
+		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
+	case structs.NodeUpdateEligibilityRequestType:
+		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
+	case structs.BatchNodeUpdateDrainRequestType:
+		return n.applyBatchDrainUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -258,6 +268,9 @@ func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
+
+	// Handle upgrade paths
+	req.Node.Canonicalize()
 
 	if err := n.state.UpsertNode(index, req.Node); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertNode failed: %v", err)
@@ -294,7 +307,7 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeStatus(index, req.NodeID, req.Status); err != nil {
+	if err := n.state.UpdateNodeStatus(index, req.NodeID, req.Status, req.NodeEvent); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeStatus failed: %v", err)
 		return err
 	}
@@ -322,10 +335,67 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.Drain); err != nil {
+	// COMPAT Remove in version 0.10
+	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
+	// drain strategy but we need to handle the upgrade path where the Raft log
+	// contains drain updates with just the drain boolean being manipulated.
+	if req.Drain && req.DrainStrategy == nil {
+		// Mark the drain strategy as a force to imitate the old style drain
+		// functionality.
+		req.DrainStrategy = &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: -1 * time.Second,
+			},
+		}
+	}
+
+	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.NodeEvent); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeDrain failed: %v", err)
 		return err
 	}
+	return nil
+}
+
+func (n *nomadFSM) applyBatchDrainUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_node_drain_update"}, time.Now())
+	var req structs.BatchNodeUpdateDrainRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.BatchUpdateNodeDrain(index, req.Updates, req.NodeEvents); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: BatchUpdateNodeDrain failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_eligibility_update"}, time.Now())
+	var req structs.NodeUpdateEligibilityRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	// Lookup the existing node
+	node, err := n.state.NodeByID(nil, req.NodeID)
+	if err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed to lookup node %q: %v", req.NodeID, err)
+		return err
+	}
+
+	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility, req.NodeEvent); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed: %v", err)
+		return err
+	}
+
+	// Unblock evals for the nodes computed node class if it is in a ready
+	// state.
+	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible &&
+		req.Eligibility == structs.NodeSchedulingEligible {
+		n.blockedEvals.Unblock(node.ComputedClass, index)
+	}
+
 	return nil
 }
 
@@ -339,7 +409,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	/* Handle upgrade paths:
 	 * - Empty maps and slices should be treated as nil to avoid
 	 *   un-intended destructive updates in scheduler since we use
-	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
 	 *   the incoming job.
 	 * - Migrate from old style upgrade stanza that used only a stagger.
 	 */
@@ -355,7 +425,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// tracking it.
 	if err := n.periodicDispatcher.Add(req.Job); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
-		return err
+		return fmt.Errorf("failed adding job to periodic dispatcher: %v", err)
 	}
 
 	// Create a watch set
@@ -429,39 +499,86 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	return n.state.WithWriteTransaction(func(tx state.Txn) error {
+		if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx); err != nil {
+			n.logger.Printf("[ERR] deregistering job failed:%v", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_job"}, time.Now())
+	var req structs.JobBatchDeregisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	// Perform all store updates atomically to ensure a consistent views for store readers.
+	// A partial update may increment the snapshot index, allowing eval brokers to process
+	// evals for jobs whose deregistering didn't get committed yet.
+	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
+		for jobNS, options := range req.Jobs {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
+				n.logger.Printf("[ERR] deregistering job %v failed:%v", jobNS, err)
+				return err
+			}
+		}
+
+		if err := n.state.UpsertEvalsTxn(index, req.Evals, tx); err != nil {
+			n.logger.Printf("[ERR] UpsertEvals failed:%v", err)
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// perform the side effects outside the transactions
+	n.handleUpsertedEvals(req.Evals)
+	return nil
+}
+
+// handleJobDeregister is used to deregister a job.
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
-	if err := n.periodicDispatcher.Remove(req.Namespace, req.JobID); err != nil {
+	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
 		return err
 	}
 
-	if req.Purge {
-		if err := n.state.DeleteJob(index, req.Namespace, req.JobID); err != nil {
+	if purge {
+		if err := n.state.DeleteJobTxn(index, namespace, jobID, tx); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
 			return err
 		}
 
 		// We always delete from the periodic launch table because it is possible that
-		// the job was updated to be non-perioidic, thus checking if it is periodic
+		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
-		n.state.DeletePeriodicLaunch(index, req.Namespace, req.JobID)
+		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
 		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByID(ws, req.Namespace, req.JobID)
+		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
 		if err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: JobByID lookup failed: %v", err)
 			return err
 		}
 
 		if current == nil {
-			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", req.JobID, req.Namespace)
+			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
 		}
 
 		stopped := current.Copy()
 		stopped.Stop = true
 
-		if err := n.state.UpsertJob(index, stopped); err != nil {
+		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
 			n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
 			return err
 		}
@@ -476,25 +593,43 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
+	return n.upsertEvals(index, req.Evals)
+}
 
-	if err := n.state.UpsertEvals(index, req.Evals); err != nil {
+func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error {
+	if err := n.state.UpsertEvals(index, evals); err != nil {
 		n.logger.Printf("[ERR] nomad.fsm: UpsertEvals failed: %v", err)
 		return err
 	}
 
-	for _, eval := range req.Evals {
-		if eval.ShouldEnqueue() {
-			n.evalBroker.Enqueue(eval)
-		} else if eval.ShouldBlock() {
-			n.blockedEvals.Block(eval)
-		} else if eval.Status == structs.EvalStatusComplete &&
-			len(eval.FailedTGAllocs) == 0 {
-			// If we have a successful evaluation for a node, untrack any
-			// blocked evaluation
-			n.blockedEvals.Untrack(eval.JobID)
-		}
-	}
+	n.handleUpsertedEvals(evals)
 	return nil
+}
+
+// handleUpsertingEval is a helper for taking action after upserting
+// evaluations.
+func (n *nomadFSM) handleUpsertedEvals(evals []*structs.Evaluation) {
+	for _, eval := range evals {
+		n.handleUpsertedEval(eval)
+	}
+}
+
+// handleUpsertingEval is a helper for taking action after upserting an eval.
+func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
+	if eval == nil {
+		return
+	}
+
+	if eval.ShouldEnqueue() {
+		n.evalBroker.Enqueue(eval)
+	} else if eval.ShouldBlock() {
+		n.blockedEvals.Block(eval)
+	} else if eval.Status == structs.EvalStatusComplete &&
+		len(eval.FailedTGAllocs) == 0 {
+		// If we have a successful evaluation for a node, untrack any
+		// blocked evaluation
+		n.blockedEvals.Untrack(eval.JobID, eval.Namespace)
+	}
 }
 
 func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
@@ -582,6 +717,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		return err
 	}
 
+	// Update any evals
+	if len(req.Evals) > 0 {
+		if err := n.upsertEvals(index, req.Evals); err != nil {
+			n.logger.Printf("[ERR] nomad.fsm: applyAllocClientUpdate failed to update evaluations: %v", err)
+			return err
+		}
+	}
+
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.
 	for _, alloc := range req.Alloc {
@@ -609,12 +752,47 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 	return nil
 }
 
+// applyAllocUpdateDesiredTransition is used to update the desired transitions
+// of a set of allocations.
+func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update_desired_transition"}, time.Now())
+	var req structs.AllocUpdateDesiredTransitionRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateAllocsDesiredTransitions(index, req.Allocs, req.Evals); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocsDesiredTransitions failed: %v", err)
+		return err
+	}
+
+	n.handleUpsertedEvals(req.Evals)
+	return nil
+}
+
 // applyReconcileSummaries reconciles summaries for all the jobs
 func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{} {
 	if err := n.state.ReconcileJobSummaries(index); err != nil {
 		return err
 	}
 	return n.reconcileQueuedAllocations(index)
+}
+
+// applyUpsertNodeEvent tracks the given node events.
+func (n *nomadFSM) applyUpsertNodeEvent(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
+	var req structs.EmitNodeEventsRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: failed to decode EmitNodeEventsRequest: %v", err)
+		return err
+	}
+
+	if err := n.state.UpsertNodeEvents(index, req.NodeEvents); err != nil {
+		n.logger.Printf("[ERR] nomad.fsm: failed to add node events: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // applyUpsertVaultAccessor stores the Vault accessors for a given allocation
@@ -680,10 +858,7 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interfa
 		return err
 	}
 
-	if req.Eval != nil && req.Eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(req.Eval)
-	}
-
+	n.handleUpsertedEval(req.Eval)
 	return nil
 }
 
@@ -700,10 +875,7 @@ func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{
 		return err
 	}
 
-	if req.Eval != nil && req.Eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(req.Eval)
-	}
-
+	n.handleUpsertedEval(req.Eval)
 	return nil
 }
 
@@ -721,10 +893,7 @@ func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interfac
 		return err
 	}
 
-	if req.Eval != nil && req.Eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(req.Eval)
-	}
-
+	n.handleUpsertedEval(req.Eval)
 	return nil
 }
 
@@ -919,6 +1088,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(node); err != nil {
 				return err
 			}
+
+			// Handle upgrade paths
+			node.Canonicalize()
+
 			if err := restore.NodeRestore(node); err != nil {
 				return err
 			}
@@ -932,7 +1105,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			/* Handle upgrade paths:
 			 * - Empty maps and slices should be treated as nil to avoid
 			 *   un-intended destructive updates in scheduler since we use
-			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanatizes
+			 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
 			 *   the incoming job.
 			 * - Migrate from old style upgrade stanza that used only a stagger.
 			 */
@@ -1108,6 +1281,12 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 		}
 	}
 
+	// COMPAT Remove in 0.10
+	// Clean up active deployments that do not have a job
+	if err := n.failLeakedDeployments(newState); err != nil {
+		return err
+	}
+
 	// External code might be calling State(), so we need to synchronize
 	// here to make sure we swap in the new state store atomically.
 	n.stateLock.Lock()
@@ -1119,6 +1298,59 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	// because we don't operate on it any more, we just throw it away, so
 	// blocking queries won't see any changes and need to be woken up.
 	stateOld.Abandon()
+
+	return nil
+}
+
+// failLeakedDeployments is used to fail deployments that do not have a job.
+// This state is a broken invariant that should not occur since 0.8.X.
+func (n *nomadFSM) failLeakedDeployments(state *state.StateStore) error {
+	// Scan for deployments that are referencing a job that no longer exists.
+	// This could happen if multiple deployments were created for a given job
+	// and thus the older deployment leaks and then the job is removed.
+	iter, err := state.Deployments(nil)
+	if err != nil {
+		return fmt.Errorf("failed to query deployments: %v", err)
+	}
+
+	dindex, err := state.Index("deployment")
+	if err != nil {
+		return fmt.Errorf("couldn't fetch index of deployments table: %v", err)
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		d := raw.(*structs.Deployment)
+
+		// We are only looking for active deployments where the job no longer
+		// exists
+		if !d.Active() {
+			continue
+		}
+
+		// Find the job
+		job, err := state.JobByID(nil, d.Namespace, d.JobID)
+		if err != nil {
+			return fmt.Errorf("failed to lookup job %s from deployment %q: %v", d.JobID, d.ID, err)
+		}
+
+		// Job exists.
+		if job != nil {
+			continue
+		}
+
+		// Update the deployment to be terminal
+		failed := d.Copy()
+		failed.Status = structs.DeploymentStatusCancelled
+		failed.StatusDescription = structs.DeploymentStatusDescriptionStoppedJob
+		if err := state.UpsertDeployment(dindex, failed); err != nil {
+			return fmt.Errorf("failed to mark leaked deployment %q as failed: %v", failed.ID, err)
+		}
+	}
 
 	return nil
 }

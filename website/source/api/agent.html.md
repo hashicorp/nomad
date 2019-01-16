@@ -132,7 +132,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    https://localhost:4646/v1/agent/servers?address=1.2.3.4:4647&addres=5.6.7.8:4647
+    https://localhost:4646/v1/agent/servers?address=1.2.3.4:4647&address=5.6.7.8:4647
 ```
 
 ## Query Self
@@ -279,6 +279,7 @@ $ curl \
       "CirconusSubmissionInterval": "",
       "CollectionInterval": "1s",
       "DataDogAddr": "",
+      "DataDogTags": [],
       "DisableHostname": false,
       "PublishAllocationMetrics": false,
       "PublishNodeMetrics": false,

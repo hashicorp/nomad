@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { alias, filterBy } from '@ember/object/computed';
+import { alias } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import { computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
@@ -10,10 +10,6 @@ export default Controller.extend(Sortable, Searchable, {
   jobsController: controller('jobs'),
 
   isForbidden: alias('jobsController.isForbidden'),
-
-  pendingJobs: filterBy('model', 'status', 'pending'),
-  runningJobs: filterBy('model', 'status', 'running'),
-  deadJobs: filterBy('model', 'status', 'dead'),
 
   queryParams: {
     currentPage: 'page',
@@ -29,17 +25,26 @@ export default Controller.extend(Sortable, Searchable, {
   sortDescending: true,
 
   searchProps: computed(() => ['id', 'name']),
+  fuzzySearchProps: computed(() => ['name']),
+  fuzzySearchEnabled: true,
 
+  /**
+    Filtered jobs are those that match the selected namespace and aren't children
+    of periodic or parameterized jobs.
+  */
   filteredJobs: computed(
     'model.[]',
+    'model.@each.parent',
     'system.activeNamespace',
     'system.namespaces.length',
     function() {
-      if (this.get('system.namespaces.length')) {
-        return this.get('model').filterBy('namespace.id', this.get('system.activeNamespace.id'));
-      } else {
-        return this.get('model');
-      }
+      const hasNamespaces = this.get('system.namespaces.length');
+      const activeNamespace = this.get('system.activeNamespace.id') || 'default';
+
+      return this.get('model')
+        .compact()
+        .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
+        .filter(job => !job.get('parent.content'));
     }
   ),
 
@@ -51,7 +56,7 @@ export default Controller.extend(Sortable, Searchable, {
 
   actions: {
     gotoJob(job) {
-      this.transitionToRoute('jobs.job', job);
+      this.transitionToRoute('jobs.job', job.get('plainId'));
     },
 
     refresh() {

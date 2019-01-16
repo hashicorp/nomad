@@ -1,7 +1,10 @@
+import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { lazyClick } from '../helpers/lazy-click';
 
 export default Component.extend({
+  store: service(),
+
   tagName: 'tr',
   classNames: ['job-row', 'is-interactive'],
 
@@ -11,13 +14,5 @@ export default Component.extend({
 
   click(event) {
     lazyClick([this.get('onClick'), event]);
-  },
-
-  didReceiveAttrs() {
-    // Reload the job in order to get detail information
-    const job = this.get('job');
-    if (job && !job.get('isLoading')) {
-      job.reload();
-    }
   },
 });

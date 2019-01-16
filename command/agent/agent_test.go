@@ -1,17 +1,20 @@
 package agent
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func tmpDir(t testing.TB) string {
@@ -37,6 +40,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	t.Parallel()
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
+	conf.Server.Enabled = true
 	a := &Agent{config: conf}
 
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
@@ -242,7 +246,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("should have set bootstrap mode")
 	}
 	if out.BootstrapExpect != 0 {
-		t.Fatalf("boostrap expect should be 0")
+		t.Fatalf("bootstrap expect should be 0")
 	}
 
 	conf.Server.BootstrapExpect = 3
@@ -379,9 +383,8 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		}
 	})
 
-	t.Run("HTTPS + consulSupportsTLSSkipVerify", func(t *testing.T) {
+	t.Run("HTTPS", func(t *testing.T) {
 		a := agent()
-		a.consulSupportsTLSSkipVerify = true
 		a.config.TLSConfig.EnableHTTP = true
 
 		check := a.agentHTTPCheck(false)
@@ -396,19 +399,8 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		}
 	})
 
-	t.Run("HTTPS w/o TLSSkipVerify", func(t *testing.T) {
-		a := agent()
-		a.consulSupportsTLSSkipVerify = false
-		a.config.TLSConfig.EnableHTTP = true
-
-		if check := a.agentHTTPCheck(false); check != nil {
-			t.Fatalf("expected nil check not: %#v", check)
-		}
-	})
-
 	t.Run("HTTPS + VerifyHTTPSClient", func(t *testing.T) {
 		a := agent()
-		a.consulSupportsTLSSkipVerify = true
 		a.config.TLSConfig.EnableHTTP = true
 		a.config.TLSConfig.VerifyHTTPSClient = true
 
@@ -416,111 +408,6 @@ func TestAgent_HTTPCheck(t *testing.T) {
 			t.Fatalf("expected nil check not: %#v", check)
 		}
 	})
-}
-
-func TestAgent_ConsulSupportsTLSSkipVerify(t *testing.T) {
-	t.Parallel()
-	assertSupport := func(expected bool, blob string) {
-		self := map[string]map[string]interface{}{}
-		if err := json.Unmarshal([]byte("{"+blob+"}"), &self); err != nil {
-			t.Fatalf("invalid json: %v", err)
-		}
-		actual := consulSupportsTLSSkipVerify(self)
-		if actual != expected {
-			t.Errorf("expected %t but got %t for:\n%s\n", expected, actual, blob)
-		}
-	}
-
-	// 0.6.4
-	assertSupport(false, `"Member": {
-        "Addr": "127.0.0.1",
-        "DelegateCur": 4,
-        "DelegateMax": 4,
-        "DelegateMin": 2,
-        "Name": "rusty",
-        "Port": 8301,
-        "ProtocolCur": 2,
-        "ProtocolMax": 3,
-        "ProtocolMin": 1,
-        "Status": 1,
-        "Tags": {
-            "build": "0.6.4:26a0ef8c",
-            "dc": "dc1",
-            "port": "8300",
-            "role": "consul",
-            "vsn": "2",
-            "vsn_max": "3",
-            "vsn_min": "1"
-        }}`)
-
-	// 0.7.0
-	assertSupport(false, `"Member": {
-        "Addr": "127.0.0.1",
-        "DelegateCur": 4,
-        "DelegateMax": 4,
-        "DelegateMin": 2,
-        "Name": "rusty",
-        "Port": 8301,
-        "ProtocolCur": 2,
-        "ProtocolMax": 4,
-        "ProtocolMin": 1,
-        "Status": 1,
-        "Tags": {
-            "build": "0.7.0:'a189091",
-            "dc": "dc1",
-            "port": "8300",
-            "role": "consul",
-            "vsn": "2",
-            "vsn_max": "3",
-            "vsn_min": "2"
-        }}`)
-
-	// 0.7.2
-	assertSupport(true, `"Member": {
-        "Addr": "127.0.0.1",
-        "DelegateCur": 4,
-        "DelegateMax": 4,
-        "DelegateMin": 2,
-        "Name": "rusty",
-        "Port": 8301,
-        "ProtocolCur": 2,
-        "ProtocolMax": 5,
-        "ProtocolMin": 1,
-        "Status": 1,
-        "Tags": {
-            "build": "0.7.2:'a9afa0c",
-            "dc": "dc1",
-            "port": "8300",
-            "role": "consul",
-            "vsn": "2",
-            "vsn_max": "3",
-            "vsn_min": "2"
-        }}`)
-
-	// 0.8.1
-	assertSupport(true, `"Member": {
-        "Addr": "127.0.0.1",
-        "DelegateCur": 4,
-        "DelegateMax": 5,
-        "DelegateMin": 2,
-        "Name": "rusty",
-        "Port": 8301,
-        "ProtocolCur": 2,
-        "ProtocolMax": 5,
-        "ProtocolMin": 1,
-        "Status": 1,
-        "Tags": {
-            "build": "0.8.1:'e9ca44d",
-            "dc": "dc1",
-            "id": "3ddc1b59-460e-a100-1d5c-ce3972122664",
-            "port": "8300",
-            "raft_vsn": "2",
-            "role": "consul",
-            "vsn": "2",
-            "vsn_max": "3",
-            "vsn_min": "2",
-            "wan_join_port": "8302"
-        }}`)
 }
 
 // TestAgent_HTTPCheckPath asserts clients and servers use different endpoints
@@ -859,9 +746,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	logger := log.New(ioutil.Discard, "", 0)
-
-	agentConfig := &Config{
+	sameAgentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -871,6 +756,77 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 			KeyFile:              fookey,
 		},
 	}
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer agent.Shutdown()
+
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	assert.False(shouldReloadAgent)
+	assert.False(shouldReloadHTTP)
+	assert.False(shouldReloadRPC)
+}
+
+func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	sameAgentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           false,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer agent.Shutdown()
+
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	require.True(shouldReloadAgent)
+	require.True(shouldReloadHTTP)
+	require.False(shouldReloadRPC)
+}
+
+func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
 
 	sameAgentConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
@@ -883,14 +839,22 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 		},
 	}
 
-	agent := &Agent{
-		logger: logger,
-		config: agentConfig,
-	}
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            false,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		}
+	})
+	defer agent.Shutdown()
 
-	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(sameAgentConfig)
-	assert.False(shouldReloadAgent)
-	assert.False(shouldReloadHTTPServer)
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+	assert.True(shouldReloadAgent)
+	assert.False(shouldReloadHTTP)
+	assert.True(shouldReloadRPC)
 }
 
 func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
@@ -901,24 +865,23 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		cafile   = "../../helper/tlsutil/testdata/ca.pem"
 		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
-		foocert2 = "any_cert_path"
-		fookey2  = "any_key_path"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	logger := log.New(ioutil.Discard, "", 0)
-
-	agentConfig := &Config{
-		TLSConfig: &sconfig.TLSConfig{
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &sconfig.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
 			CertFile:             foocert,
 			KeyFile:              fookey,
-		},
-	}
+		}
+	})
+	defer agent.Shutdown()
 
 	newConfig := &Config{
 		TLSConfig: &sconfig.TLSConfig{
@@ -931,12 +894,189 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		},
 	}
 
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(newConfig)
+	assert.True(shouldReloadAgent)
+	assert.True(shouldReloadHTTP)
+	assert.True(shouldReloadRPC)
+}
+
+func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	oldCertificate := `
+	-----BEGIN CERTIFICATE-----
+	MIICrzCCAlagAwIBAgIUN+4rYZ6wqQCIBzYYd0sfX2e8hDowCgYIKoZIzj0EAwIw
+	eDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
+	biBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwGA1UECxMFTm9tYWQx
+	GDAWBgNVBAMTD25vbWFkLmhhc2hpY29ycDAgFw0xNjExMTAxOTU2MDBaGA8yMTE2
+	MTAxNzE5NTYwMFoweDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWEx
+	FjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwG
+	A1UECxMFTm9tYWQxGDAWBgNVBAMTD3JlZ2lvbkZvby5ub21hZDBZMBMGByqGSM49
+	AgEGCCqGSM49AwEHA0IABOqGSFNjm+EBlLYlxmIP6SQTdX8U/6hbPWObB0ffkEO/
+	CFweeYIVWb3FKNPqYAlhMqg1K0ileD0FbhEzarP0sL6jgbswgbgwDgYDVR0PAQH/
+	BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8E
+	AjAAMB0GA1UdDgQWBBQnMcjU4yI3k0AoMtapACpO+w9QMTAfBgNVHSMEGDAWgBQ6
+	NWr8F5y2eFwqfoQdQPg0kWb9QDA5BgNVHREEMjAwghZzZXJ2ZXIucmVnaW9uRm9v
+	Lm5vbWFkghZjbGllbnQucmVnaW9uRm9vLm5vbWFkMAoGCCqGSM49BAMCA0cAMEQC
+	ICrvzc5NzqhdT/HkazAx5OOUU8hqoptnmhRmwn6X+0y9AiA8bNvMUxHz3ZLjGBiw
+	PLBDC2UaSDqJqiiYpYegLhbQtw==
+	-----END CERTIFICATE-----
+	`
+
+	content := []byte(oldCertificate)
+	dir, err := ioutil.TempDir("", "certificate")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	tmpfn := filepath.Join(dir, "testcert")
+	err = ioutil.WriteFile(tmpfn, content, 0666)
+	require.Nil(err)
+
+	const (
+		cafile = "../../helper/tlsutil/testdata/ca.pem"
+		key    = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+
+	logger := log.New(ioutil.Discard, "", 0)
+
+	agentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             tmpfn,
+			KeyFile:              key,
+		},
+	}
+
 	agent := &Agent{
 		logger: logger,
 		config: agentConfig,
 	}
+	agent.config.TLSConfig.SetChecksum()
 
-	shouldReloadAgent, shouldReloadHTTPServer := agent.ShouldReload(newConfig)
-	assert.True(shouldReloadAgent)
-	assert.True(shouldReloadHTTPServer)
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(agentConfig)
+	require.False(shouldReloadAgent)
+	require.False(shouldReloadHTTP)
+	require.False(shouldReloadRPC)
+
+	newCertificate := `
+	-----BEGIN CERTIFICATE-----
+	MIICtTCCAlqgAwIBAgIUQp/L2szbgE4b1ASlPOZMReFE27owCgYIKoZIzj0EAwIw
+	fDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
+	biBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwGA1UECxMFTm9tYWQx
+	HDAaBgNVBAMTE2JhZC5ub21hZC5oYXNoaWNvcnAwIBcNMTYxMTEwMjAxMDAwWhgP
+	MjExNjEwMTcyMDEwMDBaMHgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9y
+	bmlhMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMRIwEAYDVQQKEwlIYXNoaUNvcnAx
+	DjAMBgNVBAsTBU5vbWFkMRgwFgYDVQQDEw9yZWdpb25CYWQubm9tYWQwWTATBgcq
+	hkjOPQIBBggqhkjOPQMBBwNCAAQk6oXJwlxNrKvl6kpeeR4NJc5EYFI2b3y7odjY
+	u55Jp4sI91JVDqnpyatkyGmavdAWa4t0U6HkeaWqKk16/ZcYo4G7MIG4MA4GA1Ud
+	DwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0T
+	AQH/BAIwADAdBgNVHQ4EFgQUxhzOftFR2L0QAPx8LOuP99WPbpgwHwYDVR0jBBgw
+	FoAUHPDLSgzlHqBEh+c4A7HeT0GWygIwOQYDVR0RBDIwMIIWc2VydmVyLnJlZ2lv
+	bkJhZC5ub21hZIIWY2xpZW50LnJlZ2lvbkJhZC5ub21hZDAKBggqhkjOPQQDAgNJ
+	ADBGAiEAq2rnBeX/St/8i9Cab7Yw0C7pjcaE+mrFYeQByng1Uc0CIQD/o4BrZdkX
+	Nm7QGTRZbUFZTHYZr0ULz08Iaz2aHQ6Mcw==
+	-----END CERTIFICATE-----
+	`
+
+	os.Remove(tmpfn)
+	err = ioutil.WriteFile(tmpfn, []byte(newCertificate), 0666)
+	require.Nil(err)
+
+	newAgentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             tmpfn,
+			KeyFile:              key,
+		},
+	}
+
+	shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC = agent.ShouldReload(newAgentConfig)
+	require.True(shouldReloadAgent)
+	require.True(shouldReloadHTTP)
+	require.True(shouldReloadRPC)
+}
+
+func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	sameAgentConfig := &Config{
+		TLSConfig: &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+		},
+	}
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &sconfig.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert2,
+			KeyFile:              fookey2,
+		}
+	})
+	defer agent.Shutdown()
+
+	{
+		shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+		require.True(shouldReloadAgent)
+		require.True(shouldReloadHTTP)
+		require.True(shouldReloadRPC)
+	}
+
+	err := agent.Reload(sameAgentConfig)
+	require.Nil(err)
+
+	{
+		shouldReloadAgent, shouldReloadHTTP, shouldReloadRPC := agent.ShouldReload(sameAgentConfig)
+		require.False(shouldReloadAgent)
+		require.False(shouldReloadHTTP)
+		require.False(shouldReloadRPC)
+	}
+}
+
+func TestAgent_ProxyRPC_Dev(t *testing.T) {
+	t.Parallel()
+	agent := NewTestAgent(t, t.Name(), nil)
+	defer agent.Shutdown()
+
+	id := agent.client.NodeID()
+	req := &structs.NodeSpecificRequest{
+		NodeID: id,
+		QueryOptions: structs.QueryOptions{
+			Region: agent.server.Region(),
+		},
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	var resp cstructs.ClientStatsResponse
+	if err := agent.RPC("ClientStats.Stats", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 }

@@ -6,7 +6,7 @@ description: >
   Modify the current Autopilot configuration.
 ---
 
-# Command: `operator autopilot set-config`
+# Command: operator autopilot set-config
 
 The Autopilot operator command is used to set the current Autopilot configuration. See the
 [Autopilot Guide](/guides/cluster/autopilot.html) for more information about Autopilot.
@@ -40,11 +40,14 @@ running Raft protocol version 3 or higher. Must be a duration value such as `10s
 * `-disable-upgrade-migration` - (Enterprise-only) Controls whether Nomad will avoid promoting
 new servers until it can perform a migration. Must be one of `[true|false]`.
 
-* `-redundancy-zone-tag`- (Enterprise-only) Controls the [`-node-meta`](/docs/agent/options.html#_node_meta)
-key name used for separating servers into different redundancy zones.
+* `-redundancy-zone-tag`- (Enterprise-only) Controls the
+  [`redundancy_zone`](/docs/agent/configuration/server.html#redundancy_zone)
+  used for separating servers into different redundancy zones.
 
-* `-upgrade-version-tag` - (Enterprise-only) Controls the [`-node-meta`](/docs/agent/options.html#_node_meta)
-tag to use for version info when performing upgrade migrations. If left blank, the Nomad version will be used.
+* `-upgrade-version-tag` - (Enterprise-only) Controls the
+  [`upgrade_version`](/docs/agent/configuration/server.html#upgrade_version) to
+  use for version info when performing upgrade migrations. If left blank, the
+  Nomad version will be used.
 
 The output looks like this:
 

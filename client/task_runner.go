@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/driver"
 	"github.com/hashicorp/nomad/client/getter"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
 
@@ -329,7 +330,7 @@ func (r *TaskRunner) pre060StateFilePath() string {
 // executor.
 func (r *TaskRunner) RestoreState() (string, error) {
 	// COMPAT: Remove in 0.7.0
-	// 0.6.0 transistioned from individual state files to a single bolt-db.
+	// 0.6.0 transitioned from individual state files to a single bolt-db.
 	// The upgrade path is to:
 	// Check if old state exists
 	//   If so, restore from that and delete old state
@@ -563,7 +564,7 @@ func (r *TaskRunner) createDriver() (driver.Driver, error) {
 		r.setState(structs.TaskStatePending, structs.NewTaskEvent(structs.TaskDriverMessage).SetDriverMessage(msg), false)
 	}
 
-	driverCtx := driver.NewDriverContext(r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, eventEmitter)
+	driverCtx := driver.NewDriverContext(r.alloc.Job.Name, r.alloc.TaskGroup, r.task.Name, r.alloc.ID, r.config, r.config.Node, r.logger, eventEmitter)
 	d, err := driver.NewDriver(r.task.Driver, driverCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create driver '%s' for alloc %s: %v",
@@ -648,7 +649,7 @@ func (r *TaskRunner) validateTask() error {
 		// Verify the artifact doesn't escape the task directory.
 		if err := artifact.Validate(); err != nil {
 			// If this error occurs there is potentially a server bug or
-			// mallicious, server spoofing.
+			// malicious, server spoofing.
 			r.logger.Printf("[ERR] client: allocation %q, task %v, artifact %#v (%v) fails validation: %v",
 				r.alloc.ID, r.task.Name, artifact, i, err)
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("artifact (%d) failed validation: %v", i, err))
@@ -854,6 +855,13 @@ func (r *TaskRunner) deriveVaultToken() (token string, exit bool) {
 			return tokens[r.task.Name], false
 		}
 
+		// Check if this is a server side error
+		if structs.IsServerSide(err) {
+			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v",
+				r.task.Name, r.alloc.ID, err)
+			r.Kill("vault", fmt.Sprintf("server error deriving vault token: %v", err), true)
+			return "", true
+		}
 		// Check if we can't recover from the error
 		if !structs.IsRecoverable(err) {
 			r.logger.Printf("[ERR] client: failed to derive Vault token for task %v on alloc %q: %v",
@@ -1039,7 +1047,7 @@ func (r *TaskRunner) prestart(alloc *structs.Allocation, task *structs.Task, res
 
 		// Block for consul-template
 		// TODO Hooks should register themselves as blocking and then we can
-		// perioidcally enumerate what we are still blocked on
+		// periodically enumerate what we are still blocked on
 		select {
 		case <-r.unblockCh:
 			// Send the start signal
@@ -1211,8 +1219,7 @@ func (r *TaskRunner) run() {
 
 				// Remove from consul before killing the task so that traffic
 				// can be rerouted
-				interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-				r.consul.RemoveTask(r.alloc.ID, interpTask)
+				r.removeServices()
 
 				// Delay actually killing the task if configured. See #244
 				if r.task.ShutdownDelay > 0 {
@@ -1267,8 +1274,7 @@ func (r *TaskRunner) run() {
 // stopping. Errors are logged.
 func (r *TaskRunner) cleanup() {
 	// Remove from Consul
-	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-	r.consul.RemoveTask(r.alloc.ID, interpTask)
+	r.removeServices()
 
 	drv, err := r.createDriver()
 	if err != nil {
@@ -1331,8 +1337,7 @@ func (r *TaskRunner) shouldRestart() bool {
 	}
 
 	// Unregister from Consul while waiting to restart.
-	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
-	r.consul.RemoveTask(r.alloc.ID, interpTask)
+	r.removeServices()
 
 	// Sleep but watch for destroy events.
 	select {
@@ -1491,7 +1496,8 @@ func (r *TaskRunner) registerServices(d driver.Driver, h driver.DriverHandle, n 
 		exec = h
 	}
 	interpolatedTask := interpolateServices(r.envBuilder.Build(), r.task)
-	return r.consul.RegisterTask(r.alloc.ID, interpolatedTask, r, exec, n)
+	taskServices := consul.NewTaskServices(r.alloc, interpolatedTask, r, exec, n)
+	return r.consul.RegisterTask(taskServices)
 }
 
 // interpolateServices interpolates tags in a service and checks with values from the
@@ -1509,6 +1515,7 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task
 			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
 			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
 			check.Method = taskEnv.ReplaceEnv(check.Method)
+			check.GRPCService = taskEnv.ReplaceEnv(check.GRPCService)
 			if len(check.Header) > 0 {
 				header := make(map[string][]string, len(check.Header))
 				for k, vs := range check.Header {
@@ -1524,6 +1531,7 @@ func interpolateServices(taskEnv *env.TaskEnv, task *structs.Task) *structs.Task
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
+		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
 	}
 	return taskCopy
 }
@@ -1590,7 +1598,7 @@ func (r *TaskRunner) collectResourceUsageStats(stopCollection <-chan struct{}) {
 				// race between the stopCollection channel being closed and calling
 				// Stats on the handle.
 				if !strings.Contains(err.Error(), "connection is shut down") {
-					r.logger.Printf("[WARN] client: error fetching stats of task %v: %v", r.task.Name, err)
+					r.logger.Printf("[DEBUG] client: error fetching stats of task %v: %v", r.task.Name, err)
 				}
 				continue
 			}
@@ -1671,7 +1679,7 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 
 		// Update services in Consul
 		newInterpolatedTask := interpolateServices(r.envBuilder.Build(), updatedTask)
-		if err := r.updateServices(drv, r.handle, oldInterpolatedTask, newInterpolatedTask); err != nil {
+		if err := r.updateServices(drv, r.handle, r.alloc, oldInterpolatedTask, update, newInterpolatedTask); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("error updating services and checks in Consul: %v", err))
 		}
 	}
@@ -1689,7 +1697,10 @@ func (r *TaskRunner) handleUpdate(update *structs.Allocation) error {
 }
 
 // updateServices and checks with Consul. Tasks must be interpolated!
-func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, oldTask, newTask *structs.Task) error {
+func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor,
+	oldAlloc *structs.Allocation, oldTask *structs.Task,
+	newAlloc *structs.Allocation, newTask *structs.Task) error {
+
 	var exec driver.ScriptExecutor
 	if d.Abilities().Exec {
 		// Allow set the script executor if the driver supports it
@@ -1698,7 +1709,23 @@ func (r *TaskRunner) updateServices(d driver.Driver, h driver.ScriptExecutor, ol
 	r.driverNetLock.Lock()
 	net := r.driverNet.Copy()
 	r.driverNetLock.Unlock()
-	return r.consul.UpdateTask(r.alloc.ID, oldTask, newTask, r, exec, net)
+	oldTaskServices := consul.NewTaskServices(oldAlloc, oldTask, r, exec, net)
+	newTaskServices := consul.NewTaskServices(newAlloc, newTask, r, exec, net)
+	return r.consul.UpdateTask(oldTaskServices, newTaskServices)
+}
+
+// removeServices and checks from Consul. Handles interpolation and deleting
+// Canary=true and Canary=false versions in case Canary=false is set at the
+// same time as the alloc is stopped.
+func (r *TaskRunner) removeServices() {
+	interpTask := interpolateServices(r.envBuilder.Build(), r.task)
+	taskServices := consul.NewTaskServices(r.alloc, interpTask, r, nil, nil)
+	r.consul.RemoveTask(taskServices)
+
+	// Flip Canary and remove again in case canary is getting flipped at
+	// the same time as the alloc is being destroyed
+	taskServices.Canary = !taskServices.Canary
+	r.consul.RemoveTask(taskServices)
 }
 
 // handleDestroy kills the task handle. In the case that killing fails,

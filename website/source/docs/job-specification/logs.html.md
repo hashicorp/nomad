@@ -47,7 +47,7 @@ job "docs" {
 ```
 
 For information on how to interact with logs after they have been configured,
-please see the [`nomad logs`][logs-command] command.
+please see the [`nomad alloc logs`][logs-command] command.
 
 ## `logs` Parameters
 
@@ -87,4 +87,4 @@ logs {
 }
 ```
 
-[logs-command]: /docs/commands/logs.html "Nomad logs command"
+[logs-command]: /docs/commands/alloc/logs.html "Nomad logs command"

@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -89,8 +90,25 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	args := structs.JobEvaluateRequest{
-		JobID: jobName,
+	var args structs.JobEvaluateRequest
+
+	// TODO(preetha): remove in 0.9
+	// COMPAT: For backwards compatibility allow using this endpoint without a payload
+	if req.ContentLength == 0 {
+		args = structs.JobEvaluateRequest{
+			JobID: jobName,
+		}
+	} else {
+		if err := decodeBody(req, &args); err != nil {
+			return nil, CodedError(400, err.Error())
+		}
+		if args.JobID == "" {
+			return nil, CodedError(400, "Job ID must be specified")
+		}
+
+		if jobName != "" && args.JobID != jobName {
+			return nil, CodedError(400, "JobID not same as job name")
+		}
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -544,6 +562,32 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
+// JobsParseRequest parses a hcl jobspec and returns a api.Job
+func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := &api.JobsParseRequest{}
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if args.JobHCL == "" {
+		return nil, CodedError(400, "Job spec is empty")
+	}
+
+	jobfile := strings.NewReader(args.JobHCL)
+	jobStruct, err := jobspec.Parse(jobfile)
+	if err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	if args.Canonicalize {
+		jobStruct.Canonicalize()
+	}
+	return jobStruct, nil
+}
+
 func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
@@ -638,6 +682,26 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Mode:     *taskGroup.RestartPolicy.Mode,
 	}
 
+	if taskGroup.ReschedulePolicy != nil {
+		tg.ReschedulePolicy = &structs.ReschedulePolicy{
+			Attempts:      *taskGroup.ReschedulePolicy.Attempts,
+			Interval:      *taskGroup.ReschedulePolicy.Interval,
+			Delay:         *taskGroup.ReschedulePolicy.Delay,
+			DelayFunction: *taskGroup.ReschedulePolicy.DelayFunction,
+			MaxDelay:      *taskGroup.ReschedulePolicy.MaxDelay,
+			Unlimited:     *taskGroup.ReschedulePolicy.Unlimited,
+		}
+	}
+
+	if taskGroup.Migrate != nil {
+		tg.Migrate = &structs.MigrateStrategy{
+			MaxParallel:     *taskGroup.Migrate.MaxParallel,
+			HealthCheck:     *taskGroup.Migrate.HealthCheck,
+			MinHealthyTime:  *taskGroup.Migrate.MinHealthyTime,
+			HealthyDeadline: *taskGroup.Migrate.HealthyDeadline,
+		}
+	}
+
 	tg.EphemeralDisk = &structs.EphemeralDisk{
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
@@ -646,13 +710,14 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 
 	if taskGroup.Update != nil {
 		tg.Update = &structs.UpdateStrategy{
-			Stagger:         *taskGroup.Update.Stagger,
-			MaxParallel:     *taskGroup.Update.MaxParallel,
-			HealthCheck:     *taskGroup.Update.HealthCheck,
-			MinHealthyTime:  *taskGroup.Update.MinHealthyTime,
-			HealthyDeadline: *taskGroup.Update.HealthyDeadline,
-			AutoRevert:      *taskGroup.Update.AutoRevert,
-			Canary:          *taskGroup.Update.Canary,
+			Stagger:          *taskGroup.Update.Stagger,
+			MaxParallel:      *taskGroup.Update.MaxParallel,
+			HealthCheck:      *taskGroup.Update.HealthCheck,
+			MinHealthyTime:   *taskGroup.Update.MinHealthyTime,
+			HealthyDeadline:  *taskGroup.Update.HealthyDeadline,
+			ProgressDeadline: *taskGroup.Update.ProgressDeadline,
+			AutoRevert:       *taskGroup.Update.AutoRevert,
+			Canary:           *taskGroup.Update.Canary,
 		}
 	}
 
@@ -696,6 +761,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				Name:        service.Name,
 				PortLabel:   service.PortLabel,
 				Tags:        service.Tags,
+				CanaryTags:  service.CanaryTags,
 				AddressMode: service.AddressMode,
 			}
 
@@ -717,6 +783,8 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						TLSSkipVerify: check.TLSSkipVerify,
 						Header:        check.Header,
 						Method:        check.Method,
+						GRPCService:   check.GRPCService,
+						GRPCUseTLS:    check.GRPCUseTLS,
 					}
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{

@@ -50,11 +50,13 @@ func (c *NamespaceListCommand) Synopsis() string {
 	return "List namespaces"
 }
 
+func (c *NamespaceListCommand) Name() string { return "namespace list" }
+
 func (c *NamespaceListCommand) Run(args []string) int {
 	var json bool
 	var tmpl string
 
-	flags := c.Meta.FlagSet("namespace list", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
@@ -66,7 +68,8 @@ func (c *NamespaceListCommand) Run(args []string) int {
 	// Check that we got no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

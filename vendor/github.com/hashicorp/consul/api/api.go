@@ -101,7 +101,7 @@ type QueryOptions struct {
 	// be provided for filtering.
 	NodeMeta map[string]string
 
-	// RelayFactor is used in keyring operations to cause reponses to be
+	// RelayFactor is used in keyring operations to cause responses to be
 	// relayed back to the sender through N other random nodes. Must be
 	// a value from 0 to 5 (inclusive).
 	RelayFactor uint8
@@ -137,7 +137,7 @@ type WriteOptions struct {
 	// which overrides the agent's default token.
 	Token string
 
-	// RelayFactor is used in keyring operations to cause reponses to be
+	// RelayFactor is used in keyring operations to cause responses to be
 	// relayed back to the sender through N other random nodes. Must be
 	// a value from 0 to 5 (inclusive).
 	RelayFactor uint8
@@ -377,12 +377,14 @@ func SetupTLSConfig(tlsConfig *TLSConfig) (*tls.Config, error) {
 		tlsClientConfig.Certificates = []tls.Certificate{tlsCert}
 	}
 
-	rootConfig := &rootcerts.Config{
-		CAFile: tlsConfig.CAFile,
-		CAPath: tlsConfig.CAPath,
-	}
-	if err := rootcerts.ConfigureTLS(tlsClientConfig, rootConfig); err != nil {
-		return nil, err
+	if tlsConfig.CAFile != "" || tlsConfig.CAPath != "" {
+		rootConfig := &rootcerts.Config{
+			CAFile: tlsConfig.CAFile,
+			CAPath: tlsConfig.CAPath,
+		}
+		if err := rootcerts.ConfigureTLS(tlsClientConfig, rootConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	return tlsClientConfig, nil
@@ -476,6 +478,14 @@ func NewHttpClient(transport *http.Transport, tlsConf TLSConfig) (*http.Client, 
 	client := &http.Client{
 		Transport: transport,
 	}
+
+	// TODO (slackpad) - Once we get some run time on the HTTP/2 support we
+	// should turn it on by default if TLS is enabled. We would basically
+	// just need to call http2.ConfigureTransport(transport) here. We also
+	// don't want to introduce another external dependency on
+	// golang.org/x/net/http2 at this time. For a complete recipe for how
+	// to enable HTTP/2 support on a transport suitable for the API client
+	// library see agent/http_test.go:TestHTTPServer_H2.
 
 	if transport.TLSClientConfig == nil {
 		tlsClientConfig, err := SetupTLSConfig(&tlsConf)
@@ -623,9 +633,9 @@ func (r *request) toHTTP() (*http.Request, error) {
 	}
 	if r.ctx != nil {
 		return req.WithContext(r.ctx), nil
-	} else {
-		return req, nil
 	}
+
+	return req, nil
 }
 
 // newRequest is used to create a new request
@@ -661,7 +671,7 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	}
 	start := time.Now()
 	resp, err := c.config.HttpClient.Do(req)
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 	return diff, resp, err
 }
 

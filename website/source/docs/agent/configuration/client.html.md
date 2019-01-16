@@ -67,6 +67,9 @@ client {
   clients can determine their total CPU compute automatically, and thus in most
   cases this should be left unset.
 
+- `memory_total_mb` `(int:0)` - Specifies an override for the total memory. If set,
+  this value overrides any detected memory.
+
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
   group client nodes by user-defined class. This can be used during job
   placement as a filter.
@@ -86,6 +89,12 @@ client {
   the server nodes and advertise the available resources so that the agent can
   receive work. This may be specified as an IP address or DNS, with or without
   the port. If the port is omitted, the default port of `4647` is used.
+
+- `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
+  how the Nomad client will connect to Nomad servers. The `start_join` field
+  is not supported on the client. The retry_join fields may directly specify
+  the server address or use go-discover syntax for auto-discovery. See the
+  documentation for more detail.
 
 - `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
  to store client state. By default, this is - the top-level
@@ -304,7 +313,11 @@ cluster.
 ```hcl
 client {
   enabled = true
-  servers = ["1.2.3.4:4647", "5.6.7.8:4647"]
+  server_join {
+    retry_join = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max = 3
+    retry_interval = "15s"
+  }
 }
 ```
 
@@ -343,3 +356,4 @@ client {
   }
 }
 ```
+[server-join]: /docs/agent/configuration/server_join.html "Server Join"

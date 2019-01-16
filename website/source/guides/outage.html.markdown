@@ -48,10 +48,10 @@ to a fully healthy state.
 Both of these strategies involve a potentially lengthy time to reboot or rebuild
 a failed server. If this is impractical or if building a new server with the same
 IP isn't an option, you need to remove the failed server. Usually, you can issue
-a [`nomad server-force-leave`](/docs/commands/server-force-leave.html) command
+a [`nomad server force-leave`](/docs/commands/server/force-leave.html) command
 to remove the failed server if it's still a member of the cluster.
 
-If [`nomad server-force-leave`](/docs/commands/server-force-leave.html) isn't
+If [`nomad server force-leave`](/docs/commands/server/force-leave.html) isn't
 able to remove the server, you have two methods available to remove it,
 depending on your version of Nomad:
 
@@ -92,7 +92,7 @@ once the remaining servers are all restarted with an identical `raft/peers.json`
 configuration.
 
 Any new servers you introduce later can be fresh with totally clean data directories
-and joined using Nomad's `server-join` command.
+and joined using Nomad's `server join` command.
 
 In extreme cases, it should be possible to recover with just a single remaining
 server by starting that single server with itself as the only peer in the
@@ -158,10 +158,10 @@ later you will see them ingest recovery file:
 ```
 
 If any servers managed to perform a graceful leave, you may need to have them
-rejoin the cluster using the [`server-join`](/docs/commands/server-join.html) command:
+rejoin the cluster using the [`server join`](/docs/commands/server/join.html) command:
 
 ```text
-$ nomad server-join <Node Address>
+$ nomad server join <Node Address>
 Successfully joined cluster by contacting 1 nodes.
 ```
 
@@ -186,3 +186,39 @@ nomad-server01.global  10.10.11.5:4647  10.10.11.5:4647  follower  true
 nomad-server02.global  10.10.11.6:4647  10.10.11.6:4647  leader    true
 nomad-server03.global  10.10.11.7:4647  10.10.11.7:4647  follower  true
 ```
+
+## Peers.json Format Changes in Raft Protocol 3
+For Raft protocol version 3 and later, peers.json should be formatted as a JSON
+array containing the node ID, address:port, and suffrage information of each
+Nomad server in the cluster, like this:
+
+```
+[
+  {
+    "id": "adf4238a-882b-9ddc-4a9d-5b6758e4159e",
+    "address": "10.1.0.1:8300",
+    "non_voter": false
+  },
+  {
+    "id": "8b6dda82-3103-11e7-93ae-92361f002671",
+    "address": "10.1.0.2:8300",
+    "non_voter": false
+  },
+  {
+    "id": "97e17742-3103-11e7-93ae-92361f002671",
+    "address": "10.1.0.3:8300",
+    "non_voter": false
+  }
+]
+```
+
+- `id` `(string: <required>)` - Specifies the `node ID`
+  of the server. This can be found in the logs when the server starts up,
+  and it can also be found inside the `node-id` file in the server's data directory.
+
+- `address` `(string: <required>)` - Specifies the IP and port of the server. The port is the
+  server's RPC port used for cluster communications.
+
+- `non_voter` `(bool: <false>)` - This controls whether the server is a non-voter, which is used
+  in some advanced [Autopilot](/guides/cluster/autopilot.html) configurations. If omitted, it will
+  default to false, which is typical for most clusters.

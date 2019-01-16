@@ -13,9 +13,6 @@ var (
 	ErrRenewerNotRenewable  = errors.New("secret is not renewable")
 	ErrRenewerNoSecretData  = errors.New("returned empty secret data")
 
-	// DefaultRenewerGrace is the default grace period
-	DefaultRenewerGrace = 15 * time.Second
-
 	// DefaultRenewerRenewBuffer is the default size of the buffer for renew
 	// messages on the channel.
 	DefaultRenewerRenewBuffer = 5
@@ -50,12 +47,13 @@ var (
 type Renewer struct {
 	l sync.Mutex
 
-	client  *Client
-	secret  *Secret
-	grace   time.Duration
-	random  *rand.Rand
-	doneCh  chan error
-	renewCh chan *RenewOutput
+	client    *Client
+	secret    *Secret
+	grace     time.Duration
+	random    *rand.Rand
+	increment int
+	doneCh    chan error
+	renewCh   chan *RenewOutput
 
 	stopped bool
 	stopCh  chan struct{}
@@ -66,9 +64,7 @@ type RenewerInput struct {
 	// Secret is the secret to renew
 	Secret *Secret
 
-	// Grace is a minimum renewal before returning so the upstream client
-	// can do a re-read. This can be used to prevent clients from waiting
-	// too long to read a new credential and incur downtime.
+	// DEPRECATED: this does not do anything.
 	Grace time.Duration
 
 	// Rand is the randomizer to use for underlying randomization. If not
@@ -79,6 +75,11 @@ type RenewerInput struct {
 	// RenewBuffer is the size of the buffered channel where renew messages are
 	// dispatched.
 	RenewBuffer int
+
+	// The new TTL, in seconds, that should be set on the lease. The TTL set
+	// here may or may not be honored by the vault server, based on Vault
+	// configuration or any associated max TTL values.
+	Increment int
 }
 
 // RenewOutput is the metadata returned to the client (if it's listening) to
@@ -104,11 +105,6 @@ func (c *Client) NewRenewer(i *RenewerInput) (*Renewer, error) {
 		return nil, ErrRenewerMissingSecret
 	}
 
-	grace := i.Grace
-	if grace == 0 {
-		grace = DefaultRenewerGrace
-	}
-
 	random := i.Rand
 	if random == nil {
 		random = rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
@@ -120,12 +116,12 @@ func (c *Client) NewRenewer(i *RenewerInput) (*Renewer, error) {
 	}
 
 	return &Renewer{
-		client:  c,
-		secret:  secret,
-		grace:   grace,
-		random:  random,
-		doneCh:  make(chan error, 1),
-		renewCh: make(chan *RenewOutput, renewBuffer),
+		client:    c,
+		secret:    secret,
+		increment: i.Increment,
+		random:    random,
+		doneCh:    make(chan error, 1),
+		renewCh:   make(chan *RenewOutput, renewBuffer),
 
 		stopped: false,
 		stopCh:  make(chan struct{}),
@@ -155,8 +151,8 @@ func (r *Renewer) Stop() {
 }
 
 // Renew starts a background process for renewing this secret. When the secret
-// is has auth data, this attempts to renew the auth (token). When the secret
-// has a lease, this attempts to renew the lease.
+// has auth data, this attempts to renew the auth (token). When the secret has
+// a lease, this attempts to renew the lease.
 func (r *Renewer) Renew() {
 	var result error
 	if r.secret.Auth != nil {
@@ -165,10 +161,7 @@ func (r *Renewer) Renew() {
 		result = r.renewLease()
 	}
 
-	select {
-	case r.doneCh <- result:
-	case <-r.stopCh:
-	}
+	r.doneCh <- result
 }
 
 // renewAuth is a helper for renewing authentication.
@@ -176,6 +169,9 @@ func (r *Renewer) renewAuth() error {
 	if !r.secret.Auth.Renewable || r.secret.Auth.ClientToken == "" {
 		return ErrRenewerNotRenewable
 	}
+
+	priorDuration := time.Duration(r.secret.Auth.LeaseDuration) * time.Second
+	r.calculateGrace(priorDuration)
 
 	client, token := r.client, r.secret.Auth.ClientToken
 
@@ -188,7 +184,7 @@ func (r *Renewer) renewAuth() error {
 		}
 
 		// Renew the auth.
-		renewal, err := client.Auth().Token().RenewTokenAsSelf(token, 0)
+		renewal, err := client.Auth().Token().RenewTokenAsSelf(token, r.increment)
 		if err != nil {
 			return err
 		}
@@ -209,13 +205,28 @@ func (r *Renewer) renewAuth() error {
 			return ErrRenewerNotRenewable
 		}
 
-		// Grab the lease duration and sleep duration - note that we grab the auth
-		// lease duration, not the secret lease duration.
+		// Grab the lease duration
 		leaseDuration := time.Duration(renewal.Auth.LeaseDuration) * time.Second
-		sleepDuration := r.sleepDuration(leaseDuration)
 
-		// If we are within grace, return now.
-		if leaseDuration <= r.grace || sleepDuration <= r.grace {
+		// We keep evaluating a new grace period so long as the lease is
+		// extending. Once it stops extending, we've hit the max and need to
+		// rely on the grace duration.
+		if leaseDuration > priorDuration {
+			r.calculateGrace(leaseDuration)
+		}
+		priorDuration = leaseDuration
+
+		// The sleep duration is set to 2/3 of the current lease duration plus
+		// 1/3 of the current grace period, which adds jitter.
+		sleepDuration := time.Duration(float64(leaseDuration.Nanoseconds())*2/3 + float64(r.grace.Nanoseconds())/3)
+
+		// If we are within grace, return now; or, if the amount of time we
+		// would sleep would land us in the grace period. This helps with short
+		// tokens; for example, you don't want a current lease duration of 4
+		// seconds, a grace period of 3 seconds, and end up sleeping for more
+		// than three of those seconds and having a very small budget of time
+		// to renew.
+		if leaseDuration <= r.grace || leaseDuration-sleepDuration <= r.grace {
 			return nil
 		}
 
@@ -234,6 +245,9 @@ func (r *Renewer) renewLease() error {
 		return ErrRenewerNotRenewable
 	}
 
+	priorDuration := time.Duration(r.secret.LeaseDuration) * time.Second
+	r.calculateGrace(priorDuration)
+
 	client, leaseID := r.client, r.secret.LeaseID
 
 	for {
@@ -245,7 +259,7 @@ func (r *Renewer) renewLease() error {
 		}
 
 		// Renew the lease.
-		renewal, err := client.Sys().Renew(leaseID, 0)
+		renewal, err := client.Sys().Renew(leaseID, r.increment)
 		if err != nil {
 			return err
 		}
@@ -266,12 +280,28 @@ func (r *Renewer) renewLease() error {
 			return ErrRenewerNotRenewable
 		}
 
-		// Grab the lease duration and sleep duration
+		// Grab the lease duration
 		leaseDuration := time.Duration(renewal.LeaseDuration) * time.Second
-		sleepDuration := r.sleepDuration(leaseDuration)
 
-		// If we are within grace, return now.
-		if leaseDuration <= r.grace || sleepDuration <= r.grace {
+		// We keep evaluating a new grace period so long as the lease is
+		// extending. Once it stops extending, we've hit the max and need to
+		// rely on the grace duration.
+		if leaseDuration > priorDuration {
+			r.calculateGrace(leaseDuration)
+		}
+		priorDuration = leaseDuration
+
+		// The sleep duration is set to 2/3 of the current lease duration plus
+		// 1/3 of the current grace period, which adds jitter.
+		sleepDuration := time.Duration(float64(leaseDuration.Nanoseconds())*2/3 + float64(r.grace.Nanoseconds())/3)
+
+		// If we are within grace, return now; or, if the amount of time we
+		// would sleep would land us in the grace period. This helps with short
+		// tokens; for example, you don't want a current lease duration of 4
+		// seconds, a grace period of 3 seconds, and end up sleeping for more
+		// than three of those seconds and having a very small budget of time
+		// to renew.
+		if leaseDuration <= r.grace || leaseDuration-sleepDuration <= r.grace {
 			return nil
 		}
 
@@ -299,4 +329,21 @@ func (r *Renewer) sleepDuration(base time.Duration) time.Duration {
 	sleep = sleep * (r.random.Float64() + 1) / 2.0
 
 	return time.Duration(sleep)
+}
+
+// calculateGrace calculates the grace period based on a reasonable set of
+// assumptions given the total lease time; it also adds some jitter to not have
+// clients be in sync.
+func (r *Renewer) calculateGrace(leaseDuration time.Duration) {
+	if leaseDuration == 0 {
+		r.grace = 0
+		return
+	}
+
+	leaseNanos := float64(leaseDuration.Nanoseconds())
+	jitterMax := 0.1 * leaseNanos
+
+	// For a given lease duration, we want to allow 80-90% of that to elapse,
+	// so the remaining amount is the grace period
+	r.grace = time.Duration(jitterMax) + time.Duration(uint64(r.random.Int63())%uint64(jitterMax))
 }

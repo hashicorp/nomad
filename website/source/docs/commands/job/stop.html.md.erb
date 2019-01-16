@@ -1,0 +1,66 @@
+---
+layout: "docs"
+page_title: "Commands: job stop"
+sidebar_current: "docs-commands-job-stop"
+description: >
+  The job stop command is used to stop a running job.
+---
+
+# Command: job stop
+**Alias: `nomad stop`**
+
+The `job stop` command is used to stop a running job and signals the scheduler
+to cancel all of the running allocations.
+
+## Usage
+
+```
+nomad job stop [options] <job>
+```
+
+The `job stop` command requires a single argument, specifying the job ID or prefix to
+cancel. If there is an exact match based on the provided job ID or prefix, then
+the job will be cancelled. Otherwise, a list of matching jobs and information
+will be displayed.
+
+Stop will issue a request to deregister the matched job and then invoke an
+interactive monitor that exits automatically once the scheduler has processed
+the request. It is safe to exit the monitor early using ctrl+c.
+
+## General Options
+
+<%= partial "docs/commands/_general_options" %>
+
+## Stop Options
+
+* `-detach`: Return immediately instead of entering monitor mode. After the
+  deregister command is submitted, a new evaluation ID is printed to the screen,
+  which can be used to examine the evaluation using the
+  [eval status](/docs/commands/eval-status.html) command.
+
+* `-verbose`: Show full information.
+
+* `-yes`: Automatic yes to prompts.
+
+* `-purge`: Purge is used to stop the job and purge it from the system. If not
+set, the job will still be queryable and will be purged by the garbage
+collector.
+
+
+## Examples
+
+Stop the job with ID "job1":
+
+```
+$ nomad job stop job1
+==> Monitoring evaluation "43bfe672"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "43bfe672" finished with status "complete"
+```
+
+Stop the job with ID "job1" and return immediately:
+
+```
+$ nomad job stop -detach job1
+507d26cb
+```

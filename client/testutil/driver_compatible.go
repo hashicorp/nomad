@@ -3,8 +3,11 @@ package testutil
 import (
 	"os/exec"
 	"runtime"
+	"sync"
 	"syscall"
 	"testing"
+
+	"github.com/hashicorp/nomad/client/fingerprint"
 )
 
 // RequireRoot skips tests unless running on a Unix as root.
@@ -18,6 +21,7 @@ func ExecCompatible(t *testing.T) {
 	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
 		t.Skip("Test only available running as root on linux")
 	}
+	CgroupCompatible(t)
 }
 
 func JavaCompatible(t *testing.T) {
@@ -38,13 +42,30 @@ func QemuCompatible(t *testing.T) {
 	}
 }
 
-func RktCompatible(t *testing.T) {
-	if runtime.GOOS == "windows" || syscall.Geteuid() != 0 {
-		t.Skip("Must be root on non-windows environments to run test")
+func CgroupCompatible(t *testing.T) {
+	mount, err := fingerprint.FindCgroupMountpointDir()
+	if err != nil || mount == "" {
+		t.Skipf("Failed to find cgroup mount: %v %v", mount, err)
 	}
+}
+
+var rktExists bool
+var rktOnce sync.Once
+
+func RktCompatible(t *testing.T) {
+	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
+		t.Skip("Must be root on Linux to run test")
+	}
+
 	// else see if rkt exists
-	_, err := exec.Command("rkt", "version").CombinedOutput()
-	if err != nil {
+	rktOnce.Do(func() {
+		_, err := exec.Command("rkt", "version").CombinedOutput()
+		if err == nil {
+			rktExists = true
+		}
+	})
+
+	if !rktExists {
 		t.Skip("Must have rkt installed for rkt specific tests to run")
 	}
 }

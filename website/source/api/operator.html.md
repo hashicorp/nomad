@@ -143,16 +143,6 @@ The table below shows this endpoint's support for
 | ---------------- | ----------------- | --------------- |
 | `NO`             | `none`            | `operator:read` |
 
-### Parameters
-
-- `dc` `(string: "")` - Specifies the datacenter to query. This will default to
-  the datacenter of the agent being queried. This is specified as part of the
-  URL as a query string.
-
-- `stale` `(bool: false)` - If the cluster does not currently have a leader an
-  error will be returned. You can use the `?stale` query parameter to read the
-  Raft configuration from any of the Nomad servers.
-
 ### Sample Request
 
 ```text
@@ -177,7 +167,7 @@ $ curl \
 ```
 
 For more information about the Autopilot configuration options, see the
-[agent configuration section](/docs/agent/options.html#autopilot).
+[agent configuration section](/docs/agent/configuration/autopilot.html).
 
 ## Update Autopilot Configuration
 
@@ -194,17 +184,29 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required     |
 | ---------------- | ----------------- | ---------------- |
-| `NO`             | `none`            | `opreator:write` |
+| `NO`             | `none`            | `operator:write` |
 
 ### Parameters
-
-- `dc` `(string: "")` - Specifies the datacenter to query. This will default to
-  the datacenter of the agent being queried. This is specified as part of the
-  URL as a query string.
 
 - `cas` `(int: 0)` - Specifies to use a Check-And-Set operation. The update will
   only happen if the given index matches the `ModifyIndex` of the configuration
   at the time of writing.
+
+### Sample Payload
+
+```json
+{
+  "CleanupDeadServers": true,
+  "LastContactThreshold": "200ms",
+  "MaxTrailingLogs": 250,
+  "ServerStabilizationTime": "10s",
+  "EnableRedundancyZones": false,
+  "DisableUpgradeMigration": false,
+  "EnableCustomUpgrades": false,
+  "CreateIndex": 4,
+  "ModifyIndex": 4
+}
+```
 
 - `CleanupDeadServers` `(bool: true)` - Specifies automatic removal of dead
   server nodes periodically and whenever a new server is added to the cluster.
@@ -232,22 +234,6 @@ The table below shows this endpoint's support for
 - `EnableCustomUpgrades` `(bool: false)` - (Enterprise-only) Specifies whether to 
   enable using custom upgrade versions when performing migrations.
 
-### Sample Payload
-
-```json
-{
-  "CleanupDeadServers": true,
-  "LastContactThreshold": "200ms",
-  "MaxTrailingLogs": 250,
-  "ServerStabilizationTime": "10s",
-  "EnableRedundancyZones": false,
-  "DisableUpgradeMigration": false,
-  "EnableCustomUpgrades": false,
-  "CreateIndex": 4,
-  "ModifyIndex": 4
-}
-```
-
 ## Read Health
 
 This endpoint queries the health of the autopilot status.
@@ -263,13 +249,7 @@ The table below shows this endpoint's support for
 
 | Blocking Queries | Consistency Modes | ACL Required    |
 | ---------------- | ----------------- | --------------- |
-| `NO`             | `none`            | `opreator:read` |
-
-### Parameters
-
-- `dc` `(string: "")` - Specifies the datacenter to query. This will default to
-  the datacenter of the agent being queried. This is specified as part of the
-  URL as a query string.
+| `NO`             | `none`            | `operator:read` |
 
 ### Sample Request
 

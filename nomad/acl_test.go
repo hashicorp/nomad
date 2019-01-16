@@ -95,7 +95,7 @@ func TestResolveACLToken(t *testing.T) {
 func TestResolveACLToken_LeaderToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
-	s1, _ := testACLServer(t, nil)
+	s1, _ := TestACLServer(t, nil)
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 

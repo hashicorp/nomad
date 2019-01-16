@@ -5,7 +5,8 @@ import { test } from 'qunit';
 import moment from 'moment';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 
-const sum = (list, key) => list.reduce((sum, item) => sum + get(item, key), 0);
+const sum = (list, key, getter = a => a) =>
+  list.reduce((sum, item) => sum + getter(get(item, key)), 0);
 
 let job;
 let deployments;
@@ -40,9 +41,7 @@ test('/jobs/:id/deployments should list all job deployments', function(assert) {
   });
 });
 
-test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', function(
-  assert
-) {
+test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', function(assert) {
   visit(`/jobs/${job.id}/deployments`);
 
   andThen(() => {
@@ -82,9 +81,7 @@ test('each deployment mentions the deployment shortId, status, version, and time
   });
 });
 
-test('when the deployment is running and needs promotion, the deployment item says so', function(
-  assert
-) {
+test('when the deployment is running and needs promotion, the deployment item says so', function(assert) {
   // Ensure the deployment needs deployment
   const deployment = sortedDeployments.models[0];
   const taskGroupSummary = deployment.deploymentTaskGroupSummaryIds.map(id =>
@@ -96,7 +93,7 @@ test('when the deployment is running and needs promotion, the deployment item sa
 
   taskGroupSummary.update({
     desiredCanaries: 1,
-    placedCanaries: 0,
+    placedCanaries: [],
     promoted: false,
   });
 
@@ -152,7 +149,7 @@ test('when open, a deployment shows the deployment metrics', function(assert) {
     andThen(() => {
       assert.equal(
         find('[data-test-deployment-metric="canaries"]').textContent.trim(),
-        `${sum(taskGroupSummaries, 'placedCanaries')} / ${sum(
+        `${sum(taskGroupSummaries, 'placedCanaries', a => a.length)} / ${sum(
           taskGroupSummaries,
           'desiredCanaries'
         )}`,
@@ -192,9 +189,7 @@ test('when open, a deployment shows the deployment metrics', function(assert) {
   });
 });
 
-test('when open, a deployment shows a list of all task groups and their respective stats', function(
-  assert
-) {
+test('when open, a deployment shows a list of all task groups and their respective stats', function(assert) {
   visit(`/jobs/${job.id}/deployments`);
 
   andThen(() => {
@@ -241,7 +236,7 @@ test('when open, a deployment shows a list of all task groups and their respecti
       );
       assert.equal(
         taskGroupRow.querySelector('[data-test-deployment-task-group-canaries]').textContent.trim(),
-        `${taskGroup.placedCanaries} / ${taskGroup.desiredCanaries}`,
+        `${taskGroup.placedCanaries.length} / ${taskGroup.desiredCanaries}`,
         'Canaries'
       );
       assert.equal(
@@ -265,9 +260,7 @@ test('when open, a deployment shows a list of all task groups and their respecti
   });
 });
 
-test('when open, a deployment shows a list of all allocations for the deployment', function(
-  assert
-) {
+test('when open, a deployment shows a list of all allocations for the deployment', function(assert) {
   visit(`/jobs/${job.id}/deployments`);
 
   andThen(() => {

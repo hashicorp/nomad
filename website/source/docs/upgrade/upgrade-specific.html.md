@@ -17,17 +17,19 @@ standard upgrade flow.
 
 ## Nomad 0.8.0
 
-#### Raft Protocol Version Compatibility
+### Raft Protocol Version Compatibility
 
-When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need to
-set the [`-raft-protocol`](/docs/agent/options.html#_raft_protocol) option to 1 in
-order to maintain backwards compatibility with the old servers during the upgrade.
-After the servers have been migrated to version 0.8.0, `-raft-protocol` can be moved
-up to 2 and the servers restarted to match the default.
+When upgrading to Nomad 0.8.0 from a version lower than 0.7.0, users will need
+to set the
+[`raft_protocol`](/docs/agent/configuration/server.html#raft_protocol) option
+in their `server` stanza to 1 in order to maintain backwards compatibility with
+the old servers during the upgrade.  After the servers have been migrated to
+version 0.8.0, `raft_protocol` can be moved up to 2 and the servers restarted
+to match the default.
 
 The Raft protocol must be stepped up in this way; only adjacent version numbers are
 compatible (for example, version 1 cannot talk to version 3). Here is a table of the
-Raft Protocol versions supported by each Consul version:
+Raft Protocol versions supported by each Nomad version:
 
 <table class="table table-bordered table-striped">
   <tr>
@@ -50,6 +52,84 @@ Raft Protocol versions supported by each Consul version:
 
 In order to enable all [Autopilot](/guides/cluster/autopilot.html) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
+
+#### Upgrading to Raft Protocol 3
+
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific.html#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](/guides/outage.html#manual-recovery-using-peers-json) for a description of the required format.
+
+Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
+
+The easiest way to upgrade servers is to have each server leave the cluster, upgrade its `raft_protocol` version in the `server` stanza, and then add it back. Make sure the new server joins successfully and that the cluster is stable before rolling the upgrade forward to the next server. It's also possible to stand up a new set of servers, and then slowly stand down each of the older servers in a similar fashion.
+
+When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](/docs/guides/outage.html#manual-recovery-using-peers-json) to map the server to its node ID in the Raft quorum configuration.
+
+
+### Node Draining Improvements
+
+Node draining via the [`node drain`][drain-cli] command or the [drain
+API][drain-api] has been substantially changed in Nomad 0.8. In Nomad 0.7.1 and
+earlier draining a node would immediately stop all allocations on the node
+being drained. Nomad 0.8 now supports a [`migrate`][migrate] stanza in job
+specifications to control how many allocations may be migrated at once and the
+default will be used for existing jobs.
+
+The `drain` command now blocks until the drain completes. To get the Nomad
+0.7.1 and earlier drain behavior use the command: `nomad node drain -enable
+-force -detach <node-id>`
+
+See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
+guide](/guides/node-draining.html) for details.
+
+### Periods in Environment Variable Names No Longer Escaped
+
+*Applications which expect periods in environment variable names to be replaced
+with underscores must be updated.*
+
+In Nomad 0.7 periods (`.`) in environment variables names were replaced with an
+underscore in both the [`env`](/docs/job-specification/env.html) and
+[`template`](/docs/job-specification/template.html) stanzas.
+
+In Nomad 0.8 periods are *not* replaced and will be included in environment
+variables verbatim.
+
+For example the following stanza:
+
+```text
+env {
+  registry.consul.addr = "${NOMAD_IP_http}:8500"
+}
+```
+
+In Nomad 0.7 would be exposed to the task as
+`registry_consul_addr=127.0.0.1:8500`. In Nomad 0.8 it will now appear exactly
+as specified: `registry.consul.addr=127.0.0.1:8500`.
+
+### Client APIs Unavailable on Older Nodes
+
+Because Nomad 0.8 uses a new RPC mechanism to route node-specific APIs like
+[`nomad alloc fs`](/docs/commands/alloc/fs.html) through servers to the node,
+0.8 CLIs are incompatible using these commands on clients older than 0.8.
+
+To access these commands on older clients either continue to use a pre-0.8
+version of the CLI, or upgrade all clients to 0.8.
+
+### CLI Command Changes
+
+Nomad 0.8 has changed the organization of CLI commands to be based on
+subcommands. An example of this change is the change from `nomad alloc-status`
+to `nomad alloc status`. All commands have been made to be backwards compatible,
+but operators should update any usage of the old style commands to the new style
+as the old style will be deprecated in future versions of Nomad.
+
+### RPC Advertise Address
+
+The behavior of the [advertised RPC
+address](/docs/agent/configuration/index.html#rpc-1) has changed to be only used
+to advertise the RPC address of servers to client nodes. Server to server
+communication is done using the advertised Serf address. Existing cluster's
+should not be effected but the advertised RPC address may need to be updated to
+allow connecting client's over a NAT.
+
 
 ## Nomad 0.6.0
 
@@ -156,6 +236,10 @@ be resubmitted with the updated job syntax using a Nomad 0.3.0 binary.
 
 After updating the Servers and job files, Nomad Clients can be upgraded by first
 draining the node so no tasks are running on it. This can be verified by running
-`nomad node-status <node-id>` and verify there are no tasks in the `running`
+`nomad node status <node-id>` and verify there are no tasks in the `running`
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
+
+[drain-api]: /api/nodes.html#drain-node
+[drain-cli]: /docs/commands/node/drain.html
+[migrate]: /docs/job-specification/migrate.html

@@ -50,7 +50,8 @@ type AllocRunner struct {
 	alloc                  *structs.Allocation
 	allocClientStatus      string // Explicit status of allocation. Set when there are failures
 	allocClientDescription string
-	allocHealth            *bool // Whether the allocation is healthy
+	allocHealth            *bool     // Whether the allocation is healthy
+	allocHealthTime        time.Time // Time at which allocation health has been set
 	allocBroadcast         *cstructs.AllocBroadcaster
 	allocLock              sync.Mutex
 
@@ -523,6 +524,35 @@ func copyTaskStates(states map[string]*structs.TaskState) map[string]*structs.Ta
 	return copy
 }
 
+// finalizeTerminalAlloc sets any missing required fields like
+// finishedAt in the alloc runner's task States. finishedAt is used
+// to calculate reschedule time for failed allocs, so we make sure that
+// it is set
+func (r *AllocRunner) finalizeTerminalAlloc(alloc *structs.Allocation) {
+	if !alloc.ClientTerminalStatus() {
+		return
+	}
+	r.taskStatusLock.Lock()
+	defer r.taskStatusLock.Unlock()
+
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if r.taskStates == nil {
+		r.taskStates = make(map[string]*structs.TaskState)
+	}
+	now := time.Now()
+	for _, task := range group.Tasks {
+		ts, ok := r.taskStates[task.Name]
+		if !ok {
+			ts = &structs.TaskState{}
+			r.taskStates[task.Name] = ts
+		}
+		if ts.FinishedAt.IsZero() {
+			ts.FinishedAt = now
+		}
+	}
+	alloc.TaskStates = copyTaskStates(r.taskStates)
+}
+
 // Alloc returns the associated allocation
 func (r *AllocRunner) Alloc() *structs.Allocation {
 	r.allocLock.Lock()
@@ -541,6 +571,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		r.taskStatusLock.RUnlock()
 
 		r.allocLock.Unlock()
+		r.finalizeTerminalAlloc(alloc)
 		return alloc
 	}
 
@@ -550,6 +581,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{}
 		}
 		alloc.DeploymentStatus.Healthy = helper.BoolToPtr(*r.allocHealth)
+		alloc.DeploymentStatus.Timestamp = r.allocHealthTime
 	}
 	r.allocLock.Unlock()
 
@@ -569,7 +601,7 @@ func (r *AllocRunner) Alloc() *structs.Allocation {
 		}
 	}
 	r.allocLock.Unlock()
-
+	r.finalizeTerminalAlloc(alloc)
 	return alloc
 }
 
@@ -715,9 +747,8 @@ func (r *AllocRunner) setTaskState(taskName, state string, event *structs.TaskEv
 			}
 		}
 	case structs.TaskStateDead:
-		// Capture the finished time. If it has never started there is no finish
-		// time
-		if !taskState.StartedAt.IsZero() {
+		// Capture the finished time if not already set
+		if taskState.FinishedAt.IsZero() {
 			taskState.FinishedAt = time.Now().UTC()
 		}
 
@@ -899,7 +930,7 @@ func (r *AllocRunner) Run() {
 	}
 	r.taskLock.Unlock()
 
-	// taskDestroyEvent contains an event that caused the destroyment of a task
+	// taskDestroyEvent contains an event that caused the destruction of a task
 	// in the allocation.
 	var taskDestroyEvent *structs.TaskEvent
 
@@ -914,6 +945,7 @@ OUTER:
 			// If the deployment ids have changed clear the health
 			if r.alloc.DeploymentID != update.DeploymentID {
 				r.allocHealth = nil
+				r.allocHealthTime = time.Time{}
 			}
 
 			r.alloc = update

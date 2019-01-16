@@ -41,6 +41,12 @@ cluster with zero configuration. To put it another way: if you have a Consul
 agent running on the same host as the Nomad agent with the default
 configuration, Nomad will automatically connect and configure with Consul.
 
+An important requirement is that each Nomad agent talks to a unique Consul
+agent. Nomad agents should be configured to talk to Consul agents and not
+Consul servers. If you are observing flapping services, you may have have
+multiple Nomad agents talking to the same Consul agent. As such avoid
+configuring Nomad to talk to Consul via DNS such as consul.service.consul
+
 ## `consul` Parameters
 
 - `address` `(string: "127.0.0.1:8500")` - Specifies the address to the local
@@ -76,11 +82,23 @@ configuration, Nomad will automatically connect and configure with Consul.
 - `client_service_name` `(string: "nomad-client")` - Specifies the name of the
   service in Consul for the Nomad clients.
 
+- `client_http_check_name` `(string: "Nomad Client HTTP Check")` - Specifies the
+  HTTP health check name in Consul for the Nomad clients.
+
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
 
 - `server_service_name` `(string: "nomad")` - Specifies the name of the service
   in Consul for the Nomad servers.
+
+- `server_http_check_name` `(string: "Nomad Server HTTP Check")` - Specifies the
+  HTTP health check name in Consul for the Nomad servers.
+
+-  `server_serf_check_name` `(string: "Nomad Server Serf Check")` - Specifies
+  the Serf health check name in Consul for the Nomad servers.
+
+-  `server_rpc_check_name` `(string: "Nomad Server RPC Check")` - Specifies
+  the RPC health check name in Consul for the Nomad servers.
 
 - `server_auto_join` `(bool: true)` - Specifies if the Nomad servers should
   automatically discover and join other Nomad servers by searching for the
@@ -91,7 +109,9 @@ configuration, Nomad will automatically connect and configure with Consul.
   communicate with the Consul agent.
 
 - `token` `(string: "")` - Specifies the token used to provide a per-request ACL
-  token. This option overrides the Consul Agent's default token.
+  token. This option overrides the Consul Agent's default token. If the token is 
+  not set here or on the Consul agent, it will default to Consul's anonymous policy, 
+  which may or may not allow writes.
 
 - `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
   when communicating to the Consul API client over HTTPS
@@ -142,7 +162,7 @@ similarly, but that is not discussed here:
 consul {
   ssl       = true
   ca_file   = "/var/ssl/bundle/ca.bundle"
-  cert_file = "/etc/ssl/consul.crrt"
+  cert_file = "/etc/ssl/consul.crt"
   key_file  = "/etc/ssl/consul.key"
 }
 ```

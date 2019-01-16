@@ -84,7 +84,7 @@ func (s *Server) monitorLeadership() {
 }
 
 // leaderLoop runs as long as we are the leader to run various
-// maintence activities
+// maintenance activities
 func (s *Server) leaderLoop(stopCh chan struct{}) {
 	var reconcileCh chan serf.Member
 	establishedLeader := false
@@ -107,8 +107,16 @@ RECONCILE:
 	if !establishedLeader {
 		if err := s.establishLeadership(stopCh); err != nil {
 			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v", err)
+
+			// Immediately revoke leadership since we didn't successfully
+			// establish leadership.
+			if err := s.revokeLeadership(); err != nil {
+				s.logger.Printf("[ERR] nomad: failed to revoke leadership: %v", err)
+			}
+
 			goto WAIT
 		}
+
 		establishedLeader = true
 		defer func() {
 			if err := s.revokeLeadership(); err != nil {
@@ -157,6 +165,8 @@ WAIT:
 // previously inflight transactions have been committed and that our
 // state is up-to-date.
 func (s *Server) establishLeadership(stopCh chan struct{}) error {
+	defer metrics.MeasureSince([]string{"nomad", "leader", "establish_leadership"}, time.Now())
+
 	// Generate a leader ACL token. This will allow the leader to issue work
 	// that requires a valid ACL token.
 	s.setLeaderAcl(uuid.Generate())
@@ -189,9 +199,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.blockedEvals.SetTimetable(s.fsm.TimeTable())
 
 	// Enable the deployment watcher, since we are now the leader
-	if err := s.deploymentWatcher.SetEnabled(true, s.State()); err != nil {
-		return err
-	}
+	s.deploymentWatcher.SetEnabled(true, s.State())
+
+	// Enable the NodeDrainer
+	s.nodeDrainer.SetEnabled(true, s.State())
 
 	// Restore the eval broker state
 	if err := s.restoreEvals(); err != nil {
@@ -368,7 +379,8 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		if err := s.periodicDispatcher.Add(job); err != nil {
-			return err
+			s.logger.Printf("[ERR] nomad.periodic: %v", err)
+			continue
 		}
 
 		// We do not need to force run the job since it isn't active.
@@ -389,7 +401,11 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		// nextLaunch is the next launch that should occur.
-		nextLaunch := job.Periodic.Next(launch.Launch.In(job.Periodic.GetLocation()))
+		nextLaunch, err := job.Periodic.Next(launch.Launch.In(job.Periodic.GetLocation()))
+		if err != nil {
+			s.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic launch for job %s: %v", job.NamespacedID(), err)
+			continue
+		}
 
 		// We skip force launching the job if  there should be no next launch
 		// (the zero case) or if the next launch time is in the future. If it is
@@ -597,41 +613,55 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 					break
 				}
 				summary := raw.(*structs.JobSummary)
-				for name, tgSummary := range summary.Summary {
-					if !s.config.DisableTaggedMetrics {
-						labels := []metrics.Label{
-							{
-								Name:  "job",
-								Value: summary.JobID,
-							},
-							{
-								Name:  "task_group",
-								Value: name,
-							},
-						}
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
-							float32(tgSummary.Queued), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
-							float32(tgSummary.Complete), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
-							float32(tgSummary.Failed), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
-							float32(tgSummary.Running), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
-							float32(tgSummary.Starting), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
-							float32(tgSummary.Lost), labels)
+				if s.config.DisableDispatchedJobSummaryMetrics {
+					job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
+					if err != nil {
+						s.logger.Printf("[ERR] nomad: failed to lookup job for summary: %v", err)
+						continue
 					}
-					if s.config.BackwardsCompatibleMetrics {
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+					if job.Dispatched {
+						continue
 					}
 				}
+				s.iterateJobSummaryMetrics(summary)
 			}
+		}
+	}
+}
+
+func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
+	for name, tgSummary := range summary.Summary {
+		if !s.config.DisableTaggedMetrics {
+			labels := []metrics.Label{
+				{
+					Name:  "job",
+					Value: summary.JobID,
+				},
+				{
+					Name:  "task_group",
+					Value: name,
+				},
+			}
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+				float32(tgSummary.Queued), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+				float32(tgSummary.Complete), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+				float32(tgSummary.Failed), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+				float32(tgSummary.Running), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+				float32(tgSummary.Starting), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+				float32(tgSummary.Lost), labels)
+		}
+		if s.config.BackwardsCompatibleMetrics {
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
 		}
 	}
 }
@@ -639,6 +669,8 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 // revokeLeadership is invoked once we step down as leader.
 // This is used to cleanup any state that may be specific to a leader.
 func (s *Server) revokeLeadership() error {
+	defer metrics.MeasureSince([]string{"nomad", "leader", "revoke_leadership"}, time.Now())
+
 	// Clear the leader token since we are no longer the leader.
 	s.setLeaderAcl("")
 
@@ -661,9 +693,10 @@ func (s *Server) revokeLeadership() error {
 	s.vault.SetActive(false)
 
 	// Disable the deployment watcher as it is only useful as a leader.
-	if err := s.deploymentWatcher.SetEnabled(false, nil); err != nil {
-		return err
-	}
+	s.deploymentWatcher.SetEnabled(false, nil)
+
+	// Disable the node drainer
+	s.nodeDrainer.SetEnabled(false, nil)
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {
@@ -708,11 +741,6 @@ func (s *Server) reconcileMember(member serf.Member) error {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "leader", "reconcileMember"}, time.Now())
 
-	// Do not reconcile ourself
-	if member.Name == fmt.Sprintf("%s.%s", s.config.NodeName, s.config.Region) {
-		return nil
-	}
-
 	var err error
 	switch member.Status {
 	case serf.StatusAlive:
@@ -749,12 +777,6 @@ func (s *Server) reconcileJobSummaries() error {
 
 // addRaftPeer is used to add a new Raft peer when a Nomad server joins
 func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
-	// Do not join ourselfs
-	if m.Name == s.config.NodeName {
-		s.logger.Printf("[DEBUG] nomad: adding self (%q) as raft peer skipped", m.Name)
-		return nil
-	}
-
 	// Check for possibility of multiple bootstrap nodes
 	members := s.serf.Members()
 	if parts.Bootstrap {
@@ -767,17 +789,19 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 		}
 	}
 
-	// See if it's already in the configuration. It's harmless to re-add it
-	// but we want to avoid doing that if possible to prevent useless Raft
-	// log entries.
+	// Processing ourselves could result in trying to remove ourselves to
+	// fix up our address, which would make us step down. This is only
+	// safe to attempt if there are multiple servers available.
 	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
 		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
 		return err
 	}
-	for _, server := range configFuture.Configuration().Servers {
-		if server.Address == raft.ServerAddress(addr) {
+
+	if m.Name == s.config.NodeName {
+		if l := len(configFuture.Configuration().Servers); l < 3 {
+			s.logger.Printf("[DEBUG] consul: Skipping self join check for %q since the cluster is too small", m.Name)
 			return nil
 		}
 	}
@@ -798,7 +822,7 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 
 		// If the address or ID matches an existing server, see if we need to remove the old one first
 		if server.Address == raft.ServerAddress(addr) || server.ID == raft.ServerID(parts.ID) {
-			// Exit with no-op if this is being called on an existing server
+			// Exit with no-op if this is being called on an existing server and both the ID and address match
 			if server.Address == raft.ServerAddress(addr) && server.ID == raft.ServerID(parts.ID) {
 				return nil
 			}

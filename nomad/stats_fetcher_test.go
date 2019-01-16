@@ -17,16 +17,16 @@ func TestStatsFetcher(t *testing.T) {
 		c.BootstrapExpect = 3
 	}
 
-	s1 := testServer(t, conf)
+	s1 := TestServer(t, conf)
 	defer s1.Shutdown()
 
-	s2 := testServer(t, conf)
+	s2 := TestServer(t, conf)
 	defer s2.Shutdown()
 
-	s3 := testServer(t, conf)
+	s3 := TestServer(t, conf)
 	defer s3.Shutdown()
 
-	testJoin(t, s1, s2, s3)
+	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	members := s1.serf.Members()

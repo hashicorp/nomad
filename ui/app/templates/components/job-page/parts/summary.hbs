@@ -1,0 +1,27 @@
+<div class="boxed-section-head">
+  <div>
+    {{#if job.hasChildren}}
+      Children Status <span class="badge is-white">{{summary.totalChildren}}</span>
+    {{else}}
+      Allocation Status <span class="badge is-white">{{summary.totalAllocs}}</span>
+    {{/if}}
+  </div>
+</div>
+<div class="boxed-section-body">
+  {{#component (if job.hasChildren "children-status-bar" "allocation-status-bar")
+    allocationContainer=summary
+    job=summary
+    class="split-view" as |chart|}}
+    <ol data-test-legend class="legend">
+      {{#each chart.data as |datum index|}}
+        <li class="{{datum.className}} {{if (eq datum.index chart.activeDatum.index) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
+          <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
+          <span class="value" data-test-legend-value="{{datum.className}}">{{datum.value}}</span>
+          <span class="label">
+            {{datum.label}}
+          </span>
+        </li>
+      {{/each}}
+    </ol>
+  {{/component}}
+</div>

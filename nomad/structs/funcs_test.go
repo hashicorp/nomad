@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -215,6 +216,91 @@ func TestAllocsFit(t *testing.T) {
 
 }
 
+func TestAllocsFit_TerminalAlloc(t *testing.T) {
+	n := &Node{
+		Resources: &Resources{
+			CPU:      2000,
+			MemoryMB: 2048,
+			DiskMB:   10000,
+			IOPS:     100,
+			Networks: []*NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "10.0.0.0/8",
+					MBits:  100,
+				},
+			},
+		},
+		Reserved: &Resources{
+			CPU:      1000,
+			MemoryMB: 1024,
+			DiskMB:   5000,
+			IOPS:     50,
+			Networks: []*NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"main", 80}},
+				},
+			},
+		},
+	}
+
+	a1 := &Allocation{
+		Resources: &Resources{
+			CPU:      1000,
+			MemoryMB: 1024,
+			DiskMB:   5000,
+			IOPS:     50,
+			Networks: []*NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "10.0.0.1",
+					MBits:         50,
+					ReservedPorts: []Port{{"main", 8000}},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !fit {
+		t.Fatalf("Bad")
+	}
+
+	// Sanity check the used resources
+	if used.CPU != 2000 {
+		t.Fatalf("bad: %#v", used)
+	}
+	if used.MemoryMB != 2048 {
+		t.Fatalf("bad: %#v", used)
+	}
+
+	// Should fit second allocation since it is terminal
+	a2 := a1.Copy()
+	a2.DesiredStatus = AllocDesiredStatusStop
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !fit {
+		t.Fatalf("Bad")
+	}
+
+	// Sanity check the used resources
+	if used.CPU != 2000 {
+		t.Fatalf("bad: %#v", used)
+	}
+	if used.MemoryMB != 2048 {
+		t.Fatalf("bad: %#v", used)
+	}
+}
+
 func TestScoreFit(t *testing.T) {
 	node := &Node{}
 	node.Resources = &Resources{
@@ -358,4 +444,26 @@ func TestCompileACLObject(t *testing.T) {
 	if aclObj3 != aclObj4 {
 		t.Fatalf("expected same object")
 	}
+}
+
+// TestGenerateMigrateToken asserts the migrate token is valid for use in HTTP
+// headers and CompareMigrateToken works as expected.
+func TestGenerateMigrateToken(t *testing.T) {
+	assert := assert.New(t)
+	allocID := uuid.Generate()
+	nodeSecret := uuid.Generate()
+	token, err := GenerateMigrateToken(allocID, nodeSecret)
+	assert.Nil(err)
+	_, err = base64.URLEncoding.DecodeString(token)
+	assert.Nil(err)
+
+	assert.True(CompareMigrateToken(allocID, nodeSecret, token))
+	assert.False(CompareMigrateToken("x", nodeSecret, token))
+	assert.False(CompareMigrateToken(allocID, "x", token))
+	assert.False(CompareMigrateToken(allocID, nodeSecret, "x"))
+
+	token2, err := GenerateMigrateToken("x", nodeSecret)
+	assert.Nil(err)
+	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
+	assert.True(CompareMigrateToken("x", nodeSecret, token2))
 }

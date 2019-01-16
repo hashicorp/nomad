@@ -272,6 +272,38 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsParse(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
+		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.JobsParseRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if obj == nil {
+			t.Fatal("response should not be nil")
+		}
+
+		job := obj.(*api.Job)
+		expected := mock.Job()
+		if job.Name == nil || *job.Name != expected.Name {
+			t.Fatalf("job name is '%s', expected '%s'", *job.Name, expected.Name)
+		}
+
+		if job.Datacenters == nil ||
+			job.Datacenters[0] != expected.Datacenters[0] {
+			t.Fatalf("job datacenters is '%s', expected '%s'",
+				job.Datacenters[0], expected.Datacenters[0])
+		}
+	})
+}
 func TestHTTP_JobQuery(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -553,6 +585,57 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 
 		// Make the HTTP request
 		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Check the response
+		reg := obj.(structs.JobRegisterResponse)
+		if reg.EvalID == "" {
+			t.Fatalf("bad: %v", reg)
+		}
+
+		// Check for the index
+		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+			t.Fatalf("missing index")
+		}
+	})
+}
+
+func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		jobEvalReq := api.JobEvaluateRequest{
+			JobID: job.ID,
+			EvalOptions: api.EvalOptions{
+				ForceReschedule: true,
+			},
+		}
+
+		buf := encodeReq(jobEvalReq)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -942,8 +1025,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the parameterized job
-		job := mock.Job()
-		job.Type = "batch"
+		job := mock.BatchJob()
 		job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
 		args := structs.JobRegisterRequest{
@@ -1130,13 +1212,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 		Update: &api.UpdateStrategy{
-			Stagger:         helper.TimeToPtr(1 * time.Second),
-			MaxParallel:     helper.IntToPtr(5),
-			HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
-			MinHealthyTime:  helper.TimeToPtr(1 * time.Minute),
-			HealthyDeadline: helper.TimeToPtr(3 * time.Minute),
-			AutoRevert:      helper.BoolToPtr(false),
-			Canary:          helper.IntToPtr(1),
+			Stagger:          helper.TimeToPtr(1 * time.Second),
+			MaxParallel:      helper.IntToPtr(5),
+			HealthCheck:      helper.StringToPtr(structs.UpdateStrategyHealthCheck_Manual),
+			MinHealthyTime:   helper.TimeToPtr(1 * time.Minute),
+			HealthyDeadline:  helper.TimeToPtr(3 * time.Minute),
+			ProgressDeadline: helper.TimeToPtr(3 * time.Minute),
+			AutoRevert:       helper.BoolToPtr(false),
+			Canary:           helper.IntToPtr(1),
 		},
 		Periodic: &api.PeriodicConfig{
 			Enabled:         helper.BoolToPtr(true),
@@ -1171,16 +1254,31 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Delay:    helper.TimeToPtr(10 * time.Second),
 					Mode:     helper.StringToPtr("delay"),
 				},
+				ReschedulePolicy: &api.ReschedulePolicy{
+					Interval:      helper.TimeToPtr(12 * time.Hour),
+					Attempts:      helper.IntToPtr(5),
+					DelayFunction: helper.StringToPtr("constant"),
+					Delay:         helper.TimeToPtr(30 * time.Second),
+					Unlimited:     helper.BoolToPtr(true),
+					MaxDelay:      helper.TimeToPtr(20 * time.Minute),
+				},
+				Migrate: &api.MigrateStrategy{
+					MaxParallel:     helper.IntToPtr(12),
+					HealthCheck:     helper.StringToPtr("task_events"),
+					MinHealthyTime:  helper.TimeToPtr(12 * time.Hour),
+					HealthyDeadline: helper.TimeToPtr(12 * time.Hour),
+				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  helper.IntToPtr(100),
 					Sticky:  helper.BoolToPtr(true),
 					Migrate: helper.BoolToPtr(true),
 				},
 				Update: &api.UpdateStrategy{
-					HealthCheck:     helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks),
-					MinHealthyTime:  helper.TimeToPtr(2 * time.Minute),
-					HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
-					AutoRevert:      helper.BoolToPtr(true),
+					HealthCheck:      helper.StringToPtr(structs.UpdateStrategyHealthCheck_Checks),
+					MinHealthyTime:   helper.TimeToPtr(2 * time.Minute),
+					HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
+					ProgressDeadline: helper.TimeToPtr(5 * time.Minute),
+					AutoRevert:       helper.BoolToPtr(true),
 				},
 
 				Meta: map[string]string{
@@ -1208,10 +1306,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 						Services: []*api.Service{
 							{
-								Id:        "id",
-								Name:      "serviceA",
-								Tags:      []string{"1", "2"},
-								PortLabel: "foo",
+								Id:         "id",
+								Name:       "serviceA",
+								Tags:       []string{"1", "2"},
+								CanaryTags: []string{"3", "4"},
+								PortLabel:  "foo",
 								CheckRestart: &api.CheckRestart{
 									Limit: 4,
 									Grace: helper.TimeToPtr(11 * time.Second),
@@ -1227,6 +1326,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Protocol:      "http",
 										PortLabel:     "foo",
 										AddressMode:   "driver",
+										GRPCService:   "foo.Bar",
+										GRPCUseTLS:    true,
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
@@ -1379,19 +1480,34 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Delay:    10 * time.Second,
 					Mode:     "delay",
 				},
+				ReschedulePolicy: &structs.ReschedulePolicy{
+					Interval:      12 * time.Hour,
+					Attempts:      5,
+					DelayFunction: "constant",
+					Delay:         30 * time.Second,
+					Unlimited:     true,
+					MaxDelay:      20 * time.Minute,
+				},
+				Migrate: &structs.MigrateStrategy{
+					MaxParallel:     12,
+					HealthCheck:     "task_events",
+					MinHealthyTime:  12 * time.Hour,
+					HealthyDeadline: 12 * time.Hour,
+				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB:  100,
 					Sticky:  true,
 					Migrate: true,
 				},
 				Update: &structs.UpdateStrategy{
-					Stagger:         1 * time.Second,
-					MaxParallel:     5,
-					HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
-					MinHealthyTime:  2 * time.Minute,
-					HealthyDeadline: 5 * time.Minute,
-					AutoRevert:      true,
-					Canary:          1,
+					Stagger:          1 * time.Second,
+					MaxParallel:      5,
+					HealthCheck:      structs.UpdateStrategyHealthCheck_Checks,
+					MinHealthyTime:   2 * time.Minute,
+					HealthyDeadline:  5 * time.Minute,
+					ProgressDeadline: 5 * time.Minute,
+					AutoRevert:       true,
+					Canary:           1,
 				},
 				Meta: map[string]string{
 					"key": "value",
@@ -1419,6 +1535,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							{
 								Name:        "serviceA",
 								Tags:        []string{"1", "2"},
+								CanaryTags:  []string{"3", "4"},
 								PortLabel:   "foo",
 								AddressMode: "auto",
 								Checks: []*structs.ServiceCheck{
@@ -1434,6 +1551,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:      4 * time.Second,
 										Timeout:       2 * time.Second,
 										InitialStatus: "ok",
+										GRPCService:   "foo.Bar",
+										GRPCUseTLS:    true,
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
 											Grace:          11 * time.Second,
@@ -1530,6 +1649,242 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	structsJob := ApiJobToStructJob(apiJob)
 
 	if diff := pretty.Diff(expected, structsJob); len(diff) > 0 {
+		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
+	}
+
+	systemAPIJob := &api.Job{
+		Stop:        helper.BoolToPtr(true),
+		Region:      helper.StringToPtr("global"),
+		Namespace:   helper.StringToPtr("foo"),
+		ID:          helper.StringToPtr("foo"),
+		ParentID:    helper.StringToPtr("lol"),
+		Name:        helper.StringToPtr("name"),
+		Type:        helper.StringToPtr("system"),
+		Priority:    helper.IntToPtr(50),
+		AllAtOnce:   helper.BoolToPtr(true),
+		Datacenters: []string{"dc1", "dc2"},
+		Constraints: []*api.Constraint{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+			},
+		},
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  helper.StringToPtr("group1"),
+				Count: helper.IntToPtr(5),
+				Constraints: []*api.Constraint{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+					},
+				},
+				RestartPolicy: &api.RestartPolicy{
+					Interval: helper.TimeToPtr(1 * time.Second),
+					Attempts: helper.IntToPtr(5),
+					Delay:    helper.TimeToPtr(10 * time.Second),
+					Mode:     helper.StringToPtr("delay"),
+				},
+				EphemeralDisk: &api.EphemeralDisk{
+					SizeMB:  helper.IntToPtr(100),
+					Sticky:  helper.BoolToPtr(true),
+					Migrate: helper.BoolToPtr(true),
+				},
+				Meta: map[string]string{
+					"key": "value",
+				},
+				Tasks: []*api.Task{
+					{
+						Name:   "task1",
+						Leader: true,
+						Driver: "docker",
+						User:   "mary",
+						Config: map[string]interface{}{
+							"lol": "code",
+						},
+						Env: map[string]string{
+							"hello": "world",
+						},
+						Constraints: []*api.Constraint{
+							{
+								LTarget: "x",
+								RTarget: "y",
+								Operand: "z",
+							},
+						},
+						Resources: &api.Resources{
+							CPU:      helper.IntToPtr(100),
+							MemoryMB: helper.IntToPtr(10),
+							Networks: []*api.NetworkResource{
+								{
+									IP:    "10.10.11.1",
+									MBits: helper.IntToPtr(10),
+									ReservedPorts: []api.Port{
+										{
+											Label: "http",
+											Value: 80,
+										},
+									},
+									DynamicPorts: []api.Port{
+										{
+											Label: "ssh",
+											Value: 2000,
+										},
+									},
+								},
+							},
+						},
+						Meta: map[string]string{
+							"lol": "code",
+						},
+						KillTimeout: helper.TimeToPtr(10 * time.Second),
+						KillSignal:  "SIGQUIT",
+						LogConfig: &api.LogConfig{
+							MaxFiles:      helper.IntToPtr(10),
+							MaxFileSizeMB: helper.IntToPtr(100),
+						},
+						Artifacts: []*api.TaskArtifact{
+							{
+								GetterSource: helper.StringToPtr("source"),
+								GetterOptions: map[string]string{
+									"a": "b",
+								},
+								GetterMode:   helper.StringToPtr("dir"),
+								RelativeDest: helper.StringToPtr("dest"),
+							},
+						},
+						DispatchPayload: &api.DispatchPayloadConfig{
+							File: "fileA",
+						},
+					},
+				},
+			},
+		},
+		Status:            helper.StringToPtr("status"),
+		StatusDescription: helper.StringToPtr("status_desc"),
+		Version:           helper.Uint64ToPtr(10),
+		CreateIndex:       helper.Uint64ToPtr(1),
+		ModifyIndex:       helper.Uint64ToPtr(3),
+		JobModifyIndex:    helper.Uint64ToPtr(5),
+	}
+
+	expectedSystemJob := &structs.Job{
+		Stop:        true,
+		Region:      "global",
+		Namespace:   "foo",
+		ID:          "foo",
+		ParentID:    "lol",
+		Name:        "name",
+		Type:        "system",
+		Priority:    50,
+		AllAtOnce:   true,
+		Datacenters: []string{"dc1", "dc2"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "a",
+				RTarget: "b",
+				Operand: "c",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "group1",
+				Count: 5,
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "x",
+						RTarget: "y",
+						Operand: "z",
+					},
+				},
+				RestartPolicy: &structs.RestartPolicy{
+					Interval: 1 * time.Second,
+					Attempts: 5,
+					Delay:    10 * time.Second,
+					Mode:     "delay",
+				},
+				EphemeralDisk: &structs.EphemeralDisk{
+					SizeMB:  100,
+					Sticky:  true,
+					Migrate: true,
+				},
+				Meta: map[string]string{
+					"key": "value",
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "task1",
+						Driver: "docker",
+						Leader: true,
+						User:   "mary",
+						Config: map[string]interface{}{
+							"lol": "code",
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "x",
+								RTarget: "y",
+								Operand: "z",
+							},
+						},
+						Env: map[string]string{
+							"hello": "world",
+						},
+						Resources: &structs.Resources{
+							CPU:      100,
+							MemoryMB: 10,
+							Networks: []*structs.NetworkResource{
+								{
+									IP:    "10.10.11.1",
+									MBits: 10,
+									ReservedPorts: []structs.Port{
+										{
+											Label: "http",
+											Value: 80,
+										},
+									},
+									DynamicPorts: []structs.Port{
+										{
+											Label: "ssh",
+											Value: 2000,
+										},
+									},
+								},
+							},
+						},
+						Meta: map[string]string{
+							"lol": "code",
+						},
+						KillTimeout: 10 * time.Second,
+						KillSignal:  "SIGQUIT",
+						LogConfig: &structs.LogConfig{
+							MaxFiles:      10,
+							MaxFileSizeMB: 100,
+						},
+						Artifacts: []*structs.TaskArtifact{
+							{
+								GetterSource: "source",
+								GetterOptions: map[string]string{
+									"a": "b",
+								},
+								GetterMode:   "dir",
+								RelativeDest: "dest",
+							},
+						},
+						DispatchPayload: &structs.DispatchPayloadConfig{
+							File: "fileA",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	systemStructsJob := ApiJobToStructJob(systemAPIJob)
+
+	if diff := pretty.Diff(expectedSystemJob, systemStructsJob); len(diff) > 0 {
 		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
 	}
 }

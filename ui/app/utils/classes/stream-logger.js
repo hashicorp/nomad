@@ -2,6 +2,7 @@ import EmberObject, { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
 import TextDecoder from 'nomad-ui/utils/classes/text-decoder';
 import AbstractLogger from './abstract-logger';
+import { fetchFailure } from './log';
 
 export default EmberObject.extend(AbstractLogger, {
   reader: null,
@@ -30,7 +31,11 @@ export default EmberObject.extend(AbstractLogger, {
     let buffer = '';
 
     const decoder = new TextDecoder();
-    const reader = yield logFetch(url).then(res => res.body.getReader());
+    const reader = yield logFetch(url).then(res => res.body.getReader(), fetchFailure(url));
+
+    if (!reader) {
+      return;
+    }
 
     this.set('reader', reader);
 
@@ -68,5 +73,16 @@ export default EmberObject.extend(AbstractLogger, {
     }
   }),
 }).reopenClass({
-  isSupported: !!window.ReadableStream,
+  isSupported: !!window.ReadableStream && !isSafari(),
 });
+
+// Fetch streaming doesn't work in Safari yet despite all the primitives being in place.
+// Bug: https://bugs.webkit.org/show_bug.cgi?id=185924
+// Until this is fixed, Safari needs to be explicitly targeted for poll-based logging.
+function isSafari() {
+  const oldSafariTest = /constructor/i.test(window.HTMLElement);
+  const newSafariTest = (function(p) {
+    return p.toString() === '[object SafariRemoteNotification]';
+  })(!window['safari'] || (typeof window.safari !== 'undefined' && window.safari.pushNotification));
+  return oldSafariTest || newSafariTest;
+}

@@ -1,10 +1,11 @@
-import { collect, sum, bool, equal } from '@ember/object/computed';
+import { alias, equal, or, and } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
-import sumAggregation from '../utils/properties/sum-aggregation';
+
+const JOB_TYPES = ['service', 'batch', 'system'];
 
 export default Model.extend({
   region: attr('string'),
@@ -19,35 +20,95 @@ export default Model.extend({
   createIndex: attr('number'),
   modifyIndex: attr('number'),
 
+  // True when the job is the parent periodic or parameterized jobs
+  // Instances of periodic or parameterized jobs are false for both properties
   periodic: attr('boolean'),
   parameterized: attr('boolean'),
 
-  datacenters: attr(),
-  taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
-  taskGroupSummaries: fragmentArray('task-group-summary'),
+  periodicDetails: attr(),
+  parameterizedDetails: attr(),
 
-  // Aggregate allocation counts across all summaries
-  queuedAllocs: sumAggregation('taskGroupSummaries', 'queuedAllocs'),
-  startingAllocs: sumAggregation('taskGroupSummaries', 'startingAllocs'),
-  runningAllocs: sumAggregation('taskGroupSummaries', 'runningAllocs'),
-  completeAllocs: sumAggregation('taskGroupSummaries', 'completeAllocs'),
-  failedAllocs: sumAggregation('taskGroupSummaries', 'failedAllocs'),
-  lostAllocs: sumAggregation('taskGroupSummaries', 'lostAllocs'),
+  hasChildren: or('periodic', 'parameterized'),
 
-  allocsList: collect(
-    'queuedAllocs',
-    'startingAllocs',
-    'runningAllocs',
-    'completeAllocs',
-    'failedAllocs',
-    'lostAllocs'
+  parent: belongsTo('job', { inverse: 'children' }),
+  children: hasMany('job', { inverse: 'parent' }),
+
+  // The parent job name is prepended to child launch job names
+  trimmedName: computed('name', 'parent', function() {
+    return this.get('parent.content') ? this.get('name').replace(/.+?\//, '') : this.get('name');
+  }),
+
+  // A composite of type and other job attributes to determine
+  // a better type descriptor for human interpretation rather
+  // than for scheduling.
+  displayType: computed('type', 'periodic', 'parameterized', function() {
+    if (this.get('periodic')) {
+      return 'periodic';
+    } else if (this.get('parameterized')) {
+      return 'parameterized';
+    }
+    return this.get('type');
+  }),
+
+  // A composite of type and other job attributes to determine
+  // type for templating rather than scheduling
+  templateType: computed(
+    'type',
+    'periodic',
+    'parameterized',
+    'parent.periodic',
+    'parent.parameterized',
+    function() {
+      const type = this.get('type');
+
+      if (this.get('periodic')) {
+        return 'periodic';
+      } else if (this.get('parameterized')) {
+        return 'parameterized';
+      } else if (this.get('parent.periodic')) {
+        return 'periodic-child';
+      } else if (this.get('parent.parameterized')) {
+        return 'parameterized-child';
+      } else if (JOB_TYPES.includes(type)) {
+        // Guard against the API introducing a new type before the UI
+        // is prepared to handle it.
+        return this.get('type');
+      }
+
+      // A fail-safe in the event the API introduces a new type.
+      return 'service';
+    }
   ),
 
-  totalAllocs: sum('allocsList'),
+  datacenters: attr(),
+  taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
+  summary: belongsTo('job-summary'),
 
-  pendingChildren: attr('number'),
-  runningChildren: attr('number'),
-  deadChildren: attr('number'),
+  // A job model created from the jobs list response will be lacking
+  // task groups. This is an indicator that it needs to be reloaded
+  // if task group information is important.
+  isPartial: equal('taskGroups.length', 0),
+
+  // If a job has only been loaded through the list request, the task groups
+  // are still unknown. However, the count of task groups is available through
+  // the job-summary model which is embedded in the jobs list response.
+  taskGroupCount: or('taskGroups.length', 'taskGroupSummaries.length'),
+
+  // Alias through to the summary, as if there was no relationship
+  taskGroupSummaries: alias('summary.taskGroupSummaries'),
+  queuedAllocs: alias('summary.queuedAllocs'),
+  startingAllocs: alias('summary.startingAllocs'),
+  runningAllocs: alias('summary.runningAllocs'),
+  completeAllocs: alias('summary.completeAllocs'),
+  failedAllocs: alias('summary.failedAllocs'),
+  lostAllocs: alias('summary.lostAllocs'),
+  totalAllocs: alias('summary.totalAllocs'),
+  pendingChildren: alias('summary.pendingChildren'),
+  runningChildren: alias('summary.runningChildren'),
+  deadChildren: alias('summary.deadChildren'),
+  totalChildren: alias('summary.totalChildren'),
+
+  version: attr('number'),
 
   versions: hasMany('job-versions'),
   allocations: hasMany('allocations'),
@@ -55,7 +116,35 @@ export default Model.extend({
   evaluations: hasMany('evaluations'),
   namespace: belongsTo('namespace'),
 
-  hasPlacementFailures: bool('latestFailureEvaluation'),
+  drivers: computed('taskGroups.@each.drivers', function() {
+    return this.get('taskGroups')
+      .mapBy('drivers')
+      .reduce((all, drivers) => {
+        all.push(...drivers);
+        return all;
+      }, [])
+      .uniq();
+  }),
+
+  // Getting all unhealthy drivers for a job can be incredibly expensive if the job
+  // has many allocations. This can lead to making an API request for many nodes.
+  unhealthyDrivers: computed('allocations.@each.unhealthyDrivers.[]', function() {
+    return this.get('allocations')
+      .mapBy('unhealthyDrivers')
+      .reduce((all, drivers) => {
+        all.push(...drivers);
+        return all;
+      }, [])
+      .uniq();
+  }),
+
+  hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
+    return this.get('evaluations')
+      .toArray()
+      .some(evaluation => evaluation.get('isBlocked'));
+  }),
+
+  hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
 
   latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
     const evaluations = this.get('evaluations');
@@ -91,6 +180,14 @@ export default Model.extend({
     return this.store.adapterFor('job').fetchRawDefinition(this);
   },
 
+  forcePeriodic() {
+    return this.store.adapterFor('job').forcePeriodic(this);
+  },
+
+  stop() {
+    return this.store.adapterFor('job').stop(this);
+  },
+
   statusClass: computed('status', function() {
     const classMap = {
       pending: 'is-pending',
@@ -99,5 +196,11 @@ export default Model.extend({
     };
 
     return classMap[this.get('status')] || 'is-dark';
+  }),
+
+  payload: attr('string'),
+  decodedPayload: computed('payload', function() {
+    // Lazily decode the base64 encoded payload
+    return window.atob(this.get('payload') || '');
   }),
 });

@@ -185,6 +185,14 @@ The table below shows this endpoint's support for
                 "Delay": 25000000000,
                 "Mode": "delay"
             },
+            "ReschedulePolicy": {
+                "Attempts": 10,
+                "Delay": 30000000000,
+                "DelayFunction": "exponential",
+                "Interval": 0,
+                "MaxDelay": 3600000000000,
+                "Unlimited": true
+            },
             "EphemeralDisk": {
                 "SizeMB": 300
             }
@@ -220,6 +228,83 @@ $ curl \
   "Index": 0,
   "LastContact": 0,
   "KnownLeader": false
+}
+```
+
+## Parse Job
+
+This endpoint will parse a HCL jobspec and produce the equivalent JSON encoded
+job.
+
+| Method | Path                      | Produces                   |
+| ------ | ------------------------- | -------------------------- |
+| `POST` | `/v1/jobs/parse`          | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `none`       |
+
+### Parameters
+
+- `JobHCL` `(string: <required>)` - Specifies the HCL definition of the job
+  encoded in a JSON string.
+- `Canonicalize` `(bool: false)` - Flag to enable setting any unset fields to
+  their default values.
+
+## Sample Payload
+
+```json
+{
+    "JobHCL":"job \"example\" { type = \"service\" group \"cache\" {} }",
+    "Canonicalize": true
+}
+```
+
+### Sample Request
+
+```text
+$ curl \
+    --request POST \
+    --data '{"Canonicalize": true, "JobHCL": "job \"my-job\" {}"}' \
+    https://localhost:4646/v1/jobs/parse
+```
+
+### Sample Response
+
+```json
+{
+    "AllAtOnce": false,
+    "Constraints": null,
+    "CreateIndex": 0,
+    "Datacenters": null,
+    "ID": "my-job",
+    "JobModifyIndex": 0,
+    "Meta": null,
+    "Migrate": null,
+    "ModifyIndex": 0,
+    "Name": "my-job",
+    "Namespace": "default",
+    "ParameterizedJob": null,
+    "ParentID": "",
+    "Payload": null,
+    "Periodic": null,
+    "Priority": 50,
+    "Region": "global",
+    "Reschedule": null,
+    "Stable": false,
+    "Status": "",
+    "StatusDescription": "",
+    "Stop": false,
+    "SubmitTime": null,
+    "TaskGroups": null,
+    "Type": "service",
+    "Update": null,
+    "VaultToken": "",
+    "Version": 0
 }
 ```
 
@@ -651,6 +736,18 @@ $ curl \
     "EvalID": "a9c5effc-2242-51b2-f1fe-054ee11ab189",
     "Name": "example.cache[0]",
     "NodeID": "cb1f6030-a220-4f92-57dc-7baaabdc3823",
+    "PreviousAllocation": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
+       "NextAllocation": "cd13d9b9-4f97-7184-c88b-7b451981616b",
+       "RescheduleTracker": {
+          "Events": [
+             {
+               "PrevAllocID": "516d2753-0513-cfc7-57ac-2d6fac18b9dc",
+               "PrevNodeID": "9230cd3b-3bda-9a3f-82f9-b2ea8dedb20e",
+               "RescheduleTime": 1517434161192946200,
+               "Delay":5000000000,
+              },
+            ]
+    },
     "JobID": "example",
     "TaskGroup": "cache",
     "DesiredStatus": "run",
@@ -1264,7 +1361,9 @@ $ curl \
 ## Create Job Evaluation
 
 This endpoint creates a new evaluation for the given job. This can be used to
-force run the scheduling logic if necessary.
+force run the scheduling logic if necessary. Since Nomad 0.8.4, this endpoint
+supports a JSON payload with additional options. Support for calling this end point
+without a JSON payload will be removed in Nomad 0.9.
 
 | Method  | Path                       | Produces                   |
 | ------- | -------------------------- | -------------------------- |
@@ -1283,11 +1382,30 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
+- `JobID` `(string: <required>)` - Specify the ID of the job in the JSON payload
+
+- `EvalOptions` `(<optional>)` - Specify additional options to be used during the forced evaluation.
+    - `ForceReschedule` `(bool: false)` - If set, failed allocations of the job are rescheduled
+    immediately. This is useful for operators to force immediate placement even if the failed allocations are past
+    their reschedule limit, or are delayed by several hours because the allocation's reschedule policy has exponential delay.
+
+### Sample Payload
+
+```json
+{
+  "JobID": "my-job",
+  "EvalOptions": {
+     "ForceReschedule":true
+  }
+}
+```
+
 ### Sample Request
 
 ```text
 $ curl \
     --request POST \
+    -d @sample.json \
     https://localhost:4646/v1/job/my-job/evaluate
 ```
 

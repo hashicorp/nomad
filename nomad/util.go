@@ -6,10 +6,11 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -19,18 +20,6 @@ func ensurePath(path string, dir bool) error {
 		path = filepath.Dir(path)
 	}
 	return os.MkdirAll(path, 0755)
-}
-
-// RuntimeStats is used to return various runtime information
-func RuntimeStats() map[string]string {
-	return map[string]string{
-		"kernel.name": runtime.GOOS,
-		"arch":        runtime.GOARCH,
-		"version":     runtime.Version(),
-		"max_procs":   strconv.FormatInt(int64(runtime.GOMAXPROCS(0)), 10),
-		"goroutines":  strconv.FormatInt(int64(runtime.NumGoroutine()), 10),
-		"cpu_count":   strconv.FormatInt(int64(runtime.NumCPU()), 10),
-	}
 }
 
 // serverParts is used to return the parts of a server role
@@ -49,11 +38,18 @@ type serverParts struct {
 	Addr         net.Addr
 	RPCAddr      net.Addr
 	Status       serf.MemberStatus
+	NonVoter     bool
 }
 
 func (s *serverParts) String() string {
 	return fmt.Sprintf("%s (Addr: %s) (DC: %s)",
 		s.Name, s.Addr, s.Datacenter)
+}
+
+func (s *serverParts) Copy() *serverParts {
+	ns := new(serverParts)
+	*ns = *s
+	return ns
 }
 
 // Returns if a member is a Nomad server. Returns a boolean,
@@ -122,6 +118,9 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		}
 	}
 
+	// Check if the server is a non voter
+	_, nonVoter := m.Tags["nonvoter"]
+
 	addr := &net.TCPAddr{IP: m.Addr, Port: port}
 	rpcAddr := &net.TCPAddr{IP: rpcIP, Port: port}
 	parts := &serverParts{
@@ -139,6 +138,7 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 		Build:        *buildVersion,
 		RaftVersion:  raftVsn,
 		Status:       m.Status,
+		NonVoter:     nonVoter,
 	}
 	return true, parts
 }
@@ -207,4 +207,44 @@ func maxUint64(inputs ...uint64) uint64 {
 		}
 	}
 	return max
+}
+
+// getNodeForRpc returns a Node struct if the Node supports Node RPC. Otherwise
+// an error is returned.
+func getNodeForRpc(snap *state.StateSnapshot, nodeID string) (*structs.Node, error) {
+	node, err := snap.NodeByID(nil, nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	if node == nil {
+		return nil, fmt.Errorf("Unknown node %q", nodeID)
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		return nil, err
+	}
+
+	return node, nil
+}
+
+var minNodeVersionSupportingRPC = version.Must(version.NewVersion("0.8.0-rc1"))
+
+// nodeSupportsRpc returns a non-nil error if a Node does not support RPC.
+func nodeSupportsRpc(node *structs.Node) error {
+	rawNodeVer, ok := node.Attributes["nomad.version"]
+	if !ok {
+		return structs.ErrUnknownNomadVersion
+	}
+
+	nodeVer, err := version.NewVersion(rawNodeVer)
+	if err != nil {
+		return structs.ErrUnknownNomadVersion
+	}
+
+	if nodeVer.LessThan(minNodeVersionSupportingRPC) {
+		return structs.ErrNodeLacksRpc
+	}
+
+	return nil
 }

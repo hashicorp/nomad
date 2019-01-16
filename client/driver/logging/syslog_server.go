@@ -77,7 +77,7 @@ func (s *SyslogServer) read(connection net.Conn) {
 	}
 }
 
-// Shutdown shutsdown the syslog server
+// Shutdown the syslog server
 func (s *SyslogServer) Shutdown() {
 	s.doneLock.Lock()
 	defer s.doneLock.Unlock()

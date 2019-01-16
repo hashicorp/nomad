@@ -285,7 +285,7 @@ be used automatically.
   * `aws_access_key_id` (required) - Minio access key.
   * `aws_access_key_secret` (required) - Minio access key secret.
   * `region` (optional - defaults to us-east-1) - Region identifier to use.
-  * `version` (optional - fefaults to Minio default) - Configuration file format.
+  * `version` (optional - defaults to Minio default) - Configuration file format.
 
 #### S3 Bucket Examples
 

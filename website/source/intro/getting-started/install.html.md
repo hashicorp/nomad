@@ -49,40 +49,29 @@ $ vagrant ssh
 ...
 
 vagrant@nomad:~$ nomad
+Usage: nomad [-version] [-help] [-autocomplete-(un)install] <command> [args]
 
-Usage: nomad [-version] [-help] [-autocomplete-(un)install] <command> [<args>]
+Common commands:
+    run         Run a new job or update an existing job
+    stop        Stop a running job
+    status      Display the status output for a resource
+    alloc       Interact with allocations
+    job         Interact with jobs
+    node        Interact with nodes
+    agent       Runs a Nomad agent
 
-Available commands are:
-    acl                   Interact with ACL policies and tokens
-    agent                 Runs a Nomad agent
-    agent-info            Display status information about the local agent
-    alloc-status          Display allocation status information and metadata
-    client-config         View or modify client configuration details
-    deployment            Interact with deployments
-    eval-status           Display evaluation status and placement failure reasons
-    fs                    Inspect the contents of an allocation directory
-    init                  Create an example job file
-    inspect               Inspect a submitted job
-    job                   Interact with jobs
-    keygen                Generates a new encryption key
-    keyring               Manages gossip layer encryption keys
-    logs                  Streams the logs of a task.
-    namespace             Interact with namespaces
-    node-drain            Toggle drain mode on a given node
-    node-status           Display status information about nodes
-    operator              Provides cluster-level tools for Nomad operators
-    plan                  Dry-run a job update to determine its effects
-    quota                 Interact with quotas
-    run                   Run a new job or update an existing job
-    sentinel              Interact with Sentinel policies
-    server-force-leave    Force a server into the 'left' state
-    server-join           Join server nodes together
-    server-members        Display a list of known servers and their status
-    status                Display the status output for a resource
-    stop                  Stop a running job
-    ui                    Open the Nomad Web UI
-    validate              Checks if a given job specification is valid
-    version               Prints the Nomad version
+Other commands:
+    acl             Interact with ACL policies and tokens
+    agent-info      Display status information about the local agent
+    deployment      Interact with deployments
+    eval            Interact with evaluations
+    namespace       Interact with namespaces
+    operator        Provides cluster-level tools for Nomad operators
+    quota           Interact with quotas
+    sentinel        Interact with Sentinel policies
+    server          Interact with servers
+    ui              Open the Nomad Web UI
+    version         Prints the Nomad version
 ```
 
 If you get an error that Nomad could not be found, then your Vagrant box

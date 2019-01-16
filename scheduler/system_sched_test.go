@@ -7,6 +7,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -86,7 +87,7 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestSystemeSched_JobRegister_StickyAllocs(t *testing.T) {
+func TestSystemSched_JobRegister_StickyAllocs(t *testing.T) {
 	h := NewHarness(t)
 
 	// Create some nodes
@@ -971,6 +972,7 @@ func TestSystemSched_NodeDown(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
+	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
@@ -1099,6 +1101,7 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
+	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
@@ -1363,7 +1366,7 @@ func TestSystemSched_ChainedAlloc(t *testing.T) {
 	}
 	sort.Strings(prevAllocs)
 
-	// Ensure that the new allocations has their corresponging original
+	// Ensure that the new allocations has their corresponding original
 	// allocation ids
 	if !reflect.DeepEqual(prevAllocs, allocIDs) {
 		t.Fatalf("expected: %v, actual: %v", len(allocIDs), len(prevAllocs))
@@ -1412,6 +1415,7 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
+	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 	alloc.TaskGroup = "web"
 
 	alloc2 := mock.Alloc()

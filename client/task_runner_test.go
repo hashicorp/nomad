@@ -143,7 +143,7 @@ func testTaskRunnerFromAlloc(t *testing.T, restarts bool, alloc *structs.Allocat
 
 	vclient := vaultclient.NewMockVaultClient()
 	cclient := consul.NewMockAgent()
-	serviceClient := consul.NewServiceClient(cclient, true, logger)
+	serviceClient := consul.NewServiceClient(cclient, logger, true)
 	go serviceClient.Run()
 	tr := NewTaskRunner(logger, conf, db, upd.Update, taskDir, alloc, task, vclient, serviceClient)
 	if !restarts {
@@ -642,7 +642,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	ctx := testTaskRunnerFromAlloc(t, true, alloc)
 
 	// Use mockConsulServiceClient
-	consul := newMockConsulServiceClient()
+	consul := newMockConsulServiceClient(t)
 	ctx.tr.consul = consul
 
 	ctx.tr.MarkReceived()
@@ -650,7 +650,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	defer ctx.Cleanup()
 
 	// Assert it is properly registered and unregistered
-	if expected := 4; len(consul.ops) != expected {
+	if expected := 6; len(consul.ops) != expected {
 		t.Errorf("expected %d consul ops but found: %d", expected, len(consul.ops))
 	}
 	if consul.ops[0].op != "add" {
@@ -659,11 +659,17 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	if consul.ops[1].op != "remove" {
 		t.Errorf("expected second op to be remove but found: %q", consul.ops[1].op)
 	}
-	if consul.ops[2].op != "add" {
-		t.Errorf("expected third op to be add but found: %q", consul.ops[2].op)
+	if consul.ops[2].op != "remove" {
+		t.Errorf("expected third op to be remove but found: %q", consul.ops[2].op)
 	}
-	if consul.ops[3].op != "remove" {
-		t.Errorf("expected fourth/final op to be remove but found: %q", consul.ops[3].op)
+	if consul.ops[3].op != "add" {
+		t.Errorf("expected fourth op to be add but found: %q", consul.ops[3].op)
+	}
+	if consul.ops[4].op != "remove" {
+		t.Errorf("expected fifth op to be remove but found: %q", consul.ops[4].op)
+	}
+	if consul.ops[5].op != "remove" {
+		t.Errorf("expected sixth op to be remove but found: %q", consul.ops[5].op)
 	}
 }
 
@@ -1854,7 +1860,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	// backed by a mock consul whose checks are always unhealthy.
 	consulAgent := consul.NewMockAgent()
 	consulAgent.SetStatus("critical")
-	consulClient := consul.NewServiceClient(consulAgent, true, ctx.tr.logger)
+	consulClient := consul.NewServiceClient(consulAgent, ctx.tr.logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 
@@ -2023,7 +2029,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	}, func(err error) {
 		services, _ := ctx.consul.Services()
 		for _, s := range services {
-			t.Logf(pretty.Sprint("Serivce: ", s))
+			t.Logf(pretty.Sprint("Service: ", s))
 		}
 		for _, c := range ctx.consul.CheckRegs() {
 			t.Logf(pretty.Sprint("Check:   ", c))

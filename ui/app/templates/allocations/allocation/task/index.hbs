@@ -1,15 +1,13 @@
 {{#global-header class="page-header"}}
-  <li><a href="#" data-test-breadcrumb="allocations">Allocations</a></li>
-  <li>
-    {{#link-to "allocations.allocation" model.allocation data-test-breadcrumb="allocation"}}
-      {{model.allocation.shortId}}
-    {{/link-to}}
-  </li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation.task" model.allocation model data-test-breadcrumb="task"}}
-      {{model.name}}
-    {{/link-to}}
-  </li>
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to
+        data-test-breadcrumb=breadcrumb.label
+        params=breadcrumb.args}}
+        {{breadcrumb.label}}
+      {{/link-to}}
+    </li>
+  {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   {{partial "allocations/allocation/task/subnav"}}
@@ -56,8 +54,8 @@
                 <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
                 <td data-test-task-address-name>{{row.model.name}}</td>
                 <td data-test-task-address-address>
-                  <a href="http://{{model.allocation.node.address}}:{{row.model.port}}" target="_blank">
-                    {{model.allocation.node.address}}:{{row.model.port}}
+                  <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank">
+                    {{network.ip}}:{{row.model.port}}
                   </a>
                 </td>
               </tr>
@@ -83,8 +81,8 @@
               <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
               <td data-test-task-event-type>{{row.model.type}}</td>
               <td data-test-task-event-message>
-                {{#if row.model.displayMessage}}
-                  {{row.model.displayMessage}}
+                {{#if row.model.message}}
+                  {{row.model.message}}
                 {{else}}
                   <em>No message</em>
                 {{/if}}

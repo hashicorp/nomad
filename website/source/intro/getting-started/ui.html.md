@@ -48,7 +48,7 @@ for the task group.
 [![Nomad UI Task Group Detail][img-task-group-detail]][img-task-group-detail]
 
 Click on the allocation in the allocations table. This page lists all tasks for an allocation as well
-as the recent events for each task. It is similar to the `nomad alloc-status` command.
+as the recent events for each task. It is similar to the `nomad alloc status` command.
 
 [![Nomad UI Alloc Status][img-alloc-status]][img-alloc-status]
 

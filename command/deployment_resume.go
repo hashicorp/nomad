@@ -63,10 +63,11 @@ func (c *DeploymentResumeCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (c *DeploymentResumeCommand) Name() string { return "deployment resume" }
 func (c *DeploymentResumeCommand) Run(args []string) int {
 	var detach, verbose bool
 
-	flags := c.Meta.FlagSet("deployment resume", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
@@ -75,10 +76,11 @@ func (c *DeploymentResumeCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
+	// Check that we got exactly one argument
 	args = flags.Args()
 	if l := len(args); l != 1 {
-		c.Ui.Error(c.Help())
+		c.Ui.Error("This command takes one argument: <deployment id>")
+		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 

@@ -229,7 +229,7 @@ func TestExecutor_MakeExecutable(t *testing.T) {
 	// Set its permissions to be non-executable
 	f.Chmod(os.FileMode(0610))
 
-	// Make a fake exececutor
+	// Make a fake executor
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags))
 
 	err = executor.(*UniversalExecutor).makeExecutable(f.Name())
@@ -258,7 +258,7 @@ func TestScanPids(t *testing.T) {
 	p4 := NewFakeProcess(3, 10)
 	p5 := NewFakeProcess(20, 18)
 
-	// Make a fake exececutor
+	// Make a fake executor
 	executor := NewExecutor(log.New(os.Stdout, "", log.LstdFlags)).(*UniversalExecutor)
 
 	nomadPids, err := executor.scanPids(5, []ps.Process{p1, p2, p3, p4, p5})

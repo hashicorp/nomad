@@ -20,7 +20,7 @@ func TestLogParser_Priority(t *testing.T) {
 		t.Fatalf("got an err: %v", err)
 	}
 	if p.Severity != syslog.LOG_INFO {
-		t.Fatalf("expected serverity: %v, got: %v", syslog.LOG_INFO, p.Severity)
+		t.Fatalf("expected severity: %v, got: %v", syslog.LOG_INFO, p.Severity)
 	}
 
 	idx := d.logContentIndex(line)
@@ -39,7 +39,7 @@ func TestLogParser_Priority_UnixFormatter(t *testing.T) {
 		t.Fatalf("got an err: %v", err)
 	}
 	if p.Severity != syslog.LOG_INFO {
-		t.Fatalf("expected serverity: %v, got: %v", syslog.LOG_INFO, p.Severity)
+		t.Fatalf("expected severity: %v, got: %v", syslog.LOG_INFO, p.Severity)
 	}
 
 	idx := d.logContentIndex(line)

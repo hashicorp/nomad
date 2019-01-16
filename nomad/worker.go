@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -66,7 +67,7 @@ type Worker struct {
 	evalToken string
 
 	// snapshotIndex is the index of the snapshot in which the scheduler was
-	// first envoked. It is used to mark the SnapshotIndex of evaluations
+	// first invoked. It is used to mark the SnapshotIndex of evaluations
 	// Created, Updated or Reblocked.
 	snapshotIndex uint64
 }
@@ -113,18 +114,21 @@ func (w *Worker) run() {
 
 		// Check for a shutdown
 		if w.srv.IsShutdown() {
+			w.logger.Printf("[ERR] worker: nacking eval %q because the server is shutting down", eval.ID)
 			w.sendAck(eval.ID, token, false)
 			return
 		}
 
 		// Wait for the raft log to catchup to the evaluation
 		if err := w.waitForIndex(waitIndex, raftSyncLimit); err != nil {
+			w.logger.Printf("[ERR] worker: error waiting for Raft index for eval %q: %v", eval.ID, err)
 			w.sendAck(eval.ID, token, false)
 			continue
 		}
 
 		// Invoke the scheduler to determine placements
 		if err := w.invokeScheduler(eval, token); err != nil {
+			w.logger.Printf("[ERR] worker: error invoking the scheduler for eval %q: %v", eval.ID, err)
 			w.sendAck(eval.ID, token, false)
 			continue
 		}
@@ -327,7 +331,7 @@ SUBMIT:
 		}
 		return nil, nil, err
 	} else {
-		w.logger.Printf("[DEBUG] worker: submitted plan for evaluation %s", plan.EvalID)
+		w.logger.Printf("[DEBUG] worker: submitted plan at index %d for evaluation %s", resp.Index, plan.EvalID)
 		w.backoffReset()
 	}
 
@@ -516,7 +520,7 @@ func (w *Worker) shouldResubmit(err error) bool {
 
 // backoffErr is used to do an exponential back off on error. This is
 // maintained statefully for the worker. Returns if attempts should be
-// abandoneded due to shutdown.
+// abandoned due to shutdown.
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	backoff := (1 << (2 * w.failures)) * base
 	if backoff > limit {

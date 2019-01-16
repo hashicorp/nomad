@@ -1,6 +1,8 @@
 package command
 
 import (
+	"strings"
+
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -11,12 +13,37 @@ type NamespaceCommand struct {
 }
 
 func (f *NamespaceCommand) Help() string {
-	return "This command is accessed by using one of the subcommands below."
+	helpText := `
+Usage: nomad namespace <subcommand> [options] [args]
+
+  This command groups subcommands for interacting with namespaces. Namespaces
+  allow jobs and their associated objects to be segmented from each other and
+  other users of the cluster. For a full guide on namespaces see:
+  https://www.nomadproject.io/guides/namespaces.html
+
+  Create or update a namespace:
+
+      $ nomad namespace apply <name> -description "My new namespace"
+
+  List namespaces:
+
+      $ nomad namespace list
+
+  View the status of a namespace:
+
+      $ nomad namespace status <name>
+
+  Please see the individual subcommand help for detailed usage information.
+`
+
+	return strings.TrimSpace(helpText)
 }
 
 func (f *NamespaceCommand) Synopsis() string {
 	return "Interact with namespaces"
 }
+
+func (f *NamespaceCommand) Name() string { return "namespace" }
 
 func (f *NamespaceCommand) Run(args []string) int {
 	return cli.RunResultHelp

@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	// gitSSHPrefix is the prefix for dowwnloading via git using ssh
+	// gitSSHPrefix is the prefix for downloading via git using ssh
 	gitSSHPrefix = "git@github.com:"
 )
 

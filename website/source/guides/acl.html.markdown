@@ -371,12 +371,12 @@ This is because the reset file is in place, but with the incorrect index.
 The reset file can be deleted, but Nomad will not reset the bootstrap until the index is corrected.
 
 ## Vault Integration
-Hashicorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of
+HashiCorp Vault has a secret backend for generating short-lived Nomad tokens. As Vault has a number of
 authentication backends, it could provide a workflow where a user or orchestration system authenticates
 using an pre-existing identity service (LDAP, Okta, Amazon IAM, etc.) in order to obtain a short-lived
 Nomad token.
 
-~> Hashicorp Vault is a standalone product with it's own set of deployment and
+~> HashiCorp Vault is a standalone product with it's own set of deployment and
    configuration best practices. Please review [Vault's
    documentation](https://www.vaultproject.io/docs/index.html) before deploying it
    in production.
@@ -448,15 +448,15 @@ is specified on the path, while the mapping to policies is done by naming them i
 for example:
 
 ```
-$ vault write nomad/role/role-name policy=policyone,policytwo
-Success! Data written to: nomad/roles/role-name
+$ vault write nomad/role/role-name policies=policyone,policytwo
+Success! Data written to: nomad/role/role-name
 ```
 
 Similarly, to create management tokens, or global tokens:
 
 ```
 $ vault write nomad/role/role-name type=management global=true
-Success! Data written to: nomad/roles/role-name
+Success! Data written to: nomad/role/role-name
 ```
 
 Create a Vault policy to allow different identities to get tokens associated with a particular
@@ -465,7 +465,7 @@ role:
 ```
 $ echo 'path "nomad/creds/role-name" {
   capabilities = ["read"]
-}' | vault policy-write nomad-user-policy -
+}' | vault policy write nomad-user-policy -
 Policy 'nomad-user-policy' written.
 ```
 
@@ -474,7 +474,7 @@ a role available on the [Authentication backends page](https://www.vaultproject.
 Otherwise, for testing purposes, a Vault token can be generated associated with the policy:
 
 ```
-$ vault token-create -policy=nomad-user-policy
+$ vault token create -policy=nomad-user-policy
 Key             Value
 ---             -----
 token           deedfa83-99b5-34a1-278d-e8fb76809a5b
@@ -490,7 +490,7 @@ Finally obtain a Nomad Token using the existing Vault Token:
 $ vault read nomad/creds/role-name
 Key             Value
 ---             -----
-lease_id        nomad/creds/test/6fb22e25-0cd1-b4c9-494e-aba330c317b9
+lease_id        nomad/creds/role-name/6fb22e25-0cd1-b4c9-494e-aba330c317b9
 lease_duration  768h0m0s
 lease_renewable true
 accessor_id     10b8fb49-7024-2126-8683-ab355b581db2

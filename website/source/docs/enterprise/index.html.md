@@ -3,20 +3,24 @@ layout: "docs"
 page_title: "Nomad Enterprise"
 sidebar_current: "docs-enterprise"
 description: |-
-  Nomad Enterprise adds collaboration and governance capabilities to Nomad.
-  Features include Namespaces, Resource Quotas, and Sentinel Policies.
+  Nomad Enterprise adds operations, collaboration, and governance capabilities to Nomad.
+  Features include Namespaces, Resource Quotas, Sentinel Policies, and Advanced Autopilot.
 ---
 
 # Nomad Enterprise
 
-[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) adds collaboration
-and governance capabilities to Nomad. With Nomad Enterprise, operators can enable
-multiple teams to safely use a single multi-region deployment, limit resource
-consumption across teams or projects, and enforce arbitrary fine-grained policies
-upon job submission. Nomad Enterprise features include:
+[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) adds collaboration, 
+operational, and governance capabilities to Nomad. Namespaces allow multiple 
+teams to safely use a shared multi-region deployment. With Resource Quotas, 
+operators can limit resource consumption across teams or projects. Sentinel 
+policies enable enforcement of arbitrary fine-grained policies on job submission. 
+Advanced Autopilot capabilities enable automated server upgrades, enhanced scalability 
+for reads and scheduling, and hot server failover on a per availability zone basis. See the 
+links below for a detailed overview of each feature.
 
 - [Namespaces](/docs/enterprise/namespaces/index.html)
 - [Resource Quotas](/docs/enterprise/quotas/index.html)
 - [Sentinel Policies](/docs/enterprise/sentinel/index.html)
+- [Advanced Autopilot](/docs/enterprise/autopilot/index.html)
 
 These features are part of [Nomad Enterprise](https://www.hashicorp.com/products/nomad/).

@@ -14,11 +14,11 @@
     "precommit": "lint-staged"
   },
   "lint-staged": {
-    "ui/{app,tests,config,lib,mirage}/**/*.js": [
+    "{app,tests,config,lib,mirage}/**/*.js": [
       "prettier --write",
       "git add"
     ],
-    "ui/app/styles/**/*.*": [
+    "app/styles/**/*.*": [
       "prettier --write",
       "git add"
     ]
@@ -31,7 +31,7 @@
     "d3-transition": "^1.1.0",
     "ember-ajax": "^3.0.0",
     "ember-browserify": "^1.2.0",
-    "ember-cli": "2.17.1",
+    "ember-cli": "~2.18.2",
     "ember-cli-babel": "^6.0.0",
     "ember-cli-bourbon": "2.0.0-beta.1",
     "ember-cli-dependency-checker": "^2.1.0",
@@ -39,7 +39,7 @@
     "ember-cli-htmlbars": "^2.0.3",
     "ember-cli-htmlbars-inline-precompile": "^1.0.2",
     "ember-cli-inject-live-reload": "^1.4.1",
-    "ember-cli-mirage": "^0.4.1",
+    "ember-cli-mirage": "^0.4.3",
     "ember-cli-moment-shim": "^3.5.0",
     "ember-cli-qunit": "^4.2.1",
     "ember-cli-sass": "^7.1.2",
@@ -49,7 +49,7 @@
     "ember-cli-uglify": "^2.0.0",
     "ember-composable-helpers": "^2.0.3",
     "ember-concurrency": "^0.8.12",
-    "ember-data": "~2.17.0",
+    "ember-data": "~2.18.2",
     "ember-data-model-fragments": "^2.14.0",
     "ember-export-application-global": "^2.0.0",
     "ember-fetch": "^3.4.3",
@@ -61,16 +61,18 @@
     "ember-power-select": "^1.10.4",
     "ember-resolver": "^4.5.0",
     "ember-sinon": "^1.0.1",
-    "ember-source": "~2.17.0",
+    "ember-source": "~2.18.2",
     "ember-test-selectors": "^0.3.8",
     "ember-truth-helpers": "^2.0.0",
     "ember-welcome-page": "^3.0.0",
     "eslint": "^4.13.1",
     "flat": "^4.0.0",
+    "fuse.js": "~3.2.0",
     "husky": "^0.14.3",
     "json-formatter-js": "^2.2.0",
     "lint-staged": "^6.0.0",
     "loader.js": "^4.2.3",
+    "lodash.intersection": "^4.4.0",
     "prettier": "^1.4.4",
     "query-string": "^5.0.0"
   },

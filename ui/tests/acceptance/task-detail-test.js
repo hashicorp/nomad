@@ -2,7 +2,6 @@ import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helper
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import moment from 'moment';
-import ipParts from 'nomad-ui/utils/ip-parts';
 
 let allocation;
 let task;
@@ -12,18 +11,14 @@ moduleForAcceptance('Acceptance | task detail', {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
-      useMessagePassthru: true,
-    });
+    allocation = server.create('allocation', 'withTaskWithPorts');
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     visit(`/allocations/${allocation.id}/${task.name}`);
   },
 });
 
-test('/allocation/:id/:task_name should name the task and list high-level task information', function(
-  assert
-) {
+test('/allocation/:id/:task_name should name the task and list high-level task information', function(assert) {
   assert.ok(find('[data-test-title]').textContent.includes(task.name), 'Task name');
   assert.ok(find('[data-test-state]').textContent.includes(task.state), 'Task state');
 
@@ -35,34 +30,75 @@ test('/allocation/:id/:task_name should name the task and list high-level task i
   );
 });
 
-test('breadcrumbs includes allocations and link to the allocation detail page', function(assert) {
+test('breadcrumbs match jobs / job / task group / allocation / task', function(assert) {
+  const { jobId, taskGroup } = allocation;
+  const job = server.db.jobs.find(jobId);
+
+  const shortId = allocation.id.split('-')[0];
+
   assert.equal(
-    find('[data-test-breadcrumb="allocations"]').textContent.trim(),
-    'Allocations',
-    'Allocations is the first breadcrumb'
+    find('[data-test-breadcrumb="Jobs"]').textContent.trim(),
+    'Jobs',
+    'Jobs is the first breadcrumb'
   );
   assert.equal(
-    find('[data-test-breadcrumb="allocations"]').getAttribute('href'),
-    '#',
-    "Allocations breadcrumb doesn't link anywhere"
+    find(`[data-test-breadcrumb="${job.name}"]`).textContent.trim(),
+    job.name,
+    'Job is the second breadcrumb'
   );
   assert.equal(
-    find('[data-test-breadcrumb="allocation"]').textContent.trim(),
-    allocation.id.split('-')[0],
-    'Allocation short id is the second breadcrumb'
+    find(`[data-test-breadcrumb="${taskGroup}`).textContent.trim(),
+    taskGroup,
+    'Task Group is the third breadcrumb'
   );
   assert.equal(
-    find('[data-test-breadcrumb="task"]').textContent.trim(),
+    find(`[data-test-breadcrumb="${shortId}"]`).textContent.trim(),
+    shortId,
+    'Allocation short id is the fourth breadcrumb'
+  );
+  assert.equal(
+    find(`[data-test-breadcrumb="${task.name}"]`).textContent.trim(),
     task.name,
-    'Task name is the third breadcrumb'
+    'Task name is the fifth breadcrumb'
   );
 
-  click('[data-test-breadcrumb="allocation"]');
+  click('[data-test-breadcrumb="Jobs"]');
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
+  });
+  andThen(() => {
+    visit(`/allocations/${allocation.id}/${task.name}`);
+  });
+  andThen(() => {
+    click(`[data-test-breadcrumb="${job.name}"]`);
+  });
+  andThen(() => {
+    assert.equal(currentURL(), `/jobs/${job.id}`, 'Job breadcrumb links correctly');
+  });
+  andThen(() => {
+    visit(`/allocations/${allocation.id}/${task.name}`);
+  });
+  andThen(() => {
+    click(`[data-test-breadcrumb="${taskGroup}"]`);
+  });
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/${taskGroup}`,
+      'Task Group breadcrumb links correctly'
+    );
+  });
+  andThen(() => {
+    visit(`/allocations/${allocation.id}/${task.name}`);
+  });
+  andThen(() => {
+    click(`[data-test-breadcrumb="${shortId}"]`);
+  });
   andThen(() => {
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
-      'Second breadcrumb links back to the allocation detail'
+      'Allocations breadcrumb links correctly'
     );
   });
 });
@@ -83,10 +119,10 @@ test('the addresses table lists all reserved and dynamic ports', function(assert
 });
 
 test('each address row shows the label and value of the address', function(assert) {
-  const node = server.db.nodes.find(allocation.nodeId);
   const taskResources = allocation.taskResourcesIds
     .map(id => server.db.taskResources.find(id))
     .findBy('name', task.name);
+  const networkAddress = taskResources.resources.Networks[0].IP;
   const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
   const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
   const address = reservedPorts.concat(dynamicPorts).sortBy('Label')[0];
@@ -104,7 +140,7 @@ test('each address row shows the label and value of the address', function(asser
   );
   assert.equal(
     addressRow.querySelector('[data-test-task-address-address]').textContent.trim(),
-    `${ipParts(node.httpAddr).address}:${address.Value}`,
+    `${networkAddress}:${address.Value}`,
     'Value'
   );
 });
@@ -119,9 +155,7 @@ test('the events table lists all recent events', function(assert) {
   );
 });
 
-test('each recent event should list the time, type, and description of the event', function(
-  assert
-) {
+test('each recent event should list the time, type, and description of the event', function(assert) {
   const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
   const recentEvent = findAll('[data-test-task-event]').get('lastObject');
 
@@ -137,7 +171,7 @@ test('each recent event should list the time, type, and description of the event
   );
   assert.equal(
     recentEvent.querySelector('[data-test-task-event-message]').textContent.trim(),
-    event.message,
+    event.displayMessage,
     'Event message'
   );
 });
@@ -149,7 +183,7 @@ test('when the allocation is not found, the application errors', function(assert
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
-      'A request to the non-existent allocation is made'
+      'A request to the nonexistent allocation is made'
     );
     assert.equal(
       currentURL(),

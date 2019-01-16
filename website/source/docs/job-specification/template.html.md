@@ -221,7 +221,24 @@ The parser will read the JSON string, so the `$CERT_PEM` environment variable
 will be identical to the contents of the file.
 
 For more details see [go-envparser's
-README](https://github.com/schmichael/go-envparse#readme).
+README](https://github.com/hashicorp/go-envparse#readme).
+
+## Vault Integration
+
+This example acquires a PKI certificate from Vault in PEM format and stores it into your application's secret directory.
+
+```hcl
+template {
+  data = <<EOH
+{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" "format=pem" }}
+{{ .Data.certificate }}
+{{ .Data.issuing_ca }}
+{{ .Data.private_key }}{{ end }}
+EOH
+  destination   = "${NOMAD_SECRETS_DIR}/bundle.pem"
+  change_mode   = "restart"
+}
+```
 
 ## Client Configuration
 

@@ -1,8 +1,13 @@
 {{#global-header class="page-header"}}
-  <li><a href="#">Allocations</a></li>
-  <li class="is-active">
-    {{#link-to "allocations.allocation" model}}{{model.shortId}}{{/link-to}}
-  </li>
+  {{#each breadcrumbs as |breadcrumb index|}}
+    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
+      {{#link-to
+        data-test-breadcrumb=breadcrumb.label
+        params=breadcrumb.args}}
+        {{breadcrumb.label}}
+      {{/link-to}}
+    </li>
+  {{/each}}
 {{/global-header}}
 {{#gutter-menu class="page-body"}}
   <section class="section">
@@ -35,6 +40,7 @@
           sortDescending=sortDescending
           class="is-striped" as |t|}}
           {{#t.head}}
+            <th class="is-narrow"></th>
             {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
             {{#t.sort-by prop="state"}}State{{/t.sort-by}}
             <th>Last Event</th>
@@ -42,16 +48,26 @@
             <th>Addresses</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            <tr data-test-task-row={{row.model.task.name}}>
+            <tr
+              data-test-task-row={{row.model.task.name}}
+              onclick={{action "taskClick" row.model.allocation row.model}}
+              class="is-interactive">
+              <td class="is-narrow">
+                {{#if (not row.model.driverStatus.healthy)}}
+                  <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="{{row.model.driver}} is unhealthy">
+                    {{x-icon "warning" class="is-warning"}}
+                  </span>
+                {{/if}}
+              </td>
               <td data-test-name>
-                {{#link-to "allocations.allocation.task" row.model.allocation row.model}}
-                  {{row.model.task.name}}
+                {{#link-to "allocations.allocation.task" row.model.allocation row.model class="is-primary"}}
+                  {{row.model.name}}
                 {{/link-to}}
               </td>
               <td data-test-state>{{row.model.state}}</td>
               <td data-test-message>
-                {{#if row.model.events.lastObject.displayMessage}}
-                  {{row.model.events.lastObject.displayMessage}}
+                {{#if row.model.events.lastObject.message}}
+                  {{row.model.events.lastObject.message}}
                 {{else}}
                   <em>No message</em>
                 {{/if}}
@@ -59,18 +75,20 @@
               <td data-test-time>{{moment-format row.model.events.lastObject.time "MM/DD/YY HH:mm:ss"}}</td>
               <td data-test-ports>
                 <ul>
-                  {{#each row.model.resources.networks.firstObject.reservedPorts as |port|}}
-                    <li>
-                      <strong>{{port.Label}}:</strong>
-                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
-                    </li>
-                  {{/each}}
-                  {{#each row.model.resources.networks.firstObject.dynamicPorts as |port|}}
-                    <li>
-                      <strong>{{port.Label}}:</strong>
-                      <a href="http://{{row.model.allocation.node.address}}:{{port.Value}}" target="_blank">{{row.model.allocation.node.address}}:{{port.Value}}</a>
-                    </li>
-                  {{/each}}
+                  {{#with row.model.resources.networks.firstObject as |network|}}
+                    {{#each network.reservedPorts as |port|}}
+                      <li data-test-port>
+                        <strong>{{port.Label}}:</strong>
+                        <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+                      </li>
+                    {{/each}}
+                    {{#each network.dynamicPorts as |port|}}
+                      <li>
+                        <strong>{{port.Label}}:</strong>
+                        <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+                      </li>
+                    {{/each}}
+                  {{/with}}
                 </ul>
               </td>
             </tr>
@@ -78,5 +96,16 @@
         {{/list-table}}
       </div>
     </div>
+
+    {{#if model.hasRescheduleEvents}}
+      <div class="boxed-section" data-test-reschedule-events>
+        <div class="boxed-section-head is-hollow">
+          Reschedule Events
+        </div>
+        <div class="boxed-section-body">
+          {{reschedule-event-timeline allocation=model}}
+        </div>
+      </div>
+    {{/if}}
   </section>
 {{/gutter-menu}}

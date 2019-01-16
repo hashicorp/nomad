@@ -23,7 +23,7 @@ import (
 // TestPrevAlloc_LocalPrevAlloc asserts that when a previous alloc runner is
 // set a localPrevAlloc will block on it.
 func TestPrevAlloc_LocalPrevAlloc(t *testing.T) {
-	_, prevAR := testAllocRunner(false)
+	_, prevAR := testAllocRunner(t, false)
 	prevAR.alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "10s"
 
 	newAlloc := mock.Alloc()
@@ -177,7 +177,7 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	}
 	defer os.RemoveAll(dir1)
 
-	c1 := testClient(t, func(c *config.Config) {
+	c1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = nil
 	})
 	defer c1.Shutdown()

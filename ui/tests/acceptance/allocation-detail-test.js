@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import { assign } from '@ember/polyfills';
 import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
@@ -13,18 +14,29 @@ moduleForAcceptance('Acceptance | allocation detail', {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupCount: 0 });
-    allocation = server.create('allocation', 'withTaskWithPorts', {
-      useMessagePassthru: true,
+    job = server.create('job', { groupCount: 0, createAllocations: false });
+    allocation = server.create('allocation', 'withTaskWithPorts');
+
+    // Make sure the node has an unhealthy driver
+    node.update({
+      driver: assign(node.drivers, {
+        docker: {
+          detected: true,
+          healthy: false,
+        },
+      }),
+    });
+
+    // Make sure a task for the allocation depends on the unhealthy driver
+    server.schema.tasks.first().update({
+      driver: 'docker',
     });
 
     visit(`/allocations/${allocation.id}`);
   },
 });
 
-test('/allocation/:id should name the allocation and link to the corresponding job and node', function(
-  assert
-) {
+test('/allocation/:id should name the allocation and link to the corresponding job and node', function(assert) {
   assert.ok(
     find('[data-test-title]').textContent.includes(allocation.name),
     'Allocation name is in the heading'
@@ -99,7 +111,7 @@ test('each task row should list high-level information for the task', function(a
       .find('[data-test-message]')
       .text()
       .trim(),
-    event.message,
+    event.displayMessage,
     'Event Message'
   );
   assert.equal(
@@ -125,16 +137,52 @@ test('each task row should list high-level information for the task', function(a
   });
 });
 
-test('when the allocation is not found, an error message is shown, but the URL persists', function(
-  assert
-) {
+test('each task row should link to the task detail page', function(assert) {
+  const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
+
+  click('[data-test-task-row] [data-test-name] a');
+
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}/${task.name}`,
+      'Task name in task row links to task detail'
+    );
+  });
+
+  andThen(() => {
+    visit(`/allocations/${allocation.id}`);
+  });
+
+  andThen(() => {
+    click('[data-test-task-row]');
+  });
+
+  andThen(() => {
+    assert.equal(
+      currentURL(),
+      `/allocations/${allocation.id}/${task.name}`,
+      'Task row links to task detail'
+    );
+  });
+});
+
+test('tasks with an unhealthy driver have a warning icon', function(assert) {
+  assert.ok(find('[data-test-task-row] [data-test-icon="unhealthy-driver"]'), 'Warning is shown');
+});
+
+test('when the allocation has not been rescheduled, the reschedule events section is not rendered', function(assert) {
+  assert.notOk(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
+});
+
+test('when the allocation is not found, an error message is shown, but the URL persists', function(assert) {
   visit('/allocations/not-a-real-allocation');
 
   andThen(() => {
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
-      'A request to the non-existent allocation is made'
+      'A request to the nonexistent allocation is made'
     );
     assert.equal(currentURL(), '/allocations/not-a-real-allocation', 'The URL persists');
     assert.ok(find('[data-test-error]'), 'Error message is shown');
@@ -144,4 +192,20 @@ test('when the allocation is not found, an error message is shown, but the URL p
       'Error message is for 404'
     );
   });
+});
+
+moduleForAcceptance('Acceptance | allocation detail (rescheduled)', {
+  beforeEach() {
+    server.create('agent');
+
+    node = server.create('node');
+    job = server.create('job', { createAllocations: false });
+    allocation = server.create('allocation', 'rescheduled');
+
+    visit(`/allocations/${allocation.id}`);
+  },
+});
+
+test('when the allocation has been rescheduled, the reschedule events section is rendered', function(assert) {
+  assert.ok(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
 });

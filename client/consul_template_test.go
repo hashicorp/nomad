@@ -19,6 +19,7 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -563,11 +564,12 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 
 func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	// Make a template that will render based on a key in Vault
-	vaultPath := "secret/password"
+	vaultPath := "secret/data/password"
 	key := "password"
 	content := "barbaz"
-	embedded := fmt.Sprintf(`{{with secret "%s"}}{{.Data.%s}}{{end}}`, vaultPath, key)
+	embedded := fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath, key)
 	file := "my.tmpl"
 	template := &structs.Template{
 		EmbeddedTmpl: embedded,
@@ -588,7 +590,8 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 
 	// Write the secret to Vault
 	logical := harness.vault.Client.Logical()
-	logical.Write(vaultPath, map[string]interface{}{key: content})
+	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	require.NoError(err)
 
 	// Wait for the unblock
 	select {
@@ -1193,7 +1196,7 @@ OUTER:
 }
 
 // TestTaskTemplateManager_Config_ServerName asserts the tls_server_name
-// setting is propogated to consul-template's configuration. See #2776
+// setting is propagated to consul-template's configuration. See #2776
 func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	t.Parallel()
 	c := config.DefaultConfig()
@@ -1217,7 +1220,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 }
 
 // TestTaskTemplateManager_Config_VaultGrace asserts the vault_grace setting is
-// propogated to consul-template's configuration.
+// propagated to consul-template's configuration.
 func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)

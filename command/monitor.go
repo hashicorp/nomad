@@ -68,6 +68,15 @@ type monitor struct {
 // write output information to the provided ui. The length parameter determines
 // the number of characters for identifiers in the ui.
 func newMonitor(ui cli.Ui, client *api.Client, length int) *monitor {
+	if colorUi, ok := ui.(*cli.ColoredUi); ok {
+		// Disable Info color for monitored output
+		ui = &cli.ColoredUi{
+			ErrorColor: colorUi.ErrorColor,
+			WarnColor:  colorUi.WarnColor,
+			InfoColor:  cli.UiColorNone,
+			Ui:         colorUi.Ui,
+		}
+	}
 	mon := &monitor{
 		ui: &cli.PrefixedUi{
 			InfoPrefix:   "==> ",
@@ -190,7 +199,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				return 1
 			}
 
-			evalID = sanatizeUUIDPrefix(evalID)
+			evalID = sanitizeUUIDPrefix(evalID)
 			evals, _, err := m.client.Evaluations().PrefixList(evalID)
 			if err != nil {
 				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))

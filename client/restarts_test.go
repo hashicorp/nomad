@@ -88,9 +88,32 @@ func TestClient_RestartTracker_ZeroAttempts(t *testing.T) {
 	t.Parallel()
 	p := testPolicy(true, structs.RestartPolicyModeFail)
 	p.Attempts = 0
+
+	// Test with a non-zero exit code
 	rt := newRestartTracker(p, structs.JobTypeService)
 	if state, when := rt.SetWaitResult(testWaitResult(1)).GetState(); state != structs.TaskNotRestarting {
-		t.Fatalf("expect no restart, got restart/delay: %v", when)
+		t.Fatalf("expect no restart, got restart/delay: %v/%v", state, when)
+	}
+
+	// Even with a zero (successful) exit code non-batch jobs should exit
+	// with TaskNotRestarting
+	rt = newRestartTracker(p, structs.JobTypeService)
+	if state, when := rt.SetWaitResult(testWaitResult(0)).GetState(); state != structs.TaskNotRestarting {
+		t.Fatalf("expect no restart, got restart/delay: %v/%v", state, when)
+	}
+
+	// Batch jobs with a zero exit code and 0 attempts *do* exit cleanly
+	// with Terminated
+	rt = newRestartTracker(p, structs.JobTypeBatch)
+	if state, when := rt.SetWaitResult(testWaitResult(0)).GetState(); state != structs.TaskTerminated {
+		t.Fatalf("expect terminated, got restart/delay: %v/%v", state, when)
+	}
+
+	// Batch jobs with a non-zero exit code and 0 attempts exit with
+	// TaskNotRestarting
+	rt = newRestartTracker(p, structs.JobTypeBatch)
+	if state, when := rt.SetWaitResult(testWaitResult(1)).GetState(); state != structs.TaskNotRestarting {
+		t.Fatalf("expect no restart, got restart/delay: %v/%v", state, when)
 	}
 }
 

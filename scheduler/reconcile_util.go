@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"time"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -26,6 +28,9 @@ type placementResult interface {
 	// PreviousAllocation returns the previous allocation
 	PreviousAllocation() *structs.Allocation
 
+	// IsRescheduling returns whether the placement was rescheduling a failed allocation
+	IsRescheduling() bool
+
 	// StopPreviousAlloc returns whether the previous allocation should be
 	// stopped and if so the status description.
 	StopPreviousAlloc() (bool, string)
@@ -45,12 +50,14 @@ type allocPlaceResult struct {
 	canary        bool
 	taskGroup     *structs.TaskGroup
 	previousAlloc *structs.Allocation
+	reschedule    bool
 }
 
 func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
 func (a allocPlaceResult) Name() string                            { return a.name }
 func (a allocPlaceResult) Canary() bool                            { return a.canary }
 func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
+func (a allocPlaceResult) IsRescheduling() bool                    { return a.reschedule }
 func (a allocPlaceResult) StopPreviousAlloc() (bool, string)       { return false, "" }
 
 // allocDestructiveResult contains the information required to do a destructive
@@ -67,6 +74,7 @@ func (a allocDestructiveResult) TaskGroup() *structs.TaskGroup           { retur
 func (a allocDestructiveResult) Name() string                            { return a.placeName }
 func (a allocDestructiveResult) Canary() bool                            { return false }
 func (a allocDestructiveResult) PreviousAllocation() *structs.Allocation { return a.stopAlloc }
+func (a allocDestructiveResult) IsRescheduling() bool                    { return false }
 func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
 	return true, a.stopStatusDescription
 }
@@ -191,26 +199,157 @@ func (a allocSet) filterByTainted(nodes map[string]*structs.Node) (untainted, mi
 	migrate = make(map[string]*structs.Allocation)
 	lost = make(map[string]*structs.Allocation)
 	for _, alloc := range a {
+		// Terminal allocs are always untainted as they should never be migrated
+		if alloc.TerminalStatus() {
+			untainted[alloc.ID] = alloc
+			continue
+		}
+
+		// Non-terminal allocs that should migrate should always migrate
+		if alloc.DesiredTransition.ShouldMigrate() {
+			migrate[alloc.ID] = alloc
+			continue
+		}
+
 		n, ok := nodes[alloc.NodeID]
 		if !ok {
+			// Node is untainted so alloc is untainted
 			untainted[alloc.ID] = alloc
 			continue
 		}
 
-		// If the job is batch and finished successfully, the fact that the
-		// node is tainted does not mean it should be migrated or marked as
-		// lost as the work was already successfully finished. However for
-		// service/system jobs, tasks should never complete. The check of
-		// batch type, defends against client bugs.
-		if alloc.Job.Type == structs.JobTypeBatch && alloc.RanSuccessfully() {
-			untainted[alloc.ID] = alloc
-			continue
-		}
-
+		// Allocs on GC'd (nil) or lost nodes are Lost
 		if n == nil || n.TerminalStatus() {
 			lost[alloc.ID] = alloc
+			continue
+		}
+
+		// All other allocs are untainted
+		untainted[alloc.ID] = alloc
+	}
+	return
+}
+
+// filterByRescheduleable filters the allocation set to return the set of allocations that are either
+// untainted or a set of allocations that must be rescheduled now. Allocations that can be rescheduled
+// at a future time are also returned so that we can create follow up evaluations for them. Allocs are
+// skipped or considered untainted according to logic defined in shouldFilter method.
+func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID string, deployment *structs.Deployment) (untainted, rescheduleNow allocSet, rescheduleLater []*delayedRescheduleInfo) {
+	untainted = make(map[string]*structs.Allocation)
+	rescheduleNow = make(map[string]*structs.Allocation)
+
+	for _, alloc := range a {
+		var eligibleNow, eligibleLater bool
+		var rescheduleTime time.Time
+
+		// Ignore allocs that have already been rescheduled
+		if alloc.NextAllocation != "" {
+			continue
+		}
+
+		isUntainted, ignore := shouldFilter(alloc, isBatch)
+		if isUntainted {
+			untainted[alloc.ID] = alloc
+		}
+		if isUntainted || ignore {
+			continue
+		}
+
+		// Only failed allocs with desired state run get to this point
+		// If the failed alloc is not eligible for rescheduling now we add it to the untainted set
+		eligibleNow, eligibleLater, rescheduleTime = updateByReschedulable(alloc, now, evalID, deployment)
+		if !eligibleNow {
+			untainted[alloc.ID] = alloc
+			if eligibleLater {
+				rescheduleLater = append(rescheduleLater, &delayedRescheduleInfo{alloc.ID, rescheduleTime})
+			}
 		} else {
-			migrate[alloc.ID] = alloc
+			rescheduleNow[alloc.ID] = alloc
+		}
+	}
+	return
+}
+
+// shouldFilter returns whether the alloc should be ignored or considered untainted
+// Ignored allocs are filtered out.
+// Untainted allocs count against the desired total.
+// Filtering logic for batch jobs:
+// If complete, and ran successfully - untainted
+// If desired state is stop - ignore
+//
+// Filtering logic for service jobs:
+// If desired state is stop/evict - ignore
+// If client status is complete/lost - ignore
+func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bool) {
+	// Allocs from batch jobs should be filtered when the desired status
+	// is terminal and the client did not finish or when the client
+	// status is failed so that they will be replaced. If they are
+	// complete but not failed, they shouldn't be replaced.
+	if isBatch {
+		switch alloc.DesiredStatus {
+		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+			if alloc.RanSuccessfully() {
+				return true, false
+			}
+			return false, true
+		default:
+		}
+
+		switch alloc.ClientStatus {
+		case structs.AllocClientStatusFailed:
+		default:
+			return true, false
+		}
+		return false, false
+	}
+
+	// Handle service jobs
+	switch alloc.DesiredStatus {
+	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+		return false, true
+	default:
+	}
+
+	switch alloc.ClientStatus {
+	case structs.AllocClientStatusComplete, structs.AllocClientStatusLost:
+		return false, true
+	default:
+	}
+	return false, false
+}
+
+// updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
+// should be rescheduled now, later or left in the untainted set
+func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
+	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
+	// if it has been marked eligible
+	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
+		return
+	}
+
+	// Check if the allocation is marked as it should be force rescheduled
+	if alloc.DesiredTransition.ShouldForceReschedule() {
+		rescheduleNow = true
+	}
+
+	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
+	rescheduleTime, eligible := alloc.NextRescheduleTime()
+	if eligible && (alloc.FollowupEvalID == evalID || rescheduleTime.Sub(now) <= rescheduleWindowSize) {
+		rescheduleNow = true
+		return
+	}
+	if eligible && alloc.FollowupEvalID == "" {
+		rescheduleLater = true
+	}
+	return
+}
+
+// filterByTerminal filters out terminal allocs
+func filterByTerminal(untainted allocSet) (nonTerminal allocSet) {
+	nonTerminal = make(map[string]*structs.Allocation)
+	for id, alloc := range untainted {
+		if !alloc.TerminalStatus() {
+			nonTerminal[id] = alloc
 		}
 	}
 	return
@@ -342,7 +481,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 	// First select indexes from the allocations that are undergoing destructive
 	// updates. This way we avoid duplicate names as they will get replaced.
 	dmap := bitmapFrom(destructive, uint(a.count))
-	var remainder uint
+	remainder := n
 	for _, idx := range dmap.IndexesInRange(true, uint(0), uint(a.count)-1) {
 		name := structs.AllocName(a.job, a.taskGroup, uint(idx))
 		if _, used := existingNames[name]; !used {
@@ -350,7 +489,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 			a.b.Set(uint(idx))
 
 			// If we have enough, return
-			remainder := n - uint(len(next))
+			remainder = n - uint(len(next))
 			if remainder == 0 {
 				return next
 			}
@@ -372,21 +511,15 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 		}
 	}
 
-	// We have exhausted the preferred and free set, now just pick overlapping
-	// indexes
-	var i uint
-	for i = 0; i < remainder; i++ {
+	// We have exhausted the preferred and free set. Pick starting from n to
+	// n+remainder, to avoid overlapping where possible. An example is the
+	// desired count is 3 and we want 5 canaries. The first 3 canaries can use
+	// index [0, 1, 2] but after that we prefer picking indexes [4, 5] so that
+	// we do not overlap. Once the canaries are promoted, these would be the
+	// allocations that would be shut down as well.
+	for i := uint(a.count); i < uint(a.count)+remainder; i++ {
 		name := structs.AllocName(a.job, a.taskGroup, i)
-		if _, used := existingNames[name]; !used {
-			next = append(next, name)
-			a.b.Set(i)
-
-			// If we have enough, return
-			remainder = n - uint(len(next))
-			if remainder == 0 {
-				return next
-			}
-		}
+		next = append(next, name)
 	}
 
 	return next

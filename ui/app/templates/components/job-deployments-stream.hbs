@@ -1,4 +1,4 @@
-{{#each annotatedDeployments as |record|}}
+{{#each annotatedDeployments key="deployment.id" as |record|}}
   {{#if record.meta.showDate}}
     <li data-test-deployment-time class="timeline-note">
       {{#if record.deployment.version.submitTime}}

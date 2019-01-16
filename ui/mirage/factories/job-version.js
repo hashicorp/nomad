@@ -25,6 +25,7 @@ export default Factory.extend({
       version.activeDeployment && 'active',
       {
         jobId: version.jobId,
+        namespace: version.job.namespace,
         versionNumber: version.version,
       },
     ].compact();

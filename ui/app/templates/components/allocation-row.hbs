@@ -1,3 +1,15 @@
+<td data-test-indicators class="is-narrow">
+  {{#if allocation.unhealthyDrivers.length}}
+    <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="Allocation depends on unhealthy drivers">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{/if}}
+  {{#if allocation.nextAllocation}}
+    <span data-test-icon="reschedule" class="tooltip text-center" aria-label="Allocation was rescheduled">
+      {{x-icon "history" class="is-faded"}}
+    </span>
+  {{/if}}
+</td>
 <td data-test-short-id>
   {{#link-to "allocations.allocation" allocation class="is-primary"}}
     {{allocation.shortId}}
@@ -5,7 +17,7 @@
 </td>
 <td data-test-modify-time>{{moment-format allocation.modifyTime "MM/DD HH:mm:ss"}}</td>
 <td data-test-name>{{allocation.name}}</td>
-<td data-test-client-status>
+<td data-test-client-status class="is-one-line">
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
 {{#if (eq context "job")}}
@@ -23,37 +35,41 @@
   <td data-test-job-version>{{allocation.jobVersion}}</td>
 {{/if}}
 <td data-test-cpu class="has-text-centered">
-  {{#if allocation.stats.isPending}}
+  {{#if (and (not stats) fetchStats.isRunning)}}
     ...
-  {{else if allocation.stats.isRejected}}
-    <span class="tooltip text-center" aria-label="Couldn't connect to client">
+  {{else if (not allocation)}}
+    {{! nothing when there's no allocation}}
+  {{else if statsError}}
+    <span class="tooltip text-center" aria-label="Couldn't collect stats">
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
-    <div class="inline-chart tooltip" aria-label="{{allocation.cpuUsed}} / {{allocation.taskGroup.reservedCPU}} MHz">
+    <div class="inline-chart tooltip" aria-label="{{stats.cpuUsed}} / {{stats.reservedCPU}} MHz">
       <progress
         class="progress is-info is-small"
-        value="{{allocation.percentCPU}}"
+        value="{{stats.percentCPU}}"
         max="1">
-        {{allocation.percentCPU}}
+        {{stats.percentCPU}}
       </progress>
     </div>
   {{/if}}
 </td>
 <td data-test-mem class="has-text-centered">
-  {{#if allocation.stats.isPending}}
+  {{#if (and (not stats) fetchStats.isRunning)}}
     ...
-  {{else if allocation.stats.isRejected}}
-    <span class="tooltip text-center" aria-label="Couldn't connect to client">
+  {{else if (not allocation)}}
+    {{! nothing when there's no allocation}}
+  {{else if statsError}}
+    <span class="tooltip text-center" aria-label="Couldn't collect stats">
       {{x-icon "warning" class="is-warning"}}
     </span>
   {{else}}
-    <div class="inline-chart tooltip" aria-label="{{format-bytes allocation.memoryUsed}} / {{allocation.taskGroup.reservedMemory}} MiB">
+    <div class="inline-chart tooltip" aria-label="{{format-bytes stats.memoryUsed}} / {{stats.reservedMemory}} MiB">
       <progress
         class="progress is-danger is-small"
-        value="{{allocation.percentMemory}}"
+        value="{{stats.percentMemory}}"
         max="1">
-        {{allocation.percentMemory}}
+        {{stats.percentMemory}}
       </progress>
     </div>
   {{/if}}

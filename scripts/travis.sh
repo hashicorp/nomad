@@ -14,7 +14,7 @@ if [ "$RUN_STATIC_CHECKS" ]; then
     fi
 fi
 
-make test
+NOMAD_SLOW_TEST=1 make test
 TEST_OUTPUT=$?
 
 kill $PING_LOOP_PID

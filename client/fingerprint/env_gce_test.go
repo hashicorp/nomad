@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -19,13 +21,19 @@ func TestGCEFingerprint_nonGCE(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	ok, err := f.Fingerprint(&config.Config{}, node)
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if ok {
-		t.Fatalf("Should be false without test server")
+	if response.Detected {
+		t.Fatalf("expected response to not be applicable")
+	}
+
+	if len(response.Attributes) > 0 {
+		t.Fatalf("Should have zero attributes without test server")
 	}
 }
 
@@ -59,6 +67,14 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 			t.Fatalf("Expected Metadata-Flavor Google, saw %s", value[0])
 		}
 
+		uavalue, ok := r.Header["User-Agent"]
+		if !ok {
+			t.Fatal("User-Agent not present in HTTP request header")
+		}
+		if !strings.Contains(uavalue[0], "Nomad/") {
+			t.Fatalf("Expected User-Agent to contain Nomad/, got %s", uavalue[0])
+		}
+
 		found := false
 		for _, e := range routes.Endpoints {
 			if r.RequestURI == e.Uri {
@@ -76,13 +92,15 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	os.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
 	f := NewEnvGCEFingerprint(testLogger())
 
-	ok, err := f.Fingerprint(&config.Config{}, node)
+	request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response cstructs.FingerprintResponse
+	err := f.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !ok {
-		t.Fatalf("should apply")
+	if !response.Detected {
+		t.Fatalf("expected response to be applicable")
 	}
 
 	keys := []string{
@@ -100,40 +118,40 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 	}
 
 	for _, k := range keys {
-		assertNodeAttributeContains(t, node, k)
+		assertNodeAttributeContains(t, response.Attributes, k)
 	}
 
-	if len(node.Links) == 0 {
+	if len(response.Links) == 0 {
 		t.Fatalf("Empty links for Node in GCE Fingerprint test")
 	}
 
 	// Make sure Links contains the GCE ID.
 	for _, k := range []string{"gce"} {
-		assertNodeLinksContains(t, node, k)
+		assertNodeLinksContains(t, response.Links, k)
 	}
 
-	assertNodeAttributeEquals(t, node, "unique.platform.gce.id", "12345")
-	assertNodeAttributeEquals(t, node, "unique.platform.gce.hostname", "instance-1.c.project.internal")
-	assertNodeAttributeEquals(t, node, "platform.gce.zone", "us-central1-f")
-	assertNodeAttributeEquals(t, node, "platform.gce.machine-type", "n1-standard-1")
-	assertNodeAttributeEquals(t, node, "platform.gce.network.default", "true")
-	assertNodeAttributeEquals(t, node, "unique.platform.gce.network.default.ip", "10.240.0.5")
+	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.id", "12345")
+	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.hostname", "instance-1.c.project.internal")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.zone", "us-central1-f")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.machine-type", "n1-standard-1")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.network.default", "true")
+	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.network.default.ip", "10.240.0.5")
 	if withExternalIp {
-		assertNodeAttributeEquals(t, node, "unique.platform.gce.network.default.external-ip.0", "104.44.55.66")
-		assertNodeAttributeEquals(t, node, "unique.platform.gce.network.default.external-ip.1", "104.44.55.67")
-	} else if _, ok := node.Attributes["unique.platform.gce.network.default.external-ip.0"]; ok {
+		assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.network.default.external-ip.0", "104.44.55.66")
+		assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.network.default.external-ip.1", "104.44.55.67")
+	} else if _, ok := response.Attributes["unique.platform.gce.network.default.external-ip.0"]; ok {
 		t.Fatal("unique.platform.gce.network.default.external-ip is set without an external IP")
 	}
 
-	assertNodeAttributeEquals(t, node, "platform.gce.scheduling.automatic-restart", "TRUE")
-	assertNodeAttributeEquals(t, node, "platform.gce.scheduling.on-host-maintenance", "MIGRATE")
-	assertNodeAttributeEquals(t, node, "platform.gce.cpu-platform", "Intel Ivy Bridge")
-	assertNodeAttributeEquals(t, node, "platform.gce.tag.abc", "true")
-	assertNodeAttributeEquals(t, node, "platform.gce.tag.def", "true")
-	assertNodeAttributeEquals(t, node, "unique.platform.gce.tag.foo", "true")
-	assertNodeAttributeEquals(t, node, "platform.gce.attr.ghi", "111")
-	assertNodeAttributeEquals(t, node, "platform.gce.attr.jkl", "222")
-	assertNodeAttributeEquals(t, node, "unique.platform.gce.attr.bar", "333")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.scheduling.automatic-restart", "TRUE")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.scheduling.on-host-maintenance", "MIGRATE")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.cpu-platform", "Intel Ivy Bridge")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.tag.abc", "true")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.tag.def", "true")
+	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.tag.foo", "true")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.attr.ghi", "111")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.attr.jkl", "222")
+	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.gce.attr.bar", "333")
 }
 
 const GCE_routes = `

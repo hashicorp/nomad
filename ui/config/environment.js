@@ -49,6 +49,10 @@ module.exports = function(environment) {
     ENV.browserify = {
       tests: true,
     };
+
+    ENV['ember-cli-mirage'] = {
+      trackRequests: true,
+    };
   }
 
   if (environment === 'production') {

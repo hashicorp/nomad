@@ -35,12 +35,12 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://localhost:4646/v1/nodes
+    http://localhost:4646/v1/nodes
 ```
 
 ```text
 $ curl \
-    https://localhost:4646/v1/nodes?prefix=prod
+    http://localhost:4646/v1/nodes?prefix=prod
 ```
 
 ### Sample Response
@@ -48,15 +48,74 @@ $ curl \
 ```json
 [
   {
-    "ID": "fb2170a8-257d-3c64-b14d-bc06cc94e34c",
+    "Address": "10.138.0.5",
+    "CreateIndex": 6,
     "Datacenter": "dc1",
-    "Name": "bacon-mac",
-    "NodeClass": "",
     "Drain": false,
+    "Drivers": {
+      "java": {
+        "Attributes": {
+          "driver.java.runtime": "OpenJDK Runtime Environment (build 1.8.0_162-8u162-b12-1~deb9u1-b12)",
+          "driver.java.vm": "OpenJDK 64-Bit Server VM (build 25.162-b12, mixed mode)",
+          "driver.java.version": "openjdk version \"1.8.0_162"
+        },
+        "Detected": true,
+        "HealthDescription": "",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:33:48.781948669Z"
+      },
+      "qemu": {
+        "Attributes": null,
+        "Detected": false,
+        "HealthDescription": "",
+        "Healthy": false,
+        "UpdateTime": "2018-04-11T23:33:48.7819898Z"
+      },
+      "rkt": {
+        "Attributes": {
+          "driver.rkt.appc.version": "0.8.11",
+          "driver.rkt.volumes.enabled": "1",
+          "driver.rkt.version": "1.29.0"
+        },
+        "Detected": true,
+        "HealthDescription": "Driver rkt is detected: true",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.81079772Z"
+      },
+      "docker": {
+        "Attributes": {
+          "driver.docker.bridge_ip": "172.17.0.1",
+          "driver.docker.version": "18.03.0-ce",
+          "driver.docker.volumes.enabled": "1"
+        },
+        "Detected": true,
+        "HealthDescription": "Driver is available and responsive",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.713720323Z"
+      },
+      "exec": {
+        "Attributes": {},
+        "Detected": true,
+        "HealthDescription": "Driver exec is detected: true",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.711026521Z"
+      },
+      "raw_exec": {
+        "Attributes": {},
+        "Detected": true,
+        "HealthDescription": "",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:33:48.710448534Z"
+      }
+    },
+    "ID": "f7476465-4d6e-c0de-26d0-e383c49be941",
+    "ModifyIndex": 2526,
+    "Name": "nomad-4",
+    "NodeClass": "",
+    "SchedulingEligibility": "eligible",
     "Status": "ready",
     "StatusDescription": "",
-    "CreateIndex": 5,
-    "ModifyIndex": 45
+    "Version": "0.8.0-rc1"
   }
 ]
 ```
@@ -87,77 +146,160 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c
+    http://localhost:4646/v1/node/f7476465-4d6e-c0de-26d0-e383c49be941
 ```
 
 ### Sample Response
 
 ```json
 {
-  "ID": "fb2170a8-257d-3c64-b14d-bc06cc94e34c",
-  "SecretID": "",
-  "Datacenter": "dc1",
-  "Name": "bacon-mac",
-  "HTTPAddr": "127.0.0.1:4646",
-  "TLSEnabled": false,
   "Attributes": {
-    "os.version": "10.12.5",
-    "cpu.modelname": "Intel(R) Core(TM) i7-3615QM CPU @ 2.30GHz",
-    "nomad.revision": "f551dcb83e3ac144c9dbb90583b6e82d234662e9",
-    "driver.docker.volumes.enabled": "1",
-    "driver.docker": "1",
-    "cpu.frequency": "2300",
-    "memory.totalbytes": "17179869184",
-    "driver.mock_driver": "1",
-    "kernel.version": "16.6.0",
-    "unique.network.ip-address": "127.0.0.1",
-    "nomad.version": "0.5.5dev",
-    "unique.hostname": "bacon-mac",
-    "cpu.arch": "amd64",
-    "os.name": "darwin",
-    "kernel.name": "darwin",
-    "unique.storage.volume": "/dev/disk1",
-    "driver.docker.version": "17.03.1-ce",
-    "cpu.totalcompute": "18400",
-    "unique.storage.bytestotal": "249783500800",
-    "cpu.numcores": "8",
-    "os.signals": "SIGCONT,SIGSTOP,SIGSYS,SIGINT,SIGIOT,SIGXCPU,SIGSEGV,SIGUSR1,SIGTTIN,SIGURG,SIGUSR2,SIGABRT,SIGALRM,SIGCHLD,SIGFPE,SIGTSTP,SIGIO,SIGKILL,SIGQUIT,SIGXFSZ,SIGBUS,SIGHUP,SIGPIPE,SIGPROF,SIGTRAP,SIGTTOU,SIGILL,SIGTERM",
+    "driver.rkt": "1",
+    "driver.docker.bridge_ip": "172.17.0.1",
+    "unique.storage.volume": "/dev/sda1",
+    "driver.exec": "1",
+    "driver.rkt.volumes.enabled": "1",
+    "os.signals": "SIGSTOP,SIGTTIN,SIGWINCH,SIGXCPU,SIGXFSZ,SIGIO,SIGKILL,SIGTTOU,SIGINT,SIGHUP,SIGTRAP,SIGALRM,SIGPIPE,SIGURG,SIGABRT,SIGSEGV,SIGIOT,SIGTERM,SIGBUS,SIGPROF,SIGQUIT,SIGTSTP,SIGUSR2,SIGFPE,SIGCONT,SIGILL,SIGSYS,SIGUSR1,SIGCHLD",
+    "cpu.totalcompute": "2200",
     "driver.raw_exec": "1",
-    "unique.storage.bytesfree": "142954643456"
+    "driver.java.version": "openjdk version \"1.8.0_162",
+    "kernel.name": "linux",
+    "unique.cgroup.mountpoint": "/sys/fs/cgroup",
+    "driver.docker.volumes.enabled": "1",
+    "cpu.frequency": "2200",
+    "consul.datacenter": "dc1",
+    "unique.storage.bytestotal": "31637520384",
+    "unique.network.ip-address": "10.138.0.5",
+    "os.version": "9.4",
+    "unique.hostname": "nomad-4",
+    "driver.rkt.version": "1.29.0",
+    "driver.java.vm": "OpenJDK 64-Bit Server VM (build 25.162-b12, mixed mode)",
+    "consul.server": "false",
+    "kernel.version": "4.9.0-6-amd64",
+    "cpu.numcores": "1",
+    "driver.docker.version": "18.03.0-ce",
+    "unique.consul.name": "nomad-4",
+    "driver.java": "1",
+    "consul.revision": "9a494b5f+CHANGES",
+    "os.name": "debian",
+    "consul.version": "1.0.6",
+    "driver.java.runtime": "OpenJDK Runtime Environment (build 1.8.0_162-8u162-b12-1~deb9u1-b12)",
+    "nomad.version": "0.8.0-rc1",
+    "memory.totalbytes": "3883982848",
+    "unique.storage.bytesfree": "26626150400",
+    "driver.docker": "1",
+    "cpu.modelname": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+    "cpu.arch": "amd64",
+    "driver.rkt.appc.version": "0.8.11"
+  },
+  "ComputedClass": "v1:1652208824869124256",
+  "CreateIndex": 6,
+  "Datacenter": "dc1",
+  "Drain": false,
+  "DrainStrategy": null,
+  "Drivers": {
+    "java": {
+      "Attributes": {
+        "driver.java.runtime": "OpenJDK Runtime Environment (build 1.8.0_162-8u162-b12-1~deb9u1-b12)",
+        "driver.java.vm": "OpenJDK 64-Bit Server VM (build 25.162-b12, mixed mode)",
+        "driver.java.version": "openjdk version \"1.8.0_162"
+      },
+      "Detected": true,
+      "HealthDescription": "",
+      "Healthy": true,
+      "UpdateTime": "2018-04-11T23:33:48.781948669Z"
+    },
+    "qemu": {
+      "Attributes": null,
+      "Detected": false,
+      "HealthDescription": "",
+      "Healthy": false,
+      "UpdateTime": "2018-04-11T23:33:48.7819898Z"
+    },
+    "rkt": {
+      "Attributes": {
+        "driver.rkt.appc.version": "0.8.11",
+        "driver.rkt.volumes.enabled": "1",
+        "driver.rkt.version": "1.29.0"
+      },
+      "Detected": true,
+      "HealthDescription": "Driver rkt is detected: true",
+      "Healthy": true,
+      "UpdateTime": "2018-04-11T23:34:48.81079772Z"
+    },
+    "docker": {
+      "Attributes": {
+        "driver.docker.bridge_ip": "172.17.0.1",
+        "driver.docker.version": "18.03.0-ce",
+        "driver.docker.volumes.enabled": "1"
+      },
+      "Detected": true,
+      "HealthDescription": "Driver is available and responsive",
+      "Healthy": true,
+      "UpdateTime": "2018-04-11T23:34:48.713720323Z"
+    },
+    "exec": {
+      "Attributes": {},
+      "Detected": true,
+      "HealthDescription": "Driver exec is detected: true",
+      "Healthy": true,
+      "UpdateTime": "2018-04-11T23:34:48.711026521Z"
+    },
+    "raw_exec": {
+      "Attributes": {},
+      "Detected": true,
+      "HealthDescription": "",
+      "Healthy": true,
+      "UpdateTime": "2018-04-11T23:33:48.710448534Z"
+    }
+  },
+  "Events": [
+    {
+      "CreateIndex": 0,
+      "Details": null,
+      "Message": "Node registered",
+      "Subsystem": "Cluster",
+      "Timestamp": "2018-04-10T23:43:17Z"
+    }
+  ],
+  "HTTPAddr": "10.138.0.5:4646",
+  "ID": "f7476465-4d6e-c0de-26d0-e383c49be941",
+  "Links": {
+    "consul": "dc1.nomad-4"
+  },
+  "Meta": null,
+  "ModifyIndex": 2526,
+  "Name": "nomad-4",
+  "NodeClass": "",
+  "Reserved": {
+    "CPU": 0,
+    "DiskMB": 0,
+    "IOPS": 0,
+    "MemoryMB": 0,
+    "Networks": null
   },
   "Resources": {
-    "CPU": 18400,
-    "MemoryMB": 16384,
-    "DiskMB": 136332,
+    "CPU": 2200,
+    "DiskMB": 25392,
     "IOPS": 0,
+    "MemoryMB": 3704,
     "Networks": [
       {
-        "Device": "lo0",
-        "CIDR": "127.0.0.1/32",
-        "IP": "127.0.0.1",
+        "CIDR": "10.138.0.5/32",
+        "Device": "eth0",
+        "DynamicPorts": null,
+        "IP": "10.138.0.5",
         "MBits": 1000,
-        "ReservedPorts": null,
-        "DynamicPorts": null
+        "ReservedPorts": null
       }
     ]
   },
-  "Reserved": {
-    "CPU": 0,
-    "MemoryMB": 0,
-    "DiskMB": 0,
-    "IOPS": 0,
-    "Networks": null
-  },
-  "Links": null,
-  "Meta": null,
-  "NodeClass": "",
-  "ComputedClass": "v1:10952212473894849978",
-  "Drain": false,
+  "SchedulingEligibility": "eligible",
+  "SecretID": "",
   "Status": "ready",
   "StatusDescription": "",
-  "StatusUpdatedAt": 1495748907,
-  "CreateIndex": 5,
-  "ModifyIndex": 45
+  "StatusUpdatedAt": 1523552938,
+  "TLSEnabled": false
 }
 ```
 
@@ -189,7 +331,7 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://localhost:4646/v1/node/e02b6169-83bd-9df6-69bd-832765f333eb/allocations
+    http://localhost:4646/v1/node/e02b6169-83bd-9df6-69bd-832765f333eb/allocations
 ```
 
 ### Sample Response
@@ -197,317 +339,350 @@ $ curl \
 ```json
 [
   {
-    "ID": "8dfa702d-0c03-6fd4-ade6-386d72fb8192",
-    "EvalID": "a128568e-6cc6-0f95-f37d-3fd4c8123316",
-    "Name": "example.cache[0]",
-    "NodeID": "05129072-6258-4ea6-79bf-03bd31418ac7",
-    "JobID": "example",
+    "AllocModifyIndex": 2555,
+    "ClientDescription": "",
+    "ClientStatus": "running",
+    "CreateIndex": 2555,
+    "CreateTime": 1523490066575461000,
+    "DeploymentID": "",
+    "DeploymentStatus": {
+      "Healthy": true,
+      "ModifyIndex": 0
+    },
+    "DesiredDescription": "",
+    "DesiredStatus": "run",
+    "DesiredTransition": {
+      "Migrate": null
+    },
+    "EvalID": "5129bc74-9785-c39a-08da-bddc8aa778b1",
+    "FollowupEvalID": "",
+    "ID": "fefe81d0-08b2-4eca-fae6-6560cde46d31",
     "Job": {
-      "Stop": false,
-      "Region": "global",
-      "ID": "example",
-      "ParentID": "",
-      "Name": "example",
-      "Type": "service",
-      "Priority": 50,
       "AllAtOnce": false,
+      "Constraints": null,
+      "CreateIndex": 2553,
       "Datacenters": [
         "dc1"
       ],
-      "Constraints": null,
+      "ID": "webapp",
+      "JobModifyIndex": 2553,
+      "Meta": null,
+      "ModifyIndex": 2554,
+      "Name": "webapp",
+      "Namespace": "default",
+      "ParameterizedJob": null,
+      "ParentID": "",
+      "Payload": null,
+      "Periodic": null,
+      "Priority": 50,
+      "Region": "global",
+      "Stable": false,
+      "Status": "pending",
+      "StatusDescription": "",
+      "Stop": false,
+      "SubmitTime": 1523490066563405000,
       "TaskGroups": [
         {
-          "Name": "cache",
-          "Count": 1,
-          "Update": {
-            "Stagger": 10000000000,
-            "MaxParallel": 1,
-            "HealthCheck": "checks",
-            "MinHealthyTime": 10000000000,
-            "HealthyDeadline": 300000000000,
-            "AutoRevert": false,
-            "Canary": 0
-          },
           "Constraints": null,
+          "Count": 9,
+          "EphemeralDisk": {
+            "Migrate": false,
+            "SizeMB": 300,
+            "Sticky": false
+          },
+          "Meta": null,
+          "Migrate": {
+            "HealthCheck": "checks",
+            "HealthyDeadline": 300000000000,
+            "MaxParallel": 2,
+            "MinHealthyTime": 15000000000
+          },
+          "Name": "webapp",
+          "ReschedulePolicy": {
+            "Attempts": 0,
+            "Delay": 30000000000,
+            "DelayFunction": "exponential",
+            "Interval": 0,
+            "MaxDelay": 3600000000000,
+            "Unlimited": true
+          },
           "RestartPolicy": {
-            "Attempts": 10,
-            "Interval": 300000000000,
-            "Delay": 25000000000,
-            "Mode": "delay"
+            "Attempts": 2,
+            "Delay": 15000000000,
+            "Interval": 1800000000000,
+            "Mode": "fail"
           },
           "Tasks": [
             {
-              "Name": "redis",
-              "Driver": "docker",
-              "User": "",
+              "Artifacts": null,
               "Config": {
-                "image": "redis:3.2",
+                "args": [
+                  "-text",
+                  "ok4"
+                ],
+                "image": "hashicorp/http-echo:0.2.3",
                 "port_map": [
                   {
-                    "db": 6379
+                    "http": 5678
                   }
                 ]
               },
-              "Env": null,
-              "Services": [
-                {
-                  "Name": "redis-cache",
-                  "PortLabel": "db",
-                  "AddressMode": "auto",
-                  "Tags": [
-                    "global",
-                    "cache"
-                  ],
-                  "Checks": [
-                    {
-                      "Name": "alive",
-                      "Type": "tcp",
-                      "Command": "",
-                      "Args": null,
-                      "Path": "",
-                      "Protocol": "",
-                      "PortLabel": "",
-                      "Interval": 10000000000,
-                      "Timeout": 2000000000,
-                      "InitialStatus": "",
-                      "TLSSkipVerify": false
-                    }
-                  ]
-                }
-              ],
-              "Vault": null,
-              "Templates": null,
               "Constraints": null,
+              "DispatchPayload": null,
+              "Driver": "docker",
+              "Env": null,
+              "KillSignal": "",
+              "KillTimeout": 5000000000,
+              "Leader": false,
+              "LogConfig": {
+                "MaxFileSizeMB": 10,
+                "MaxFiles": 10
+              },
+              "Meta": null,
+              "Name": "webapp",
               "Resources": {
-                "CPU": 500,
-                "MemoryMB": 256,
+                "CPU": 100,
                 "DiskMB": 0,
                 "IOPS": 0,
+                "MemoryMB": 300,
                 "Networks": [
                   {
-                    "Device": "",
                     "CIDR": "",
-                    "IP": "",
-                    "MBits": 10,
-                    "ReservedPorts": null,
+                    "Device": "",
                     "DynamicPorts": [
                       {
-                        "Label": "db",
+                        "Label": "http",
                         "Value": 0
                       }
-                    ]
+                    ],
+                    "IP": "",
+                    "MBits": 10,
+                    "ReservedPorts": null
                   }
                 ]
               },
-              "DispatchPayload": null,
-              "Meta": null,
-              "KillTimeout": 5000000000,
-              "LogConfig": {
-                "MaxFiles": 10,
-                "MaxFileSizeMB": 10
-              },
-              "Artifacts": null,
-              "Leader": false
+              "Services": [
+                {
+                  "AddressMode": "auto",
+                  "Checks": [
+                    {
+                      "AddressMode": "",
+                      "Args": null,
+                      "CheckRestart": null,
+                      "Command": "",
+                      "Header": null,
+                      "InitialStatus": "",
+                      "Interval": 10000000000,
+                      "Method": "",
+                      "Name": "http-ok",
+                      "Path": "/",
+                      "PortLabel": "",
+                      "Protocol": "",
+                      "TLSSkipVerify": false,
+                      "Timeout": 2000000000,
+                      "Type": "http"
+                    }
+                  ],
+                  "Name": "webapp",
+                  "PortLabel": "http",
+                  "Tags": null
+                }
+              ],
+              "ShutdownDelay": 0,
+              "Templates": null,
+              "User": "",
+              "Vault": null
             }
           ],
-          "EphemeralDisk": {
-            "Sticky": false,
-            "SizeMB": 300,
-            "Migrate": false
-          },
-          "Meta": null
+          "Update": null
         }
       ],
+      "Type": "service",
       "Update": {
-        "Stagger": 10000000000,
-        "MaxParallel": 1,
-        "HealthCheck": "",
-        "MinHealthyTime": 0,
-        "HealthyDeadline": 0,
         "AutoRevert": false,
-        "Canary": 0
+        "Canary": 0,
+        "HealthCheck": "",
+        "HealthyDeadline": 0,
+        "MaxParallel": 0,
+        "MinHealthyTime": 0,
+        "Stagger": 0
       },
-      "Periodic": null,
-      "ParameterizedJob": null,
-      "Payload": null,
-      "Meta": null,
       "VaultToken": "",
-      "Status": "pending",
-      "StatusDescription": "",
-      "Stable": false,
-      "Version": 0,
-      "SubmitTime": 1502140975490599700,
-      "CreateIndex": 15050,
-      "ModifyIndex": 15050,
-      "JobModifyIndex": 15050
+      "Version": 0
     },
-    "TaskGroup": "cache",
+    "JobID": "webapp",
+    "Metrics": {
+      "AllocationTime": 63337,
+      "ClassExhausted": null,
+      "ClassFiltered": null,
+      "CoalescedFailures": 0,
+      "ConstraintFiltered": null,
+      "DimensionExhausted": null,
+      "NodesAvailable": {
+        "dc1": 2
+      },
+      "NodesEvaluated": 2,
+      "NodesExhausted": 0,
+      "NodesFiltered": 0,
+      "QuotaExhausted": null,
+      "Scores": {
+        "46f1c6c4-a0e5-21f6-fd5c-d76c3d84e806.binpack": 2.6950883117541586,
+        "f7476465-4d6e-c0de-26d0-e383c49be941.binpack": 2.6950883117541586
+      }
+    },
+    "ModifyIndex": 2567,
+    "ModifyTime": 1523490089807324000,
+    "Name": "webapp.webapp[0]",
+    "Namespace": "default",
+    "NextAllocation": "",
+    "NodeID": "f7476465-4d6e-c0de-26d0-e383c49be941",
+    "PreviousAllocation": "",
+    "RescheduleTracker": null,
     "Resources": {
-      "CPU": 500,
-      "MemoryMB": 256,
+      "CPU": 100,
       "DiskMB": 300,
       "IOPS": 0,
+      "MemoryMB": 300,
       "Networks": [
         {
-          "Device": "eth0",
           "CIDR": "",
-          "IP": "10.0.0.226",
-          "MBits": 10,
-          "ReservedPorts": null,
+          "Device": "eth0",
           "DynamicPorts": [
             {
-              "Label": "db",
-              "Value": 22908
+              "Label": "http",
+              "Value": 25920
             }
-          ]
+          ],
+          "IP": "10.138.0.5",
+          "MBits": 10,
+          "ReservedPorts": null
         }
       ]
     },
     "SharedResources": {
       "CPU": 0,
-      "MemoryMB": 0,
       "DiskMB": 300,
       "IOPS": 0,
+      "MemoryMB": 0,
       "Networks": null
     },
+    "TaskGroup": "webapp",
     "TaskResources": {
-      "redis": {
-        "CPU": 500,
-        "MemoryMB": 256,
+      "webapp": {
+        "CPU": 100,
         "DiskMB": 0,
         "IOPS": 0,
+        "MemoryMB": 300,
         "Networks": [
           {
-            "Device": "eth0",
             "CIDR": "",
-            "IP": "10.0.0.226",
-            "MBits": 10,
-            "ReservedPorts": null,
+            "Device": "eth0",
             "DynamicPorts": [
               {
-                "Label": "db",
-                "Value": 22908
+                "Label": "http",
+                "Value": 25920
               }
-            ]
+            ],
+            "IP": "10.138.0.5",
+            "MBits": 10,
+            "ReservedPorts": null
           }
         ]
       }
     },
-    "Metrics": {
-      "NodesEvaluated": 2,
-      "NodesFiltered": 0,
-      "NodesAvailable": {
-        "dc1": 3
-      },
-      "ClassFiltered": null,
-      "ConstraintFiltered": null,
-      "NodesExhausted": 0,
-      "ClassExhausted": null,
-      "DimensionExhausted": null,
-      "Scores": {
-        "1dabfc7d-a92f-00f2-1cb6-0be3f000e542.binpack": 8.269190730718089
-      },
-      "AllocationTime": 41183,
-      "CoalescedFailures": 0
-    },
-    "DesiredStatus": "run",
-    "DesiredDescription": "",
-    "ClientStatus": "running",
-    "ClientDescription": "",
     "TaskStates": {
-      "redis": {
-        "State": "running",
-        "Failed": false,
-        "Restarts": 0,
-        "LastRestart": "0001-01-01T00:00:00Z",
-        "StartedAt": "2017-08-07T21:22:59.326433825Z",
-        "FinishedAt": "0001-01-01T00:00:00Z",
+      "webapp": {
         "Events": [
           {
+            "Details": {},
+            "DiskLimit": 0,
+            "DisplayMessage": "Task received by client",
+            "DownloadError": "",
+            "DriverError": "",
+            "DriverMessage": "",
+            "ExitCode": 0,
+            "FailedSibling": "",
+            "FailsTask": false,
+            "GenericSource": "",
+            "KillError": "",
+            "KillReason": "",
+            "KillTimeout": 0,
+            "Message": "",
+            "RestartReason": "",
+            "SetupError": "",
+            "Signal": 0,
+            "StartDelay": 0,
+            "TaskSignal": "",
+            "TaskSignalReason": "",
+            "Time": 1523490066712543500,
             "Type": "Received",
-            "Time": 1502140975648341200,
-            "FailsTask": false,
-            "RestartReason": "",
-            "SetupError": "",
-            "DriverError": "",
-            "ExitCode": 0,
-            "Signal": 0,
-            "Message": "",
-            "KillTimeout": 0,
-            "KillError": "",
-            "KillReason": "",
-            "StartDelay": 0,
-            "DownloadError": "",
             "ValidationError": "",
-            "DiskLimit": 0,
-            "FailedSibling": "",
-            "VaultError": "",
-            "TaskSignalReason": "",
-            "TaskSignal": "",
-            "DriverMessage": ""
+            "VaultError": ""
           },
           {
-            "Type": "Task Setup",
-            "Time": 1502140975648601000,
-            "FailsTask": false,
-            "RestartReason": "",
-            "SetupError": "",
+            "Details": {
+              "message": "Building Task Directory"
+            },
+            "DiskLimit": 0,
+            "DisplayMessage": "Building Task Directory",
+            "DownloadError": "",
             "DriverError": "",
+            "DriverMessage": "",
             "ExitCode": 0,
-            "Signal": 0,
+            "FailedSibling": "",
+            "FailsTask": false,
+            "GenericSource": "",
+            "KillError": "",
+            "KillReason": "",
+            "KillTimeout": 0,
             "Message": "Building Task Directory",
-            "KillTimeout": 0,
-            "KillError": "",
-            "KillReason": "",
-            "StartDelay": 0,
-            "DownloadError": "",
-            "ValidationError": "",
-            "DiskLimit": 0,
-            "FailedSibling": "",
-            "VaultError": "",
-            "TaskSignalReason": "",
-            "TaskSignal": "",
-            "DriverMessage": ""
-          },
-          {
-            "Type": "Started",
-            "Time": 1502140979184330000,
-            "FailsTask": false,
             "RestartReason": "",
             "SetupError": "",
-            "DriverError": "",
-            "ExitCode": 0,
             "Signal": 0,
-            "Message": "",
-            "KillTimeout": 0,
+            "StartDelay": 0,
+            "TaskSignal": "",
+            "TaskSignalReason": "",
+            "Time": 1523490066715208000,
+            "Type": "Task Setup",
+            "ValidationError": "",
+            "VaultError": ""
+          },
+          {
+            "Details": {},
+            "DiskLimit": 0,
+            "DisplayMessage": "Task started by client",
+            "DownloadError": "",
+            "DriverError": "",
+            "DriverMessage": "",
+            "ExitCode": 0,
+            "FailedSibling": "",
+            "FailsTask": false,
+            "GenericSource": "",
             "KillError": "",
             "KillReason": "",
+            "KillTimeout": 0,
+            "Message": "",
+            "RestartReason": "",
+            "SetupError": "",
+            "Signal": 0,
             "StartDelay": 0,
-            "DownloadError": "",
-            "ValidationError": "",
-            "DiskLimit": 0,
-            "FailedSibling": "",
-            "VaultError": "",
-            "TaskSignalReason": "",
             "TaskSignal": "",
-            "DriverMessage": ""
+            "TaskSignalReason": "",
+            "Time": 1523490068433051100,
+            "Type": "Started",
+            "ValidationError": "",
+            "VaultError": ""
           }
-        ]
+        ],
+        "Failed": false,
+        "FinishedAt": "0001-01-01T00:00:00Z",
+        "LastRestart": "0001-01-01T00:00:00Z",
+        "Restarts": 0,
+        "StartedAt": "2018-04-11T23:41:08.445128764Z",
+        "State": "running"
       }
-    },
-    "PreviousAllocation": "",
-    "DeploymentID": "ea696568-4518-0099-6811-9c26425c60af",
-    "DeploymentStatus": {
-      "Healthy": true,
-      "ModifyIndex": 15057
-    },
-    "CreateIndex": 15052,
-    "ModifyIndex": 15057,
-    "AllocModifyIndex": 15052,
-    "CreateTime": 1502140975600438500,
-    "ModifyTime": 1502140975600438500
-  },
-...
+    }
+  }
 ]
 ```
     
@@ -538,40 +713,54 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/evaluate
+    http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/evaluate
 ```
 
 ### Sample Response
 
 ```json
 {
-  "HeartbeatTTL": 0,
+  "EvalCreateIndex": 3671,
   "EvalIDs": [
-    "4ff1c7a2-c650-4058-f509-d5028ff9566e"
+    "4dfc2db7-b481-c53b-3072-14479aa44be3"
   ],
-  "EvalCreateIndex": 85,
+  "HeartbeatTTL": 0,
+  "Index": 3671,
+  "KnownLeader": false,
+  "LastContact": 0,
+  "LeaderRPCAddr": "10.138.0.2:4647",
   "NodeModifyIndex": 0,
-  "LeaderRPCAddr": "127.0.0.1:4647",
-  "NumNodes": 1,
+  "NumNodes": 3,
   "Servers": [
     {
-      "RPCAdvertiseAddr": "127.0.0.1:4647",
+      "Datacenter": "dc1",
+      "RPCAdvertiseAddr": "10.138.0.2:4647",
       "RPCMajorVersion": 1,
-      "RPCMinorVersion": 1,
-      "Datacenter": "dc1"
+      "RPCMinorVersion": 1
+    },
+    {
+      "Datacenter": "dc1",
+      "RPCAdvertiseAddr": "10.138.0.3:4647",
+      "RPCMajorVersion": 1,
+      "RPCMinorVersion": 1
+    },
+    {
+      "Datacenter": "dc1",
+      "RPCAdvertiseAddr": "10.138.0.4:4647",
+      "RPCMajorVersion": 1,
+      "RPCMinorVersion": 1
     }
-  ],
-  "Index": 85,
-  "LastContact": 0,
-  "KnownLeader": false
+  ]
 }
+
 ```
 
 ## Drain Node
 
 This endpoint toggles the drain mode of the node. When draining is enabled, no
 further allocations will be assigned to this node, and existing allocations will
-be migrated to new nodes.
+be migrated to new nodes. See the [Decommissioning Nodes
+guide](/guides/node-draining.html) for suggested usage.
 
 | Method  | Path                      | Produces                   |
 | ------- | ------------------------- | -------------------------- |
@@ -591,28 +780,49 @@ The table below shows this endpoint's support for
   be the full UUID, not the short 8-character one. This is specified as part of
   the path.
 
-- `enable` `(bool: <required>)` - Specifies if drain mode should be enabled.
-  This is specified as a query string parameter.
+- `DrainSpec` `(object: <optional>)` - Specifies if drain mode should be
+  enabled. A missing or null value disables an existing drain.
+
+  - `Deadline` `(int: <required>)` - Specifies how long to wait in nanoseconds
+    for allocations to finish migrating before they are force stopped. This is
+    also how long batch jobs are given to complete before being migrated.
+
+  - `IgnoreSystemJobs` `(bool: false)` - Specifies whether or not to stop system
+    jobs as part of a drain. By default system jobs will be stopped after all
+    other allocations have migrated or the deadline is reached. Setting this to
+    `true` means system jobs are always left running.
+
+- `MarkEligible` `(bool: false)` - Specifies whether to mark a node as eligible
+  for scheduling again when _disabling_ a drain.
+
+### Sample Payload
+
+```json
+{
+    "DrainSpec": {
+         "Deadline": "3600000000000",
+         "IgnoreSystemJobs": true
+    }
+}
+```
 
 ### Sample Request
 
 ```text
 $ curl \
-    -XPOST https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/drain?enable=true
+    -XPOST \
+    --data @drain.json \
+    http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/drain
 ```
 
 ### Sample Response
 
 ```json
 {
-  "EvalIDs": [
-    "253ec083-22a7-76c9-b8b6-2bf3d4b27bfb"
-  ],
-  "EvalCreateIndex": 91,
-  "NodeModifyIndex": 90,
-  "Index": 90,
-  "LastContact": 0,
-  "KnownLeader": false
+  "EvalCreateIndex": 0,
+  "EvalIDs": null,
+  "Index": 3742,
+  "NodeModifyIndex": 3742
 }
 ```
 
@@ -643,20 +853,51 @@ The table below shows this endpoint's support for
 
 ```text
 $ curl \
-    -XPOST https://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/purge
+    -XPOST http://localhost:4646/v1/node/f7476465-4d6e-c0de-26d0-e383c49be941/purge
 ```
 
 ### Sample Response
 
 ```json
 {
+  "EvalCreateIndex": 3817,
   "EvalIDs": [
-    "253ec083-22a7-76c9-b8b6-2bf3d4b27bfb"
+    "71bad787-5ab1-9939-be02-4809441583cd"
   ],
-  "EvalCreateIndex": 91,
-  "NodeModifyIndex": 90,
-  "Index": 90,
+  "HeartbeatTTL": 0,
+  "Index": 3816,
+  "KnownLeader": false,
   "LastContact": 0,
-  "KnownLeader": false
+  "LeaderRPCAddr": "",
+  "NodeModifyIndex": 3816,
+  "NumNodes": 0,
+  "Servers": null
 }
 ```
+
+#### Field Reference
+
+- Events - A list of the last 10 node events for this node. A node event is a
+  high level concept of noteworthy events for a node.
+
+  Each node event has the following fields:
+
+  - `Message` - The specific message for the event, detailing what occurred.
+
+  - `Subsystem` - The subsystem where the node event took place. Subsysystems
+    include:
+
+    - `Drain` - The Nomad server draining subsystem.
+
+    - `Driver` - The Nomad client driver subsystem.
+
+    - `Heartbeat` - Either Nomad client or server heartbeating subsystem.
+
+    - `Cluster` - Nomad server cluster management subsystem.
+
+  - `Details` - Any further details about the event, formatted as a key/value
+    pair.
+
+  - `Timestamp` - Each node event has an ISO 8601 timestamp.
+
+  - `CreateIndex` - The Raft index at which the event was committed.

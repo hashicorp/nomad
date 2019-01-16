@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -102,6 +104,50 @@ func execute() {
 			msg := popArg()
 			file := popArg()
 			ioutil.WriteFile(file, []byte(msg), 0666)
+
+		case "pgrp":
+			// pgrp <group_int> puts the pid in a new process group
+			if len(args) < 1 {
+				fmt.Fprintln(os.Stderr, "expected process group number for pgrp")
+				os.Exit(1)
+			}
+			num := popArg()
+			grp, err := strconv.Atoi(num)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to convert process group number %q: %v\n", num, err)
+				os.Exit(1)
+			}
+			if err := syscall.Setpgid(0, grp); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to set process group: %v\n", err)
+				os.Exit(1)
+			}
+
+		case "fork/exec":
+			// fork/exec <pid_file> <args> forks execs the helper process
+			if len(args) < 2 {
+				fmt.Fprintln(os.Stderr, "expect pid file and remaining args to fork exec")
+				os.Exit(1)
+			}
+
+			pidFile := popArg()
+
+			cmd := exec.Command(Path(), args...)
+			SetCmdEnv(cmd)
+			if err := cmd.Start(); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to fork/exec: %v\n", err)
+				os.Exit(1)
+			}
+
+			if err := ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), 777); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to write pid file: %v\n", err)
+				os.Exit(1)
+			}
+
+			if err := cmd.Wait(); err != nil {
+				fmt.Fprintf(os.Stderr, "wait failed: %v\n", err)
+				os.Exit(1)
+			}
+			return
 
 		default:
 			fmt.Fprintln(os.Stderr, "unknown command:", cmd)

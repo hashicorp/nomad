@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -15,10 +16,12 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/consul/lib"
+	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -57,10 +60,6 @@ type Agent struct {
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
-	// consulSupportsTLSSkipVerify flags whether or not Nomad can register
-	// checks with TLSSkipVerify
-	consulSupportsTLSSkipVerify bool
-
 	client *client.Client
 
 	server *nomad.Server
@@ -81,6 +80,9 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 		shutdownCh: make(chan struct{}),
 		InmemSink:  inmem,
 	}
+
+	// Global logger should match internal logger as much as possible
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
@@ -145,11 +147,24 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
-	if agentConfig.Server.NumSchedulers != 0 {
-		conf.NumSchedulers = agentConfig.Server.NumSchedulers
+	if agentConfig.Server.NumSchedulers != nil {
+		conf.NumSchedulers = *agentConfig.Server.NumSchedulers
 	}
 	if len(agentConfig.Server.EnabledSchedulers) != 0 {
-		conf.EnabledSchedulers = agentConfig.Server.EnabledSchedulers
+		// Convert to a set and require the core scheduler
+		set := make(map[string]struct{}, 4)
+		set[structs.JobTypeCore] = struct{}{}
+		for _, sched := range agentConfig.Server.EnabledSchedulers {
+			set[sched] = struct{}{}
+		}
+
+		schedulers := make([]string, 0, len(set))
+		for k := range set {
+			schedulers = append(schedulers, k)
+		}
+
+		conf.EnabledSchedulers = schedulers
+
 	}
 	if agentConfig.ACL.Enabled {
 		conf.ACLEnabled = true
@@ -216,9 +231,18 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse Serf advertise address %q: %v", agentConfig.AdvertiseAddrs.Serf, err)
 	}
-	conf.RPCAdvertise = rpcAddr
+
+	// Server address is the serf advertise address and rpc port. This is the
+	// address that all servers should be able to communicate over RPC with.
+	serverAddr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(serfAddr.IP.String(), fmt.Sprintf("%d", rpcAddr.Port)))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to resolve Serf advertise address %q: %v", agentConfig.AdvertiseAddrs.Serf, err)
+	}
+
 	conf.SerfConfig.MemberlistConfig.AdvertiseAddr = serfAddr.IP.String()
 	conf.SerfConfig.MemberlistConfig.AdvertisePort = serfAddr.Port
+	conf.ClientRPCAdvertise = rpcAddr
+	conf.ServerRPCAdvertise = serverAddr
 
 	// Set up gc threshold and heartbeat grace period
 	if gcThreshold := agentConfig.Server.NodeGCThreshold; gcThreshold != "" {
@@ -274,6 +298,7 @@ func convertServerConfig(agentConfig *Config, logOutput io.Writer) (*nomad.Confi
 	// Setup telemetry related config
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
+	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
 	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	return conf, nil
@@ -293,9 +318,24 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if conf == nil {
 		conf = clientconfig.DefaultConfig()
 	}
+
+	// If we are running a server, append both its bind and advertise address so
+	// we are able to at least talk to the local server even if that isn't
+	// configured explicitly. This handles both running server and client on one
+	// host and -dev mode.
+	conf.Servers = a.config.Client.Servers
 	if a.server != nil {
-		conf.RPCHandler = a.server
+		if a.config.AdvertiseAddrs == nil || a.config.AdvertiseAddrs.RPC == "" {
+			return nil, fmt.Errorf("AdvertiseAddrs is nil or empty")
+		} else if a.config.normalizedAddrs == nil || a.config.normalizedAddrs.RPC == "" {
+			return nil, fmt.Errorf("normalizedAddrs is nil or empty")
+		}
+
+		conf.Servers = append(conf.Servers,
+			a.config.normalizedAddrs.RPC,
+			a.config.AdvertiseAddrs.RPC)
 	}
+
 	conf.LogOutput = a.logOutput
 	conf.LogLevel = a.config.LogLevel
 	conf.DevMode = a.config.DevMode
@@ -312,7 +352,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	if a.config.Client.AllocDir != "" {
 		conf.AllocDir = a.config.Client.AllocDir
 	}
-	conf.Servers = a.config.Client.Servers
 	if a.config.Client.NetworkInterface != "" {
 		conf.NetworkInterface = a.config.Client.NetworkInterface
 	}
@@ -338,6 +377,9 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 	}
 	if a.config.Client.CpuCompute != 0 {
 		conf.CpuCompute = a.config.Client.CpuCompute
+	}
+	if a.config.Client.MemoryMB != 0 {
+		conf.MemoryMB = a.config.Client.MemoryMB
 	}
 	if a.config.Client.MaxKillTimeout != "" {
 		dur, err := time.ParseDuration(a.config.Client.MaxKillTimeout)
@@ -424,6 +466,12 @@ func (a *Agent) setupServer() error {
 		return fmt.Errorf("server config setup failed: %s", err)
 	}
 
+	// Generate a node ID and persist it if it is the first instance, otherwise
+	// read the persisted node ID.
+	if err := a.setupNodeID(conf); err != nil {
+		return fmt.Errorf("setting up server node ID failed: %s", err)
+	}
+
 	// Sets up the keyring for gossip encryption
 	if err := a.setupKeyrings(conf); err != nil {
 		return fmt.Errorf("failed to configure keyring: %v", err)
@@ -461,7 +509,7 @@ func (a *Agent) setupServer() error {
 			Tags:      []string{consul.ServiceTagRPC},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      "Nomad Server RPC Check",
+					Name:      a.config.Consul.ServerRPCCheckName,
 					Type:      "tcp",
 					Interval:  serverRpcCheckInterval,
 					Timeout:   serverRpcCheckTimeout,
@@ -475,7 +523,7 @@ func (a *Agent) setupServer() error {
 			Tags:      []string{consul.ServiceTagSerf},
 			Checks: []*structs.ServiceCheck{
 				{
-					Name:      "Nomad Server Serf Check",
+					Name:      a.config.Consul.ServerSerfCheckName,
 					Type:      "tcp",
 					Interval:  serverSerfCheckInterval,
 					Timeout:   serverSerfCheckTimeout,
@@ -495,6 +543,65 @@ func (a *Agent) setupServer() error {
 		}
 	}
 
+	return nil
+}
+
+// setupNodeID will pull the persisted node ID, if any, or create a random one
+// and persist it.
+func (a *Agent) setupNodeID(config *nomad.Config) error {
+	// For dev mode we have no filesystem access so just make a node ID.
+	if a.config.DevMode {
+		config.NodeID = uuid.Generate()
+		return nil
+	}
+
+	// Load saved state, if any. Since a user could edit this, we also
+	// validate it. Saved state overwrites any configured node id
+	fileID := filepath.Join(config.DataDir, "node-id")
+	if _, err := os.Stat(fileID); err == nil {
+		rawID, err := ioutil.ReadFile(fileID)
+		if err != nil {
+			return err
+		}
+
+		nodeID := strings.TrimSpace(string(rawID))
+		nodeID = strings.ToLower(nodeID)
+		if _, err := uuidparse.ParseUUID(nodeID); err != nil {
+			return err
+		}
+		config.NodeID = nodeID
+		return nil
+	}
+
+	// If they've configured a node ID manually then just use that, as
+	// long as it's valid.
+	if config.NodeID != "" {
+		config.NodeID = strings.ToLower(config.NodeID)
+		if _, err := uuidparse.ParseUUID(config.NodeID); err != nil {
+			return err
+		}
+		// Persist this configured nodeID to our data directory
+		if err := lib.EnsurePath(fileID, false); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// If we still don't have a valid node ID, make one.
+	if config.NodeID == "" {
+		id := uuid.Generate()
+		if err := lib.EnsurePath(fileID, false); err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(fileID, []byte(id), 0600); err != nil {
+			return err
+		}
+
+		config.NodeID = id
+	}
 	return nil
 }
 
@@ -575,7 +682,7 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 		httpCheckAddr = a.config.AdvertiseAddrs.HTTP
 	}
 	check := structs.ServiceCheck{
-		Name:      "Nomad Client HTTP Check",
+		Name:      a.config.Consul.ClientHTTPCheckName,
 		Type:      "http",
 		Path:      "/v1/agent/health?type=client",
 		Protocol:  "http",
@@ -585,16 +692,12 @@ func (a *Agent) agentHTTPCheck(server bool) *structs.ServiceCheck {
 	}
 	// Switch to endpoint that doesn't require a leader for servers
 	if server {
-		check.Name = "Nomad Server HTTP Check"
+		check.Name = a.config.Consul.ServerHTTPCheckName
 		check.Path = "/v1/agent/health?type=server"
 	}
 	if !a.config.TLSConfig.EnableHTTP {
 		// No HTTPS, return a plain http check
 		return &check
-	}
-	if !a.consulSupportsTLSSkipVerify {
-		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because it requires Consul>=0.7.2")
-		return nil
 	}
 	if a.config.TLSConfig.VerifyHTTPSClient {
 		a.logger.Printf("[WARN] agent: not registering Nomad HTTPS Health Check because verify_https_client enabled")
@@ -764,14 +867,31 @@ func (a *Agent) Stats() map[string]map[string]string {
 
 // ShouldReload determines if we should reload the configuration and agent
 // connections. If the TLS Configuration has not changed, we shouldn't reload.
-func (a *Agent) ShouldReload(newConfig *Config) (bool, bool) {
+func (a *Agent) ShouldReload(newConfig *Config) (agent, http, rpc bool) {
 	a.configLock.Lock()
 	defer a.configLock.Unlock()
-	if a.config.TLSConfig.Equals(newConfig.TLSConfig) {
-		return false, false
+
+	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
+	if err != nil {
+		a.logger.Printf("[INFO] agent: error when parsing TLS certificate %v", err)
+		return false, false, false
+	} else if !isEqual {
+		return true, true, true
 	}
 
-	return true, true // requires a reload of both agent and http server
+	// Allow the ability to only reload HTTP connections
+	if a.config.TLSConfig.EnableHTTP != newConfig.TLSConfig.EnableHTTP {
+		http = true
+		agent = true
+	}
+
+	// Allow the ability to only reload HTTP connections
+	if a.config.TLSConfig.EnableRPC != newConfig.TLSConfig.EnableRPC {
+		rpc = true
+		agent = true
+	}
+
+	return agent, http, rpc
 }
 
 // Reload handles configuration changes for the agent. Provides a method that
@@ -837,55 +957,18 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	}
 
 	// Determine version for TLSSkipVerify
-	if self, err := client.Agent().Self(); err == nil {
-		a.consulSupportsTLSSkipVerify = consulSupportsTLSSkipVerify(self)
-	}
 
 	// Create Consul Catalog client for service discovery.
 	a.consulCatalog = client.Catalog()
 
 	// Create Consul Service client for service advertisement and checks.
-	a.consulService = consul.NewServiceClient(client.Agent(), a.consulSupportsTLSSkipVerify, a.logger)
+	isClient := false
+	if a.config.Client != nil && a.config.Client.Enabled {
+		isClient = true
+	}
+	a.consulService = consul.NewServiceClient(client.Agent(), a.logger, isClient)
 
 	// Run the Consul service client's sync'ing main loop
 	go a.consulService.Run()
 	return nil
-}
-
-var consulTLSSkipVerifyMinVersion = version.Must(version.NewVersion("0.7.2"))
-
-// consulSupportsTLSSkipVerify returns true if Consul supports TLSSkipVerify.
-func consulSupportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
-	member, ok := self["Member"]
-	if !ok {
-		return false
-	}
-	tagsI, ok := member["Tags"]
-	if !ok {
-		return false
-	}
-	tags, ok := tagsI.(map[string]interface{})
-	if !ok {
-		return false
-	}
-	buildI, ok := tags["build"]
-	if !ok {
-		return false
-	}
-	build, ok := buildI.(string)
-	if !ok {
-		return false
-	}
-	parts := strings.SplitN(build, ":", 2)
-	if len(parts) != 2 {
-		return false
-	}
-	v, err := version.NewVersion(parts[0])
-	if err != nil {
-		return false
-	}
-	if v.LessThan(consulTLSSkipVerifyMinVersion) {
-		return false
-	}
-	return true
 }
