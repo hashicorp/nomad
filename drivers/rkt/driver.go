@@ -344,6 +344,21 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("error: handle cannot be nil")
 	}
 
+	// pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		var reattach shared.ReattachConfig
+		d.logger.Debug("parsing pre09 driver state", "state", string(handle.DriverState))
+		if err := json.Unmarshal(handle.DriverState, &reattach); err != nil {
+			return err
+		}
+
+		reattachConfig, err := shared.ReattachConfigToGoPlugin(&reattach)
+		if err != nil {
+			return err
+		}
+		return d.recoverPre0_9Task(handle.Config, reattachConfig)
+	}
+
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Trace("nothing to recover; task already exists",
