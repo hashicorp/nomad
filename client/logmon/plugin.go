@@ -14,7 +14,7 @@ import (
 
 // LaunchLogMon an instance of logmon
 // TODO: Integrate with base plugin loader
-func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
+func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (LogMon, *plugin.Client, error) {
 	logger = logger.Named("logmon")
 	bin, err := discover.NomadExecutable()
 	if err != nil {
@@ -23,6 +23,7 @@ func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
 
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
+		Reattach:        reattachConfig,
 		Plugins: map[string]plugin.Plugin{
 			"logmon": &Plugin{},
 		},
@@ -45,7 +46,6 @@ func LaunchLogMon(logger hclog.Logger) (LogMon, *plugin.Client, error) {
 
 	l := raw.(LogMon)
 	return l, client, nil
-
 }
 
 type Plugin struct {

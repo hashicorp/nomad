@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/plugins/shared"
 )
 
 // logmonHook launches logmon and manages task logging
@@ -58,8 +60,8 @@ func (*logmonHook) Name() string {
 	return "logmon"
 }
 
-func (h *logmonHook) launchLogMon() error {
-	l, c, err := logmon.LaunchLogMon(h.logger)
+func (h *logmonHook) launchLogMon(reattachConfig *plugin.ReattachConfig) error {
+	l, c, err := logmon.LaunchLogMon(h.logger, reattachConfig)
 	if err != nil {
 		return err
 	}
@@ -69,28 +71,58 @@ func (h *logmonHook) launchLogMon() error {
 	return nil
 }
 
+func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig, error) {
+	if data == nil || data["reattach_config"] == "" {
+		return nil, nil
+	}
+
+	var cfg *shared.ReattachConfig
+	err := json.Unmarshal([]byte(data["reattach_config"]), cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return shared.ReattachConfigToGoPlugin(cfg)
+}
+
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
-	// Launch logmon instance for the task.
-	if err := h.launchLogMon(); err != nil {
+	reattachConfig, err := reattachConfigFromHookData(req.HookData)
+	if err != nil {
+		h.logger.Error("failed to load reattach config", "error", err)
+		return err
+	}
+
+	// Launch or reattach logmon instance for the task.
+	if err := h.launchLogMon(reattachConfig); err != nil {
 		h.logger.Error("failed to launch logmon process", "error", err)
 		return err
 	}
 
-	err := h.logmon.Start(&logmon.LogConfig{
-		LogDir:        h.config.logDir,
-		StdoutLogFile: fmt.Sprintf("%s.stdout", req.Task.Name),
-		StderrLogFile: fmt.Sprintf("%s.stderr", req.Task.Name),
-		StdoutFifo:    h.config.stdoutFifo,
-		StderrFifo:    h.config.stderrFifo,
-		MaxFiles:      req.Task.LogConfig.MaxFiles,
-		MaxFileSizeMB: req.Task.LogConfig.MaxFileSizeMB,
-	})
+	// Only tell logmon to start when we are not reattaching to a running instance
+	if reattachConfig == nil {
+		err := h.logmon.Start(&logmon.LogConfig{
+			LogDir:        h.config.logDir,
+			StdoutLogFile: fmt.Sprintf("%s.stdout", req.Task.Name),
+			StderrLogFile: fmt.Sprintf("%s.stderr", req.Task.Name),
+			StdoutFifo:    h.config.stdoutFifo,
+			StderrFifo:    h.config.stderrFifo,
+			MaxFiles:      req.Task.LogConfig.MaxFiles,
+			MaxFileSizeMB: req.Task.LogConfig.MaxFileSizeMB,
+		})
+		if err != nil {
+			h.logger.Error("failed to start logmon", "error", err)
+			return err
+		}
+	}
+
+	rCfg := shared.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
+	jsonCfg, err := json.Marshal(rCfg)
 	if err != nil {
-		h.logger.Error("failed to start logmon", "error", err)
 		return err
 	}
+	req.HookData = map[string]string{"reattach_config": string(jsonCfg)}
 
 	resp.Done = true
 	return nil
