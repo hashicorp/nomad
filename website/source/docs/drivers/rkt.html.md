@@ -176,7 +176,7 @@ over HTTP.
 
 ## Client Configuration
 
-~> Please note using client configuration options will soon be deprecated. Please start using [plugin options][plugin-options]. See the [plugin stanza][plugin-stanza] documentation for more information.
+~> Note: client configuration options will soon be deprecated. Please use [plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
 
 The `rkt` driver has the following [client configuration
 options](/docs/configuration/client.html#options):
