@@ -3,10 +3,12 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
@@ -500,6 +502,57 @@ WAIT:
 			killDur, task.ShutdownDelay,
 		)
 	}
+}
+
+// TestTaskRunner_Dispatch_Payload asserts that a dispatch job runs and the
+// payload was written to disk.
+func TestTaskRunner_Dispatch_Payload(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+
+	fileName := "test"
+	task.DispatchPayload = &structs.DispatchPayloadConfig{
+		File: fileName,
+	}
+	alloc.Job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+
+	// Add a payload (they're snappy encoded bytes)
+	expected := []byte("hello world")
+	compressed := snappy.Encode(nil, expected)
+	alloc.Job.Payload = compressed
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for it to finish
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+		return ts.State == structs.TaskStateDead, fmt.Errorf("%v", ts.State)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Should have exited successfully
+	ts := tr.TaskState()
+	require.False(t, ts.Failed)
+	require.Zero(t, ts.Restarts)
+
+	// Check that the file was written to disk properly
+	payloadPath := filepath.Join(tr.taskDir.LocalDir, fileName)
+	data, err := ioutil.ReadFile(payloadPath)
+	require.NoError(t, err)
+	require.Equal(t, expected, data)
 }
 
 // testWaitForTaskToStart waits for the task to or fails the test
