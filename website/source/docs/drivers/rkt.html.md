@@ -170,7 +170,7 @@ over HTTP.
 
 ## Plugin Options
 
-* `volumes_enabled`: Defaults to `true`. Allows tasks to bind host paths
+* `volumes_enabled` - Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container. Binding relative paths is always allowed
   and will be resolved relative to the allocation's directory. 
 
@@ -181,7 +181,7 @@ over HTTP.
 The `rkt` driver has the following [client configuration
 options](/docs/configuration/client.html#options):
 
-* `rkt.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
+* `rkt.volumes.enabled` - Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container. Binding relative paths is always allowed
   and will be resolved relative to the allocation's directory.
 
