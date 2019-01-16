@@ -54,10 +54,9 @@ type lastPercent struct {
 }
 
 var lastCPUPercent lastPercent
-var invoke common.Invoker
+var invoke common.Invoker = common.Invoke{}
 
 func init() {
-	invoke = common.Invoke{}
 	lastCPUPercent.Lock()
 	lastCPUPercent.lastCPUTimes, _ = Times(false)
 	lastCPUPercent.lastPerCPUTimes, _ = Times(true)

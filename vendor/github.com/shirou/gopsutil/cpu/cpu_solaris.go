@@ -47,7 +47,7 @@ func InfoWithContext(ctx context.Context) ([]InfoStat, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot find psrinfo: %s", err)
 	}
-	psrInfoOut, err := invoke.Command(psrInfo, "-p", "-v")
+	psrInfoOut, err := invoke.CommandWithContext(ctx, psrInfo, "-p", "-v")
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute psrinfo: %s", err)
 	}
@@ -56,7 +56,7 @@ func InfoWithContext(ctx context.Context) ([]InfoStat, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot find isainfo: %s", err)
 	}
-	isaInfoOut, err := invoke.Command(isaInfo, "-b", "-v")
+	isaInfoOut, err := invoke.CommandWithContext(ctx, isaInfo, "-b", "-v")
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute isainfo: %s", err)
 	}

@@ -85,7 +85,11 @@ func Test_Process_memory_maps(t *testing.T) {
 	checkPid := os.Getpid()
 
 	ret, err := NewProcess(int32(checkPid))
+	if err != nil {
+		t.Errorf("error %v", err)
+	}
 
+	// ungrouped memory maps
 	mmaps, err := ret.MemoryMaps(false)
 	if err != nil {
 		t.Errorf("memory map get error %v", err)
@@ -96,6 +100,18 @@ func Test_Process_memory_maps(t *testing.T) {
 			t.Errorf("memory map get error %v", m)
 		}
 	}
+
+	// grouped memory maps
+	mmaps, err = ret.MemoryMaps(true)
+	if err != nil {
+		t.Errorf("memory map get error %v", err)
+	}
+	if len(*mmaps) != 1 {
+		t.Errorf("grouped memory maps length (%v) is not equal to 1", len(*mmaps))
+	}
+    if (*mmaps)[0] == empty {
+        t.Errorf("memory map is empty")
+    }
 }
 func Test_Process_MemoryInfo(t *testing.T) {
 	p := testGetProcess()
@@ -165,12 +181,6 @@ func Test_Process_Terminal(t *testing.T) {
 	if err != nil {
 		t.Errorf("geting terminal error %v", err)
 	}
-
-	/*
-		if v == "" {
-			t.Errorf("could not get terminal %v", v)
-		}
-	*/
 }
 
 func Test_Process_IOCounters(t *testing.T) {

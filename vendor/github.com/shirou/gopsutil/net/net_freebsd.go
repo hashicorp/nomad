@@ -21,7 +21,7 @@ func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, 
 	if err != nil {
 		return nil, err
 	}
-	out, err := invoke.Command(netstat, "-ibdnW")
+	out, err := invoke.CommandWithContext(ctx, netstat, "-ibdnW")
 	if err != nil {
 		return nil, err
 	}

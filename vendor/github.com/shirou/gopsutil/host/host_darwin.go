@@ -18,6 +18,7 @@ import (
 
 	"github.com/shirou/gopsutil/internal/common"
 	"github.com/shirou/gopsutil/process"
+	"golang.org/x/sys/unix"
 )
 
 // from utmpx.h
@@ -38,12 +39,9 @@ func InfoWithContext(ctx context.Context) (*InfoStat, error) {
 		ret.Hostname = hostname
 	}
 
-	uname, err := exec.LookPath("uname")
+	kernelVersion, err := KernelVersionWithContext(ctx)
 	if err == nil {
-		out, err := invoke.Command(uname, "-r")
-		if err == nil {
-			ret.KernelVersion = strings.ToLower(strings.TrimSpace(string(out)))
-		}
+		ret.KernelVersion = kernelVersion
 	}
 
 	platform, family, pver, err := PlatformInformation()
@@ -70,7 +68,7 @@ func InfoWithContext(ctx context.Context) (*InfoStat, error) {
 		ret.Procs = uint64(len(procs))
 	}
 
-	values, err := common.DoSysctrl("kern.uuid")
+	values, err := common.DoSysctrlWithContext(ctx, "kern.uuid")
 	if err == nil && len(values) == 1 && values[0] != "" {
 		ret.HostID = strings.ToLower(values[0])
 	}
@@ -90,7 +88,7 @@ func BootTimeWithContext(ctx context.Context) (uint64, error) {
 	if t != 0 {
 		return t, nil
 	}
-	values, err := common.DoSysctrl("kern.boottime")
+	values, err := common.DoSysctrlWithContext(ctx, "kern.boottime")
 	if err != nil {
 		return 0, err
 	}
@@ -183,17 +181,13 @@ func PlatformInformationWithContext(ctx context.Context) (string, string, string
 	if err != nil {
 		return "", "", "", err
 	}
-	uname, err := exec.LookPath("uname")
-	if err != nil {
-		return "", "", "", err
-	}
 
-	out, err := invoke.Command(uname, "-s")
+	p, err := unix.Sysctl("kern.ostype")
 	if err == nil {
-		platform = strings.ToLower(strings.TrimSpace(string(out)))
+		platform = strings.ToLower(p)
 	}
 
-	out, err = invoke.Command(sw_vers, "-productVersion")
+	out, err := invoke.CommandWithContext(ctx, sw_vers, "-productVersion")
 	if err == nil {
 		pver = strings.ToLower(strings.TrimSpace(string(out)))
 	}
@@ -214,6 +208,14 @@ func KernelVersion() (string, error) {
 }
 
 func KernelVersionWithContext(ctx context.Context) (string, error) {
-	_, _, version, err := PlatformInformation()
-	return version, err
+	version, err := unix.Sysctl("kern.osrelease")
+	return strings.ToLower(version), err
+}
+
+func SensorsTemperatures() ([]TemperatureStat, error) {
+	return SensorsTemperaturesWithContext(context.Background())
+}
+
+func SensorsTemperaturesWithContext(ctx context.Context) ([]TemperatureStat, error) {
+	return []TemperatureStat{}, common.ErrNotImplementedError
 }

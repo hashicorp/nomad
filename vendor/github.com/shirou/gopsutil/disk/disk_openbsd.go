@@ -27,7 +27,9 @@ func PartitionsWithContext(ctx context.Context, all bool) ([]PartitionStat, erro
 	}
 
 	fs := make([]Statfs, count)
-	_, err = Getfsstat(fs, MNT_WAIT)
+	if _, err = Getfsstat(fs, MNT_WAIT); err != nil {
+		return ret, err
+	}
 
 	for _, stat := range fs {
 		opts := "rw"

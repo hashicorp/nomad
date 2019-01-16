@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -23,10 +22,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	ErrorNoChildren = errors.New("process does not have children")
-	PageSize        = uint64(os.Getpagesize())
-)
+var PageSize = uint64(os.Getpagesize())
 
 const (
 	PrioProcess = 0   // linux/resource.h
@@ -88,7 +84,7 @@ func (p *Process) Ppid() (int32, error) {
 }
 
 func (p *Process) PpidWithContext(ctx context.Context) (int32, error) {
-	_, ppid, _, _, _, _, err := p.fillFromStat()
+	_, ppid, _, _, _, _, _, err := p.fillFromStat()
 	if err != nil {
 		return -1, err
 	}
@@ -154,7 +150,7 @@ func (p *Process) CreateTime() (int64, error) {
 }
 
 func (p *Process) CreateTimeWithContext(ctx context.Context) (int64, error) {
-	_, _, _, createTime, _, _, err := p.fillFromStat()
+	_, _, _, createTime, _, _, _, err := p.fillFromStat()
 	if err != nil {
 		return 0, err
 	}
@@ -203,6 +199,28 @@ func (p *Process) StatusWithContext(ctx context.Context) (string, error) {
 	return p.status, nil
 }
 
+// Foreground returns true if the process is in foreground, false otherwise.
+func (p *Process) Foreground() (bool, error) {
+	return p.ForegroundWithContext(context.Background())
+}
+
+func (p *Process) ForegroundWithContext(ctx context.Context) (bool, error) {
+	// see https://github.com/shirou/gopsutil/issues/596#issuecomment-432707831 for implementation details
+	pid := p.Pid
+	statPath := common.HostProc(strconv.Itoa(int(pid)), "stat")
+	contents, err := ioutil.ReadFile(statPath)
+	if err != nil {
+		return false, err
+	}
+	fields := strings.Fields(string(contents))
+	if len(fields) < 8 {
+		return false, fmt.Errorf("insufficient data in %s", statPath)
+	}
+	pgid := fields[4]
+	tpgid := fields[7]
+	return pgid == tpgid, nil
+}
+
 // Uids returns user ids of the process as a slice of the int
 func (p *Process) Uids() ([]int32, error) {
 	return p.UidsWithContext(context.Background())
@@ -235,7 +253,7 @@ func (p *Process) Terminal() (string, error) {
 }
 
 func (p *Process) TerminalWithContext(ctx context.Context) (string, error) {
-	t, _, _, _, _, _, err := p.fillFromStat()
+	t, _, _, _, _, _, _, err := p.fillFromStat()
 	if err != nil {
 		return "", err
 	}
@@ -254,7 +272,7 @@ func (p *Process) Nice() (int32, error) {
 }
 
 func (p *Process) NiceWithContext(ctx context.Context) (int32, error) {
-	_, _, _, _, _, nice, err := p.fillFromStat()
+	_, _, _, _, _, nice, _, err := p.fillFromStat()
 	if err != nil {
 		return 0, err
 	}
@@ -292,7 +310,7 @@ func (p *Process) RlimitUsageWithContext(ctx context.Context, gatherUsed bool) (
 		return rlimits, err
 	}
 
-	_, _, _, _, rtprio, nice, err := p.fillFromStat()
+	_, _, _, _, rtprio, nice, _, err := p.fillFromStat()
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +418,7 @@ func (p *Process) ThreadsWithContext(ctx context.Context) (map[int32]*cpu.TimesS
 	}
 
 	for _, tid := range tids {
-		_, _, cpuTimes, _, _, _, err := p.fillFromTIDStat(tid)
+		_, _, cpuTimes, _, _, _, _, err := p.fillFromTIDStat(tid)
 		if err != nil {
 			return nil, err
 		}
@@ -416,7 +434,7 @@ func (p *Process) Times() (*cpu.TimesStat, error) {
 }
 
 func (p *Process) TimesWithContext(ctx context.Context) (*cpu.TimesStat, error) {
-	_, _, cpuTimes, _, _, _, err := p.fillFromStat()
+	_, _, cpuTimes, _, _, _, _, err := p.fillFromStat()
 	if err != nil {
 		return nil, err
 	}
@@ -460,13 +478,27 @@ func (p *Process) MemoryInfoExWithContext(ctx context.Context) (*MemoryInfoExSta
 	return memInfoEx, nil
 }
 
+// PageFaultsInfo returns the process's page fault counters
+func (p *Process) PageFaults() (*PageFaultsStat, error) {
+	return p.PageFaultsWithContext(context.Background())
+}
+
+func (p *Process) PageFaultsWithContext(ctx context.Context) (*PageFaultsStat, error) {
+	_, _, _, _, _, _, pageFaults, err := p.fillFromStat()
+	if err != nil {
+		return nil, err
+	}
+	return pageFaults, nil
+
+}
+
 // Children returns a slice of Process of the process.
 func (p *Process) Children() ([]*Process, error) {
 	return p.ChildrenWithContext(context.Background())
 }
 
 func (p *Process) ChildrenWithContext(ctx context.Context) ([]*Process, error) {
-	pids, err := common.CallPgrep(invoke, p.Pid)
+	pids, err := common.CallPgrepWithContext(ctx, invoke, p.Pid)
 	if err != nil {
 		if pids == nil || len(pids) == 0 {
 			return nil, ErrorNoChildren
@@ -541,6 +573,9 @@ func (p *Process) MemoryMaps(grouped bool) (*[]MemoryMapsStat, error) {
 func (p *Process) MemoryMapsWithContext(ctx context.Context, grouped bool) (*[]MemoryMapsStat, error) {
 	pid := p.Pid
 	var ret []MemoryMapsStat
+	if grouped {
+		ret = make([]MemoryMapsStat, 1)
+	}
 	smapsPath := common.HostProc(strconv.Itoa(int(pid)), "smaps")
 	contents, err := ioutil.ReadFile(smapsPath)
 	if err != nil {
@@ -603,7 +638,20 @@ func (p *Process) MemoryMapsWithContext(ctx context.Context, grouped bool) (*[]M
 				if err != nil {
 					return &ret, err
 				}
-				ret = append(ret, g)
+				if grouped {
+					ret[0].Size += g.Size
+					ret[0].Rss += g.Rss
+					ret[0].Pss += g.Pss
+					ret[0].SharedClean += g.SharedClean
+					ret[0].SharedDirty += g.SharedDirty
+					ret[0].PrivateClean += g.PrivateClean
+					ret[0].PrivateDirty += g.PrivateDirty
+					ret[0].Referenced += g.Referenced
+					ret[0].Anonymous += g.Anonymous
+					ret[0].Swap += g.Swap
+				} else {
+					ret = append(ret, g)
+				}
 			}
 			// starts new block
 			blocks = make([]string, 16)
@@ -989,6 +1037,8 @@ func (p *Process) fillFromStatusWithContext(ctx context.Context) error {
 					extendedName := filepath.Base(cmdlineSlice[0])
 					if strings.HasPrefix(extendedName, p.name) {
 						p.name = extendedName
+					} else {
+						p.name = cmdlineSlice[0]
 					}
 				}
 			}
@@ -1063,6 +1113,13 @@ func (p *Process) fillFromStatusWithContext(ctx context.Context) error {
 				return err
 			}
 			p.memInfo.Swap = v * 1024
+		case "VmHWM":
+			value := strings.Trim(value, " kB") // remove last "kB"
+			v, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				return err
+			}
+			p.memInfo.HWM = v * 1024
 		case "VmData":
 			value := strings.Trim(value, " kB") // remove last "kB"
 			v, err := strconv.ParseUint(value, 10, 64)
@@ -1120,11 +1177,11 @@ func (p *Process) fillFromStatusWithContext(ctx context.Context) error {
 	return nil
 }
 
-func (p *Process) fillFromTIDStat(tid int32) (uint64, int32, *cpu.TimesStat, int64, uint32, int32, error) {
+func (p *Process) fillFromTIDStat(tid int32) (uint64, int32, *cpu.TimesStat, int64, uint32, int32, *PageFaultsStat, error) {
 	return p.fillFromTIDStatWithContext(context.Background(), tid)
 }
 
-func (p *Process) fillFromTIDStatWithContext(ctx context.Context, tid int32) (uint64, int32, *cpu.TimesStat, int64, uint32, int32, error) {
+func (p *Process) fillFromTIDStatWithContext(ctx context.Context, tid int32) (uint64, int32, *cpu.TimesStat, int64, uint32, int32, *PageFaultsStat, error) {
 	pid := p.Pid
 	var statPath string
 
@@ -1136,7 +1193,7 @@ func (p *Process) fillFromTIDStatWithContext(ctx context.Context, tid int32) (ui
 
 	contents, err := ioutil.ReadFile(statPath)
 	if err != nil {
-		return 0, 0, nil, 0, 0, 0, err
+		return 0, 0, nil, 0, 0, 0, nil, err
 	}
 	fields := strings.Fields(string(contents))
 
@@ -1147,21 +1204,21 @@ func (p *Process) fillFromTIDStatWithContext(ctx context.Context, tid int32) (ui
 
 	terminal, err := strconv.ParseUint(fields[i+5], 10, 64)
 	if err != nil {
-		return 0, 0, nil, 0, 0, 0, err
+		return 0, 0, nil, 0, 0, 0, nil, err
 	}
 
 	ppid, err := strconv.ParseInt(fields[i+2], 10, 32)
 	if err != nil {
-		return 0, 0, nil, 0, 0, 0, err
+		return 0, 0, nil, 0, 0, 0, nil, err
 	}
 	utime, err := strconv.ParseFloat(fields[i+12], 64)
 	if err != nil {
-		return 0, 0, nil, 0, 0, 0, err
+		return 0, 0, nil, 0, 0, 0, nil, err
 	}
 
 	stime, err := strconv.ParseFloat(fields[i+13], 64)
 	if err != nil {
-		return 0, 0, nil, 0, 0, 0, err
+		return 0, 0, nil, 0, 0, 0, nil, err
 	}
 
 	cpuTimes := &cpu.TimesStat{
@@ -1173,12 +1230,15 @@ func (p *Process) fillFromTIDStatWithContext(ctx context.Context, tid int32) (ui
 	bootTime, _ := host.BootTime()
 	t, err := strconv.ParseUint(fields[i+20], 10, 64)
 	if err != nil {
-		return 0, 0, nil, 0, 0, 0, err
+		return 0, 0, nil, 0, 0, 0, nil, err
 	}
 	ctime := (t / uint64(ClockTicks)) + uint64(bootTime)
 	createTime := int64(ctime * 1000)
 
 	rtpriority, err := strconv.ParseInt(fields[i+16], 10, 32)
+	if err != nil {
+		return 0, 0, nil, 0, 0, 0, nil, err
+	}
 	if rtpriority < 0 {
 		rtpriority = rtpriority*-1 - 1
 	} else {
@@ -1190,14 +1250,38 @@ func (p *Process) fillFromTIDStatWithContext(ctx context.Context, tid int32) (ui
 	snice, _ := unix.Getpriority(PrioProcess, int(pid))
 	nice := int32(snice) // FIXME: is this true?
 
-	return terminal, int32(ppid), cpuTimes, createTime, uint32(rtpriority), nice, nil
+	minFault, err := strconv.ParseUint(fields[i+8], 10, 64)
+	if err != nil {
+		return 0, 0, nil, 0, 0, 0, nil, err
+	}
+	cMinFault, err := strconv.ParseUint(fields[i+9], 10, 64)
+	if err != nil {
+		return 0, 0, nil, 0, 0, 0, nil, err
+	}
+	majFault, err := strconv.ParseUint(fields[i+10], 10, 64)
+	if err != nil {
+		return 0, 0, nil, 0, 0, 0, nil, err
+	}
+	cMajFault, err := strconv.ParseUint(fields[i+11], 10, 64)
+	if err != nil {
+		return 0, 0, nil, 0, 0, 0, nil, err
+	}
+
+	faults := &PageFaultsStat{
+		MinorFaults:      minFault,
+		MajorFaults:      majFault,
+		ChildMinorFaults: cMinFault,
+		ChildMajorFaults: cMajFault,
+	}
+
+	return terminal, int32(ppid), cpuTimes, createTime, uint32(rtpriority), nice, faults, nil
 }
 
-func (p *Process) fillFromStat() (uint64, int32, *cpu.TimesStat, int64, uint32, int32, error) {
+func (p *Process) fillFromStat() (uint64, int32, *cpu.TimesStat, int64, uint32, int32, *PageFaultsStat, error) {
 	return p.fillFromStatWithContext(context.Background())
 }
 
-func (p *Process) fillFromStatWithContext(ctx context.Context) (uint64, int32, *cpu.TimesStat, int64, uint32, int32, error) {
+func (p *Process) fillFromStatWithContext(ctx context.Context) (uint64, int32, *cpu.TimesStat, int64, uint32, int32, *PageFaultsStat, error) {
 	return p.fillFromTIDStat(-1)
 }
 
@@ -1219,7 +1303,7 @@ func Processes() ([]*Process, error) {
 func ProcessesWithContext(ctx context.Context) ([]*Process, error) {
 	out := []*Process{}
 
-	pids, err := Pids()
+	pids, err := PidsWithContext(ctx)
 	if err != nil {
 		return out, err
 	}

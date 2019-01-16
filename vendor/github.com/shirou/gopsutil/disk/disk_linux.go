@@ -3,9 +3,11 @@
 package disk
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
+	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -239,7 +241,7 @@ func PartitionsWithContext(ctx context.Context, all bool) ([]PartitionStat, erro
 		fields := strings.Fields(line)
 		d := PartitionStat{
 			Device:     fields[0],
-			Mountpoint: fields[1],
+			Mountpoint: unescapeFstab(fields[1]),
 			Fstype:     fields[2],
 			Opts:       fields[3],
 		}
@@ -370,6 +372,8 @@ func IOCountersWithContext(ctx context.Context, names ...string) (map[string]IOC
 		d.Name = name
 
 		d.SerialNumber = GetDiskSerialNumber(name)
+		d.Label = GetLabel(name)
+
 		ret[name] = d
 	}
 	return ret, nil
@@ -382,28 +386,55 @@ func GetDiskSerialNumber(name string) string {
 }
 
 func GetDiskSerialNumberWithContext(ctx context.Context, name string) string {
-	n := fmt.Sprintf("--name=%s", name)
-	udevadm, err := exec.LookPath("/sbin/udevadm")
+	var stat unix.Stat_t
+	err := unix.Stat(name, &stat)
 	if err != nil {
 		return ""
 	}
+	major := unix.Major(uint64(stat.Rdev))
+	minor := unix.Minor(uint64(stat.Rdev))
 
-	out, err := invoke.Command(udevadm, "info", "--query=property", n)
-
-	// does not return error, just an empty string
-	if err != nil {
-		return ""
-	}
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		values := strings.Split(line, "=")
-		if len(values) < 2 || values[0] != "ID_SERIAL" {
-			// only get ID_SERIAL, not ID_SERIAL_SHORT
-			continue
+	// Try to get the serial from udev data
+	udevDataPath := common.HostRun(fmt.Sprintf("udev/data/b%d:%d", major, minor))
+	if udevdata, err := ioutil.ReadFile(udevDataPath); err == nil {
+		scanner := bufio.NewScanner(bytes.NewReader(udevdata))
+		for scanner.Scan() {
+			values := strings.Split(scanner.Text(), "=")
+			if len(values) == 2 && values[0] == "E:ID_SERIAL" {
+				return values[1]
+			}
 		}
-		return values[1]
+	}
+
+	// Try to get the serial from sysfs, look at the disk device (minor 0) directly
+	// because if it is a partition it is not going to contain any device information
+	devicePath := common.HostSys(fmt.Sprintf("dev/block/%d:0/device", major))
+	model, _ := ioutil.ReadFile(filepath.Join(devicePath, "model"))
+	serial, _ := ioutil.ReadFile(filepath.Join(devicePath, "serial"))
+	if len(model) > 0 && len(serial) > 0 {
+		return fmt.Sprintf("%s_%s", string(model), string(serial))
 	}
 	return ""
+}
+
+// GetLabel returns label of given device or empty string on error.
+// Name of device is expected, eg. /dev/sda
+// Supports label based on devicemapper name
+// See https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-block-dm
+func GetLabel(name string) string {
+	// Try label based on devicemapper name
+	dmname_filename := common.HostSys(fmt.Sprintf("block/%s/dm/name", name))
+
+	if !common.PathExists(dmname_filename) {
+		return ""
+	}
+
+	dmname, err := ioutil.ReadFile(dmname_filename)
+	if err != nil {
+		return ""
+	} else {
+		return strings.TrimSpace(string(dmname))
+	}
 }
 
 func getFsType(stat unix.Statfs_t) string {

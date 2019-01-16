@@ -26,14 +26,31 @@ func TestVirtual_memory(t *testing.T) {
 	assert.True(t, v.Available > 0)
 	assert.True(t, v.Used > 0)
 
-	assert.Equal(t, v.Total, v.Available+v.Used,
-		"Total should be computable from available + used: %v", v)
+	total := v.Used + v.Free + v.Buffers + v.Cached
+	totalStr := "used + free + buffers + cached"
+	switch runtime.GOOS {
+	case "windows":
+		total = v.Used + v.Available
+		totalStr = "used + available"
+	case "darwin":
+		total = v.Used + v.Free + v.Cached + v.Inactive
+		totalStr = "used + free + cached + inactive"
+	case "freebsd":
+		total = v.Used + v.Free + v.Cached + v.Inactive + v.Laundry
+		totalStr = "used + free + cached + inactive + laundry"
+	}
+	assert.Equal(t, v.Total, total,
+		"Total should be computable (%v): %v", totalStr, v)
 
-	assert.True(t, v.Free > 0)
+	assert.True(t, runtime.GOOS == "windows" || v.Free > 0)
 	assert.True(t, v.Available > v.Free,
 		"Free should be a subset of Available: %v", v)
 
-	assert.InDelta(t, v.UsedPercent,
+	inDelta := assert.InDelta
+	if runtime.GOOS == "windows" {
+		inDelta = assert.InEpsilon
+	}
+	inDelta(t, v.UsedPercent,
 		100*float64(v.Used)/float64(v.Total), 0.1,
 		"UsedPercent should be how many percent of Total is Used: %v", v)
 }
@@ -57,7 +74,7 @@ func TestVirtualMemoryStat_String(t *testing.T) {
 		UsedPercent: 30.1,
 		Free:        40,
 	}
-	e := `{"total":10,"available":20,"used":30,"usedPercent":30.1,"free":40,"active":0,"inactive":0,"wired":0,"buffers":0,"cached":0,"writeback":0,"dirty":0,"writebacktmp":0,"shared":0,"slab":0,"pagetables":0,"swapcached":0}`
+	e := `{"total":10,"available":20,"used":30,"usedPercent":30.1,"free":40,"active":0,"inactive":0,"wired":0,"laundry":0,"buffers":0,"cached":0,"writeback":0,"dirty":0,"writebacktmp":0,"shared":0,"slab":0,"sreclaimable":0,"pagetables":0,"swapcached":0,"commitlimit":0,"committedas":0,"hightotal":0,"highfree":0,"lowtotal":0,"lowfree":0,"swaptotal":0,"swapfree":0,"mapped":0,"vmalloctotal":0,"vmallocused":0,"vmallocchunk":0,"hugepagestotal":0,"hugepagesfree":0,"hugepagesize":0}`
 	if e != fmt.Sprintf("%v", v) {
 		t.Errorf("VirtualMemoryStat string is invalid: %v", v)
 	}

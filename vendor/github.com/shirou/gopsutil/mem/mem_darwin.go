@@ -35,7 +35,7 @@ func SwapMemory() (*SwapMemoryStat, error) {
 func SwapMemoryWithContext(ctx context.Context) (*SwapMemoryStat, error) {
 	var ret *SwapMemoryStat
 
-	swapUsage, err := common.DoSysctrl("vm.swapusage")
+	swapUsage, err := common.DoSysctrlWithContext(ctx, "vm.swapusage")
 	if err != nil {
 		return ret, err
 	}

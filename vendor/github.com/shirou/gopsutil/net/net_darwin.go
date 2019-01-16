@@ -180,7 +180,7 @@ func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, 
 	}
 
 	// try to get all interface metrics, and hope there won't be any truncated
-	out, err := invoke.Command(netstat, "-ibdnW")
+	out, err := invoke.CommandWithContext(ctx, netstat, "-ibdnW")
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, 
 		if err != nil {
 			return nil, err
 		}
-		if out, err = invoke.Command(ifconfig, "-l"); err != nil {
+		if out, err = invoke.CommandWithContext(ctx, ifconfig, "-l"); err != nil {
 			return nil, err
 		}
 		interfaceNames := strings.Fields(strings.TrimRight(string(out), endOfLine))
@@ -227,7 +227,7 @@ func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, 
 			}
 			if truncated {
 				// run netstat with -I$ifacename
-				if out, err = invoke.Command(netstat, "-ibdnWI"+interfaceName); err != nil {
+				if out, err = invoke.CommandWithContext(ctx, netstat, "-ibdnWI"+interfaceName); err != nil {
 					return nil, err
 				}
 				parsedIfaces, err := parseNetstatOutput(string(out))

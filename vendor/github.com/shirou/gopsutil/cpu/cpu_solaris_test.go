@@ -102,6 +102,9 @@ func TestParseProcessorInfo(t *testing.T) {
 		}
 
 		cpus, err := parseProcessorInfo(string(content))
+		if err != nil {
+			t.Errorf("cannot parse processor info: %s", err)
+		}
 
 		if !reflect.DeepEqual(tc.expected, cpus) {
 			t.Fatalf("Bad Processor Info\nExpected: %v\n   Actual: %v", tc.expected, cpus)

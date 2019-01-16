@@ -32,15 +32,19 @@ var (
 
 type Invoker interface {
 	Command(string, ...string) ([]byte, error)
+	CommandWithContext(context.Context, string, ...string) ([]byte, error)
 }
 
 type Invoke struct{}
 
 func (i Invoke) Command(name string, arg ...string) ([]byte, error) {
-	ctxt, cancel := context.WithTimeout(context.Background(), Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
+	return i.CommandWithContext(ctx, name, arg...)
+}
 
-	cmd := exec.CommandContext(ctxt, name, arg...)
+func (i Invoke) CommandWithContext(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, arg...)
 
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
@@ -82,6 +86,10 @@ func (i FakeInvoke) Command(name string, arg ...string) ([]byte, error) {
 		return ioutil.ReadFile(fpath)
 	}
 	return []byte{}, fmt.Errorf("could not find testdata: %s", fpath)
+}
+
+func (i FakeInvoke) CommandWithContext(ctx context.Context, name string, arg ...string) ([]byte, error) {
+	return i.Command(name, arg...)
 }
 
 var ErrNotImplementedError = errors.New("not implemented yet")
@@ -318,6 +326,10 @@ func HostEtc(combineWith ...string) string {
 
 func HostVar(combineWith ...string) string {
 	return GetEnv("HOST_VAR", "/var", combineWith...)
+}
+
+func HostRun(combineWith ...string) string {
+	return GetEnv("HOST_RUN", "/run", combineWith...)
 }
 
 // https://gist.github.com/kylelemons/1525278
