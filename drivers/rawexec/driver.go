@@ -29,6 +29,10 @@ const (
 
 	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
 	fingerprintPeriod = 30 * time.Second
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
@@ -319,7 +323,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
-	handle := drivers.NewTaskHandle(1)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")

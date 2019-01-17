@@ -21,7 +21,16 @@ import (
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
-const DriverHealthy = "Healthy"
+const (
+	// DriverHealthy is the default health description that should be used
+	// if the driver is nominal
+	DriverHealthy = "Healthy"
+
+	// Pre09TaskHandleVersion is the version used to identify that the task
+	// handle is from a driver that existed before driver plugins (v0.9). The
+	// driver should take appropriate action to handle the old driver state.
+	Pre09TaskHandleVersion = 0
+)
 
 // DriverPlugin is the interface with drivers will implement. It is also
 // implemented by a plugin client which proxies the calls to go-plugin. See

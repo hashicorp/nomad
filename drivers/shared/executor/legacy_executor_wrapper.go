@@ -2,6 +2,7 @@ package executor
 
 import (
 	"encoding/gob"
+	"fmt"
 	"net/rpc"
 	"os"
 	"syscall"
@@ -30,7 +31,7 @@ type legacyExecutorWrapper struct {
 }
 
 func (l *legacyExecutorWrapper) Launch(launchCmd *ExecCommand) (*ProcessState, error) {
-	panic("not implemented")
+	return nil, fmt.Errorf("operation not supported for legacy exec wrapper")
 }
 
 func (l *legacyExecutorWrapper) Wait(ctx context.Context) (*ProcessState, error) {
@@ -59,7 +60,7 @@ func (l *legacyExecutorWrapper) Shutdown(signal string, gracePeriod time.Duratio
 }
 
 func (l *legacyExecutorWrapper) UpdateResources(*drivers.Resources) error {
-	panic("not implemented")
+	return fmt.Errorf("operation not supported for legacy exec wrapper")
 }
 
 func (l *legacyExecutorWrapper) Version() (*ExecutorVersion, error) {
@@ -194,5 +195,5 @@ func (p *pre09ExecutorPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interf
 }
 
 func (p *pre09ExecutorPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
-	panic("client only supported")
+	return nil, fmt.Errorf("client only supported")
 }

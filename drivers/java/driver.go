@@ -34,6 +34,10 @@ const (
 	// The key populated in Node Attributes to indicate presence of the Java driver
 	driverAttr        = "driver.java"
 	driverVersionAttr = "driver.java.version"
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
@@ -255,7 +259,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		if err != nil {
 			return err
 		}
-		return d.recoverPre0_9Task(handle.Config, reattachConfig)
+		return d.recoverPre09task(handle.Config, reattachConfig)
 	}
 
 	// If already attached to handle there's nothing to recover.
@@ -325,7 +329,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	d.logger.Info("starting java task", "driver_cfg", hclog.Fmt("%+v", driverConfig), "args", args)
 
-	handle := drivers.NewTaskHandle(1)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
