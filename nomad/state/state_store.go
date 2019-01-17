@@ -3057,8 +3057,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 		}
 		job := rawJob.(*structs.Job)
 
-		if (job.ParameterizedJob != nil || job.Periodic != nil) && job.ParentID == "" {
-
+		if job.IsParameterized() || job.IsPeriodic() {
 			// COMPAT: Remove after 0.11
 
 			// The following block of code fixes incorrect child summaries due to a bug
