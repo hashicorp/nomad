@@ -126,12 +126,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	defer origTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for it to be running
-	testutil.WaitForResult(func() (bool, error) {
-		ts := origTR.TaskState()
-		return ts.State == structs.TaskStateRunning, fmt.Errorf("%v", ts.State)
-	}, func(err error) {
-		t.Fatalf("expected running; got: %v", err)
-	})
+	testWaitForTaskToStart(t, origTR)
 
 	// Cause TR to exit without shutting down task
 	origTR.Shutdown()
@@ -597,16 +592,39 @@ func TestTaskRunner_Dispatch_Payload(t *testing.T) {
 	require.Equal(t, expected, data)
 }
 
-// testWaitForTaskToStart waits for the task to or fails the test
-func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
-	// Wait for the task to start
-	testutil.WaitForResult(func() (bool, error) {
-		tr.stateLock.RLock()
-		started := !tr.state.StartedAt.IsZero()
-		tr.stateLock.RUnlock()
+func TestTaskRunner_SignalFailure(t *testing.T) {
+	t.Parallel()
 
-		return started, nil
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	errMsg := "test forcing failure"
+	task.Config = map[string]interface{}{
+		"run_for":      "10m",
+		"signal_error": errMsg,
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	testWaitForTaskToStart(t, tr)
+
+	err = tr.Signal(&structs.TaskEvent{}, "SIGINT")
+	require.NotNil(t, err)
+	require.Equal(t, errMsg, err.Error())
+}
+
+// testWaitForTaskToStart waits for the task to be running or fails the test
+func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+		return ts.State == structs.TaskStateRunning, fmt.Errorf("%v", ts.State)
 	}, func(err error) {
-		t.Fatalf("not started")
+		require.NoError(t, err)
 	})
 }

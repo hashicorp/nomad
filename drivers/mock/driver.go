@@ -76,7 +76,7 @@ var (
 		"exit_code":               hclspec.NewAttr("exit_code", "number", false),
 		"exit_signal":             hclspec.NewAttr("exit_signal", "number", false),
 		"exit_err_msg":            hclspec.NewAttr("exit_err_msg", "string", false),
-		"signal_err":              hclspec.NewAttr("signal_err", "string", false),
+		"signal_error":            hclspec.NewAttr("signal_error", "string", false),
 		"driver_ip":               hclspec.NewAttr("driver_ip", "string", false),
 		"driver_advertise":        hclspec.NewAttr("driver_advertise", "bool", false),
 		"driver_port_map":         hclspec.NewAttr("driver_port_map", "string", false),
@@ -88,7 +88,7 @@ var (
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
-		SendSignals: false,
+		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationNone,
 	}
