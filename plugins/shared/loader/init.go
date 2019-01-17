@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
@@ -261,13 +262,27 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 	return plugins, nil
 }
 
+func externalConfig(configs map[string]*config.PluginConfig, name string) *config.PluginConfig {
+	if v, ok := configs[name]; ok {
+		return v
+	}
+
+	// by convention, plugin binaries can follow the `nomad-<plugin_type>-<plugin_name>`
+	// drop the first two parts and look up by plugin name
+	if parts := strings.SplitN(name, "-", 3); len(parts) == 3 && parts[0] == "nomad" {
+		return configs[parts[2]]
+	}
+
+	return nil
+}
+
 // fingerprintPlugins fingerprints all external plugin binaries
 func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[string]*config.PluginConfig) (map[PluginID]*pluginInfo, error) {
 	var mErr multierror.Error
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for _, p := range plugins {
 		name := cleanPluginExecutable(p.Name())
-		c := configs[name]
+		c := externalConfig(configs, name)
 		info, err := l.fingerprintPlugin(p, c)
 		if err != nil {
 			l.logger.Error("failed to fingerprint plugin", "plugin", name, "error", err)
