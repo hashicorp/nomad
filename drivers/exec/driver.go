@@ -235,7 +235,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		if err != nil {
 			return err
 		}
-		return d.recoverPre09task(handle.Config, reattachConfig)
+		return d.recoverPre09Task(handle.Config, reattachConfig)
 	}
 
 	// If already attached to handle there's nothing to recover.
