@@ -428,7 +428,7 @@ func (l *PluginLoader) mergePlugins(internal, external map[PluginID]*pluginInfo)
 func (l *PluginLoader) validatePluginConfigs() error {
 	var mErr multierror.Error
 	for id, info := range l.plugins {
-		if err := l.validePluginConfig(id, info); err != nil {
+		if err := l.validatePluginConfig(id, info); err != nil {
 			wrapped := multierror.Prefix(err, fmt.Sprintf("plugin %s:", id))
 			multierror.Append(&mErr, wrapped)
 		}
@@ -440,7 +440,7 @@ func (l *PluginLoader) validatePluginConfigs() error {
 // validatePluginConfig is used to validate the plugin's configuration. If the
 // plugin has a config, it is parsed with the plugins config schema and
 // SetConfig is called to ensure the config is valid.
-func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
+func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error {
 	var mErr multierror.Error
 
 	// Check if a config is allowed
