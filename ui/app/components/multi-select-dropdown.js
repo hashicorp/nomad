@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { run } from '@ember/runloop';
 
 const TAB = 9;
 const ESC = 27;
@@ -18,6 +19,22 @@ export default Component.extend({
   isOpen: false,
   dropdown: null,
 
+  capture(dropdown) {
+    // It's not a good idea to grab a dropdown reference like this, but it's necessary
+    // in order to invoke dropdown.actions.close in traverseList as well as
+    // dropdown.actions.reposition when the label or selection length changes.
+    this.set('dropdown', dropdown);
+  },
+
+  didReceiveAttrs() {
+    const dropdown = this.get('dropdown');
+    if (this.get('isOpen') && dropdown) {
+      run.scheduleOnce('afterRender', () => {
+        dropdown.actions.reposition();
+      });
+    }
+  },
+
   actions: {
     toggle({ key }) {
       const newSelection = this.get('selection').slice();
@@ -30,9 +47,7 @@ export default Component.extend({
     },
 
     openOnArrowDown(dropdown, e) {
-      // It's not a good idea to grab a dropdown reference like this, but it's necessary
-      // in order to invoke dropdown.actions.close in traverseList
-      this.set('dropdown', dropdown);
+      this.capture(dropdown);
 
       if (!this.get('isOpen') && e.keyCode === ARROW_DOWN) {
         dropdown.actions.open(e);
