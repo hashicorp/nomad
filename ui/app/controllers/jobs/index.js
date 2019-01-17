@@ -28,6 +28,33 @@ export default Controller.extend(Sortable, Searchable, {
   fuzzySearchProps: computed(() => ['name']),
   fuzzySearchEnabled: true,
 
+  facetOptionsType: computed(() => [
+    { key: 'batch', label: 'Batch' },
+    { key: 'parameterized', label: 'Parameterized' },
+    { key: 'periodic', label: 'Periodic' },
+    { key: 'service', label: 'Service' },
+    { key: 'system', label: 'System' },
+  ]),
+
+  facetOptionsStatus: computed(() => [
+    { key: 'pending', label: 'Pending' },
+    { key: 'running', label: 'Running' },
+    { key: 'dead', label: 'Dead' },
+  ]),
+
+  facetOptionsDatacenter: computed('model.[]', function() {
+    return [{ key: 'dc1', label: 'dc1' }];
+  }),
+
+  facetOptionsPrefix: computed('model.[]', function() {
+    return [{ key: 'atlas-', label: 'atlas-' }];
+  }),
+
+  facetSelectionType: computed(() => []),
+  facetSelectionStatus: computed(() => []),
+  facetSelectionDatacenter: computed(() => []),
+  facetSelectionPrefix: computed(() => []),
+
   /**
     Filtered jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
