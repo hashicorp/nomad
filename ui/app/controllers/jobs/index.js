@@ -110,6 +110,40 @@ export default Controller.extend(Sortable, Searchable, {
       .filter(job => !job.get('parent.content'));
   }),
 
+  filteredJobs: computed(
+    'visibleJobs.[]',
+    'facetSelectionType',
+    'facetSelectionStatus',
+    'facetSelectionDatacenter',
+    'facetSelectionPrefix',
+    function() {
+      const {
+        facetSelectionType: types,
+        facetSelectionStatus: statuses,
+        facetSelectionDatacenter: datacenters,
+        facetSelectionPrefix: prefixes,
+      } = this.getProperties(
+        'facetSelectionType',
+        'facetSelectionStatus',
+        'facetSelectionDatacenter',
+        'facetSelectionPrefix'
+      );
+
+      // A job must match ALL filter facets, but it can match ANY selection within a facet
+      // Always return early to prevent unnecessary facet predicates.
+      return this.get('visibleJobs').filter(job => {
+        if (types.length && !types.includes(job.get('displayType'))) return false;
+        if (statuses.length && !statuses.includes(job.get('status'))) return false;
+        if (datacenters.length && !job.get('datacenters').find(dc => datacenters.includes(dc)))
+          return false;
+        const name = job.get('name');
+        if (prefixes.length && !prefixes.find(prefix => name.startsWith(prefix))) return false;
+
+        return true;
+      });
+    }
+  ),
+
   listToSort: alias('filteredJobs'),
   listToSearch: alias('listSorted'),
   sortedJobs: alias('listSearched'),
