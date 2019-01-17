@@ -60,7 +60,7 @@ func (t *taskRunnerHandle08) reattachConfig() *shared.ReattachConfig {
 	}
 }
 
-func (t *taskRunnerState08) Upgrade(allocID, taskName string) *state.LocalState {
+func (t *taskRunnerState08) Upgrade(allocID, taskName string) (*state.LocalState, error) {
 	ls := state.NewLocalState()
 
 	// Reuse DriverNetwork
@@ -76,38 +76,32 @@ func (t *taskRunnerState08) Upgrade(allocID, taskName string) *state.LocalState 
 		PrestartDone: t.TaskDirBuilt,
 	}
 
-	// Don't need logmon in pre09 tasks
-	ls.Hooks["logmon"] = &state.HookState{
-		PrestartDone: true,
-	}
-
 	// Upgrade dispatch payload state
 	ls.Hooks["dispatch_payload"] = &state.HookState{
 		PrestartDone: t.PayloadRendered,
 	}
 
-	// Add nessicary fields to TaskConfig
-	ls.TaskHandle = drivers.NewTaskHandle(0)
+	// Add necessary fields to TaskConfig
+	ls.TaskHandle = drivers.NewTaskHandle(drivers.Pre09TaskHandleVersion)
 	ls.TaskHandle.Config = &drivers.TaskConfig{
 		Name:    taskName,
 		AllocID: allocID,
 	}
 
-	//TODO do we need to se this accurately? Or will RecoverTask handle it?
 	ls.TaskHandle.State = drivers.TaskStateUnknown
 
 	// A ReattachConfig to the pre09 executor is sent
 	var raw []byte
 	var handle taskRunnerHandle08
 	if err := json.Unmarshal([]byte(t.HandleID), &handle); err != nil {
-		fmt.Println("ERR: ", err)
+		return nil, fmt.Errorf("failed to decode 0.8 driver state: %v", err)
 	}
 	raw, err := json.Marshal(handle.reattachConfig())
 	if err != nil {
-		fmt.Println("ERR: ", err)
+		return nil, fmt.Errorf("failed to encode updated driver state: %v", err)
 	}
 
 	ls.TaskHandle.DriverState = raw
 
-	return ls
+	return ls, nil
 }

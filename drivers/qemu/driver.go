@@ -43,6 +43,10 @@ const (
 
 	// Maximum socket path length prior to qemu 2.10.1
 	qemuLegacyMaxMonitorPathLen = 108
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
@@ -253,7 +257,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		if err != nil {
 			return err
 		}
-		return d.recoverPre0_9Task(handle.Config, reattachConfig)
+		return d.recoverPre09task(handle.Config, reattachConfig)
 	}
 
 	// If already attached to handle there's nothing to recover.
@@ -311,7 +315,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(1)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	// Get the image source

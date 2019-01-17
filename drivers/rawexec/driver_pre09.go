@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func (d *Driver) recoverPre0_9Task(config *drivers.TaskConfig, reattach *plugin.ReattachConfig) error {
+func (d *Driver) recoverPre09task(config *drivers.TaskConfig, reattach *plugin.ReattachConfig) error {
 	config.ID = fmt.Sprintf("pre09-%s", uuid.Generate())
 	exec, pluginClient, err := executor.ReattachToPre09Executor(reattach,
 		d.logger.With("task_name", config.Name, "alloc_id", config.AllocID))

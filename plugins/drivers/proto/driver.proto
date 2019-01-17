@@ -448,7 +448,8 @@ enum TaskState {
 // TaskHandle is created when starting a task and is used to recover task
 message TaskHandle {
 
-    // Version is used by the driver to version the DriverState schema
+    // Version is used by the driver to version the DriverState schema.
+    // Version 0 is reserved by Nomad and should not be used.
     int32 version = 1;
 
     // Config is the TaskConfig for the task
