@@ -9,6 +9,16 @@
   A wrapper around basic-dropdown for creating a list of checkboxes and tracking the state thereof.
 {{/freestyle-annotation}}
 
+{{#freestyle-usage "multi-select-right-aligned" title="Multi-select dropdown right-aligned"}}
+  <div style="display:flex; justify-content:flex-end">
+    {{multi-select-dropdown
+      label="Example right-aligned Dropdown"
+      options=options1
+      selection=selection1
+      onSelect=(action (mut selection1))}}
+  </div>
+{{/freestyle-usage}}
+
 {{#freestyle-usage "multi-select-dropdown-may" title="Multi-select dropdown with many options"}}
   {{multi-select-dropdown
     label="Lots of options in here"
