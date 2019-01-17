@@ -1,5 +1,9 @@
 {{#basic-dropdown
-  onOpen=(action (mut isOpen) true)
+  horizontalPosition="left"
+  onOpen=(action (queue
+    (action (mut isOpen) true)
+    (action capture)
+  ))
   onClose=(action (mut isOpen) false)
   as |dd|}}
   {{#dd.trigger data-test-dropdown-trigger class="dropdown-trigger" onKeyDown=(action "openOnArrowDown")}}
