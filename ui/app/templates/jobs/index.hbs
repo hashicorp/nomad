@@ -4,7 +4,7 @@
   {{else}}
     <div class="columns">
       {{#if filteredJobs.length}}
-        <div class="column">
+        <div class="column is-one-third">
           {{search-box
             data-test-jobs-search
             searchTerm=(mut searchTerm)
@@ -13,7 +13,31 @@
         </div>
       {{/if}}
       <div class="column is-centered">
-        {{#link-to "jobs.run" data-test-run-job class="button is-primary is-pulled-right"}}Run Job{{/link-to}}
+        <div class="button-bar is-pulled-right">
+          {{multi-select-dropdown
+            label="Type"
+            options=facetOptionsType
+            selection=facetSelectionType
+            onSelect=(action (mut facetSelectionType))}}
+          {{multi-select-dropdown
+            label="Status"
+            options=facetOptionsStatus
+            selection=facetSelectionStatus
+            onSelect=(action (mut facetSelectionStatus))}}
+          {{multi-select-dropdown
+            label="Datacenter"
+            options=facetOptionsDatacenter
+            selection=facetSelectionDatacenter
+            onSelect=(action (mut facetSelectionDatacenter))}}
+          {{multi-select-dropdown
+            label="Prefix"
+            options=facetOptionsPrefix
+            selection=facetSelectionPrefix
+            onSelect=(action (mut facetSelectionPrefix))}}
+        </div>
+      </div>
+      <div class="column is-minimum is-centered">
+        {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
       </div>
     </div>
     {{#list-pagination
