@@ -42,12 +42,51 @@ export default Controller.extend(Sortable, Searchable, {
     { key: 'dead', label: 'Dead' },
   ]),
 
-  facetOptionsDatacenter: computed('model.[]', function() {
-    return [{ key: 'dc1', label: 'dc1' }];
+  facetOptionsDatacenter: computed('visibleJobs.[]', function() {
+    const flatten = (acc, val) => acc.concat(val);
+    const allDatacenters = new Set(
+      this.get('visibleJobs')
+        .mapBy('datacenters')
+        .reduce(flatten, [])
+    );
+
+    return Array.from(allDatacenters)
+      .compact()
+      .sort()
+      .map(dc => ({ key: dc, label: dc }));
   }),
 
-  facetOptionsPrefix: computed('model.[]', function() {
-    return [{ key: 'atlas-', label: 'atlas-' }];
+  facetOptionsPrefix: computed('visibleJobs.[]', function() {
+    // A prefix is defined as the start of a job name up to the first - or .
+    // ex: mktg-analytics -> mktg, ds.supermodel.classifier -> ds
+    const hasPrefix = /.[-._]/;
+
+    // Collect and count all the prefixes
+    const allNames = this.get('visibleJobs').mapBy('name');
+    const nameHistogram = allNames.reduce((hist, name) => {
+      if (hasPrefix.test(name)) {
+        const prefix = name.match(/(.+?)[-.]/)[1];
+        hist[prefix] = hist[prefix] ? hist[prefix] + 1 : 1;
+      }
+      return hist;
+    }, {});
+
+    // Convert to an array
+    const nameTable = Object.keys(nameHistogram).map(key => ({
+      prefix: key,
+      count: nameHistogram[key],
+    }));
+
+    // Only consider prefixes that match more than one name, then convert to an
+    // options array, including the counts in the label
+    return nameTable
+      .filter(name => name.count > 1)
+      .sortBy('prefix')
+      .reverse()
+      .map(name => ({
+        key: name.prefix,
+        label: `${name.prefix} (${name.count})`,
+      }));
   }),
 
   facetSelectionType: computed(() => []),
@@ -59,7 +98,7 @@ export default Controller.extend(Sortable, Searchable, {
     Filtered jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  filteredJobs: computed('model.[]', 'model.@each.parent', function() {
+  visibleJobs: computed('model.[]', 'model.@each.parent', function() {
     // Namespace related properties are ommitted from the dependent keys
     // due to a prop invalidation bug caused by region switching.
     const hasNamespaces = this.get('system.namespaces.length');
