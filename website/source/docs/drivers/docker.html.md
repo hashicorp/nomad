@@ -363,7 +363,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
   [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
-  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  The whitelist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
   For example:
 
 
@@ -378,7 +378,7 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
   [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
-  The whitelist can be customized using the `docker.caps.whitelist` key in the client node's configuration.
+  The whitelist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
   For example:
 
 
@@ -427,10 +427,11 @@ you will need to specify credentials in your job via:
  * the `auth` option in the task config.
 
  * by storing explicit repository credentials or by specifying Docker
-   `credHelpers` in a file and setting the [docker.auth.config](#auth_file)
-   value on the client.
+   `credHelpers` in a file and setting the auth [config](#plugin_auth_file)
+   value on the client in the plugin options.
 
- * by specifying a [docker.auth.helper](#auth_helper) on the client
+ * by specifying an auth [helper](#plugin_auth_helper) on the client in the
+   plugin options.
 
 The `auth` object supports the following keys:
 
@@ -479,10 +480,12 @@ Example agent configuration, using a helper script "docker-credential-ecr" in
 $PATH
 
 ```hcl
-client {
-  enabled = true
-  options {
-    "docker.auth.helper" = "ecr"
+client {...}
+plugin "docker" {
+  config {
+    auth {
+      helper = "docker-credential-ecr"
+    }
   }
 }
 ```
@@ -658,16 +661,16 @@ plugin "docker" {
 
 * `allow_privileged` - Defaults to `false`. Changing this to true will allow containers to use privileged mode, which gives the containers full access to the host's devices. Note that you must set a similar setting on the Docker daemon for this to work.
 
-* `allow_caps` - A list of allowed Linux capabilities. Defaults to
+* `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities. Defaults to
 "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
 NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE", which is the list of capabilities allowed by docker by default, as defined here. Allows the operator to control which capabilities can be obtained by tasks using cap_add and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting all capabilities.
 
 * `auth` stanza:
-    * `config` - Allows an operator to specify a
+    * `config`<a id="plugin_auth_file"></a> - Allows an operator to specify a
   JSON file which is in the dockercfg format containing authentication
   information for a private registry, from either (in order) `auths`,
   `credHelpers` or `credsStore`. 
-    * `helper` - Allows an operator to specify
+    * `helper`<a id="plugin_auth_helper"></a> - Allows an operator to specify
   a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
   -like script on $PATH to lookup authentication information from external
   sources. The script's name must begin with `docker-credential-` and this
