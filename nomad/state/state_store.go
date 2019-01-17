@@ -3050,6 +3050,28 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 	if err != nil {
 		return err
 	}
+	// COMPAT: Remove after 0.11
+	// Iterate over jobs to build a list of parent jobs and their children
+	parentMap := make(map[string][]*structs.Job)
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		job := rawJob.(*structs.Job)
+		if job.ParentID != "" {
+			children := parentMap[job.ParentID]
+			children = append(children, job)
+			parentMap[job.ParentID] = children
+		}
+	}
+
+	// Get all the jobs again
+	iter, err = txn.Get("jobs", "id")
+	if err != nil {
+		return err
+	}
+
 	for {
 		rawJob := iter.Next()
 		if rawJob == nil {
@@ -3079,27 +3101,16 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 					Children:  &structs.JobChildrenSummary{},
 				}
 
-				// Calculate children summary by iterating over all jobs
-				// and finding the ones that have this job as its parent
-				jobIter, err := txn.Get("jobs", "id")
-				if err != nil {
-					return err
-				}
-				for {
-					rawJob := jobIter.Next()
-					if rawJob == nil {
-						break
-					}
-					childJob := rawJob.(*structs.Job)
-					if childJob.ParentID == job.ID {
-						switch childJob.Status {
-						case structs.JobStatusPending:
-							summary.Children.Pending++
-						case structs.JobStatusDead:
-							summary.Children.Dead++
-						case structs.JobStatusRunning:
-							summary.Children.Running++
-						}
+				// Iterate over children of this job if any to fix summary counts
+				children := parentMap[job.ID]
+				for _, childJob := range children {
+					switch childJob.Status {
+					case structs.JobStatusPending:
+						summary.Children.Pending++
+					case structs.JobStatusDead:
+						summary.Children.Dead++
+					case structs.JobStatusRunning:
+						summary.Children.Running++
 					}
 				}
 

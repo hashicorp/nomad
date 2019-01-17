@@ -2817,7 +2817,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 }
 
 // COMPAT: Remove in 0.11
-func TestFSM_ReconcileParentJobSummaries(t *testing.T) {
+func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	// This test exercises code to handle https://github.com/hashicorp/nomad/issues/3886
 	t.Parallel()
 
@@ -2839,19 +2839,21 @@ func TestFSM_ReconcileParentJobSummaries(t *testing.T) {
 	job1.TaskGroups[0].Count = 1
 	state.UpsertJob(1000, job1)
 
-	// Make an alloc for its child job
+	// Make a child job
 	childJob := job1.Copy()
 	childJob.ID = job1.ID + "dispatch-23423423"
 	childJob.ParentID = job1.ID
+	childJob.Dispatched = true
 	childJob.Status = structs.JobStatusRunning
 
+	// Create an alloc for child job
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	alloc.Job = childJob
 	alloc.JobID = childJob.ID
+	alloc.ClientStatus = structs.AllocClientStatusRunning
 
 	state.UpsertJob(1010, childJob)
-	alloc.ClientStatus = structs.AllocClientStatusRunning
 	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
 
 	// Make the summary incorrect in the state store
@@ -2864,18 +2866,12 @@ func TestFSM_ReconcileParentJobSummaries(t *testing.T) {
 		Queued: 1,
 	}
 
-	// state.DeleteJobSummary(1030, job1.Namespace, job1.ID)
-
 	req := structs.GenericRequest{}
 	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.Nil(err)
 
 	resp := fsm.Apply(makeLog(buf))
-	if resp != nil {
-		t.Fatalf("resp: %v", resp)
-	}
+	require.Nil(resp)
 
 	ws := memdb.NewWatchSet()
 	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
