@@ -2816,6 +2816,82 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 }
 
+// COMPAT: Remove in 0.11
+func TestFSM_ReconcileParentJobSummaries(t *testing.T) {
+	// This test exercises code to handle https://github.com/hashicorp/nomad/issues/3886
+	t.Parallel()
+
+	require := require.New(t)
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	// Add a node
+	node := mock.Node()
+	state.UpsertNode(800, node)
+
+	// Make a parameterized job
+	job1 := mock.BatchJob()
+	job1.ID = "test"
+	job1.ParameterizedJob = &structs.ParameterizedJobConfig{
+		Payload: "random",
+	}
+	job1.TaskGroups[0].Count = 1
+	state.UpsertJob(1000, job1)
+
+	// Make an alloc for its child job
+	childJob := job1.Copy()
+	childJob.ID = job1.ID + "dispatch-23423423"
+	childJob.ParentID = job1.ID
+	childJob.Status = structs.JobStatusRunning
+
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc.Job = childJob
+	alloc.JobID = childJob.ID
+
+	state.UpsertJob(1010, childJob)
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+
+	// Make the summary incorrect in the state store
+	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)
+	require.Nil(err)
+
+	summary.Children = nil
+	summary.Summary = make(map[string]structs.TaskGroupSummary)
+	summary.Summary["web"] = structs.TaskGroupSummary{
+		Queued: 1,
+	}
+
+	// state.DeleteJobSummary(1030, job1.Namespace, job1.ID)
+
+	req := structs.GenericRequest{}
+	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	ws := memdb.NewWatchSet()
+	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	expected := structs.JobSummary{
+		JobID:       job1.ID,
+		Namespace:   job1.Namespace,
+		Summary:     make(map[string]structs.TaskGroupSummary),
+		CreateIndex: 1000,
+		ModifyIndex: out1.ModifyIndex,
+		Children: &structs.JobChildrenSummary{
+			Running: 1,
+		},
+	}
+	require.Equal(&expected, out1)
+}
+
 func TestFSM_LeakedDeployments(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

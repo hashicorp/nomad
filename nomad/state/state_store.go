@@ -11,6 +11,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"reflect"
 )
 
 // Txn is a transaction against a state store.
@@ -3055,6 +3056,70 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			break
 		}
 		job := rawJob.(*structs.Job)
+
+		if (job.ParameterizedJob != nil || job.Periodic != nil) && job.ParentID == "" {
+
+			// COMPAT: Remove after 0.11
+
+			// The following block of code fixes incorrect child summaries due to a bug
+			// See https://github.com/hashicorp/nomad/issues/3886 for details
+			summaryIter, err := txn.Get("job_summary", "id", job.Namespace, job.ID)
+			if err != nil {
+				return err
+			}
+
+			rawSummary := summaryIter.Next()
+			if rawSummary != nil {
+				oldSummary := rawSummary.(*structs.JobSummary)
+
+				// Create an empty summary
+				summary := &structs.JobSummary{
+					JobID:     job.ID,
+					Namespace: job.Namespace,
+					Summary:   make(map[string]structs.TaskGroupSummary),
+					Children:  &structs.JobChildrenSummary{},
+				}
+
+				// Calculate children summary by iterating over all jobs
+				// and finding the ones that have this job as its parent
+				jobIter, err := txn.Get("jobs", "id")
+				if err != nil {
+					return err
+				}
+				for {
+					rawJob := jobIter.Next()
+					if rawJob == nil {
+						break
+					}
+					childJob := rawJob.(*structs.Job)
+					if childJob.ParentID == job.ID {
+						switch childJob.Status {
+						case structs.JobStatusPending:
+							summary.Children.Pending++
+						case structs.JobStatusDead:
+							summary.Children.Dead++
+						case structs.JobStatusRunning:
+							summary.Children.Running++
+						}
+					}
+				}
+
+				// Insert the job summary if its different
+				if !reflect.DeepEqual(summary, oldSummary) {
+					// Set the create index of the summary same as the job's create index
+					// and the modify index to the current index
+					summary.CreateIndex = job.CreateIndex
+					summary.ModifyIndex = index
+
+					if err := txn.Insert("job_summary", summary); err != nil {
+						return fmt.Errorf("error inserting job summary: %v", err)
+					}
+				}
+			}
+
+			// Done with handling a parent job, continue to next
+			continue
+		}
 
 		// Create a job summary for the job
 		summary := &structs.JobSummary{
