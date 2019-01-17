@@ -704,8 +704,8 @@ func (tr *TaskRunner) initDriver() error {
 }
 
 // handleKill is used to handle the a request to kill a task. It will return
-// the handle exit result if one is available and store any error in the task
-// runner killErr value.
+//// the handle exit result if one is available and store any error in the task
+//// runner killErr value.
 func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// Run the pre killing hooks
 	tr.preKill()
