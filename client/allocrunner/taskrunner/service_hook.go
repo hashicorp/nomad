@@ -200,7 +200,7 @@ func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {
 // values from the task's environment.
 func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) []*structs.Service {
 	// Guard against not having a valid taskEnv. This can be the case if the
-	// Killing or Exited hook is run before post-run.
+	// PreKilling or Exited hook is run before post-run.
 	if taskEnv == nil || len(services) == 0 {
 		return nil
 	}

@@ -437,8 +437,10 @@ func (tr *TaskRunner) updateHooks() {
 	}
 }
 
-// killing is used to run the runners kill hooks.
-func (tr *TaskRunner) killing() {
+// preKill is used to run the runners preKill hooks
+// preKill hooks contain logic that must be executed before
+// a task is killed or restarted
+func (tr *TaskRunner) preKill() {
 	if tr.logger.IsTrace() {
 		start := time.Now()
 		tr.logger.Trace("running kill hooks", "start", start)
@@ -449,24 +451,24 @@ func (tr *TaskRunner) killing() {
 	}
 
 	for _, hook := range tr.runnerHooks {
-		killHook, ok := hook.(interfaces.TaskKillHook)
+		killHook, ok := hook.(interfaces.TaskPreKillHook)
 		if !ok {
 			continue
 		}
 
 		name := killHook.Name()
 
-		// Time the update hook
+		// Time the pre kill hook
 		var start time.Time
 		if tr.logger.IsTrace() {
 			start = time.Now()
 			tr.logger.Trace("running kill hook", "name", name, "start", start)
 		}
 
-		// Run the kill hook
+		// Run the pre kill hook
 		req := interfaces.TaskKillRequest{}
 		var resp interfaces.TaskKillResponse
-		if err := killHook.Killing(context.Background(), &req, &resp); err != nil {
+		if err := killHook.PreKilling(context.Background(), &req, &resp); err != nil {
 			tr.emitHookError(err, name)
 			tr.logger.Error("kill hook failed", "name", name, "error", err)
 		}
