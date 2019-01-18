@@ -797,9 +797,10 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	env := tr.envBuilder.Build()
 
 	return &drivers.TaskConfig{
-		ID:      fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
-		Name:    task.Name,
-		JobName: alloc.Job.Name,
+		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
+		Name:          task.Name,
+		JobName:       alloc.Job.Name,
+		TaskGroupName: alloc.TaskGroup,
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{

@@ -209,6 +209,48 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	assert.Equal(t, "global bar somebody", mockCfg.StdoutString)
 }
 
+func TestTaskRunner_TaskConfig(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+
+	//// Use interpolation from both node attributes and meta vars
+	//task.Config = map[string]interface{}{
+	//	"run_for": "1ms",
+	//}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Run the first TaskRunner
+	tr, err := NewTaskRunner(conf)
+	require.NoError(err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for task to complete
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(3 * time.Second):
+	}
+
+	// Get the mock driver plugin
+	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
+	require.NoError(err)
+	mockDriver := driverPlugin.(*mockdriver.Driver)
+
+	// Assert its config has been properly interpolated
+	driverCfg, mockCfg := mockDriver.GetTaskConfig()
+	require.NotNil(driverCfg)
+	require.NotNil(mockCfg)
+	assert.Equal(t, alloc.Job.Name, driverCfg.JobName)
+	assert.Equal(t, alloc.TaskGroup, driverCfg.TaskGroupName)
+	assert.Equal(t, alloc.Job.TaskGroups[0].Tasks[0].Name, driverCfg.Name)
+}
+
 // Test that devices get sent to the driver
 func TestTaskRunner_DevicePropogation(t *testing.T) {
 	t.Parallel()

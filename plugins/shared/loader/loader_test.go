@@ -371,7 +371,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	// Create two plugins
+	// Create a plugin
 	plugins := []string{"mock-device"}
 	pluginVersions := []string{"v0.0.1"}
 	h := newHarness(t, plugins)
