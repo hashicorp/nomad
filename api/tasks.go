@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/hashicorp/nomad/helper"
 )
 
 // MemoryStats holds memory usage related stats
@@ -170,31 +168,31 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 	switch jobType {
 	case "service":
 		dp = &ReschedulePolicy{
-			Attempts:      helper.IntToPtr(defaultServiceJobReschedulePolicyAttempts),
-			Interval:      helper.TimeToPtr(defaultServiceJobReschedulePolicyInterval),
-			Delay:         helper.TimeToPtr(defaultServiceJobReschedulePolicyDelay),
-			DelayFunction: helper.StringToPtr(defaultServiceJobReschedulePolicyDelayFunction),
-			MaxDelay:      helper.TimeToPtr(defaultServiceJobReschedulePolicyMaxDelay),
-			Unlimited:     helper.BoolToPtr(defaultServiceJobReschedulePolicyUnlimited),
+			Attempts:      intToPtr(defaultServiceJobReschedulePolicyAttempts),
+			Interval:      timeToPtr(defaultServiceJobReschedulePolicyInterval),
+			Delay:         timeToPtr(defaultServiceJobReschedulePolicyDelay),
+			DelayFunction: stringToPtr(defaultServiceJobReschedulePolicyDelayFunction),
+			MaxDelay:      timeToPtr(defaultServiceJobReschedulePolicyMaxDelay),
+			Unlimited:     boolToPtr(defaultServiceJobReschedulePolicyUnlimited),
 		}
 	case "batch":
 		dp = &ReschedulePolicy{
-			Attempts:      helper.IntToPtr(defaultBatchJobReschedulePolicyAttempts),
-			Interval:      helper.TimeToPtr(defaultBatchJobReschedulePolicyInterval),
-			Delay:         helper.TimeToPtr(defaultBatchJobReschedulePolicyDelay),
-			DelayFunction: helper.StringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
-			MaxDelay:      helper.TimeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
-			Unlimited:     helper.BoolToPtr(defaultBatchJobReschedulePolicyUnlimited),
+			Attempts:      intToPtr(defaultBatchJobReschedulePolicyAttempts),
+			Interval:      timeToPtr(defaultBatchJobReschedulePolicyInterval),
+			Delay:         timeToPtr(defaultBatchJobReschedulePolicyDelay),
+			DelayFunction: stringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
+			MaxDelay:      timeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
+			Unlimited:     boolToPtr(defaultBatchJobReschedulePolicyUnlimited),
 		}
 
 	case "system":
 		dp = &ReschedulePolicy{
-			Attempts:      helper.IntToPtr(0),
-			Interval:      helper.TimeToPtr(0),
-			Delay:         helper.TimeToPtr(0),
-			DelayFunction: helper.StringToPtr(""),
-			MaxDelay:      helper.TimeToPtr(0),
-			Unlimited:     helper.BoolToPtr(false),
+			Attempts:      intToPtr(0),
+			Interval:      timeToPtr(0),
+			Delay:         timeToPtr(0),
+			DelayFunction: stringToPtr(""),
+			MaxDelay:      timeToPtr(0),
+			Unlimited:     boolToPtr(false),
 		}
 	}
 	return dp
@@ -242,14 +240,14 @@ func NewSpreadTarget(value string, percent uint32) *SpreadTarget {
 func NewSpread(attribute string, weight int, spreadTargets []*SpreadTarget) *Spread {
 	return &Spread{
 		Attribute:    attribute,
-		Weight:       helper.IntToPtr(weight),
+		Weight:       intToPtr(weight),
 		SpreadTarget: spreadTargets,
 	}
 }
 
 func (s *Spread) Canonicalize() {
 	if s.Weight == nil {
-		s.Weight = helper.IntToPtr(50)
+		s.Weight = intToPtr(50)
 	}
 }
 
@@ -268,7 +266,7 @@ func (c *CheckRestart) Canonicalize() {
 	}
 
 	if c.Grace == nil {
-		c.Grace = helper.TimeToPtr(1 * time.Second)
+		c.Grace = timeToPtr(1 * time.Second)
 	}
 }
 
@@ -380,21 +378,21 @@ type EphemeralDisk struct {
 
 func DefaultEphemeralDisk() *EphemeralDisk {
 	return &EphemeralDisk{
-		Sticky:  helper.BoolToPtr(false),
-		Migrate: helper.BoolToPtr(false),
-		SizeMB:  helper.IntToPtr(300),
+		Sticky:  boolToPtr(false),
+		Migrate: boolToPtr(false),
+		SizeMB:  intToPtr(300),
 	}
 }
 
 func (e *EphemeralDisk) Canonicalize() {
 	if e.Sticky == nil {
-		e.Sticky = helper.BoolToPtr(false)
+		e.Sticky = boolToPtr(false)
 	}
 	if e.Migrate == nil {
-		e.Migrate = helper.BoolToPtr(false)
+		e.Migrate = boolToPtr(false)
 	}
 	if e.SizeMB == nil {
-		e.SizeMB = helper.IntToPtr(300)
+		e.SizeMB = intToPtr(300)
 	}
 }
 
@@ -409,10 +407,10 @@ type MigrateStrategy struct {
 
 func DefaultMigrateStrategy() *MigrateStrategy {
 	return &MigrateStrategy{
-		MaxParallel:     helper.IntToPtr(1),
-		HealthCheck:     helper.StringToPtr("checks"),
-		MinHealthyTime:  helper.TimeToPtr(10 * time.Second),
-		HealthyDeadline: helper.TimeToPtr(5 * time.Minute),
+		MaxParallel:     intToPtr(1),
+		HealthCheck:     stringToPtr("checks"),
+		MinHealthyTime:  timeToPtr(10 * time.Second),
+		HealthyDeadline: timeToPtr(5 * time.Minute),
 	}
 }
 
@@ -478,17 +476,17 @@ type TaskGroup struct {
 // NewTaskGroup creates a new TaskGroup.
 func NewTaskGroup(name string, count int) *TaskGroup {
 	return &TaskGroup{
-		Name:  helper.StringToPtr(name),
-		Count: helper.IntToPtr(count),
+		Name:  stringToPtr(name),
+		Count: intToPtr(count),
 	}
 }
 
 func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.Name == nil {
-		g.Name = helper.StringToPtr("")
+		g.Name = stringToPtr("")
 	}
 	if g.Count == nil {
-		g.Count = helper.IntToPtr(1)
+		g.Count = intToPtr(1)
 	}
 	for _, t := range g.Tasks {
 		t.Canonicalize(g, job)
@@ -555,17 +553,17 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	switch *job.Type {
 	case "service", "system":
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(defaultServiceJobRestartPolicyDelay),
-			Attempts: helper.IntToPtr(defaultServiceJobRestartPolicyAttempts),
-			Interval: helper.TimeToPtr(defaultServiceJobRestartPolicyInterval),
-			Mode:     helper.StringToPtr(defaultServiceJobRestartPolicyMode),
+			Delay:    timeToPtr(defaultServiceJobRestartPolicyDelay),
+			Attempts: intToPtr(defaultServiceJobRestartPolicyAttempts),
+			Interval: timeToPtr(defaultServiceJobRestartPolicyInterval),
+			Mode:     stringToPtr(defaultServiceJobRestartPolicyMode),
 		}
 	default:
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(defaultBatchJobRestartPolicyDelay),
-			Attempts: helper.IntToPtr(defaultBatchJobRestartPolicyAttempts),
-			Interval: helper.TimeToPtr(defaultBatchJobRestartPolicyInterval),
-			Mode:     helper.StringToPtr(defaultBatchJobRestartPolicyMode),
+			Delay:    timeToPtr(defaultBatchJobRestartPolicyDelay),
+			Attempts: intToPtr(defaultBatchJobRestartPolicyAttempts),
+			Interval: timeToPtr(defaultBatchJobRestartPolicyInterval),
+			Mode:     stringToPtr(defaultBatchJobRestartPolicyMode),
 		}
 	}
 
@@ -627,17 +625,17 @@ type LogConfig struct {
 
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
-		MaxFiles:      helper.IntToPtr(10),
-		MaxFileSizeMB: helper.IntToPtr(10),
+		MaxFiles:      intToPtr(10),
+		MaxFileSizeMB: intToPtr(10),
 	}
 }
 
 func (l *LogConfig) Canonicalize() {
 	if l.MaxFiles == nil {
-		l.MaxFiles = helper.IntToPtr(10)
+		l.MaxFiles = intToPtr(10)
 	}
 	if l.MaxFileSizeMB == nil {
-		l.MaxFileSizeMB = helper.IntToPtr(10)
+		l.MaxFileSizeMB = intToPtr(10)
 	}
 }
 
@@ -675,7 +673,7 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	t.Resources.Canonicalize()
 	if t.KillTimeout == nil {
-		t.KillTimeout = helper.TimeToPtr(5 * time.Second)
+		t.KillTimeout = timeToPtr(5 * time.Second)
 	}
 	if t.LogConfig == nil {
 		t.LogConfig = DefaultLogConfig()
@@ -706,11 +704,11 @@ type TaskArtifact struct {
 
 func (a *TaskArtifact) Canonicalize() {
 	if a.GetterMode == nil {
-		a.GetterMode = helper.StringToPtr("any")
+		a.GetterMode = stringToPtr("any")
 	}
 	if a.GetterSource == nil {
 		// Shouldn't be possible, but we don't want to panic
-		a.GetterSource = helper.StringToPtr("")
+		a.GetterSource = stringToPtr("")
 	}
 	if a.RelativeDest == nil {
 		switch *a.GetterMode {
@@ -722,7 +720,7 @@ func (a *TaskArtifact) Canonicalize() {
 			a.RelativeDest = &dest
 		default:
 			// Default to a directory
-			a.RelativeDest = helper.StringToPtr("local/")
+			a.RelativeDest = stringToPtr("local/")
 		}
 	}
 }
@@ -743,44 +741,44 @@ type Template struct {
 
 func (tmpl *Template) Canonicalize() {
 	if tmpl.SourcePath == nil {
-		tmpl.SourcePath = helper.StringToPtr("")
+		tmpl.SourcePath = stringToPtr("")
 	}
 	if tmpl.DestPath == nil {
-		tmpl.DestPath = helper.StringToPtr("")
+		tmpl.DestPath = stringToPtr("")
 	}
 	if tmpl.EmbeddedTmpl == nil {
-		tmpl.EmbeddedTmpl = helper.StringToPtr("")
+		tmpl.EmbeddedTmpl = stringToPtr("")
 	}
 	if tmpl.ChangeMode == nil {
-		tmpl.ChangeMode = helper.StringToPtr("restart")
+		tmpl.ChangeMode = stringToPtr("restart")
 	}
 	if tmpl.ChangeSignal == nil {
 		if *tmpl.ChangeMode == "signal" {
-			tmpl.ChangeSignal = helper.StringToPtr("SIGHUP")
+			tmpl.ChangeSignal = stringToPtr("SIGHUP")
 		} else {
-			tmpl.ChangeSignal = helper.StringToPtr("")
+			tmpl.ChangeSignal = stringToPtr("")
 		}
 	} else {
 		sig := *tmpl.ChangeSignal
-		tmpl.ChangeSignal = helper.StringToPtr(strings.ToUpper(sig))
+		tmpl.ChangeSignal = stringToPtr(strings.ToUpper(sig))
 	}
 	if tmpl.Splay == nil {
-		tmpl.Splay = helper.TimeToPtr(5 * time.Second)
+		tmpl.Splay = timeToPtr(5 * time.Second)
 	}
 	if tmpl.Perms == nil {
-		tmpl.Perms = helper.StringToPtr("0644")
+		tmpl.Perms = stringToPtr("0644")
 	}
 	if tmpl.LeftDelim == nil {
-		tmpl.LeftDelim = helper.StringToPtr("{{")
+		tmpl.LeftDelim = stringToPtr("{{")
 	}
 	if tmpl.RightDelim == nil {
-		tmpl.RightDelim = helper.StringToPtr("}}")
+		tmpl.RightDelim = stringToPtr("}}")
 	}
 	if tmpl.Envvars == nil {
-		tmpl.Envvars = helper.BoolToPtr(false)
+		tmpl.Envvars = boolToPtr(false)
 	}
 	if tmpl.VaultGrace == nil {
-		tmpl.VaultGrace = helper.TimeToPtr(15 * time.Second)
+		tmpl.VaultGrace = timeToPtr(15 * time.Second)
 	}
 }
 
@@ -793,13 +791,13 @@ type Vault struct {
 
 func (v *Vault) Canonicalize() {
 	if v.Env == nil {
-		v.Env = helper.BoolToPtr(true)
+		v.Env = boolToPtr(true)
 	}
 	if v.ChangeMode == nil {
-		v.ChangeMode = helper.StringToPtr("restart")
+		v.ChangeMode = stringToPtr("restart")
 	}
 	if v.ChangeSignal == nil {
-		v.ChangeSignal = helper.StringToPtr("SIGHUP")
+		v.ChangeSignal = stringToPtr("SIGHUP")
 	}
 }
 

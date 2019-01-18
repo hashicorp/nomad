@@ -7,7 +7,6 @@ import (
 
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -35,9 +34,9 @@ func TestAllocations_List(t *testing.T) {
 	return
 
 	//job := &Job{
-	//ID:   helper.StringToPtr("job1"),
-	//Name: helper.StringToPtr("Job #1"),
-	//Type: helper.StringToPtr(JobTypeService),
+	//ID:   stringToPtr("job1"),
+	//Name: stringToPtr("Job #1"),
+	//Type: stringToPtr(JobTypeService),
 	//}
 	//eval, _, err := c.Jobs().Register(job, nil)
 	//if err != nil {
@@ -82,9 +81,9 @@ func TestAllocations_PrefixList(t *testing.T) {
 	return
 
 	//job := &Job{
-	//ID:   helper.StringToPtr("job1"),
-	//Name: helper.StringToPtr("Job #1"),
-	//Type: helper.StringToPtr(JobTypeService),
+	//ID:   stringToPtr("job1"),
+	//Name: stringToPtr("Job #1"),
+	//Type: stringToPtr(JobTypeService),
 	//}
 
 	//eval, _, err := c.Jobs().Register(job, nil)
@@ -130,13 +129,13 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 	t.Parallel()
 	// Create a job, task group and alloc
 	job := &Job{
-		Name:      helper.StringToPtr("foo"),
-		Namespace: helper.StringToPtr(DefaultNamespace),
-		ID:        helper.StringToPtr("bar"),
-		ParentID:  helper.StringToPtr("lol"),
+		Name:      stringToPtr("foo"),
+		Namespace: stringToPtr(DefaultNamespace),
+		ID:        stringToPtr("bar"),
+		ParentID:  stringToPtr("lol"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: helper.StringToPtr("bar"),
+				Name: stringToPtr("bar"),
 				Tasks: []*Task{
 					{
 						Name: "task1",
@@ -176,8 +175,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "no reschedule events",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(3),
-				Interval: helper.TimeToPtr(15 * time.Minute),
+				Attempts: intToPtr(3),
+				Interval: timeToPtr(15 * time.Minute),
 			},
 			expAttempted: 0,
 			expTotal:     3,
@@ -185,8 +184,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "all reschedule events within interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(3),
-				Interval: helper.TimeToPtr(15 * time.Minute),
+				Attempts: intToPtr(3),
+				Interval: timeToPtr(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -202,8 +201,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "some reschedule events outside interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: helper.IntToPtr(3),
-				Interval: helper.TimeToPtr(15 * time.Minute),
+				Attempts: intToPtr(3),
+				Interval: timeToPtr(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -242,7 +241,7 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
 	t.Parallel()
-	require.True(t, DesiredTransition{Migrate: helper.BoolToPtr(true)}.ShouldMigrate())
+	require.True(t, DesiredTransition{Migrate: boolToPtr(true)}.ShouldMigrate())
 	require.False(t, DesiredTransition{}.ShouldMigrate())
-	require.False(t, DesiredTransition{Migrate: helper.BoolToPtr(false)}.ShouldMigrate())
+	require.False(t, DesiredTransition{Migrate: boolToPtr(false)}.ShouldMigrate())
 }

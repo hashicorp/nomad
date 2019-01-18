@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -542,69 +541,69 @@ func TestNodeStatValueFormatting(t *testing.T) {
 	}{
 		{
 			"true",
-			StatValue{BoolVal: helper.BoolToPtr(true)},
+			StatValue{BoolVal: boolToPtr(true)},
 		},
 		{
 			"false",
-			StatValue{BoolVal: helper.BoolToPtr(false)},
+			StatValue{BoolVal: boolToPtr(false)},
 		},
 		{
 			"myvalue",
-			StatValue{StringVal: helper.StringToPtr("myvalue")},
+			StatValue{StringVal: stringToPtr("myvalue")},
 		},
 		{
 			"2.718",
 			StatValue{
-				FloatNumeratorVal: helper.Float64ToPtr(2.718),
+				FloatNumeratorVal: float64ToPtr(2.718),
 			},
 		},
 		{
 			"2.718 / 3.14",
 			StatValue{
-				FloatNumeratorVal:   helper.Float64ToPtr(2.718),
-				FloatDenominatorVal: helper.Float64ToPtr(3.14),
+				FloatNumeratorVal:   float64ToPtr(2.718),
+				FloatDenominatorVal: float64ToPtr(3.14),
 			},
 		},
 		{
 			"2.718 MHz",
 			StatValue{
-				FloatNumeratorVal: helper.Float64ToPtr(2.718),
+				FloatNumeratorVal: float64ToPtr(2.718),
 				Unit:              "MHz",
 			},
 		},
 		{
 			"2.718 / 3.14 MHz",
 			StatValue{
-				FloatNumeratorVal:   helper.Float64ToPtr(2.718),
-				FloatDenominatorVal: helper.Float64ToPtr(3.14),
+				FloatNumeratorVal:   float64ToPtr(2.718),
+				FloatDenominatorVal: float64ToPtr(3.14),
 				Unit:                "MHz",
 			},
 		},
 		{
 			"2",
 			StatValue{
-				IntNumeratorVal: helper.Int64ToPtr(2),
+				IntNumeratorVal: int64ToPtr(2),
 			},
 		},
 		{
 			"2 / 3",
 			StatValue{
-				IntNumeratorVal:   helper.Int64ToPtr(2),
-				IntDenominatorVal: helper.Int64ToPtr(3),
+				IntNumeratorVal:   int64ToPtr(2),
+				IntDenominatorVal: int64ToPtr(3),
 			},
 		},
 		{
 			"2 MHz",
 			StatValue{
-				IntNumeratorVal: helper.Int64ToPtr(2),
+				IntNumeratorVal: int64ToPtr(2),
 				Unit:            "MHz",
 			},
 		},
 		{
 			"2 / 3 MHz",
 			StatValue{
-				IntNumeratorVal:   helper.Int64ToPtr(2),
-				IntDenominatorVal: helper.Int64ToPtr(3),
+				IntNumeratorVal:   int64ToPtr(2),
+				IntDenominatorVal: int64ToPtr(3),
 				Unit:              "MHz",
 			},
 		},

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
-	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -375,14 +374,14 @@ type UpdateStrategy struct {
 // jobs with the old policy or for populating field defaults.
 func DefaultUpdateStrategy() *UpdateStrategy {
 	return &UpdateStrategy{
-		Stagger:          helper.TimeToPtr(30 * time.Second),
-		MaxParallel:      helper.IntToPtr(1),
-		HealthCheck:      helper.StringToPtr("checks"),
-		MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
-		HealthyDeadline:  helper.TimeToPtr(5 * time.Minute),
-		ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
-		AutoRevert:       helper.BoolToPtr(false),
-		Canary:           helper.IntToPtr(0),
+		Stagger:          timeToPtr(30 * time.Second),
+		MaxParallel:      intToPtr(1),
+		HealthCheck:      stringToPtr("checks"),
+		MinHealthyTime:   timeToPtr(10 * time.Second),
+		HealthyDeadline:  timeToPtr(5 * time.Minute),
+		ProgressDeadline: timeToPtr(10 * time.Minute),
+		AutoRevert:       boolToPtr(false),
+		Canary:           intToPtr(0),
 	}
 }
 
@@ -394,35 +393,35 @@ func (u *UpdateStrategy) Copy() *UpdateStrategy {
 	copy := new(UpdateStrategy)
 
 	if u.Stagger != nil {
-		copy.Stagger = helper.TimeToPtr(*u.Stagger)
+		copy.Stagger = timeToPtr(*u.Stagger)
 	}
 
 	if u.MaxParallel != nil {
-		copy.MaxParallel = helper.IntToPtr(*u.MaxParallel)
+		copy.MaxParallel = intToPtr(*u.MaxParallel)
 	}
 
 	if u.HealthCheck != nil {
-		copy.HealthCheck = helper.StringToPtr(*u.HealthCheck)
+		copy.HealthCheck = stringToPtr(*u.HealthCheck)
 	}
 
 	if u.MinHealthyTime != nil {
-		copy.MinHealthyTime = helper.TimeToPtr(*u.MinHealthyTime)
+		copy.MinHealthyTime = timeToPtr(*u.MinHealthyTime)
 	}
 
 	if u.HealthyDeadline != nil {
-		copy.HealthyDeadline = helper.TimeToPtr(*u.HealthyDeadline)
+		copy.HealthyDeadline = timeToPtr(*u.HealthyDeadline)
 	}
 
 	if u.ProgressDeadline != nil {
-		copy.ProgressDeadline = helper.TimeToPtr(*u.ProgressDeadline)
+		copy.ProgressDeadline = timeToPtr(*u.ProgressDeadline)
 	}
 
 	if u.AutoRevert != nil {
-		copy.AutoRevert = helper.BoolToPtr(*u.AutoRevert)
+		copy.AutoRevert = boolToPtr(*u.AutoRevert)
 	}
 
 	if u.Canary != nil {
-		copy.Canary = helper.IntToPtr(*u.Canary)
+		copy.Canary = intToPtr(*u.Canary)
 	}
 
 	return copy
@@ -434,35 +433,35 @@ func (u *UpdateStrategy) Merge(o *UpdateStrategy) {
 	}
 
 	if o.Stagger != nil {
-		u.Stagger = helper.TimeToPtr(*o.Stagger)
+		u.Stagger = timeToPtr(*o.Stagger)
 	}
 
 	if o.MaxParallel != nil {
-		u.MaxParallel = helper.IntToPtr(*o.MaxParallel)
+		u.MaxParallel = intToPtr(*o.MaxParallel)
 	}
 
 	if o.HealthCheck != nil {
-		u.HealthCheck = helper.StringToPtr(*o.HealthCheck)
+		u.HealthCheck = stringToPtr(*o.HealthCheck)
 	}
 
 	if o.MinHealthyTime != nil {
-		u.MinHealthyTime = helper.TimeToPtr(*o.MinHealthyTime)
+		u.MinHealthyTime = timeToPtr(*o.MinHealthyTime)
 	}
 
 	if o.HealthyDeadline != nil {
-		u.HealthyDeadline = helper.TimeToPtr(*o.HealthyDeadline)
+		u.HealthyDeadline = timeToPtr(*o.HealthyDeadline)
 	}
 
 	if o.ProgressDeadline != nil {
-		u.ProgressDeadline = helper.TimeToPtr(*o.ProgressDeadline)
+		u.ProgressDeadline = timeToPtr(*o.ProgressDeadline)
 	}
 
 	if o.AutoRevert != nil {
-		u.AutoRevert = helper.BoolToPtr(*o.AutoRevert)
+		u.AutoRevert = boolToPtr(*o.AutoRevert)
 	}
 
 	if o.Canary != nil {
-		u.Canary = helper.IntToPtr(*o.Canary)
+		u.Canary = intToPtr(*o.Canary)
 	}
 }
 
@@ -554,19 +553,19 @@ type PeriodicConfig struct {
 
 func (p *PeriodicConfig) Canonicalize() {
 	if p.Enabled == nil {
-		p.Enabled = helper.BoolToPtr(true)
+		p.Enabled = boolToPtr(true)
 	}
 	if p.Spec == nil {
-		p.Spec = helper.StringToPtr("")
+		p.Spec = stringToPtr("")
 	}
 	if p.SpecType == nil {
-		p.SpecType = helper.StringToPtr(PeriodicSpecCron)
+		p.SpecType = stringToPtr(PeriodicSpecCron)
 	}
 	if p.ProhibitOverlap == nil {
-		p.ProhibitOverlap = helper.BoolToPtr(false)
+		p.ProhibitOverlap = boolToPtr(false)
 	}
 	if p.TimeZone == nil || *p.TimeZone == "" {
-		p.TimeZone = helper.StringToPtr("UTC")
+		p.TimeZone = stringToPtr("UTC")
 	}
 }
 
@@ -646,58 +645,58 @@ func (j *Job) IsParameterized() bool {
 
 func (j *Job) Canonicalize() {
 	if j.ID == nil {
-		j.ID = helper.StringToPtr("")
+		j.ID = stringToPtr("")
 	}
 	if j.Name == nil {
-		j.Name = helper.StringToPtr(*j.ID)
+		j.Name = stringToPtr(*j.ID)
 	}
 	if j.ParentID == nil {
-		j.ParentID = helper.StringToPtr("")
+		j.ParentID = stringToPtr("")
 	}
 	if j.Namespace == nil {
-		j.Namespace = helper.StringToPtr(DefaultNamespace)
+		j.Namespace = stringToPtr(DefaultNamespace)
 	}
 	if j.Priority == nil {
-		j.Priority = helper.IntToPtr(50)
+		j.Priority = intToPtr(50)
 	}
 	if j.Stop == nil {
-		j.Stop = helper.BoolToPtr(false)
+		j.Stop = boolToPtr(false)
 	}
 	if j.Region == nil {
-		j.Region = helper.StringToPtr("global")
+		j.Region = stringToPtr("global")
 	}
 	if j.Namespace == nil {
-		j.Namespace = helper.StringToPtr("default")
+		j.Namespace = stringToPtr("default")
 	}
 	if j.Type == nil {
-		j.Type = helper.StringToPtr("service")
+		j.Type = stringToPtr("service")
 	}
 	if j.AllAtOnce == nil {
-		j.AllAtOnce = helper.BoolToPtr(false)
+		j.AllAtOnce = boolToPtr(false)
 	}
 	if j.VaultToken == nil {
-		j.VaultToken = helper.StringToPtr("")
+		j.VaultToken = stringToPtr("")
 	}
 	if j.Status == nil {
-		j.Status = helper.StringToPtr("")
+		j.Status = stringToPtr("")
 	}
 	if j.StatusDescription == nil {
-		j.StatusDescription = helper.StringToPtr("")
+		j.StatusDescription = stringToPtr("")
 	}
 	if j.Stable == nil {
-		j.Stable = helper.BoolToPtr(false)
+		j.Stable = boolToPtr(false)
 	}
 	if j.Version == nil {
-		j.Version = helper.Uint64ToPtr(0)
+		j.Version = uint64ToPtr(0)
 	}
 	if j.CreateIndex == nil {
-		j.CreateIndex = helper.Uint64ToPtr(0)
+		j.CreateIndex = uint64ToPtr(0)
 	}
 	if j.ModifyIndex == nil {
-		j.ModifyIndex = helper.Uint64ToPtr(0)
+		j.ModifyIndex = uint64ToPtr(0)
 	}
 	if j.JobModifyIndex == nil {
-		j.JobModifyIndex = helper.Uint64ToPtr(0)
+		j.JobModifyIndex = uint64ToPtr(0)
 	}
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()

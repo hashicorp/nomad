@@ -46,8 +46,8 @@ func (r *Resources) Canonicalize() {
 // and should be kept in sync.
 func DefaultResources() *Resources {
 	return &Resources{
-		CPU:      helper.IntToPtr(100),
-		MemoryMB: helper.IntToPtr(300),
+		CPU:      intToPtr(100),
+		MemoryMB: intToPtr(300),
 	}
 }
 
@@ -58,8 +58,8 @@ func DefaultResources() *Resources {
 // IN nomad/structs/structs.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      helper.IntToPtr(20),
-		MemoryMB: helper.IntToPtr(10),
+		CPU:      intToPtr(20),
+		MemoryMB: intToPtr(10),
 	}
 }
 
@@ -103,7 +103,7 @@ type NetworkResource struct {
 
 func (n *NetworkResource) Canonicalize() {
 	if n.MBits == nil {
-		n.MBits = helper.IntToPtr(10)
+		n.MBits = intToPtr(10)
 	}
 }
 
@@ -223,6 +223,6 @@ type RequestedDevice struct {
 
 func (d *RequestedDevice) Canonicalize() {
 	if d.Count == nil {
-		d.Count = helper.Uint64ToPtr(1)
+		d.Count = uint64ToPtr(1)
 	}
 }
