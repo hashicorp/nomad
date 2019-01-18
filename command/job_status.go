@@ -428,15 +428,14 @@ func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLen
 				formatUnixNanoTime(alloc.ModifyTime))
 		}
 	} else {
-		allocs[0] = "ID|Node ID|Node Name|Task Group|Version|Desired|Status|Created|Modified"
+		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range stubs {
 			now := time.Now()
 			createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
 			modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
-				alloc.NodeName,
 				alloc.TaskGroup,
 				alloc.JobVersion,
 				alloc.DesiredStatus,
