@@ -440,7 +440,7 @@ MAIN:
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since
 					// the restart tracker knowns it is killed
-					tr.handleKill()
+					result = tr.handleKill()
 				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately
 					return
@@ -703,9 +703,10 @@ func (tr *TaskRunner) initDriver() error {
 	return nil
 }
 
-// handleKill is used to handle the a request to kill a task. It will store any
-// error in the task runner killErr value.
-func (tr *TaskRunner) handleKill() {
+// handleKill is used to handle the a request to kill a task. It will return
+// the handle exit result if one is available and store any error in the task
+// runner killErr value.
+func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// Run the hooks prior to killing the task
 	tr.killing()
 
@@ -716,7 +717,7 @@ func (tr *TaskRunner) handleKill() {
 	// Check it is running
 	handle := tr.getDriverHandle()
 	if handle == nil {
-		return
+		return nil
 	}
 
 	// Kill the task using an exponential backoff in-case of failures.
@@ -734,16 +735,18 @@ func (tr *TaskRunner) handleKill() {
 	// failure in the driver or transport layer occurred
 	if err != nil {
 		if err == drivers.ErrTaskNotFound {
-			return
+			return nil
 		}
 		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
 		tr.setKillErr(killErr)
-		return
+		return nil
 	}
 
 	select {
-	case <-waitCh:
+	case result := <-waitCh:
+		return result
 	case <-tr.shutdownCtx.Done():
+		return nil
 	}
 }
 
