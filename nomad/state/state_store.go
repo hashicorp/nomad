@@ -3085,46 +3085,46 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 
 			// The following block of code fixes incorrect child summaries due to a bug
 			// See https://github.com/hashicorp/nomad/issues/3886 for details
-			summaryIter, err := txn.Get("job_summary", "id", job.Namespace, job.ID)
+			rawSummary, err := txn.First("job_summary", "id", job.Namespace, job.ID)
 			if err != nil {
 				return err
 			}
+			if rawSummary == nil {
+				continue
+			}
 
-			rawSummary := summaryIter.Next()
-			if rawSummary != nil {
-				oldSummary := rawSummary.(*structs.JobSummary)
+			oldSummary := rawSummary.(*structs.JobSummary)
 
-				// Create an empty summary
-				summary := &structs.JobSummary{
-					JobID:     job.ID,
-					Namespace: job.Namespace,
-					Summary:   make(map[string]structs.TaskGroupSummary),
-					Children:  &structs.JobChildrenSummary{},
+			// Create an empty summary
+			summary := &structs.JobSummary{
+				JobID:     job.ID,
+				Namespace: job.Namespace,
+				Summary:   make(map[string]structs.TaskGroupSummary),
+				Children:  &structs.JobChildrenSummary{},
+			}
+
+			// Iterate over children of this job if any to fix summary counts
+			children := parentMap[job.ID]
+			for _, childJob := range children {
+				switch childJob.Status {
+				case structs.JobStatusPending:
+					summary.Children.Pending++
+				case structs.JobStatusDead:
+					summary.Children.Dead++
+				case structs.JobStatusRunning:
+					summary.Children.Running++
 				}
+			}
 
-				// Iterate over children of this job if any to fix summary counts
-				children := parentMap[job.ID]
-				for _, childJob := range children {
-					switch childJob.Status {
-					case structs.JobStatusPending:
-						summary.Children.Pending++
-					case structs.JobStatusDead:
-						summary.Children.Dead++
-					case structs.JobStatusRunning:
-						summary.Children.Running++
-					}
-				}
+			// Insert the job summary if its different
+			if !reflect.DeepEqual(summary, oldSummary) {
+				// Set the create index of the summary same as the job's create index
+				// and the modify index to the current index
+				summary.CreateIndex = job.CreateIndex
+				summary.ModifyIndex = index
 
-				// Insert the job summary if its different
-				if !reflect.DeepEqual(summary, oldSummary) {
-					// Set the create index of the summary same as the job's create index
-					// and the modify index to the current index
-					summary.CreateIndex = job.CreateIndex
-					summary.ModifyIndex = index
-
-					if err := txn.Insert("job_summary", summary); err != nil {
-						return fmt.Errorf("error inserting job summary: %v", err)
-					}
+				if err := txn.Insert("job_summary", summary); err != nil {
+					return fmt.Errorf("error inserting job summary: %v", err)
 				}
 			}
 
