@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // MemoryStats holds memory usage related stats
@@ -171,21 +170,21 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 	switch jobType {
 	case "service":
 		dp = &ReschedulePolicy{
-			Attempts:      helper.IntToPtr(structs.DefaultServiceJobReschedulePolicy.Attempts),
-			Interval:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Interval),
-			Delay:         helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.Delay),
-			DelayFunction: helper.StringToPtr(structs.DefaultServiceJobReschedulePolicy.DelayFunction),
-			MaxDelay:      helper.TimeToPtr(structs.DefaultServiceJobReschedulePolicy.MaxDelay),
-			Unlimited:     helper.BoolToPtr(structs.DefaultServiceJobReschedulePolicy.Unlimited),
+			Attempts:      helper.IntToPtr(defaultServiceJobReschedulePolicyAttempts),
+			Interval:      helper.TimeToPtr(defaultServiceJobReschedulePolicyInterval),
+			Delay:         helper.TimeToPtr(defaultServiceJobReschedulePolicyDelay),
+			DelayFunction: helper.StringToPtr(defaultServiceJobReschedulePolicyDelayFunction),
+			MaxDelay:      helper.TimeToPtr(defaultServiceJobReschedulePolicyMaxDelay),
+			Unlimited:     helper.BoolToPtr(defaultServiceJobReschedulePolicyUnlimited),
 		}
 	case "batch":
 		dp = &ReschedulePolicy{
-			Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-			Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
-			Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
-			DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
-			MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
-			Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
+			Attempts:      helper.IntToPtr(defaultBatchJobReschedulePolicyAttempts),
+			Interval:      helper.TimeToPtr(defaultBatchJobReschedulePolicyInterval),
+			Delay:         helper.TimeToPtr(defaultBatchJobReschedulePolicyDelay),
+			DelayFunction: helper.StringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
+			MaxDelay:      helper.TimeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
+			Unlimited:     helper.BoolToPtr(defaultBatchJobReschedulePolicyUnlimited),
 		}
 
 	case "system":
@@ -556,17 +555,17 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	switch *job.Type {
 	case "service", "system":
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(structs.DefaultServiceJobRestartPolicy.Delay),
-			Attempts: helper.IntToPtr(structs.DefaultServiceJobRestartPolicy.Attempts),
-			Interval: helper.TimeToPtr(structs.DefaultServiceJobRestartPolicy.Interval),
-			Mode:     helper.StringToPtr(structs.DefaultServiceJobRestartPolicy.Mode),
+			Delay:    helper.TimeToPtr(defaultServiceJobRestartPolicyDelay),
+			Attempts: helper.IntToPtr(defaultServiceJobRestartPolicyAttempts),
+			Interval: helper.TimeToPtr(defaultServiceJobRestartPolicyInterval),
+			Mode:     helper.StringToPtr(defaultServiceJobRestartPolicyMode),
 		}
 	default:
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    helper.TimeToPtr(structs.DefaultBatchJobRestartPolicy.Delay),
-			Attempts: helper.IntToPtr(structs.DefaultBatchJobRestartPolicy.Attempts),
-			Interval: helper.TimeToPtr(structs.DefaultBatchJobRestartPolicy.Interval),
-			Mode:     helper.StringToPtr(structs.DefaultBatchJobRestartPolicy.Mode),
+			Delay:    helper.TimeToPtr(defaultBatchJobRestartPolicyDelay),
+			Attempts: helper.IntToPtr(defaultBatchJobRestartPolicyAttempts),
+			Interval: helper.TimeToPtr(defaultBatchJobRestartPolicyInterval),
+			Mode:     helper.StringToPtr(defaultBatchJobRestartPolicyMode),
 		}
 	}
 

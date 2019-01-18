@@ -185,8 +185,8 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	if out.SchedulingEligibility != NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
 	}
 
 	// Toggle off again
@@ -203,7 +203,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	if out.DrainStrategy != nil {
 		t.Fatalf("drain strategy should be unset")
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+	if out.SchedulingEligibility != NodeSchedulingEligible {
 		t.Fatalf("should be eligible")
 	}
 }
@@ -237,7 +237,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+	if out.SchedulingEligibility != NodeSchedulingEligible {
 		t.Fatalf("node should be eligible")
 	}
 
@@ -253,8 +253,8 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	if out.SchedulingEligibility != NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
 	}
 
 	// Toggle on
@@ -269,8 +269,8 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	if out.SchedulingEligibility != NodeSchedulingEligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingEligible)
 	}
 	if out.DrainStrategy != nil {
 		t.Fatalf("drain strategy should be unset")

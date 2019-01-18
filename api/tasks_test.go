@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -408,12 +407,12 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			jobReschedulePolicy:  nil,
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
-				Attempts:      helper.IntToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
-				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
-				Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
-				DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
-				MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
-				Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
+				Attempts:      helper.IntToPtr(defaultBatchJobReschedulePolicyAttempts),
+				Interval:      helper.TimeToPtr(defaultBatchJobReschedulePolicyInterval),
+				Delay:         helper.TimeToPtr(defaultBatchJobReschedulePolicyDelay),
+				DelayFunction: helper.StringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
+				MaxDelay:      helper.TimeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
+				Unlimited:     helper.BoolToPtr(defaultBatchJobReschedulePolicyUnlimited),
 			},
 		},
 		{
@@ -512,7 +511,7 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			},
 			expected: &ReschedulePolicy{
 				Attempts:      helper.IntToPtr(5),
-				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Interval:      helper.TimeToPtr(defaultBatchJobReschedulePolicyInterval),
 				Delay:         helper.TimeToPtr(20 * time.Second),
 				MaxDelay:      helper.TimeToPtr(20 * time.Minute),
 				DelayFunction: helper.StringToPtr("constant"),
@@ -527,11 +526,11 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
 				Attempts:      helper.IntToPtr(1),
-				Interval:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
-				Delay:         helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
-				DelayFunction: helper.StringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
-				MaxDelay:      helper.TimeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
-				Unlimited:     helper.BoolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
+				Interval:      helper.TimeToPtr(defaultBatchJobReschedulePolicyInterval),
+				Delay:         helper.TimeToPtr(defaultBatchJobReschedulePolicyDelay),
+				DelayFunction: helper.StringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
+				MaxDelay:      helper.TimeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
+				Unlimited:     helper.BoolToPtr(defaultBatchJobReschedulePolicyUnlimited),
 			},
 		},
 	}

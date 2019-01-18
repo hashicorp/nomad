@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -224,7 +223,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string,
 			return
 		}
 
-		if node.Status == structs.NodeStatusDown {
+		if node.Status == NodeStatusDown {
 			msg := Messagef(MonitorMsgLevelWarn, "Node %q down", nodeID)
 			select {
 			case nodeCh <- msg:
@@ -295,7 +294,7 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 				// Alloc was marked for migration
 				msg = "marked for migration"
 
-			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == structs.AllocDesiredStatusStop:
+			case migrating && (orig.DesiredStatus != a.DesiredStatus) && a.DesiredStatus == AllocDesiredStatusStop:
 				// Alloc has already been marked for migration and is now being stopped
 				msg = "draining"
 			}
@@ -314,12 +313,12 @@ func (n *Nodes) monitorDrainAllocs(ctx context.Context, nodeID string, ignoreSys
 			}
 
 			// Track how many allocs are still running
-			if ignoreSys && a.Job.Type != nil && *a.Job.Type == structs.JobTypeSystem {
+			if ignoreSys && a.Job.Type != nil && *a.Job.Type == JobTypeSystem {
 				continue
 			}
 
 			switch a.ClientStatus {
-			case structs.AllocClientStatusPending, structs.AllocClientStatusRunning:
+			case AllocClientStatusPending, AllocClientStatusRunning:
 				runningAllocs++
 			}
 		}
@@ -353,9 +352,9 @@ type NodeEligibilityUpdateResponse struct {
 
 // ToggleEligibility is used to update the scheduling eligibility of the node
 func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*NodeEligibilityUpdateResponse, error) {
-	e := structs.NodeSchedulingEligible
+	e := NodeSchedulingEligible
 	if !eligible {
-		e = structs.NodeSchedulingIneligible
+		e = NodeSchedulingIneligible
 	}
 
 	req := &NodeUpdateEligibilityRequest{

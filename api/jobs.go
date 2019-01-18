@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -18,6 +17,9 @@ const (
 
 	// JobTypeBatch indicates a short-lived process
 	JobTypeBatch = "batch"
+
+	// JobTypeSystem indicates a system process that should run on all clients
+	JobTypeSystem = "system"
 
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
@@ -575,7 +577,7 @@ func (p *PeriodicConfig) Canonicalize() {
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if *p.SpecType == PeriodicSpecCron {
 		if e, err := cronexpr.Parse(*p.Spec); err == nil {
-			return structs.CronParseNext(e, fromTime, *p.Spec)
+			return CronParseNext(e, fromTime, *p.Spec)
 		}
 	}
 
