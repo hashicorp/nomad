@@ -592,6 +592,8 @@ func TestTaskRunner_Dispatch_Payload(t *testing.T) {
 	require.Equal(t, expected, data)
 }
 
+// TestTaskRunner_SignalFailure asserts that signal errors are properly
+// propagated from the driver to TaskRunner.
 func TestTaskRunner_SignalFailure(t *testing.T) {
 	t.Parallel()
 
@@ -617,6 +619,63 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 	err = tr.Signal(&structs.TaskEvent{}, "SIGINT")
 	require.NotNil(t, err)
 	require.Equal(t, errMsg, err.Error())
+}
+
+// TestTaskRunner_RestartTask asserts that restarting a task works and emits a
+// Restarting event.
+func TestTaskRunner_RestartTask(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10m",
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	testWaitForTaskToStart(t, tr)
+
+	// Restart task. Send a RestartSignal event like check watcher. Restart
+	// handler emits the Restarting event.
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason("test")
+	const fail = false
+	tr.Restart(context.Background(), event.Copy(), fail)
+
+	// Wait for it to restart and be running again
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+		if ts.Restarts != 1 {
+			return false, fmt.Errorf("expected 1 restart but found %d\nevents: %s",
+				ts.Restarts, pretty.Sprint(ts.Events))
+		}
+		if ts.State != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected running but received %s", ts.State)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Assert the expected Restarting event was emitted
+	found := false
+	events := tr.TaskState().Events
+	for _, e := range events {
+		if e.Type == structs.TaskRestartSignal {
+			found = true
+			require.Equal(t, event.Time, e.Time)
+			require.Equal(t, event.RestartReason, e.RestartReason)
+			require.Contains(t, e.DisplayMessage, event.RestartReason)
+		}
+	}
+	require.True(t, found, "restarting task event not found", pretty.Sprint(events))
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
