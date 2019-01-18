@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-
-	"github.com/hashicorp/nomad/helper"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -661,9 +659,9 @@ func (v *StatValue) String() string {
 	case v.StringVal != nil:
 		return *v.StringVal
 	case v.FloatNumeratorVal != nil:
-		str := helper.FormatFloat(*v.FloatNumeratorVal, 3)
+		str := formatFloat(*v.FloatNumeratorVal, 3)
 		if v.FloatDenominatorVal != nil {
-			str += " / " + helper.FormatFloat(*v.FloatDenominatorVal, 3)
+			str += " / " + formatFloat(*v.FloatDenominatorVal, 3)
 		}
 
 		if v.Unit != "" {

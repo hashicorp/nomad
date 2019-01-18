@@ -2,8 +2,6 @@ package api
 
 import (
 	"strconv"
-
-	"github.com/hashicorp/nomad/helper"
 )
 
 // Resources encapsulates the required resources of
@@ -169,7 +167,7 @@ type Attribute struct {
 func (a Attribute) String() string {
 	switch {
 	case a.FloatVal != nil:
-		str := helper.FormatFloat(*a.FloatVal, 3)
+		str := formatFloat(*a.FloatVal, 3)
 		if a.Unit != "" {
 			str += " " + a.Unit
 		}
