@@ -40,7 +40,7 @@ func (m *StartRequest) Reset()         { *m = StartRequest{} }
 func (m *StartRequest) String() string { return proto.CompactTextString(m) }
 func (*StartRequest) ProtoMessage()    {}
 func (*StartRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_logmon_6dbff459851a9ae9, []int{0}
+	return fileDescriptor_logmon_c8f5fe5f286cd193, []int{0}
 }
 func (m *StartRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartRequest.Unmarshal(m, b)
@@ -119,7 +119,7 @@ func (m *StartResponse) Reset()         { *m = StartResponse{} }
 func (m *StartResponse) String() string { return proto.CompactTextString(m) }
 func (*StartResponse) ProtoMessage()    {}
 func (*StartResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_logmon_6dbff459851a9ae9, []int{1}
+	return fileDescriptor_logmon_c8f5fe5f286cd193, []int{1}
 }
 func (m *StartResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartResponse.Unmarshal(m, b)
@@ -149,7 +149,7 @@ func (m *StopRequest) Reset()         { *m = StopRequest{} }
 func (m *StopRequest) String() string { return proto.CompactTextString(m) }
 func (*StopRequest) ProtoMessage()    {}
 func (*StopRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_logmon_6dbff459851a9ae9, []int{2}
+	return fileDescriptor_logmon_c8f5fe5f286cd193, []int{2}
 }
 func (m *StopRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopRequest.Unmarshal(m, b)
@@ -179,7 +179,7 @@ func (m *StopResponse) Reset()         { *m = StopResponse{} }
 func (m *StopResponse) String() string { return proto.CompactTextString(m) }
 func (*StopResponse) ProtoMessage()    {}
 func (*StopResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_logmon_6dbff459851a9ae9, []int{3}
+	return fileDescriptor_logmon_c8f5fe5f286cd193, []int{3}
 }
 func (m *StopResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopResponse.Unmarshal(m, b)
@@ -312,10 +312,10 @@ var _LogMon_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("client/logmon/proto/logmon.proto", fileDescriptor_logmon_6dbff459851a9ae9)
+	proto.RegisterFile("client/logmon/proto/logmon.proto", fileDescriptor_logmon_c8f5fe5f286cd193)
 }
 
-var fileDescriptor_logmon_6dbff459851a9ae9 = []byte{
+var fileDescriptor_logmon_c8f5fe5f286cd193 = []byte{
 	// 320 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x90, 0x31, 0x6f, 0xc2, 0x30,
 	0x10, 0x85, 0x1b, 0x0a, 0xa1, 0x1c, 0x0d, 0x45, 0x5e, 0x1a, 0xd1, 0xa1, 0x28, 0x1d, 0xca, 0x14,

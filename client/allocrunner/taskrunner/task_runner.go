@@ -1120,12 +1120,12 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	if !tr.clientConfig.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
 			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
 			float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
 			float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
+			float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
 			float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
@@ -1138,6 +1138,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))

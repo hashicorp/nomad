@@ -168,6 +168,7 @@ type MemoryStats struct {
 	RSS            uint64
 	Cache          uint64
 	Swap           uint64
+	Usage          uint64
 	MaxUsage       uint64
 	KernelUsage    uint64
 	KernelMaxUsage uint64
@@ -184,6 +185,7 @@ func (ms *MemoryStats) Add(other *MemoryStats) {
 	ms.RSS += other.RSS
 	ms.Cache += other.Cache
 	ms.Swap += other.Swap
+	ms.Usage += other.Usage
 	ms.MaxUsage += other.MaxUsage
 	ms.KernelUsage += other.KernelUsage
 	ms.KernelMaxUsage += other.KernelMaxUsage
