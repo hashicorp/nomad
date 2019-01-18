@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -616,9 +617,7 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 
 	testWaitForTaskToStart(t, tr)
 
-	err = tr.Signal(&structs.TaskEvent{}, "SIGINT")
-	require.NotNil(t, err)
-	require.Equal(t, errMsg, err.Error())
+	require.EqualError(t, tr.Signal(&structs.TaskEvent{}, "SIGINT"), errMsg)
 }
 
 // TestTaskRunner_RestartTask asserts that restarting a task works and emits a
@@ -676,6 +675,96 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		}
 	}
 	require.True(t, found, "restarting task event not found", pretty.Sprint(events))
+}
+
+// TestTaskRunner_CheckWatcher_Restart asserts that when enabled an unhealthy
+// Consul check will cause a task to restart following restart policy rules.
+func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+
+	// Make the restart policy fail within this test
+	tg := alloc.Job.TaskGroups[0]
+	tg.RestartPolicy.Attempts = 2
+	tg.RestartPolicy.Interval = 1 * time.Minute
+	tg.RestartPolicy.Delay = 10 * time.Millisecond
+	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
+
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10m",
+	}
+
+	// Make the task register a check that fails
+	task.Services[0].Checks[0] = &structs.ServiceCheck{
+		Name:     "test-restarts",
+		Type:     structs.ServiceCheckTCP,
+		Interval: 50 * time.Millisecond,
+		CheckRestart: &structs.CheckRestart{
+			Limit: 2,
+			Grace: 100 * time.Millisecond,
+		},
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Replace mock Consul ServiceClient, with the real ServiceClient
+	// backed by a mock consul whose checks are always unhealthy.
+	consulAgent := agentconsul.NewMockAgent()
+	consulAgent.SetStatus("critical")
+	consulClient := agentconsul.NewServiceClient(consulAgent, conf.Logger, true)
+	go consulClient.Run()
+	defer consulClient.Shutdown()
+
+	conf.Consul = consulClient
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+
+	expectedEvents := []string{
+		"Received",
+		"Task Setup",
+		"Started",
+		"Restart Signaled",
+		"Terminated",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Terminated",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Terminated",
+		"Not Restarting",
+	}
+
+	// Bump maxEvents so task events aren't dropped
+	tr.maxEvents = 100
+
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait until the task exits. Don't simply wait for it to run as it may
+	// get restarted and terminated before the test is able to observe it
+	// running.
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timeout")
+	}
+
+	state := tr.TaskState()
+	actualEvents := make([]string, len(state.Events))
+	for i, e := range state.Events {
+		actualEvents[i] = string(e.Type)
+	}
+	require.Equal(t, actualEvents, expectedEvents)
+
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.True(t, state.Failed, pretty.Sprint(state))
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
