@@ -46,7 +46,9 @@ func (h *hookResources) getMounts() []*drivers.MountConfig {
 
 // initHooks intializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
-	hookLogger := tr.logger.Named("task_hook")
+	// Don't add a sublogger as the names get long and have little meaning
+	// to end users. Each hook adds its own name.
+	hookLogger := tr.logger
 	task := tr.Task()
 
 	tr.logmonHookConfig = newLogMonHookConfig(task.Name, tr.taskDir.LogDir)

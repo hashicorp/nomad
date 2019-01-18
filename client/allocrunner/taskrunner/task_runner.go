@@ -269,8 +269,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		driverManager:       config.DriverManager,
 	}
 
-	// Create the logger based on the allocation ID
-	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
+	// Add the task name to the logger
+	tr.logger = config.Logger.With("task", config.Task.Name)
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources

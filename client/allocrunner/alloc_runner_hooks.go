@@ -77,7 +77,9 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 
 // initRunnerHooks intializes the runners hooks.
 func (ar *allocRunner) initRunnerHooks() {
-	hookLogger := ar.logger.Named("runner_hook")
+	// Don't add a sublogger as the names get long and have little meaning
+	// to end users. Each hook adds its own name.
+	hookLogger := ar.logger
 
 	// create health setting shim
 	hs := &allocHealthSetter{ar}

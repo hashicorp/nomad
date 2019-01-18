@@ -172,8 +172,9 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		driverManager:            config.DriverManager,
 	}
 
-	// Create the logger based on the allocation ID
-	ar.logger = config.Logger.Named("alloc_runner").With("alloc_id", alloc.ID)
+	// Create the logger based on the allocation ID. Give it a generic name
+	// to differentiate from client-global log lines at a glance.
+	ar.logger = config.Logger.Named("runner").With("alloc_id", alloc.ID)
 
 	// Create alloc broadcaster
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
