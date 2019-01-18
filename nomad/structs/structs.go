@@ -1298,6 +1298,12 @@ func (ne *NodeEvent) AddDetail(k, v string) *NodeEvent {
 	return ne
 }
 
+const (
+	NodeStatusInit  = "initializing"
+	NodeStatusReady = "ready"
+	NodeStatusDown  = "down"
+)
+
 // ShouldDrainNode checks if a given node status should trigger an
 // evaluation. Some states don't require any further action.
 func ShouldDrainNode(status string) bool {
@@ -1320,6 +1326,14 @@ func ValidNodeStatus(status string) bool {
 		return false
 	}
 }
+
+const (
+	// NodeSchedulingEligible and Ineligible marks the node as eligible or not,
+	// respectively, for receiving allocations. This is orthoginal to the node
+	// status being ready.
+	NodeSchedulingEligible   = "eligible"
+	NodeSchedulingIneligible = "ineligible"
+)
 
 // DrainSpec describes a Node's desired drain behavior.
 type DrainSpec struct {
@@ -3833,6 +3847,19 @@ func (p *PeriodicConfig) Canonicalize() {
 	p.location = l
 }
 
+// CronParseNext is a helper that parses the next time for the given expression
+// but captures any panic that may occur in the underlying library.
+func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
+	defer func() {
+		if recover() != nil {
+			t = time.Time{}
+			err = fmt.Errorf("failed parsing cron expression: %q", spec)
+		}
+	}()
+
+	return e.Next(fromTime), nil
+}
+
 // Next returns the closest time instant matching the spec that is after the
 // passed time. If no matching instance exists, the zero value of time.Time is
 // returned. The `time.Location` of the returned value matches that of the
@@ -3990,42 +4017,50 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 var (
-	DefaultServiceJobRestartPolicy = RestartPolicy{
-		Delay:    defaultServiceJobRestartPolicyDelay,
-		Attempts: defaultServiceJobRestartPolicyAttempts,
-		Interval: defaultServiceJobRestartPolicyInterval,
-		Mode:     defaultServiceJobRestartPolicyMode,
-	}
+	// These default restart policies needs to be in sync with
+	// Canonicalize in api/tasks.go
 
+	DefaultServiceJobRestartPolicy = RestartPolicy{
+		Delay:    15 * time.Second,
+		Attempts: 2,
+		Interval: 30 * time.Minute,
+		Mode:     RestartPolicyModeFail,
+	}
 	DefaultBatchJobRestartPolicy = RestartPolicy{
-		Delay:    defaultBatchJobRestartPolicyDelay,
-		Attempts: defaultBatchJobRestartPolicyAttempts,
-		Interval: defaultBatchJobRestartPolicyInterval,
-		Mode:     defaultBatchJobRestartPolicyMode,
+		Delay:    15 * time.Second,
+		Attempts: 3,
+		Interval: 24 * time.Hour,
+		Mode:     RestartPolicyModeFail,
 	}
 )
 
 var (
-	DefaultServiceJobReschedulePolicy = ReschedulePolicy{
-		Attempts:      defaultServiceJobReschedulePolicyAttempts,
-		Interval:      defaultServiceJobReschedulePolicyInterval,
-		Delay:         defaultServiceJobReschedulePolicyDelay,
-		DelayFunction: defaultServiceJobReschedulePolicyDelayFunction,
-		MaxDelay:      defaultServiceJobReschedulePolicyMaxDelay,
-		Unlimited:     defaultServiceJobReschedulePolicyUnlimited,
-	}
+	// These default reschedule policies needs to be in sync with
+	// NewDefaultReschedulePolicy in api/tasks.go
 
+	DefaultServiceJobReschedulePolicy = ReschedulePolicy{
+		Delay:         30 * time.Second,
+		DelayFunction: "exponential",
+		MaxDelay:      1 * time.Hour,
+		Unlimited:     true,
+	}
 	DefaultBatchJobReschedulePolicy = ReschedulePolicy{
-		Attempts:      defaultBatchJobReschedulePolicyAttempts,
-		Interval:      defaultBatchJobReschedulePolicyInterval,
-		Delay:         defaultBatchJobReschedulePolicyDelay,
-		DelayFunction: defaultBatchJobReschedulePolicyDelayFunction,
-		MaxDelay:      defaultBatchJobReschedulePolicyMaxDelay,
-		Unlimited:     defaultBatchJobReschedulePolicyUnlimited,
+		Attempts:      1,
+		Interval:      24 * time.Hour,
+		Delay:         5 * time.Second,
+		DelayFunction: "constant",
 	}
 )
 
 const (
+	// RestartPolicyModeDelay causes an artificial delay till the next interval is
+	// reached when the specified attempts have been reached in the interval.
+	RestartPolicyModeDelay = "delay"
+
+	// RestartPolicyModeFail causes a job to fail if the specified number of
+	// attempts are reached within an interval.
+	RestartPolicyModeFail = "fail"
+
 	// RestartPolicyMinInterval is the minimum interval that is accepted for a
 	// restart policy.
 	RestartPolicyMinInterval = 5 * time.Second
@@ -7058,6 +7093,20 @@ func (d *DesiredTransition) ShouldForceReschedule() bool {
 	}
 	return d.ForceReschedule != nil && *d.ForceReschedule
 }
+
+const (
+	AllocDesiredStatusRun   = "run"   // Allocation should run
+	AllocDesiredStatusStop  = "stop"  // Allocation should stop
+	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
+)
+
+const (
+	AllocClientStatusPending  = "pending"
+	AllocClientStatusRunning  = "running"
+	AllocClientStatusComplete = "complete"
+	AllocClientStatusFailed   = "failed"
+	AllocClientStatusLost     = "lost"
+)
 
 // Allocation is used to allocate the placement of a task group to a node.
 type Allocation struct {

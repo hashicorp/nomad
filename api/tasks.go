@@ -8,6 +8,16 @@ import (
 	"time"
 )
 
+const (
+	// RestartPolicyModeDelay causes an artificial delay till the next interval is
+	// reached when the specified attempts have been reached in the interval.
+	RestartPolicyModeDelay = "delay"
+
+	// RestartPolicyModeFail causes a job to fail if the specified number of
+	// attempts are reached within an interval.
+	RestartPolicyModeFail = "fail"
+)
+
 // MemoryStats holds memory usage related stats
 type MemoryStats struct {
 	RSS            uint64
@@ -167,22 +177,28 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 	var dp *ReschedulePolicy
 	switch jobType {
 	case "service":
+		// This needs to be in sync with DefaultServiceJobReschedulePolicy
+		// in nomad/structs/structs.go
 		dp = &ReschedulePolicy{
-			Attempts:      intToPtr(defaultServiceJobReschedulePolicyAttempts),
-			Interval:      timeToPtr(defaultServiceJobReschedulePolicyInterval),
-			Delay:         timeToPtr(defaultServiceJobReschedulePolicyDelay),
-			DelayFunction: stringToPtr(defaultServiceJobReschedulePolicyDelayFunction),
-			MaxDelay:      timeToPtr(defaultServiceJobReschedulePolicyMaxDelay),
-			Unlimited:     boolToPtr(defaultServiceJobReschedulePolicyUnlimited),
+			Delay:         timeToPtr(30 * time.Second),
+			DelayFunction: stringToPtr("exponential"),
+			MaxDelay:      timeToPtr(1 * time.Hour),
+			Unlimited:     boolToPtr(true),
+
+			Attempts: intToPtr(0),
+			Interval: timeToPtr(0),
 		}
 	case "batch":
+		// This needs to be in sync with DefaultBatchJobReschedulePolicy
+		// in nomad/structs/structs.go
 		dp = &ReschedulePolicy{
-			Attempts:      intToPtr(defaultBatchJobReschedulePolicyAttempts),
-			Interval:      timeToPtr(defaultBatchJobReschedulePolicyInterval),
-			Delay:         timeToPtr(defaultBatchJobReschedulePolicyDelay),
-			DelayFunction: stringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
-			MaxDelay:      timeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
-			Unlimited:     boolToPtr(defaultBatchJobReschedulePolicyUnlimited),
+			Attempts:      intToPtr(1),
+			Interval:      timeToPtr(24 * time.Hour),
+			Delay:         timeToPtr(5 * time.Second),
+			DelayFunction: stringToPtr("constant"),
+
+			MaxDelay:  timeToPtr(0),
+			Unlimited: boolToPtr(false),
 		}
 
 	case "system":
@@ -552,18 +568,22 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	var defaultRestartPolicy *RestartPolicy
 	switch *job.Type {
 	case "service", "system":
+		// These needs to be in sync with DefaultServiceJobRestartPolicy in
+		// in nomad/structs/structs.go
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    timeToPtr(defaultServiceJobRestartPolicyDelay),
-			Attempts: intToPtr(defaultServiceJobRestartPolicyAttempts),
-			Interval: timeToPtr(defaultServiceJobRestartPolicyInterval),
-			Mode:     stringToPtr(defaultServiceJobRestartPolicyMode),
+			Delay:    timeToPtr(15 * time.Second),
+			Attempts: intToPtr(2),
+			Interval: timeToPtr(30 * time.Minute),
+			Mode:     stringToPtr(RestartPolicyModeFail),
 		}
 	default:
+		// These needs to be in sync with DefaultBatchJobRestartPolicy in
+		// in nomad/structs/structs.go
 		defaultRestartPolicy = &RestartPolicy{
-			Delay:    timeToPtr(defaultBatchJobRestartPolicyDelay),
-			Attempts: intToPtr(defaultBatchJobRestartPolicyAttempts),
-			Interval: timeToPtr(defaultBatchJobRestartPolicyInterval),
-			Mode:     stringToPtr(defaultBatchJobRestartPolicyMode),
+			Delay:    timeToPtr(15 * time.Second),
+			Attempts: intToPtr(3),
+			Interval: timeToPtr(24 * time.Hour),
+			Mode:     stringToPtr(RestartPolicyModeFail),
 		}
 	}
 

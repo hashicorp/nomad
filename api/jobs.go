@@ -576,13 +576,27 @@ func (p *PeriodicConfig) Canonicalize() {
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if *p.SpecType == PeriodicSpecCron {
 		if e, err := cronexpr.Parse(*p.Spec); err == nil {
-			return CronParseNext(e, fromTime, *p.Spec)
+			return cronParseNext(e, fromTime, *p.Spec)
 		}
 	}
 
 	return time.Time{}, nil
 }
 
+// cronParseNext is a helper that parses the next time for the given expression
+// but captures any panic that may occur in the underlying library.
+// ---  THIS FUNCTION IS REPLICATED IN nomad/structs/structs.go
+// and should be kept in sync.
+func cronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
+	defer func() {
+		if recover() != nil {
+			t = time.Time{}
+			err = fmt.Errorf("failed parsing cron expression: %q", spec)
+		}
+	}()
+
+	return e.Next(fromTime), nil
+}
 func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
 	if p.TimeZone == nil || *p.TimeZone == "" {
 		return time.UTC, nil

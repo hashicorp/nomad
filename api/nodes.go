@@ -8,6 +8,18 @@ import (
 	"time"
 )
 
+const (
+	NodeStatusInit  = "initializing"
+	NodeStatusReady = "ready"
+	NodeStatusDown  = "down"
+
+	// NodeSchedulingEligible and Ineligible marks the node as eligible or not,
+	// respectively, for receiving allocations. This is orthoginal to the node
+	// status being ready.
+	NodeSchedulingEligible   = "eligible"
+	NodeSchedulingIneligible = "ineligible"
+)
+
 // Nodes is used to query node-related API endpoints
 type Nodes struct {
 	client *Client

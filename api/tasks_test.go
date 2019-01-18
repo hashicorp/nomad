@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -406,12 +407,12 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			jobReschedulePolicy:  nil,
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
-				Attempts:      intToPtr(defaultBatchJobReschedulePolicyAttempts),
-				Interval:      timeToPtr(defaultBatchJobReschedulePolicyInterval),
-				Delay:         timeToPtr(defaultBatchJobReschedulePolicyDelay),
-				DelayFunction: stringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
-				MaxDelay:      timeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
-				Unlimited:     boolToPtr(defaultBatchJobReschedulePolicyUnlimited),
+				Attempts:      intToPtr(structs.DefaultBatchJobReschedulePolicy.Attempts),
+				Interval:      timeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Delay:         timeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+				DelayFunction: stringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+				MaxDelay:      timeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
+				Unlimited:     boolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 			},
 		},
 		{
@@ -510,7 +511,7 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			},
 			expected: &ReschedulePolicy{
 				Attempts:      intToPtr(5),
-				Interval:      timeToPtr(defaultBatchJobReschedulePolicyInterval),
+				Interval:      timeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
 				Delay:         timeToPtr(20 * time.Second),
 				MaxDelay:      timeToPtr(20 * time.Minute),
 				DelayFunction: stringToPtr("constant"),
@@ -525,11 +526,11 @@ func TestTaskGroup_Canonicalize_ReschedulePolicy(t *testing.T) {
 			taskReschedulePolicy: nil,
 			expected: &ReschedulePolicy{
 				Attempts:      intToPtr(1),
-				Interval:      timeToPtr(defaultBatchJobReschedulePolicyInterval),
-				Delay:         timeToPtr(defaultBatchJobReschedulePolicyDelay),
-				DelayFunction: stringToPtr(defaultBatchJobReschedulePolicyDelayFunction),
-				MaxDelay:      timeToPtr(defaultBatchJobReschedulePolicyMaxDelay),
-				Unlimited:     boolToPtr(defaultBatchJobReschedulePolicyUnlimited),
+				Interval:      timeToPtr(structs.DefaultBatchJobReschedulePolicy.Interval),
+				Delay:         timeToPtr(structs.DefaultBatchJobReschedulePolicy.Delay),
+				DelayFunction: stringToPtr(structs.DefaultBatchJobReschedulePolicy.DelayFunction),
+				MaxDelay:      timeToPtr(structs.DefaultBatchJobReschedulePolicy.MaxDelay),
+				Unlimited:     boolToPtr(structs.DefaultBatchJobReschedulePolicy.Unlimited),
 			},
 		},
 	}
