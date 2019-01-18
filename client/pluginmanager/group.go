@@ -91,9 +91,9 @@ func (m *PluginGroup) Shutdown() {
 	m.mLock.Lock()
 	defer m.mLock.Unlock()
 	for i := len(m.managers) - 1; i >= 0; i-- {
-		m.logger.Info("shutting down plugin manager", "plugin-type", m.managers[i].PluginType())
+		m.logger.Debug("shutting down plugin manager", "plugin-type", m.managers[i].PluginType())
 		m.managers[i].Shutdown()
-		m.logger.Info("plugin manager finished", "plugin-type", m.managers[i].PluginType())
+		m.logger.Debug("plugin manager finished", "plugin-type", m.managers[i].PluginType())
 	}
 	m.shutdown = true
 }
