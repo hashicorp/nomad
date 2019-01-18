@@ -12,7 +12,8 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/stretchr/testify/require"
 )
 
 // TestVault is a test helper. It uses a fork/exec model to create a test Vault
@@ -167,13 +168,16 @@ func NewTestVaultDelayed(t testing.T) *TestVault {
 // Start starts the test Vault server and waits for it to respond to its HTTP
 // API
 func (tv *TestVault) Start() error {
-	if err := tv.cmd.Start(); err != nil {
-		tv.t.Fatalf("failed to start vault: %v", err)
-	}
-
 	// Start the waiter
 	tv.waitCh = make(chan error, 1)
+
 	go func() {
+		// Must call Start and Wait in the same goroutine on Windows #5174
+		if err := tv.cmd.Start(); err != nil {
+			tv.waitCh <- err
+			return
+		}
+
 		err := tv.cmd.Wait()
 		tv.waitCh <- err
 	}()
@@ -198,7 +202,12 @@ func (tv *TestVault) Stop() {
 		tv.t.Errorf("err: %s", err)
 	}
 	if tv.waitCh != nil {
-		<-tv.waitCh
+		select {
+		case <-tv.waitCh:
+			return
+		case <-time.After(1 * time.Second):
+			require.Fail(tv.t, "Timed out waiting for vault to terminate")
+		}
 	}
 }
 

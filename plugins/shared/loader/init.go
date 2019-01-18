@@ -250,8 +250,7 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 			continue
 		}
 
-		// Check if it is executable by anyone
-		if s.Mode().Perm()&0111 == 0 {
+		if !executable(f, s) {
 			l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
 			continue
 		}
