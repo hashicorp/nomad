@@ -249,7 +249,7 @@ func (ar *allocRunner) destroy() error {
 		}
 	}
 
-	return nil
+	return merr.ErrorOrNil()
 }
 
 // shutdownHooks calls graceful shutdown hooks for when the agent is exiting.
