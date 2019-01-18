@@ -35,7 +35,7 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 	uuid := uuid.Generate()
 	jobId := "aff" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/single_affinity.nomad", jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "affinities/input/single_affinity.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
@@ -59,7 +59,7 @@ func (tc *BasicAffinityTest) TestMultipleAffinities(f *framework.F) {
 	uuid := uuid.Generate()
 	jobId := "multiaff" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/multiple_affinities.nomad", jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "affinities/input/multiple_affinities.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())
@@ -101,7 +101,7 @@ func (tc *BasicAffinityTest) TestAntiAffinities(f *framework.F) {
 	uuid := uuid.Generate()
 	jobId := "antiaff" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "affinities/input/anti_affinities.nomad", jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "affinities/input/anti_affinities.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	require := require.New(f.T())

@@ -67,7 +67,7 @@ func (tc *TaskEventsTest) waitUntilEvents(f *framework.F, jobName string, numEve
 	tc.jobIds = append(tc.jobIds, uniqJobId)
 
 	jobFile := fmt.Sprintf("taskevents/input/%s.nomad", jobName)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, jobFile, uniqJobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, jobFile, uniqJobId)
 
 	require.Len(t, allocs, 1)
 	allocID := allocs[0].ID

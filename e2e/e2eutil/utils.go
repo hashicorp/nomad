@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
@@ -34,6 +34,7 @@ func WaitForNodesReady(t *testing.T, nomadClient *api.Client, nodes int) {
 	nodesAPI := nomadClient.Nodes()
 
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		defer time.Sleep(time.Millisecond * 100)
 		nodesList, _, err := nodesAPI.List(nil)
 		if err != nil {
 			return false, fmt.Errorf("error listing nodes: %v", err)
@@ -52,10 +53,10 @@ func WaitForNodesReady(t *testing.T, nomadClient *api.Client, nodes int) {
 	})
 }
 
-func RegisterAndWaitForAllocs(f *framework.F, nomadClient *api.Client, jobFile string, jobID string) []*api.AllocationListStub {
+func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile string, jobID string) []*api.AllocationListStub {
 	// Parse job
 	job, err := jobspec.ParseFile(jobFile)
-	require := require.New(f.T())
+	require := require.New(t)
 	require.Nil(err)
 	job.ID = helper.StringToPtr(jobID)
 
@@ -65,7 +66,7 @@ func RegisterAndWaitForAllocs(f *framework.F, nomadClient *api.Client, jobFile s
 	require.Nil(err)
 	require.NotEmpty(resp.EvalID)
 
-	g := NewGomegaWithT(f.T())
+	g := NewGomegaWithT(t)
 
 	// Wrap in retry to wait until placement
 	g.Eventually(func() []*api.AllocationListStub {
@@ -77,4 +78,18 @@ func RegisterAndWaitForAllocs(f *framework.F, nomadClient *api.Client, jobFile s
 	allocs, _, err := jobs.Allocations(*job.ID, false, nil)
 	require.Nil(err)
 	return allocs
+}
+
+func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) {
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		defer time.Sleep(time.Millisecond * 100)
+		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+
+		return alloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
+	}, func(err error) {
+		t.Fatalf("failed to wait on alloc: %v", err)
+	})
 }
