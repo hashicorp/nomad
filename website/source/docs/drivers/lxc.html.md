@@ -108,8 +108,10 @@ The `lxc` driver requires the following:
 
 ## Client Configuration
 
+The `lxc` driver has the following [client configuration
+options](/docs/configuration/client.html#options):
+
 * `lxc.enable` - The `lxc` driver may be disabled on hosts by setting this
-  [client configuration][/docs/configuration/client.html##options-parameters]
   option to `false` (defaults to `true`).
 
 ## Client Attributes
