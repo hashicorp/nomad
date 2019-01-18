@@ -69,6 +69,11 @@ func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskRes
 
 		// Stats blocks until an error has occurred, or doneCh has been closed
 		if err := h.client.Stats(statsOpts); err != nil && err != io.ErrClosedPipe {
+			if ctx.Err() != nil {
+				// Context canceled, exit.
+				return
+			}
+
 			// An error occurred during stats collection, retry with backoff
 			h.logger.Debug("error collecting stats from container", "error", err)
 
