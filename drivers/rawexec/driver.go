@@ -2,6 +2,7 @@ package rawexec
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,6 +29,10 @@ const (
 
 	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
 	fingerprintPeriod = 30 * time.Second
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
@@ -246,6 +251,21 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("handle cannot be nil")
 	}
 
+	// pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		var reattach shared.ReattachConfig
+		d.logger.Debug("parsing pre09 driver state", "state", string(handle.DriverState))
+		if err := json.Unmarshal(handle.DriverState, &reattach); err != nil {
+			return err
+		}
+
+		reattachConfig, err := shared.ReattachConfigToGoPlugin(&reattach)
+		if err != nil {
+			return err
+		}
+		return d.recoverPre09Task(handle.Config, reattachConfig)
+	}
+
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Trace("nothing to recover; task already exists",
@@ -269,7 +289,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	// Create client for reattached executor
-	exec, pluginClient, err := executor.CreateExecutorWithConfig(plugRC,
+	exec, pluginClient, err := executor.ReattachToExecutor(plugRC,
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
@@ -303,7 +323,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")

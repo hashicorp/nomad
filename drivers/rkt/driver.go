@@ -56,6 +56,10 @@ const (
 	// networkDeadline is how long to wait for container network
 	// information to become available.
 	networkDeadline = 1 * time.Minute
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
@@ -354,6 +358,21 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("error: handle cannot be nil")
 	}
 
+	// pre 0.9 upgrade path check
+	if handle.Version == 0 {
+		var reattach shared.ReattachConfig
+		d.logger.Debug("parsing pre09 driver state", "state", string(handle.DriverState))
+		if err := json.Unmarshal(handle.DriverState, &reattach); err != nil {
+			return err
+		}
+
+		reattachConfig, err := shared.ReattachConfigToGoPlugin(&reattach)
+		if err != nil {
+			return err
+		}
+		return d.recoverPre09Task(handle.Config, reattachConfig)
+	}
+
 	// If already attached to handle there's nothing to recover.
 	if _, ok := d.tasks.Get(handle.Config.ID); ok {
 		d.logger.Trace("nothing to recover; task already exists",
@@ -375,7 +394,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
-	execImpl, pluginClient, err := executor.CreateExecutorWithConfig(plugRC,
+	execImpl, pluginClient, err := executor.ReattachToExecutor(plugRC,
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
@@ -418,7 +437,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	// todo(preetha) - port map in client v1 is a slice of maps that get merged. figure out if the caller will do this

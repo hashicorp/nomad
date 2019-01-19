@@ -54,6 +54,10 @@ var (
 		}
 		return nstructs.NewRecoverableError(err, r)
 	}
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 type Driver struct {
@@ -171,7 +175,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
 	// Initialize docker API clients

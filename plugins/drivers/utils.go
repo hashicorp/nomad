@@ -307,6 +307,7 @@ func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
 		return &TaskHandle{}
 	}
 	return &TaskHandle{
+		Version:     int(pb.Version),
 		Config:      taskConfigFromProto(pb.Config),
 		State:       taskStateFromProtoMap[pb.State],
 		DriverState: pb.DriverState,
@@ -315,6 +316,7 @@ func taskHandleFromProto(pb *proto.TaskHandle) *TaskHandle {
 
 func taskHandleToProto(handle *TaskHandle) *proto.TaskHandle {
 	return &proto.TaskHandle{
+		Version:     int32(handle.Version),
 		Config:      taskConfigToProto(handle.Config),
 		State:       taskStateToProtoMap[handle.State],
 		DriverState: handle.DriverState,

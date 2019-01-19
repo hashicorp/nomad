@@ -208,10 +208,25 @@ func upgradeAllocBucket(logger hclog.Logger, tx *boltdd.Tx, bkt *bolt.Bucket, al
 					taskName, err,
 				)
 			}
+			continue
 		}
 
 		// Convert 0.8 task state to 0.9 task state
-		localTaskState := oldState.Upgrade()
+		localTaskState, err := oldState.Upgrade(allocID, taskName)
+		if err != nil {
+			taskLogger.Warn("dropping invalid task due to error while upgrading state",
+				"error", err,
+			)
+
+			// Delete the invalid task bucket and treat failures
+			// here as unrecoverable errors.
+			if err := bkt.DeleteBucket(taskBucket); err != nil {
+				return fmt.Errorf("error deleting invalid task state for task %q: %v",
+					taskName, err,
+				)
+			}
+			continue
+		}
 
 		// Insert the new task state
 		if err := putTaskRunnerLocalStateImpl(tx, allocID, taskName, localTaskState); err != nil {

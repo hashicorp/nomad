@@ -1,9 +1,13 @@
 package state
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared"
 )
 
 // allocRunnerMutableState08 is state that had to be written on each save as it
@@ -28,7 +32,7 @@ type allocRunnerMutableState08 struct {
 // 0.8.
 //
 // https://github.com/hashicorp/nomad/blob/v0.8.6/client/task_runner.go#L188-L197
-//
+// COMPAT(0.10): Allows upgrading from 0.8.X to 0.9.0.
 type taskRunnerState08 struct {
 	Version            string
 	HandleID           string
@@ -40,7 +44,23 @@ type taskRunnerState08 struct {
 	//CreatedResources   *driver.CreatedResources
 }
 
-func (t *taskRunnerState08) Upgrade() *state.LocalState {
+type taskRunnerHandle08 struct {
+	PluginConfig struct {
+		Pid      int    `json:"Pid"`
+		AddrNet  string `json:"AddrNet"`
+		AddrName string `json:"AddrName"`
+	} `json:"PluginConfig"`
+}
+
+func (t *taskRunnerHandle08) reattachConfig() *shared.ReattachConfig {
+	return &shared.ReattachConfig{
+		Network: t.PluginConfig.AddrNet,
+		Addr:    t.PluginConfig.AddrName,
+		Pid:     t.PluginConfig.Pid,
+	}
+}
+
+func (t *taskRunnerState08) Upgrade(allocID, taskName string) (*state.LocalState, error) {
 	ls := state.NewLocalState()
 
 	// Reuse DriverNetwork
@@ -61,17 +81,27 @@ func (t *taskRunnerState08) Upgrade() *state.LocalState {
 		PrestartDone: t.PayloadRendered,
 	}
 
-	//TODO How to convert handles?! This does not work.
-	ls.TaskHandle = drivers.NewTaskHandle("TODO")
+	// Add necessary fields to TaskConfig
+	ls.TaskHandle = drivers.NewTaskHandle(drivers.Pre09TaskHandleVersion)
+	ls.TaskHandle.Config = &drivers.TaskConfig{
+		Name:    taskName,
+		AllocID: allocID,
+	}
 
-	//TODO where do we get this from?
-	ls.TaskHandle.Config = nil
-
-	//TODO do we need to se this accurately? Or will RecoverTask handle it?
 	ls.TaskHandle.State = drivers.TaskStateUnknown
 
-	//TODO do we need an envelope so drivers know this is an old state?
-	ls.TaskHandle.SetDriverState(t.HandleID)
+	// A ReattachConfig to the pre09 executor is sent
+	var raw []byte
+	var handle taskRunnerHandle08
+	if err := json.Unmarshal([]byte(t.HandleID), &handle); err != nil {
+		return nil, fmt.Errorf("failed to decode 0.8 driver state: %v", err)
+	}
+	raw, err := json.Marshal(handle.reattachConfig())
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode updated driver state: %v", err)
+	}
 
-	return ls
+	ls.TaskHandle.DriverState = raw
+
+	return ls, nil
 }
