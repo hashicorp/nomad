@@ -4354,6 +4354,95 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	}
 }
 
+func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	state := testStateStore(t)
+
+	// Add a node
+	node := mock.Node()
+	state.UpsertNode(80, node)
+
+	// Make a parameterized job
+	job1 := mock.BatchJob()
+	job1.ID = "test"
+	job1.ParameterizedJob = &structs.ParameterizedJobConfig{
+		Payload: "random",
+	}
+	job1.TaskGroups[0].Count = 1
+	state.UpsertJob(100, job1)
+
+	// Make a child job
+	childJob := job1.Copy()
+	childJob.ID = job1.ID + "dispatch-23423423"
+	childJob.ParentID = job1.ID
+	childJob.Dispatched = true
+	childJob.Status = structs.JobStatusRunning
+
+	// Make some allocs for child job
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	alloc.Job = childJob
+	alloc.JobID = childJob.ID
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	alloc2.Job = childJob
+	alloc2.JobID = childJob.ID
+	alloc2.ClientStatus = structs.AllocClientStatusFailed
+
+	require.Nil(state.UpsertJob(110, childJob))
+	require.Nil(state.UpsertAllocs(111, []*structs.Allocation{alloc, alloc2}))
+
+	// Make the summary incorrect in the state store
+	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)
+	require.Nil(err)
+
+	summary.Children = nil
+	summary.Summary = make(map[string]structs.TaskGroupSummary)
+	summary.Summary["web"] = structs.TaskGroupSummary{
+		Queued: 1,
+	}
+
+	// Delete the child job summary
+	state.DeleteJobSummary(125, childJob.Namespace, childJob.ID)
+
+	state.ReconcileJobSummaries(120)
+
+	ws := memdb.NewWatchSet()
+
+	// Verify parent summary is corrected
+	summary, _ = state.JobSummaryByID(ws, alloc.Namespace, job1.ID)
+	expectedSummary := structs.JobSummary{
+		JobID:     job1.ID,
+		Namespace: job1.Namespace,
+		Summary:   make(map[string]structs.TaskGroupSummary),
+		Children: &structs.JobChildrenSummary{
+			Running: 1,
+		},
+		CreateIndex: 100,
+		ModifyIndex: 120,
+	}
+	require.Equal(&expectedSummary, summary)
+
+	// Verify child job summary is also correct
+	childSummary, _ := state.JobSummaryByID(ws, childJob.Namespace, childJob.ID)
+	expectedChildSummary := structs.JobSummary{
+		JobID:     childJob.ID,
+		Namespace: childJob.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Running: 1,
+				Failed:  1,
+			},
+		},
+		CreateIndex: 110,
+		ModifyIndex: 120,
+	}
+	require.Equal(&expectedChildSummary, childSummary)
+}
+
 func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	state := testStateStore(t)
 

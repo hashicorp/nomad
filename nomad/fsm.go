@@ -1401,6 +1401,11 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			break
 		}
 		job := rawJob.(*structs.Job)
+
+		// Nothing to do for queued allocations if the job is a parent periodic/parameterized job
+		if job.IsParameterized() || job.IsPeriodic() {
+			continue
+		}
 		planner := &scheduler.Harness{
 			State: &snap.StateStore,
 		}
