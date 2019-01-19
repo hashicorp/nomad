@@ -130,7 +130,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
-		job := api.MockJob()
+		job := MockJob()
 		args := api.JobRegisterRequest{
 			Job:          job,
 			WriteRequest: api.WriteRequest{Region: "global"},
@@ -185,7 +185,7 @@ func TestHTTP_JobsRegister_ACL(t *testing.T) {
 	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// Create the job
-		job := api.MockJob()
+		job := MockJob()
 		args := api.JobRegisterRequest{
 			Job: job,
 			WriteRequest: api.WriteRequest{
@@ -215,7 +215,7 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
-		job := api.MockJob()
+		job := MockJob()
 
 		// Do not set its priority
 		job.Priority = nil
@@ -411,7 +411,7 @@ func TestHTTP_JobUpdate(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
-		job := api.MockJob()
+		job := MockJob()
 		args := api.JobRegisterRequest{
 			Job: job,
 			WriteRequest: api.WriteRequest{
@@ -985,7 +985,7 @@ func TestHTTP_JobPlan(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
-		job := api.MockJob()
+		job := MockJob()
 		args := api.JobPlanRequest{
 			Job:  job,
 			Diff: true,

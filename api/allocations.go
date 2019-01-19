@@ -12,6 +12,20 @@ var (
 	NodeDownErr = fmt.Errorf("node down")
 )
 
+const (
+	AllocDesiredStatusRun   = "run"   // Allocation should run
+	AllocDesiredStatusStop  = "stop"  // Allocation should stop
+	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
+)
+
+const (
+	AllocClientStatusPending  = "pending"
+	AllocClientStatusRunning  = "running"
+	AllocClientStatusComplete = "complete"
+	AllocClientStatusFailed   = "failed"
+	AllocClientStatusLost     = "lost"
+)
+
 // Allocations is used to query the alloc-related endpoints.
 type Allocations struct {
 	client *Client
