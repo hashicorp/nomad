@@ -1,5 +1,3 @@
-// +build linux
-
 package rkt
 
 import (
@@ -35,7 +33,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/loader"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	rktv1 "github.com/rkt/rkt/api/v1"
 )
 
 const (
@@ -992,7 +989,7 @@ func rktManifestMakePortMap(manifest *appcschema.PodManifest, configPortMap map[
 }
 
 // Retrieve pod status for the pod with the given UUID.
-func rktGetStatus(uuid string, logger hclog.Logger) (*rktv1.Pod, error) {
+func rktGetStatus(uuid string, logger hclog.Logger) (*Pod, error) {
 	statusArgs := []string{
 		"status",
 		"--format=json",
@@ -1012,7 +1009,7 @@ func rktGetStatus(uuid string, logger hclog.Logger) (*rktv1.Pod, error) {
 		logger.Debug("status error output", "uuid", uuid, "error", elide(errBuf))
 		return nil, fmt.Errorf("%s. stderr: %q", err, elide(errBuf))
 	}
-	var status rktv1.Pod
+	var status Pod
 	if err := json.Unmarshal(outBuf.Bytes(), &status); err != nil {
 		return nil, err
 	}
