@@ -19,6 +19,12 @@ type PluginDriver struct {
 	logger hclog.Logger
 }
 
+func NewDriverPluginClient(logger hclog.Logger) plugin.Plugin {
+	return &PluginDriver{
+		logger: logger,
+	}
+}
+
 func NewDriverPlugin(d DriverPlugin, logger hclog.Logger) plugin.GRPCPlugin {
 	return &PluginDriver{
 		impl:   d,
