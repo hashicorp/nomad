@@ -443,10 +443,10 @@ func (tr *TaskRunner) updateHooks() {
 func (tr *TaskRunner) preKill() {
 	if tr.logger.IsTrace() {
 		start := time.Now()
-		tr.logger.Trace("running kill hooks", "start", start)
+		tr.logger.Trace("running pre kill hooks", "start", start)
 		defer func() {
 			end := time.Now()
-			tr.logger.Trace("finished kill hooks", "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished pre kill hooks", "end", end, "duration", end.Sub(start))
 		}()
 	}
 
