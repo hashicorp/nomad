@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Drivers: LXC"
-sidebar_current: "docs-drivers-lxc"
+sidebar_current: "docs-external-plugins-lxc"
 description: |-
   The LXC task driver is used to run application containers using LXC.
 ---
@@ -13,14 +13,7 @@ Name: `lxc`
 The `lxc` driver provides an interface for using LXC for running application
 containers.
 
-!> **Experimental!** Currently, the LXC driver supports launching containers
-via templates but only supports host networking. If both an LXC image and the
-host it is run on use upstart or systemd, shutdown signals may be passed from
-the container to the host.
-
-~> LXC is only enabled in the special `linux_amd64_lxc` build of Nomad because
-it links to the `liblxc` system library. Use the `lxc` build tag if compiling
-Nomad yourself.
+~> Nomad 0.9 does not maintain backward compatibility for the external LXC driver plugin when it comes to client configuration syntax. With Nomad 0.9, you must use the new [plugin syntax][plugin]. See [plugin options][plugin-options] below for an example.
 
 ## Task Configuration
 
@@ -77,17 +70,17 @@ The `lxc` driver supports the following configuration in the job spec:
   Setting this does not affect the standard bind-mounts of `alloc`,
   `local`, and `secrets`, which are always created.
 
-    ```hcl
-    config {
-      volumes = [
-        # Use absolute paths to mount arbitrary paths on the host
-        "/path/on/host:path/in/container",
+```hcl
+config {
+  volumes = [
+    # Use absolute paths to mount arbitrary paths on the host
+    "/path/on/host:path/in/container",
 
-        # Use relative paths to rebind paths already in the allocation dir
-        "relative/to/task:also/in/container"
-      ]
-    }
-    ```
+    # Use relative paths to rebind paths already in the allocation dir
+    "relative/to/task:also/in/container"
+  ]
+}
+```
 
 ## Networking
 
@@ -106,7 +99,13 @@ The `lxc` driver requires the following:
 * `liblxc` to be installed
 * `lxc-templates` to be installed
 
+## Plugin Options<a id="plugin_options"></a>
+
+
 ## Client Configuration
+
+~> Only use this section for pre-0.9 releases of Nomad. If you are using Nomad
+0.9 or above, please see [plugin options][plugin-options]
 
 The `lxc` driver has the following [client configuration
 options](/docs/configuration/client.html#options):
@@ -125,3 +124,6 @@ The `lxc` driver will set the following client attributes:
 
 This driver supports CPU and memory isolation via the `lxc` library. Network
 isolation is not supported as of now.
+
+[plugin]: /docs/configuration/plugin.html
+[plugin-options]: #plugin_options
