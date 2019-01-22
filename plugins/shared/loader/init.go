@@ -226,7 +226,7 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 	if err != nil {
 		// There are no plugins to scan
 		if os.IsNotExist(err) {
-			l.logger.Debug("skipping external plugins since plugin_dir doesn't exist")
+			l.logger.Warn("skipping external plugins since plugin_dir doesn't exist")
 			return nil, nil
 		}
 
@@ -246,12 +246,12 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 			return nil, fmt.Errorf("failed to stat file %q: %v", f, err)
 		}
 		if s.IsDir() {
-			l.logger.Debug("skipping subdir in plugin folder", "subdir", f)
+			l.logger.Warn("skipping subdir in plugin folder", "subdir", f)
 			continue
 		}
 
 		if !executable(f, s) {
-			l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
+			l.logger.Warn("skipping un-executable file in plugin folder", "file", f)
 			continue
 		}
 		plugins = append(plugins, s)
