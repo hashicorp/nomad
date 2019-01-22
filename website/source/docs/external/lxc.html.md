@@ -85,10 +85,8 @@ config {
 ## Networking
 
 Currently the `lxc` driver only supports host networking. See the `none`
-networking type in the [`lxc.container.conf` manual][lxc_man] for more
+networking type in the `lxc.container.conf` [manual][lxc_man] for more
 information.
-
-[lxc_man]: https://linuxcontainers.org/lxc/manpages/man5/lxc.container.conf.5.html#lbAM
 
 ## Client Requirements
 
@@ -101,6 +99,27 @@ The `lxc` driver requires the following:
 
 ## Plugin Options<a id="plugin_options"></a>
 
+* `enabled` - The `lxc` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
+
+* `volumes_enabled` - Specifies whether host can bind-mount host paths to container paths (defaults to `false`). 
+
+* `lxc_path` - The location in which all containers are stored (defaults to
+  `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details. 
+
+An example of using these plugin options with the new [plugin
+syntax][plugin] is shown below:
+
+```hcl
+plugin "nomad-driver-lxc" {
+  config {
+    enabled = true
+    volumes_enabled = true
+    lxc_path = "/var/lib/lxc"
+  }
+}
+```
+Please note the plugin name should match whatever name you have specified for
+the external driver in the [`data_dir`][data_dir]`/plugins` directory.
 
 ## Client Configuration
 
@@ -125,5 +144,8 @@ The `lxc` driver will set the following client attributes:
 This driver supports CPU and memory isolation via the `lxc` library. Network
 isolation is not supported as of now.
 
+[data_dir]: /docs/configuration/index.html#data_dir
+[lxc-create]: https://linuxcontainers.org/lxc/manpages/man1/lxc-create.1.html
+[lxc_man]: https://linuxcontainers.org/lxc/manpages/man5/lxc.container.conf.5.html#lbAM
 [plugin]: /docs/configuration/plugin.html
 [plugin-options]: #plugin_options
