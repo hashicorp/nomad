@@ -35,6 +35,10 @@ import (
 )
 
 const (
+	// defaultMaxEvents is the default max capacity for task events on the
+	// task state. Overrideable for testing.
+	defaultMaxEvents = 10
+
 	// killBackoffBaseline is the baseline time for exponential backoff while
 	// killing a task.
 	killBackoffBaseline = 5 * time.Second
@@ -191,6 +195,10 @@ type TaskRunner struct {
 	// be accessed via helpers
 	runLaunched     bool
 	runLaunchedLock sync.Mutex
+
+	// maxEvents is the capacity of the TaskEvents on the TaskState.
+	// Defaults to defaultMaxEvents but overrideable for testing.
+	maxEvents int
 }
 
 type Config struct {
@@ -267,6 +275,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		waitCh:              make(chan struct{}),
 		devicemanager:       config.DeviceManager,
 		driverManager:       config.DriverManager,
+		maxEvents:           defaultMaxEvents,
 	}
 
 	// Create the logger based on the allocation ID
@@ -1023,7 +1032,7 @@ func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
 	}
 
 	// Append event to slice
-	appendTaskEvent(tr.state, event)
+	appendTaskEvent(tr.state, event, tr.maxEvents)
 
 	return nil
 }
@@ -1189,8 +1198,7 @@ func (tr *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 }
 
 // appendTaskEvent updates the task status by appending the new event.
-func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent) {
-	const capacity = 10
+func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent, capacity int) {
 	if state.Events == nil {
 		state.Events = make([]*structs.TaskEvent, 1, capacity)
 		state.Events[0] = event
