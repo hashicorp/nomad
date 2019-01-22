@@ -466,8 +466,8 @@ func (tr *TaskRunner) preKill() {
 		}
 
 		// Run the pre kill hook
-		req := interfaces.TaskKillRequest{}
-		var resp interfaces.TaskKillResponse
+		req := interfaces.TaskPreKillRequest{}
+		var resp interfaces.TaskPreKillResponse
 		if err := killHook.PreKilling(context.Background(), &req, &resp); err != nil {
 			tr.emitHookError(err, name)
 			tr.logger.Error("kill hook failed", "name", name, "error", err)

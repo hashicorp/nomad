@@ -114,14 +114,14 @@ type TaskPoststartHook interface {
 	Poststart(context.Context, *TaskPoststartRequest, *TaskPoststartResponse) error
 }
 
-type TaskKillRequest struct{}
-type TaskKillResponse struct{}
+type TaskPreKillRequest struct{}
+type TaskPreKillResponse struct{}
 
 type TaskPreKillHook interface {
 	TaskHook
 
 	// PreKilling is called right before a task is going to be killed or restarted.
-	PreKilling(context.Context, *TaskKillRequest, *TaskKillResponse) error
+	PreKilling(context.Context, *TaskPreKillRequest, *TaskPreKillResponse) error
 }
 
 type TaskExitedRequest struct{}
