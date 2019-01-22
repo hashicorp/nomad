@@ -331,6 +331,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				TaskGroup:          missing.TaskGroup.Name,
 				Metrics:            s.ctx.Metrics(),
 				NodeID:             option.Node.ID,
+				NodeName:           option.Node.Name,
 				TaskResources:      resources.OldTaskResources(),
 				AllocatedResources: resources,
 				DesiredStatus:      structs.AllocDesiredStatusRun,

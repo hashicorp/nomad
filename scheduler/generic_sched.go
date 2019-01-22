@@ -6,7 +6,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -495,6 +495,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					TaskGroup:          tg.Name,
 					Metrics:            s.ctx.Metrics(),
 					NodeID:             option.Node.ID,
+					NodeName:           option.Node.Name,
 					DeploymentID:       deploymentID,
 					TaskResources:      resources.OldTaskResources(),
 					AllocatedResources: resources,
