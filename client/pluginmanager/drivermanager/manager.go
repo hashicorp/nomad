@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/hashicorp/nomad/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 )
 
 // ErrDriverNotFound is returned during Dispense when the requested driver

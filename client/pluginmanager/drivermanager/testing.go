@@ -10,9 +10,9 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/pluginutils/catalog"
-	"github.com/hashicorp/nomad/pluginutils/loader"
-	"github.com/hashicorp/nomad/pluginutils/singleton"
+	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 )
 
 type testManager struct {

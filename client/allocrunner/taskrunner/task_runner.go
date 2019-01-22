@@ -30,8 +30,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/pluginutils/hclspecutils"
-	"github.com/hashicorp/nomad/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 )
 
 const (

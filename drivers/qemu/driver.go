@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/hashicorp/nomad/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 )
 
 const (

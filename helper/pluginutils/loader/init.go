@@ -13,8 +13,8 @@ import (
 	hcl2 "github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/pluginutils/hclspecutils"
-	"github.com/hashicorp/nomad/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 

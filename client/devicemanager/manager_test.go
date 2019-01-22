@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/hashicorp/nomad/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )

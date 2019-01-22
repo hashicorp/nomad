@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/pluginutils/loader"
-	"github.com/hashicorp/nomad/pluginutils/singleton"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 )
 
 const (

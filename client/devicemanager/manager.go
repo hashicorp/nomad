@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/hashicorp/nomad/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 )
 
 // Manager is the interface used to manage device plugins
