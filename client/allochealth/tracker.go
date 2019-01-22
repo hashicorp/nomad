@@ -146,7 +146,7 @@ func (t *Tracker) TaskEvents() map[string]*structs.TaskEvent {
 	defer t.l.Unlock()
 
 	// Nothing to do since the failure wasn't task related
-	if t.allocFailed || t.alloc.TerminalStatus() {
+	if t.allocFailed {
 		return nil
 	}
 
