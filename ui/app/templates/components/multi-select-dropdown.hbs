@@ -23,7 +23,7 @@
             <input
               type="checkbox"
               tabindex="-1"
-              checked={{includes option.key selection}}
+              checked={{contains option.key selection}}
               onchange={{action "toggle" option}} />
             {{option.label}}
           </label>
