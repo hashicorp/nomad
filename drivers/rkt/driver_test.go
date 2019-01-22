@@ -410,23 +410,22 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	ch, err = harness.WaitTask(context.Background(), task.ID)
 	require.NoError(err)
 
-	wg.Add(1)
-	waitDone = false
 	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.NoError(result.Err)
-		require.NotZero(result.ExitCode)
-		require.Equal(9, result.Signal)
-		waitDone = true
+		time.Sleep(300 * time.Millisecond)
+		require.NoError(d.StopTask(task.ID, 0, "SIGKILL"))
 	}()
 
-	time.Sleep(300 * time.Millisecond)
-	require.NoError(d.StopTask(task.ID, 0, "SIGKILL"))
-	wg.Wait()
-	require.NoError(d.DestroyTask(task.ID, false))
-	require.True(waitDone)
+	select {
+	case result := <-ch:
+		require.NoError(result.Err)
+		require.NotZero(result.ExitCode)
+		// when killing a task, signal might not propagate
+		//require.Equal(9, result.Signal)
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		require.Fail("WaitTask timeout")
+	}
 
+	require.NoError(d.DestroyTask(task.ID, false))
 }
 
 // Verifies mounting a volume from the host machine and writing
