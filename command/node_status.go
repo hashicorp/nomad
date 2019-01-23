@@ -530,6 +530,9 @@ func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
 }
 
 func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
+	if node.NodeResources == nil {
+		return
+	}
 	devices := node.NodeResources.Devices
 	if len(devices) == 0 {
 		return
