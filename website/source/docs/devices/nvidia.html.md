@@ -224,7 +224,15 @@ job "gpu-test" {
       }
 
       resources {
-        device "nvidia/gpu/Tesla K80" {}
+        device "nvidia/gpu" {
+          count = 1
+
+          # Add an affinity for a particular model
+          affinity {
+            attribute = "${device.model}"
+            value     = "Tesla K80"
+          }
+        }
       }
     }
   }
