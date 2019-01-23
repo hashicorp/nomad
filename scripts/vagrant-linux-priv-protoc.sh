@@ -1,8 +1,8 @@
-# Make sure you grab the latest version
 #!/usr/bin/env bash
 
 set -o errexit
 
+# Make sure you grab the latest version
 VERSION=3.6.1
 DOWNLOAD=https://github.com/google/protobuf/releases/download/v${VERSION}/protoc-${VERSION}-linux-x86_64.zip
 
