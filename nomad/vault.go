@@ -438,7 +438,7 @@ OUTER:
 				retryTimer.Reset(v.config.ConnectionRetryIntv)
 				v.l.Lock()
 				v.connEstablished = true
-				v.connEstablishedErr = fmt.Errorf("Nomad Server failed to establish connections to Vault: %v", err)
+				v.connEstablishedErr = fmt.Errorf("failed to establish connection to Vault: %v", err)
 				v.l.Unlock()
 				continue OUTER
 			}
@@ -517,7 +517,8 @@ func (v *vaultClient) renewalLoop() {
 			if backoff < 0 {
 				// We have failed to renew the token past its expiration. Stop
 				// renewing with Vault.
-				v.logger.Error("failed to renew Vault token before lease expiration. Shutting down Vault client")
+				v.logger.Error("failed to renew Vault token before lease expiration. Shutting down Vault client",
+					"error", err)
 				v.l.Lock()
 				v.connEstablished = false
 				v.connEstablishedErr = err

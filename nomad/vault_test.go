@@ -1119,7 +1119,7 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
 	_, err = client.CreateToken(context.Background(), a, task.Name)
-	if err == nil || !strings.Contains(err.Error(), "Nomad Server failed to establish connections to Vault") {
+	if err == nil || !strings.Contains(err.Error(), "failed to establish connection to Vault") {
 		t.Fatalf("CreateToken should have failed: %v", err)
 	}
 }
