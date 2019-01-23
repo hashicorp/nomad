@@ -143,15 +143,8 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("expected to have 'Modified' but saw: %s", out)
 	}
 
-	if !strings.Contains(out, "Modified") {
-		t.Fatalf("expected to have 'Modified' but saw: %s", out)
-	}
-
 	nodeNameRegexpStr := fmt.Sprintf(`\nNode Name\s+= %s\n`, regexp.QuoteMeta(nodeName))
-	nodeNameRegexp := regexp.MustCompile(nodeNameRegexpStr)
-	if !nodeNameRegexp.MatchString(out) {
-		t.Fatalf("expected to have 'Node Name' but saw: %s", out)
-	}
+	require.Regexp(t, regexp.MustCompile(nodeNameRegexpStr), out)
 
 	ui.OutputWriter.Reset()
 
