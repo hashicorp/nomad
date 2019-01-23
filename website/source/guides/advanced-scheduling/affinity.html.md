@@ -3,12 +3,12 @@ layout: "guides"
 page_title: "Affinity"
 sidebar_current: "guides-advanced-scheduling"
 description: |-
-   The affinity stanza allows operators to express placement preference for a set of nodes. Affinities may be expressed on attributes or client metadata.  
+   The following guide walks the user through using the affinity stanza in Nomad.
 ---
 
 # Expressing Job Placement Preferences with Affinities
 
-The [affinity][affinity-stanza] stanza allows operators to express placement preferences for their jobs on particular types of nodes. It is important to remember that there is a key difference between the [constraint][constraint] stanza and the affinity stanza: while the `constraint` stanza strictly filters where jobs are run based on [attributes][attributes] and [client metadata][client-metadata], the `affinity` stanza is more flexible and allows the job to run on resources that fit best after making an attempt to match the Nomad operator's specifications. This is done in conjunction with scoring based on the Nomad scheduler's bin packing algorithm which you can read more about [here][scheduling].
+The [affinity][affinity-stanza] stanza allows operators to express placement preferences for their jobs on particular types of nodes. Note that there is a key difference between the [constraint][constraint] stanza and the affinity stanza. The constraint stanza strictly filters where jobs are run based on [attributes][attributes] and [client metadata][client-metadata]. If no nodes are found to match, the placement does not succeed. The affinity stanza acts like a "soft constraint." Nomad will attempt to match the desired affinity, but placement will succeed even if no nodes match the desired criteria. This is done in conjunction with scoring based on the Nomad scheduler's bin packing algorithm which you can read more about [here][scheduling].
 
 ## Reference Material
 
