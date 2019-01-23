@@ -2,8 +2,27 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import { computed } from '@ember/object';
+import { scheduleOnce } from '@ember/runloop';
+import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
+
+// An unattractive but robust way to encode query params
+const qpSerialize = arr => (arr.length ? JSON.stringify(arr) : '');
+const qpDeserialize = str => {
+  try {
+    return JSON.parse(str)
+      .compact()
+      .without('');
+  } catch (e) {
+    return [];
+  }
+};
+
+const selectionFromQP = qpKey =>
+  computed(qpKey, function() {
+    return qpDeserialize(this.get(qpKey));
+  });
 
 export default Controller.extend(Sortable, Searchable, {
   system: service(),
@@ -16,6 +35,10 @@ export default Controller.extend(Sortable, Searchable, {
     searchTerm: 'search',
     sortProperty: 'sort',
     sortDescending: 'desc',
+    qpType: 'type',
+    qpStatus: 'status',
+    qpDatacenter: 'dc',
+    qpPrefix: 'prefix',
   },
 
   currentPage: 1,
@@ -50,10 +73,16 @@ export default Controller.extend(Sortable, Searchable, {
         .reduce(flatten, [])
     );
 
-    return Array.from(allDatacenters)
-      .compact()
-      .sort()
-      .map(dc => ({ key: dc, label: dc }));
+    // Remove any invalid datacenters from the query param/selection
+    const availableDatacenters = Array.from(allDatacenters).compact();
+    scheduleOnce('actions', () => {
+      this.set(
+        'qpDatacenter',
+        qpSerialize(intersection(availableDatacenters, this.get('facetSelectionDatacenter')))
+      );
+    });
+
+    return availableDatacenters.sort().map(dc => ({ key: dc, label: dc }));
   }),
 
   facetOptionsPrefix: computed('visibleJobs.[]', function() {
@@ -77,10 +106,20 @@ export default Controller.extend(Sortable, Searchable, {
       count: nameHistogram[key],
     }));
 
-    // Only consider prefixes that match more than one name, then convert to an
-    // options array, including the counts in the label
-    return nameTable
-      .filter(name => name.count > 1)
+    // Only consider prefixes that match more than one name
+    const prefixes = nameTable.filter(name => name.count > 1);
+
+    // Remove any invalid prefixes from the query param/selection
+    const availablePrefixes = prefixes.mapBy('prefix');
+    scheduleOnce('actions', () => {
+      this.set(
+        'qpPrefix',
+        qpSerialize(intersection(availablePrefixes, this.get('facetSelectionPrefix')))
+      );
+    });
+
+    // Sort, format, and include the count in the label
+    return prefixes
       .sortBy('prefix')
       .reverse()
       .map(name => ({
@@ -89,10 +128,15 @@ export default Controller.extend(Sortable, Searchable, {
       }));
   }),
 
-  facetSelectionType: computed(() => []),
-  facetSelectionStatus: computed(() => []),
-  facetSelectionDatacenter: computed(() => []),
-  facetSelectionPrefix: computed(() => []),
+  qpType: '',
+  qpStatus: '',
+  qpDatacenter: '',
+  qpPrefix: '',
+
+  facetSelectionType: selectionFromQP('qpType'),
+  facetSelectionStatus: selectionFromQP('qpStatus'),
+  facetSelectionDatacenter: selectionFromQP('qpDatacenter'),
+  facetSelectionPrefix: selectionFromQP('qpPrefix'),
 
   /**
     Filtered jobs are those that match the selected namespace and aren't children
@@ -149,6 +193,10 @@ export default Controller.extend(Sortable, Searchable, {
   sortedJobs: alias('listSearched'),
 
   isShowingDeploymentDetails: false,
+
+  setFacetQueryParam(queryParam, selection) {
+    this.set(queryParam, qpSerialize(selection));
+  },
 
   actions: {
     gotoJob(job) {
