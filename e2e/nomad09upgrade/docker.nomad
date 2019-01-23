@@ -6,8 +6,7 @@ job "sleep" {
       driver = "docker"
 
       config {
-        image = "busybox"
-        args = ["sleep", "10000"]
+        image = "redis"
       }
 
       resources {

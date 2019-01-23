@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -44,7 +45,16 @@ type taskRunnerState08 struct {
 	//CreatedResources   *driver.CreatedResources
 }
 
-type taskRunnerHandle08 struct {
+type TaskRunnerHandle08 struct {
+	// Docker specific handle info
+	ContainerID string `json:"ContainerID"`
+	Image       string `json:"Image"`
+
+	// LXC specific handle info
+	ContainerName string `json:"ContainerName"`
+	LxcPath       string `json:"LxcPath"`
+
+	// Executor reattach config
 	PluginConfig struct {
 		Pid      int    `json:"Pid"`
 		AddrNet  string `json:"AddrNet"`
@@ -52,7 +62,7 @@ type taskRunnerHandle08 struct {
 	} `json:"PluginConfig"`
 }
 
-func (t *taskRunnerHandle08) reattachConfig() *shared.ReattachConfig {
+func (t *TaskRunnerHandle08) ReattachConfig() *shared.ReattachConfig {
 	return &shared.ReattachConfig{
 		Network: t.PluginConfig.AddrNet,
 		Addr:    t.PluginConfig.AddrName,
@@ -90,18 +100,30 @@ func (t *taskRunnerState08) Upgrade(allocID, taskName string) (*state.LocalState
 
 	ls.TaskHandle.State = drivers.TaskStateUnknown
 
-	// A ReattachConfig to the pre09 executor is sent
-	var raw []byte
-	var handle taskRunnerHandle08
-	if err := json.Unmarshal([]byte(t.HandleID), &handle); err != nil {
-		return nil, fmt.Errorf("failed to decode 0.8 driver state: %v", err)
-	}
-	raw, err := json.Marshal(handle.reattachConfig())
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode updated driver state: %v", err)
+	// The docker driver prefixed the handle with 'DOCKER:'
+	// Strip so that it can be unmarshalled
+	data := t.HandleID
+	if strings.HasPrefix(data, "DOCKER:") {
+		data = data[7:]
 	}
 
-	ls.TaskHandle.DriverState = raw
+	// The pre09 driver handle ID is given to the driver. It is unmarshalled
+	// here to check for errors
+	if _, err := UnmarshalPre09HandleID([]byte(data)); err != nil {
+		return nil, err
+	}
+
+	ls.TaskHandle.DriverState = []byte(data)
 
 	return ls, nil
+}
+
+// UnmarshalPre09HandleID decodes the pre09 json encoded handle ID
+func UnmarshalPre09HandleID(raw []byte) (*TaskRunnerHandle08, error) {
+	var handle TaskRunnerHandle08
+	if err := json.Unmarshal(raw, &handle); err != nil {
+		return nil, fmt.Errorf("failed to decode 0.8 driver state: %v", err)
+	}
+
+	return &handle, nil
 }
