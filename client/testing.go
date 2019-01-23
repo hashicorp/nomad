@@ -8,9 +8,9 @@ import (
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
+	"github.com/hashicorp/nomad/helper/testlog"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
