@@ -17,6 +17,27 @@ matrix:
     - os: linux
       dist: xenial
       sudo: required
+      env: GOTEST_PKGS="./api"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./client"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./drivers/docker"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./drivers/exec"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS="./nomad"
+    - os: linux
+      dist: xenial
+      sudo: required
+      env: GOTEST_PKGS_EXCLUDE="./api|./client|./drivers/docker|./drivers/exec|./nomad"
     - os: linux
       dist: xenial
       sudo: required

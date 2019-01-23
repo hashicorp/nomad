@@ -10,6 +10,12 @@ GO_TAGS =
 
 GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
+ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
+GOTEST_PKGS ?= "./..."
+else
+GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))$$")
+endif
+
 default: help
 
 ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows))
@@ -252,7 +258,7 @@ test-nomad: dev ## Run Nomad test suites
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=15m \
-		./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+		$(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
