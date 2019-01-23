@@ -8,15 +8,20 @@ description: |-
 
 # Advanced Scheduling with Nomad
 
-The Nomad [scheduler][scheduling] uses a bin packing algorithm to optimize the resource utilization and density of applications in your Nomad cluster. This feature, in addition to the ability to restrict which nodes a workload runs on with the [constraint][constraint-stanza] stanza, provides the Nomad operator an efficient and powerful way to schedule jobs.
+The Nomad [scheduler][scheduling] uses a bin packing algorithm to optimize the resource utilization and density of applications in your Nomad cluster. Nomad 0.9 adds new features to allow operators more fine-grained control over allocation placement. This enables use cases similar to the following:
 
-With the release of Nomad 0.9, we are now introducing new features that allow
-Nomad operators to exercise greater control over scheduling decisions for their
-workloads. Please refer to the specific documentation below or in the sidebar for more detailed information about each feature.
+- Expressing preference for a certain class of nodes for a specific application via the [affinity stanza][affinity-stanza].
 
-- [Affinity](/guides/advanced-scheduling/affinity.html)
-- [Spread](/guides/advanced-scheduling/spread.html)
+- Spreading allocations across a datacenter or rack with the [spread stanza][spread-stanza].
 
-[constraint-stanza]: /docs/job-specification/constraint.html
+Please refer to the guides below for using affinity and spread in Nomad 0.9.
+
+- [Affinity][affinity-guide]
+- [Spread][spread-guide]
+
+[affinity-guide]: /guides/advanced-scheduling/affinity.html
+[affinity-stanza]: /docs/job-specification/affinity.html
+[spread-guide]: /guides/advanced-scheduling/spread.html
+[spread-stanza]: /docs/job-specification/spread.html
 [scheduling]: /docs/internals/scheduling.html
 
