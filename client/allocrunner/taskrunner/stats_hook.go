@@ -143,12 +143,8 @@ func (h *statsHook) collectResourceUsageStats(ctx context.Context, handle interf
 			// Update stats on TaskRunner and emit them
 			h.updater.UpdateStats(ru)
 
-		default:
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }
