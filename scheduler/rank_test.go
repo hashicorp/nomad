@@ -584,7 +584,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 									Count: 1,
 									Affinities: []*structs.Affinity{
 										{
-											LTarget: "${driver.attr.graphics_clock}",
+											LTarget: "${device.attr.graphics_clock}",
 											Operand: ">",
 											RTarget: "1.4 GHz",
 											Weight:  0.9,
