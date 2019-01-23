@@ -18,22 +18,22 @@
             label="Type"
             options=facetOptionsType
             selection=facetSelectionType
-            onSelect=(action (mut facetSelectionType))}}
+            onSelect=(action setFacetQueryParam "qpType")}}
           {{multi-select-dropdown
             label="Status"
             options=facetOptionsStatus
             selection=facetSelectionStatus
-            onSelect=(action (mut facetSelectionStatus))}}
+            onSelect=(action setFacetQueryParam "qpStatus")}}
           {{multi-select-dropdown
             label="Datacenter"
             options=facetOptionsDatacenter
             selection=facetSelectionDatacenter
-            onSelect=(action (mut facetSelectionDatacenter))}}
+            onSelect=(action setFacetQueryParam "qpDatacenter")}}
           {{multi-select-dropdown
             label="Prefix"
             options=facetOptionsPrefix
             selection=facetSelectionPrefix
-            onSelect=(action (mut facetSelectionPrefix))}}
+            onSelect=(action setFacetQueryParam "qpPrefix")}}
         </div>
       </div>
       <div class="column is-minimum is-centered">
