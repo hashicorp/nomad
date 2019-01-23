@@ -334,8 +334,6 @@
 		{"path":"github.com/prometheus/common/model","checksumSHA1":"3VoqH7TFfzA6Ds0zFzIbKCUvBmw=","revision":"2f17f4a9d485bf34b4bfaccc273805040e4f86c8","revisionTime":"2017-09-08T16:18:22Z"},
 		{"path":"github.com/prometheus/procfs","checksumSHA1":"ihxJIjxtbEYdQKwA0D0nRipj95I=","revision":"e645f4e5aaa8506fc71d6edbc5c4ff02c04c46f2","revisionTime":"2017-07-03T10:12:42Z"},
 		{"path":"github.com/prometheus/procfs/xfs","checksumSHA1":"xCiFAAwVTrjsfZT1BIJQ3DgeNCY=","revision":"e645f4e5aaa8506fc71d6edbc5c4ff02c04c46f2","revisionTime":"2017-07-03T10:12:42Z"},
-		{"path":"github.com/rkt/rkt/api/v1","checksumSHA1":"ge4Z0w3QJJYTBqJaK3S+a6MCxzQ=","revision":"3abde24bc284b7ded5784c56b4e8184c28999641","revisionTime":"2017-08-01T12:18:56Z","version":"v1.28.1","versionExact":"v1.28.1"},
-		{"path":"github.com/rkt/rkt/networking/netinfo","checksumSHA1":"4QqLbh9MmajcN6gCx8Er1voiQys=","revision":"5e83d91aafef5f7a38fef62c045e8b57eeeb8bce","revisionTime":"2017-09-20T12:17:54Z"},
 		{"path":"github.com/rs/cors","checksumSHA1":"I778b2sbNN/yjwKSdb3y7hz2yUQ=","revision":"eabcc6af4bbe5ad3a949d36450326a2b0b9894b8","revisionTime":"2017-08-01T07:32:01Z"},
 		{"path":"github.com/ryanuber/columnize","checksumSHA1":"M57Rrfc8Z966p+IBtQ91QOcUtcg=","comment":"v2.0.1-8-g983d3a5","revision":"abc90934186a77966e2beeac62ed966aac0561d5","revisionTime":"2017-07-03T20:58:27Z"},
 		{"path":"github.com/ryanuber/go-glob","checksumSHA1":"6JP37UqrI0H80Gpk0Y2P+KXgn5M=","revision":"256dc444b735e061061cf46c809487313d5b0065","revisionTime":"2017-01-28T01:21:29Z"},
