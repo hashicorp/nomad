@@ -189,6 +189,7 @@ func (n *nomadAgent) Nomad() (*api.Client, error) {
 	return api.NewClient(cfg)
 }
 
+// BeforeAll downloads all of the desired nomad versions to test against
 func (tc *UpgradePathTC) BeforeAll(f *framework.F) {
 	bin, err := discover.NomadExecutable()
 	f.NoError(err)
@@ -209,6 +210,7 @@ func (tc *UpgradePathTC) BeforeAll(f *framework.F) {
 	}
 }
 
+// AfterAll cleans up the downloaded nomad binaries
 func (tc *UpgradePathTC) AfterAll(f *framework.F) {
 	os.RemoveAll(tc.binDir)
 }
@@ -235,17 +237,19 @@ func (tc *UpgradePathTC) TestExecTaskUpgrade(f *framework.F) {
 
 func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile string) {
 	require := require.New(t)
+	// Start a nomad agent for the given version
 	srv, err := tc.newNomadServer(t, ver)
 	require.NoError(err)
-
 	t.Logf("launching v%s nomad agent", ver)
 	require.NoError(srv.StartAgent())
+
+	// Wait for the agent to be ready
 	client, err := srv.Nomad()
 	require.NoError(err)
-
 	time.Sleep(time.Second * 5)
 	e2eutil.WaitForNodesReady(t, client, 1)
 
+	// Register a sleep job
 	jobID := "sleep-" + uuid.Generate()[:8]
 	t.Logf("registering exec job with id %s", jobID)
 	e2eutil.RegisterAndWaitForAllocs(t, client, jobfile, jobID)
@@ -253,19 +257,28 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	require.NoError(err)
 	require.Len(allocs, 1)
 
+	// Wait for sleep job to transistion to running
 	id := allocs[0].ID
 	e2eutil.WaitForAllocRunning(t, client, id)
+
+	// Stop the agent, leaving the sleep job running
 	require.NoError(srv.StopAgent())
 
+	// Start a nomad agent with the to be tested nomad binary
 	t.Logf("launching test nomad agent")
 	require.NoError(srv.StartTargetAgent())
+
+	// Wait for the agent to be ready
 	client, err = srv.Nomad()
 	require.NoError(err)
 	time.Sleep(time.Second * 5)
 	e2eutil.WaitForNodesReady(t, client, 1)
 
+	// Make sure the same allocation still exists
 	alloc, _, err := client.Allocations().Info(id, nil)
 	require.NoError(err)
+	// Pull stats from the allocation, testing that new code can interface with
+	// the old stats driver apis
 	testutil.WaitForResult(func() (bool, error) {
 		stats, err := client.Allocations().Stats(alloc, nil)
 		if err != nil {
@@ -277,6 +290,8 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 		require.NoError(err)
 	})
 
+	// Deregister the job. This tests that the new code can properly tear down
+	// upgraded allocs
 	_, _, err = client.Jobs().Deregister(alloc.JobID, true, nil)
 	require.NoError(err)
 	testutil.WaitForResult(func() (bool, error) {
@@ -289,6 +304,8 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	}, func(err error) {
 		require.NoError(err)
 	})
+
+	// Check that the task dir mounts have been removed
 	testutil.WaitForResult(func() (bool, error) {
 		defer client.System().GarbageCollect()
 		defer time.Sleep(time.Millisecond * 100)
@@ -301,9 +318,10 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	}, func(err error) {
 		require.NoError(err)
 	})
+
+	// Cleanup
 	srv.StopTargetAgent()
 	srv.Destroy()
-
 }
 
 func getFreePort() (int, error) {
