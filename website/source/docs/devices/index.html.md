@@ -8,17 +8,13 @@ description: |-
 
 # Device Plugins
 
-Task drivers are used by Nomad clients to execute a task and provide resource
-isolation. By having extensible task drivers, Nomad has the flexibility to
-support a broad set of workloads across all major operating systems.
+Device plugins are used to detect and make devices available to tasks in Nomad.
+Devices are physical hardware that exists on a node such as a GPU or an FPGA. By
+having extensible device plugins, Nomad has the flexibility to support a broad
+set of devices and allows the community to build additional device plugins as
+needed.
 
-The list of supported task drivers is provided on the left of this page.
-Each task driver documents the configuration available in a
-[job specification](/docs/job-specification/index.html), the environments it
-can be used in, and the resource isolation mechanisms available.
-
-Nomad strives to mask the details of running a task from users and instead
-provides a clean abstraction. It is possible for the same task to be executed
-with different isolation levels depending on the client running the task.
-The goal is to use the strictest isolation available and gracefully degrade
-protections where necessary.
+The list of supported device plugins is provided on the left of this page.
+Each device plugin documents its configuration and installation requirements,
+the attributes it fingerprints, and the environment variables it exposes to
+tasks.

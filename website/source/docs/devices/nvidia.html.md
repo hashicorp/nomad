@@ -1,118 +1,300 @@
 ---
 layout: "docs"
-page_title: "Drivers: Raw Exec"
+page_title: "Device Plugins: Nvidia"
 sidebar_current: "docs-devices-nvidia"
 description: |-
-  The Raw Exec task driver simply fork/execs and provides no isolation.
+  The Nvidia Device Plugin detects and makes Nvidia devices available to tasks.
 ---
 
-# Raw Fork/Exec Driver
+# Nvidia GPU Device Plugin
 
-Name: `raw_exec`
+Name: `nvidia-gpu`
 
-The `raw_exec` driver is used to execute a command for a task without any
-isolation. Further, the task is started as the same user as the Nomad process.
-As such, it should be used with extreme care and is disabled by default.
+The Nvidia device plugin is used to expose Nvidia GPUs to Nomad. The Nvidia
+plugin is built into Nomad and does not need to be downloaded separately.
 
-## Task Configuration
+## Fingerprinted Attributes
+
+<table class="table table-bordered table-striped">
+  <tr>
+    <th>Attribute</th>
+    <th>Unit</th>
+  </tr>
+  <tr>
+    <td><tt>memory</tt></td>
+    <td>MiB</td>
+  </tr>
+  <tr>
+    <td><tt>power</tt></td>
+    <td>W (Watt)</td>
+  </tr>
+  <tr>
+    <td><tt>bar1</tt></td>
+    <td>MiB</td>
+  </tr>
+  <tr>
+    <td><tt>driver_version</tt></td>
+    <td>string</td>
+  </tr>
+  <tr>
+    <td><tt>cores_clock</tt></td>
+    <td>MHz</td>
+  </tr>
+  <tr>
+    <td><tt>memory_clock</tt></td>
+    <td>MHz</td>
+  </tr>
+  <tr>
+    <td><tt>pci_bandwidth</tt></td>
+    <td>MB/s</td>
+  </tr>
+  <tr>
+    <td><tt>display_state</tt></td>
+    <td>string</td>
+  </tr>
+  <tr>
+    <td><tt>persistence_mode</tt></td>
+    <td>string</td>
+  </tr>
+</table>
+
+## Runtime Environment
+
+The `nvidia-gpu` device plugin exposes the following environment variables:
+
+* `NVIDIA_VISIBLE_DEVICES` - List of Nvidia GPU IDs available to the task.
+
+### Additonal Task Configurations
+
+Additonal environment variables can be set by the task to influence the runtime
+environment. See [Nvidia's
+documentation](https://github.com/NVIDIA/nvidia-container-runtime#environment-variables-oci-spec).
+
+## Installation Requirements
+
+In order to use the `nvidia-gpu` the following prerequisites must be met:
+
+1. GNU/Linux x86_64 with kernel version > 3.10
+2. NVIDIA GPU with Architecture > Fermi (2.1)
+3. NVIDIA drivers >= 340.29 with binary `nvidia-smi`
+
+### Docker Driver Requirements
+
+In order to use the Nvidia driver plugin with the Docker driver, please follow
+the installation instructions for
+[`nvidia-docker`](https://github.com/NVIDIA/nvidia-docker/wiki/Installation-\(version-1.0\)).
+
+## Plugin Configuration
 
 ```hcl
-task "webservice" {
-  driver = "raw_exec"
-
-  config {
-    command = "my-binary"
-    args    = ["-flag", "1"]
-  }
+plugin "nvidia-gpu" {
+  ignored_gpu_ids = ["GPU-fef8089b", "GPU-ac81e44d"]
+  fingerprint_period = "1m"
 }  
 ```
 
-The `raw_exec` driver supports the following configuration in the job spec:
+The `nvidia-gpu` device plugin supports the following configuration in the agent
+config:
 
-* `command` - The command to execute. Must be provided. If executing a binary
-  that exists on the host, the path must be absolute. If executing a binary that
-  is downloaded from an [`artifact`](/docs/job-specification/artifact.html), the
-  path can be relative from the allocations's root directory.
+* `ignored_gpu_ids` `(array<string>: [])` - Specifies the set of GPU UUIDs that
+  should be ignored when fingerprinting.
 
-* `args` - (Optional) A list of arguments to the `command`. References
-  to environment variables or any [interpretable Nomad
-  variables](/docs/runtime/interpolation.html) will be interpreted before
-  launching the task.
+* `fingerprint_period` `(string: "1m")` - The period in which to fingerprint for
+  device changes.
+
+## Restrictions
+
+The Nvidia integration only works with drivers who natively integrate with
+Nvidia's [container runtime
+library](https://github.com/NVIDIA/libnvidia-container). 
+
+Nomad has tested support with the [`docker` driver][docker-driver] and plans to
+bring support to the built-in [`exec`][exec-driver] and [`java`][java-driver]
+drivers. Support for [`lxc`][lxc-driver] should be possible by installing the
+[Nvidia hook](https://github.com/lxc/lxc/blob/master/hooks/nvidia) but is not
+tested or documented by Nomad.
 
 ## Examples
 
-To run a binary present on the Node:
+Inspect a node with a GPU:
 
+```sh
+$ nomad node status 4d46e59f
+ID            = 4d46e59f
+Name          = nomad
+Class         = <none>
+DC            = dc1
+Drain         = false
+Eligibility   = eligible
+Status        = ready
+Uptime        = 19m43s
+Driver Status = docker,mock_driver,raw_exec
+
+Node Events
+Time                  Subsystem  Message
+2019-01-23T18:25:18Z  Cluster    Node registered
+
+Allocated Resources
+CPU          Memory      Disk
+0/15576 MHz  0 B/55 GiB  0 B/28 GiB
+
+Allocation Resource Utilization
+CPU          Memory
+0/15576 MHz  0 B/55 GiB
+
+Host Resource Utilization
+CPU             Memory          Disk
+2674/15576 MHz  1.5 GiB/55 GiB  3.0 GiB/31 GiB
+
+Device Resource Utilization
+nvidia/gpu/Tesla K80[GPU-e1f6f4f1-1ea5-7b9d-5f03-338a9dc32416]  0 / 11441 MiB
+
+Allocations
+No allocations placed
 ```
-task "example" {
-  driver = "raw_exec"
 
-  config {
-    # When running a binary that exists on the host, the path must be absolute/
-    command = "/bin/sleep"
-    args    = ["1"]
-  }
-}
+Display detailed statistics on a node with a GPU:
+
+```sh
+$ nomad node status -stats 4d46e59f
+ID            = 4d46e59f
+Name          = nomad
+Class         = <none>
+DC            = dc1
+Drain         = false
+Eligibility   = eligible
+Status        = ready
+Uptime        = 19m59s
+Driver Status = docker,mock_driver,raw_exec
+
+Node Events
+Time                  Subsystem  Message
+2019-01-23T18:25:18Z  Cluster    Node registered
+
+Allocated Resources
+CPU          Memory      Disk
+0/15576 MHz  0 B/55 GiB  0 B/28 GiB
+
+Allocation Resource Utilization
+CPU          Memory
+0/15576 MHz  0 B/55 GiB
+
+Host Resource Utilization
+CPU             Memory          Disk
+2673/15576 MHz  1.5 GiB/55 GiB  3.0 GiB/31 GiB
+
+Device Resource Utilization
+nvidia/gpu/Tesla K80[GPU-e1f6f4f1-1ea5-7b9d-5f03-338a9dc32416]  0 / 11441 MiB
+
+// ...TRUNCATED...
+
+Device Stats
+Device              = nvidia/gpu/Tesla K80[GPU-e1f6f4f1-1ea5-7b9d-5f03-338a9dc32416]
+BAR1 buffer state   = 2 / 16384 MiB
+Decoder utilization = 0 %
+ECC L1 errors       = 0
+ECC L2 errors       = 0
+ECC memory errors   = 0
+Encoder utilization = 0 %
+GPU utilization     = 0 %
+Memory state        = 0 / 11441 MiB
+Memory utilization  = 0 %
+Power usage         = 37 / 149 W
+Temperature         = 34 C
+
+Allocations
+No allocations placed
 ```
 
-To execute a binary downloaded from an [`artifact`](/docs/job-specification/artifact.html):
+Run the following example job to see that that the GPU was mounted in the
+container:
 
-```
-task "example" {
-  driver = "raw_exec"
+```hcl
+job "gpu-test" {
+  datacenters = ["dc1"]
+  type = "batch"
 
-  config {
-    command = "name-of-my-binary"
-  }
+  group "smi" {
+    task "smi" {
+      driver = "docker"
 
-  artifact {
-    source = "https://internal.file.server/name-of-my-binary"
-    options {
-      checksum = "sha256:abd123445ds4555555555"
+      config {
+        image = "nvidia/cuda:9.0-base"
+        command = "nvidia-smi"
+      }
+
+      resources {
+        device "nvidia/gpu/Tesla K80" {}
+      }
     }
   }
 }
 ```
 
-## Client Requirements
+```sh
+$ nomad run example.nomad
+==> Monitoring evaluation "21bd7584"
+    Evaluation triggered by job "gpu-test"
+    Allocation "d250baed" created: node "4d46e59f", group "smi"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "21bd7584" finished with status "complete"
 
-The `raw_exec` driver can run on all supported operating systems. For security
-reasons, it is disabled by default. To enable raw exec, the Nomad client
-configuration must explicitly enable the `raw_exec` driver in the client's
-[options](/docs/configuration/client.html#options):
+$ nomad alloc status d250baed
+ID                  = d250baed
+Eval ID             = 21bd7584
+Name                = gpu-test.smi[0]
+Node ID             = 4d46e59f
+Job ID              = example
+Job Version         = 0
+Client Status       = complete
+Client Description  = All tasks have completed
+Desired Status      = run
+Desired Description = <none>
+Created             = 7s ago
+Modified            = 2s ago
 
+Task "smi" is "dead"
+Task Resources
+CPU        Memory       Disk     Addresses
+0/100 MHz  0 B/300 MiB  300 MiB
+
+Device Stats
+nvidia/gpu/Tesla K80[GPU-e1f6f4f1-1ea5-7b9d-5f03-338a9dc32416]  0 / 11441 MiB
+
+Task Events:
+Started At     = 2019-01-23T18:25:32Z
+Finished At    = 2019-01-23T18:25:34Z
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                  Type        Description
+2019-01-23T18:25:34Z  Terminated  Exit Code: 0
+2019-01-23T18:25:32Z  Started     Task started by client
+2019-01-23T18:25:29Z  Task Setup  Building Task Directory
+2019-01-23T18:25:29Z  Received    Task received by client
+
+$ nomad alloc logs d250baed
+Wed Jan 23 18:25:32 2019
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 410.48                 Driver Version: 410.48                    |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  Tesla K80           On   | 00004477:00:00.0 Off |                    0 |
+| N/A   33C    P8    37W / 149W |      0MiB / 11441MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+
++-----------------------------------------------------------------------------+
+| Processes:                                                       GPU Memory |
+|  GPU       PID   Type   Process name                             Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
 ```
-client {
-  options = {
-    "driver.raw_exec.enable" = "1"
-  }
-}
-```
 
-## Client Options
-
-* `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
-  disabled.
-
-* `driver.raw_exec.no_cgroups` - Specifies whether the driver should not use
-  cgroups to manage the process group launched by the driver. By default,
-  cgroups are used to manage the process tree to ensure full cleanup of all
-  processes started by the task. The driver only uses cgroups when Nomad is
-  launched as root, on Linux and when cgroups are detected.
-
-## Client Attributes
-
-The `raw_exec` driver will set the following client attributes:
-
-* `driver.raw_exec` - This will be set to "1", indicating the driver is available.
-
-## Resource Isolation
-
-The `raw_exec` driver provides no isolation.
-
-If the launched process creates a new process group, it is possible that Nomad
-will leak processes on shutdown unless the application forwards signals
-properly. Nomad will not leak any processes if cgroups are being used to manage
-the process tree. Cgroups are used on Linux when Nomad is being run with
-appropriate priviledges, the cgroup system is mounted and the operator hasn't
-disabled cgroups for the driver.
+[docker-driver]: /docs/drivers/docker.html "Nomad docker Driver"
+[exec-driver]: /docs/drivers/exec.html "Nomad exec Driver"
+[java-driver]: /docs/drivers/java.html "Nomad java Driver"
+[lxc-driver]: /docs/drivers/lxc.html "Nomad lxc Driver"

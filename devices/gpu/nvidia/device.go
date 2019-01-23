@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 const (
@@ -35,6 +36,19 @@ const (
 )
 
 var (
+	// PluginID is the nvidia plugin metadata registered in the plugin
+	// catalog.
+	PluginID = loader.PluginID{
+		Name:       pluginName,
+		PluginType: base.PluginTypeDevice,
+	}
+
+	// PluginConfig is the nvidia factory function registered in the
+	// plugin catalog.
+	PluginConfig = &loader.InternalPluginConfig{
+		Factory: func(l log.Logger) interface{} { return NewNvidiaDevice(l) },
+	}
+
 	// pluginInfo describes the plugin
 	pluginInfo = &base.PluginInfoResponse{
 		Type:              base.PluginTypeDevice,

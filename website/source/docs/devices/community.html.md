@@ -1,16 +1,19 @@
 ---
 layout: "docs"
-page_title: "Drivers: Custom"
+page_title: "Device Plugins: Community Supported"
 sidebar_current: "docs-devices-community"
 description: |-
-  Create custom task drivers for Nomad.
+  A list of community supported Device Plugins.
 ---
 
-# Custom Drivers
+# Community Supported
 
-Nomad does not currently support pluggable task drivers, however the
-interface that a task driver must implement is minimal. In the short term,
-custom drivers can be implemented in Go and compiled into the binary,
-however in the long term we plan to expose a plugin interface such that
-task drivers can be dynamically registered without recompiling the Nomad binary.
+If you have authored a device plugin that you believe will be useful to the
+broader Nomad community and you are commited to maintaining the plugin, please
+file a PR to add your plugin to this page.
 
+## Authoring Device Plugins
+
+Nomad has a plugin system for defining device drivers. External device plugins
+will have the same user experience as built in drivers. For details on authoring
+a device plugin, please refer to the plugin authoring guide.
