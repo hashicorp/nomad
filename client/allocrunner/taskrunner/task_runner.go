@@ -35,6 +35,10 @@ import (
 )
 
 const (
+	// defaultMaxEvents is the default max capacity for task events on the
+	// task state. Overrideable for testing.
+	defaultMaxEvents = 10
+
 	// killBackoffBaseline is the baseline time for exponential backoff while
 	// killing a task.
 	killBackoffBaseline = 5 * time.Second
@@ -191,6 +195,10 @@ type TaskRunner struct {
 	// be accessed via helpers
 	runLaunched     bool
 	runLaunchedLock sync.Mutex
+
+	// maxEvents is the capacity of the TaskEvents on the TaskState.
+	// Defaults to defaultMaxEvents but overrideable for testing.
+	maxEvents int
 }
 
 type Config struct {
@@ -267,6 +275,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		waitCh:              make(chan struct{}),
 		devicemanager:       config.DeviceManager,
 		driverManager:       config.DriverManager,
+		maxEvents:           defaultMaxEvents,
 	}
 
 	// Create the logger based on the allocation ID
@@ -440,7 +449,7 @@ MAIN:
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since
 					// the restart tracker knowns it is killed
-					tr.handleKill()
+					result = tr.handleKill()
 				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately
 					return
@@ -703,11 +712,12 @@ func (tr *TaskRunner) initDriver() error {
 	return nil
 }
 
-// handleKill is used to handle the a request to kill a task. It will store any
-// error in the task runner killErr value.
-func (tr *TaskRunner) handleKill() {
-	// Run the hooks prior to killing the task
-	tr.killing()
+// handleKill is used to handle the a request to kill a task. It will return
+//// the handle exit result if one is available and store any error in the task
+//// runner killErr value.
+func (tr *TaskRunner) handleKill() *drivers.ExitResult {
+	// Run the pre killing hooks
+	tr.preKill()
 
 	// Tell the restart tracker that the task has been killed so it doesn't
 	// attempt to restart it.
@@ -716,7 +726,7 @@ func (tr *TaskRunner) handleKill() {
 	// Check it is running
 	handle := tr.getDriverHandle()
 	if handle == nil {
-		return
+		return nil
 	}
 
 	// Kill the task using an exponential backoff in-case of failures.
@@ -734,16 +744,18 @@ func (tr *TaskRunner) handleKill() {
 	// failure in the driver or transport layer occurred
 	if err != nil {
 		if err == drivers.ErrTaskNotFound {
-			return
+			return nil
 		}
 		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
 		tr.setKillErr(killErr)
-		return
+		return nil
 	}
 
 	select {
-	case <-waitCh:
+	case result := <-waitCh:
+		return result
 	case <-tr.shutdownCtx.Done():
+		return nil
 	}
 }
 
@@ -794,9 +806,10 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	env := tr.envBuilder.Build()
 
 	return &drivers.TaskConfig{
-		ID:      fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
-		Name:    task.Name,
-		JobName: alloc.Job.Name,
+		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
+		Name:          task.Name,
+		JobName:       alloc.Job.Name,
+		TaskGroupName: alloc.TaskGroup,
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
@@ -1019,7 +1032,7 @@ func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
 	}
 
 	// Append event to slice
-	appendTaskEvent(tr.state, event)
+	appendTaskEvent(tr.state, event, tr.maxEvents)
 
 	return nil
 }
@@ -1116,12 +1129,12 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	if !tr.clientConfig.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
 			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
 			float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
 			float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
+			float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
 			float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
@@ -1134,6 +1147,7 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
+		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
 		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
@@ -1184,8 +1198,7 @@ func (tr *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 }
 
 // appendTaskEvent updates the task status by appending the new event.
-func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent) {
-	const capacity = 10
+func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent, capacity int) {
 	if state.Events == nil {
 		state.Events = make([]*structs.TaskEvent, 1, capacity)
 		state.Events[0] = event

@@ -31,7 +31,7 @@ const (
 
 const (
 	// Nvidia-container-runtime environment variable names
-	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
+	NvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
 var (
@@ -181,7 +181,7 @@ func (d *NvidiaDevice) Reserve(deviceIDs []string) (*device.ContainerReservation
 
 	return &device.ContainerReservation{
 		Envs: map[string]string{
-			nvidiaVisibleDevices: strings.Join(deviceIDs, ","),
+			NvidiaVisibleDevices: strings.Join(deviceIDs, ","),
 		},
 	}, nil
 }

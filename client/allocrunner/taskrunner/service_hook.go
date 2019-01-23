@@ -140,7 +140,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	return h.consul.UpdateTask(oldTaskServices, newTaskServices)
 }
 
-func (h *serviceHook) Killing(ctx context.Context, req *interfaces.TaskKillRequest, resp *interfaces.TaskKillResponse) error {
+func (h *serviceHook) Killing(ctx context.Context, req *interfaces.TaskPreKillRequest, resp *interfaces.TaskPreKillResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -200,7 +200,7 @@ func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {
 // values from the task's environment.
 func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) []*structs.Service {
 	// Guard against not having a valid taskEnv. This can be the case if the
-	// Killing or Exited hook is run before post-run.
+	// PreKilling or Exited hook is run before Poststart.
 	if taskEnv == nil || len(services) == 0 {
 		return nil
 	}

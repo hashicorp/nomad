@@ -3,10 +3,12 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
@@ -16,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -124,12 +127,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	defer origTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for it to be running
-	testutil.WaitForResult(func() (bool, error) {
-		ts := origTR.TaskState()
-		return ts.State == structs.TaskStateRunning, fmt.Errorf("%v", ts.State)
-	}, func(err error) {
-		t.Fatalf("expected running; got: %v", err)
-	})
+	testWaitForTaskToStart(t, origTR)
 
 	// Cause TR to exit without shutting down task
 	origTR.Shutdown()
@@ -205,6 +203,48 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	require.NotNil(driverCfg)
 	require.NotNil(mockCfg)
 	assert.Equal(t, "global bar somebody", mockCfg.StdoutString)
+}
+
+func TestTaskRunner_TaskConfig(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+
+	//// Use interpolation from both node attributes and meta vars
+	//task.Config = map[string]interface{}{
+	//	"run_for": "1ms",
+	//}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Run the first TaskRunner
+	tr, err := NewTaskRunner(conf)
+	require.NoError(err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for task to complete
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(3 * time.Second):
+	}
+
+	// Get the mock driver plugin
+	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
+	require.NoError(err)
+	mockDriver := driverPlugin.(*mockdriver.Driver)
+
+	// Assert its config has been properly interpolated
+	driverCfg, mockCfg := mockDriver.GetTaskConfig()
+	require.NotNil(driverCfg)
+	require.NotNil(mockCfg)
+	assert.Equal(t, alloc.Job.Name, driverCfg.JobName)
+	assert.Equal(t, alloc.TaskGroup, driverCfg.TaskGroupName)
+	assert.Equal(t, alloc.Job.TaskGroups[0].Tasks[0].Name, driverCfg.Name)
 }
 
 // Test that devices get sent to the driver
@@ -502,16 +542,237 @@ WAIT:
 	}
 }
 
-// testWaitForTaskToStart waits for the task to or fails the test
-func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
-	// Wait for the task to start
-	testutil.WaitForResult(func() (bool, error) {
-		tr.stateLock.RLock()
-		started := !tr.state.StartedAt.IsZero()
-		tr.stateLock.RUnlock()
+// TestTaskRunner_Dispatch_Payload asserts that a dispatch job runs and the
+// payload was written to disk.
+func TestTaskRunner_Dispatch_Payload(t *testing.T) {
+	t.Parallel()
 
-		return started, nil
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+
+	fileName := "test"
+	task.DispatchPayload = &structs.DispatchPayloadConfig{
+		File: fileName,
+	}
+	alloc.Job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+
+	// Add a payload (they're snappy encoded bytes)
+	expected := []byte("hello world")
+	compressed := snappy.Encode(nil, expected)
+	alloc.Job.Payload = compressed
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for it to finish
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+		return ts.State == structs.TaskStateDead, fmt.Errorf("%v", ts.State)
 	}, func(err error) {
-		t.Fatalf("not started")
+		require.NoError(t, err)
+	})
+
+	// Should have exited successfully
+	ts := tr.TaskState()
+	require.False(t, ts.Failed)
+	require.Zero(t, ts.Restarts)
+
+	// Check that the file was written to disk properly
+	payloadPath := filepath.Join(tr.taskDir.LocalDir, fileName)
+	data, err := ioutil.ReadFile(payloadPath)
+	require.NoError(t, err)
+	require.Equal(t, expected, data)
+}
+
+// TestTaskRunner_SignalFailure asserts that signal errors are properly
+// propagated from the driver to TaskRunner.
+func TestTaskRunner_SignalFailure(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	errMsg := "test forcing failure"
+	task.Config = map[string]interface{}{
+		"run_for":      "10m",
+		"signal_error": errMsg,
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	testWaitForTaskToStart(t, tr)
+
+	require.EqualError(t, tr.Signal(&structs.TaskEvent{}, "SIGINT"), errMsg)
+}
+
+// TestTaskRunner_RestartTask asserts that restarting a task works and emits a
+// Restarting event.
+func TestTaskRunner_RestartTask(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10m",
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	testWaitForTaskToStart(t, tr)
+
+	// Restart task. Send a RestartSignal event like check watcher. Restart
+	// handler emits the Restarting event.
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).SetRestartReason("test")
+	const fail = false
+	tr.Restart(context.Background(), event.Copy(), fail)
+
+	// Wait for it to restart and be running again
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+		if ts.Restarts != 1 {
+			return false, fmt.Errorf("expected 1 restart but found %d\nevents: %s",
+				ts.Restarts, pretty.Sprint(ts.Events))
+		}
+		if ts.State != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected running but received %s", ts.State)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Assert the expected Restarting event was emitted
+	found := false
+	events := tr.TaskState().Events
+	for _, e := range events {
+		if e.Type == structs.TaskRestartSignal {
+			found = true
+			require.Equal(t, event.Time, e.Time)
+			require.Equal(t, event.RestartReason, e.RestartReason)
+			require.Contains(t, e.DisplayMessage, event.RestartReason)
+		}
+	}
+	require.True(t, found, "restarting task event not found", pretty.Sprint(events))
+}
+
+// TestTaskRunner_CheckWatcher_Restart asserts that when enabled an unhealthy
+// Consul check will cause a task to restart following restart policy rules.
+func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+
+	// Make the restart policy fail within this test
+	tg := alloc.Job.TaskGroups[0]
+	tg.RestartPolicy.Attempts = 2
+	tg.RestartPolicy.Interval = 1 * time.Minute
+	tg.RestartPolicy.Delay = 10 * time.Millisecond
+	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
+
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10m",
+	}
+
+	// Make the task register a check that fails
+	task.Services[0].Checks[0] = &structs.ServiceCheck{
+		Name:     "test-restarts",
+		Type:     structs.ServiceCheckTCP,
+		Interval: 50 * time.Millisecond,
+		CheckRestart: &structs.CheckRestart{
+			Limit: 2,
+			Grace: 100 * time.Millisecond,
+		},
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Replace mock Consul ServiceClient, with the real ServiceClient
+	// backed by a mock consul whose checks are always unhealthy.
+	consulAgent := agentconsul.NewMockAgent()
+	consulAgent.SetStatus("critical")
+	consulClient := agentconsul.NewServiceClient(consulAgent, conf.Logger, true)
+	go consulClient.Run()
+	defer consulClient.Shutdown()
+
+	conf.Consul = consulClient
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+
+	expectedEvents := []string{
+		"Received",
+		"Task Setup",
+		"Started",
+		"Restart Signaled",
+		"Terminated",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Terminated",
+		"Restarting",
+		"Started",
+		"Restart Signaled",
+		"Terminated",
+		"Not Restarting",
+	}
+
+	// Bump maxEvents so task events aren't dropped
+	tr.maxEvents = 100
+
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait until the task exits. Don't simply wait for it to run as it may
+	// get restarted and terminated before the test is able to observe it
+	// running.
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timeout")
+	}
+
+	state := tr.TaskState()
+	actualEvents := make([]string, len(state.Events))
+	for i, e := range state.Events {
+		actualEvents[i] = string(e.Type)
+	}
+	require.Equal(t, actualEvents, expectedEvents)
+
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.True(t, state.Failed, pretty.Sprint(state))
+}
+
+// testWaitForTaskToStart waits for the task to be running or fails the test
+func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
+	testutil.WaitForResult(func() (bool, error) {
+		ts := tr.TaskState()
+		return ts.State == structs.TaskStateRunning, fmt.Errorf("%v", ts.State)
+	}, func(err error) {
+		require.NoError(t, err)
 	})
 }

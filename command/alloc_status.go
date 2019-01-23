@@ -557,6 +557,8 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Cache))
 			case "Swap":
 				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Swap))
+			case "Usage":
+				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.Usage))
 			case "Max Usage":
 				measuredStats = append(measuredStats, humanize.IBytes(memoryStats.MaxUsage))
 			case "Kernel Usage":

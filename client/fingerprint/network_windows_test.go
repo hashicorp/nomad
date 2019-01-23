@@ -7,7 +7,7 @@ import (
 )
 
 func TestNetworkFingerPrint_linkspeed_parse(t *testing.T) {
-	f := &NetworkFingerprint{logger: testlog.Logger(t), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 
 	var outputTests = []struct {
 		in  string

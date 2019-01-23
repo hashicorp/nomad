@@ -48,7 +48,7 @@ func (x PluginType) String() string {
 	return proto.EnumName(PluginType_name, int32(x))
 }
 func (PluginType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{0}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{0}
 }
 
 // PluginInfoRequest is used to request the plugins basic information.
@@ -62,7 +62,7 @@ func (m *PluginInfoRequest) Reset()         { *m = PluginInfoRequest{} }
 func (m *PluginInfoRequest) String() string { return proto.CompactTextString(m) }
 func (*PluginInfoRequest) ProtoMessage()    {}
 func (*PluginInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{0}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{0}
 }
 func (m *PluginInfoRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PluginInfoRequest.Unmarshal(m, b)
@@ -104,7 +104,7 @@ func (m *PluginInfoResponse) Reset()         { *m = PluginInfoResponse{} }
 func (m *PluginInfoResponse) String() string { return proto.CompactTextString(m) }
 func (*PluginInfoResponse) ProtoMessage()    {}
 func (*PluginInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{1}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{1}
 }
 func (m *PluginInfoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PluginInfoResponse.Unmarshal(m, b)
@@ -163,7 +163,7 @@ func (m *ConfigSchemaRequest) Reset()         { *m = ConfigSchemaRequest{} }
 func (m *ConfigSchemaRequest) String() string { return proto.CompactTextString(m) }
 func (*ConfigSchemaRequest) ProtoMessage()    {}
 func (*ConfigSchemaRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{2}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{2}
 }
 func (m *ConfigSchemaRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ConfigSchemaRequest.Unmarshal(m, b)
@@ -196,7 +196,7 @@ func (m *ConfigSchemaResponse) Reset()         { *m = ConfigSchemaResponse{} }
 func (m *ConfigSchemaResponse) String() string { return proto.CompactTextString(m) }
 func (*ConfigSchemaResponse) ProtoMessage()    {}
 func (*ConfigSchemaResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{3}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{3}
 }
 func (m *ConfigSchemaResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ConfigSchemaResponse.Unmarshal(m, b)
@@ -240,7 +240,7 @@ func (m *SetConfigRequest) Reset()         { *m = SetConfigRequest{} }
 func (m *SetConfigRequest) String() string { return proto.CompactTextString(m) }
 func (*SetConfigRequest) ProtoMessage()    {}
 func (*SetConfigRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{4}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{4}
 }
 func (m *SetConfigRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SetConfigRequest.Unmarshal(m, b)
@@ -294,7 +294,7 @@ func (m *NomadConfig) Reset()         { *m = NomadConfig{} }
 func (m *NomadConfig) String() string { return proto.CompactTextString(m) }
 func (*NomadConfig) ProtoMessage()    {}
 func (*NomadConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{5}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{5}
 }
 func (m *NomadConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NomadConfig.Unmarshal(m, b)
@@ -339,7 +339,7 @@ func (m *NomadDriverConfig) Reset()         { *m = NomadDriverConfig{} }
 func (m *NomadDriverConfig) String() string { return proto.CompactTextString(m) }
 func (*NomadDriverConfig) ProtoMessage()    {}
 func (*NomadDriverConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{6}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{6}
 }
 func (m *NomadDriverConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NomadDriverConfig.Unmarshal(m, b)
@@ -384,7 +384,7 @@ func (m *SetConfigResponse) Reset()         { *m = SetConfigResponse{} }
 func (m *SetConfigResponse) String() string { return proto.CompactTextString(m) }
 func (*SetConfigResponse) ProtoMessage()    {}
 func (*SetConfigResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_f2480776612a8fbd, []int{7}
+	return fileDescriptor_base_6a1a5ff99a0b9e5d, []int{7}
 }
 func (m *SetConfigResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SetConfigResponse.Unmarshal(m, b)
@@ -560,9 +560,9 @@ var _BasePlugin_serviceDesc = grpc.ServiceDesc{
 	Metadata: "plugins/base/proto/base.proto",
 }
 
-func init() { proto.RegisterFile("plugins/base/proto/base.proto", fileDescriptor_base_f2480776612a8fbd) }
+func init() { proto.RegisterFile("plugins/base/proto/base.proto", fileDescriptor_base_6a1a5ff99a0b9e5d) }
 
-var fileDescriptor_base_f2480776612a8fbd = []byte{
+var fileDescriptor_base_6a1a5ff99a0b9e5d = []byte{
 	// 535 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0x41, 0x8f, 0x12, 0x4d,
 	0x10, 0xdd, 0x01, 0x3e, 0x36, 0x14, 0xb0, 0x81, 0xe6, 0x33, 0x21, 0x24, 0x26, 0x64, 0xa2, 0x09,

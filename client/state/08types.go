@@ -32,7 +32,7 @@ type allocRunnerMutableState08 struct {
 // 0.8.
 //
 // https://github.com/hashicorp/nomad/blob/v0.8.6/client/task_runner.go#L188-L197
-//
+// COMPAT(0.10): Allows upgrading from 0.8.X to 0.9.0.
 type taskRunnerState08 struct {
 	Version            string
 	HandleID           string

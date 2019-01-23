@@ -17,6 +17,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/devices/gpu/nvidia"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -40,7 +41,7 @@ var (
 	waitClient *docker.Client
 
 	// The statistics the Docker driver exposes
-	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Max Usage"}
+	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage"}
 	DockerMeasuredCpuStats = []string{"Throttled Periods", "Throttled Time", "Percent"}
 
 	// recoverableErrTimeouts returns a recoverable error if the error was due
@@ -88,6 +89,14 @@ type Driver struct {
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
+
+	// gpuRuntime indicates nvidia-docker runtime availability
+	gpuRuntime bool
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
+	fingerprintLock    sync.RWMutex
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -627,6 +636,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		VolumeDriver: driverConfig.VolumeDriver,
 
 		PidsLimit: driverConfig.PidsLimit,
+	}
+
+	if _, ok := task.DeviceEnv[nvidia.NvidiaVisibleDevices]; ok {
+		if !d.gpuRuntime {
+			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
+		}
+		hostConfig.Runtime = d.config.GPURuntimeName
 	}
 
 	// Calculate CPU Quota

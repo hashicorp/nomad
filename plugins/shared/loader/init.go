@@ -226,7 +226,7 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 	if err != nil {
 		// There are no plugins to scan
 		if os.IsNotExist(err) {
-			l.logger.Debug("skipping external plugins since plugin_dir doesn't exist")
+			l.logger.Warn("skipping external plugins since plugin_dir doesn't exist")
 			return nil, nil
 		}
 
@@ -246,13 +246,12 @@ func (l *PluginLoader) scan() ([]os.FileInfo, error) {
 			return nil, fmt.Errorf("failed to stat file %q: %v", f, err)
 		}
 		if s.IsDir() {
-			l.logger.Debug("skipping subdir in plugin folder", "subdir", f)
+			l.logger.Warn("skipping subdir in plugin folder", "subdir", f)
 			continue
 		}
 
-		// Check if it is executable by anyone
-		if s.Mode().Perm()&0111 == 0 {
-			l.logger.Debug("skipping un-executable file in plugin folder", "file", f)
+		if !executable(f, s) {
+			l.logger.Warn("skipping un-executable file in plugin folder", "file", f)
 			continue
 		}
 		plugins = append(plugins, s)
@@ -428,7 +427,7 @@ func (l *PluginLoader) mergePlugins(internal, external map[PluginID]*pluginInfo)
 func (l *PluginLoader) validatePluginConfigs() error {
 	var mErr multierror.Error
 	for id, info := range l.plugins {
-		if err := l.validePluginConfig(id, info); err != nil {
+		if err := l.validatePluginConfig(id, info); err != nil {
 			wrapped := multierror.Prefix(err, fmt.Sprintf("plugin %s:", id))
 			multierror.Append(&mErr, wrapped)
 		}
@@ -440,7 +439,7 @@ func (l *PluginLoader) validatePluginConfigs() error {
 // validatePluginConfig is used to validate the plugin's configuration. If the
 // plugin has a config, it is parsed with the plugins config schema and
 // SetConfig is called to ensure the config is valid.
-func (l *PluginLoader) validePluginConfig(id PluginID, info *pluginInfo) error {
+func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error {
 	var mErr multierror.Error
 
 	// Check if a config is allowed

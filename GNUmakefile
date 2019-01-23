@@ -12,7 +12,7 @@ GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
 
 default: help
 
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
+ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows))
 $(error Building Nomad is currently only supported on Darwin and Linux.)
 endif
 

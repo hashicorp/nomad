@@ -4017,6 +4017,9 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 var (
+	// These default restart policies needs to be in sync with
+	// Canonicalize in api/tasks.go
+
 	DefaultServiceJobRestartPolicy = RestartPolicy{
 		Delay:    15 * time.Second,
 		Attempts: 2,
@@ -4032,6 +4035,9 @@ var (
 )
 
 var (
+	// These default reschedule policies needs to be in sync with
+	// NewDefaultReschedulePolicy in api/tasks.go
+
 	DefaultServiceJobReschedulePolicy = ReschedulePolicy{
 		Delay:         30 * time.Second,
 		DelayFunction: "exponential",

@@ -227,3 +227,4 @@ with matching paths, and orders the list of file sums accordingly [3].
 
 Joffrey F (shin-) and Guillaume J. Charmes (creack) on the initial work of the
 TarSum calculation.
+

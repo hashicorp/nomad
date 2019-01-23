@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -196,7 +197,19 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
+		if len(nodes) != 1 {
+			return false, fmt.Errorf("should have 1 client. found %d", len(nodes))
+		}
+		req := &structs.NodeSpecificRequest{
+			NodeID:       c.NodeID(),
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		resp := structs.SingleNodeResponse{}
+		if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp); err != nil {
+			return false, err
+		}
+		return resp.Node != nil && resp.Node.Status == structs.NodeStatusReady, fmt.Errorf(
+			"expected ready but found %s", pretty.Sprint(resp.Node))
 	}, func(err error) {
 		t.Fatalf("should have a clients")
 	})
@@ -442,7 +455,19 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	}
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
+		if len(nodes) != 1 {
+			return false, fmt.Errorf("should have 1 client. found %d", len(nodes))
+		}
+		req := &structs.NodeSpecificRequest{
+			NodeID:       c.NodeID(),
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		resp := structs.SingleNodeResponse{}
+		if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp); err != nil {
+			return false, err
+		}
+		return resp.Node != nil && resp.Node.Status == structs.NodeStatusReady, fmt.Errorf(
+			"expected ready but found %s", pretty.Sprint(resp.Node))
 	}, func(err error) {
 		t.Fatalf("should have a clients")
 	})

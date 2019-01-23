@@ -1,14 +1,15 @@
-package api
+package agent
 
 import (
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
-func MockJob() *Job {
-	job := &Job{
+func MockJob() *api.Job {
+	job := &api.Job{
 		Region:      helper.StringToPtr("global"),
 		ID:          helper.StringToPtr(uuid.Generate()),
 		Name:        helper.StringToPtr("my-job"),
@@ -16,27 +17,27 @@ func MockJob() *Job {
 		Priority:    helper.IntToPtr(50),
 		AllAtOnce:   helper.BoolToPtr(false),
 		Datacenters: []string{"dc1"},
-		Constraints: []*Constraint{
+		Constraints: []*api.Constraint{
 			{
 				LTarget: "${attr.kernel.name}",
 				RTarget: "linux",
 				Operand: "=",
 			},
 		},
-		TaskGroups: []*TaskGroup{
+		TaskGroups: []*api.TaskGroup{
 			{
 				Name:  helper.StringToPtr("web"),
 				Count: helper.IntToPtr(10),
-				EphemeralDisk: &EphemeralDisk{
+				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB: helper.IntToPtr(150),
 				},
-				RestartPolicy: &RestartPolicy{
+				RestartPolicy: &api.RestartPolicy{
 					Attempts: helper.IntToPtr(3),
 					Interval: helper.TimeToPtr(10 * time.Minute),
 					Delay:    helper.TimeToPtr(1 * time.Minute),
 					Mode:     helper.StringToPtr("delay"),
 				},
-				Tasks: []*Task{
+				Tasks: []*api.Task{
 					{
 						Name:   "web",
 						Driver: "exec",
@@ -46,12 +47,12 @@ func MockJob() *Job {
 						Env: map[string]string{
 							"FOO": "bar",
 						},
-						Services: []*Service{
+						Services: []*api.Service{
 							{
 								Name:      "${TASK}-frontend",
 								PortLabel: "http",
 								Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
-								Checks: []ServiceCheck{
+								Checks: []api.ServiceCheck{
 									{
 										Name:     "check-table",
 										Type:     "script",
@@ -67,14 +68,14 @@ func MockJob() *Job {
 								PortLabel: "admin",
 							},
 						},
-						LogConfig: DefaultLogConfig(),
-						Resources: &Resources{
+						LogConfig: api.DefaultLogConfig(),
+						Resources: &api.Resources{
 							CPU:      helper.IntToPtr(500),
 							MemoryMB: helper.IntToPtr(256),
-							Networks: []*NetworkResource{
+							Networks: []*api.NetworkResource{
 								{
 									MBits:        helper.IntToPtr(50),
-									DynamicPorts: []Port{{Label: "http"}, {Label: "admin"}},
+									DynamicPorts: []api.Port{{Label: "http"}, {Label: "admin"}},
 								},
 							},
 						},
@@ -98,10 +99,10 @@ func MockJob() *Job {
 	return job
 }
 
-func MockPeriodicJob() *Job {
+func MockPeriodicJob() *api.Job {
 	j := MockJob()
 	j.Type = helper.StringToPtr("batch")
-	j.Periodic = &PeriodicConfig{
+	j.Periodic = &api.PeriodicConfig{
 		Enabled:  helper.BoolToPtr(true),
 		SpecType: helper.StringToPtr("cron"),
 		Spec:     helper.StringToPtr("*/30 * * * *"),

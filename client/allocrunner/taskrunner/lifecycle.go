@@ -22,8 +22,8 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	// Emit the event since it may take a long time to kill
 	tr.EmitEvent(event)
 
-	// Run the hooks prior to restarting the task
-	tr.killing()
+	// Run the pre-kill hooks prior to restarting the task
+	tr.preKill()
 
 	// Tell the restart tracker that a restart triggered the exit
 	tr.restartTracker.SetRestartTriggered(failure)

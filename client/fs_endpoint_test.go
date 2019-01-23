@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -890,7 +891,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"start_block_for": "4s",
+		"start_block_for": "10s",
 	}
 
 	// Register job
@@ -915,6 +916,12 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 		}
 
 		allocID = resp.Allocations[0].ID
+
+		// wait for alloc runner to be created; otherwise, we get no alloc found error
+		if _, err := c.getAllocRunner(allocID); err != nil {
+			return false, fmt.Errorf("alloc runner was not created yet for %v", allocID)
+		}
+
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("error getting alloc id: %v", err)
@@ -1523,7 +1530,11 @@ func TestFS_streamFile_NoFile(t *testing.T) {
 	err := c.endpoints.FileSystem.streamFile(
 		context.Background(), 0, "foo", 0, ad, framer, nil)
 	require.NotNil(err)
-	require.Contains(err.Error(), "no such file")
+	if runtime.GOOS == "windows" {
+		require.Contains(err.Error(), "cannot find the file")
+	} else {
+		require.Contains(err.Error(), "no such file")
+	}
 }
 
 func TestFS_streamFile_Modify(t *testing.T) {
@@ -1701,6 +1712,9 @@ func TestFS_streamFile_Truncate(t *testing.T) {
 }
 
 func TestFS_streamImpl_Delete(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not allow us to delete a file while it is open")
+	}
 	t.Parallel()
 
 	c, cleanup := TestClient(t, nil)
@@ -1725,7 +1739,11 @@ func TestFS_streamImpl_Delete(t *testing.T) {
 	frames := make(chan *sframer.StreamFrame, 4)
 	go func() {
 		for {
-			frame := <-frames
+			frame, ok := <-frames
+			if !ok {
+				return
+			}
+
 			if frame.IsHeartbeat() {
 				continue
 			}

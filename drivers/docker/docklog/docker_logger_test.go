@@ -3,6 +3,7 @@ package docklog
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"testing"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -13,22 +14,34 @@ import (
 	"golang.org/x/net/context"
 )
 
+func testContainerDetails() (image string, imageName string, imageTag string) {
+	if runtime.GOOS == "windows" {
+		return "dantoml/busybox-windows:08012019",
+			"dantoml/busybox-windows",
+			"08012019"
+	}
+
+	return "busybox:1", "busybox", "1"
+}
+
 func TestDockerLogger(t *testing.T) {
 	ctu.DockerCompatible(t)
 
 	t.Parallel()
 	require := require.New(t)
 
+	containerImage, containerImageName, containerImageTag := testContainerDetails()
+
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
 		t.Skip("docker unavailable:", err)
 	}
 
-	if img, err := client.InspectImage("busybox:1"); err != nil || img == nil {
+	if img, err := client.InspectImage(containerImage); err != nil || img == nil {
 		t.Log("image not found locally, downloading...")
 		err = client.PullImage(docker.PullImageOptions{
-			Repository: "busybox",
-			Tag:        "1",
+			Repository: containerImageName,
+			Tag:        containerImageTag,
 		}, docker.AuthConfiguration{})
 		if err != nil {
 			t.Fatalf("failed to pull image: %v", err)
@@ -38,9 +51,9 @@ func TestDockerLogger(t *testing.T) {
 	containerConf := docker.CreateContainerOptions{
 		Config: &docker.Config{
 			Cmd: []string{
-				"/bin/sh", "-c", "touch /tmp/docklog; tail -f /tmp/docklog",
+				"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
 			},
-			Image: "busybox:1",
+			Image: containerImage,
 		},
 		Context: context.Background(),
 	}
@@ -98,8 +111,8 @@ func echoToContainer(t *testing.T, client *docker.Client, id string, line string
 	op := docker.CreateExecOptions{
 		Container: id,
 		Cmd: []string{
-			"/bin/ash", "-c",
-			fmt.Sprintf("echo %s >>/tmp/docklog", line),
+			"ash", "-c",
+			fmt.Sprintf("echo %s >>~/docklog", line),
 		},
 	}
 

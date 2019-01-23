@@ -454,6 +454,9 @@ func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
 		case "Cache":
 			memory.Cache = ru.MemoryStats.Cache
 			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_CACHE)
+		case "Usage":
+			memory.Usage = ru.MemoryStats.Usage
+			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_USAGE)
 		case "Max Usage":
 			memory.MaxUsage = ru.MemoryStats.MaxUsage
 			memory.MeasuredFields = append(memory.MeasuredFields, proto.MemoryUsage_MAX_USAGE)
@@ -509,6 +512,9 @@ func resourceUsageFromProto(pb *proto.TaskResourceUsage) *ResourceUsage {
 			case proto.MemoryUsage_CACHE:
 				memory.Cache = pb.Memory.Cache
 				memory.Measured = append(memory.Measured, "Cache")
+			case proto.MemoryUsage_USAGE:
+				memory.Usage = pb.Memory.Usage
+				memory.Measured = append(memory.Measured, "Usage")
 			case proto.MemoryUsage_MAX_USAGE:
 				memory.MaxUsage = pb.Memory.MaxUsage
 				memory.Measured = append(memory.Measured, "Max Usage")

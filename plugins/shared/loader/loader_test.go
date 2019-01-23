@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -55,8 +56,12 @@ func newHarness(t *testing.T, plugins []string) *harness {
 		t.Fatalf("failed to get self executable path: %v", err)
 	}
 
+	exeSuffix := ""
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
 	for _, p := range plugins {
-		dest := filepath.Join(h.tmpDir, p)
+		dest := filepath.Join(h.tmpDir, p) + exeSuffix
 		if err := copyFile(selfExe, dest); err != nil {
 			t.Fatalf("failed to copy file: %v", err)
 		}
@@ -366,7 +371,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	// Create two plugins
+	// Create a plugin
 	plugins := []string{"mock-device"}
 	pluginVersions := []string{"v0.0.1"}
 	h := newHarness(t, plugins)
@@ -1217,6 +1222,9 @@ func TestPluginLoader_Bad_Executable(t *testing.T) {
 
 // Test that we skip directories, non-executables and follow symlinks
 func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows currently does not skip non exe files")
+	}
 	t.Parallel()
 	require := require.New(t)
 
