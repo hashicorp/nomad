@@ -21,7 +21,7 @@ The [affinity][affinity-stanza] stanza allows operators to express placement pre
 
 ## Challenge
 
-Think of a scenario where a Nomad operator needs the flexibility to express placement preferences for a critical job but still have the scheduler run the job on the most appropriate nodes anywhere if the desired resources are not available.
+Your application can run in datacenters `dc1` and `dc2`, but you have a strong preference to run it in `dc2`. Configure your job to tell the scheduler your preference while still allowing it to place your workload in `dc1` if the desired resources aren't available.
 
 ## Solution
 
