@@ -13,14 +13,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -66,11 +63,12 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	d := NewDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
-	task := basicTask(t, "demo-app", map[string]interface{}{
-		"jar_path":    "demoapp.jar",
-		"args":        []string{"1"},
-		"jvm_options": []string{"-Xmx64m", "-Xms32m"},
-	})
+	tc := &TaskConfig{
+		JarPath: "demoapp.jar",
+		Args:    []string{"1"},
+		JvmOpts: []string{"-Xmx64m", "-Xms32m"},
+	}
+	task := basicTask(t, "demo-app", tc)
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -105,11 +103,12 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	d := NewDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
-	task := basicTask(t, "demo-app", map[string]interface{}{
-		"jar_path":    "demoapp.jar",
-		"args":        []string{"600"},
-		"jvm_options": []string{"-Xmx64m", "-Xms32m"},
-	})
+	tc := &TaskConfig{
+		JarPath: "demoapp.jar",
+		Args:    []string{"600"},
+		JvmOpts: []string{"-Xmx64m", "-Xms32m"},
+	}
+	task := basicTask(t, "demo-app", tc)
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -165,10 +164,11 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	d := NewDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
-	task := basicTask(t, "demo-app", map[string]interface{}{
-		"class": "Hello",
-		"args":  []string{"1"},
-	})
+	tc := &TaskConfig{
+		Class: "Hello",
+		Args:  []string{"1"},
+	}
+	task := basicTask(t, "demo-app", tc)
 
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
@@ -242,7 +242,7 @@ func TestJavaCmdArgs(t *testing.T) {
 	}
 }
 
-func basicTask(t *testing.T, name string, taskConfig map[string]interface{}) *drivers.TaskConfig {
+func basicTask(t *testing.T, name string, taskConfig *TaskConfig) *drivers.TaskConfig {
 	t.Helper()
 
 	task := &drivers.TaskConfig{
@@ -264,23 +264,8 @@ func basicTask(t *testing.T, name string, taskConfig map[string]interface{}) *dr
 		},
 	}
 
-	encodeDriverHelper(t, task, taskConfig)
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 	return task
-}
-
-func encodeDriverHelper(t *testing.T, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
-	t.Helper()
-
-	evalCtx := &hcl.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
-	require.False(t, diag.HasErrors())
-	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
-	require.Empty(t, diag.Errs())
-	err := task.EncodeDriverConfig(taskConfigCtyVal)
-	require.Nil(t, err)
-
 }
 
 // copyFile moves an existing file to the destination

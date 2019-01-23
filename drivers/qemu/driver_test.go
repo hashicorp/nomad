@@ -9,15 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -57,17 +54,17 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image_path":        "linux-0.2.img",
-		"accelerator":       "tcg",
-		"graceful_shutdown": false,
-		"port_map": []map[string]int{{
+	tc := &TaskConfig{
+		ImagePath:        "linux-0.2.img",
+		Accelerator:      "tcg",
+		GracefulShutdown: false,
+		PortMap: map[string]int{
 			"main": 22,
 			"web":  8080,
-		}},
-		"args": []string{"-nodefconfig", "-nodefaults"},
+		},
+		Args: []string{"-nodefconfig", "-nodefaults"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
@@ -199,19 +196,6 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	require.Nil(err)
 }
 
-//encodeDriverhelper sets up the task config spec and encodes qemu specific driver configuration
-func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
-	evalCtx := &hcl.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
-	require.False(diag.HasErrors(), diag.Error())
-	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
-	require.False(diag.HasErrors(), diag.Error())
-	err := task.EncodeDriverConfig(taskConfigCtyVal)
-	require.Nil(err)
-}
-
 // copyFile moves an existing file to the destination
 func copyFile(src, dst string, t *testing.T) {
 	in, err := os.Open(src)
@@ -268,17 +252,17 @@ func TestQemuDriver_User(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image_path":        "linux-0.2.img",
-		"accelerator":       "tcg",
-		"graceful_shutdown": false,
-		"port_map": map[string]int{
+	tc := &TaskConfig{
+		ImagePath:        "linux-0.2.img",
+		Accelerator:      "tcg",
+		GracefulShutdown: false,
+		PortMap: map[string]int{
 			"main": 22,
 			"web":  8080,
 		},
-		"args": []string{"-nodefconfig", "-nodefaults"},
+		Args: []string{"-nodefconfig", "-nodefaults"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
@@ -324,17 +308,17 @@ func TestQemuDriver_Stats(t *testing.T) {
 		},
 	}
 
-	taskConfig := map[string]interface{}{
-		"image_path":        "linux-0.2.img",
-		"accelerator":       "tcg",
-		"graceful_shutdown": false,
-		"port_map": []map[string]int{{
+	tc := &TaskConfig{
+		ImagePath:        "linux-0.2.img",
+		Accelerator:      "tcg",
+		GracefulShutdown: false,
+		PortMap: map[string]int{
 			"main": 22,
 			"web":  8080,
-		}},
-		"args": []string{"-nodefconfig", "-nodefaults"},
+		},
+		Args: []string{"-nodefconfig", "-nodefaults"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 

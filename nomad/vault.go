@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gopkg.in/tomb.v2"
+	tomb "gopkg.in/tomb.v2"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"

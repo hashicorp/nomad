@@ -9,7 +9,7 @@ import (
 	"reflect"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"

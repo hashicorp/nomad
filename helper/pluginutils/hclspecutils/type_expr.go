@@ -1,4 +1,4 @@
-package hclspec
+package hclspecutils
 
 import (
 	"fmt"

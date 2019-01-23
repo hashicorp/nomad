@@ -11,10 +11,10 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	version "github.com/hashicorp/go-version"
 	hcl2 "github.com/hashicorp/hcl2/hcl"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
@@ -453,7 +453,7 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	}
 
 	// Convert the schema to hcl
-	spec, diag := hclspec.Convert(info.configSchema)
+	spec, diag := hclspecutils.Convert(info.configSchema)
 	if diag.HasErrors() {
 		multierror.Append(&mErr, diag.Errs()...)
 		return multierror.Prefix(&mErr, "failed converting config schema:")
