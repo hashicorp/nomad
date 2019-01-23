@@ -155,10 +155,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	nodeNameHeaderStr := "Node Name"
 	nodeNameHeaderIndex := strings.Index(allocationsTableStr, nodeNameHeaderStr)
 	nodeNameRegexpStr := fmt.Sprintf(`.*%s.*\n.{%d}%s`, nodeNameHeaderStr, nodeNameHeaderIndex, regexp.QuoteMeta(nodeName))
-	nodeNameRegexp := regexp.MustCompile(nodeNameRegexpStr)
-	if !nodeNameRegexp.MatchString(out) {
-		t.Fatalf("expected to have 'Node Name' but saw: %s", out)
-	}
+	require.Regexp(t, regexp.MustCompile(nodeNameRegexpStr), out)
 
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
