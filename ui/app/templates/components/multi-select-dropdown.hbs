@@ -28,6 +28,8 @@
             {{option.label}}
           </label>
         </li>
+      {{else}}
+        <em data-test-dropdown-empty class="dropdown-empty">No options</em>
       {{/each}}
     </ul>
   {{/dd.content}}

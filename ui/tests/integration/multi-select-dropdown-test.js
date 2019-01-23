@@ -297,3 +297,15 @@ test('pressing ESC when the options list is open closes the list and returns foc
     'The trigger has focus'
   );
 });
+
+test('when there are no list options, an empty message is shown', function(assert) {
+  const props = commonProperties();
+  props.options = [];
+  this.setProperties(props);
+  this.render(commonTemplate);
+
+  click('[data-test-dropdown-trigger]');
+  assert.ok(find('[data-test-dropdown-options]'), 'The dropdown is still shown');
+  assert.ok(find('[data-test-dropdown-empty]'), 'The empty state is shown');
+  assert.notOk(find('[data-test-dropdown-option]'), 'No options are shown');
+});
