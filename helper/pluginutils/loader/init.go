@@ -11,10 +11,10 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	version "github.com/hashicorp/go-version"
 	hcl2 "github.com/hashicorp/hcl2/hcl"
-	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
