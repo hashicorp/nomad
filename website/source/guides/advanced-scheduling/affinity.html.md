@@ -25,9 +25,7 @@ Your application can run in datacenters `dc1` and `dc2`, but you have a strong p
 
 ## Solution
 
-Specify an affinity with the proper [weight][weight] so that the Nomad scheduler
-can find the best nodes on which to place your job. The weight of the affinity
-will be factored in with the results of the Nomad scheduler's bin packing algorithm (which is used to optimize the resource utilization and density of applications) to find the best fit.
+Specify an affinity with the proper [weight][weight] so that the Nomad scheduler can find the best nodes on which to place your job. The affinity weight will be included when scoring nodes for placement along with other factors like the bin packing algorithm.
 
 ## Prerequisites
 
