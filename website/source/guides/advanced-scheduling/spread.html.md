@@ -23,7 +23,7 @@ The [spread stanza][spread-stanza] solves this problem by allowing operators to 
 
 ## Challenge
 
-Consider a Nomad application that needs to be deployed to multiple datacenters within a region. Datacenter `dc1` has four nodes while `dc2` has one node. This application has 10 instances and 7 of them must be deployed to `dc1` since it receives more user traffic. The remaining 3 allocations can be deployed to `dc2`. 
+Consider a Nomad application that needs to be deployed to multiple datacenters within a region. Datacenter `dc1` has four nodes while `dc2` has one node. This application has 10 instances and 7 of them must be deployed to `dc1` since it receives more user traffic and we need to make sure the application doesn't suffer downtime due to not enough running instances to process requests. The remaining 3 allocations can be deployed to `dc2`.
 
 ## Solution
 
