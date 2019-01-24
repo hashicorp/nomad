@@ -23,21 +23,16 @@ The [spread stanza][spread-stanza] solves this problem by allowing operators to 
 
 ## Challenge
 
-Think of a scenario where a Nomad operator needs to increase the fault tolerance
-of a job that is deployed across different datacenters (we will be using `dc1` and `dc2` in our example). We want to make sure that the workload is not too heavily distributed in either datacenter in case one of them goes down.
+Consider a Nomad application that needs to be deployed to multiple datacenters within a region. Datacenter `dc1` has four nodes while `dc2` has one node. This application has 10 instances and 7 of them must be deployed to `dc1` since it receives more user traffic. The remaining 3 allocations can be deployed to `dc2`. 
 
 ## Solution
 
-Use the `spread` stanza in the Nomad [job specification][job-specification] to ensure the workload is being appropriately distributed between datacenters. The Nomad operator can use the `percent` option with a `target` to customize the spread.
-
+Use the `spread` stanza in the Nomad [job specification][job-specification] to ensure the 70% of the workload is being placed in datacenter `dc1` and 30% is being placed in `dc2`. The Nomad operator can use the [percent][percent] option with a [target][target] to customize the spread.
 
 ## Prerequisites
 
 To perform the tasks described in this guide, you need to have a Nomad
-environment with Consul installed. You can use this
-[repo](https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud)
-to easily provision a sandbox environment. This guide will assume a cluster with
-one server node and three client nodes.
+environment with Consul installed. You can use this [repo](https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud) to easily provision a sandbox environment. This guide will assume a cluster with one server node and five client nodes.
 
 -> **Please Note:** This guide is for demo purposes and is only using a single
 server
@@ -70,9 +65,11 @@ If everything worked correctly, you should be able to run the `nomad` [node stat
 ```shell
 $ nomad node status
 ID        DC   Name              Class   Drain  Eligibility  Status
-1da3ff62  dc1  ip-172-31-25-111  <none>  false  eligible     ready
-d1bbffa2  dc1  ip-172-31-21-89   <none>  false  eligible     ready
-98f4562c  dc2  ip-172-31-27-204  <none>  false  eligible     ready
+5d16d949  dc2  ip-172-31-62-240  <none>  false  eligible     ready
+7b381152  dc1  ip-172-31-59-115  <none>  false  eligible     ready
+10cc48cc  dc1  ip-172-31-58-46   <none>  false  eligible     ready
+93f1e628  dc1  ip-172-31-58-113  <none>  false  eligible     ready
+12894b80  dc1  ip-172-31-62-90   <none>  false  eligible     ready
 ```
 
 ### Step 2: Create a Job with the `spread` Stanza
@@ -88,10 +85,10 @@ job "redis" {
    attribute = "${node.datacenter}"
    weight = 100
    target "dc1" {
-     percent = 80
+     percent = 70
    }
    target "dc2" {
-     percent = 20
+     percent = 30
    }
  }
 
@@ -129,7 +126,7 @@ job "redis" {
 }
 ```
 Note that we used the `spread` stanza and specified the [datacenter][attributes]
-attribute while targeting `dc1` and `dc2` with the percent options. This will tell the Nomad scheduler to make an attempt to distribute 80% of the workload on `dc1` and 20% of the workload on `dc2`.
+attribute while targeting `dc1` and `dc2` with the percent options. This will tell the Nomad scheduler to make an attempt to distribute 70% of the workload on `dc1` and 30% of the workload on `dc2`.
 
 ### Step 3: Register the Job `redis.nomad`
 
@@ -137,22 +134,22 @@ Run the Nomad job with the following command:
 
 ```shell
 $ nomad run redis.nomad
-==> Monitoring evaluation "54af824f"
+==> Monitoring evaluation "c3dc5ebd"
     Evaluation triggered by job "redis"
-    Allocation "0771e2fe" created: node "98f4562c", group "cache1"
-    Allocation "14d1cf3b" created: node "98f4562c", group "cache1"
-    Allocation "4a7fd9c3" created: node "d1bbffa2", group "cache1"
-    Allocation "61fb2327" created: node "d1bbffa2", group "cache1"
-    Allocation "ce6af8da" created: node "1da3ff62", group "cache1"
-    Allocation "1347cf2b" created: node "1da3ff62", group "cache1"
-    Allocation "3faf4c77" created: node "1da3ff62", group "cache1"
-    Allocation "5b8fd14f" created: node "d1bbffa2", group "cache1"
-    Allocation "8345ac3c" created: node "1da3ff62", group "cache1"
-    Allocation "9c040376" created: node "d1bbffa2", group "cache1"
+    Allocation "7a374183" created: node "5d16d949", group "cache1"
+    Allocation "f4361df1" created: node "7b381152", group "cache1"
+    Allocation "f7af42dc" created: node "5d16d949", group "cache1"
+    Allocation "0638edf2" created: node "10cc48cc", group "cache1"
+    Allocation "49bc6038" created: node "12894b80", group "cache1"
+    Allocation "c7e5679a" created: node "5d16d949", group "cache1"
+    Allocation "cf91bf65" created: node "7b381152", group "cache1"
+    Allocation "d16b606c" created: node "12894b80", group "cache1"
+    Allocation "27866df0" created: node "93f1e628", group "cache1"
+    Allocation "8531a6fc" created: node "7b381152", group "cache1"
     Evaluation status changed: "pending" -> "complete"
 ```
 
-Note that two of the ten allocations have been placed on node `98f4562c`. This is the node we configured to be in datacenter `dc2`. The Nomad scheduler has distributed 20% of the workload to `dc2` as we specified in the `spread` stanza.
+Note that three of the ten allocations have been placed on node `5d16d949`. This is the node we configured to be in datacenter `dc2`. The Nomad scheduler has distributed 30% of the workload to `dc2` as we specified in the `spread` stanza.
 
 Keep in mind that the Nomad scheduler still factors in other components into the overall scoring of nodes when making placements, so you should not expect the spread stanza to strictly implement your distribution preferences like a [constraint][constraint-stanza]. We will take a detailed look at the scoring in the next few steps.
 
@@ -174,21 +171,21 @@ cache1      0       0         10       0       0         0
 
 Allocations
 ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
-0771e2fe  98f4562c  cache1      0        run      running  3m41s ago  3m26s ago
-1347cf2b  1da3ff62  cache1      0        run      running  3m41s ago  3m16s ago
-14d1cf3b  98f4562c  cache1      0        run      running  3m41s ago  3m16s ago
-3faf4c77  1da3ff62  cache1      0        run      running  3m41s ago  3m25s ago
-4a7fd9c3  d1bbffa2  cache1      0        run      running  3m41s ago  3m18s ago
-5b8fd14f  d1bbffa2  cache1      0        run      running  3m41s ago  3m19s ago
-61fb2327  d1bbffa2  cache1      0        run      running  3m41s ago  3m16s ago
-8345ac3c  1da3ff62  cache1      0        run      running  3m41s ago  3m26s ago
-9c040376  d1bbffa2  cache1      0        run      running  3m41s ago  3m23s ago
-ce6af8da  1da3ff62  cache1      0        run      running  3m41s ago  3m23s ago
+0638edf2  10cc48cc  cache1      0        run      running  2m20s ago  2m ago
+27866df0  93f1e628  cache1      0        run      running  2m20s ago  1m57s ago
+49bc6038  12894b80  cache1      0        run      running  2m20s ago  1m58s ago
+7a374183  5d16d949  cache1      0        run      running  2m20s ago  2m1s ago
+8531a6fc  7b381152  cache1      0        run      running  2m20s ago  2m2s ago
+c7e5679a  5d16d949  cache1      0        run      running  2m20s ago  1m55s ago
+cf91bf65  7b381152  cache1      0        run      running  2m20s ago  1m57s ago
+d16b606c  12894b80  cache1      0        run      running  2m20s ago  2m1s ago
+f4361df1  7b381152  cache1      0        run      running  2m20s ago  2m3s ago
+f7af42dc  5d16d949  cache1      0        run      running  2m20s ago  1m54s ago
 ```
 
 As stated earlier, you can cross-check this output with the results of the
-`nomad node status` command to verify that 20% of your workload has
-been placed on the node in `dc2` (in our case, that node is `98f4562c`).
+`nomad node status` command to verify that 30% of your workload has
+been placed on the node in `dc2` (in our case, that node is `5d16d949`).
 
 ### Step 5: Obtain Detailed Scoring Information on Job Placement
 
@@ -197,20 +194,22 @@ workload in the way you have specified in the `spread` stanza even if the
 resources are available. This is because spread scoring is factored in with
 other metrics as well before making a scheduling decision. In this step, we will take a look at some of those other factors.
 
-Using the output from the previous step, take any allocation that has been placed on a node and use the nomad [alloc status][alloc status] command with the [verbose][verbose] option to obtain detailed scoring information on it. In this example, we will use the allocation ID `0771e2fe` (your allocation IDs will be different).
+Using the output from the previous step, take any allocation that has been placed on a node and use the nomad [alloc status][alloc status] command with the [verbose][verbose] option to obtain detailed scoring information on it. In this example, we will use the allocation ID `0638edf2` (your allocation IDs will be different).
 
 ```shell
-$ nomad alloc status -verbose 0771e2fe
+$ nomad alloc status -verbose 0638edf2 
 ``` 
 The resulting output will show the `Placement Metrics` section at the bottom.
 
 ```shell
 ...
 Placement Metrics
-Node                                  binpack  job-anti-affinity  node-reschedule-penalty  node-affinity  allocation-spread  final score
-98f4562c-c6b7-ec1e-89b3-b583ffbac94b  0.116    0                  0                        0              0.5                0.308
-1da3ff62-8e37-3fef-77d6-ca81b4eb44b4  0.217    -0.2               0                        0              0.625              0.214
-d1bbffa2-19c8-9f4a-9682-eb15f5e48f4e  0.217    -0.2               0                        0              0.625              0.214
+Node                                  node-affinity  allocation-spread  binpack  job-anti-affinity  node-reschedule-penalty  final score
+10cc48cc-2913-af54-74d5-d7559f373ff2  0              0.429              0.33     0                  0                        0.379
+93f1e628-e509-b1ab-05b7-0944056f781d  0              0.429              0.515    -0.2               0                        0.248
+12894b80-4943-4d5c-5716-c626c6b99be3  0              0.429              0.515    -0.2               0                        0.248
+7b381152-3802-258b-4155-6d7dfb344dd4  0              0.429              0.515    -0.2               0                        0.248
+5d16d949-85aa-3fd3-b5f4-51094cbeb77a  0              0.333              0.515    -0.2               0                        0.216
 ```
 
 Note that the results from the `allocation-spread`, `binpack`, `job-anti-affinity`, `node-reschedule-penalty`, and `node-affinity` columns are combined to produce the numbers listed in the `final score` column for each node. The Nomad scheduler uses the final score for each node in deciding where to make placements.
@@ -219,12 +218,14 @@ Note that the results from the `allocation-spread`, `binpack`, `job-anti-affinit
 
 Change the values of the `percent` options on your targets in the `spread` stanza and observe how the placement behavior along with the final score given to each node changes (use the `nomad alloc status` command as shown in the previous step).
 
-[alloc status]: /docs/commands/alloc/status.htm
+[alloc status]: /docs/commands/alloc/status.ht
 [attributes]: /docs/runtime/interpolation.html#node-variables-
 [client-metadata]: /docs/configuration/client.html#meta
 [constraint-stanza]: /docs/job-specification/constraint.html
 [job-specification]: /docs/job-specification/index.html
 [node-status]: /docs/commands/node/status.html
+[percent]: /docs/job-specification/spread.html#percent
 [spread-stanza]: /docs/job-specification/spread.html
 [scheduling]: /docs/internals/scheduling.html
+[target]: /docs/job-specification/spread.html#target
 [verbose]: /docs/commands/alloc/status.html#verbose
