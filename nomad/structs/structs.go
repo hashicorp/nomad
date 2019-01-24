@@ -3419,6 +3419,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		ID:                j.ID,
 		ParentID:          j.ParentID,
 		Name:              j.Name,
+		Datacenters:       j.Datacenters,
 		Type:              j.Type,
 		Priority:          j.Priority,
 		Periodic:          j.IsPeriodic(),
@@ -3561,6 +3562,7 @@ type JobListStub struct {
 	ID                string
 	ParentID          string
 	Name              string
+	Datacenters       []string
 	Type              string
 	Priority          int
 	Periodic          bool
