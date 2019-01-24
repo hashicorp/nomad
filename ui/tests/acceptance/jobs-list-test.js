@@ -166,3 +166,262 @@ test('when accessing jobs is forbidden, show a message with a link to the tokens
 function typeForJob(job) {
   return job.periodic ? 'periodic' : job.parameterized ? 'parameterized' : job.type;
 }
+
+test('the jobs list page has appropriate faceted search options', function(assert) {
+  JobsList.visit();
+
+  andThen(() => {
+    assert.ok(JobsList.facets.type.isPresent, 'Type facet found');
+    assert.ok(JobsList.facets.status.isPresent, 'Status facet found');
+    assert.ok(JobsList.facets.datacenter.isPresent, 'Datacenter facet found');
+    assert.ok(JobsList.facets.prefix.isPresent, 'Prefix facet found');
+  });
+});
+
+testFacet('Type', {
+  facet: JobsList.facets.type,
+  paramName: 'type',
+  expectedOptions: ['Batch', 'Parameterized', 'Periodic', 'Service', 'System'],
+  beforeEach() {
+    server.createList('job', 2, { createAllocations: false, type: 'batch' });
+    server.createList('job', 2, {
+      createAllocations: false,
+      type: 'batch',
+      periodic: true,
+      childrenCount: 0,
+    });
+    server.createList('job', 2, {
+      createAllocations: false,
+      type: 'batch',
+      parameterized: true,
+      childrenCount: 0,
+    });
+    server.createList('job', 2, { createAllocations: false, type: 'service' });
+    JobsList.visit();
+  },
+  filter(job, selection) {
+    let displayType = job.type;
+    if (job.parameterized) displayType = 'parameterized';
+    if (job.periodic) displayType = 'periodic';
+    return selection.includes(displayType);
+  },
+});
+
+testFacet('Status', {
+  facet: JobsList.facets.status,
+  paramName: 'status',
+  expectedOptions: ['Pending', 'Running', 'Dead'],
+  beforeEach() {
+    server.createList('job', 2, { status: 'pending', createAllocations: false, childrenCount: 0 });
+    server.createList('job', 2, { status: 'running', createAllocations: false, childrenCount: 0 });
+    server.createList('job', 2, { status: 'dead', createAllocations: false, childrenCount: 0 });
+    JobsList.visit();
+  },
+  filter: (job, selection) => selection.includes(job.status),
+});
+
+testFacet('Datacenter', {
+  facet: JobsList.facets.datacenter,
+  paramName: 'dc',
+  expectedOptions(jobs) {
+    const allDatacenters = new Set(
+      jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), [])
+    );
+    return Array.from(allDatacenters).sort();
+  },
+  beforeEach() {
+    server.create('job', {
+      datacenters: ['pdx', 'lax'],
+      createAllocations: false,
+      childrenCount: 0,
+    });
+    server.create('job', {
+      datacenters: ['pdx', 'ord'],
+      createAllocations: false,
+      childrenCount: 0,
+    });
+    server.create('job', {
+      datacenters: ['lax', 'jfk'],
+      createAllocations: false,
+      childrenCount: 0,
+    });
+    server.create('job', {
+      datacenters: ['jfk', 'dfw'],
+      createAllocations: false,
+      childrenCount: 0,
+    });
+    server.create('job', { datacenters: ['pdx'], createAllocations: false, childrenCount: 0 });
+    JobsList.visit();
+  },
+  filter: (job, selection) => job.datacenters.find(dc => selection.includes(dc)),
+});
+
+testFacet('Prefix', {
+  facet: JobsList.facets.prefix,
+  paramName: 'prefix',
+  expectedOptions: ['hashi (3)', 'nmd (2)', 'pre (2)'],
+  beforeEach() {
+    [
+      'pre-one',
+      'hashi-one',
+      'nmd-one',
+      'one-alone',
+      'pre-two',
+      'hashi-two',
+      'hashi-three',
+      'nmd-two',
+      'noprefix',
+    ].forEach(name => {
+      server.create('job', { name, createAllocations: false, childrenCount: 0 });
+    });
+    JobsList.visit();
+  },
+  filter: (job, selection) => selection.find(prefix => job.name.startsWith(prefix)),
+});
+
+test('when the facet selections result in no matches, the empty state states why', function(assert) {
+  server.createList('job', 2, { status: 'pending', createAllocations: false, childrenCount: 0 });
+
+  JobsList.visit();
+
+  andThen(() => {
+    JobsList.facets.status.toggle();
+  });
+
+  andThen(() => {
+    JobsList.facets.status.options.objectAt(1).toggle();
+  });
+
+  andThen(() => {
+    assert.ok(JobsList.isEmpty, 'There is an empty message');
+    assert.equal(JobsList.emptyState.headline, 'No Matches', 'The message is appropriate');
+  });
+});
+
+test('the jobs list is immediately filtered based on query params', function(assert) {
+  server.create('job', { type: 'batch', createAllocations: false });
+  server.create('job', { type: 'service', createAllocations: false });
+
+  JobsList.visit({ type: JSON.stringify(['batch']) });
+
+  andThen(() => {
+    assert.equal(JobsList.jobs.length, 1, 'Only one job shown due to query param');
+  });
+});
+
+function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+  test(`the ${label} facet has the correct options`, function(assert) {
+    beforeEach();
+
+    andThen(() => {
+      facet.toggle();
+    });
+
+    andThen(() => {
+      let expectation;
+      if (typeof expectedOptions === 'function') {
+        expectation = expectedOptions(server.db.jobs);
+      } else {
+        expectation = expectedOptions;
+      }
+
+      assert.deepEqual(
+        facet.options.map(option => option.label.trim()),
+        expectation,
+        'Options for facet are as expected'
+      );
+    });
+  });
+
+  test(`the ${label} facet filters the jobs list by ${label}`, function(assert) {
+    let option;
+
+    beforeEach();
+
+    andThen(() => {
+      facet.toggle();
+    });
+
+    andThen(() => {
+      option = facet.options.objectAt(0);
+      option.toggle();
+    });
+
+    andThen(() => {
+      const selection = [option.key];
+      const expectedJobs = server.db.jobs
+        .filter(job => filter(job, selection))
+        .sortBy('modifyIndex')
+        .reverse();
+
+      JobsList.jobs.forEach((job, index) => {
+        assert.equal(
+          job.id,
+          expectedJobs[index].id,
+          `Job at ${index} is ${expectedJobs[index].id}`
+        );
+      });
+    });
+  });
+
+  test(`selecting multiple options in the ${label} facet results in a broader search`, function(assert) {
+    const selection = [];
+
+    beforeEach();
+
+    andThen(() => {
+      facet.toggle();
+    });
+
+    andThen(() => {
+      const option1 = facet.options.objectAt(0);
+      const option2 = facet.options.objectAt(1);
+      option1.toggle();
+      selection.push(option1.key);
+      option2.toggle();
+      selection.push(option2.key);
+    });
+
+    andThen(() => {
+      const expectedJobs = server.db.jobs
+        .filter(job => filter(job, selection))
+        .sortBy('modifyIndex')
+        .reverse();
+
+      JobsList.jobs.forEach((job, index) => {
+        assert.equal(
+          job.id,
+          expectedJobs[index].id,
+          `Job at ${index} is ${expectedJobs[index].id}`
+        );
+      });
+    });
+  });
+
+  test(`selecting options in the ${label} facet updates the ${paramName} query param`, function(assert) {
+    const selection = [];
+
+    beforeEach();
+
+    andThen(() => {
+      facet.toggle();
+    });
+
+    andThen(() => {
+      const option1 = facet.options.objectAt(0);
+      const option2 = facet.options.objectAt(1);
+      option1.toggle();
+      selection.push(option1.key);
+      option2.toggle();
+      selection.push(option2.key);
+    });
+
+    andThen(() => {
+      assert.equal(
+        currentURL(),
+        `/jobs?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
+        'URL has the correct query param key and value'
+      );
+    });
+  });
+}
