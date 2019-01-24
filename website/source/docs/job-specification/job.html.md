@@ -75,6 +75,15 @@ job "docs" {
   [Nomad constraint reference](/docs/job-specification/constraint.html) for more
   details.
 
+- `affinity` <code>([Affinity][affinity]: nil)</code> -
+    This can be provided multiple times to define preferred placement criteria. See the
+    [Nomad affinity reference](/docs/job-specification/affinity.html) for more
+    details.
+
+- `spread` <code>([Spread][spread]: nil)</code> - This can be provided multiple times
+  to define criteria for spreading allocations across a node attribute or metadata.
+  See the [Nomad spread reference](/docs/job-specification/spread.html) for more details.
+
 - `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
@@ -224,6 +233,8 @@ $ VAULT_TOKEN="..." nomad job run example.nomad
 ```
 
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
+[spread]: /docs/job-specification/spread.html "Nomad spread Job Specification"
 [group]: /docs/job-specification/group.html "Nomad group Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [migrate]: /docs/job-specification/migrate.html "Nomad migrate Job Specification"

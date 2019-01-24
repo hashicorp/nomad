@@ -35,6 +35,14 @@ job "docs" {
 - `constraint` <code>([Constraint][]: nil)</code> -
   This can be provided multiple times to define additional constraints.
 
+- `affinity` <code>([Affinity][]: nil)</code> - This can be provided
+    multiple times to define preferred placement criteria.
+
+- `spread` <code>([Spread][spread]: nil)</code> - This can be provided
+  multiple times to define criteria for spreading allocations across a
+  node attribute or metadata. See the
+  [Nomad spread reference](/docs/job-specification/spread.html) for more details.
+
 - `count` `(int: 1)` - Specifies the number of the task groups that should
   be running under this group. This value must be non-negative.
 
@@ -118,6 +126,8 @@ group "example" {
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[spread]: /docs/job-specification/spread.html "Nomad spread Job Specification"
+[affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk.html "Nomad ephemeral_disk Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [migrate]: /docs/job-specification/migrate.html "Nomad migrate Job Specification"
