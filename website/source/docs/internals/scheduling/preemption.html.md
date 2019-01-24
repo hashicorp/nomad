@@ -8,10 +8,9 @@ description: |-
 
 # Preemption
 
-Preemption refers to the temporary interruption of a computing task, “without requiring its cooperation,
-and with the intention of resuming the task at a later time.” Preemption capabilities exist in operating systems
-and application schedulers to enable higher priority tasks to displace lower priority tasks.
-
+Preemption allows Nomad to kill existing allocations in order to place allocations for a higher priority job.
+The evicted allocation is temporary displaced until the cluster has capacity to run it. This allows operators to
+run high priority jobs even under resource contention across the cluster.
 
 
 ~> **Advanced Topic!** This page covers technical details of Nomad. You do not
@@ -34,7 +33,7 @@ into the plan queue.
 
 # Details
 
-Preemption is enabled by default in Nomad 0.9. Operators can use the [scheduler config][/api/operator.html#update-scheduler-configuration] API endpoint to disable preemption.
+Preemption is enabled by default in Nomad 0.9. Operators can use the [scheduler config](/api/operator.html#update-scheduler-configuration) API endpoint to disable preemption.
 
 Nomad uses the [job priority](/docs/job-specification/job.html#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority
@@ -58,14 +57,14 @@ allocations `a1`, `a2` and `a4` to satisfy those requirements.
 
 # Preemption Visibility
 
-Operators can use the [allocation API](/api/allocations.html#read-allocation) to get visibility into whether an allocation has been preempted.
-Preempted allocations will have their DesiredStatus set to “evict”. The `Allocation` object in the API also has two additional fields related to
-preemption.
+Operators can use the [allocation API](/api/allocations.html#read-allocation) or the `alloc status` command to get visibility into
+whether an allocation has been preempted. Preempted allocations will have their DesiredStatus set to “evict”. The `Allocation` object
+in the API also has two additional fields related to preemption.
 
-- PreemptedAllocs - This field is set on an allocation that caused preemption. It contains the allocation ids of allocations
+- `PreemptedAllocs` - This field is set on an allocation that caused preemption. It contains the allocation ids of allocations
   that were preempted to place this allocation. In the above example, allocations created for the job `webapp` will have the values
   `a1`, `a2` and `a4` set.
-- PreemptedByAllocID - This field is set on allocations that were preempted by the scheduler. It contains the allocation ID of the allocation
+- `PreemptedByAllocID` - This field is set on allocations that were preempted by the scheduler. It contains the allocation ID of the allocation
   that preempted it. In the above example, allocations `a1`, `a2` and `a4` will have this field set to the ID of the allocation from the job `webapp`.
 
 # Integration with Nomad plan
@@ -76,7 +75,10 @@ preemption is necessary to place the job, it shows additional information in the
 
 ```sh
 $ nomad plan example.nomad
-…
+
++ Job: "test"
++ Task Group: "test" (1 create)
+  + Task: "test" (forces create)
 
 Scheduler dry-run:
 - All tasks successfully allocated.
@@ -85,9 +87,12 @@ Preemptions:
 
 Alloc ID                              Job ID    Task Group
 ddef9521                              my-batch   analytics
-
+ae59fe45                              my-batch   analytics
 ```
 
+Note that, the allocations shown in the `nomad plan` output above
+are not guaranteed to be the same ones picked when running the job later.
+They provide the operator a sample of the type of allocations that could be preempted.
 
 [Omega]: https://research.google.com/pubs/pub41684.html
 [Borg]: https://research.google.com/pubs/pub43438.html

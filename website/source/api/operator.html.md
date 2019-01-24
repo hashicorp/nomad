@@ -132,13 +132,12 @@ This endpoint retrieves its latest Autopilot configuration.
 | `GET`  | `/operator/autopilot/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required    |
-| ---------------- | ----------------- | --------------- |
-| `NO`             | `none`            | `operator:read` |
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
 
 ### Sample Request
 
@@ -175,13 +174,12 @@ This endpoint updates the Autopilot configuration of the cluster.
 | `PUT`  | `/operator/autopilot/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required     |
-| ---------------- | ----------------- | ---------------- |
-| `NO`             | `none`            | `operator:write` |
+| Blocking Queries | ACL Required     |
+| ---------------- | ---------------- |
+| `NO`             | `operator:write` |
 
 ### Parameters
 
@@ -240,13 +238,12 @@ This endpoint queries the health of the autopilot status.
 | `GET`  | `/operator/autopilot/health` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required    |
-| ---------------- | ----------------- | --------------- |
-| `NO`             | `none`            | `operator:read` |
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
 
 ### Sample Request
 
@@ -341,13 +338,12 @@ the future.
 | `GET`  | `/operator/scheduler/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required    |
-| ---------------- | ----------------- | --------------- |
-| `NO`             | `none`            | `operator:read` |
+| Blocking Queries |  ACL Required    |
+| ---------------- | ---------------  |
+| `NO`             | `operator:read`  |
 
 ### Sample Request
 
@@ -395,13 +391,12 @@ This endpoint updates the scheduler configuration of the cluster.
 | `PUT`, `POST`  | `/operator/scheduler/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required     |
-| ---------------- | ----------------- | ---------------- |
-| `NO`             | `none`            | `operator:write` |
+| Blocking Queries |  ACL Required     |
+| ---------------- | ----------------  |
+| `NO`             | `operator:write`  |
 
 ### Parameters
 
