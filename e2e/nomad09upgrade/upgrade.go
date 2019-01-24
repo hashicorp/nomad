@@ -3,7 +3,6 @@
 package nomad09upgrade
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -95,11 +94,8 @@ type UpgradePathTC struct {
 type nomadAgent struct {
 	bin     string
 	dataDir string
-	stdout  bytes.Buffer
-	stderr  bytes.Buffer
 	cmd     *exec.Cmd
 	vars    templateVars
-	killed  bool
 
 	targetCmd *exec.Cmd
 }
@@ -256,7 +252,6 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	// Wait for the agent to be ready
 	client, err := srv.Nomad()
 	require.NoError(err)
-	time.Sleep(time.Second * 5)
 	e2eutil.WaitForNodesReady(t, client, 1)
 
 	// Register a sleep job
@@ -267,7 +262,7 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	require.NoError(err)
 	require.Len(allocs, 1)
 
-	// Wait for sleep job to transistion to running
+	// Wait for sleep job to transition to running
 	id := allocs[0].ID
 	e2eutil.WaitForAllocRunning(t, client, id)
 
@@ -281,7 +276,6 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	// Wait for the agent to be ready
 	client, err = srv.Nomad()
 	require.NoError(err)
-	time.Sleep(time.Second * 5)
 	e2eutil.WaitForNodesReady(t, client, 1)
 
 	// Make sure the same allocation still exists

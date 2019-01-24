@@ -6,7 +6,7 @@ job "sleep" {
       driver = "docker"
 
       config {
-        image = "redis"
+        image = "redis:5.0"
       }
 
       resources {
