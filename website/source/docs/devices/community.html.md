@@ -9,7 +9,7 @@ description: |-
 # Community Supported
 
 If you have authored a device plugin that you believe will be useful to the
-broader Nomad community and you are commited to maintaining the plugin, please
+broader Nomad community and you are committed to maintaining the plugin, please
 file a PR to add your plugin to this page.
 
 ## Authoring Device Plugins

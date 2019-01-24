@@ -64,9 +64,9 @@ The `nvidia-gpu` device plugin exposes the following environment variables:
 
 * `NVIDIA_VISIBLE_DEVICES` - List of Nvidia GPU IDs available to the task.
 
-### Additonal Task Configurations
+### Additional Task Configurations
 
-Additonal environment variables can be set by the task to influence the runtime
+Additional environment variables can be set by the task to influence the runtime
 environment. See [Nvidia's
 documentation](https://github.com/NVIDIA/nvidia-container-runtime#environment-variables-oci-spec).
 
