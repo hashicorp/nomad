@@ -377,7 +377,7 @@ $ curl \
   settings mentioned below.
 
   - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
-         - `SystemSchedulerEnabled` (bool:true) - Specifies whether preemption for system jobs is enabled. Note that
+         - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
          this defaults to true.
   - `CreateIndex` - The Raft index at which the config was created.
   - `ModifyIndex` - The Raft index at which the config was modified.
@@ -415,5 +415,5 @@ The table below shows this endpoint's support for
 ```
 
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
- - `SystemSchedulerEnabled` (`bool`: `true`) - Specifies whether preemption for system jobs is enabled. Note that
+ - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
          if this is set to true, then system jobs can preempt any other jobs.
