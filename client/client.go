@@ -1169,6 +1169,44 @@ func (c *Client) setupNode() error {
 	return nil
 }
 
+func (c *Client) updateNodeMetadata(request *cstructs.ClientMetadataUpdateRequest) (node *structs.Node, updated bool) {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	nodeHasChanged := false
+
+	for key, newVal := range request.Updates {
+		oldVal, ok := c.config.Node.Meta[key]
+		if ok && oldVal == newVal {
+			c.logger.Info("Overwriting metadata", "key", key, "old_value", oldVal, "new_value", newVal)
+			continue
+		}
+
+		nodeHasChanged = true
+		if newVal == "" {
+			delete(c.config.Node.Meta, key)
+		} else {
+			c.config.Node.Meta[key] = newVal
+		}
+	}
+
+	if nodeHasChanged {
+		c.updateNodeLocked()
+	}
+
+	return c.configCopy.Node, nodeHasChanged
+}
+
+func (c *Client) replaceNodeMetadata(request *cstructs.ClientMetadataReplaceRequest) *structs.Node {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	c.config.Node.Meta = request.Metadata
+	c.updateNodeLocked()
+
+	return c.configCopy.Node
+}
+
 // updateNodeFromFingerprint updates the node with the result of
 // fingerprinting the node from the diff that was created
 func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResponse) *structs.Node {

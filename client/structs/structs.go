@@ -28,6 +28,42 @@ func (r *RpcError) Error() string {
 	return r.Message
 }
 
+// ClientMetadataResponse is used to return a node's metadata.
+type ClientMetadataResponse struct {
+	Metadata map[string]string
+
+	structs.QueryMeta
+}
+
+// ClientMetadataUpdateRequest is used to partially update the metadata
+// associated with the node.
+type ClientMetadataUpdateRequest struct {
+	// Updates is a mapping of new or updated metadata keys to their values
+	// if the value for a key is an empty string, the key will be deleted from
+	// node meta
+	Updates map[string]string
+
+	structs.NodeSpecificRequest
+	structs.WriteRequest
+}
+
+// ClientMetadataReplaceRequest is used to replace the metadata associated with
+// the node.
+type ClientMetadataReplaceRequest struct {
+	Metadata map[string]string
+
+	structs.NodeSpecificRequest
+	structs.WriteRequest
+}
+
+// ClientMetadataUpdateResponse is used to return the result of a request to
+// update or replace a client's metadata.
+type ClientMetadataUpdateResponse struct {
+	Updated bool
+
+	structs.WriteMeta
+}
+
 // ClientStatsResponse is used to return statistics about a node.
 type ClientStatsResponse struct {
 	HostStats *stats.HostStats

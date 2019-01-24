@@ -20,9 +20,10 @@ import (
 
 // rpcEndpoints holds the RPC endpoints
 type rpcEndpoints struct {
-	ClientStats *ClientStats
-	FileSystem  *FileSystem
-	Allocations *Allocations
+	ClientStats    *ClientStats
+	ClientMetadata *ClientMetadata
+	FileSystem     *FileSystem
+	Allocations    *Allocations
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -216,6 +217,7 @@ func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Co
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
+	c.endpoints.ClientMetadata = &ClientMetadata{c}
 	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 	c.endpoints.Allocations = &Allocations{c}
 
@@ -232,6 +234,7 @@ func (c *Client) setupClientRpc() {
 func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	// Register the endpoints
 	server.Register(c.endpoints.ClientStats)
+	server.Register(c.endpoints.ClientMetadata)
 	server.Register(c.endpoints.FileSystem)
 	server.Register(c.endpoints.Allocations)
 }
