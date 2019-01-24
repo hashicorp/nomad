@@ -15,6 +15,12 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	// pre09DockerSignal is used in executor.Shutdown to know if it should
+	// call the ShutDown RPC on the pre09 executor
+	pre09DockerSignal = "docker"
+)
+
 // Registering these types since we have to serialize and de-serialize the Task
 // structs over the wire between drivers and the executor.
 func init() {
@@ -49,8 +55,16 @@ func (l *legacyExecutorWrapper) Wait(ctx context.Context) (*ProcessState, error)
 }
 
 func (l *legacyExecutorWrapper) Shutdown(signal string, gracePeriod time.Duration) error {
-	if err := l.client.ShutDown(); err != nil {
-		return err
+	// The legacy docker driver only used the executor to start a syslog server
+	// for logging. Thus calling ShutDown for docker will always return an error
+	// because it never started a process through the executor. If signal is set
+	// to 'docker' then we'll skip the ShutDown RPC and just call Exit.
+	//
+	// This is painful to look at but will only be around a few releases
+	if signal != pre09DockerSignal {
+		if err := l.client.ShutDown(); err != nil {
+			return err
+		}
 	}
 
 	if err := l.client.Exit(); err != nil {
