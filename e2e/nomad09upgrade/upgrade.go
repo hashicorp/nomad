@@ -220,7 +220,7 @@ func (tc *UpgradePathTC) TestRawExecTaskUpgrade(f *framework.F) {
 		ver := ver
 		f.T().Run(ver, func(t *testing.T) {
 			t.Parallel()
-			tc.testUpgradeForJob(t, ver, "rawexec.nomad")
+			tc.testUpgradeForJob(t, ver, "nomad09upgrade/rawexec.nomad")
 		})
 	}
 }
@@ -230,7 +230,17 @@ func (tc *UpgradePathTC) TestExecTaskUpgrade(f *framework.F) {
 		ver := ver
 		f.T().Run(ver, func(t *testing.T) {
 			t.Parallel()
-			tc.testUpgradeForJob(t, ver, "exec.nomad")
+			tc.testUpgradeForJob(t, ver, "nomad09upgrade/exec.nomad")
+		})
+	}
+}
+
+func (tc *UpgradePathTC) TestDockerTaskUpgrade(f *framework.F) {
+	for _, ver := range nomadVersions {
+		ver := ver
+		f.T().Run(ver, func(t *testing.T) {
+			t.Parallel()
+			tc.testUpgradeForJob(t, ver, "nomad09upgrade/docker.nomad")
 		})
 	}
 }
