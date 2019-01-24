@@ -8,15 +8,13 @@ description: |-
 
 # Increasing Failure Tolerance with Spread
 
-The Nomad scheduler uses a bin packing algorithm when making job placements on
-nodes to optimize resource utilization and density of applications. Although
-this feature ensures that cluster resources are being used efficiently, it does
-not necessarily promote maximum failure tolerance of jobs across nodes.
+The Nomad scheduler uses a bin packing algorithm when making job placements on nodes to optimize resource utilization and density of applications. Although bin packing ensures optimal resource utilization, it can lead to some nodes carrying a majority of allocations for a given job. This can cause cascading failures where the failure of a single node or a single data center can lead to application unavailability.
 
-The `spread` stanza solves this problem by allowing operators to distribute their workloads in a customized way based on [attributes][attributes] and/or [client metadata][client-metadata]. By implementing spread, Nomad operators can ensure maximum levels of failure tolerance based on their specific architectures.
+The [spread stanza][spread-stanza] solves this problem by allowing operators to distribute their workloads in a customized way based on [attributes][attributes] and/or [client metadata][client-metadata]. By using spread criteria in their job specification, Nomad job operators can ensure that failures across a domain such as datacenter or rack don't affect application availability.
 
 ## Reference Material
 
+- The [spread][spread-stanza] stanza documentation
 - [Scheduling][scheduling] with Nomad
 
 ## Estimated Time to Complete
@@ -216,11 +214,12 @@ Note that the results from the `allocation-spread`, `binpack`, `job-anti-affinit
 
 Change the values of the `percent` options on your targets in the `spread` stanza and observe how the placement behavior along with the final score given to each node changes (use the `nomad alloc status` command as shown in the previous step).
 
-[alloc status]: /docs/commands/alloc/status.html
+[alloc status]: /docs/commands/alloc/status.htm
 [attributes]: /docs/runtime/interpolation.html#node-variables-
 [client-metadata]: /docs/configuration/client.html#meta
 [constraint-stanza]: /docs/job-specification/constraint.html
 [job-specification]: /docs/job-specification/index.html
 [node-status]: /docs/commands/node/status.html
+[spread-stanza]: /docs/job-specification/spread.html
 [scheduling]: /docs/internals/scheduling.html
 [verbose]: /docs/commands/alloc/status.html#verbose
