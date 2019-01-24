@@ -34,7 +34,7 @@ func (tc *SpreadTest) TestEvenSpread(f *framework.F) {
 	uuid := uuid.Generate()
 	jobId := "spread" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/even_spread.nomad", jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "spread/input/even_spread.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	dcToAllocs := make(map[string]int)
@@ -61,7 +61,7 @@ func (tc *SpreadTest) TestMultipleSpreads(f *framework.F) {
 	uuid := uuid.Generate()
 	jobId := "spread" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
-	allocs := e2eutil.RegisterAndWaitForAllocs(f, nomadClient, "spread/input/multiple_spread.nomad", jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "spread/input/multiple_spread.nomad", jobId)
 
 	jobAllocs := nomadClient.Allocations()
 	dcToAllocs := make(map[string]int)
