@@ -38,7 +38,7 @@ Preemption is enabled by default in Nomad 0.9. Operators can use the [scheduler 
 
 Nomad uses the [job priority](/docs/job-specification/job.html#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority
-delta of more than 10 from the job needing placement are chosen.
+delta of more than 10 from the job needing placement are eligible for preemption.
 
 For example, consider a node with the following distribution of allocations:
 
