@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 // allocRunnerMutableState08 is state that had to be written on each save as it
@@ -62,8 +62,8 @@ type TaskRunnerHandle08 struct {
 	} `json:"PluginConfig"`
 }
 
-func (t *TaskRunnerHandle08) ReattachConfig() *shared.ReattachConfig {
-	return &shared.ReattachConfig{
+func (t *TaskRunnerHandle08) ReattachConfig() *pstructs.ReattachConfig {
+	return &pstructs.ReattachConfig{
 		Network: t.PluginConfig.AddrNet,
 		Addr:    t.PluginConfig.AddrName,
 		Pid:     t.PluginConfig.Pid,

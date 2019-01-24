@@ -14,11 +14,10 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -148,7 +147,7 @@ type TaskConfig struct {
 // StartTask. This information is needed to rebuild the task state and handler
 // during recovery.
 type TaskState struct {
-	ReattachConfig *shared.ReattachConfig
+	ReattachConfig *pstructs.ReattachConfig
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
@@ -271,7 +270,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode task state from handle: %v", err)
 	}
 
-	plugRC, err := shared.ReattachConfigToGoPlugin(taskState.ReattachConfig)
+	plugRC, err := pstructs.ReattachConfigToGoPlugin(taskState.ReattachConfig)
 	if err != nil {
 		d.logger.Error("failed to build ReattachConfig from task state", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to build ReattachConfig from task state: %v", err)
@@ -360,7 +359,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	driverState := TaskState{
-		ReattachConfig: shared.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
 		Pid:            ps.Pid,
 		TaskConfig:     cfg,
 		StartedAt:      h.startedAt,

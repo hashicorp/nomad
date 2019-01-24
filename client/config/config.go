@@ -11,10 +11,10 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/nomad/version"
 )
 

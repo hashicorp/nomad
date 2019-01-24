@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 
-	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"

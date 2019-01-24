@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/hcl2/hcl"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
@@ -21,8 +20,6 @@ import (
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -143,11 +140,13 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 		Name: "test",
 	}
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = "go"
-	taskConfig["args"] = []string{"version"}
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "10ms"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
 
-	encodeDriverHelper(require, task, taskConfig)
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
@@ -156,7 +155,14 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
-	result := <-ch
+
+	var result *drivers.ExitResult
+	select {
+	case result = <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out")
+	}
+
 	require.Zero(result.ExitCode)
 	require.Zero(result.Signal)
 	require.False(result.OOMKilled)
@@ -183,11 +189,11 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 		ID:   uuid.Generate(),
 		Name: "sleep",
 	}
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = testtask.Path()
-	taskConfig["args"] = []string{"sleep", "100s"}
-
-	encodeDriverHelper(require, task, taskConfig)
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "100s"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	testtask.SetTaskConfigEnv(task)
 	cleanup := harness.MkAllocDir(task, false)
@@ -267,10 +273,11 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	file := "output.txt"
 	outPath := fmt.Sprintf(`%s/%s`, task.TaskDir().SharedAllocDir, file)
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = testtask.Path()
-	taskConfig["args"] = []string{"sleep", "1s", "write", string(exp), outPath}
-	encodeDriverHelper(require, task, taskConfig)
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "1s", "write", string(exp), outPath},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	_, _, err := harness.StartTask(task)
@@ -318,10 +325,11 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = testtask.Path()
-	taskConfig["args"] = []string{"fork/exec", pidFile, "pgrp", "0", "sleep", "20s"}
-	encodeDriverHelper(require, task, taskConfig)
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"fork/exec", pidFile, "pgrp", "0", "sleep", "20s"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	_, _, err := harness.StartTask(task)
@@ -406,10 +414,11 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
-	taskConfig["command"] = testtask.Path()
-	taskConfig["args"] = []string{"sleep", "9000s"}
-	encodeDriverHelper(require, task, taskConfig)
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "9000s"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	_, _, err := harness.StartTask(task)
@@ -442,16 +451,4 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	}
 
 	require.NoError(harness.DestroyTask(task.ID, true))
-}
-
-func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
-	evalCtx := &hcl.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
-	require.False(diag.HasErrors())
-	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
-	require.False(diag.HasErrors())
-	err := task.EncodeDriverConfig(taskConfigCtyVal)
-	require.Nil(err)
 }

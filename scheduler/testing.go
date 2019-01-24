@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
+	testing "github.com/mitchellh/go-testing-interface"
+
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/go-testing-interface"
 )
 
 // RejectPlan is used to always reject the entire plan and force a state refresh

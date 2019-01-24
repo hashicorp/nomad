@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/hcl2/hcl"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
@@ -21,8 +20,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/hclutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -103,11 +100,11 @@ func TestExecDriver_StartWait(t *testing.T) {
 		Resources: testResources,
 	}
 
-	taskConfig := map[string]interface{}{
-		"command": "cat",
-		"args":    []string{"/proc/self/cgroup"},
+	tc := &TaskConfig{
+		Command: "cat",
+		Args:    []string{"/proc/self/cgroup"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -135,11 +132,11 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 		Resources: testResources,
 	}
 
-	taskConfig := map[string]interface{}{
-		"command": "/bin/bash",
-		"args":    []string{"-c", "echo hi; sleep 600"},
+	tc := &TaskConfig{
+		Command: "/bin/bash",
+		Args:    []string{"-c", "echo hi; sleep 600"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -196,11 +193,11 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 		Resources: testResources,
 	}
 
-	taskConfig := map[string]interface{}{
-		"command": "/bin/sleep",
-		"args":    []string{"5"},
+	tc := &TaskConfig{
+		Command: "/bin/sleep",
+		Args:    []string{"5"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -266,11 +263,11 @@ func TestExecDriver_Stats(t *testing.T) {
 		Resources: testResources,
 	}
 
-	taskConfig := map[string]interface{}{
-		"command": "/bin/sleep",
-		"args":    []string{"5"},
+	tc := &TaskConfig{
+		Command: "/bin/sleep",
+		Args:    []string{"5"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -311,14 +308,14 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
-	taskConfig := map[string]interface{}{
-		"command": "/bin/bash",
-		"args": []string{
+	tc := &TaskConfig{
+		Command: "/bin/bash",
+		Args: []string{
 			"-c",
 			fmt.Sprintf(`sleep 1; echo -n %s > /alloc/%s`, string(exp), file),
 		},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -359,11 +356,11 @@ func TestExecDriver_User(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{
-		"command": "/bin/sleep",
-		"args":    []string{"100"},
+	tc := &TaskConfig{
+		Command: "/bin/sleep",
+		Args:    []string{"100"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	handle, _, err := harness.StartTask(task)
 	require.Error(err)
@@ -392,11 +389,11 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{
-		"command": "/bin/sleep",
-		"args":    []string{"9000"},
+	tc := &TaskConfig{
+		Command: "/bin/sleep",
+		Args:    []string{"9000"},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -502,9 +499,9 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
 	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
 
-	taskConfig := map[string]interface{}{
-		"command": "/bin/bash",
-		"args": []string{"-c", `
+	tc := &TaskConfig{
+		Command: "/bin/bash",
+		Args: []string{"-c", `
 export LANG=en.UTF-8
 echo "mounted device /inserted-random: $(stat -c '%t:%T' /dev/inserted-random)"
 echo "reading from ro path: $(cat /tmp/task-path-ro/testfile)"
@@ -516,7 +513,7 @@ touch /tmp/task-path-ro/testfile-from-ro && echo from-exec >  /tmp/task-path-ro/
 exit 0
 `},
 	}
-	encodeDriverHelper(require, task, taskConfig)
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -548,16 +545,4 @@ touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`
 	fromRWContent, err := ioutil.ReadFile(filepath.Join(tmpDir, "testfile-from-rw"))
 	require.NoError(err)
 	require.Equal("from-exec", strings.TrimSpace(string(fromRWContent)))
-}
-
-func encodeDriverHelper(require *require.Assertions, task *drivers.TaskConfig, taskConfig map[string]interface{}) {
-	evalCtx := &hcl.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-	spec, diag := hclspec.Convert(taskConfigSpec)
-	require.False(diag.HasErrors())
-	taskConfigCtyVal, diag := hclutils.ParseHclInterface(taskConfig, spec, evalCtx)
-	require.False(diag.HasErrors())
-	err := task.EncodeDriverConfig(taskConfigCtyVal)
-	require.Nil(err)
 }

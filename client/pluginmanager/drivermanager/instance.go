@@ -7,12 +7,12 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 )
 
 const (

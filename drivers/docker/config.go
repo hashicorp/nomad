@@ -8,10 +8,10 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 )
 
 const (

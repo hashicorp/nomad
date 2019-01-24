@@ -7288,13 +7288,17 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 func (a *Allocation) TerminalStatus() bool {
 	// First check the desired state and if that isn't terminal, check client
 	// state.
+	return a.ServerTerminalStatus() || a.ClientTerminalStatus()
+}
+
+// ServerTerminalStatus returns true if the desired state of the allocation is terminal
+func (a *Allocation) ServerTerminalStatus() bool {
 	switch a.DesiredStatus {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
 		return true
 	default:
+		return false
 	}
-
-	return a.ClientTerminalStatus()
 }
 
 // ClientTerminalStatus returns if the client status is terminal and will no longer transition

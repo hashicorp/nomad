@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/catalog"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
-	"github.com/hashicorp/nomad/plugins/shared/singleton"
 )
 
 type testManager struct {

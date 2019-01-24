@@ -9,12 +9,12 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	vapi "github.com/hashicorp/vault/api"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"

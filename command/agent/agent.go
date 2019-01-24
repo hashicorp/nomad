@@ -23,11 +23,11 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	"github.com/hashicorp/raft"
 )
 

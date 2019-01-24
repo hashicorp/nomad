@@ -23,7 +23,7 @@ import (
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 var (
@@ -138,7 +138,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
 	}
 
-	reattach, err := shared.ReattachConfigToGoPlugin(handleState.ReattachConfig)
+	reattach, err := pstructs.ReattachConfigToGoPlugin(handleState.ReattachConfig)
 	if err != nil {
 		return err
 	}

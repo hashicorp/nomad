@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 func (d *Driver) recoverPre09Task(h *drivers.TaskHandle) error {
@@ -17,7 +17,7 @@ func (d *Driver) recoverPre09Task(h *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode pre09 driver handle: %v", err)
 	}
 
-	reattach, err := shared.ReattachConfigToGoPlugin(handle.ReattachConfig())
+	reattach, err := pstructs.ReattachConfigToGoPlugin(handle.ReattachConfig())
 	if err != nil {
 		return fmt.Errorf("failed to decode reattach config from pre09 handle: %v", err)
 	}

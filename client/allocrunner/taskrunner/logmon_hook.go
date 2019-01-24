@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/plugins/shared"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 // logmonHook launches logmon and manages task logging
@@ -76,13 +76,13 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 		return nil, nil
 	}
 
-	var cfg *shared.ReattachConfig
+	var cfg *pstructs.ReattachConfig
 	err := json.Unmarshal([]byte(data["reattach_config"]), cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return shared.ReattachConfigToGoPlugin(cfg)
+	return pstructs.ReattachConfigToGoPlugin(cfg)
 }
 
 func (h *logmonHook) Prestart(ctx context.Context,
@@ -117,7 +117,7 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		}
 	}
 
-	rCfg := shared.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
+	rCfg := pstructs.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
 	jsonCfg, err := json.Marshal(rCfg)
 	if err != nil {
 		return err
