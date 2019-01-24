@@ -29,6 +29,29 @@ The operator can specify a node attribute such as datacenter, availability zone,
 in a physical datacenter to spread the allocations over. By default, when using spread the scheduler will attempt to place allocations equally
 among the available values of the given target.
 
+
+```hcl
+job "docs" {
+  # Spread allocations over all datacenter
+  spread {
+    attribute = "${node.datacenter}"
+  }
+
+  group "example" {
+    # Spread allocations over each rack based on desired percentage
+      spread {
+        attribute = "${node.datacenter}"
+        target "us-east1" {
+          percent = 60
+        }
+        target "us-west1" {
+          percent = 40
+        }
+      }
+  }
+}
+```
+
 Nodes are scored according to how closely they match the desired target percentage defined in the
 spread stanza. Spread scores are combined with other scoring factors such as bin packing.
 
@@ -38,8 +61,7 @@ Spread criteria are treated as a soft preference by the Nomad scheduler.
 If no nodes match a given spread criteria, placement is still successful.
 
 Spread may be expressed on [attributes][interpolation] or [client metadata][client-meta].
-Additionally, spread may be specified at the [job][job], [group][group], or
-[task][task] levels for ultimate flexibility.
+Additionally, spread may be specified at the [job][job] and [group][group] levels for ultimate flexibility.
 
 
 ## `spread` Parameters
