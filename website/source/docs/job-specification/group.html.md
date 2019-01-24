@@ -35,6 +35,9 @@ job "docs" {
 - `constraint` <code>([Constraint][]: nil)</code> -
   This can be provided multiple times to define additional constraints.
 
+- `affinity` <code>([Affinity][]: nil)</code> - This can be provided
+    multiple times to define preferred placement criteria.
+
 - `count` `(int: 1)` - Specifies the number of the task groups that should
   be running under this group. This value must be non-negative.
 
@@ -118,6 +121,7 @@ group "example" {
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk.html "Nomad ephemeral_disk Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [migrate]: /docs/job-specification/migrate.html "Nomad migrate Job Specification"
