@@ -328,3 +328,97 @@ $ curl \
 
   The HTTP status code will indicate the health of the cluster. If `Healthy` is true, then a
   status of 200 will be returned. If `Healthy` is false, then a status of 429 will be returned.
+
+
+## Read Scheduler Configuration
+
+This endpoint retrieves the latest Scheduler configuration. This API was introduced in
+Nomad 0.9 and currently supports enabling/disabling preemption. More options may be added in
+the future.
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `GET`  | `/operator/scheduler/configuration` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries),
+[consistency modes](/api/index.html#consistency-modes), and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required    |
+| ---------------- | ----------------- | --------------- |
+| `NO`             | `none`            | `operator:read` |
+
+### Sample Request
+
+```text
+$ curl \
+    https://localhost:4646/operator/scheduler/configuration
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 5,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "SchedulerConfig": {
+    "CreateIndex": 5,
+    "ModifyIndex": 5,
+    "PreemptionConfig": {
+      "SystemSchedulerEnabled": true
+    }
+  }
+}
+```
+#### Field Reference
+
+- `Index` `(int)` - The `Index` value is the Raft commit index corresponding to this
+  configuration.
+
+- `SchedulerConfig` `(SchedulerConfig)` - The returned `SchedulerConfig` object has configuration
+  settings mentioned below.
+
+  - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
+         - `SystemSchedulerEnabled` (bool:true) - Specifies whether preemption for system jobs is enabled. Note that
+         this defaults to true.
+  - `CreateIndex` - The Raft index at which the config was created.
+  - `ModifyIndex` - The Raft index at which the config was modified.
+
+## Update Scheduler Configuration
+
+This endpoint updates the scheduler configuration of the cluster.
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `PUT`, `POST`  | `/operator/scheduler/configuration` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries),
+[consistency modes](/api/index.html#consistency-modes), and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required     |
+| ---------------- | ----------------- | ---------------- |
+| `NO`             | `none`            | `operator:write` |
+
+### Parameters
+
+- `cas` `(int: 0)` - Specifies to use a Check-And-Set operation. The update will
+  only happen if the given index matches the `ModifyIndex` of the configuration
+  at the time of writing.
+
+### Sample Payload
+
+```json
+{
+  "PreemptionConfig": {
+    "EnablePreemption": false
+  }
+}
+```
+
+- `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
+ - `SystemSchedulerEnabled`(bool:true) - Specifies whether preemption for system jobs is enabled. Note that
+         if this is set to true, then system jobs can preempt any other jobs.
