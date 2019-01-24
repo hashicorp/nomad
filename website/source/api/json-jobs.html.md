@@ -525,6 +525,8 @@ The `Resources` object supports the following keys:
 
 - `Networks` - A list of network objects.
 
+- `Devices` - A list of device objects.
+
 The Network object supports the following keys:
 
 - `MBits` - The number of MBits in bandwidth required.
@@ -537,6 +539,30 @@ ports. A network object allows the user to specify a list of `DynamicPorts` and
   attribute is ignored.
 - `Label` - The label to annotate a port so that it can be referred in the
   service discovery block or environment variables.
+
+The Device object supports the following keys:
+
+- `Name` - Specifies the device required. The following inputs are valid:
+
+  * `<device_type>`: If a single value is given, it is assumed to be the device
+    type, such as "gpu", or "fpga".
+
+  * `<vendor>/<device_type>`: If two values are given separated by a `/`, the
+    given device type will be selected, constraining on the provided vendor.
+    Examples include "nvidia/gpu" or "amd/gpu".
+
+  * `<vendor>/<device_type>/<model>`: If three values are given separated by a `/`, the
+    given device type will be selected, constraining on the provided vendor, and
+    model name. Examples include "nvidia/gpu/1080ti" or "nvidia/gpu/2080ti".
+
+
+- `Count` - The count of devices being requested per task. Defaults to 1.
+
+- `Constraints` - A list to define constraints on which device can satisfy the
+  request. See the constraint reference for more details.
+
+- `Affinities` - A list to define preferences for which device should be
+   chosen.  See the affinity reference for more details.
 
 <a id="ephemeral_disk"></a>
 

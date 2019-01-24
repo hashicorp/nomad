@@ -36,6 +36,10 @@ job "docs" {
             static = 22
           }
         }
+
+        device "nvidia/gpu" {
+          count = 2
+        }
       }
     }
   }
@@ -48,8 +52,11 @@ job "docs" {
 
 - `memory` `(int: 300)` - Specifies the memory required in MB
 
-- `network` <code>([Network][]: <required>)</code> - Specifies the network
+- `network` <code>([Network][]: &lt;optional&gt;)</code> - Specifies the network
   requirements, including static and dynamic port allocations.
+
+- `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
+  requirements. This may be repeated to request multiple device types.
 
 ## `resources` Examples
 
@@ -86,4 +93,18 @@ resources {
 }
 ```
 
+### Devices
+
+This example shows a device constraints as specified in the [device][] stanza
+which require two nvidia GPUs to be made available:
+
+```hcl
+resources {
+  device "nvidia/gpu" {
+    count = 2
+  }
+}
+```
+
 [network]: /docs/job-specification/network.html "Nomad network Job Specification"
+[device]: /docs/job-specification/device.html "Nomad device Job Specification"

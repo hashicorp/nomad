@@ -135,7 +135,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 		sort.Strings(runtimeNames)
 
-		fp.Attributes["runtimes"] = pstructs.NewStringAttribute(
+		fp.Attributes["driver.docker.runtimes"] = pstructs.NewStringAttribute(
 			strings.Join(runtimeNames, ","))
 	}
 
