@@ -120,10 +120,7 @@ job "redis" {
 }
 ```
 Note that we used the `affinity` stanza and specified `dc2` as the
-value for the [attribute][attributes] `${node.datacenter}`. We used the value
-`100` for the [weight][weight] which will cause the Nomad schedular to rank nodes
-in datacenter `dc2` with a higher score. Keep in mind that weights can range
-from -100 to 100, inclusive. Negative weights serve as anti-affinities.
+value for the [attribute][attributes] `${node.datacenter}`. We used the value `100` for the [weight][weight] which will cause the Nomad schedular to rank nodes in datacenter `dc2` with a higher score. Keep in mind that weights can range from -100 to 100, inclusive. Negative weights serve as anti-affinities which cause Nomad to avoid placing allocations on nodes that match the criteria.
 
 ### Step 3: Register the Job `redis.nomad`
 
@@ -141,12 +138,7 @@ $ nomad run redis.nomad
 ==> Evaluation "11388ef2" finished with status "complete"
 ```
 
-Note that two of the allocations have been placed on node `6b6e9518`. This is
-the node we configured to be in datacenter `dc2`. The Nomad scheduler has leaned
-towards placing the majority of the workload on this node because of the
-affinity we specified. All of the workload has not been placed on this node
-because the Nomad scheduler still factors in other components into the overall
-scoring when making placements. We will take a detailed look at the scoring in the next few steps.
+Note that two of the allocations in this example have been placed on node `6b6e9518`. This is the node we configured to be in datacenter `dc2`. The Nomad scheduler selected this node because of the affinity we specified. All of the allocations have not been placed on this node because the Nomad scheduler considers other factors in the scoring such as bin packing. This helps avoid placing too many instances of the same job on a node and prevents reduced capacity during a node level failure. We will take a detailed look at the scoring in the next few steps.
 
 ### Step 4: Check the Status of the `redis` Job
 
@@ -180,11 +172,7 @@ been placed on the node in `dc2` (in our case, that node is `6b6e9518`).
 
 ### Step 5: Obtain Detailed Scoring Information on Job Placement
 
-As stated earlier, the Nomad scheduler will not necessarily place all of your
-workload on nodes you have specified in the `affinity` stanza even if the
-resources are available. This is because affinity scoring is factored in with
-other metrics as well before making a scheduling decision. In this step, we will
-take a look at some of those other factors.
+As stated earlier, the Nomad scheduler will not necessarily place all of your workload on nodes you have specified in the `affinity` stanza even if the resources are available. This is because affinity scoring is combined with other metrics as well before making a scheduling decision. In this step, we will take a look at some of those other factors.
 
 Using the output from the previous step, find an allocation that has been placed
 on a node in `dc2` and use the nomad [alloc status][alloc status] command with
