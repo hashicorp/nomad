@@ -119,13 +119,10 @@ export default Controller.extend(Sortable, Searchable, {
     });
 
     // Sort, format, and include the count in the label
-    return prefixes
-      .sortBy('prefix')
-      .reverse()
-      .map(name => ({
-        key: name.prefix,
-        label: `${name.prefix} (${name.count})`,
-      }));
+    return prefixes.sortBy('prefix').map(name => ({
+      key: name.prefix,
+      label: `${name.prefix} (${name.count})`,
+    }));
   }),
 
   qpType: '',
