@@ -318,7 +318,7 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	// Check that the task dir mounts have been removed
 	testutil.WaitForResult(func() (bool, error) {
 		defer client.System().GarbageCollect()
-		defer time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 100)
 		data, err := ioutil.ReadFile("/proc/mounts")
 		if err != nil {
 			return false, err

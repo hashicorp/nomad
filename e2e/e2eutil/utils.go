@@ -82,7 +82,7 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile str
 
 func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) {
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
-		defer time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 100)
 		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
 		if err != nil {
 			return false, err
