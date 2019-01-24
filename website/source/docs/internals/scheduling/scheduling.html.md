@@ -1,7 +1,7 @@
 ---
 layout: "docs"
 page_title: "Scheduling"
-sidebar_current: "docs-internals-scheduling"
+sidebar_current: "docs-internals-scheduling-internals"
 description: |-
   Learn about how scheduling works in Nomad.
 ---
