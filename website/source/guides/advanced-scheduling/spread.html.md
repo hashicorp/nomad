@@ -3,7 +3,7 @@ layout: "guides"
 page_title: "Spread"
 sidebar_current: "guides-advanced-scheduling"
 description: |-
-    The spread stanza allows operators to increase failure tolerance in their Nomad clusters by allowing them to distribute their workloads in a customized way based on attributes or client metadata.
+  The following guide walks the user through using the spread stanza in Nomad.
 ---
 
 # Increasing Failure Tolerance with Spread
