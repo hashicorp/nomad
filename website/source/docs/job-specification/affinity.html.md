@@ -58,9 +58,9 @@ job "docs" {
 }
 ```
 
-Placing affinities at both the job level and at the group level is redundant
-since constraints are applied hierarchically. The job constraints will affect
-all groups (and tasks) in the job.
+Affinities apply to task groups but may be specified within job and task stanzas as well.
+Job affinities apply to all groups within the job. Task affinities apply to the whole task group
+that the task is a part of.
 
 Nomad will use affinities when computing scores for placement. Nodes that match affinities will
 have their scores boosted. Affinity scores are combined with other scoring factors such as bin packing.
