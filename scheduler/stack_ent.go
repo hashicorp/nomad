@@ -106,7 +106,7 @@ func (iter *QuotaIterator) Next() *structs.Node {
 	}
 
 	// Add the resources of the proposed task group
-	iter.proposedLimit.AddResource(iter.tg.CombinedResources())
+	iter.proposedLimit.AddResource(combinedResources(iter.tg))
 
 	// Get the actual limit
 	quotaLimit := iter.quotaLimits[string(iter.proposedLimit.Hash)]
@@ -142,4 +142,15 @@ func (iter *QuotaIterator) Reset() {
 	for _, l := range iter.proposedUsage.Used {
 		iter.proposedLimit = l
 	}
+}
+
+// combinedResources returns the combined resources for the task group
+func combinedResources(tg *structs.TaskGroup) *structs.Resources {
+	r := &structs.Resources{
+		DiskMB: tg.EphemeralDisk.SizeMB,
+	}
+	for _, task := range tg.Tasks {
+		r.Add(task.Resources)
+	}
+	return r
 }
