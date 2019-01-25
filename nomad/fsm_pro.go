@@ -46,7 +46,7 @@ func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 	for _, ns := range req.Namespaces {
 		old, err := n.state.NamespaceByName(nil, ns.Name)
 		if err != nil {
-			n.logger.Named("nomad.fsm").Error("namespace lookup failed", "error",  err)
+			n.logger.Named("nomad.fsm").Error("namespace lookup failed", "error", err)
 			return err
 		}
 

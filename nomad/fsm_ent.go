@@ -68,7 +68,7 @@ func (n *nomadFSM) applyQuotaSpecUpsert(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpsertQuotaSpecs(index, req.Quotas); err != nil {
-		n.logger.Error("UpsertQuotaSpecs failed", "error",  err)
+		n.logger.Error("UpsertQuotaSpecs failed", "error", err)
 		return err
 	}
 

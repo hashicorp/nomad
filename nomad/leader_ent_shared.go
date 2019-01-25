@@ -58,7 +58,7 @@ START:
 		req.AuthToken = s.ReplicationToken()
 		err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
 		if err != nil {
-			s.logger.Error("failed to fetch namespaces from authoritative region", "error",  err)
+			s.logger.Error("failed to fetch namespaces from authoritative region", "error", err)
 			goto ERR_WAIT
 		}
 
@@ -91,7 +91,7 @@ START:
 			}
 			var reply structs.NamespaceSetResponse
 			if err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.GetNamespaces", &req, &reply); err != nil {
-				s.logger.Error("failed to fetch namespaces from authoritative region", "error",  err)
+				s.logger.Error("failed to fetch namespaces from authoritative region", "error", err)
 				goto ERR_WAIT
 			}
 			for _, namespace := range reply.Namespaces {
@@ -106,7 +106,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.NamespaceUpsertRequestType, args)
 			if err != nil {
-				s.logger.Error("failed to update namespaces", "error",  err)
+				s.logger.Error("failed to update namespaces", "error", err)
 				goto ERR_WAIT
 			}
 		}

@@ -7,8 +7,8 @@ import (
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/agent/consul/autopilot_ent"
-	"github.com/hashicorp/raft"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/raft"
 )
 
 // AdvancedAutopilotDelegate defines a policy for promoting non-voting servers in a way

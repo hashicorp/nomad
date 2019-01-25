@@ -68,7 +68,7 @@ func (iter *QuotaIterator) SetJob(job *structs.Job) {
 		return
 	} else if quota == nil {
 		iter.buildErr = fmt.Errorf("unknown quota %q referenced by namespace %q", namespace.Quota, namespace.Name)
-		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator", "error",  iter.buildErr)
+		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator", "error", iter.buildErr)
 		return
 	}
 

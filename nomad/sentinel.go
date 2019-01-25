@@ -165,7 +165,7 @@ func (s *Server) gcSentinelPolicies(stopCh chan struct{}) {
 			// Snapshot the current state
 			snap, err := s.State().Snapshot()
 			if err != nil {
-				s.logger.Named("sentinel.gc").Error("failed to snapshot state",  "error", err)
+				s.logger.Named("sentinel.gc").Error("failed to snapshot state", "error", err)
 				continue
 			}
 
