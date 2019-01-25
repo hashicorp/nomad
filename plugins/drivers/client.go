@@ -257,8 +257,8 @@ func (d *driverPluginClient) InspectTask(taskID string) (*TaskStatus, error) {
 // TaskStats returns resource usage statistics for the task
 func (d *driverPluginClient) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
 	req := &proto.TaskStatsRequest{
-		TaskId:   taskID,
-		Interval: int64(interval),
+		TaskId:             taskID,
+		CollectionInterval: ptypes.DurationProto(interval),
 	}
 	ctx, _ = joincontext.Join(ctx, d.doneCtx)
 	stream, err := d.client.TaskStats(ctx, req)

@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	plugin "github.com/hashicorp/go-plugin"
@@ -223,7 +222,12 @@ func (b *driverPluginServer) InspectTask(ctx context.Context, req *proto.Inspect
 }
 
 func (b *driverPluginServer) TaskStats(req *proto.TaskStatsRequest, srv proto.Driver_TaskStatsServer) error {
-	ch, err := b.impl.TaskStats(srv.Context(), req.TaskId, time.Duration(req.Interval))
+	interval, err := ptypes.Duration(req.CollectionInterval)
+	if err != nil {
+		return fmt.Errorf("failed to parse collection interval: %v", err)
+	}
+
+	ch, err := b.impl.TaskStats(srv.Context(), req.TaskId, interval)
 	if err != nil {
 		if rec, ok := err.(structs.Recoverable); ok {
 			st := status.New(codes.FailedPrecondition, rec.Error())
