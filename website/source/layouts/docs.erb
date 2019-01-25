@@ -10,7 +10,15 @@
           </li>
 
           <li<%= sidebar_current("docs-internals-scheduling") %>>
-            <a href="/docs/internals/scheduling.html">Scheduling</a>
+           <a href="/docs/internals/scheduling/index.html">Scheduling</a>
+                  <ul class="nav">
+                    <li <%= sidebar_current("docs-internals-scheduling-internals") %>>
+                      <a href="/docs/internals/scheduling/scheduling.html">Internals</a>
+                    </li>
+                    <li <%= sidebar_current("docs-configuration-autopilot") %>>
+                      <a href="/docs/internals/scheduling/preemption.html">Preemption</a>
+                    </li>
+                  </ul>
           </li>
 
           <li<%= sidebar_current("docs-internals-consensus") %>>

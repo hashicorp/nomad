@@ -1,25 +1,10 @@
 ---
 layout: "docs"
 page_title: "Scheduling"
-sidebar_current: "docs-internals-scheduling"
+sidebar_current: "docs-internals-scheduling-internals"
 description: |-
   Learn about how scheduling works in Nomad.
 ---
-
-# Scheduling
-
-Scheduling is a core function of Nomad. It is the process of assigning tasks
-from jobs to client machines. This process must respect the constraints as
-declared in the job, and optimize for resource utilization. This page documents
-the details of how scheduling works in Nomad to help both users and developers
-build a mental model. The design is heavily inspired by Google's work on both
-[Omega: flexible, scalable schedulers for large compute clusters][Omega] and
-[Large-scale cluster management at Google with Borg][Borg].
-
-~> **Advanced Topic!** This page covers technical details of Nomad. You do not
-~> need to understand these details to effectively use Nomad. The details are
-~> documented here for those who wish to learn about them without having to
-~> go spelunking through the source code.
 
 # Scheduling in Nomad
 
