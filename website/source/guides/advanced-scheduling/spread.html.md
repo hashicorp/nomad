@@ -183,13 +183,11 @@ f4361df1  7b381152  cache1      0        run      running  2m20s ago  2m3s ago
 f7af42dc  5d16d949  cache1      0        run      running  2m20s ago  1m54s ago
 ```
 
-As stated earlier, you can cross-check this output with the results of the
-`nomad node status` command to verify that 30% of your workload has
-been placed on the node in `dc2` (in our case, that node is `5d16d949`).
+You can cross-check this output with the results of the `nomad node status` command to verify that 30% of your workload has been placed on the node in `dc2` (in our case, that node is `5d16d949`).
 
 ### Step 5: Obtain Detailed Scoring Information on Job Placement
 
-As stated earlier, the Nomad scheduler will not necessarily spread your
+The Nomad scheduler will not always spread your
 workload in the way you have specified in the `spread` stanza even if the
 resources are available. This is because spread scoring is factored in with
 other metrics as well before making a scheduling decision. In this step, we will take a look at some of those other factors.

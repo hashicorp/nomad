@@ -166,13 +166,11 @@ ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
 fc0f21bc  3dea0188  cache1      0        run      running  1h44m ago  1h44m ago
 ```
 
-As stated earlier, you can cross-check this output with the results of the
-`nomad node status` command to verify that the majority of your workload has
-been placed on the node in `dc2` (in our case, that node is `6b6e9518`).
+You can cross-check this output with the results of the `nomad node status` command to verify that the majority of your workload has been placed on the node in `dc2` (in our case, that node is `6b6e9518`).
 
 ### Step 5: Obtain Detailed Scoring Information on Job Placement
 
-As stated earlier, the Nomad scheduler will not necessarily place all of your workload on nodes you have specified in the `affinity` stanza even if the resources are available. This is because affinity scoring is combined with other metrics as well before making a scheduling decision. In this step, we will take a look at some of those other factors.
+The Nomad scheduler will not always place all of your workload on nodes you have specified in the `affinity` stanza even if the resources are available. This is because affinity scoring is combined with other metrics as well before making a scheduling decision. In this step, we will take a look at some of those other factors.
 
 Using the output from the previous step, find an allocation that has been placed
 on a node in `dc2` and use the nomad [alloc status][alloc status] command with
