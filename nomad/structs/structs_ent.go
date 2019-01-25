@@ -320,8 +320,8 @@ func (q *QuotaLimit) SetHash() []byte {
 	hash.Write([]byte(q.Region))
 
 	if q.RegionLimit != nil {
-		binary.Write(hash, binary.LittleEndian, q.RegionLimit.CPU)
-		binary.Write(hash, binary.LittleEndian, q.RegionLimit.MemoryMB)
+		binary.Write(hash, binary.LittleEndian, int64(q.RegionLimit.CPU))
+		binary.Write(hash, binary.LittleEndian, int64(q.RegionLimit.MemoryMB))
 	}
 
 	// Finalize the hash
