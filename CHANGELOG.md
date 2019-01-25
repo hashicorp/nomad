@@ -18,6 +18,7 @@ IMPROVEMENTS:
  * core: Added support for spreading allocations across a specific attribute. Operators can specify spread
    target percentages across failure domains such as datacenter or rack [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * agent: Support JSON log output [[GH-5173](https://github.com/hashicorp/nomad/issues/5173)]
+ * api: Reduced api package dependencies [[GH-5213](https://github.com/hashicorp/nomad/pull/5213)]
  * client: Added service metadata tag that enables the Consul UI to show a Nomad
  icon for services registered by Nomad [[GH-4889](https://github.com/hashicorp/nomad/issues/4889)]
  * client: Refactor client to support plugins and improve state handling [[GH-4792](https://github.com/hashicorp/nomad/pull/4792)]
@@ -27,6 +28,8 @@ IMPROVEMENTS:
  * driver/docker: Added support for specifying `storage_opt` in the Docker driver [[GH-4908](https://github.com/hashicorp/nomad/pull/4908)]
  * driver/docker: Added support for specifying `cpu_cfs_period` in the Docker driver [[GH-4462](https://github.com/hashicorp/nomad/pull/4462)]
  * driver/docker: Added support for setting bind and tmpfs mounts in the Docker driver [[GH-4924](https://github.com/hashicorp/nomad/pull/4924)]
+ * drivers: Added total memory usage to task resource metrics [[GH-5190](https://github.com/hashicorp/nomad/pull/5190)]
+ * server/vault: Tweaked logs to better identify vault connection errors [[GH-5228](https://github.com/hashicorp/nomad/pull/5228)]
  * server/vault: Added Vault token expiry info in `nomad status` CLI, and some improvements to token refresh process [[GH-4817](https://github.com/hashicorp/nomad/pull/4817)]
  * telemetry: All client metrics include a new `node_class` tag [[GH-3882](https://github.com/hashicorp/nomad/issues/3882)]
  * telemetry: Added new tags with value of child job id and parent job id for
@@ -44,6 +47,7 @@ IMPROVEMENTS:
  * acls: Allow support for using globs in namespace definitions [[GH-4982](https://github.com/hashicorp/nomad/pull/4982)]
 
 BUG FIXES:
+ * core: Removed some GPL code inadvertently added for macOS support [[GH-5202](https://github.com/hashicorp/nomad/pull/5202)]
  * core: Fix an issue where artifact checksums containing interpolated variables failed validation [[GH-4810](https://github.com/hashicorp/nomad/pull/4819)]
  * core: Fix an issue where job summaries for parent dispatch/periodic jobs were not being computed correctly [[GH-5205](https://github.com/hashicorp/nomad/pull/5205)]
  * client: Fix an issue reloading the client config [[GH-4730](https://github.com/hashicorp/nomad/issues/4730)]
