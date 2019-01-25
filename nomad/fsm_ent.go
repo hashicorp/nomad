@@ -38,7 +38,7 @@ func (n *nomadFSM) applySentinelPolicyUpsert(buf []byte, index uint64) interface
 	}
 
 	if err := n.state.UpsertSentinelPolicies(index, req.Policies); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertSentinelPolicies failed: %v", err)
+		n.logger.Named("nomad.fsm").Error("UpsertSentinelPolicies failed", "error", err)
 		return err
 	}
 	return nil
@@ -53,7 +53,7 @@ func (n *nomadFSM) applySentinelPolicyDelete(buf []byte, index uint64) interface
 	}
 
 	if err := n.state.DeleteSentinelPolicies(index, req.Names); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteSentinelPolicies failed: %v", err)
+		n.logger.Named("nomad.fsm").Error("DeleteSentinelPolicies failed", "error", err)
 		return err
 	}
 	return nil
@@ -68,7 +68,7 @@ func (n *nomadFSM) applyQuotaSpecUpsert(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpsertQuotaSpecs(index, req.Quotas); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertQuotaSpecs failed: %v", err)
+		n.logger.Named("nomad.fsm").Error("UpsertQuotaSpecs failed", "error",  err)
 		return err
 	}
 
@@ -90,7 +90,7 @@ func (n *nomadFSM) applyQuotaSpecDelete(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.DeleteQuotaSpecs(index, req.Names); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteQuotaSpecs failed: %v", err)
+		n.logger.Named("nomad.fsm").Error("DeleteQuotaSpecs failed", "error", err)
 		return err
 	}
 	return nil

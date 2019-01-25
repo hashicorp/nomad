@@ -26,7 +26,7 @@ func (s *Server) setupEnterprise(config *Config) error {
 				Path: sImport.Path,
 				Args: sImport.Args,
 			}
-			s.logger.Printf("[DEBUG] nomad.sentinel: enabling import %q via %q", sImport.Name, sImport.Path)
+			s.logger.Named("sentinel").Debug("enabling imports", "name", sImport.Name, "path", sImport.Path)
 		}
 	}
 

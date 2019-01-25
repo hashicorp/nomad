@@ -40,7 +40,7 @@ func (s *Server) replicateNamespaces(stopCh chan struct{}) {
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Printf("[DEBUG] nomad: starting namespace replication from authoritative region %q", req.Region)
+	s.logger.Debug("starting namespace replication from authoritative region", "region", req.Region)
 
 START:
 	for {
@@ -58,7 +58,7 @@ START:
 		req.AuthToken = s.ReplicationToken()
 		err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to fetch namespaces from authoritative region: %v", err)
+			s.logger.Error("failed to fetch namespaces from authoritative region", "region",  err)
 			goto ERR_WAIT
 		}
 
@@ -72,7 +72,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.NamespaceDeleteRequestType, args)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to delete namespaces: %v", err)
+				s.logger.Error("failed to delete namespaces", err)
 				goto ERR_WAIT
 			}
 		}
@@ -91,7 +91,7 @@ START:
 			}
 			var reply structs.NamespaceSetResponse
 			if err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.GetNamespaces", &req, &reply); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to fetch namespaces from authoritative region: %v", err)
+				s.logger.Error("failed to fetch namespaces from authoritative region", "error",  err)
 				goto ERR_WAIT
 			}
 			for _, namespace := range reply.Namespaces {
@@ -106,7 +106,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.NamespaceUpsertRequestType, args)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to update namespaces: %v", err)
+				s.logger.Error("failed to update namespaces", "error",  err)
 				goto ERR_WAIT
 			}
 		}

@@ -52,7 +52,7 @@ func (s *Server) replicateSentinelPolicies(stopCh chan struct{}) {
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Printf("[DEBUG] nomad: starting Sentinel policy replication from authoritative region %q", req.Region)
+	s.logger.Debug("starting Sentinel policy replication from authoritative region", "region", req.Region)
 
 START:
 	for {
@@ -71,7 +71,7 @@ START:
 		err := s.forwardRegion(s.config.AuthoritativeRegion,
 			"Sentinel.ListPolicies", &req, &resp)
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
+			s.logger.Debug("failed to fetch policies from authoritative region",  "error", err)
 			goto ERR_WAIT
 		}
 
@@ -85,7 +85,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.SentinelPolicyDeleteRequestType, args)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to delete policies: %v", err)
+				s.logger.Error("failed to delete policies", "error", err)
 				goto ERR_WAIT
 			}
 		}
@@ -105,7 +105,7 @@ START:
 			var reply structs.SentinelPolicySetResponse
 			if err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"Sentinel.GetPolicies", &req, &reply); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
+				s.logger.Error("failed to fetch policies from authoritative region", "error", err)
 				goto ERR_WAIT
 			}
 			for _, policy := range reply.Policies {
@@ -120,7 +120,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.SentinelPolicyUpsertRequestType, args)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to update policies: %v", err)
+				s.logger.Error("failed to update policies", "error", err)
 				goto ERR_WAIT
 			}
 		}
@@ -194,7 +194,7 @@ func (s *Server) replicateQuotaSpecs(stopCh chan struct{}) {
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Printf("[DEBUG] nomad: starting quota specification replication from authoritative region %q", req.Region)
+	s.logger.Debug("starting quota specification replication from authoritative region", "region",  req.Region)
 
 START:
 	for {
@@ -213,7 +213,7 @@ START:
 		err := s.forwardRegion(s.config.AuthoritativeRegion,
 			"Quota.ListQuotaSpecs", &req, &resp)
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to fetch quota specifications from authoritative region: %v", err)
+			s.logger.Error("failed to fetch quota specifications from authoritative region", "error",  err)
 			goto ERR_WAIT
 		}
 
@@ -227,7 +227,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.QuotaSpecDeleteRequestType, args)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to delete quota specs: %v", err)
+				s.logger.Error("failed to delete quota specs", "error",  err)
 				goto ERR_WAIT
 			}
 		}
@@ -247,7 +247,7 @@ START:
 			var reply structs.QuotaSpecSetResponse
 			if err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"Quota.GetQuotaSpecs", &req, &reply); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to fetch quota specifications from authoritative region: %v", err)
+				s.logger.Error("failed to fetch quota specifications from authoritative region", "error", err)
 				goto ERR_WAIT
 			}
 			for _, quota := range reply.Quotas {
@@ -262,7 +262,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.QuotaSpecUpsertRequestType, args)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to update quota specs: %v", err)
+				s.logger.Error("failed to update quota specs", "error",  err)
 				goto ERR_WAIT
 			}
 		}

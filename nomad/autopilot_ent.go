@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/agent/consul/autopilot_ent"
 	"github.com/hashicorp/raft"
+	log "github.com/hashicorp/go-hclog"
 )
 
 // AdvancedAutopilotDelegate defines a policy for promoting non-voting servers in a way
@@ -55,6 +56,7 @@ func (s *Server) setupEnterpriseAutopilot(config *Config) {
 	apDelegate := &AdvancedAutopilotDelegate{
 		AutopilotDelegate: AutopilotDelegate{server: s},
 	}
-	apDelegate.promoter = autopilot_ent.NewAdvancedPromoter(s.logger, apDelegate, s.getNodeMeta)
-	s.autopilot = autopilot.NewAutopilot(s.logger, apDelegate, config.AutopilotInterval, config.ServerHealthInterval)
+	stdLogger := s.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
+	apDelegate.promoter = autopilot_ent.NewAdvancedPromoter(stdLogger, apDelegate, s.getNodeMeta)
+	s.autopilot = autopilot.NewAutopilot(stdLogger, apDelegate, config.AutopilotInterval, config.ServerHealthInterval)
 }
