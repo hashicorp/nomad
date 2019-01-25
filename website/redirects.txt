@@ -85,6 +85,7 @@
 /docs/commands/server-join.html               /docs/commands/server/join.html
 /docs/commands/server-members.html            /docs/commands/server/members.html
 /docs/runtime/schedulers.html                 /docs/schedulers.html
+/docs/internals/scheduling.html               /docs/internals/scheduling/scheduling.html
 
 # Moved /docs/operating-a-job/ -> /guides/operating-a-job/
 /docs/operating-a-job                           /guides/operating-a-job/index.html
