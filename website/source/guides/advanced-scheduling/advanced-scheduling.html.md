@@ -12,7 +12,7 @@ The Nomad [scheduler][scheduling] uses a bin packing algorithm to optimize the r
 
 - Expressing preference for a certain class of nodes for a specific application via the [affinity stanza][affinity-stanza].
 
-- Spreading allocations across a datacenter or rack with the [spread stanza][spread-stanza].
+- Spreading allocations across a datacenter, rack or any other node attribute or metadata with the [spread stanza][spread-stanza].
 
 Please refer to the guides below for using affinity and spread in Nomad 0.9.
 
