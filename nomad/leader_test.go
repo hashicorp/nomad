@@ -399,6 +399,8 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 
 	// Check that the new leader is tracking the periodic job only
 	testutil.WaitForResult(func() (bool, error) {
+		leader.periodicDispatcher.l.Lock()
+		defer leader.periodicDispatcher.l.Unlock()
 		if _, tracked := leader.periodicDispatcher.tracked[tuplePeriodic]; !tracked {
 			return false, fmt.Errorf("periodic job not tracked")
 		}
@@ -627,8 +629,10 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 
 	// Create a duplicate blocked eval
 	eval := mock.Eval()
+	eval.CreateIndex = 100
 	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
+	eval2.CreateIndex = 102
 	s1.blockedEvals.Block(eval)
 	s1.blockedEvals.Block(eval2)
 
@@ -636,7 +640,7 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	state := s1.fsm.State()
 	testutil.WaitForResult(func() (bool, error) {
 		ws := memdb.NewWatchSet()
-		out, err := state.EvalByID(ws, eval2.ID)
+		out, err := state.EvalByID(ws, eval.ID)
 		if err != nil {
 			return false, err
 		}

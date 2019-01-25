@@ -2,9 +2,16 @@ package agent
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+var (
+	// Only create the prometheus handler once
+	promHandler http.Handler
+	promOnce    sync.Once
 )
 
 // MetricsRequest returns metrics for the agent. Metrics are JSON by default
@@ -15,16 +22,22 @@ func (s *HTTPServer) MetricsRequest(resp http.ResponseWriter, req *http.Request)
 	}
 
 	if format := req.URL.Query().Get("format"); format == "prometheus" {
-		handlerOptions := promhttp.HandlerOpts{
-			ErrorLog:           s.logger,
-			ErrorHandling:      promhttp.ContinueOnError,
-			DisableCompression: true,
-		}
-
-		handler := promhttp.HandlerFor(prometheus.DefaultGatherer, handlerOptions)
-		handler.ServeHTTP(resp, req)
+		s.prometheusHandler().ServeHTTP(resp, req)
 		return nil, nil
 	}
 
 	return s.agent.InmemSink.DisplayMetrics(resp, req)
+}
+
+func (s *HTTPServer) prometheusHandler() http.Handler {
+	promOnce.Do(func() {
+		handlerOptions := promhttp.HandlerOpts{
+			ErrorLog:           s.logger.Named("prometheus_handler").StandardLogger(nil),
+			ErrorHandling:      promhttp.ContinueOnError,
+			DisableCompression: true,
+		}
+
+		promHandler = promhttp.HandlerFor(prometheus.DefaultGatherer, handlerOptions)
+	})
+	return promHandler
 }

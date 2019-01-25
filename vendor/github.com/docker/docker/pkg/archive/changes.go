@@ -1,4 +1,4 @@
-package archive
+package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"archive/tar"
@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
 )
 
 // ChangeType represents the change type.
@@ -63,12 +63,16 @@ func (c changesByPath) Less(i, j int) bool { return c[i].Path < c[j].Path }
 func (c changesByPath) Len() int           { return len(c) }
 func (c changesByPath) Swap(i, j int)      { c[j], c[i] = c[i], c[j] }
 
-// Gnu tar and the go tar writer don't have sub-second mtime
-// precision, which is problematic when we apply changes via tar
-// files, we handle this by comparing for exact times, *or* same
+// Gnu tar doesn't have sub-second mtime precision. The go tar
+// writer (1.10+) does when using PAX format, but we round times to seconds
+// to ensure archives have the same hashes for backwards compatibility.
+// See https://github.com/moby/moby/pull/35739/commits/fb170206ba12752214630b269a40ac7be6115ed4.
+//
+// Non-sub-second is problematic when we apply changes via tar
+// files. We handle this by comparing for exact times, *or* same
 // second count and either a or b having exactly 0 nanoseconds
 func sameFsTime(a, b time.Time) bool {
-	return a == b ||
+	return a.Equal(b) ||
 		(a.Unix() == b.Unix() &&
 			(a.Nanosecond() == 0 || b.Nanosecond() == 0))
 }
@@ -81,6 +85,33 @@ func sameFsTimeSpec(a, b syscall.Timespec) bool {
 // Changes walks the path rw and determines changes for the files in the path,
 // with respect to the parent layers
 func Changes(layers []string, rw string) ([]Change, error) {
+	return changes(layers, rw, aufsDeletedFile, aufsMetadataSkip)
+}
+
+func aufsMetadataSkip(path string) (skip bool, err error) {
+	skip, err = filepath.Match(string(os.PathSeparator)+WhiteoutMetaPrefix+"*", path)
+	if err != nil {
+		skip = true
+	}
+	return
+}
+
+func aufsDeletedFile(root, path string, fi os.FileInfo) (string, error) {
+	f := filepath.Base(path)
+
+	// If there is a whiteout, then the file was removed
+	if strings.HasPrefix(f, WhiteoutPrefix) {
+		originalFile := f[len(WhiteoutPrefix):]
+		return filepath.Join(filepath.Dir(path), originalFile), nil
+	}
+
+	return "", nil
+}
+
+type skipChange func(string) (bool, error)
+type deleteChange func(string, string, os.FileInfo) (string, error)
+
+func changes(layers []string, rw string, dc deleteChange, sc skipChange) ([]Change, error) {
 	var (
 		changes     []Change
 		changedDirs = make(map[string]struct{})
@@ -105,21 +136,24 @@ func Changes(layers []string, rw string) ([]Change, error) {
 			return nil
 		}
 
-		// Skip AUFS metadata
-		if matched, err := filepath.Match(string(os.PathSeparator)+WhiteoutMetaPrefix+"*", path); err != nil || matched {
-			return err
+		if sc != nil {
+			if skip, err := sc(path); skip {
+				return err
+			}
 		}
 
 		change := Change{
 			Path: path,
 		}
 
+		deletedFile, err := dc(rw, path, f)
+		if err != nil {
+			return err
+		}
+
 		// Find out what kind of modification happened
-		file := filepath.Base(path)
-		// If there is a whiteout, then the file was removed
-		if strings.HasPrefix(file, WhiteoutPrefix) {
-			originalFile := file[len(WhiteoutPrefix):]
-			change.Path = filepath.Join(filepath.Dir(path), originalFile)
+		if deletedFile != "" {
+			change.Path = deletedFile
 			change.Kind = ChangeDelete
 		} else {
 			// Otherwise, the file was added
@@ -237,7 +271,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 	}
 
 	for name, newChild := range info.children {
-		oldChild, _ := oldChildren[name]
+		oldChild := oldChildren[name]
 		if oldChild != nil {
 			// change?
 			oldStat := oldChild.stat
@@ -249,7 +283,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// breaks down is if some code intentionally hides a change by setting
 			// back mtime
 			if statDifferent(oldStat, newStat) ||
-				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
+				!bytes.Equal(oldChild.capability, newChild.capability) {
 				change := Change{
 					Path: newChild.path(),
 					Kind: ChangeModify,
@@ -361,16 +395,11 @@ func ChangesSize(newDir string, changes []Change) int64 {
 }
 
 // ExportChanges produces an Archive from the provided changes, relative to dir.
-func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []idtools.IDMap) (Archive, error) {
+func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []idtools.IDMap) (io.ReadCloser, error) {
 	reader, writer := io.Pipe()
 	go func() {
-		ta := &tarAppender{
-			TarWriter: tar.NewWriter(writer),
-			Buffer:    pools.BufioWriter32KPool.Get(nil),
-			SeenFiles: make(map[uint64]string),
-			UIDMaps:   uidMaps,
-			GIDMaps:   gidMaps,
-		}
+		ta := newTarAppender(idtools.NewIDMappingsFromMaps(uidMaps, gidMaps), writer, nil)
+
 		// this buffer is needed for the duration of this piped stream
 		defer pools.BufioWriter32KPool.Put(ta.Buffer)
 

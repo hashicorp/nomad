@@ -2,9 +2,10 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
 
-	"github.com/hashicorp/go-memdb"
+	log "github.com/hashicorp/go-hclog"
+
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -27,7 +28,7 @@ var BuiltinSchedulers = map[string]Factory{
 
 // NewScheduler is used to instantiate and return a new scheduler
 // given the scheduler name, initial state, and planner.
-func NewScheduler(name string, logger *log.Logger, state State, planner Planner) (Scheduler, error) {
+func NewScheduler(name string, logger log.Logger, state State, planner Planner) (Scheduler, error) {
 	// Lookup the factory function
 	factory, ok := BuiltinSchedulers[name]
 	if !ok {
@@ -40,7 +41,7 @@ func NewScheduler(name string, logger *log.Logger, state State, planner Planner)
 }
 
 // Factory is used to instantiate a new Scheduler
-type Factory func(*log.Logger, State, Planner) Scheduler
+type Factory func(log.Logger, State, Planner) Scheduler
 
 // Scheduler is the top level instance for a scheduler. A scheduler is
 // meant to only encapsulate business logic, pushing the various plumbing
@@ -87,6 +88,9 @@ type State interface {
 	// LatestDeploymentByJobID returns the latest deployment matching the given
 	// job ID
 	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
+
+	// SchedulerConfig returns config options for the scheduler
+	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

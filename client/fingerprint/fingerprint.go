@@ -2,10 +2,10 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -67,7 +67,7 @@ func BuiltinFingerprints() []string {
 
 // NewFingerprint is used to instantiate and return a new fingerprint
 // given the name and a logger
-func NewFingerprint(name string, logger *log.Logger) (Fingerprint, error) {
+func NewFingerprint(name string, logger log.Logger) (Fingerprint, error) {
 	// Lookup the factory function
 	factory, ok := hostFingerprinters[name]
 	if !ok {
@@ -83,7 +83,7 @@ func NewFingerprint(name string, logger *log.Logger) (Fingerprint, error) {
 }
 
 // Factory is used to instantiate a new Fingerprint
-type Factory func(*log.Logger) Fingerprint
+type Factory func(log.Logger) Fingerprint
 
 // HealthCheck is used for doing periodic health checks. On a given time
 // interfal, a health check will be called by the fingerprint manager of the
@@ -107,7 +107,7 @@ type HealthCheck interface {
 type Fingerprint interface {
 	// Fingerprint is used to update properties of the Node,
 	// and returns a diff of updated node attributes and a potential error.
-	Fingerprint(*cstructs.FingerprintRequest, *cstructs.FingerprintResponse) error
+	Fingerprint(*FingerprintRequest, *FingerprintResponse) error
 
 	// Periodic is a mechanism for the fingerprinter to indicate that it should
 	// be run periodically. The return value is a boolean indicating if it

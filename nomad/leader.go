@@ -3,7 +3,6 @@ package nomad
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -12,9 +11,12 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/armon/go-metrics"
+	"strings"
+
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -40,6 +42,13 @@ const (
 
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
+// Default configuration for scheduler with preemption enabled for system jobs
+var defaultSchedulerConfig = &structs.SchedulerConfiguration{
+	PreemptionConfig: structs.PreemptionConfig{
+		SystemSchedulerEnabled: true,
+	},
+}
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -52,7 +61,7 @@ func (s *Server) monitorLeadership() {
 			switch {
 			case isLeader:
 				if weAreLeaderCh != nil {
-					s.logger.Printf("[ERR] nomad: attempted to start the leader loop while running")
+					s.logger.Error("attempted to start the leader loop while running")
 					continue
 				}
 
@@ -62,19 +71,19 @@ func (s *Server) monitorLeadership() {
 					defer leaderLoop.Done()
 					s.leaderLoop(ch)
 				}(weAreLeaderCh)
-				s.logger.Printf("[INFO] nomad: cluster leadership acquired")
+				s.logger.Info("cluster leadership acquired")
 
 			default:
 				if weAreLeaderCh == nil {
-					s.logger.Printf("[ERR] nomad: attempted to stop the leader loop while not running")
+					s.logger.Error("attempted to stop the leader loop while not running")
 					continue
 				}
 
-				s.logger.Printf("[DEBUG] nomad: shutting down leader loop")
+				s.logger.Debug("shutting down leader loop")
 				close(weAreLeaderCh)
 				leaderLoop.Wait()
 				weAreLeaderCh = nil
-				s.logger.Printf("[INFO] nomad: cluster leadership lost")
+				s.logger.Info("cluster leadership lost")
 			}
 
 		case <-s.shutdownCh:
@@ -98,7 +107,7 @@ RECONCILE:
 	start := time.Now()
 	barrier := s.raft.Barrier(barrierWriteTimeout)
 	if err := barrier.Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to wait for barrier: %v", err)
+		s.logger.Error("failed to wait for barrier", "error", err)
 		goto WAIT
 	}
 	metrics.MeasureSince([]string{"nomad", "leader", "barrier"}, start)
@@ -106,12 +115,12 @@ RECONCILE:
 	// Check if we need to handle initial leadership actions
 	if !establishedLeader {
 		if err := s.establishLeadership(stopCh); err != nil {
-			s.logger.Printf("[ERR] nomad: failed to establish leadership: %v", err)
+			s.logger.Error("failed to establish leadership", "error", err)
 
 			// Immediately revoke leadership since we didn't successfully
 			// establish leadership.
 			if err := s.revokeLeadership(); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to revoke leadership: %v", err)
+				s.logger.Error("failed to revoke leadership", "error", err)
 			}
 
 			goto WAIT
@@ -120,14 +129,14 @@ RECONCILE:
 		establishedLeader = true
 		defer func() {
 			if err := s.revokeLeadership(); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to revoke leadership: %v", err)
+				s.logger.Error("failed to revoke leadership", "error", err)
 			}
 		}()
 	}
 
 	// Reconcile any missing data
 	if err := s.reconcile(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to reconcile: %v", err)
+		s.logger.Error("failed to reconcile", "error", err)
 		goto WAIT
 	}
 
@@ -184,6 +193,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Initialize and start the autopilot routine
 	s.getOrCreateAutopilotConfig()
 	s.autopilot.Start()
+
+	// Initialize scheduler configuration
+	s.getOrCreateSchedulerConfig()
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
@@ -248,7 +260,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// are available to be initialized. Otherwise initialization may use stale
 	// data.
 	if err := s.initializeHeartbeatTimers(); err != nil {
-		s.logger.Printf("[ERR] nomad: heartbeat timer setup failed: %v", err)
+		s.logger.Error("heartbeat timer setup failed", "error", err)
 		return err
 	}
 
@@ -362,6 +374,7 @@ func (s *Server) restoreRevokingAccessors() error {
 // dispatcher is maintained only by the leader, so it must be restored anytime a
 // leadership transition takes place.
 func (s *Server) restorePeriodicDispatcher() error {
+	logger := s.logger.Named("periodic")
 	ws := memdb.NewWatchSet()
 	iter, err := s.fsm.State().JobsByPeriodic(ws, true)
 	if err != nil {
@@ -379,7 +392,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		if err := s.periodicDispatcher.Add(job); err != nil {
-			s.logger.Printf("[ERR] nomad.periodic: %v", err)
+			logger.Error("failed to add job to periodic dispatcher", "error", err)
 			continue
 		}
 
@@ -403,7 +416,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 		// nextLaunch is the next launch that should occur.
 		nextLaunch, err := job.Periodic.Next(launch.Launch.In(job.Periodic.GetLocation()))
 		if err != nil {
-			s.logger.Printf("[ERR] nomad.periodic: failed to determine next periodic launch for job %s: %v", job.NamespacedID(), err)
+			logger.Error("failed to determine next periodic launch for job", "job", job.NamespacedID(), "error", err)
 			continue
 		}
 
@@ -415,12 +428,10 @@ func (s *Server) restorePeriodicDispatcher() error {
 		}
 
 		if _, err := s.periodicDispatcher.ForceRun(job.Namespace, job.ID); err != nil {
-			msg := fmt.Sprintf("force run of periodic job %q failed: %v", job.ID, err)
-			s.logger.Printf("[ERR] nomad.periodic: %s", msg)
-			return errors.New(msg)
+			logger.Error("force run of periodic job failed", "job", job.NamespacedID(), "error", err)
+			return fmt.Errorf("force run of periodic job %q failed: %v", job.NamespacedID(), err)
 		}
-		s.logger.Printf("[DEBUG] nomad.periodic: periodic job %q force"+
-			" run during leadership establishment", job.ID)
+		logger.Debug("periodic job force runned during leadership establishment", "job", job.NamespacedID())
 	}
 
 	return nil
@@ -442,7 +453,7 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	getLatest := func() (uint64, bool) {
 		snapshotIndex, err := s.fsm.State().LatestIndex()
 		if err != nil {
-			s.logger.Printf("[ERR] nomad: failed to determine state store's index: %v", err)
+			s.logger.Error("failed to determine state store's index", "error", err)
 			return 0, false
 		}
 
@@ -510,7 +521,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			updateEval := eval.Copy()
 			updateEval.Status = structs.EvalStatusFailed
 			updateEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
-			s.logger.Printf("[WARN] nomad: eval %#v reached delivery limit, marking as failed", updateEval)
+			s.logger.Warn("eval reached delivery limit, marking as failed", "eval", updateEval.GoString())
 
 			// Create a follow-up evaluation that will be used to retry the
 			// scheduling for the job after the cluster is hopefully more stable
@@ -524,7 +535,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 				Evals: []*structs.Evaluation{updateEval, followupEval},
 			}
 			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to update failed eval %#v and create a follow-up: %v", updateEval, err)
+				s.logger.Error("failed to update failed eval and create a follow-up", "eval", updateEval.GoString(), "error", err)
 				continue
 			}
 
@@ -562,7 +573,7 @@ func (s *Server) reapDupBlockedEvaluations(stopCh chan struct{}) {
 				Evals: cancel,
 			}
 			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to update duplicate evals %#v: %v", cancel, err)
+				s.logger.Error("failed to update duplicate evals", "evals", log.Fmt("%#v", cancel), "error", err)
 				continue
 			}
 		}
@@ -597,13 +608,13 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 			timer.Reset(s.config.StatsCollectionInterval)
 			state, err := s.State().Snapshot()
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to get state: %v", err)
+				s.logger.Error("failed to get state", "error", err)
 				continue
 			}
 			ws := memdb.NewWatchSet()
 			iter, err := state.JobSummaries(ws)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to get job summaries: %v", err)
+				s.logger.Error("failed to get job summaries", "error", err)
 				continue
 			}
 
@@ -613,41 +624,78 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 					break
 				}
 				summary := raw.(*structs.JobSummary)
-				for name, tgSummary := range summary.Summary {
-					if !s.config.DisableTaggedMetrics {
-						labels := []metrics.Label{
-							{
-								Name:  "job",
-								Value: summary.JobID,
-							},
-							{
-								Name:  "task_group",
-								Value: name,
-							},
-						}
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
-							float32(tgSummary.Queued), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
-							float32(tgSummary.Complete), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
-							float32(tgSummary.Failed), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
-							float32(tgSummary.Running), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
-							float32(tgSummary.Starting), labels)
-						metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
-							float32(tgSummary.Lost), labels)
+				if s.config.DisableDispatchedJobSummaryMetrics {
+					job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
+					if err != nil {
+						s.logger.Error("error getting job for summary", "error", err)
+						continue
 					}
-					if s.config.BackwardsCompatibleMetrics {
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
-						metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+					if job.Dispatched {
+						continue
 					}
 				}
+				s.iterateJobSummaryMetrics(summary)
 			}
+		}
+	}
+}
+
+func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
+	for name, tgSummary := range summary.Summary {
+		if !s.config.DisableTaggedMetrics {
+			labels := []metrics.Label{
+				{
+					Name:  "job",
+					Value: summary.JobID,
+				},
+				{
+					Name:  "task_group",
+					Value: name,
+				},
+			}
+
+			if strings.Contains(summary.JobID, "/dispatch-") {
+				jobInfo := strings.Split(summary.JobID, "/dispatch-")
+				labels = append(labels, metrics.Label{
+					Name:  "parent_id",
+					Value: jobInfo[0],
+				}, metrics.Label{
+					Name:  "dispatch_id",
+					Value: jobInfo[1],
+				})
+			}
+
+			if strings.Contains(summary.JobID, "/periodic-") {
+				jobInfo := strings.Split(summary.JobID, "/periodic-")
+				labels = append(labels, metrics.Label{
+					Name:  "parent_id",
+					Value: jobInfo[0],
+				}, metrics.Label{
+					Name:  "periodic_id",
+					Value: jobInfo[1],
+				})
+			}
+
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+				float32(tgSummary.Queued), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+				float32(tgSummary.Complete), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+				float32(tgSummary.Failed), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+				float32(tgSummary.Running), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+				float32(tgSummary.Starting), labels)
+			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+				float32(tgSummary.Lost), labels)
+		}
+		if s.config.BackwardsCompatibleMetrics {
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
+			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
 		}
 	}
 }
@@ -692,7 +740,7 @@ func (s *Server) revokeLeadership() error {
 	// Clear the heartbeat timers on either shutdown or step down,
 	// since we are no longer responsible for TTL expirations.
 	if err := s.clearAllHeartbeatTimers(); err != nil {
-		s.logger.Printf("[ERR] nomad: clearing heartbeat timers failed: %v", err)
+		s.logger.Error("clearing heartbeat timers failed", "error", err)
 		return err
 	}
 
@@ -735,8 +783,7 @@ func (s *Server) reconcileMember(member serf.Member) error {
 		err = s.removeRaftPeer(member, parts)
 	}
 	if err != nil {
-		s.logger.Printf("[ERR] nomad: failed to reconcile member: %v: %v",
-			member, err)
+		s.logger.Error("failed to reconcile member", "member", member, "error", err)
 		return err
 	}
 	return nil
@@ -750,7 +797,7 @@ func (s *Server) reconcileJobSummaries() error {
 	if err != nil {
 		return fmt.Errorf("unable to read latest index: %v", err)
 	}
-	s.logger.Printf("[DEBUG] leader: reconciling job summaries at index: %v", index)
+	s.logger.Debug("leader reconciling job summaries", "index", index)
 
 	args := &structs.GenericResponse{}
 	msg := structs.ReconcileJobSummariesRequestType | structs.IgnoreUnknownTypeFlag
@@ -769,7 +816,8 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 		for _, member := range members {
 			valid, p := isNomadServer(member)
 			if valid && member.Name != m.Name && p.Bootstrap {
-				s.logger.Printf("[ERR] nomad: '%v' and '%v' are both in bootstrap mode. Only one node should be in bootstrap mode, not adding Raft peer.", m.Name, member.Name)
+				s.logger.Error("skipping adding Raft peer because an existing peer is in bootstrap mode and only one server should be in bootstrap mode",
+					"existing_peer", member.Name, "joining_peer", m.Name)
 				return nil
 			}
 		}
@@ -781,13 +829,13 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	addr := (&net.TCPAddr{IP: m.Addr, Port: parts.Port}).String()
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
+		s.logger.Error("failed to get raft configuration", "error", err)
 		return err
 	}
 
 	if m.Name == s.config.NodeName {
 		if l := len(configFuture.Configuration().Servers); l < 3 {
-			s.logger.Printf("[DEBUG] consul: Skipping self join check for %q since the cluster is too small", m.Name)
+			s.logger.Debug("skipping self join check for peer since the cluster is too small", "peer", m.Name)
 			return nil
 		}
 	}
@@ -817,12 +865,12 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 				if err := future.Error(); err != nil {
 					return fmt.Errorf("error removing server with duplicate address %q: %s", server.Address, err)
 				}
-				s.logger.Printf("[INFO] nomad: removed server with duplicate address: %s", server.Address)
+				s.logger.Info("removed server with duplicate address", "address", server.Address)
 			} else {
 				if err := future.Error(); err != nil {
 					return fmt.Errorf("error removing server with duplicate ID %q: %s", server.ID, err)
 				}
-				s.logger.Printf("[INFO] nomad: removed server with duplicate ID: %s", server.ID)
+				s.logger.Info("removed server with duplicate ID", "id", server.ID)
 			}
 		}
 	}
@@ -832,19 +880,19 @@ func (s *Server) addRaftPeer(m serf.Member, parts *serverParts) error {
 	case minRaftProtocol >= 3:
 		addFuture := s.raft.AddNonvoter(raft.ServerID(parts.ID), raft.ServerAddress(addr), 0, 0)
 		if err := addFuture.Error(); err != nil {
-			s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
+			s.logger.Error("failed to add raft peer", "error", err)
 			return err
 		}
 	case minRaftProtocol == 2 && parts.RaftVersion >= 3:
 		addFuture := s.raft.AddVoter(raft.ServerID(parts.ID), raft.ServerAddress(addr), 0, 0)
 		if err := addFuture.Error(); err != nil {
-			s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
+			s.logger.Error("failed to add raft peer", "error", err)
 			return err
 		}
 	default:
 		addFuture := s.raft.AddPeer(raft.ServerAddress(addr))
 		if err := addFuture.Error(); err != nil {
-			s.logger.Printf("[ERR] nomad: failed to add raft peer: %v", err)
+			s.logger.Error("failed to add raft peer", "error", err)
 			return err
 		}
 	}
@@ -862,7 +910,7 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 	// log entries.
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		s.logger.Printf("[ERR] nomad: failed to get raft configuration: %v", err)
+		s.logger.Error("failed to get raft configuration", "error", err)
 		return err
 	}
 
@@ -875,21 +923,19 @@ func (s *Server) removeRaftPeer(m serf.Member, parts *serverParts) error {
 	for _, server := range configFuture.Configuration().Servers {
 		// If we understand the new add/remove APIs and the server was added by ID, use the new remove API
 		if minRaftProtocol >= 2 && server.ID == raft.ServerID(parts.ID) {
-			s.logger.Printf("[INFO] nomad: removing server by ID: %q", server.ID)
+			s.logger.Info("removing server by ID", "id", server.ID)
 			future := s.raft.RemoveServer(raft.ServerID(parts.ID), 0, 0)
 			if err := future.Error(); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to remove raft peer '%v': %v",
-					server.ID, err)
+				s.logger.Error("failed to remove raft peer", "id", server.ID, "error", err)
 				return err
 			}
 			break
 		} else if server.Address == raft.ServerAddress(addr) {
 			// If not, use the old remove API
-			s.logger.Printf("[INFO] nomad: removing server by address: %q", server.Address)
+			s.logger.Info("removing server by address", "address", server.Address)
 			future := s.raft.RemovePeer(raft.ServerAddress(addr))
 			if err := future.Error(); err != nil {
-				s.logger.Printf("[ERR] nomad: failed to remove raft peer '%v': %v",
-					addr, err)
+				s.logger.Error("failed to remove raft peer", "address", addr, "error", err)
 				return err
 			}
 			break
@@ -909,7 +955,7 @@ func (s *Server) replicateACLPolicies(stopCh chan struct{}) {
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Printf("[DEBUG] nomad: starting ACL policy replication from authoritative region %q", req.Region)
+	s.logger.Debug("starting ACL policy replication from authoritative region", "authoritative_region", req.Region)
 
 START:
 	for {
@@ -926,7 +972,7 @@ START:
 			err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"ACL.ListPolicies", &req, &resp)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
+				s.logger.Error("failed to fetch policies from authoritative region", "error", err)
 				goto ERR_WAIT
 			}
 
@@ -940,7 +986,7 @@ START:
 				}
 				_, _, err := s.raftApply(structs.ACLPolicyDeleteRequestType, args)
 				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to delete policies: %v", err)
+					s.logger.Error("failed to delete policies", "error", err)
 					goto ERR_WAIT
 				}
 			}
@@ -960,7 +1006,7 @@ START:
 				var reply structs.ACLPolicySetResponse
 				if err := s.forwardRegion(s.config.AuthoritativeRegion,
 					"ACL.GetPolicies", &req, &reply); err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch policies from authoritative region: %v", err)
+					s.logger.Error("failed to fetch policies from authoritative region", "error", err)
 					goto ERR_WAIT
 				}
 				for _, policy := range reply.Policies {
@@ -975,7 +1021,7 @@ START:
 				}
 				_, _, err := s.raftApply(structs.ACLPolicyUpsertRequestType, args)
 				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to update policies: %v", err)
+					s.logger.Error("failed to update policies", "error", err)
 					goto ERR_WAIT
 				}
 			}
@@ -1051,7 +1097,7 @@ func (s *Server) replicateACLTokens(stopCh chan struct{}) {
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
-	s.logger.Printf("[DEBUG] nomad: starting ACL token replication from authoritative region %q", req.Region)
+	s.logger.Debug("starting ACL token replication from authoritative region", "authoritative_region", req.Region)
 
 START:
 	for {
@@ -1068,7 +1114,7 @@ START:
 			err := s.forwardRegion(s.config.AuthoritativeRegion,
 				"ACL.ListTokens", &req, &resp)
 			if err != nil {
-				s.logger.Printf("[ERR] nomad: failed to fetch tokens from authoritative region: %v", err)
+				s.logger.Error("failed to fetch tokens from authoritative region", "error", err)
 				goto ERR_WAIT
 			}
 
@@ -1082,7 +1128,7 @@ START:
 				}
 				_, _, err := s.raftApply(structs.ACLTokenDeleteRequestType, args)
 				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to delete tokens: %v", err)
+					s.logger.Error("failed to delete tokens", "error", err)
 					goto ERR_WAIT
 				}
 			}
@@ -1102,7 +1148,7 @@ START:
 				var reply structs.ACLTokenSetResponse
 				if err := s.forwardRegion(s.config.AuthoritativeRegion,
 					"ACL.GetTokens", &req, &reply); err != nil {
-					s.logger.Printf("[ERR] nomad: failed to fetch tokens from authoritative region: %v", err)
+					s.logger.Error("failed to fetch tokens from authoritative region", "error", err)
 					goto ERR_WAIT
 				}
 				for _, token := range reply.Tokens {
@@ -1117,7 +1163,7 @@ START:
 				}
 				_, _, err := s.raftApply(structs.ACLTokenUpsertRequestType, args)
 				if err != nil {
-					s.logger.Printf("[ERR] nomad: failed to update tokens: %v", err)
+					s.logger.Error("failed to update tokens", "error", err)
 					goto ERR_WAIT
 				}
 			}
@@ -1187,7 +1233,7 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 	state := s.fsm.State()
 	_, config, err := state.AutopilotConfig()
 	if err != nil {
-		s.logger.Printf("[ERR] autopilot: failed to get config: %v", err)
+		s.logger.Named("autopilot").Error("failed to get autopilot config", "error", err)
 		return nil
 	}
 	if config != nil {
@@ -1195,14 +1241,36 @@ func (s *Server) getOrCreateAutopilotConfig() *structs.AutopilotConfig {
 	}
 
 	if !ServersMeetMinimumVersion(s.Members(), minAutopilotVersion) {
-		s.logger.Printf("[WARN] autopilot: can't initialize until all servers are >= %s", minAutopilotVersion.String())
+		s.logger.Named("autopilot").Warn("can't initialize until all servers are above minimum version", "min_version", minAutopilotVersion)
 		return nil
 	}
 
 	config = s.config.AutopilotConfig
 	req := structs.AutopilotSetConfigRequest{Config: *config}
 	if _, _, err = s.raftApply(structs.AutopilotRequestType, req); err != nil {
-		s.logger.Printf("[ERR] autopilot: failed to initialize config: %v", err)
+		s.logger.Named("autopilot").Error("failed to initialize config", "error", err)
+		return nil
+	}
+
+	return config
+}
+
+// getOrCreateSchedulerConfig is used to get the scheduler config. We create a default
+// config if it doesn't already exist for bootstrapping an empty cluster
+func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
+	state := s.fsm.State()
+	_, config, err := state.SchedulerConfig()
+	if err != nil {
+		s.logger.Named("core").Error("failed to get scheduler config", "error", err)
+		return nil
+	}
+	if config != nil {
+		return config
+	}
+
+	req := structs.SchedulerSetConfigRequest{Config: *defaultSchedulerConfig}
+	if _, _, err = s.raftApply(structs.SchedulerConfigRequestType, req); err != nil {
+		s.logger.Named("core").Error("failed to initialize config", "error", err)
 		return nil
 	}
 

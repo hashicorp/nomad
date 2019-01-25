@@ -25,7 +25,7 @@ Usage: nomad node <subcommand> [options] [args]
   Mark a node as ineligible for running workloads. This is useful when the node
   is expected to be removed or upgraded so new allocations aren't placed on it:
 
-      $ nomad node eligibility -disabled <node-id>
+      $ nomad node eligibility -disable <node-id>
 
   Mark a node to be drained, allowing batch jobs four hours to finished before
   forcing them off the node:

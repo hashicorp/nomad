@@ -11,6 +11,8 @@ $warning-invert: $white;
 $danger: $red;
 $info: $blue;
 $dark: #234;
+$dark-2: darken($dark, 5%);
+$dark-3: darken($dark, 10%);
 
 $radius: 2px;
 
@@ -39,3 +41,5 @@ $breadcrumb-item-color: $white;
 $breadcrumb-item-hover-color: $white;
 $breadcrumb-item-active-color: $white;
 $breadcrumb-item-separator-color: $primary;
+
+$mq-hidden-gutter: 'only screen and (max-width : 960px)';

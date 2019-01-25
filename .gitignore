@@ -36,6 +36,12 @@ website/npm-debug.log
 *.old
 *.attr
 
+# Test file
+exit-code
+
+# Don't commit uncompressed state test files
+client/state/testdata/*.db
+
 ui/.sass-cache
 ui/static/base.css
 
@@ -82,3 +88,6 @@ rkt-*
 
 # auto-generated cert file for Terraform/Azure
 azure-hashistack.pem
+
+# generated keys for e2e tests
+e2e/terraform/keys/

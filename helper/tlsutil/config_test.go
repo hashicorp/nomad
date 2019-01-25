@@ -51,10 +51,6 @@ func TestConfig_AppendCA_Valid(t *testing.T) {
 func TestConfig_AppendCA_Valid_MultipleCerts(t *testing.T) {
 	require := require.New(t)
 
-	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
-	require.Nil(err)
-	defer os.Remove(tmpCAFile.Name())
-
 	certs := `
 -----BEGIN CERTIFICATE-----
 MIICMzCCAdqgAwIBAgIUNZ9L86Xp9EuDH0/qyAesh599LXQwCgYIKoZIzj0EAwIw
@@ -71,6 +67,61 @@ AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUOjVq/BectnhcKn6EHUD4NJFm
 Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
 -----END CERTIFICATE-----
 -----BEGIN CERTIFICATE-----
+MIICNTCCAZagAwIBAgIRANjgoh5iVZI26+Hz/K65G0UwCgYIKoZIzj0EAwQwNjEb
+MBkGA1UEChMSSGFzaGlDb3JwIFRyYWluaW5nMRcwFQYDVQQDEw5zZXJ2aWNlLmNv
+bnN1bDAeFw0xODA4MjMxNzM0NTBaFw0xODA5MjIxNzM0NTBaMDYxGzAZBgNVBAoT
+Ekhhc2hpQ29ycCBUcmFpbmluZzEXMBUGA1UEAxMOc2VydmljZS5jb25zdWwwgZsw
+EAYHKoZIzj0CAQYFK4EEACMDgYYABAGjC4sWsOfirS/DQ9/e7PdQeJwlOjziiOx/
+CALjS6ryEDkZPqRqMuoFXfudAmfdk6tl8AT1IKMVcgiQU5jkm7fliwFIk48uh+n2
+obqZjwDyM76VYBVSYi6i3BPXown1ivIMJNQS1txnWZLZHsv+WxbHydS+GNOAwKDK
+KsXj9dEhd36pvaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8w
+HQYDVR0OBBYEFIk3oG2hu0FxueW4e7fL+FdMOquBMAoGCCqGSM49BAMEA4GMADCB
+iAJCAPIPwPyk+8Ymj7Zlvb5qIUQg+UxoacAeJtFZrJ8xQjro0YjsM33O86rAfw+x
+sWWGul4Ews93KFBXvhbKCwb0F0PhAkIAh2z7COsKcQzvBoIy+Kx92+9j/sUjlzzl
+TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
+-----END CERTIFICATE-----
+`
+
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
+	require.NoError(err)
+	defer os.Remove(tmpCAFile.Name())
+
+	_, err = tmpCAFile.Write([]byte(certs))
+	require.NoError(err)
+	tmpCAFile.Close()
+
+	conf := &Config{
+		CAFile: tmpCAFile.Name(),
+	}
+	pool := x509.NewCertPool()
+	require.NoError(conf.AppendCA(pool))
+
+	require.Len(pool.Subjects(), 2)
+}
+
+// TestConfig_AppendCA_Valid_Whitespace asserts that a PEM file containing
+// trailing whitespace is valid.
+func TestConfig_AppendCA_Valid_Whitespace(t *testing.T) {
+	require := require.New(t)
+
+	const cacertWhitespace = "./testdata/ca-whitespace.pem"
+	conf := &Config{
+		CAFile: cacertWhitespace,
+	}
+	pool := x509.NewCertPool()
+	require.NoError(conf.AppendCA(pool))
+
+	require.Len(pool.Subjects(), 1)
+}
+
+// TestConfig_AppendCA_Invalid_MultipleCerts_Whitespace asserts that a PEM file
+// containing non-PEM data between certificate blocks is still valid.
+func TestConfig_AppendCA_Valid_MultipleCerts_ExtraData(t *testing.T) {
+	require := require.New(t)
+
+	certs := `
+Did you know...
+-----BEGIN CERTIFICATE-----
 MIICMzCCAdqgAwIBAgIUNZ9L86Xp9EuDH0/qyAesh599LXQwCgYIKoZIzj0EAwIw
 eDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
 biBGcmFuY2lzY28xEjAQBgNVBAoTCUhhc2hpQ29ycDEOMAwGA1UECxMFTm9tYWQx
@@ -83,10 +134,34 @@ uNdZJZWSi4Q/4HojM5FTSBqYxNgSrmY/o3oQrCPlo0IwQDAOBgNVHQ8BAf8EBAMC
 AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUOjVq/BectnhcKn6EHUD4NJFm
 /UAwCgYIKoZIzj0EAwIDRwAwRAIgTemDJGSGtcQPXLWKiQNw4SKO9wAPhn/WoKW4
 Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
------END CERTIFICATE-----`
+-----END CERTIFICATE-----
 
+...PEM parsers don't care about data...
+
+-----BEGIN CERTIFICATE-----
+MIICNTCCAZagAwIBAgIRANjgoh5iVZI26+Hz/K65G0UwCgYIKoZIzj0EAwQwNjEb
+MBkGA1UEChMSSGFzaGlDb3JwIFRyYWluaW5nMRcwFQYDVQQDEw5zZXJ2aWNlLmNv
+bnN1bDAeFw0xODA4MjMxNzM0NTBaFw0xODA5MjIxNzM0NTBaMDYxGzAZBgNVBAoT
+Ekhhc2hpQ29ycCBUcmFpbmluZzEXMBUGA1UEAxMOc2VydmljZS5jb25zdWwwgZsw
+EAYHKoZIzj0CAQYFK4EEACMDgYYABAGjC4sWsOfirS/DQ9/e7PdQeJwlOjziiOx/
+CALjS6ryEDkZPqRqMuoFXfudAmfdk6tl8AT1IKMVcgiQU5jkm7fliwFIk48uh+n2
+obqZjwDyM76VYBVSYi6i3BPXown1ivIMJNQS1txnWZLZHsv+WxbHydS+GNOAwKDK
+KsXj9dEhd36pvaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8w
+HQYDVR0OBBYEFIk3oG2hu0FxueW4e7fL+FdMOquBMAoGCCqGSM49BAMEA4GMADCB
+iAJCAPIPwPyk+8Ymj7Zlvb5qIUQg+UxoacAeJtFZrJ8xQjro0YjsM33O86rAfw+x
+sWWGul4Ews93KFBXvhbKCwb0F0PhAkIAh2z7COsKcQzvBoIy+Kx92+9j/sUjlzzl
+TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
+-----END CERTIFICATE-----
+
+...outside of -----XXX----- blocks?
+`
+
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file_extra")
+	require.NoError(err)
+	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
-	require.Nil(err)
+	require.NoError(err)
+	tmpCAFile.Close()
 
 	conf := &Config{
 		CAFile: tmpCAFile.Name(),
@@ -94,15 +169,14 @@ Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
 	pool := x509.NewCertPool()
 	err = conf.AppendCA(pool)
 
-	require.Nil(err)
+	require.NoError(err)
+	require.Len(pool.Subjects(), 2)
 }
 
-func TestConfig_AppendCA_InValid_MultipleCerts(t *testing.T) {
+// TestConfig_AppendCA_Invalid_MultipleCerts asserts only the valid certificate
+// is returned.
+func TestConfig_AppendCA_Invalid_MultipleCerts(t *testing.T) {
 	require := require.New(t)
-
-	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
-	require.Nil(err)
-	defer os.Remove(tmpCAFile.Name())
 
 	certs := `
 -----BEGIN CERTIFICATE-----
@@ -123,16 +197,20 @@ Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
 Invalid
 -----END CERTIFICATE-----`
 
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
+	require.NoError(err)
+	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
-	require.Nil(err)
+	require.NoError(err)
+	tmpCAFile.Close()
 
 	conf := &Config{
 		CAFile: tmpCAFile.Name(),
 	}
 	pool := x509.NewCertPool()
-	err = conf.AppendCA(pool)
+	require.NoError(conf.AppendCA(pool))
 
-	require.NotNil(err)
+	require.Len(pool.Subjects(), 1)
 }
 
 func TestConfig_AppendCA_Invalid(t *testing.T) {
@@ -160,8 +238,8 @@ func TestConfig_AppendCA_Invalid(t *testing.T) {
 		}
 		pool := x509.NewCertPool()
 		err = conf.AppendCA(pool)
-		require.NotNil(err)
-		require.Contains(err.Error(), "Failed to decode CA file from pem format")
+		require.Error(err)
+		require.Contains(err.Error(), "Failed to parse any valid certificates in CA file:")
 		require.Equal(len(pool.Subjects()), 0)
 	}
 }
@@ -310,8 +388,8 @@ func TestConfig_OutgoingTLS_PreferServerCipherSuites(t *testing.T) {
 	}
 	{
 		conf := &Config{
-			VerifyOutgoing: true,
-			CAFile:         cacert,
+			VerifyOutgoing:           true,
+			CAFile:                   cacert,
 			PreferServerCipherSuites: true,
 		}
 		tlsConfig, err := conf.OutgoingTLSConfig()
@@ -644,28 +722,35 @@ func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
 	}
 }
 
+// This test relies on the fact that the specified certificate has an ECDSA
+// signature algorithm
 func TestConfig_ParseCiphers_Valid(t *testing.T) {
 	require := require.New(t)
 
-	validCiphers := strings.Join([]string{
-		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
-		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
-		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
-		"TLS_RSA_WITH_AES_128_GCM_SHA256",
-		"TLS_RSA_WITH_AES_256_GCM_SHA384",
-		"TLS_RSA_WITH_AES_128_CBC_SHA256",
-		"TLS_RSA_WITH_AES_128_CBC_SHA",
-		"TLS_RSA_WITH_AES_256_CBC_SHA",
-	}, ",")
+	tlsConfig := &config.TLSConfig{
+		CertFile:  foocert,
+		KeyFile:   fookey,
+		KeyLoader: &config.KeyLoader{},
+		TLSCipherSuites: strings.Join([]string{
+			"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
+			"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+			"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+			"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+			"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+			"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+			"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+			"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+			"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
+			"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
+			"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+			"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
+			"TLS_RSA_WITH_AES_128_GCM_SHA256",
+			"TLS_RSA_WITH_AES_256_GCM_SHA384",
+			"TLS_RSA_WITH_AES_128_CBC_SHA256",
+			"TLS_RSA_WITH_AES_128_CBC_SHA",
+			"TLS_RSA_WITH_AES_256_CBC_SHA",
+		}, ","),
+	}
 
 	expectedCiphers := []uint16{
 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
@@ -687,11 +772,13 @@ func TestConfig_ParseCiphers_Valid(t *testing.T) {
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 	}
 
-	parsedCiphers, err := ParseCiphers(validCiphers)
+	parsedCiphers, err := ParseCiphers(tlsConfig)
 	require.Nil(err)
 	require.Equal(parsedCiphers, expectedCiphers)
 }
 
+// This test relies on the fact that the specified certificate has an ECDSA
+// signature algorithm
 func TestConfig_ParseCiphers_Default(t *testing.T) {
 	require := require.New(t)
 
@@ -708,11 +795,18 @@ func TestConfig_ParseCiphers_Default(t *testing.T) {
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	}
 
-	parsedCiphers, err := ParseCiphers("")
+	empty := &config.TLSConfig{
+		CertFile:  foocert,
+		KeyFile:   fookey,
+		KeyLoader: &config.KeyLoader{},
+	}
+	parsedCiphers, err := ParseCiphers(empty)
 	require.Nil(err)
 	require.Equal(parsedCiphers, expectedCiphers)
 }
 
+// This test relies on the fact that the specified certificate has an ECDSA
+// signature algorithm
 func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 	require := require.New(t)
 
@@ -722,9 +816,47 @@ func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 	}
 
 	for _, cipher := range invalidCiphers {
-		parsedCiphers, err := ParseCiphers(cipher)
+		tlsConfig := &config.TLSConfig{
+			TLSCipherSuites: cipher,
+			CertFile:        foocert,
+			KeyFile:         fookey,
+			KeyLoader:       &config.KeyLoader{},
+		}
+		parsedCiphers, err := ParseCiphers(tlsConfig)
 		require.NotNil(err)
 		require.Equal(fmt.Sprintf("unsupported TLS cipher %q", cipher), err.Error())
+		require.Equal(0, len(parsedCiphers))
+	}
+}
+
+// This test relies on the fact that the specified certificate has an ECDSA
+// signature algorithm
+func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
+	require := require.New(t)
+
+	// Supported signature
+	{
+		tlsConfig := &config.TLSConfig{
+			TLSCipherSuites: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
+			CertFile:        foocert,
+			KeyFile:         fookey,
+			KeyLoader:       &config.KeyLoader{},
+		}
+		parsedCiphers, err := ParseCiphers(tlsConfig)
+		require.Nil(err)
+		require.Equal(1, len(parsedCiphers))
+	}
+
+	// Unsupported signature
+	{
+		tlsConfig := &config.TLSConfig{
+			TLSCipherSuites: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
+			CertFile:        foocert,
+			KeyFile:         fookey,
+			KeyLoader:       &config.KeyLoader{},
+		}
+		parsedCiphers, err := ParseCiphers(tlsConfig)
+		require.NotNil(err)
 		require.Equal(0, len(parsedCiphers))
 	}
 }
@@ -769,7 +901,10 @@ func TestConfig_NewTLSConfiguration(t *testing.T) {
 	require := require.New(t)
 
 	conf := &config.TLSConfig{
-		TLSCipherSuites: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+		TLSCipherSuites: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+		CertFile:        foocert,
+		KeyFile:         fookey,
+		KeyLoader:       &config.KeyLoader{},
 	}
 
 	tlsConf, err := NewTLSConfiguration(conf, true, true)
@@ -778,8 +913,94 @@ func TestConfig_NewTLSConfiguration(t *testing.T) {
 	require.True(tlsConf.VerifyOutgoing)
 
 	expectedCiphers := []uint16{
-		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	}
 	require.Equal(tlsConf.CipherSuites, expectedCiphers)
+}
+
+func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
+	require := require.New(t)
+
+	type shouldReloadTestInput struct {
+		old          *config.TLSConfig
+		new          *config.TLSConfig
+		shouldReload bool
+		errorStr     string
+	}
+
+	testInput := []*shouldReloadTestInput{
+		{
+			old: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			new: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			shouldReload: false,
+			errorStr:     "Same TLS Configuration should not reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: badcert,
+				KeyFile:  badkey,
+			},
+			new: &config.TLSConfig{
+				CAFile:   cacert,
+				CertFile: foocert,
+				KeyFile:  fookey,
+			},
+			shouldReload: true,
+			errorStr:     "Different TLS Configuration should reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			new: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: false,
+			},
+			shouldReload: true,
+			errorStr:     "Downgrading RPC connections should force reload",
+		},
+		{
+			old: nil,
+			new: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			shouldReload: true,
+			errorStr:     "Upgrading RPC connections should force reload",
+		},
+		{
+			old: &config.TLSConfig{
+				CAFile:    cacert,
+				CertFile:  badcert,
+				KeyFile:   badkey,
+				EnableRPC: true,
+			},
+			new:          nil,
+			shouldReload: true,
+			errorStr:     "Downgrading RPC connections should force reload",
+		},
+	}
+
+	for _, testCase := range testInput {
+		shouldReload, err := ShouldReloadRPCConnections(testCase.old, testCase.new)
+		require.NoError(err)
+		require.Equal(shouldReload, testCase.shouldReload, testCase.errorStr)
+	}
 }

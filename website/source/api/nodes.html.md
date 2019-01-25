@@ -274,14 +274,12 @@ $ curl \
   "Reserved": {
     "CPU": 0,
     "DiskMB": 0,
-    "IOPS": 0,
     "MemoryMB": 0,
     "Networks": null
   },
   "Resources": {
     "CPU": 2200,
     "DiskMB": 25392,
-    "IOPS": 0,
     "MemoryMB": 3704,
     "Networks": [
       {
@@ -443,7 +441,6 @@ $ curl \
               "Resources": {
                 "CPU": 100,
                 "DiskMB": 0,
-                "IOPS": 0,
                 "MemoryMB": 300,
                 "Networks": [
                   {
@@ -541,7 +538,6 @@ $ curl \
     "Resources": {
       "CPU": 100,
       "DiskMB": 300,
-      "IOPS": 0,
       "MemoryMB": 300,
       "Networks": [
         {
@@ -562,7 +558,6 @@ $ curl \
     "SharedResources": {
       "CPU": 0,
       "DiskMB": 300,
-      "IOPS": 0,
       "MemoryMB": 0,
       "Networks": null
     },
@@ -571,7 +566,6 @@ $ curl \
       "webapp": {
         "CPU": 100,
         "DiskMB": 0,
-        "IOPS": 0,
         "MemoryMB": 300,
         "Networks": [
           {
@@ -759,8 +753,8 @@ $ curl \
 
 This endpoint toggles the drain mode of the node. When draining is enabled, no
 further allocations will be assigned to this node, and existing allocations will
-be migrated to new nodes. See the [Decommissioning Nodes
-guide](/guides/node-draining.html) for suggested usage.
+be migrated to new nodes. See the [Workload Migration 
+Guide](/guides/operations/node-draining.html) for suggested usage.
 
 | Method  | Path                      | Produces                   |
 | ------- | ------------------------- | -------------------------- |
@@ -800,7 +794,7 @@ The table below shows this endpoint's support for
 ```json
 {
     "DrainSpec": {
-         "Deadline": "3600000000000",
+         "Deadline": 3600000000000,
          "IgnoreSystemJobs": true
     }
 }
@@ -872,6 +866,58 @@ $ curl \
   "NodeModifyIndex": 3816,
   "NumNodes": 0,
   "Servers": null
+}
+```
+
+## Toggle Node Eligibility
+
+This endpoint toggles the scheduling eligibility of the node.
+
+| Method  | Path                            | Produces                   |
+| ------- | ------------------------------- | -------------------------- |
+| `POST`  | `/v1/node/:node_id/eligibility` | `application/json`         |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries | ACL Required       |
+| ---------------- | ------------------ |
+| `NO`             | `node:write`       |
+
+### Parameters
+
+- `:node_id` `(string: <required>)`- Specifies the UUID of the node. This must
+  be the full UUID, not the short 8-character one. This is specified as part of
+  the path.
+
+- `Eligibility` `(string: <required>)` - Either `eligible` or `ineligible`.
+
+### Sample Payload
+
+```json
+{
+    "Eligibility": "ineligible"
+}
+```
+
+### Sample Request
+
+```text
+$ curl \
+    -XPOST \
+    --data @eligibility.json \
+    http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/eligibility
+```
+
+### Sample Response
+
+```json
+{
+  "EvalCreateIndex": 0,
+  "EvalIDs": null,
+  "Index": 3742,
+  "NodeModifyIndex": 3742
 }
 ```
 

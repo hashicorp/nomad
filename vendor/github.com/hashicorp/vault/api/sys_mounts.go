@@ -1,57 +1,50 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
-	"github.com/fatih/structs"
 	"github.com/mitchellh/mapstructure"
 )
 
 func (c *Sys) ListMounts() (map[string]*MountOutput, error) {
 	r := c.c.NewRequest("GET", "/v1/sys/mounts")
-	resp, err := c.c.RawRequest(r)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	resp, err := c.c.RawRequestWithContext(ctx, r)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var result map[string]interface{}
-	err = resp.DecodeJSON(&result)
+	secret, err := ParseSecret(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+	if secret == nil || secret.Data == nil {
+		return nil, errors.New("data from server response is empty")
+	}
 
 	mounts := map[string]*MountOutput{}
-	for k, v := range result {
-		switch v.(type) {
-		case map[string]interface{}:
-		default:
-			continue
-		}
-		var res MountOutput
-		err = mapstructure.Decode(v, &res)
-		if err != nil {
-			return nil, err
-		}
-		// Not a mount, some other api.Secret data
-		if res.Type == "" {
-			continue
-		}
-		mounts[k] = &res
+	err = mapstructure.Decode(secret.Data, &mounts)
+	if err != nil {
+		return nil, err
 	}
 
 	return mounts, nil
 }
 
 func (c *Sys) Mount(path string, mountInfo *MountInput) error {
-	body := structs.Map(mountInfo)
-
 	r := c.c.NewRequest("POST", fmt.Sprintf("/v1/sys/mounts/%s", path))
-	if err := r.SetJSONBody(body); err != nil {
+	if err := r.SetJSONBody(mountInfo); err != nil {
 		return err
 	}
 
-	resp, err := c.c.RawRequest(r)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	resp, err := c.c.RawRequestWithContext(ctx, r)
 	if err != nil {
 		return err
 	}
@@ -62,7 +55,10 @@ func (c *Sys) Mount(path string, mountInfo *MountInput) error {
 
 func (c *Sys) Unmount(path string) error {
 	r := c.c.NewRequest("DELETE", fmt.Sprintf("/v1/sys/mounts/%s", path))
-	resp, err := c.c.RawRequest(r)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	resp, err := c.c.RawRequestWithContext(ctx, r)
 	if err == nil {
 		defer resp.Body.Close()
 	}
@@ -80,7 +76,9 @@ func (c *Sys) Remount(from, to string) error {
 		return err
 	}
 
-	resp, err := c.c.RawRequest(r)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	resp, err := c.c.RawRequestWithContext(ctx, r)
 	if err == nil {
 		defer resp.Body.Close()
 	}
@@ -88,13 +86,14 @@ func (c *Sys) Remount(from, to string) error {
 }
 
 func (c *Sys) TuneMount(path string, config MountConfigInput) error {
-	body := structs.Map(config)
 	r := c.c.NewRequest("POST", fmt.Sprintf("/v1/sys/mounts/%s/tune", path))
-	if err := r.SetJSONBody(body); err != nil {
+	if err := r.SetJSONBody(config); err != nil {
 		return err
 	}
 
-	resp, err := c.c.RawRequest(r)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	resp, err := c.c.RawRequestWithContext(ctx, r)
 	if err == nil {
 		defer resp.Body.Close()
 	}
@@ -104,14 +103,24 @@ func (c *Sys) TuneMount(path string, config MountConfigInput) error {
 func (c *Sys) MountConfig(path string) (*MountConfigOutput, error) {
 	r := c.c.NewRequest("GET", fmt.Sprintf("/v1/sys/mounts/%s/tune", path))
 
-	resp, err := c.c.RawRequest(r)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	resp, err := c.c.RawRequestWithContext(ctx, r)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	secret, err := ParseSecret(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if secret == nil || secret.Data == nil {
+		return nil, errors.New("data from server response is empty")
+	}
+
 	var result MountConfigOutput
-	err = resp.DecodeJSON(&result)
+	err = mapstructure.Decode(secret.Data, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -120,44 +129,45 @@ func (c *Sys) MountConfig(path string) (*MountConfigOutput, error) {
 }
 
 type MountInput struct {
-	Type        string            `json:"type" structs:"type"`
-	Description string            `json:"description" structs:"description"`
-	Config      MountConfigInput  `json:"config" structs:"config"`
-	Options     map[string]string `json:"options" structs:"options"`
-	Local       bool              `json:"local" structs:"local"`
-	PluginName  string            `json:"plugin_name,omitempty" structs:"plugin_name"`
-	SealWrap    bool              `json:"seal_wrap" structs:"seal_wrap" mapstructure:"seal_wrap"`
+	Type        string            `json:"type"`
+	Description string            `json:"description"`
+	Config      MountConfigInput  `json:"config"`
+	Options     map[string]string `json:"options"`
+	Local       bool              `json:"local"`
+	PluginName  string            `json:"plugin_name,omitempty"`
+	SealWrap    bool              `json:"seal_wrap" mapstructure:"seal_wrap"`
 }
 
 type MountConfigInput struct {
-	Options                   map[string]string `json:"options" structs:"options" mapstructure:"options"`
-	DefaultLeaseTTL           string            `json:"default_lease_ttl" structs:"default_lease_ttl" mapstructure:"default_lease_ttl"`
-	MaxLeaseTTL               string            `json:"max_lease_ttl" structs:"max_lease_ttl" mapstructure:"max_lease_ttl"`
-	ForceNoCache              bool              `json:"force_no_cache" structs:"force_no_cache" mapstructure:"force_no_cache"`
-	PluginName                string            `json:"plugin_name,omitempty" structs:"plugin_name,omitempty" mapstructure:"plugin_name"`
-	AuditNonHMACRequestKeys   []string          `json:"audit_non_hmac_request_keys,omitempty" structs:"audit_non_hmac_request_keys" mapstructure:"audit_non_hmac_request_keys"`
-	AuditNonHMACResponseKeys  []string          `json:"audit_non_hmac_response_keys,omitempty" structs:"audit_non_hmac_response_keys" mapstructure:"audit_non_hmac_response_keys"`
-	ListingVisibility         string            `json:"listing_visibility,omitempty" structs:"listing_visibility" mapstructure:"listing_visibility"`
-	PassthroughRequestHeaders []string          `json:"passthrough_request_headers,omitempty" structs:"passthrough_request_headers" mapstructure:"passthrough_request_headers"`
+	Options                   map[string]string `json:"options" mapstructure:"options"`
+	DefaultLeaseTTL           string            `json:"default_lease_ttl" mapstructure:"default_lease_ttl"`
+	Description               *string           `json:"description,omitempty" mapstructure:"description"`
+	MaxLeaseTTL               string            `json:"max_lease_ttl" mapstructure:"max_lease_ttl"`
+	ForceNoCache              bool              `json:"force_no_cache" mapstructure:"force_no_cache"`
+	PluginName                string            `json:"plugin_name,omitempty" mapstructure:"plugin_name"`
+	AuditNonHMACRequestKeys   []string          `json:"audit_non_hmac_request_keys,omitempty" mapstructure:"audit_non_hmac_request_keys"`
+	AuditNonHMACResponseKeys  []string          `json:"audit_non_hmac_response_keys,omitempty" mapstructure:"audit_non_hmac_response_keys"`
+	ListingVisibility         string            `json:"listing_visibility,omitempty" mapstructure:"listing_visibility"`
+	PassthroughRequestHeaders []string          `json:"passthrough_request_headers,omitempty" mapstructure:"passthrough_request_headers"`
 }
 
 type MountOutput struct {
-	Type        string            `json:"type" structs:"type"`
-	Description string            `json:"description" structs:"description"`
-	Accessor    string            `json:"accessor" structs:"accessor"`
-	Config      MountConfigOutput `json:"config" structs:"config"`
-	Options     map[string]string `json:"options" structs:"options"`
-	Local       bool              `json:"local" structs:"local"`
-	SealWrap    bool              `json:"seal_wrap" structs:"seal_wrap" mapstructure:"seal_wrap"`
+	Type        string            `json:"type"`
+	Description string            `json:"description"`
+	Accessor    string            `json:"accessor"`
+	Config      MountConfigOutput `json:"config"`
+	Options     map[string]string `json:"options"`
+	Local       bool              `json:"local"`
+	SealWrap    bool              `json:"seal_wrap" mapstructure:"seal_wrap"`
 }
 
 type MountConfigOutput struct {
-	DefaultLeaseTTL           int      `json:"default_lease_ttl" structs:"default_lease_ttl" mapstructure:"default_lease_ttl"`
-	MaxLeaseTTL               int      `json:"max_lease_ttl" structs:"max_lease_ttl" mapstructure:"max_lease_ttl"`
-	ForceNoCache              bool     `json:"force_no_cache" structs:"force_no_cache" mapstructure:"force_no_cache"`
-	PluginName                string   `json:"plugin_name,omitempty" structs:"plugin_name,omitempty" mapstructure:"plugin_name"`
-	AuditNonHMACRequestKeys   []string `json:"audit_non_hmac_request_keys,omitempty" structs:"audit_non_hmac_request_keys" mapstructure:"audit_non_hmac_request_keys"`
-	AuditNonHMACResponseKeys  []string `json:"audit_non_hmac_response_keys,omitempty" structs:"audit_non_hmac_response_keys" mapstructure:"audit_non_hmac_response_keys"`
-	ListingVisibility         string   `json:"listing_visibility,omitempty" structs:"listing_visibility" mapstructure:"listing_visibility"`
-	PassthroughRequestHeaders []string `json:"passthrough_request_headers,omitempty" structs:"passthrough_request_headers" mapstructure:"passthrough_request_headers"`
+	DefaultLeaseTTL           int      `json:"default_lease_ttl" mapstructure:"default_lease_ttl"`
+	MaxLeaseTTL               int      `json:"max_lease_ttl" mapstructure:"max_lease_ttl"`
+	ForceNoCache              bool     `json:"force_no_cache" mapstructure:"force_no_cache"`
+	PluginName                string   `json:"plugin_name,omitempty" mapstructure:"plugin_name"`
+	AuditNonHMACRequestKeys   []string `json:"audit_non_hmac_request_keys,omitempty" mapstructure:"audit_non_hmac_request_keys"`
+	AuditNonHMACResponseKeys  []string `json:"audit_non_hmac_response_keys,omitempty" mapstructure:"audit_non_hmac_response_keys"`
+	ListingVisibility         string   `json:"listing_visibility,omitempty" mapstructure:"listing_visibility"`
+	PassthroughRequestHeaders []string `json:"passthrough_request_headers,omitempty" mapstructure:"passthrough_request_headers"`
 }

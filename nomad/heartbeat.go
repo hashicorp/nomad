@@ -2,11 +2,14 @@ package nomad
 
 import (
 	"errors"
+	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/lib"
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -26,12 +29,33 @@ var (
 	heartbeatNotLeaderErr = errors.New(heartbeatNotLeader)
 )
 
+// nodeHeartbeater is used to track expiration times of node heartbeats. If it
+// detects an expired node, the node status is updated to be 'down'.
+type nodeHeartbeater struct {
+	*Server
+	logger log.Logger
+
+	// heartbeatTimers track the expiration time of each heartbeat that has
+	// a TTL. On expiration, the node status is updated to be 'down'.
+	heartbeatTimers     map[string]*time.Timer
+	heartbeatTimersLock sync.Mutex
+}
+
+// newNodeHeartbeater returns a new node heartbeater used to detect and act on
+// failed node heartbeats.
+func newNodeHeartbeater(s *Server) *nodeHeartbeater {
+	return &nodeHeartbeater{
+		Server: s,
+		logger: s.logger.Named("heartbeat"),
+	}
+}
+
 // initializeHeartbeatTimers is used when a leader is newly elected to create
 // a new map to track heartbeat expiration and to reset all the timers from
 // the previously known set of timers.
-func (s *Server) initializeHeartbeatTimers() error {
+func (h *nodeHeartbeater) initializeHeartbeatTimers() error {
 	// Scan all nodes and reset their timer
-	snap, err := s.fsm.State().Snapshot()
+	snap, err := h.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
@@ -43,8 +67,8 @@ func (s *Server) initializeHeartbeatTimers() error {
 		return err
 	}
 
-	s.heartbeatTimersLock.Lock()
-	defer s.heartbeatTimersLock.Unlock()
+	h.heartbeatTimersLock.Lock()
+	defer h.heartbeatTimersLock.Unlock()
 
 	// Handle each node
 	for {
@@ -56,77 +80,77 @@ func (s *Server) initializeHeartbeatTimers() error {
 		if node.TerminalStatus() {
 			continue
 		}
-		s.resetHeartbeatTimerLocked(node.ID, s.config.FailoverHeartbeatTTL)
+		h.resetHeartbeatTimerLocked(node.ID, h.config.FailoverHeartbeatTTL)
 	}
 	return nil
 }
 
 // resetHeartbeatTimer is used to reset the TTL of a heartbeat.
 // This can be used for new heartbeats and existing ones.
-func (s *Server) resetHeartbeatTimer(id string) (time.Duration, error) {
-	s.heartbeatTimersLock.Lock()
-	defer s.heartbeatTimersLock.Unlock()
+func (h *nodeHeartbeater) resetHeartbeatTimer(id string) (time.Duration, error) {
+	h.heartbeatTimersLock.Lock()
+	defer h.heartbeatTimersLock.Unlock()
 
 	// Do not create a timer for the node since we are not the leader. This
 	// check avoids the race in which leadership is lost but a timer is created
 	// on this server since it was servicing an RPC during a leadership loss.
-	if !s.IsLeader() {
-		s.logger.Printf("[DEBUG] nomad.heartbeat: ignoring resetting node %q TTL since this node is not the leader", id)
+	if !h.IsLeader() {
+		h.logger.Debug("ignoring resetting node TTL since this server is not the leader", "node_id", id)
 		return 0, heartbeatNotLeaderErr
 	}
 
 	// Compute the target TTL value
-	n := len(s.heartbeatTimers)
-	ttl := lib.RateScaledInterval(s.config.MaxHeartbeatsPerSecond, s.config.MinHeartbeatTTL, n)
+	n := len(h.heartbeatTimers)
+	ttl := lib.RateScaledInterval(h.config.MaxHeartbeatsPerSecond, h.config.MinHeartbeatTTL, n)
 	ttl += lib.RandomStagger(ttl)
 
 	// Reset the TTL
-	s.resetHeartbeatTimerLocked(id, ttl+s.config.HeartbeatGrace)
+	h.resetHeartbeatTimerLocked(id, ttl+h.config.HeartbeatGrace)
 	return ttl, nil
 }
 
 // resetHeartbeatTimerLocked is used to reset a heartbeat timer
 // assuming the heartbeatTimerLock is already held
-func (s *Server) resetHeartbeatTimerLocked(id string, ttl time.Duration) {
+func (h *nodeHeartbeater) resetHeartbeatTimerLocked(id string, ttl time.Duration) {
 	// Ensure a timer map exists
-	if s.heartbeatTimers == nil {
-		s.heartbeatTimers = make(map[string]*time.Timer)
+	if h.heartbeatTimers == nil {
+		h.heartbeatTimers = make(map[string]*time.Timer)
 	}
 
 	// Renew the heartbeat timer if it exists
-	if timer, ok := s.heartbeatTimers[id]; ok {
+	if timer, ok := h.heartbeatTimers[id]; ok {
 		timer.Reset(ttl)
 		return
 	}
 
 	// Create a new timer to track expiration of this heartbeat
 	timer := time.AfterFunc(ttl, func() {
-		s.invalidateHeartbeat(id)
+		h.invalidateHeartbeat(id)
 	})
-	s.heartbeatTimers[id] = timer
+	h.heartbeatTimers[id] = timer
 }
 
 // invalidateHeartbeat is invoked when a heartbeat TTL is reached and we
 // need to invalidate the heartbeat.
-func (s *Server) invalidateHeartbeat(id string) {
+func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	defer metrics.MeasureSince([]string{"nomad", "heartbeat", "invalidate"}, time.Now())
 	// Clear the heartbeat timer
-	s.heartbeatTimersLock.Lock()
-	if timer, ok := s.heartbeatTimers[id]; ok {
+	h.heartbeatTimersLock.Lock()
+	if timer, ok := h.heartbeatTimers[id]; ok {
 		timer.Stop()
-		delete(s.heartbeatTimers, id)
+		delete(h.heartbeatTimers, id)
 	}
-	s.heartbeatTimersLock.Unlock()
+	h.heartbeatTimersLock.Unlock()
 
 	// Do not invalidate the node since we are not the leader. This check avoids
 	// the race in which leadership is lost but a timer is created on this
 	// server since it was servicing an RPC during a leadership loss.
-	if !s.IsLeader() {
-		s.logger.Printf("[DEBUG] nomad.heartbeat: ignoring node %q TTL since this node is not the leader", id)
+	if !h.IsLeader() {
+		h.logger.Debug("ignoring node TTL since this server is not the leader", "node_id", id)
 		return
 	}
 
-	s.logger.Printf("[WARN] nomad.heartbeat: node '%s' TTL expired", id)
+	h.logger.Warn("node TTL expired", "node_id", id)
 
 	// Make a request to update the node status
 	req := structs.NodeUpdateStatusRequest{
@@ -134,54 +158,54 @@ func (s *Server) invalidateHeartbeat(id string) {
 		Status:    structs.NodeStatusDown,
 		NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventMissed),
 		WriteRequest: structs.WriteRequest{
-			Region: s.config.Region,
+			Region: h.config.Region,
 		},
 	}
 	var resp structs.NodeUpdateResponse
-	if err := s.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
-		s.logger.Printf("[ERR] nomad.heartbeat: update status failed: %v", err)
+	if err := h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
+		h.logger.Error("update node status failed", "error", err)
 	}
 }
 
 // clearHeartbeatTimer is used to clear the heartbeat time for
 // a single heartbeat. This is used when a heartbeat is destroyed
 // explicitly and no longer needed.
-func (s *Server) clearHeartbeatTimer(id string) error {
-	s.heartbeatTimersLock.Lock()
-	defer s.heartbeatTimersLock.Unlock()
+func (h *nodeHeartbeater) clearHeartbeatTimer(id string) error {
+	h.heartbeatTimersLock.Lock()
+	defer h.heartbeatTimersLock.Unlock()
 
-	if timer, ok := s.heartbeatTimers[id]; ok {
+	if timer, ok := h.heartbeatTimers[id]; ok {
 		timer.Stop()
-		delete(s.heartbeatTimers, id)
+		delete(h.heartbeatTimers, id)
 	}
 	return nil
 }
 
 // clearAllHeartbeatTimers is used when a leader is stepping
 // down and we no longer need to track any heartbeat timers.
-func (s *Server) clearAllHeartbeatTimers() error {
-	s.heartbeatTimersLock.Lock()
-	defer s.heartbeatTimersLock.Unlock()
+func (h *nodeHeartbeater) clearAllHeartbeatTimers() error {
+	h.heartbeatTimersLock.Lock()
+	defer h.heartbeatTimersLock.Unlock()
 
-	for _, t := range s.heartbeatTimers {
+	for _, t := range h.heartbeatTimers {
 		t.Stop()
 	}
-	s.heartbeatTimers = nil
+	h.heartbeatTimers = nil
 	return nil
 }
 
 // heartbeatStats is a long running routine used to capture
 // the number of active heartbeats being tracked
-func (s *Server) heartbeatStats() {
+func (h *nodeHeartbeater) heartbeatStats() {
 	for {
 		select {
 		case <-time.After(5 * time.Second):
-			s.heartbeatTimersLock.Lock()
-			num := len(s.heartbeatTimers)
-			s.heartbeatTimersLock.Unlock()
+			h.heartbeatTimersLock.Lock()
+			num := len(h.heartbeatTimers)
+			h.heartbeatTimersLock.Unlock()
 			metrics.SetGauge([]string{"nomad", "heartbeat", "active"}, float32(num))
 
-		case <-s.shutdownCh:
+		case <-h.shutdownCh:
 			return
 		}
 	}

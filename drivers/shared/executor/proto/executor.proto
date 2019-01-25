@@ -1,0 +1,93 @@
+syntax = "proto3";
+package hashicorp.nomad.plugins.executor.proto;
+option go_package = "proto";
+
+import "google/protobuf/timestamp.proto";
+import "github.com/hashicorp/nomad/plugins/drivers/proto/driver.proto";
+
+service Executor {
+    rpc Launch(LaunchRequest) returns (LaunchResponse) {}
+    rpc Wait(WaitRequest) returns (WaitResponse) {}
+    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {}
+    rpc UpdateResources(UpdateResourcesRequest) returns (UpdateResourcesResponse) {}
+    rpc Version(VersionRequest) returns (VersionResponse) {}
+    rpc Stats(StatsRequest) returns (stream StatsResponse) {}
+    rpc Signal(SignalRequest) returns (SignalResponse) {}
+    rpc Exec(ExecRequest) returns (ExecResponse) {}
+}
+
+message LaunchRequest {
+    string cmd = 1;
+    repeated string args = 2;
+    hashicorp.nomad.plugins.drivers.proto.Resources resources = 3;
+    string stdout_path = 4;
+    string stderr_path = 5;
+    repeated string env = 6;
+    string user = 7;
+    string task_dir = 8;
+    bool resource_limits = 9;
+    bool basic_process_cgroup = 10;
+    repeated hashicorp.nomad.plugins.drivers.proto.Mount mounts = 11;
+    repeated hashicorp.nomad.plugins.drivers.proto.Device devices = 12;
+}
+
+message LaunchResponse {
+    ProcessState process = 1;
+}
+
+message WaitRequest {}
+
+message WaitResponse{
+    ProcessState process = 1;
+}
+
+message ShutdownRequest {
+    string signal = 1;
+    int64 grace_period = 2;
+}
+
+message ShutdownResponse {}
+
+message UpdateResourcesRequest{
+    hashicorp.nomad.plugins.drivers.proto.Resources resources = 1;
+}
+
+message UpdateResourcesResponse {}
+
+message VersionRequest {}
+
+message VersionResponse{
+    string version = 1;
+}
+
+message StatsRequest {
+    int64 interval = 1;
+}
+
+message StatsResponse {
+    hashicorp.nomad.plugins.drivers.proto.TaskStats stats = 1;
+}
+
+message SignalRequest {
+    int32 signal = 1;
+}
+
+message SignalResponse {}
+
+message ExecRequest {
+    google.protobuf.Timestamp deadline = 1;
+    string cmd = 2;
+    repeated string args = 3;
+}
+
+message ExecResponse {
+    bytes output = 1;
+    int32 exit_code = 2;
+}
+
+message ProcessState {
+    int32 pid = 1;
+    int32 exit_code = 2;
+    int32 signal = 3;
+    google.protobuf.Timestamp time = 4;
+}

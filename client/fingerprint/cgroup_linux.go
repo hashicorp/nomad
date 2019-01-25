@@ -5,7 +5,6 @@ package fingerprint
 import (
 	"fmt"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
@@ -31,7 +30,7 @@ func FindCgroupMountpointDir() (string, error) {
 }
 
 // Fingerprint tries to find a valid cgroup mount point
-func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *CGroupFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	mount, err := f.mountPointDetector.MountPoint()
 	if err != nil {
 		f.clearCGroupAttributes(resp)
@@ -44,7 +43,7 @@ func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		f.clearCGroupAttributes(resp)
 
 		if f.lastState == cgroupAvailable {
-			f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are unavailable")
+			f.logger.Info("cgroups are unavailable")
 		}
 		f.lastState = cgroupUnavailable
 		return nil
@@ -54,7 +53,7 @@ func (f *CGroupFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	resp.Detected = true
 
 	if f.lastState == cgroupUnavailable {
-		f.logger.Printf("[INFO] fingerprint.cgroups: cgroups are available")
+		f.logger.Info("cgroups are available")
 	}
 	f.lastState = cgroupAvailable
 	return nil

@@ -4,6 +4,8 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
+import RSVP from 'rsvp';
+import { assert } from '@ember/debug';
 
 const JOB_TYPES = ['service', 'batch', 'system'];
 
@@ -24,11 +26,14 @@ export default Model.extend({
   // Instances of periodic or parameterized jobs are false for both properties
   periodic: attr('boolean'),
   parameterized: attr('boolean'),
+  dispatched: attr('boolean'),
 
   periodicDetails: attr(),
   parameterizedDetails: attr(),
 
-  hasChildren: or('periodic', 'parameterized'),
+  hasChildren: computed('periodic', 'parameterized', 'dispatched', function() {
+    return this.get('periodic') || (this.get('parameterized') && !this.get('dispatched'));
+  }),
 
   parent: belongsTo('job', { inverse: 'children' }),
   children: hasMany('job', { inverse: 'parent' }),
@@ -61,14 +66,14 @@ export default Model.extend({
     function() {
       const type = this.get('type');
 
-      if (this.get('periodic')) {
-        return 'periodic';
-      } else if (this.get('parameterized')) {
-        return 'parameterized';
-      } else if (this.get('parent.periodic')) {
+      if (this.get('parent.periodic')) {
         return 'periodic-child';
       } else if (this.get('parent.parameterized')) {
         return 'parameterized-child';
+      } else if (this.get('periodic')) {
+        return 'periodic';
+      } else if (this.get('parameterized')) {
+        return 'parameterized';
       } else if (JOB_TYPES.includes(type)) {
         // Guard against the API introducing a new type before the UI
         // is prepared to handle it.
@@ -172,8 +177,11 @@ export default Model.extend({
 
   supportsDeployments: equal('type', 'service'),
 
-  runningDeployment: computed('deployments.@each.status', function() {
-    return this.get('deployments').findBy('status', 'running');
+  latestDeployment: belongsTo('deployment', { inverse: 'jobForLatest' }),
+
+  runningDeployment: computed('latestDeployment', 'latestDeployment.isRunning', function() {
+    const latest = this.get('latestDeployment');
+    if (latest.get('isRunning')) return latest;
   }),
 
   fetchRawDefinition() {
@@ -186,6 +194,68 @@ export default Model.extend({
 
   stop() {
     return this.store.adapterFor('job').stop(this);
+  },
+
+  plan() {
+    assert('A job must be parsed before planned', this.get('_newDefinitionJSON'));
+    return this.store.adapterFor('job').plan(this);
+  },
+
+  run() {
+    assert('A job must be parsed before ran', this.get('_newDefinitionJSON'));
+    return this.store.adapterFor('job').run(this);
+  },
+
+  update() {
+    assert('A job must be parsed before updated', this.get('_newDefinitionJSON'));
+    return this.store.adapterFor('job').update(this);
+  },
+
+  parse() {
+    const definition = this.get('_newDefinition');
+    let promise;
+
+    try {
+      // If the definition is already JSON then it doesn't need to be parsed.
+      const json = JSON.parse(definition);
+      this.set('_newDefinitionJSON', json);
+
+      // You can't set the ID of a record that already exists
+      if (this.get('isNew')) {
+        this.setIdByPayload(json);
+      }
+
+      promise = RSVP.resolve(definition);
+    } catch (err) {
+      // If the definition is invalid JSON, assume it is HCL. If it is invalid
+      // in anyway, the parse endpoint will throw an error.
+      promise = this.store
+        .adapterFor('job')
+        .parse(this.get('_newDefinition'))
+        .then(response => {
+          this.set('_newDefinitionJSON', response);
+          this.setIdByPayload(response);
+        });
+    }
+
+    return promise;
+  },
+
+  setIdByPayload(payload) {
+    const namespace = payload.Namespace || 'default';
+    const id = payload.Name;
+
+    this.set('plainId', id);
+    this.set('id', JSON.stringify([id, namespace]));
+
+    const namespaceRecord = this.store.peekRecord('namespace', namespace);
+    if (namespaceRecord) {
+      this.set('namespace', namespaceRecord);
+    }
+  },
+
+  resetId() {
+    this.set('id', JSON.stringify([this.get('plainId'), this.get('namespace.name') || 'default']));
   },
 
   statusClass: computed('status', function() {
@@ -203,4 +273,13 @@ export default Model.extend({
     // Lazily decode the base64 encoded payload
     return window.atob(this.get('payload') || '');
   }),
+
+  // An arbitrary HCL or JSON string that is used by the serializer to plan
+  // and run this job. Used for both new job models and saved job models.
+  _newDefinition: attr('string'),
+
+  // The new definition may be HCL, in which case the API will need to parse the
+  // spec first. In order to preserve both the original HCL and the parsed response
+  // that will be submitted to the create job endpoint, another prop is necessary.
+  _newDefinitionJSON: attr('string'),
 });

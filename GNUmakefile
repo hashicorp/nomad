@@ -8,19 +8,22 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS =
 
+GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
+
+ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
+GOTEST_PKGS ?= "./..."
+else
+GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))$$")
+endif
+
 default: help
 
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD))
+ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows))
 $(error Building Nomad is currently only supported on Darwin and Linux.)
 endif
 
-# On Linux we build for Linux, Windows, and potentially Linux+LXC
+# On Linux we build for Linux and Windows
 ifeq (Linux,$(THIS_OS))
-
-# Detect if we have LXC on the path
-ifeq (0,$(shell pkg-config --exists lxc; echo $$?))
-HAS_LXC="true"
-endif
 
 ifeq ($(TRAVIS),true)
 $(info Running in Travis, verbose mode is disabled)
@@ -36,9 +39,6 @@ ALL_TARGETS += linux_386 \
 	windows_386 \
 	windows_amd64
 
-ifeq ("true",$(HAS_LXC))
-ALL_TARGETS += linux_amd64-lxc
-endif
 endif
 
 # On MacOS, we only build for MacOS
@@ -120,15 +120,6 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
 
-pkg/linux_amd64-lxc/nomad: GO_TAGS2=$(GO_TAGS) lxc
-pkg/linux_amd64-lxc/nomad: $(SOURCE_FILES) ## Build Nomad+LXC for linux/amd64
-	@echo "==> Building $@ with tags $(GO_TAGS2)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-		go build \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS2)" \
-		-o "$@"
-
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
 
@@ -149,10 +140,12 @@ deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
 	go get -u github.com/kardianos/govendor
 	go get -u github.com/ugorji/go/codec/codecgen
-	go get -u github.com/hashicorp/go-bindata/...
-	go get -u github.com/elazarl/go-bindata-assetfs/...
+	go get -u github.com/hashicorp/go-bindata/go-bindata
+	go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+	go get -u github.com/golang/protobuf/protoc-gen-go
+	go get -u gotest.tools/gotestsum
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -191,13 +184,26 @@ checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
 	@shellcheck ./scripts/*
 
-generate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-generate: ## Update generated code
+.PHONY: generate-all
+generate-all: generate-structs proto
+
+.PHONY: generate-structs
+generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+generate-structs: ## Update generated code
 	@go generate -tags="ent" $(LOCAL_PACKAGES)
 
-progenerate: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-progenerate: ## Update generated code
+.PHONY: proto
+proto:
+	@for file in $$(git ls-files "*.proto" | grep -v "vendor\/.*.proto"); do \
+		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
+	done
+
+progenerate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+progenerate-structs: ## Update generated code
 	@go generate -tags="pro" $(LOCAL_PACKAGES)
+
+.PHONY: progenerate-all
+progenerate-all: progenerate-structs proto
 
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
@@ -212,7 +218,7 @@ changelogfmt:
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
-dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
+dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
 dev: vendorfmt changelogfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
@@ -246,7 +252,7 @@ prodev: ## Build for the current development platform
 
 .PHONY: prerelease
 prerelease: GO_TAGS=ui release
-prerelease: check generate ember-dist static-assets ## Generate all the static assets for a Nomad release
+prerelease: check generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
 release: GO_TAGS=ui release ent
@@ -265,8 +271,14 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
 		make test-nomad; \
 		fi
+	@if [ $(RUN_WEBSITE_TESTS) ]; then \
+		make test-website; \
+		fi
 	@if [ $(RUN_UI_TESTS) ]; then \
 		make test-ui; \
+		fi
+	@if [ $(RUN_E2E_TESTS) ]; then \
+		make e2e-test; \
 		fi
 
 .PHONY: test-nomad
@@ -274,8 +286,8 @@ test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
 	@go test $(if $(VERBOSE),-v) \
 			-cover \
-			-timeout=900s \
-			-tags="ent $(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+			-timeout=15m \
+			-tags="ent ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
@@ -292,6 +304,16 @@ protest: prodev ## Run Nomad test suites
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
 
+.PHONY: e2e-test
+e2e-test: dev ## Run the Nomad e2e test suite
+	@echo "==> Running Nomad E2E test suites:"
+	go test \
+		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		-cover \
+		-timeout=900s \
+		github.com/hashicorp/nomad/e2e/vault/ \
+		-integration
+
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
 clean: ## Remove build artifacts
@@ -303,9 +325,9 @@ clean: ## Remove build artifacts
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
 	@if [ ! $(SKIP_NOMAD_TESTS) ]; then \
-		make generate; \
+		make generate-structs; \
 	fi
-	@sh -C "$(PROJECT_ROOT)/scripts/travis.sh"
+	@"$(PROJECT_ROOT)/scripts/travis.sh"
 
 .PHONY: testcluster
 testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if necessary.
@@ -323,13 +345,16 @@ static-assets: ## Compile the static routes to serve alongside the API
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
+.PHONY: test-website
+test-website: ## Run Website Link Checks
+	@cd website && make test
+
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
 	@echo "--> Installing JavaScript assets"
 	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
 	@echo "--> Running ember tests"
-	@cd ui && phantomjs --version
 	@cd ui && npm test
 
 .PHONY: ember-dist

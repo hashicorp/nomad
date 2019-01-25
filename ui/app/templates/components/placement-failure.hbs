@@ -1,7 +1,7 @@
-{{#if taskGroup.placementFailures}}
-  {{#with taskGroup.placementFailures as |failures|}}
+{{#if placementFailures}}
+  {{#with placementFailures as |failures|}}
     <h3 class="title is-5" data-test-placement-failure-task-group>
-      {{taskGroup.name}}
+      {{placementFailures.name}}
       <span class="badge is-light" data-test-placement-failure-coalesced-failures>{{inc failures.coalescedFailures}} unplaced</span>
     </h3>
     <ul class="simple-list">
@@ -37,4 +37,3 @@
     </ul>
   {{/with}}
 {{/if}}
-

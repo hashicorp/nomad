@@ -53,13 +53,14 @@ is preserved.
 
 ```hcl
 env {
-  key = "true"
+  key   = 1.4
+  key   = "1.4"
+  "key" = 1.4
+  "key" = "1.4"
+
   key = true
-
-  "key" = true
-
-  key = 1.4
-  key = "1.4"
+  key = "1"
+  key = 1
 }
 ```
 
@@ -70,7 +71,7 @@ environment variables.
 
 ```hcl
 env {
-  NODE_CLASS = "${nomad.class}"
+  NODE_CLASS = "${node.class}"
 }
 ```
 

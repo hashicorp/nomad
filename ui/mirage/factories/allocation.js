@@ -11,10 +11,15 @@ const REF_TIME = new Date();
 export default Factory.extend({
   id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
 
-  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
   jobVersion: () => faker.random.number(10),
 
+  modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
   modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+
+  createIndex: () => faker.random.number({ min: 10, max: 2000 }),
+  createTime() {
+    return faker.date.past(2 / 365, new Date(this.modifyTime / 1000000)) * 1000000;
+  },
 
   namespace: null,
 
@@ -125,6 +130,7 @@ export default Factory.extend({
     );
 
     const job = allocation.jobId ? server.db.jobs.find(allocation.jobId) : pickOne(server.db.jobs);
+    const namespace = allocation.namespace || job.namespace;
     const node = allocation.nodeId
       ? server.db.nodes.find(allocation.nodeId)
       : pickOne(server.db.nodes);
@@ -147,11 +153,11 @@ export default Factory.extend({
     );
 
     allocation.update({
+      namespace,
       jobId: job.id,
       nodeId: node.id,
-      taskStateIds: states.mapBy('id'),
-      task_state_ids: states.mapBy('id'),
-      taskResourcesIds: resources.mapBy('id'),
+      taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),
+      taskResourcesIds: allocation.clientStatus === 'pending' ? [] : resources.mapBy('id'),
       taskGroup: taskGroup.name,
       name: allocation.name || `${taskGroup.name}.[${faker.random.number(10)}]`,
     });

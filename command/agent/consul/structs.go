@@ -1,9 +1,9 @@
 package consul
 
 import (
-	"github.com/hashicorp/nomad/client/driver"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type TaskServices struct {
@@ -26,13 +26,13 @@ type TaskServices struct {
 	Networks structs.Networks
 
 	// DriverExec is the script executor for the task's driver.
-	DriverExec driver.ScriptExecutor
+	DriverExec interfaces.ScriptExecutor
 
 	// DriverNetwork is the network specified by the driver and may be nil.
-	DriverNetwork *cstructs.DriverNetwork
+	DriverNetwork *drivers.DriverNetwork
 }
 
-func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) *TaskServices {
+func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter TaskRestarter, exec interfaces.ScriptExecutor, net *drivers.DriverNetwork) *TaskServices {
 	ts := TaskServices{
 		AllocID:       alloc.ID,
 		Name:          task.Name,
@@ -42,7 +42,12 @@ func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter Ta
 		DriverNetwork: net,
 	}
 
-	if task.Resources != nil {
+	if alloc.AllocatedResources != nil {
+		if tr, ok := alloc.AllocatedResources.Tasks[task.Name]; ok {
+			ts.Networks = tr.Networks
+		}
+	} else if task.Resources != nil {
+		// COMPAT(0.11): Remove in 0.11
 		ts.Networks = task.Resources.Networks
 	}
 

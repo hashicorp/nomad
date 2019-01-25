@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
@@ -25,10 +26,10 @@ func TestClientStats_Stats_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s.connectedNodes()
@@ -183,10 +184,17 @@ func TestClientStats_Stats_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
+
+	// Wait for client initialization
+	select {
+	case <-c.Ready():
+	case <-time.After(10 * time.Second):
+		require.Fail("client timedout on initialize")
+	}
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()

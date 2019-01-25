@@ -1,0 +1,95 @@
+{{#if parseError}}
+  <div data-test-parse-error class="notification is-danger">
+    <h3 class="title is-4" data-test-parse-error-title>Parse Error</h3>
+    <p data-test-parse-error-message>{{parseError}}</p>
+  </div>
+{{/if}}
+{{#if planError}}
+  <div data-test-plan-error class="notification is-danger">
+    <h3 class="title is-4" data-test-plan-error-title>Plan Error</h3>
+    <p data-test-plan-error-message>{{planError}}</p>
+  </div>
+{{/if}}
+{{#if runError}}
+  <div data-test-run-error class="notification is-danger">
+    <h3 class="title is-4" data-test-run-error-title>Run Error</h3>
+    <p data-test-run-error-message>{{runError}}</p>
+  </div>
+{{/if}}
+
+{{#if (eq stage "editor")}}
+  {{#if (and showEditorMessage (eq context "new"))}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4" data-test-editor-help-title>Run a Job</h3>
+          <p data-test-editor-help-message>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button class="button is-info" onclick={{toggle-action "showEditorMessage" this}} data-test-editor-help-dismiss>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Job Definition
+      {{#if cancelable}}
+        <button class="button is-light is-compact pull-right" onclick={{action onCancel}} data-test-cancel-editing>Cancel</button>
+      {{/if}}
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{ivy-codemirror
+        data-test-editor
+        value=(or job._newDefinition jobSpec)
+        valueUpdated=(action (mut job._newDefinition))
+        options=(hash
+          mode="javascript"
+          theme="hashi"
+          tabSize=2
+          lineNumbers=true
+        )}}
+    </div>
+  </div>
+  <div class="content is-associative">
+    <button class="button is-primary {{if plan.isRunning "is-loading"}}" type="button" onclick={{perform plan}} disabled={{or plan.isRunning (not job._newDefinition)}} data-test-plan>Plan</button>
+  </div>
+{{/if}}
+
+{{#if (eq stage "plan")}}
+  {{#if showPlanMessage}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4" data-test-plan-help-title>Job Plan</h3>
+          <p data-test-plan-help-message>This is the impact running this job will have on your cluster.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button class="button is-info" onclick={{toggle-action "showPlanMessage" this}} data-test-plan-help-dismiss>Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">Job Plan</div>
+    <div class="boxed-section-body is-dark">
+      {{job-diff data-test-plan-output diff=planOutput.diff verbose=false}}
+    </div>
+  </div>
+  <div class="boxed-section {{if planOutput.failedTGAllocs "is-warning" "is-primary"}}" data-test-dry-run-message>
+    <div class="boxed-section-head" data-test-dry-run-title>Scheduler dry-run</div>
+    <div class="boxed-section-body" data-test-dry-run-body>
+      {{#if planOutput.failedTGAllocs}}
+        {{#each planOutput.failedTGAllocs as |placementFailure|}}
+          {{placement-failure failedTGAlloc=placementFailure}}
+        {{/each}}
+      {{else}}
+        All tasks successfully allocated.
+      {{/if}}
+    </div>
+  </div>
+  <div class="content is-associative">
+    <button class="button is-primary {{if submit.isRunning "is-loading"}}" type="button" onclick={{perform submit}} disabled={{submit.isRunning}} data-test-run>Run</button>
+    <button class="button is-light" type="button" onclick={{action reset}} data-test-cancel>Cancel</button>
+  </div>
+{{/if}}

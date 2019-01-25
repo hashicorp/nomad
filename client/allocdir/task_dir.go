@@ -3,16 +3,18 @@ package allocdir
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	hclog "github.com/hashicorp/go-hclog"
 )
 
 // TaskDir contains all of the paths relevant to a task. All paths are on the
 // host system so drivers should mount/link into task containers as necessary.
 type TaskDir struct {
+	// AllocDir is the path to the alloc directory on the host
+	AllocDir string
+
 	// Dir is the path to Task directory on the host
 	Dir string
 
@@ -37,16 +39,20 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // newTaskDir creates a TaskDir struct with paths set. Call Build() to
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func newTaskDir(logger *log.Logger, allocDir, taskName string) *TaskDir {
+func newTaskDir(logger hclog.Logger, allocDir, taskName string) *TaskDir {
 	taskDir := filepath.Join(allocDir, taskName)
+
+	logger = logger.Named("task_dir").With("task_name", taskName)
+
 	return &TaskDir{
+		AllocDir:       allocDir,
 		Dir:            taskDir,
 		SharedAllocDir: filepath.Join(allocDir, SharedAllocName),
 		LogDir:         filepath.Join(allocDir, SharedAllocName, LogDirName),
@@ -68,7 +74,7 @@ func (t *TaskDir) Copy() *TaskDir {
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
 // done.
-func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstructs.FSIsolation) error {
+func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 	if err := os.MkdirAll(t.Dir, 0777); err != nil {
 		return err
 	}
@@ -103,7 +109,7 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 	// Image based isolation will bind the shared alloc dir in the driver.
 	// If there's no isolation the task will use the host path to the
 	// shared alloc dir.
-	if fsi == cstructs.FSIsolationChroot {
+	if createChroot {
 		// If the path doesn't exist OR it exists and is empty, link it
 		empty, _ := pathEmpty(t.SharedTaskDir)
 		if !pathExists(t.SharedTaskDir) || empty {
@@ -123,8 +129,8 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 	}
 
 	// Build chroot if chroot filesystem isolation is going to be used
-	if fsi == cstructs.FSIsolationChroot {
-		if err := t.buildChroot(chrootCreated, chroot); err != nil {
+	if createChroot {
+		if err := t.buildChroot(chroot); err != nil {
 			return err
 		}
 	}
@@ -135,23 +141,9 @@ func (t *TaskDir) Build(chrootCreated bool, chroot map[string]string, fsi cstruc
 // buildChroot takes a mapping of absolute directory or file paths on the host
 // to their intended, relative location within the task directory. This
 // attempts hardlink and then defaults to copying. If the path exists on the
-// host and can't be embedded an error is returned. If chrootCreated is true
-// skip expensive embedding operations and only ephemeral operations (eg
-// mounting /dev) are done.
-func (t *TaskDir) buildChroot(chrootCreated bool, entries map[string]string) error {
-	if !chrootCreated {
-		// Link/copy chroot entries
-		if err := t.embedDirs(entries); err != nil {
-			return err
-		}
-	}
-
-	// Mount special dirs
-	if err := t.mountSpecialDirs(); err != nil {
-		return err
-	}
-
-	return nil
+// host and can't be embedded an error is returned.
+func (t *TaskDir) buildChroot(entries map[string]string) error {
+	return t.embedDirs(entries)
 }
 
 func (t *TaskDir) embedDirs(entries map[string]string) error {

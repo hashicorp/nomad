@@ -10,7 +10,6 @@ import (
 	"time"
 
 	units "github.com/docker/go-units"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +45,9 @@ func TestFS_Logs(t *testing.T) {
 		if nodes[0].Status != "ready" {
 			return false, fmt.Errorf("node not ready: %s", nodes[0].Status)
 		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
 		return true, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -59,13 +61,13 @@ func TestFS_Logs(t *testing.T) {
 	}
 
 	job := &Job{
-		ID:          helper.StringToPtr("TestFS_Logs"),
-		Region:      helper.StringToPtr("global"),
+		ID:          stringToPtr("TestFS_Logs"),
+		Region:      stringToPtr("global"),
 		Datacenters: []string{"dc1"},
-		Type:        helper.StringToPtr("batch"),
+		Type:        stringToPtr("batch"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: helper.StringToPtr("TestFS_LogsGroup"),
+				Name: stringToPtr("TestFS_LogsGroup"),
 				Tasks: []*Task{
 					{
 						Name:   "logger",

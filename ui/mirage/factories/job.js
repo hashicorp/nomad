@@ -8,8 +8,12 @@ const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
-  id: i => `job-${i}`,
-  name: i => `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun().dasherize()}-${i}`,
+  id: i =>
+    `${faker.list.random(...JOB_PREFIXES)()}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+
+  name() {
+    return this.id;
+  },
 
   groupsCount: () => faker.random.number({ min: 1, max: 5 }),
 
@@ -63,6 +67,8 @@ export default Factory.extend({
     // It is the Parameterized job's responsibility to create
     // parameterizedChild jobs and provide a parent job.
     type: 'batch',
+    parameterized: true,
+    dispatched: true,
     payload: window.btoa(faker.lorem.sentence()),
   }),
 
@@ -79,6 +85,9 @@ export default Factory.extend({
 
   // When true, deployments for the job will always have a 'running' status
   activeDeployment: false,
+
+  // When true, the job will have no versions or deployments (and in turn no latest deployment)
+  noDeployments: false,
 
   // When true, an evaluation with a high modify index and placement failures is created
   failedPlacements: false,
@@ -113,7 +122,7 @@ export default Factory.extend({
       task_group_ids: groups.mapBy('id'),
     });
 
-    const hasChildren = job.periodic || job.parameterized;
+    const hasChildren = job.periodic || (job.parameterized && !job.parentId);
     const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
       groupNames: groups.mapBy('name'),
       job,
@@ -127,17 +136,19 @@ export default Factory.extend({
       job_summary_id: jobSummary.id,
     });
 
-    Array(faker.random.number({ min: 1, max: 10 }))
-      .fill(null)
-      .map((_, index) => {
-        return server.create('job-version', {
-          job,
-          namespace: job.namespace,
-          version: index,
-          noActiveDeployment: job.noActiveDeployment,
-          activeDeployment: job.activeDeployment,
+    if (!job.noDeployments) {
+      Array(faker.random.number({ min: 1, max: 10 }))
+        .fill(null)
+        .map((_, index) => {
+          return server.create('job-version', {
+            job,
+            namespace: job.namespace,
+            version: index,
+            noActiveDeployment: job.noActiveDeployment,
+            activeDeployment: job.activeDeployment,
+          });
         });
-      });
+    }
 
     const knownEvaluationProperties = {
       job,
@@ -177,7 +188,7 @@ export default Factory.extend({
       });
     }
 
-    if (job.parameterized) {
+    if (job.parameterized && !job.parentId) {
       // Create parameterizedChild jobs
       server.createList('job', job.childrenCount, 'parameterizedChild', {
         parentId: job.id,

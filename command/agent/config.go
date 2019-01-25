@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-sockaddr/template"
-
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 )
@@ -37,8 +37,14 @@ type Config struct {
 	// DataDir is the directory to store our state in
 	DataDir string `mapstructure:"data_dir"`
 
-	// LogLevel is the level of the logs to putout
+	// PluginDir is the directory to lookup plugins.
+	PluginDir string `mapstructure:"plugin_dir"`
+
+	// LogLevel is the level of the logs to put out
 	LogLevel string `mapstructure:"log_level"`
+
+	// LogJson enables log output in a JSON format
+	LogJson bool `mapstructure:"log_json"`
 
 	// BindAddr is the address on which all of nomad's services will
 	// be bound. If not specified, this defaults to 127.0.0.1.
@@ -133,6 +139,9 @@ type Config struct {
 
 	// Autopilot contains the configuration for Autopilot behavior.
 	Autopilot *config.AutopilotConfig `mapstructure:"autopilot"`
+
+	// Plugins is the set of configured plugins
+	Plugins []*config.PluginConfig `hcl:"plugin,expand"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -434,6 +443,19 @@ type Telemetry struct {
 	// key/value structure as done in older versions of Nomad
 	BackwardsCompatibleMetrics bool `mapstructure:"backwards_compatible_metrics"`
 
+	// PrefixFilter allows for filtering out metrics from being collected
+	PrefixFilter []string `mapstructure:"prefix_filter"`
+
+	// FilterDefault controls whether to allow metrics that have not been specified
+	// by the filter
+	FilterDefault *bool `mapstructure:"filter_default"`
+
+	// DisableDispatchedJobSummaryMetrics allows ignoring dispatched jobs when
+	// publishing Job summary metrics. This is useful in environments that produce
+	// high numbers of single count dispatch jobs as the metrics for each take up
+	// a small memory overhead.
+	DisableDispatchedJobSummaryMetrics bool `mapstructure:"disable_dispatched_job_summary_metrics"`
+
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
 	// Valid configuration combinations:
@@ -506,6 +528,24 @@ type Telemetry struct {
 	CirconusBrokerSelectTag string `mapstructure:"circonus_broker_select_tag"`
 }
 
+// PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
+func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range t.PrefixFilter {
+		if rule == "" {
+			continue
+		}
+		switch rule[0] {
+		case '+':
+			allowed = append(allowed, rule[1:])
+		case '-':
+			blocked = append(blocked, rule[1:])
+		default:
+			return nil, nil, fmt.Errorf("Filter rule must begin with either '+' or '-': %q", rule)
+		}
+	}
+	return allowed, blocked, nil
+}
+
 // Ports encapsulates the various ports we bind to for network services. If any
 // are not specified then the defaults are used instead.
 type Ports struct {
@@ -532,71 +572,18 @@ type AdvertiseAddrs struct {
 }
 
 type Resources struct {
-	CPU                 int    `mapstructure:"cpu"`
-	MemoryMB            int    `mapstructure:"memory"`
-	DiskMB              int    `mapstructure:"disk"`
-	IOPS                int    `mapstructure:"iops"`
-	ReservedPorts       string `mapstructure:"reserved_ports"`
-	ParsedReservedPorts []int  `mapstructure:"-"`
+	CPU           int    `mapstructure:"cpu"`
+	MemoryMB      int    `mapstructure:"memory"`
+	DiskMB        int    `mapstructure:"disk"`
+	ReservedPorts string `mapstructure:"reserved_ports"`
 }
 
-// ParseReserved expands the ReservedPorts string into a slice of port numbers.
+// CanParseReserved returns if the reserved ports specification is parsable.
 // The supported syntax is comma separated integers or ranges separated by
 // hyphens. For example, "80,120-150,160"
-func (r *Resources) ParseReserved() error {
-	parts := strings.Split(r.ReservedPorts, ",")
-
-	// Hot path the empty case
-	if len(parts) == 1 && parts[0] == "" {
-		return nil
-	}
-
-	ports := make(map[int]struct{})
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		rangeParts := strings.Split(part, "-")
-		l := len(rangeParts)
-		switch l {
-		case 1:
-			if val := rangeParts[0]; val == "" {
-				return fmt.Errorf("can't specify empty port")
-			} else {
-				port, err := strconv.Atoi(val)
-				if err != nil {
-					return err
-				}
-				ports[port] = struct{}{}
-			}
-		case 2:
-			// We are parsing a range
-			start, err := strconv.Atoi(rangeParts[0])
-			if err != nil {
-				return err
-			}
-
-			end, err := strconv.Atoi(rangeParts[1])
-			if err != nil {
-				return err
-			}
-
-			if end < start {
-				return fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
-			}
-
-			for i := start; i <= end; i++ {
-				ports[i] = struct{}{}
-			}
-		default:
-			return fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
-		}
-	}
-
-	for port := range ports {
-		r.ParsedReservedPorts = append(r.ParsedReservedPorts, port)
-	}
-
-	sort.Ints(r.ParsedReservedPorts)
-	return nil
+func (r *Resources) CanParseReserved() error {
+	_, err := structs.ParsePortRanges(r.ReservedPorts)
+	return err
 }
 
 // DevConfig is a Config that is used for dev mode of Nomad.
@@ -617,9 +604,7 @@ func DevConfig() *Config {
 	}
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
-	}
-	conf.Client.Options = map[string]string{
-		"driver.docker.volumes": "true",
+		"driver.docker.volumes":  "true",
 	}
 	conf.Client.GCInterval = 10 * time.Minute
 	conf.Client.GCDiskUsageThreshold = 99
@@ -734,8 +719,14 @@ func (c *Config) Merge(b *Config) *Config {
 	if b.DataDir != "" {
 		result.DataDir = b.DataDir
 	}
+	if b.PluginDir != "" {
+		result.PluginDir = b.PluginDir
+	}
 	if b.LogLevel != "" {
 		result.LogLevel = b.LogLevel
+	}
+	if b.LogJson {
+		result.LogJson = true
 	}
 	if b.BindAddr != "" {
 		result.BindAddr = b.BindAddr
@@ -853,6 +844,16 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Autopilot = &autopilot
 	} else if b.Autopilot != nil {
 		result.Autopilot = result.Autopilot.Merge(b.Autopilot)
+	}
+
+	if len(result.Plugins) == 0 && len(b.Plugins) != 0 {
+		copy := make([]*config.PluginConfig, len(b.Plugins))
+		for i, v := range b.Plugins {
+			copy[i] = v.Copy()
+		}
+		result.Plugins = copy
+	} else if len(b.Plugins) != 0 {
+		result.Plugins = config.PluginConfigSetMerge(result.Plugins, b.Plugins)
 	}
 
 	// Merge config files lists
@@ -1323,6 +1324,18 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
 	}
 
+	if b.PrefixFilter != nil {
+		result.PrefixFilter = b.PrefixFilter
+	}
+
+	if b.FilterDefault != nil {
+		result.FilterDefault = b.FilterDefault
+	}
+
+	if b.DisableDispatchedJobSummaryMetrics {
+		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
+	}
+
 	return &result
 }
 
@@ -1385,14 +1398,8 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	if b.DiskMB != 0 {
 		result.DiskMB = b.DiskMB
 	}
-	if b.IOPS != 0 {
-		result.IOPS = b.IOPS
-	}
 	if b.ReservedPorts != "" {
 		result.ReservedPorts = b.ReservedPorts
-	}
-	if len(b.ParsedReservedPorts) != 0 {
-		result.ParsedReservedPorts = b.ParsedReservedPorts
 	}
 	return &result
 }

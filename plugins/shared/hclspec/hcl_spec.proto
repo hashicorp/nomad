@@ -1,0 +1,421 @@
+syntax = "proto3";
+
+option go_package = "hclspec";
+
+/* Spec allows exposing the specification for an HCL body, allowing for parsing and
+validation.
+
+Certain expressions within a specification may use the following functions.
+The documentation for each spec type above specifies where functions may
+be used.
+
+* `abs(number)` returns the absolute (positive) value of the given number.
+* `coalesce(vals...)` returns the first non-null value given.
+* `concat(lists...)` concatenates together all of the given lists to produce a new list.
+* `hasindex(val, idx)` returns true if the expression `val[idx]` could succeed.
+* `int(number)` returns the integer portion of the given number, rounding towards zero.
+* `jsondecode(str)` interprets the given string as JSON and returns the resulting data structure.
+* `jsonencode(val)` returns a JSON-serialized version of the given value.
+* `length(collection)` returns the number of elements in the given collection (list, set, map, object, or tuple).
+* `lower(string)` returns the given string with all uppercase letters converted to lowercase.
+* `max(numbers...)` returns the greatest of the given numbers.
+* `min(numbers...)` returns the smallest of the given numbers.
+* `reverse(string)` returns the given string with all of the characters in reverse order.
+* `strlen(string)` returns the number of characters in the given string.
+* `substr(string, offset, length)` returns the requested substring of the given string.
+* `upper(string)` returns the given string with all lowercase letters converted to uppercase.
+
+## Type Expressions
+
+Type expressions are used to describe the expected type of an attribute, as
+an additional validation constraint.
+
+A type expression uses primitive type names and compound type constructors.
+A type constructor builds a new type based on one or more type expression
+arguments.
+
+The following type names and type constructors are supported:
+
+* `any` is a wildcard that accepts a value of any type. (In HCL terms, this
+  is the _dynamic pseudo-type_.)
+* `string` is a Unicode string.
+* `number` is an arbitrary-precision floating point number.
+* `bool` is a boolean value (`true` or `false`)
+* `list(element_type)` constructs a list type with the given element type
+* `set(element_type)` constructs a set type with the given element type
+* `map(element_type)` constructs a map type with the given element type
+* `object({name1 = element_type, name2 = element_type, ...})` constructs
+  an object type with the given attribute types.
+* `tuple([element_type, element_type, ...])` constructs a tuple type with
+  the given element types. This can be used, for example, to require an
+  array with a particular number of elements, or with elements of different
+  types.
+
+`null` is a valid value of any type, and not a type itself.
+*/
+package hashicorp.nomad.plugins.shared.hclspec;
+
+// Spec defines the available specification types.
+message Spec {
+  oneof block {
+    Object object = 1;
+    Array array = 2;
+    Attr Attr = 3;
+    Block block_value = 4;
+    BlockAttrs block_attrs = 5;
+    BlockList block_list = 6;
+    BlockSet block_set = 7;
+    BlockMap block_map = 8;
+    Default default = 9;
+    Literal literal = 10;
+  }
+}
+
+/* Attr spec type reads the value of an attribute in the current body
+and returns that value as its result. It also creates validation constraints
+for the given attribute name and its value.
+
+```hcl
+Attr {
+  name     = "document_root"
+  type     = string
+  required = true
+}
+```
+
+`Attr` spec blocks accept the following arguments:
+
+* `name` (required) - The attribute name to expect within the HCL input file.
+  This may be omitted when a default name selector is created by a parent
+  `Object` spec, if the input attribute name should match the output JSON
+  object property name.
+
+* `type` (optional) - A [type expression](#type-expressions) that the given
+  attribute value must conform to. If this argument is set, `hcldec` will
+  automatically convert the given input value to this type or produce an
+  error if that is not possible.
+
+* `required` (optional) - If set to `true`, `hcldec` will produce an error
+  if a value is not provided for the source attribute.
+
+`Attr` is a leaf spec type, so no nested spec blocks are permitted.
+*/
+message Attr {
+ string name = 1;
+ string type = 2;
+ bool required = 3;
+}
+
+/* Block spec type applies one nested spec block to the contents of a
+block within the current body and returns the result of that spec. It also
+creates validation constraints for the given block type name.
+
+```hcl
+Block {
+  name = "logging"
+
+  Object {
+    Attr "level" {
+      type = string
+    }
+    Attr "file" {
+      type = string
+    }
+  }
+}
+```
+
+`Block` spec blocks accept the following arguments:
+
+* `name` (required) - The block type name to expect within the HCL
+  input file. This may be omitted when a default name selector is created
+  by a parent `Object` spec, if the input block type name should match the
+  output JSON object property name.
+
+* `required` (optional) - If set to `true`, `hcldec` will produce an error
+  if a block of the specified type is not present in the current body.
+
+`Block` creates a validation constraint that there must be zero or one blocks
+of the given type name, or exactly one if `required` is set.
+
+`Block` expects a single nested spec block, which is applied to the body of
+the block of the given type when it is present.
+
+*/
+message Block {
+ string name = 1;
+ bool required = 2;
+ Spec nested = 3;
+}
+
+/*
+ The BlockAttrs spec type is similar to an Attr spec block of a map type,
+ but it produces a map from the attributes of a block rather than from an
+ attribute's expression.
+
+ ```hcl
+ BlockAttrs {
+   name     = "variables"
+   type     = string
+   required = false
+ }
+ ```
+
+ This allows a map with user-defined keys to be produced within block syntax,
+ but due to the constraints of that syntax it also means that the user will
+ be unable to dynamically-generate either individual key names using key
+ expressions or the entire map value using a `for` expression.
+
+ `BlockAttrs` spec blocks accept the following arguments:
+
+ * `name` (required) - The block type name to expect within the HCL
+   input file. This may be omitted when a default name selector is created
+   by a parent `object` spec, if the input block type name should match the
+   output JSON object property name.
+
+ * `type` (required) - The value type to require for each of the
+   attributes within a matched block. The resulting value will be a JSON
+   object whose property values are of this type.
+
+ * `required` (optional) - If `true`, an error will be produced if a block
+   of the given type is not present. If `false` -- the default -- an absent
+   block will be indicated by producing `null`.
+*/
+message BlockAttrs {
+ string name = 1;
+ string type = 2;
+ bool required = 3;
+}
+
+/* BlockList spec type is similar to `Block`, but it accepts zero or
+more blocks of a specified type rather than requiring zero or one. The
+result is a JSON array with one entry per block of the given type.
+
+```hcl
+BlockList {
+  name = "log_file"
+
+  Object {
+    Attr "level" {
+      type = string
+    }
+    Attr "filename" {
+      type     = string
+      required = true
+    }
+  }
+}
+```
+
+`BlockList` spec blocks accept the following arguments:
+
+* `name` (required) - The block type name to expect within the HCL
+  input file. This may be omitted when a default name selector is created
+  by a parent `Object` spec, if the input block type name should match the
+  output JSON object property name.
+
+* `min_items` (optional) - If set to a number greater than zero, `hcldec` will
+  produce an error if fewer than the given number of blocks are present.
+
+* `max_items` (optional) - If set to a number greater than zero, `hcldec` will
+  produce an error if more than the given number of blocks are present. This
+  attribute must be greater than or equal to `min_items` if both are set.
+
+`Block` creates a validation constraint on the number of blocks of the given
+type that must be present.
+
+`Block` expects a single nested spec block, which is applied to the body of
+each matching block to produce the resulting list items.
+
+*/
+message BlockList {
+ string name = 1;
+ uint64 min_items = 2;
+ uint64 max_items = 3;
+ Spec nested = 4;
+}
+
+/* BlockSet spec type behaves the same as BlockList except that
+the result is in no specific order and any duplicate items are removed.
+
+```hcl
+BlockSet {
+  name = "log_file"
+
+  Object {
+    Attr "level" {
+      type = string
+    }
+    Attr "filename" {
+      type     = string
+      required = true
+    }
+  }
+}
+```
+
+The contents of `BlockSet` are the same as for `BlockList`.
+
+*/
+message BlockSet {
+ string name = 1;
+ uint64 min_items = 2;
+ uint64 max_items = 3;
+ Spec nested = 4;
+}
+
+/* BlockMap spec type is similar to `Block`, but it accepts zero or
+more blocks of a specified type rather than requiring zero or one. The
+result is a JSON object, or possibly multiple nested JSON objects, whose
+properties are derived from the labels set on each matching block.
+
+```hcl
+BlockMap {
+  name = "log_file"
+  labels = ["filename"]
+
+  Object {
+    Attr "level" {
+      type     = string
+      required = true
+    }
+  }
+}
+```
+
+`BlockMap` spec blocks accept the following arguments:
+
+* `name` (required) - The block type name to expect within the HCL
+  input file. This may be omitted when a default name selector is created
+  by a parent `Object` spec, if the input block type name should match the
+  output JSON object property name.
+
+* `labels` (required) - A list of user-oriented block label names. Each entry
+  in this list creates one level of object within the output value, and
+  requires one additional block header label on any child block of this type.
+  Block header labels are the quoted strings that appear after the block type
+  name but before the opening `{`.
+
+`Block` creates a validation constraint on the number of labels that blocks
+of the given type must have.
+
+`Block` expects a single nested spec block, which is applied to the body of
+each matching block to produce the resulting map items.
+
+*/
+message BlockMap {
+ string name = 1;
+ repeated string labels = 2;
+ Spec nested = 3;
+}
+
+/* Literal spec type returns a given literal value, and creates no
+validation constraints. It is most commonly used with the `Default` spec
+type to create a fallback value, but can also be used e.g. to fill out
+required properties in an `Object` spec that do not correspond to any
+construct in the input configuration.
+
+```hcl
+Literal {
+  value = "hello world"
+}
+```
+
+`Literal` spec blocks accept the following argument:
+
+* `value` (required) - The value to return. This attribute may be an expression
+  that uses [functions](#spec-definition-functions).
+
+`Literal` is a leaf spec type, so no nested spec blocks are permitted.
+*/
+message Literal {
+ string value = 1;
+}
+
+/* Default spec type evaluates a sequence of nested specs in turn and
+returns the result of the first one that produces a non-null value.
+It creates no validation constraints of its own, but passes on the validation
+constraints from its first nested block.
+
+```hcl
+Default {
+  Attr {
+    name = "private"
+    type = bool
+  }
+  Literal {
+    value = false
+  }
+}
+```
+
+A `Default` spec block must have at least one nested spec block, and should
+generally have at least two since otherwise the `Default` wrapper is a no-op.
+
+The second and any subsequent spec blocks are _fallback_ specs. These exhibit
+their usual behavior but are not able to impose validation constraints on the
+current body since they are not evaluated unless all prior specs produce
+`null` as their result.
+
+*/
+message Default {
+ Spec primary = 1;
+ Spec default = 2;
+}
+
+/* Object spec type is the most commonly used at the root of a spec file.
+Its result is a JSON object whose properties are set based on any nested
+spec blocks:
+
+```hcl
+Object {
+  Attr "name" {
+    type = "string"
+  }
+  Block "address" {
+    Object {
+      Attr "street" {
+        type = "string"
+      }
+      # ...
+    }
+  }
+}
+```
+
+Nested spec blocks inside `Object` must always have an extra block label
+`"name"`, `"address"` and `"street"` in the above example) that specifies
+the name of the property that should be created in the JSON object result.
+This label also acts as a default name selector for the nested spec, allowing
+the `Attr` blocks in the above example to omit the usually-required `name`
+argument in cases where the HCL input name and JSON output name are the same.
+
+An `Object` spec block creates no validation constraints, but it passes on
+any validation constraints created by the nested specs.
+*/
+message Object {
+ map<string, Spec> attributes = 1;
+}
+
+/* Array spec type produces a JSON array whose elements are set based on
+any nested spec blocks:
+
+```hcl
+Array {
+  Attr {
+    name = "first_element"
+    type = "string"
+  }
+  Attr {
+    name = "second_element"
+    type = "string"
+  }
+}
+```
+
+An `Array` spec block creates no validation constraints, but it passes on
+any validation constraints created by the nested specs.
+*/
+message Array {
+    repeated Spec values = 1;
+}

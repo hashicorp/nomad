@@ -79,7 +79,7 @@ task "example" {
 The `raw_exec` driver can run on all supported operating systems. For security
 reasons, it is disabled by default. To enable raw exec, the Nomad client
 configuration must explicitly enable the `raw_exec` driver in the client's
-[options](/docs/agent/configuration/client.html#options):
+[options](/docs/configuration/client.html#options):
 
 ```
 client {

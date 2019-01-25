@@ -3,16 +3,21 @@ package state
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"sort"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	"reflect"
+
+	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// Txn is a transaction against a state store.
+// This can be a read or write transaction.
+type Txn = *memdb.Txn
 
 const (
 	// NodeRegisterEventReregistered is the message used when the node becomes
@@ -33,8 +38,8 @@ type IndexEntry struct {
 
 // StateStoreConfig is used to configure a new state store
 type StateStoreConfig struct {
-	// LogOutput is used to configure the output of the state store's logs
-	LogOutput io.Writer
+	// Logger is used to output the state store's logs
+	Logger log.Logger
 
 	// Region is the region of the server embedding the state store.
 	Region string
@@ -48,7 +53,7 @@ type StateStoreConfig struct {
 // returned as a result of a read against the state store should be
 // considered a constant and NEVER modified in place.
 type StateStore struct {
-	logger *log.Logger
+	logger log.Logger
 	db     *memdb.MemDB
 
 	// config is the passed in configuration
@@ -69,7 +74,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	// Create the state store
 	s := &StateStore{
-		logger:    log.New(config.LogOutput, "", log.LstdFlags),
+		logger:    config.Logger.Named("state_store"),
 		db:        db,
 		config:    config,
 		abandonCh: make(chan struct{}),
@@ -191,6 +196,7 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	// being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(results.Job, results.Alloc)
 
+	// COMPAT(0.11): Remove in 0.11
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
 	// denormalized prior to being inserted into MemDB.
@@ -219,6 +225,45 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	if results.EvalID != "" {
 		// Update the modify index of the eval id
 		if err := s.updateEvalModifyIndex(txn, index, results.EvalID); err != nil {
+			return err
+		}
+	}
+
+	// Prepare preempted allocs in the plan results for update
+	var preemptedAllocs []*structs.Allocation
+	for _, preemptedAlloc := range results.NodePreemptions {
+		// Look for existing alloc
+		existing, err := txn.First("allocs", "id", preemptedAlloc.ID)
+		if err != nil {
+			return fmt.Errorf("alloc lookup failed: %v", err)
+		}
+
+		// Nothing to do if this does not exist
+		if existing == nil {
+			continue
+		}
+		exist := existing.(*structs.Allocation)
+
+		// Copy everything from the existing allocation
+		copyAlloc := exist.Copy()
+
+		// Only update the fields set by the scheduler
+		copyAlloc.DesiredStatus = preemptedAlloc.DesiredStatus
+		copyAlloc.PreemptedByAllocation = preemptedAlloc.PreemptedByAllocation
+		copyAlloc.DesiredDescription = preemptedAlloc.DesiredDescription
+		copyAlloc.ModifyTime = preemptedAlloc.ModifyTime
+		preemptedAllocs = append(preemptedAllocs, copyAlloc)
+
+	}
+
+	// Upsert the preempted allocations
+	if err := s.upsertAllocsImpl(index, preemptedAllocs, txn); err != nil {
+		return err
+	}
+
+	// Upsert followup evals for allocs that were preempted
+	for _, eval := range results.PreemptionEvals {
+		if err := s.nestedUpsertEval(txn, index, eval); err != nil {
 			return err
 		}
 	}
@@ -889,6 +934,12 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	return nil
 }
 
+// UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) UpsertJobTxn(index uint64, job *structs.Job, txn Txn) error {
+	return s.upsertJobImpl(index, job, false, txn)
+}
+
 // upsertJobImpl is the implementation for registering a job or updating a job definition
 func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *memdb.Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
@@ -956,10 +1007,6 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	s.addEphemeralDiskToTaskGroups(job)
-
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -976,6 +1023,16 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.DeleteJobTxn(index, namespace, jobID, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// DeleteJobTxn is used to deregister a job, like DeleteJob,
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1062,7 +1119,6 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1078,6 +1134,9 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 		return err
 	}
 
+	// Put them into a slice so there are no safety concerns while actually
+	// performing the deletes
+	jobs := []*structs.Job{}
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -1090,7 +1149,12 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *memd
 			continue
 		}
 
-		if _, err = txn.DeleteAll("job_version", "id", j.Namespace, j.ID, j.Version); err != nil {
+		jobs = append(jobs, j)
+	}
+
+	// Do the deletes
+	for _, j := range jobs {
+		if err := txn.Delete("job_version", j); err != nil {
 			return fmt.Errorf("deleting job versions failed: %v", err)
 		}
 	}
@@ -1160,7 +1224,12 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *memdb
 // version.
 func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error) {
 	txn := s.db.Txn(false)
+	return s.JobByIDTxn(ws, namespace, id, txn)
+}
 
+// JobByIDTxn is used to lookup a job by its ID, like  JobByID. JobByID returns the job version
+// accessible through in the transaction
+func (s *StateStore) JobByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn) (*structs.Job, error) {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1481,6 +1550,16 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.DeletePeriodicLaunchTxn(index, namespace, jobID, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// DeletePeriodicLaunchTxn is used to delete the periodic launch, like DeletePeriodicLaunch
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) DeletePeriodicLaunchTxn(index uint64, namespace, jobID string, txn Txn) error {
 	// COMPAT 0.7: Upgrade old objects that do not have namespaces
 	if namespace == "" {
 		namespace = structs.DefaultNamespace
@@ -1503,7 +1582,6 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1550,6 +1628,16 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
+	err := s.UpsertEvalsTxn(index, evals, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
+// UpsertEvals is used to upsert a set of evaluations, like UpsertEvals
+// but in a transaction.  Useful for when making multiple modifications atomically
+func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
 	// Do a nested upsert
 	jobs := make(map[structs.NamespacedID]string, len(evals))
 	for _, eval := range evals {
@@ -1569,7 +1657,6 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
@@ -1611,7 +1698,7 @@ func (s *StateStore) nestedUpsertEval(txn *memdb.Txn, index uint64, eval *struct
 					hasSummaryChanged = true
 				}
 			} else {
-				s.logger.Printf("[ERR] state_store: unable to update queued for job %q and task group %q", eval.JobID, tg)
+				s.logger.Error("unable to update queued for job and task group", "job_id", eval.JobID, "task_group", tg, "namespace", eval.Namespace)
 			}
 		}
 
@@ -1687,9 +1774,8 @@ func (s *StateStore) updateEvalModifyIndex(txn *memdb.Txn, index uint64, evalID 
 		return fmt.Errorf("eval lookup failed: %v", err)
 	}
 	if existing == nil {
-		err := fmt.Errorf("unable to find eval id %q", evalID)
-		s.logger.Printf("[ERR] state_store: %v", err)
-		return err
+		s.logger.Error("unable to find eval", "eval_id", evalID)
+		return fmt.Errorf("unable to find eval id %q", evalID)
 	}
 	eval := existing.(*structs.Evaluation).Copy()
 	// Update the indexes
@@ -1933,11 +2019,24 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
 
-	// Merge the deployment status taking only what the client should set
-	oldDeploymentStatus := copyAlloc.DeploymentStatus
-	copyAlloc.DeploymentStatus = alloc.DeploymentStatus
-	if oldDeploymentStatus != nil && oldDeploymentStatus.Canary {
-		copyAlloc.DeploymentStatus.Canary = true
+	// The client can only set its deployment health and timestamp, so just take
+	// those
+	if copyAlloc.DeploymentStatus != nil && alloc.DeploymentStatus != nil {
+		oldHasHealthy := copyAlloc.DeploymentStatus.HasHealth()
+		newHasHealthy := alloc.DeploymentStatus.HasHealth()
+
+		// We got new health information from the client
+		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
+			// Updated deployment health and timestamp
+			copyAlloc.DeploymentStatus.Healthy = helper.BoolToPtr(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
+			copyAlloc.DeploymentStatus.ModifyIndex = index
+		}
+	} else if alloc.DeploymentStatus != nil {
+		// First time getting a deployment status so copy everything and just
+		// set the index
+		copyAlloc.DeploymentStatus = alloc.DeploymentStatus.Copy()
+		copyAlloc.DeploymentStatus.ModifyIndex = index
 	}
 
 	// Update the modify index
@@ -2067,12 +2166,6 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 
 		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
 			return err
-		}
-
-		// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-		// COMPAT 0.4.1 -> 0.5
-		if alloc.Job != nil {
-			s.addEphemeralDiskToTaskGroups(alloc.Job)
 		}
 
 		if err := txn.Insert("allocs", alloc); err != nil {
@@ -2711,7 +2804,7 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 		}
 
 		// Ensure the canaries are healthy
-		if !alloc.DeploymentStatus.IsHealthy() {
+		if alloc.TerminalStatus() || !alloc.DeploymentStatus.IsHealthy() {
 			continue
 		}
 
@@ -2832,6 +2925,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.Appl
 			copy.DeploymentStatus.Healthy = helper.BoolToPtr(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
+			copy.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
 				return fmt.Errorf("error updating deployment: %v", err)
@@ -2963,12 +3057,86 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 	if err != nil {
 		return err
 	}
+	// COMPAT: Remove after 0.11
+	// Iterate over jobs to build a list of parent jobs and their children
+	parentMap := make(map[string][]*structs.Job)
 	for {
 		rawJob := iter.Next()
 		if rawJob == nil {
 			break
 		}
 		job := rawJob.(*structs.Job)
+		if job.ParentID != "" {
+			children := parentMap[job.ParentID]
+			children = append(children, job)
+			parentMap[job.ParentID] = children
+		}
+	}
+
+	// Get all the jobs again
+	iter, err = txn.Get("jobs", "id")
+	if err != nil {
+		return err
+	}
+
+	for {
+		rawJob := iter.Next()
+		if rawJob == nil {
+			break
+		}
+		job := rawJob.(*structs.Job)
+
+		if job.IsParameterized() || job.IsPeriodic() {
+			// COMPAT: Remove after 0.11
+
+			// The following block of code fixes incorrect child summaries due to a bug
+			// See https://github.com/hashicorp/nomad/issues/3886 for details
+			rawSummary, err := txn.First("job_summary", "id", job.Namespace, job.ID)
+			if err != nil {
+				return err
+			}
+			if rawSummary == nil {
+				continue
+			}
+
+			oldSummary := rawSummary.(*structs.JobSummary)
+
+			// Create an empty summary
+			summary := &structs.JobSummary{
+				JobID:     job.ID,
+				Namespace: job.Namespace,
+				Summary:   make(map[string]structs.TaskGroupSummary),
+				Children:  &structs.JobChildrenSummary{},
+			}
+
+			// Iterate over children of this job if any to fix summary counts
+			children := parentMap[job.ID]
+			for _, childJob := range children {
+				switch childJob.Status {
+				case structs.JobStatusPending:
+					summary.Children.Pending++
+				case structs.JobStatusDead:
+					summary.Children.Dead++
+				case structs.JobStatusRunning:
+					summary.Children.Running++
+				}
+			}
+
+			// Insert the job summary if its different
+			if !reflect.DeepEqual(summary, oldSummary) {
+				// Set the create index of the summary same as the job's create index
+				// and the modify index to the current index
+				summary.CreateIndex = job.CreateIndex
+				summary.ModifyIndex = index
+
+				if err := txn.Insert("job_summary", summary); err != nil {
+					return fmt.Errorf("error inserting job summary: %v", err)
+				}
+			}
+
+			// Done with handling a parent job, continue to next
+			continue
+		}
 
 		// Create a job summary for the job
 		summary := &structs.JobSummary{
@@ -3018,7 +3186,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			case structs.AllocClientStatusPending:
 				tg.Starting += 1
 			default:
-				s.logger.Printf("[ERR] state_store: invalid client status: %v in allocation %q", alloc.ClientStatus, alloc.ID)
+				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
 			}
 			summary.Summary[alloc.TaskGroup] = tg
 		}
@@ -3454,8 +3622,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if existingAlloc == nil {
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.DesiredStatus)
+			s.logger.Error("new allocation inserted into state store with bad desired status",
+				"alloc_id", alloc.ID, "desired_status", alloc.DesiredStatus)
 		}
 		switch alloc.ClientStatus {
 		case structs.AllocClientStatusPending:
@@ -3466,8 +3634,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			summaryChanged = true
 		case structs.AllocClientStatusRunning, structs.AllocClientStatusFailed,
 			structs.AllocClientStatusComplete:
-			s.logger.Printf("[ERR] state_store: new allocation inserted into state store with id: %v and state: %v",
-				alloc.ID, alloc.ClientStatus)
+			s.logger.Error("new allocation inserted into state store with bad client status",
+				"alloc_id", alloc.ID, "client_status", alloc.ClientStatus)
 		}
 	} else if existingAlloc.ClientStatus != alloc.ClientStatus {
 		// Incrementing the client of the bin of the current state
@@ -3487,15 +3655,21 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		// Decrementing the count of the bin of the last state
 		switch existingAlloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
-			tgSummary.Running -= 1
+			if tgSummary.Running > 0 {
+				tgSummary.Running -= 1
+			}
 		case structs.AllocClientStatusPending:
-			tgSummary.Starting -= 1
+			if tgSummary.Starting > 0 {
+				tgSummary.Starting -= 1
+			}
 		case structs.AllocClientStatusLost:
-			tgSummary.Lost -= 1
+			if tgSummary.Lost > 0 {
+				tgSummary.Lost -= 1
+			}
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
-			s.logger.Printf("[ERR] state_store: invalid old state of allocation with id: %v, and state: %v",
-				existingAlloc.ID, existingAlloc.ClientStatus)
+			s.logger.Error("invalid old client status for allocatio",
+				"alloc_id", existingAlloc.ID, "client_status", existingAlloc.ClientStatus)
 		}
 		summaryChanged = true
 	}
@@ -3835,6 +4009,98 @@ func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs
 	return nil
 }
 
+// SchedulerConfig is used to get the current Scheduler configuration.
+func (s *StateStore) SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error) {
+	tx := s.db.Txn(false)
+	defer tx.Abort()
+
+	// Get the scheduler config
+	c, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	config, ok := c.(*structs.SchedulerConfiguration)
+	if !ok {
+		return 0, nil, nil
+	}
+
+	return config.ModifyIndex, config, nil
+}
+
+// SchedulerSetConfig is used to set the current Scheduler configuration.
+func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerConfiguration) error {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	s.schedulerSetConfigTxn(idx, tx, config)
+
+	tx.Commit()
+	return nil
+}
+
+// WithWriteTransaction executes the passed function within a write transaction,
+// and returns its result.  If the invocation returns no error, the transaction
+// is committed; otherwise, it's aborted.
+func (s *StateStore) WithWriteTransaction(fn func(Txn) error) error {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	err := fn(tx)
+	if err == nil {
+		tx.Commit()
+	}
+	return err
+}
+
+// SchedulerCASConfig is used to update the scheduler configuration with a
+// given Raft index. If the CAS index specified is not equal to the last observed index
+// for the config, then the call is a noop.
+func (s *StateStore) SchedulerCASConfig(idx, cidx uint64, config *structs.SchedulerConfiguration) (bool, error) {
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+
+	// Check for an existing config
+	existing, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return false, fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	// If the existing index does not match the provided CAS
+	// index arg, then we shouldn't update anything and can safely
+	// return early here.
+	e, ok := existing.(*structs.SchedulerConfiguration)
+	if !ok || (e != nil && e.ModifyIndex != cidx) {
+		return false, nil
+	}
+
+	s.schedulerSetConfigTxn(idx, tx, config)
+
+	tx.Commit()
+	return true, nil
+}
+
+func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *memdb.Txn, config *structs.SchedulerConfiguration) error {
+	// Check for an existing config
+	existing, err := tx.First("scheduler_config", "id")
+	if err != nil {
+		return fmt.Errorf("failed scheduler config lookup: %s", err)
+	}
+
+	// Set the indexes.
+	if existing != nil {
+		config.CreateIndex = existing.(*structs.SchedulerConfiguration).CreateIndex
+	} else {
+		config.CreateIndex = idx
+	}
+	config.ModifyIndex = idx
+
+	if err := tx.Insert("scheduler_config", config); err != nil {
+		return fmt.Errorf("failed updating scheduler config: %s", err)
+	}
+	return nil
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -3867,10 +4133,6 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	// COMPAT 0.4.1 -> 0.5
-	r.addEphemeralDiskToTaskGroups(job)
-
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -3887,19 +4149,6 @@ func (r *StateRestore) EvalRestore(eval *structs.Evaluation) error {
 
 // AllocRestore is used to restore an allocation
 func (r *StateRestore) AllocRestore(alloc *structs.Allocation) error {
-	// Set the shared resources if it's not present
-	// COMPAT 0.4.1 -> 0.5
-	if alloc.SharedResources == nil {
-		alloc.SharedResources = &structs.Resources{
-			DiskMB: alloc.Resources.DiskMB,
-		}
-	}
-
-	// Create the EphemeralDisk if it's nil by adding up DiskMB from task resources.
-	if alloc.Job != nil {
-		r.addEphemeralDiskToTaskGroups(alloc.Job)
-	}
-
 	if err := r.txn.Insert("allocs", alloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
 	}
@@ -3966,6 +4215,13 @@ func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
 func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 	if err := r.txn.Insert("acl_token", token); err != nil {
 		return fmt.Errorf("inserting acl token failed: %v", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConfiguration) error {
+	if err := r.txn.Insert("scheduler_config", schedConfig); err != nil {
+		return fmt.Errorf("inserting scheduler config failed: %s", err)
 	}
 	return nil
 }

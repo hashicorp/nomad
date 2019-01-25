@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,10 +27,10 @@ func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s.connectedNodes()
@@ -188,15 +189,27 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
+		if len(nodes) != 1 {
+			return false, fmt.Errorf("should have 1 client. found %d", len(nodes))
+		}
+		req := &structs.NodeSpecificRequest{
+			NodeID:       c.NodeID(),
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		resp := structs.SingleNodeResponse{}
+		if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp); err != nil {
+			return false, err
+		}
+		return resp.Node != nil && resp.Node.Status == structs.NodeStatusReady, fmt.Errorf(
+			"expected ready but found %s", pretty.Sprint(resp.Node))
 	}, func(err error) {
 		t.Fatalf("should have a clients")
 	})
@@ -268,11 +281,11 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -417,11 +430,11 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -442,7 +455,19 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	}
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
+		if len(nodes) != 1 {
+			return false, fmt.Errorf("should have 1 client. found %d", len(nodes))
+		}
+		req := &structs.NodeSpecificRequest{
+			NodeID:       c.NodeID(),
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		resp := structs.SingleNodeResponse{}
+		if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp); err != nil {
+			return false, err
+		}
+		return resp.Node != nil && resp.Node.Status == structs.NodeStatusReady, fmt.Errorf(
+			"expected ready but found %s", pretty.Sprint(resp.Node))
 	}, func(err error) {
 		t.Fatalf("should have a clients")
 	})
@@ -539,10 +564,10 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -688,10 +713,10 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()

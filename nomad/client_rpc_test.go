@@ -264,10 +264,10 @@ func TestNodeStreamingRpc_badEndpoint(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c := client.TestClient(t, func(c *config.Config) {
+	c, cleanup := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s1.config.RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Wait for the client to connect
 	testutil.WaitForResult(func() (bool, error) {

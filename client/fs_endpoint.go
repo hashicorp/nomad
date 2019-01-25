@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -275,6 +276,15 @@ OUTER:
 			break OUTER
 		case frame, ok := <-frames:
 			if !ok {
+				// frame may have been closed when an error
+				// occurred. Check once more for an error.
+				select {
+				case streamErr = <-errCh:
+					// There was a pending error!
+				default:
+					// No error, continue on
+				}
+
 				break OUTER
 			}
 
@@ -370,7 +380,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	alloc, err := f.c.GetClientAlloc(req.AllocID)
+	allocState, err := f.c.GetAllocState(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		if structs.IsErrUnknownAllocation(err) {
@@ -382,23 +392,20 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 
 	// Check that the task is there
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		f.handleStreamResultError(fmt.Errorf("Failed to lookup task group for allocation"),
-			helper.Int64ToPtr(500), encoder)
-		return
-	} else if taskStruct := tg.LookupTask(req.Task); taskStruct == nil {
+	taskState := allocState.TaskStates[req.Task]
+	if taskState == nil {
 		f.handleStreamResultError(
-			fmt.Errorf("task group %q does not have task with name %q", alloc.TaskGroup, req.Task),
+			fmt.Errorf("unknown task name %q", req.Task),
 			helper.Int64ToPtr(400),
 			encoder)
 		return
 	}
 
-	state, ok := alloc.TaskStates[req.Task]
-	if !ok || state.StartedAt.IsZero() {
-		f.handleStreamResultError(fmt.Errorf("task %q not started yet. No logs available", req.Task),
-			helper.Int64ToPtr(404), encoder)
+	if taskState.StartedAt.IsZero() {
+		f.handleStreamResultError(
+			fmt.Errorf("task %q not started yet. No logs available", req.Task),
+			helper.Int64ToPtr(404),
+			encoder)
 		return
 	}
 
@@ -447,6 +454,15 @@ OUTER:
 			break OUTER
 		case frame, ok := <-frames:
 			if !ok {
+				// framer may have been closed when an error
+				// occurred. Check once more for an error.
+				select {
+				case streamErr = <-errCh:
+					// There was a pending error!
+				default:
+					// No error, continue on
+				}
+
 				break OUTER
 			}
 
@@ -473,7 +489,12 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		f.handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
+		// If error has a Code, use it
+		var code int64 = 500
+		if codedErr, ok := streamErr.(interface{ Code() int }); ok {
+			code = int64(codedErr.Code())
+		}
+		f.handleStreamResultError(streamErr, &code, encoder)
 		return
 	}
 }
@@ -819,6 +840,23 @@ func logIndexes(entries []*cstructs.AllocFileInfo, task, logType string) (indexT
 	return indexTupleArray(indexes), nil
 }
 
+// notFoundErr is returned when a log is requested but cannot be found.
+// Implements agent.HTTPCodedError but does not reference it to avoid circular
+// imports.
+type notFoundErr struct {
+	taskName string
+	logType  string
+}
+
+func (e notFoundErr) Error() string {
+	return fmt.Sprintf("log entry for task %q and log type %q not found", e.taskName, e.logType)
+}
+
+// Code returns a 404 to avoid returning a 500
+func (e notFoundErr) Code() int {
+	return http.StatusNotFound
+}
+
 // findClosest takes a list of entries, the desired log index and desired log
 // offset (which can be negative, treated as offset from end), task name and log
 // type and returns the log entry, the log index, the offset to read from and a
@@ -832,7 +870,7 @@ func findClosest(entries []*cstructs.AllocFileInfo, desiredIdx, desiredOffset in
 		return nil, 0, 0, err
 	}
 	if len(indexes) == 0 {
-		return nil, 0, 0, fmt.Errorf("log entry for task %q and log type %q not found", task, logType)
+		return nil, 0, 0, notFoundErr{taskName: task, logType: logType}
 	}
 
 	// Binary search the indexes to get the desiredIdx

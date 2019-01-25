@@ -2,9 +2,12 @@ package agent
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
+
+	golog "log"
+
+	log "github.com/hashicorp/go-hclog"
 )
 
 // DiscoverInterface is an interface for the Discover type in the go-discover
@@ -15,7 +18,7 @@ type DiscoverInterface interface {
 	// The config string must have the format 'provider=xxx key=val key=val ...'
 	// where the keys and values are provider specific. The values are URL
 	// encoded.
-	Addrs(string, *log.Logger) ([]string, error)
+	Addrs(string, *golog.Logger) ([]string, error)
 
 	// Help describes the format of the configuration string for address
 	// discovery and the various provider specific options.
@@ -48,8 +51,8 @@ type retryJoiner struct {
 	// limit has been reached
 	errCh chan struct{}
 
-	// logger is the agent logger.
-	logger *log.Logger
+	// logger is the retry joiners logger
+	logger log.Logger
 }
 
 // Validate ensures that the configuration passes validity checks for the
@@ -100,8 +103,9 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 	attempt := 0
 
 	addrsToJoin := strings.Join(serverJoin.RetryJoin, " ")
-	r.logger.Printf("[INFO] agent: Joining cluster... %s", addrsToJoin)
+	r.logger.Info("starting retry join", "servers", addrsToJoin)
 
+	standardLogger := r.logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true})
 	for {
 		var addrs []string
 		var n int
@@ -110,9 +114,9 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 		for _, addr := range serverJoin.RetryJoin {
 			switch {
 			case strings.HasPrefix(addr, "provider="):
-				servers, err := r.discover.Addrs(addr, r.logger)
+				servers, err := r.discover.Addrs(addr, standardLogger)
 				if err != nil {
-					r.logger.Printf("[ERR] agent: Join error %s", err)
+					r.logger.Error("determining join addresses failed", "error", err)
 				} else {
 					addrs = append(addrs, servers...)
 				}
@@ -125,14 +129,14 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 			if r.serverEnabled && r.serverJoin != nil {
 				n, err = r.serverJoin(addrs)
 				if err == nil {
-					r.logger.Printf("[INFO] agent: Join completed. Server synced with %d initial servers", n)
+					r.logger.Info("retry join completed", "initial_servers", n, "agent_mode", "server")
 					return
 				}
 			}
 			if r.clientEnabled && r.clientJoin != nil {
 				n, err = r.clientJoin(addrs)
 				if err == nil {
-					r.logger.Printf("[INFO] agent: Join completed. Client synced with %d initial servers", n)
+					r.logger.Info("retry join completed", "initial_servers", n, "agent_mode", "client")
 					return
 				}
 			}
@@ -140,14 +144,13 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 
 		attempt++
 		if serverJoin.RetryMaxAttempts > 0 && attempt > serverJoin.RetryMaxAttempts {
-			r.logger.Printf("[ERR] agent: max join retry exhausted, exiting")
+			r.logger.Error("max join retry exhausted, exiting")
 			close(r.errCh)
 			return
 		}
 
 		if err != nil {
-			r.logger.Printf("[WARN] agent: Join failed: %q, retrying in %v", err,
-				serverJoin.RetryInterval)
+			r.logger.Warn("join failed", "error", err, "retry", serverJoin.RetryInterval)
 		}
 		time.Sleep(serverJoin.RetryInterval)
 	}

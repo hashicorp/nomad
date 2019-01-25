@@ -2,12 +2,12 @@ package agent
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
@@ -92,7 +92,7 @@ func TestRetryJoin_Server_NonCloud(t *testing.T) {
 		discover:      &MockDiscover{},
 		serverJoin:    mockJoin,
 		serverEnabled: true,
-		logger:        log.New(ioutil.Discard, "", 0),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 
@@ -123,7 +123,7 @@ func TestRetryJoin_Server_Cloud(t *testing.T) {
 		discover:      mockDiscover,
 		serverJoin:    mockJoin,
 		serverEnabled: true,
-		logger:        log.New(ioutil.Discard, "", 0),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 
@@ -155,7 +155,7 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 		discover:      mockDiscover,
 		serverJoin:    mockJoin,
 		serverEnabled: true,
-		logger:        log.New(ioutil.Discard, "", 0),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 
@@ -186,7 +186,7 @@ func TestRetryJoin_Client(t *testing.T) {
 		discover:      &MockDiscover{},
 		clientJoin:    mockJoin,
 		clientEnabled: true,
-		logger:        log.New(ioutil.Discard, "", 0),
+		logger:        testlog.HCLogger(t),
 		errCh:         make(chan struct{}),
 	}
 

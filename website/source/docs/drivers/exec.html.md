@@ -131,4 +131,4 @@ the client manages garbage collection locally which mitigates any issue this may
 create.
 
 This list is configurable through the agent client
-[configuration file](/docs/agent/configuration/client.html#chroot_env).
+[configuration file](/docs/configuration/client.html#chroot_env).

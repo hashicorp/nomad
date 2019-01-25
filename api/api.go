@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	rootcerts "github.com/hashicorp/go-rootcerts"
 )
 

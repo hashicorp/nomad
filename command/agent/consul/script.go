@@ -2,12 +2,13 @@ package consul
 
 import (
 	"context"
-	"log"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/client/driver"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -15,6 +16,54 @@ import (
 // checks to heartbeat
 type heartbeater interface {
 	UpdateTTL(id, output, status string) error
+}
+
+// contextExec allows canceling a ScriptExecutor with a context.
+type contextExec struct {
+	// pctx is the parent context. A subcontext will be created with Exec's
+	// timeout.
+	pctx context.Context
+
+	// exec to be wrapped in a context
+	exec interfaces.ScriptExecutor
+}
+
+func newContextExec(ctx context.Context, exec interfaces.ScriptExecutor) *contextExec {
+	return &contextExec{
+		pctx: ctx,
+		exec: exec,
+	}
+}
+
+type execResult struct {
+	buf  []byte
+	code int
+	err  error
+}
+
+// Exec a command until the timeout expires, the context is canceled, or the
+// underlying Exec returns.
+func (c *contextExec) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
+	resCh := make(chan execResult, 1)
+
+	// Don't trust the underlying implementation to obey timeout
+	ctx, cancel := context.WithTimeout(c.pctx, timeout)
+	defer cancel()
+
+	go func() {
+		output, code, err := c.exec.Exec(timeout, cmd, args)
+		select {
+		case resCh <- execResult{output, code, err}:
+		case <-ctx.Done():
+		}
+	}()
+
+	select {
+	case res := <-resCh:
+		return res.buf, res.code, res.err
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
+	}
 }
 
 // scriptHandle is returned by scriptCheck.run by cancelling a scriptCheck and
@@ -38,22 +87,23 @@ type scriptCheck struct {
 
 	id    string
 	check *structs.ServiceCheck
-	exec  driver.ScriptExecutor
+	exec  interfaces.ScriptExecutor
 	agent heartbeater
 
 	// lastCheckOk is true if the last check was ok; otherwise false
 	lastCheckOk bool
 
-	logger     *log.Logger
+	logger     log.Logger
 	shutdownCh <-chan struct{}
 }
 
 // newScriptCheck creates a new scriptCheck. run() should be called once the
 // initial check is registered with Consul.
 func newScriptCheck(allocID, taskName, checkID string, check *structs.ServiceCheck,
-	exec driver.ScriptExecutor, agent heartbeater, logger *log.Logger,
+	exec interfaces.ScriptExecutor, agent heartbeater, logger log.Logger,
 	shutdownCh <-chan struct{}) *scriptCheck {
 
+	logger = logger.ResetNamed("consul.checks").With("task", taskName, "alloc_id", allocID, "check", check.Name)
 	return &scriptCheck{
 		allocID:     allocID,
 		taskName:    taskName,
@@ -72,6 +122,11 @@ func newScriptCheck(allocID, taskName, checkID string, check *structs.ServiceChe
 func (s *scriptCheck) run() *scriptHandle {
 	ctx, cancel := context.WithCancel(context.Background())
 	exitCh := make(chan struct{})
+
+	// Wrap the original ScriptExecutor in one that obeys context
+	// cancelation.
+	ctxExec := newContextExec(ctx, s.exec)
+
 	go func() {
 		defer close(exitCh)
 		timer := time.NewTimer(0)
@@ -91,12 +146,10 @@ func (s *scriptCheck) run() *scriptHandle {
 			metrics.IncrCounter([]string{"client", "consul", "script_runs"}, 1)
 
 			// Execute check script with timeout
-			execctx, cancel := context.WithTimeout(ctx, s.check.Timeout)
-			output, code, err := s.exec.Exec(execctx, s.check.Command, s.check.Args)
-			switch execctx.Err() {
+			output, code, err := ctxExec.Exec(s.check.Timeout, s.check.Command, s.check.Args)
+			switch err {
 			case context.Canceled:
 				// check removed during execution; exit
-				cancel()
 				return
 			case context.DeadlineExceeded:
 				metrics.IncrCounter([]string{"client", "consul", "script_timeouts"}, 1)
@@ -108,12 +161,8 @@ func (s *scriptCheck) run() *scriptHandle {
 				// Log deadline exceeded every time as it's a
 				// distinct issue from checks returning
 				// failures
-				s.logger.Printf("[WARN] consul.checks: check %q for task %q alloc %q timed out (%s)",
-					s.check.Name, s.taskName, s.allocID, s.check.Timeout)
+				s.logger.Warn("check timed out", "timeout", s.check.Timeout)
 			}
-
-			// cleanup context
-			cancel()
 
 			state := api.HealthCritical
 			switch code {
@@ -143,18 +192,15 @@ func (s *scriptCheck) run() *scriptHandle {
 			if err != nil {
 				if s.lastCheckOk {
 					s.lastCheckOk = false
-					s.logger.Printf("[WARN] consul.checks: update for task %q alloc %q check %q failed: %v",
-						s.taskName, s.allocID, s.check.Name, err)
+					s.logger.Warn("updating check failed", "error", err)
 				} else {
-					s.logger.Printf("[DEBUG] consul.checks: update for task %q alloc %q check %q still failing: %v",
-						s.taskName, s.allocID, s.check.Name, err)
+					s.logger.Debug("updating check still failing", "error", err)
 				}
 
 			} else if !s.lastCheckOk {
 				// Succeeded for the first time or after failing; log
 				s.lastCheckOk = true
-				s.logger.Printf("[INFO] consul.checks: update for task %q alloc %q check %q succeeded",
-					s.taskName, s.allocID, s.check.Name)
+				s.logger.Info("updating check succeeded")
 			}
 
 			select {

@@ -1,25 +1,25 @@
 package scheduler
 
 import (
-	"log"
-	"os"
-	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
 	state := state.TestStateStore(t)
 	plan := &structs.Plan{
-		NodeUpdate:     make(map[string][]*structs.Allocation),
-		NodeAllocation: make(map[string][]*structs.Allocation),
+		NodeUpdate:      make(map[string][]*structs.Allocation),
+		NodeAllocation:  make(map[string][]*structs.Allocation),
+		NodePreemptions: make(map[string][]*structs.Allocation),
 	}
 
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.HCLogger(t)
 
 	ctx := NewEvalContext(state, plan, logger)
 	return state, ctx
@@ -32,9 +32,13 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -42,9 +46,13 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 			Node: &structs.Node{
 				// Perfect fit
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					CPU:      2048,
-					MemoryMB: 2048,
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
 				},
 			},
 		},
@@ -59,9 +67,17 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		NodeID:    nodes[0].Node.ID,
 		JobID:     j1.ID,
 		Job:       j1,
-		Resources: &structs.Resources{
-			CPU:      2048,
-			MemoryMB: 2048,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -74,9 +90,17 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		NodeID:    nodes[1].Node.ID,
 		JobID:     j2.ID,
 		Job:       j2,
-		Resources: &structs.Resources{
-			CPU:      1024,
-			MemoryMB: 1024,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -93,9 +117,17 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 	// Add a planned placement to node1
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
 		{
-			Resources: &structs.Resources{
-				CPU:      1024,
-				MemoryMB: 1024,
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 1024,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 1024,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -228,7 +260,7 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	e.SetTaskGroupEligibility(false, "fizz", "v1:3")
 
 	expClasses := map[string]bool{
-		"v1:1": true,
+		"v1:1": false,
 		"v1:2": false,
 		"v1:3": true,
 		"v1:4": false,
@@ -236,7 +268,27 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	}
 
 	actClasses := e.GetClasses()
-	if !reflect.DeepEqual(actClasses, expClasses) {
-		t.Fatalf("GetClasses() returned %#v; want %#v", actClasses, expClasses)
+	require.Equal(t, expClasses, actClasses)
+}
+func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T) {
+	e := NewEvalEligibility()
+	e.SetJobEligibility(true, "v1:1")
+	e.SetTaskGroupEligibility(false, "foo", "v1:1")
+
+	e.SetJobEligibility(true, "v1:2")
+	e.SetTaskGroupEligibility(false, "foo", "v1:2")
+	e.SetTaskGroupEligibility(true, "bar", "v1:2")
+
+	e.SetJobEligibility(true, "v1:3")
+	e.SetTaskGroupEligibility(false, "foo", "v1:3")
+	e.SetTaskGroupEligibility(false, "bar", "v1:3")
+
+	expClasses := map[string]bool{
+		"v1:1": false,
+		"v1:2": true,
+		"v1:3": false,
 	}
+
+	actClasses := e.GetClasses()
+	require.Equal(t, expClasses, actClasses)
 }

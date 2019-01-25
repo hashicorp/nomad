@@ -3,7 +3,7 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

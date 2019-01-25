@@ -2,10 +2,8 @@ package servers_test
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
-	"os"
 	"strings"
 	"testing"
 
@@ -35,14 +33,14 @@ func (cp *fauxConnPool) Ping(net.Addr) error {
 }
 
 func testManager(t *testing.T) (m *servers.Manager) {
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m = servers.New(logger, shutdownCh, &fauxConnPool{})
 	return m
 }
 
 func testManagerFailProb(t *testing.T, failPct float64) (m *servers.Manager) {
-	logger := testlog.Logger(t)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m = servers.New(logger, shutdownCh, &fauxConnPool{failPct: failPct})
 	return m
@@ -115,7 +113,7 @@ func TestServers_FindServer(t *testing.T) {
 }
 
 func TestServers_New(t *testing.T) {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m := servers.New(logger, shutdownCh, &fauxConnPool{})
 	if m == nil {

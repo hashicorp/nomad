@@ -1,8 +1,8 @@
-import $ from 'jquery';
 import { assign } from '@ember/polyfills';
-import { click, findAll, currentURL, find, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 
 let job;
@@ -14,8 +14,8 @@ moduleForAcceptance('Acceptance | allocation detail', {
     server.create('agent');
 
     node = server.create('node');
-    job = server.create('job', { groupCount: 0, createAllocations: false });
-    allocation = server.create('allocation', 'withTaskWithPorts');
+    job = server.create('job', { groupsCount: 1, createAllocations: false });
+    allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
 
     // Make sure the node has an unhealthy driver
     node.update({
@@ -32,38 +32,31 @@ moduleForAcceptance('Acceptance | allocation detail', {
       driver: 'docker',
     });
 
-    visit(`/allocations/${allocation.id}`);
+    Allocation.visit({ id: allocation.id });
   },
 });
 
 test('/allocation/:id should name the allocation and link to the corresponding job and node', function(assert) {
-  assert.ok(
-    find('[data-test-title]').textContent.includes(allocation.name),
-    'Allocation name is in the heading'
-  );
+  assert.ok(Allocation.title.includes(allocation.name), 'Allocation name is in the heading');
+  assert.equal(Allocation.details.job, job.name, 'Job name is in the subheading');
   assert.equal(
-    find('[data-test-allocation-details] [data-test-job-link]').textContent.trim(),
-    job.name,
-    'Job name is in the subheading'
-  );
-  assert.equal(
-    find('[data-test-allocation-details] [data-test-client-link]').textContent.trim(),
+    Allocation.details.client,
     node.id.split('-')[0],
     'Node short id is in the subheading'
   );
 
   andThen(() => {
-    click('[data-test-allocation-details] [data-test-job-link]');
+    Allocation.details.visitJob();
   });
 
   andThen(() => {
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Job link navigates to the job');
   });
 
-  visit(`/allocations/${allocation.id}`);
+  Allocation.visit({ id: allocation.id });
 
   andThen(() => {
-    click('[data-test-allocation-details] [data-test-client-link]');
+    Allocation.details.visitClient();
   });
 
   andThen(() => {
@@ -71,12 +64,19 @@ test('/allocation/:id should name the allocation and link to the corresponding j
   });
 });
 
+test('/allocation/:id should include resource utilization graphs', function(assert) {
+  assert.equal(Allocation.resourceCharts.length, 2, 'Two resource utilization graphs');
+  assert.equal(Allocation.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
+  assert.equal(Allocation.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+});
+
 test('/allocation/:id should list all tasks for the allocation', function(assert) {
   assert.equal(
-    findAll('[data-test-task-row]').length,
+    Allocation.tasks.length,
     server.db.taskStates.where({ allocationId: allocation.id }).length,
     'Table lists all tasks'
   );
+  assert.notOk(Allocation.isEmpty, 'Task table empty state is not shown');
 });
 
 test('each task row should list high-level information for the task', function(assert) {
@@ -86,39 +86,15 @@ test('each task row should list high-level information for the task', function(a
     .sortBy('name')[0];
   const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
   const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
-  const taskRow = $(findAll('[data-test-task-row]')[0]);
+  const taskRow = Allocation.tasks.objectAt(0);
   const events = server.db.taskEvents.where({ taskStateId: task.id });
   const event = events[events.length - 1];
 
+  assert.equal(taskRow.name, task.name, 'Name');
+  assert.equal(taskRow.state, task.state, 'State');
+  assert.equal(taskRow.message, event.displayMessage, 'Event Message');
   assert.equal(
-    taskRow
-      .find('[data-test-name]')
-      .text()
-      .trim(),
-    task.name,
-    'Name'
-  );
-  assert.equal(
-    taskRow
-      .find('[data-test-state]')
-      .text()
-      .trim(),
-    task.state,
-    'State'
-  );
-  assert.equal(
-    taskRow
-      .find('[data-test-message]')
-      .text()
-      .trim(),
-    event.displayMessage,
-    'Event Message'
-  );
-  assert.equal(
-    taskRow
-      .find('[data-test-time]')
-      .text()
-      .trim(),
+    taskRow.time,
     moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss'),
     'Event Time'
   );
@@ -126,7 +102,7 @@ test('each task row should list high-level information for the task', function(a
   assert.ok(reservedPorts.length, 'The task has reserved ports');
   assert.ok(dynamicPorts.length, 'The task has dynamic ports');
 
-  const addressesText = taskRow.find('[data-test-ports]').text();
+  const addressesText = taskRow.ports;
   reservedPorts.forEach(port => {
     assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
     assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
@@ -140,7 +116,7 @@ test('each task row should list high-level information for the task', function(a
 test('each task row should link to the task detail page', function(assert) {
   const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
 
-  click('[data-test-task-row] [data-test-name] a');
+  Allocation.tasks.objectAt(0).clickLink();
 
   andThen(() => {
     assert.equal(
@@ -151,11 +127,11 @@ test('each task row should link to the task detail page', function(assert) {
   });
 
   andThen(() => {
-    visit(`/allocations/${allocation.id}`);
+    Allocation.visit({ id: allocation.id });
   });
 
   andThen(() => {
-    click('[data-test-task-row]');
+    Allocation.tasks.objectAt(0).clickRow();
   });
 
   andThen(() => {
@@ -168,15 +144,25 @@ test('each task row should link to the task detail page', function(assert) {
 });
 
 test('tasks with an unhealthy driver have a warning icon', function(assert) {
-  assert.ok(find('[data-test-task-row] [data-test-icon="unhealthy-driver"]'), 'Warning is shown');
+  assert.ok(Allocation.firstUnhealthyTask().hasUnhealthyDriver, 'Warning is shown');
+});
+
+test('when there are no tasks, an empty state is shown', function(assert) {
+  // Make sure the allocation is pending in order to ensure there are no tasks
+  allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'pending' });
+  Allocation.visit({ id: allocation.id });
+
+  andThen(() => {
+    assert.ok(Allocation.isEmpty, 'Task table empty state is shown');
+  });
 });
 
 test('when the allocation has not been rescheduled, the reschedule events section is not rendered', function(assert) {
-  assert.notOk(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
+  assert.notOk(Allocation.hasRescheduleEvents, 'Reschedule Events section exists');
 });
 
 test('when the allocation is not found, an error message is shown, but the URL persists', function(assert) {
-  visit('/allocations/not-a-real-allocation');
+  Allocation.visit({ id: 'not-a-real-allocation' });
 
   andThen(() => {
     assert.equal(
@@ -185,12 +171,8 @@ test('when the allocation is not found, an error message is shown, but the URL p
       'A request to the nonexistent allocation is made'
     );
     assert.equal(currentURL(), '/allocations/not-a-real-allocation', 'The URL persists');
-    assert.ok(find('[data-test-error]'), 'Error message is shown');
-    assert.equal(
-      find('[data-test-error-title]').textContent,
-      'Not Found',
-      'Error message is for 404'
-    );
+    assert.ok(Allocation.error.isShown, 'Error message is shown');
+    assert.equal(Allocation.error.title, 'Not Found', 'Error message is for 404');
   });
 });
 
@@ -202,10 +184,31 @@ moduleForAcceptance('Acceptance | allocation detail (rescheduled)', {
     job = server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'rescheduled');
 
-    visit(`/allocations/${allocation.id}`);
+    Allocation.visit({ id: allocation.id });
   },
 });
 
 test('when the allocation has been rescheduled, the reschedule events section is rendered', function(assert) {
-  assert.ok(find('[data-test-reschedule-events]'), 'Reschedule Events section exists');
+  assert.ok(Allocation.hasRescheduleEvents, 'Reschedule Events section exists');
+});
+
+moduleForAcceptance('Acceptance | allocation detail (not running)', {
+  beforeEach() {
+    server.create('agent');
+
+    node = server.create('node');
+    job = server.create('job', { createAllocations: false });
+    allocation = server.create('allocation', { clientStatus: 'pending' });
+
+    Allocation.visit({ id: allocation.id });
+  },
+});
+
+test('when the allocation is not running, the utilization graphs are replaced by an empty message', function(assert) {
+  assert.equal(Allocation.resourceCharts.length, 0, 'No resource charts');
+  assert.equal(
+    Allocation.resourceEmptyMessage,
+    "Allocation isn't running",
+    'Empty message is appropriate'
+  );
 });

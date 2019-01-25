@@ -30,7 +30,7 @@ func TestDeadlineHeap_WatchAndGet(t *testing.T) {
 	var batch []string
 	select {
 	case batch = <-h.NextBatch():
-	case <-time.After(testutil.Timeout(2 * wait)):
+	case <-time.After(testutil.Timeout(3 * wait)):
 		t.Fatal("timeout")
 	}
 

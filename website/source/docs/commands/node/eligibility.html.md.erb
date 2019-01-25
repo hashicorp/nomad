@@ -10,8 +10,8 @@ description: >
 # Command: node eligibility
 
 The `node eligibility` command is used to toggle scheduling eligibility for a
-given node. By default node's are eligible for scheduling meaning they can
-receive placements and run new allocations. Node's that have their scheduling
+given node. By default nodes are eligible for scheduling meaning they can
+receive placements and run new allocations. Nodes that have their scheduling
 elegibility disabled are ineligibile for new placements.
 
 The [`node drain`][drain] command automatically disables eligibility. Disabling
@@ -20,7 +20,7 @@ a drain restore eligibility by default.
 Disable scheduling eligibility is useful when draining a set of nodes: first
 disable eligibility on each node that will be drained. Then drain each node.
 If you just drain each node allocations may get rescheduled multiple times as
-they get placed on node's about to be drained!
+they get placed on nodes about to be drained!
 
 Disabling scheduling eligibility may also be useful when investigating poorly
 behaved nodes. It allows operators to investigate the current state of a node

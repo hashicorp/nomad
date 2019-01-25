@@ -24,23 +24,31 @@
     ]
   },
   "devDependencies": {
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "broccoli-asset-rev": "^2.4.5",
     "bulma": "0.6.1",
     "core-js": "^2.4.1",
+    "d3-array": "^1.2.0",
+    "d3-axis": "^1.0.0",
+    "d3-format": "^1.3.0",
+    "d3-scale": "^1.0.0",
     "d3-selection": "^1.1.0",
+    "d3-shape": "^1.2.0",
+    "d3-time-format": "^2.1.0",
     "d3-transition": "^1.1.0",
     "ember-ajax": "^3.0.0",
-    "ember-browserify": "^1.2.0",
+    "ember-auto-import": "^1.0.1",
     "ember-cli": "~2.18.2",
     "ember-cli-babel": "^6.0.0",
-    "ember-cli-bourbon": "2.0.0-beta.1",
     "ember-cli-dependency-checker": "^2.1.0",
     "ember-cli-eslint": "^4.2.3",
+    "ember-cli-funnel": "^0.6.0",
     "ember-cli-htmlbars": "^2.0.3",
     "ember-cli-htmlbars-inline-precompile": "^1.0.2",
     "ember-cli-inject-live-reload": "^1.4.1",
     "ember-cli-mirage": "^0.4.3",
     "ember-cli-moment-shim": "^3.5.0",
+    "ember-cli-page-object": "^1.14.1",
     "ember-cli-qunit": "^4.2.1",
     "ember-cli-sass": "^7.1.2",
     "ember-cli-shims": "^1.2.0",
@@ -69,7 +77,7 @@
     "flat": "^4.0.0",
     "fuse.js": "~3.2.0",
     "husky": "^0.14.3",
-    "json-formatter-js": "^2.2.0",
+    "ivy-codemirror": "^2.1.0",
     "lint-staged": "^6.0.0",
     "loader.js": "^4.2.3",
     "lodash.intersection": "^4.4.0",
@@ -85,5 +93,8 @@
       "lib/bulma",
       "lib/calendar"
     ]
+  },
+  "dependencies": {
+    "lru_map": "^0.3.3"
   }
 }

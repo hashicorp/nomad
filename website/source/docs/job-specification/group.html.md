@@ -35,6 +35,14 @@ job "docs" {
 - `constraint` <code>([Constraint][]: nil)</code> -
   This can be provided multiple times to define additional constraints.
 
+- `affinity` <code>([Affinity][]: nil)</code> - This can be provided
+    multiple times to define preferred placement criteria.
+
+- `spread` <code>([Spread][spread]: nil)</code> - This can be provided
+  multiple times to define criteria for spreading allocations across a
+  node attribute or metadata. See the
+  [Nomad spread reference](/docs/job-specification/spread.html) for more details.
+
 - `count` `(int: 1)` - Specifies the number of the task groups that should
   be running under this group. This value must be non-negative.
 
@@ -44,6 +52,14 @@ job "docs" {
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
+
+- `migrate` <code>([Migrate][]: nil)</code> - Specifies the group strategy for
+  migrating off of draining nodes. Only service jobs with a count greater than
+  1 support migrate stanzas.
+
+- `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
+  rescheduling strategy. Nomad will then attempt to schedule the task on another
+  node if any of the group allocation statuses become "failed".
 
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
@@ -110,7 +126,11 @@ group "example" {
 [task]: /docs/job-specification/task.html "Nomad task Job Specification"
 [job]: /docs/job-specification/job.html "Nomad job Job Specification"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[spread]: /docs/job-specification/spread.html "Nomad spread Job Specification"
+[affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk.html "Nomad ephemeral_disk Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
+[migrate]: /docs/job-specification/migrate.html "Nomad migrate Job Specification"
+[reschedule]: /docs/job-specification/reschedule.html "Nomad reschedule Job Specification"
 [restart]: /docs/job-specification/restart.html "Nomad restart Job Specification"
 [vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"

@@ -3,11 +3,12 @@ package drainer
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -43,7 +44,7 @@ type DrainingJobWatcher interface {
 // draining allocations have replacements
 type drainingJobWatcher struct {
 	ctx    context.Context
-	logger *log.Logger
+	logger log.Logger
 
 	// state is the state that is watched for state changes.
 	state *state.StateStore
@@ -67,7 +68,7 @@ type drainingJobWatcher struct {
 
 // NewDrainingJobWatcher returns a new job watcher. The caller is expected to
 // cancel the context to clean up the drainer.
-func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger) *drainingJobWatcher {
+func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger log.Logger) *drainingJobWatcher {
 
 	// Create a context that can cancel the blocking query so that when a new
 	// job gets registered it is handled.
@@ -78,7 +79,7 @@ func NewDrainingJobWatcher(ctx context.Context, limiter *rate.Limiter, state *st
 		queryCtx:    queryCtx,
 		queryCancel: queryCancel,
 		limiter:     limiter,
-		logger:      logger,
+		logger:      logger.Named("job_watcher"),
 		state:       state,
 		jobs:        make(map[structs.NamespacedID]struct{}, 64),
 		drainCh:     make(chan *DrainRequest),
@@ -101,7 +102,7 @@ func (w *drainingJobWatcher) RegisterJobs(jobs []structs.NamespacedID) {
 		}
 
 		// Add the job and cancel the context
-		w.logger.Printf("[TRACE] nomad.drain.job_watcher: registering job %v", jns)
+		w.logger.Trace("registering job", "job", jns)
 		w.jobs[jns] = struct{}{}
 		updated = true
 	}
@@ -134,22 +135,22 @@ func (w *drainingJobWatcher) deregisterJob(jobID, namespace string) {
 		Namespace: namespace,
 	}
 	delete(w.jobs, jns)
-	w.logger.Printf("[TRACE] nomad.drain.job_watcher: deregistering job %v", jns)
+	w.logger.Trace("deregistering job", "job", jns)
 }
 
 // watch is the long lived watching routine that detects job drain changes.
 func (w *drainingJobWatcher) watch() {
 	waitIndex := uint64(1)
 	for {
-		w.logger.Printf("[TRACE] nomad.drain.job_watcher: getting job allocs at index %d", waitIndex)
+		w.logger.Trace("getting job allocs at index", "index", waitIndex)
 		jobAllocs, index, err := w.getJobAllocs(w.getQueryCtx(), waitIndex)
-		w.logger.Printf("[TRACE] nomad.drain.job_watcher: got allocs for %d jobs at index %d: %v", len(jobAllocs), index, err)
+		w.logger.Trace("retrieved allocs for draining jobs", "num_allocs", len(jobAllocs), "index", index, "error", err)
 		if err != nil {
 			if err == context.Canceled {
 				// Determine if it is a cancel or a shutdown
 				select {
 				case <-w.ctx.Done():
-					w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
+					w.logger.Trace("shutting down")
 					return
 				default:
 					// The query context was cancelled;
@@ -160,10 +161,10 @@ func (w *drainingJobWatcher) watch() {
 				}
 			}
 
-			w.logger.Printf("[ERR] nomad.drain.job_watcher: error watching job allocs updates at index %d: %v", waitIndex, err)
+			w.logger.Error("error watching job allocs updates at index", "index", waitIndex, "error", err)
 			select {
 			case <-w.ctx.Done():
-				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
+				w.logger.Trace("shutting down")
 				return
 			case <-time.After(stateReadErrorDelay):
 				continue
@@ -176,7 +177,7 @@ func (w *drainingJobWatcher) watch() {
 		// Snapshot the state store
 		snap, err := w.state.Snapshot()
 		if err != nil {
-			w.logger.Printf("[WARN] nomad.drain.job_watcher: failed to snapshot statestore: %v", err)
+			w.logger.Warn("failed to snapshot statestore", "error", err)
 			continue
 		}
 
@@ -185,22 +186,22 @@ func (w *drainingJobWatcher) watch() {
 		for jns, allocs := range jobAllocs {
 			// Check if the job is still registered
 			if _, ok := currentJobs[jns]; !ok {
-				w.logger.Printf("[TRACE] nomad.drain.job_watcher: skipping job %v as it is no longer registered for draining", jns)
+				w.logger.Trace("skipping job as it is no longer registered for draining", "job", jns)
 				continue
 			}
 
-			w.logger.Printf("[TRACE] nomad.drain.job_watcher: handling job %v", jns)
+			w.logger.Trace("handling job", "job", jns)
 
 			// Lookup the job
 			job, err := snap.JobByID(nil, jns.Namespace, jns.ID)
 			if err != nil {
-				w.logger.Printf("[WARN] nomad.drain.job_watcher: failed to lookup job %v: %v", jns, err)
+				w.logger.Warn("failed to lookup job", "job", jns, "error", err)
 				continue
 			}
 
 			// Ignore purged jobs
 			if job == nil {
-				w.logger.Printf("[TRACE] nomad.drain.job_watcher: ignoring garbage collected job %q", jns)
+				w.logger.Trace("ignoring garbage collected job", "job", jns)
 				w.deregisterJob(jns.ID, jns.Namespace)
 				continue
 			}
@@ -213,11 +214,11 @@ func (w *drainingJobWatcher) watch() {
 
 			result, err := handleJob(snap, job, allocs, lastHandled)
 			if err != nil {
-				w.logger.Printf("[ERR] nomad.drain.job_watcher: handling drain for job %v failed: %v", jns, err)
+				w.logger.Error("handling drain for job failed", "job", jns, "error", err)
 				continue
 			}
 
-			w.logger.Printf("[TRACE] nomad.drain.job_watcher: result for job %v: %v", jns, result)
+			w.logger.Trace("received result for job", "job", jns, "result", result)
 
 			allDrain = append(allDrain, result.drain...)
 			allMigrated = append(allMigrated, result.migrated...)
@@ -231,12 +232,12 @@ func (w *drainingJobWatcher) watch() {
 		if len(allDrain) != 0 {
 			// Create the request
 			req := NewDrainRequest(allDrain)
-			w.logger.Printf("[TRACE] nomad.drain.job_watcher: sending drain request for %d allocs", len(allDrain))
+			w.logger.Trace("sending drain request for allocs", "num_allocs", len(allDrain))
 
 			select {
 			case w.drainCh <- req:
 			case <-w.ctx.Done():
-				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
+				w.logger.Trace("shutting down")
 				return
 			}
 
@@ -244,13 +245,13 @@ func (w *drainingJobWatcher) watch() {
 			select {
 			case <-req.Resp.WaitCh():
 			case <-w.ctx.Done():
-				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
+				w.logger.Trace("shutting down")
 				return
 			}
 
 			// See if it successfully committed
 			if err := req.Resp.Error(); err != nil {
-				w.logger.Printf("[ERR] nomad.drain.job_watcher: failed to transition allocations: %v", err)
+				w.logger.Error("failed to transition allocations", "error", err)
 			}
 
 			// Wait until the new index
@@ -260,11 +261,11 @@ func (w *drainingJobWatcher) watch() {
 		}
 
 		if len(allMigrated) != 0 {
-			w.logger.Printf("[TRACE] nomad.drain.job_watcher: sending migrated for %d allocs", len(allMigrated))
+			w.logger.Trace("sending migrated for allocs", "num_allocs", len(allMigrated))
 			select {
 			case w.migratedCh <- allMigrated:
 			case <-w.ctx.Done():
-				w.logger.Printf("[TRACE] nomad.drain.job_watcher: shutting down")
+				w.logger.Trace("shutting down")
 				return
 			}
 		}
@@ -446,6 +447,7 @@ func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.St
 	}
 
 	// Capture the allocs for each draining job.
+	var maxIndex uint64 = 0
 	resp := make(map[structs.NamespacedID][]*structs.Allocation, l)
 	for jns := range draining {
 		allocs, err := state.AllocsByJob(ws, jns.Namespace, jns.ID, false)
@@ -454,6 +456,17 @@ func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.St
 		}
 
 		resp[jns] = allocs
+		for _, alloc := range allocs {
+			if maxIndex < alloc.ModifyIndex {
+				maxIndex = alloc.ModifyIndex
+			}
+		}
+	}
+
+	// Prefer using the actual max index of affected allocs since it means less
+	// unblocking
+	if maxIndex != 0 {
+		index = maxIndex
 	}
 
 	return resp, index, nil

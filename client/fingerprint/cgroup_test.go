@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -42,7 +42,7 @@ func (m *MountPointDetectorEmptyMountPoint) MountPoint() (string, error) {
 func TestCGroupFingerprint(t *testing.T) {
 	{
 		f := &CGroupFingerprint{
-			logger:             testLogger(),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
 			mountPointDetector: &MountPointDetectorMountPointFail{},
 		}
@@ -51,8 +51,8 @@ func TestCGroupFingerprint(t *testing.T) {
 			Attributes: make(map[string]string),
 		}
 
-		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err == nil {
 			t.Fatalf("expected an error")
@@ -65,7 +65,7 @@ func TestCGroupFingerprint(t *testing.T) {
 
 	{
 		f := &CGroupFingerprint{
-			logger:             testLogger(),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
 			mountPointDetector: &MountPointDetectorValidMountPoint{},
 		}
@@ -74,8 +74,8 @@ func TestCGroupFingerprint(t *testing.T) {
 			Attributes: make(map[string]string),
 		}
 
-		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("unexpected error, %s", err)
@@ -87,7 +87,7 @@ func TestCGroupFingerprint(t *testing.T) {
 
 	{
 		f := &CGroupFingerprint{
-			logger:             testLogger(),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupUnavailable,
 			mountPointDetector: &MountPointDetectorEmptyMountPoint{},
 		}
@@ -96,8 +96,8 @@ func TestCGroupFingerprint(t *testing.T) {
 			Attributes: make(map[string]string),
 		}
 
-		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("unexpected error, %s", err)
@@ -108,7 +108,7 @@ func TestCGroupFingerprint(t *testing.T) {
 	}
 	{
 		f := &CGroupFingerprint{
-			logger:             testLogger(),
+			logger:             testlog.HCLogger(t),
 			lastState:          cgroupAvailable,
 			mountPointDetector: &MountPointDetectorValidMountPoint{},
 		}
@@ -117,8 +117,8 @@ func TestCGroupFingerprint(t *testing.T) {
 			Attributes: make(map[string]string),
 		}
 
-		request := &cstructs.FingerprintRequest{Config: &config.Config{}, Node: node}
-		var response cstructs.FingerprintResponse
+		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
 		if err != nil {
 			t.Fatalf("unexpected error, %s", err)

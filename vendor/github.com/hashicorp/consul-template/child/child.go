@@ -226,7 +226,7 @@ func (c *Child) Kill() {
 	c.kill()
 }
 
-// Stop behaves almost identical to Kill except it supresses future processes
+// Stop behaves almost identical to Kill except it suppresses future processes
 // from being started by this child and it prevents the killing of the child
 // process from sending its value back up the exit channel. This is useful
 // when doing a graceful shutdown of an application.
@@ -362,9 +362,13 @@ func (c *Child) kill() {
 	exited := false
 	process := c.cmd.Process
 
-	select {
-	case <-c.stopCh:
-	case <-c.randomSplay():
+	if c.cmd.ProcessState == nil {
+		select {
+		case <-c.stopCh:
+		case <-c.randomSplay():
+		}
+	} else {
+		log.Printf("[DEBUG] (runner) Kill() called but process dead; not waiting for splay.")
 	}
 
 	if c.killSignal != nil {

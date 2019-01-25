@@ -2,18 +2,20 @@ package nomad
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"sync/atomic"
 	"time"
 
+	testing "github.com/mitchellh/go-testing-interface"
+
 	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/go-testing-interface"
 )
 
 var (
@@ -38,6 +40,7 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken) {
 func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Setup the default settings
 	config := DefaultConfig()
+	config.Logger = testlog.HCLogger(t)
 	config.Build = "0.8.0+unittest"
 	config.DevMode = true
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
@@ -69,6 +72,10 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
 
+	// Set the plugin loaders
+	config.PluginLoader = catalog.TestPluginLoader(t)
+	config.PluginSingletonLoader = singleton.NewSingletonLoader(config.Logger, config.PluginLoader)
+
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)
@@ -77,8 +84,7 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 	// Enable raft as leader if we have bootstrap on
 	config.RaftConfig.StartAsLeader = !config.DevDisableBootstrap
 
-	logger := log.New(config.LogOutput, fmt.Sprintf("[%s] ", config.NodeName), log.LstdFlags)
-	catalog := consul.NewMockCatalog(logger)
+	catalog := consul.NewMockCatalog(config.Logger)
 
 	for i := 10; i >= 0; i-- {
 		// Get random ports
@@ -90,7 +96,7 @@ func TestServer(t testing.T, cb func(*Config)) *Server {
 		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 
 		// Create server
-		server, err := NewServer(config, catalog, logger)
+		server, err := NewServer(config, catalog)
 		if err == nil {
 			return server
 		} else if i == 0 {

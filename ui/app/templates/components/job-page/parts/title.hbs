@@ -9,6 +9,16 @@
       cancelText="Cancel"
       confirmText="Yes, Stop"
       confirmationMessage="Are you sure you want to stop this job?"
-      onConfirm=(action "stopJob")}}
+      awaitingConfirmation=stopJob.isRunning
+      onConfirm=(perform stopJob)}}
+  {{else}}
+    {{two-step-button
+      data-test-start
+      idleText="Start"
+      cancelText="Cancel"
+      confirmText="Yes, Start"
+      confirmationMessage="Are you sure you want to start this job?"
+      awaitingConfirmation=startJob.isRunning
+      onConfirm=(perform startJob)}}
   {{/if}}
 </h1>

@@ -217,3 +217,11 @@ func KernelVersionWithContext(ctx context.Context) (string, error) {
 	_, _, version, err := PlatformInformation()
 	return version, err
 }
+
+func SensorsTemperatures() ([]TemperatureStat, error) {
+	return SensorsTemperaturesWithContext(context.Background())
+}
+
+func SensorsTemperaturesWithContext(ctx context.Context) ([]TemperatureStat, error) {
+	return []TemperatureStat{}, common.ErrNotImplementedError
+}

@@ -50,8 +50,8 @@ set of updates. The `system` scheduler will be updated to support the new
 
 ## `update` Parameters
 
-- `max_parallel` `(int: 0)` - Specifies the number of task groups that can be
-  updated at the same time.
+- `max_parallel` `(int: 0)` - Specifies the number of allocations within a task group that can be
+  updated at the same time.  The task groups themselves are updated in parallel.
 
 - `health_check` `(string: "checks")` - Specifies the mechanism in which
   allocations health is determined. The potential values are:

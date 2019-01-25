@@ -2,10 +2,13 @@ import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
+import { jobCrumbs } from 'nomad-ui/utils/breadcrumb-utils';
 
 export default Route.extend({
   store: service(),
   token: service(),
+
+  breadcrumbs: jobCrumbs,
 
   serialize(model) {
     return { job_name: model.get('plainId') };

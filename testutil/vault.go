@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/stretchr/testify/require"
 )
 
 // TestVault is a test helper. It uses a fork/exec model to create a test Vault
@@ -34,8 +36,7 @@ type TestVault struct {
 	Client    *vapi.Client
 }
 
-// NewTestVault returns a new TestVault instance that has yet to be started
-func NewTestVault(t testing.T) *TestVault {
+func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 	for i := 10; i >= 0; i-- {
 		port := freeport.GetT(t, 1)[0]
 		token := uuid.Generate()
@@ -43,9 +44,9 @@ func NewTestVault(t testing.T) *TestVault {
 		http := fmt.Sprintf("http://127.0.0.1:%d", port)
 		root := fmt.Sprintf("-dev-root-token-id=%s", token)
 
-		cmd := exec.Command("vault", "server", "-dev", bind, root)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd := exec.Command(binary, "server", "-dev", bind, root)
+		cmd.Stdout = testlog.NewWriter(t)
+		cmd.Stderr = testlog.NewWriter(t)
 
 		// Build the config
 		conf := vapi.DefaultConfig()
@@ -112,6 +113,13 @@ func NewTestVault(t testing.T) *TestVault {
 	}
 
 	return nil
+
+}
+
+// NewTestVault returns a new TestVault instance that has yet to be started
+func NewTestVault(t testing.T) *TestVault {
+	// Lookup vault from the path
+	return NewTestVaultFromPath(t, "vault")
 }
 
 // NewTestVaultDelayed returns a test Vault server that has not been started.
@@ -160,13 +168,16 @@ func NewTestVaultDelayed(t testing.T) *TestVault {
 // Start starts the test Vault server and waits for it to respond to its HTTP
 // API
 func (tv *TestVault) Start() error {
-	if err := tv.cmd.Start(); err != nil {
-		tv.t.Fatalf("failed to start vault: %v", err)
-	}
-
 	// Start the waiter
 	tv.waitCh = make(chan error, 1)
+
 	go func() {
+		// Must call Start and Wait in the same goroutine on Windows #5174
+		if err := tv.cmd.Start(); err != nil {
+			tv.waitCh <- err
+			return
+		}
+
 		err := tv.cmd.Wait()
 		tv.waitCh <- err
 	}()
@@ -191,7 +202,12 @@ func (tv *TestVault) Stop() {
 		tv.t.Errorf("err: %s", err)
 	}
 	if tv.waitCh != nil {
-		<-tv.waitCh
+		select {
+		case <-tv.waitCh:
+			return
+		case <-time.After(1 * time.Second):
+			require.Fail(tv.t, "Timed out waiting for vault to terminate")
+		}
 	}
 }
 

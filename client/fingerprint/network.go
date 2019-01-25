@@ -2,11 +2,10 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 	"net"
 
+	log "github.com/hashicorp/go-hclog"
 	sockaddr "github.com/hashicorp/go-sockaddr"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -25,7 +24,7 @@ const (
 // NetworkFingerprint is used to fingerprint the Network capabilities of a node
 type NetworkFingerprint struct {
 	StaticFingerprinter
-	logger            *log.Logger
+	logger            log.Logger
 	interfaceDetector NetworkInterfaceDetector
 }
 
@@ -56,12 +55,12 @@ func (b *DefaultNetworkInterfaceDetector) Addrs(intf *net.Interface) ([]net.Addr
 
 // NewNetworkFingerprint returns a new NetworkFingerprinter with the given
 // logger
-func NewNetworkFingerprint(logger *log.Logger) Fingerprint {
-	f := &NetworkFingerprint{logger: logger, interfaceDetector: &DefaultNetworkInterfaceDetector{}}
+func NewNetworkFingerprint(logger log.Logger) Fingerprint {
+	f := &NetworkFingerprint{logger: logger.Named("network"), interfaceDetector: &DefaultNetworkInterfaceDetector{}}
 	return f
 }
 
-func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
 
 	// Find the named interface
@@ -79,13 +78,13 @@ func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 	throughput := f.linkSpeed(intf.Name)
 	if cfg.NetworkSpeed != 0 {
 		mbits = cfg.NetworkSpeed
-		f.logger.Printf("[DEBUG] fingerprint.network: setting link speed to user configured speed: %d", mbits)
+		f.logger.Debug("setting link speed to user configured speed", "mbits", mbits)
 	} else if throughput != 0 {
 		mbits = throughput
-		f.logger.Printf("[DEBUG] fingerprint.network: link speed for %v set to %v", intf.Name, mbits)
+		f.logger.Debug("link speed detected", "interface", intf.Name, "mbits", mbits)
 	} else {
 		mbits = defaultNetworkSpeed
-		f.logger.Printf("[DEBUG] fingerprint.network: link speed could not be detected and no speed specified by user. Defaulting to %d", defaultNetworkSpeed)
+		f.logger.Debug("link speed could not be detected and no speed specified by user, falling back to default speed", "mbits", defaultNetworkSpeed)
 	}
 
 	// Create the network resources from the interface
@@ -95,11 +94,17 @@ func (f *NetworkFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp 
 		return err
 	}
 
+	// COMPAT(0.10): Remove in 0.10
 	resp.Resources = &structs.Resources{
 		Networks: nwResources,
 	}
+
+	resp.NodeResources = &structs.NodeResources{
+		Networks: nwResources,
+	}
+
 	for _, nwResource := range nwResources {
-		f.logger.Printf("[DEBUG] fingerprint.network: Detected interface %v with IP: %v", intf.Name, nwResource.IP)
+		f.logger.Debug("detected interface IP", "interface", intf.Name, "IP", nwResource.IP)
 	}
 
 	// Deprecated, setting the first IP as unique IP for the node
@@ -157,7 +162,7 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 
 	if len(nwResources) == 0 && len(linkLocals) != 0 {
 		if disallowLinkLocal {
-			f.logger.Printf("[DEBUG] fingerprint.network: ignoring detected link-local address on interface %v", intf.Name)
+			f.logger.Debug("ignoring detected link-local address on interface", "interface", intf.Name)
 			return nwResources, nil
 		}
 

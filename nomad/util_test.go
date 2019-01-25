@@ -25,6 +25,7 @@ func TestIsNomadServer(t *testing.T) {
 			"vsn":      "1",
 			"raft_vsn": "2",
 			"build":    "0.7.0+ent",
+			"nonvoter": "1",
 		},
 	}
 	valid, parts := isNomadServer(m)
@@ -55,6 +56,9 @@ func TestIsNomadServer(t *testing.T) {
 	} else if seg[0] != 0 && seg[1] != 7 && seg[2] != 0 {
 		t.Fatalf("bad: %v", parts.Build)
 	}
+	if !parts.NonVoter {
+		t.Fatalf("should be nonvoter")
+	}
 
 	m.Tags["bootstrap"] = "1"
 	valid, parts = isNomadServer(m)
@@ -73,6 +77,12 @@ func TestIsNomadServer(t *testing.T) {
 	valid, parts = isNomadServer(m)
 	if !valid || parts.Expect != 3 {
 		t.Fatalf("bad: %v", parts.Expect)
+	}
+
+	delete(m.Tags, "nonvoter")
+	valid, parts = isNomadServer(m)
+	if !valid || parts.NonVoter {
+		t.Fatalf("should be a voter")
 	}
 }
 

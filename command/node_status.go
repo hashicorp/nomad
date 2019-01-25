@@ -9,11 +9,10 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/posener/complete"
-
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/posener/complete"
 )
 
 const (
@@ -390,6 +389,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.Ui.Output(formatList(hostResources))
 		}
 
+		if err == nil && node.NodeResources != nil && len(node.NodeResources.Devices) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Device Resource Utilization[reset]"))
+			c.Ui.Output(formatList(getDeviceResourcesForNode(hostStats.DeviceStats, node)))
+		}
 		if hostStats != nil && c.stats {
 			c.Ui.Output(c.Colorize().Color("\n[bold]CPU Stats[reset]"))
 			c.printCpuStats(hostStats)
@@ -397,6 +400,10 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			c.printMemoryStats(hostStats)
 			c.Ui.Output(c.Colorize().Color("\n[bold]Disk Stats[reset]"))
 			c.printDiskStats(hostStats)
+			if len(hostStats.DeviceStats) > 0 {
+				c.Ui.Output(c.Colorize().Color("\n[bold]Device Stats[reset]"))
+				printDeviceStats(c.Ui, hostStats.DeviceStats)
+			}
 		}
 	}
 
@@ -411,6 +418,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	if c.verbose {
 		c.formatAttributes(node)
+		c.formatDeviceAttributes(node)
 		c.formatMeta(node)
 	}
 	return 0
@@ -521,6 +529,35 @@ func (c *NodeStatusCommand) formatAttributes(node *api.Node) {
 	c.Ui.Output(formatKV(attributes))
 }
 
+func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
+	if node.NodeResources == nil {
+		return
+	}
+	devices := node.NodeResources.Devices
+	if len(devices) == 0 {
+		return
+	}
+
+	sort.Slice(devices, func(i, j int) bool {
+		return devices[i].ID() < devices[j].ID()
+	})
+
+	first := true
+	for _, d := range devices {
+		if len(d.Attributes) == 0 {
+			continue
+		}
+
+		if first {
+			c.Ui.Output("\nDevice Group Attributes")
+			first = false
+		} else {
+			c.Ui.Output("")
+		}
+		c.Ui.Output(formatKV(getDeviceAttributes(d)))
+	}
+}
+
 func (c *NodeStatusCommand) formatMeta(node *api.Node) {
 	// Print the meta
 	keys := make([]string, 0, len(node.Meta))
@@ -603,25 +640,22 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 	total := computeNodeTotalResources(node)
 
 	// Get Resources
-	var cpu, mem, disk, iops int
+	var cpu, mem, disk int
 	for _, alloc := range runningAllocs {
 		cpu += *alloc.Resources.CPU
 		mem += *alloc.Resources.MemoryMB
 		disk += *alloc.Resources.DiskMB
-		iops += *alloc.Resources.IOPS
 	}
 
 	resources := make([]string, 2)
-	resources[0] = "CPU|Memory|Disk|IOPS"
-	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s|%d/%d",
+	resources[0] = "CPU|Memory|Disk"
+	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s",
 		cpu,
 		*total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
 		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)),
 		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
-		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)),
-		iops,
-		*total.IOPS)
+		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)))
 
 	return resources
 }
@@ -639,7 +673,6 @@ func computeNodeTotalResources(node *api.Node) api.Resources {
 	total.CPU = helper.IntToPtr(*r.CPU - *res.CPU)
 	total.MemoryMB = helper.IntToPtr(*r.MemoryMB - *res.MemoryMB)
 	total.DiskMB = helper.IntToPtr(*r.DiskMB - *res.DiskMB)
-	total.IOPS = helper.IntToPtr(*r.IOPS - *res.IOPS)
 	return total
 }
 

@@ -7,6 +7,7 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { find } from 'ember-native-dom-helpers';
 import Response from 'ember-cli-mirage/response';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { Promise, resolve } from 'rsvp';
 
 moduleForComponent('allocation-row', 'Integration | Component | allocation row', {
   integration: true,
@@ -34,7 +35,6 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
     '<Not>Valid JSON</Not>',
     JSON.stringify({ ResourceUsage: generateResources() }),
   ];
-  const backoffSequence = [50];
 
   this.server.get('/client/allocation/:id/stats', function() {
     const response = frames[++currentFrame];
@@ -50,7 +50,7 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
     return new Response(500, {}, '');
   });
 
-  this.server.create('allocation');
+  this.server.create('allocation', { clientStatus: 'running' });
   this.store.findAll('allocation');
 
   let allocation;
@@ -61,7 +61,6 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
 
       this.setProperties({
         allocation,
-        backoffSequence,
         context: 'job',
         enablePolling: true,
       });
@@ -70,7 +69,6 @@ test('Allocation row polls for stats, even when it errors or has an invalid resp
         {{allocation-row
           allocation=allocation
           context=context
-          backoffSequence=backoffSequence
           enablePolling=enablePolling}}
       `);
       return wait();
@@ -96,7 +94,7 @@ test('Allocation row shows warning when it requires drivers that are unhealthy o
   });
   node.update({ drivers });
 
-  this.server.create('allocation');
+  this.server.create('allocation', { clientStatus: 'running' });
   this.store.findAll('job');
   this.store.findAll('node');
   this.store.findAll('allocation');
@@ -123,3 +121,67 @@ test('Allocation row shows warning when it requires drivers that are unhealthy o
       assert.ok(find('[data-test-icon="unhealthy-driver"]'), 'Unhealthy driver icon is shown');
     });
 });
+
+test('when an allocation is not running, the utilization graphs are omitted', function(assert) {
+  this.setProperties({
+    context: 'job',
+    enablePolling: false,
+  });
+
+  // All non-running statuses need to be tested
+  ['pending', 'complete', 'failed', 'lost'].forEach(clientStatus =>
+    this.server.create('allocation', { clientStatus })
+  );
+
+  this.store.findAll('allocation');
+
+  return wait().then(() => {
+    const allocations = this.store.peekAll('allocation');
+    return waitForEach(
+      allocations.map(allocation => () => {
+        this.set('allocation', allocation);
+        this.render(hbs`
+            {{allocation-row
+              allocation=allocation
+              context=context
+              enablePolling=enablePolling}}
+          `);
+        return wait().then(() => {
+          const status = allocation.get('clientStatus');
+          assert.notOk(find('[data-test-cpu] .inline-chart'), `No CPU chart for ${status}`);
+          assert.notOk(find('[data-test-mem] .inline-chart'), `No Mem chart for ${status}`);
+        });
+      })
+    );
+  });
+});
+
+// A way to loop over asynchronous code. Can be replaced by async/await in the future.
+const waitForEach = fns => {
+  let i = 0;
+  let done = () => {};
+
+  // This function is asynchronous and needs to return a promise
+  const pending = new Promise(resolve => {
+    done = resolve;
+  });
+
+  const step = () => {
+    // The waitForEach promise and this recursive loop are done once
+    // all functions have been called.
+    if (i >= fns.length) {
+      done();
+      return;
+    }
+    // Call the current function
+    const promise = fns[i]() || resolve(true);
+    // Increment the function position
+    i++;
+    // Wait for async behaviors to settle and repeat
+    promise.then(() => wait()).then(step);
+  };
+
+  step();
+
+  return pending;
+};

@@ -108,6 +108,7 @@ function createFixture(obj = {}, name = 'Placement Failure') {
     name: name,
     placementFailures: assign(
       {
+        name: name,
         coalescedFailures: 10,
         nodesEvaluated: 0,
         nodesAvailable: {

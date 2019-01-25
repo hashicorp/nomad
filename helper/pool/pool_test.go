@@ -14,8 +14,8 @@ import (
 )
 
 func newTestPool(t *testing.T) *ConnPool {
-	w := testlog.NewWriter(t)
-	p := NewPool(w, 1*time.Minute, 10, nil)
+	l := testlog.HCLogger(t)
+	p := NewPool(l, 1*time.Minute, 10, nil)
 	return p
 }
 

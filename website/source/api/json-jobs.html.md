@@ -158,6 +158,12 @@ The `Job` object supports the following keys:
 - `Constraints` - A list to define additional constraints where a job can be
   run. See the constraint reference for more details.
 
+- `Affinities` - A list to define placement preferences on nodes where a job can be
+  run. See the affinity reference for more details.
+
+- `Spread` - A list to define allocation spread across attributes. See the spread reference
+  for more details.
+
 - `Datacenters` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
@@ -197,7 +203,7 @@ The `Job` object supports the following keys:
 - `Type` - Specifies the job type and switches which scheduler
   is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`. To learn more about each scheduler type visit
-  [here](/docs/runtime/schedulers.html)
+  [here](/docs/schedulers.html)
 
 - `Update` - Specifies an update strategy to be applied to all task groups
   within the job. When specified both at the job level and the task group level,
@@ -258,6 +264,12 @@ attributes:
 - `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
 
+- `Affinities` - This is a list of `Affinity` objects. See the affinity
+    reference for more details.
+
+- `Spreads` - This is a list of `Spread` objects. See the spread
+  reference for more details.
+
 - `Count` - Specifies the number of the task groups that should
   be running. Must be non-negative, defaults to one.
 
@@ -313,6 +325,12 @@ The `Task` object supports the following keys:
 - `Constraints` - This is a list of `Constraint` objects. See the constraint
   reference for more details.
 
+- `Affinities` - This is a list of `Affinity` objects. See the affinity
+    reference for more details.
+
+- `Spreads` - This is a list of `Spread` objects. See the spread
+  reference for more details.
+
 - `DispatchPayload` - Configures the task to have access to dispatch payloads.
   The `DispatchPayload` object supports the following attributes:
 
@@ -366,7 +384,7 @@ The `Task` object supports the following keys:
   Consul for service discovery. A `Service` object represents a routable and
   discoverable service on the network. Nomad automatically registers when a task
   is started and de-registers it when the task transitions to the dead state.
-  [Click here](/docs/service-discovery/index.html) to learn more about
+  [Click here](/guides/operations/consul-integration/index.html#service-discovery) to learn more about
   services. Below is the fields in the `Service` object:
 
      - `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
@@ -503,11 +521,11 @@ The `Resources` object supports the following keys:
 
 - `CPU` - The CPU required in MHz.
 
-- `IOPS` - The number of IOPS required given as a weight between 10-1000.
-
 - `MemoryMB` - The memory required in MB.
 
 - `Networks` - A list of network objects.
+
+- `Devices` - A list of device objects.
 
 The Network object supports the following keys:
 
@@ -521,6 +539,30 @@ ports. A network object allows the user to specify a list of `DynamicPorts` and
   attribute is ignored.
 - `Label` - The label to annotate a port so that it can be referred in the
   service discovery block or environment variables.
+
+The Device object supports the following keys:
+
+- `Name` - Specifies the device required. The following inputs are valid:
+
+  * `<device_type>`: If a single value is given, it is assumed to be the device
+    type, such as "gpu", or "fpga".
+
+  * `<vendor>/<device_type>`: If two values are given separated by a `/`, the
+    given device type will be selected, constraining on the provided vendor.
+    Examples include "nvidia/gpu" or "amd/gpu".
+
+  * `<vendor>/<device_type>/<model>`: If three values are given separated by a `/`, the
+    given device type will be selected, constraining on the provided vendor, and
+    model name. Examples include "nvidia/gpu/1080ti" or "nvidia/gpu/2080ti".
+
+
+- `Count` - The count of devices being requested per task. Defaults to 1.
+
+- `Constraints` - A list to define constraints on which device can satisfy the
+  request. See the constraint reference for more details.
+
+- `Affinities` - A list to define preferences for which device should be
+   chosen.  See the affinity reference for more details.
 
 <a id="ephemeral_disk"></a>
 
@@ -713,6 +755,37 @@ The `Constraint` object supports the following keys:
 
   - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
     ordering is compared lexically.
+
+### Affinity
+
+Affinities allow operators to express placement preferences. More details on how they work
+are described in [affinities](/docs/job-specification/affinity.html)
+
+The `Affinity` object supports the following keys:
+
+- `LTarget` - Specifies the attribute to examine for the
+  affinity. See the table of attributes [here](/docs/runtime/interpolation.html#interpreted_node_vars).
+
+- `RTarget` - Specifies the value to compare the attribute against.
+  This can be a literal value, another attribute or a regular expression if
+  the `Operator` is in "regexp" mode.
+
+- `Operand` - Specifies the test to be performed on the two targets. It takes on the
+  following values:
+
+  - `regexp` - Allows the `RTarget` to be a regular expression to be matched.
+
+  - `set_contains_all` - Allows the `RTarget` to be a comma separated list of values
+    that should be contained in the LTarget's value.
+
+  - `set_contains_any` - Allows the `RTarget` to be a comma separated list of values
+        any of which should be contained in the LTarget's value.
+
+  - Comparison Operators - `=`, `==`, `is`, `!=`, `not`, `>`, `>=`, `<`, `<=`. The
+    ordering is compared lexically.
+
+- `Weight` - A non zero weight, valid values are from -100 to 100. Used to express
+   relative preference when there is more than one affinity.
 
 ### Log Rotation
 
@@ -920,6 +993,27 @@ README][ct].
   ]
 }
 ```
+
+### Spread
+
+Spread allow operators to target specific percentages of allocations based on
+any node attribute or metadata. More details on how they work are described
+in [spread](/docs/job-specification/spread.html).
+
+The `Spread` object supports the following keys:
+
+- `Attribute` - Specifies the attribute to examine for the
+  spread. See the [table of attributes](/docs/runtime/interpolation.html#interpreted_node_vars) for examples.
+
+- `SpreadTarget` - Specifies a list of attribute values and percentages. This is an optional field, when
+  left empty Nomad will evenly spread allocations across values of the attribute.
+     - `Value` - The value of a specific target attribute, like "dc1" for `${node.datacenter}`.
+     - `Percent` - Desired percentage of allocations for this attribute value. The sum of
+       all spread target percentages must add up to 100.
+
+- `Weight` - A non zero weight, valid values are from -100 to 100. Used to express
+   relative preference when there is more than one spread or affinity.
+
 
 [ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
 [drain]: /docs/commands/node/drain.html

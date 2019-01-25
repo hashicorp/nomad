@@ -59,7 +59,8 @@ There are five primary nouns in Nomad:
 
 Jobs are submitted by users and represent a _desired state_. A job is a
 declarative description of tasks to run which are bounded by constraints and
-require resources. Nodes are the servers in the clusters that tasks can be
+require resources. Jobs can also have affinities which are used to express placement
+preferences. Nodes are the servers in the clusters that tasks can be
 scheduled on. The mapping of tasks in a job to nodes is done using allocations.
 An allocation is used to declare that a set of tasks in a job should be run on a
 particular node. Scheduling is the process of determining the appropriate
@@ -75,7 +76,7 @@ administration.
 
 Several endpoints in Nomad use or require ACL tokens to operate. The token are used to authenticate the request and determine if the request is allowed based on the associated authorizations. Tokens are specified per-request by using the `X-Nomad-Token` request header set to the `SecretID` of an ACL Token.
 
-For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
+For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 
 ## Authentication
 
@@ -196,3 +197,15 @@ GET /v1/jobs
 
 Even though these share a path, the `PUT` operation creates a new job whereas
 the `GET` operation reads all jobs.
+
+## HTTP Response Codes
+
+Individual API's will contain further documentation in the case that more
+specific response codes are returned but all clients should handle the following:
+
+* 200 and 204 as success codes.
+* 400 indicates a validation failure and if a parameter is modified in the
+  request, it could potentially succeed.
+* 403 marks that the client isn't authenticated for the request.
+* 404 indicates an unknown resource.
+* 5xx means that the client should not expect the request to succeed if retried.

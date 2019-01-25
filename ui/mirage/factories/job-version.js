@@ -6,11 +6,17 @@ export default Factory.extend({
   stable: faker.random.boolean,
   submitTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
   diff() {
-    return generateDiff(this);
+    return generateDiff(this.jobId);
   },
 
   jobId: null,
   version: 0,
+
+  // ID is used for record tracking within Mirage,
+  // but Nomad uses the JobID as the version ID.
+  tempVersionId() {
+    return this.job.id;
+  },
 
   // Directive to restrict any related deployments from having a 'running' status
   noActiveDeployment: false,
@@ -33,10 +39,10 @@ export default Factory.extend({
   },
 });
 
-function generateDiff(version) {
+export function generateDiff(id) {
   return {
     Fields: null,
-    ID: version.jobId,
+    ID: id,
     Objects: null,
     TaskGroups: [
       {

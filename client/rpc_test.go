@@ -19,10 +19,10 @@ func TestRpc_streamingRpcConn_badEndpoint(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Wait for the client to connect
 	testutil.WaitForResult(func() (bool, error) {
@@ -75,7 +75,7 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c := TestClient(t, func(c *config.Config) {
+	c, cleanup := TestClient(t, func(c *config.Config) {
 		c.Region = "regionFoo"
 		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
 		c.TLSConfig = &sconfig.TLSConfig{
@@ -87,7 +87,7 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer c.Shutdown()
+	defer cleanup()
 
 	// Wait for the client to connect
 	testutil.WaitForResult(func() (bool, error) {

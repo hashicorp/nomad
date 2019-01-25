@@ -6,10 +6,7 @@ import destroyApp from '../helpers/destroy-app';
 export default function(name, options = {}) {
   module(name, {
     beforeEach() {
-      // Clear session storage (a side effect of token storage)
-      window.sessionStorage.clear();
-
-      // Also clear local storage (a side effect of namespaces)
+      // Also clear local storage (a side effect of namespaces, regions, and tokens)
       window.localStorage.clear();
 
       this.application = startApp();
@@ -22,6 +19,18 @@ export default function(name, options = {}) {
     afterEach() {
       let afterEach = options.afterEach && options.afterEach.apply(this, arguments);
       return Promise.resolve(afterEach).then(() => destroyApp(this.application));
+    },
+
+    after() {
+      if (options.after) {
+        return options.after.apply(this, arguments);
+      }
+    },
+
+    before() {
+      if (options.before) {
+        return options.before.apply(this, arguments);
+      }
     },
   });
 }
