@@ -113,7 +113,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			} else {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
-				if d.fingerprintSuccessful() {
+				if d.fingerprintSuccess == nil {
 					d.logger.Debug("bridge_ip could not be discovered")
 				}
 			}
