@@ -46,11 +46,11 @@ func (iter *QuotaIterator) SetJob(job *structs.Job) {
 	namespace, err := state.NamespaceByName(nil, job.Namespace)
 	if err != nil {
 		iter.buildErr = fmt.Errorf("failed to lookup job %q namespace %q: %v", job.ID, job.Namespace, err)
-		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
+		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator", "error", iter.buildErr)
 		return
 	} else if namespace == nil {
 		iter.buildErr = fmt.Errorf("unknown namespace %q referenced by job %q", job.Namespace, job.ID)
-		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
+		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator ", "error", iter.buildErr)
 		return
 	}
 
@@ -64,11 +64,11 @@ func (iter *QuotaIterator) SetJob(job *structs.Job) {
 	quota, err := state.QuotaSpecByName(nil, namespace.Quota)
 	if err != nil {
 		iter.buildErr = fmt.Errorf("failed to lookup quota %q: %v", namespace.Quota, err)
-		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
+		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator", "error", iter.buildErr)
 		return
 	} else if quota == nil {
 		iter.buildErr = fmt.Errorf("unknown quota %q referenced by namespace %q", namespace.Quota, namespace.Name)
-		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
+		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator", "error",  iter.buildErr)
 		return
 	}
 
@@ -76,11 +76,11 @@ func (iter *QuotaIterator) SetJob(job *structs.Job) {
 	usage, err := state.QuotaUsageByName(nil, namespace.Quota)
 	if err != nil {
 		iter.buildErr = fmt.Errorf("failed to lookup quota usage %q: %v", namespace.Quota, err)
-		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
+		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator", "error", iter.buildErr)
 		return
 	} else if usage == nil {
 		iter.buildErr = fmt.Errorf("unknown quota usage %q", namespace.Quota)
-		iter.ctx.Logger().Printf("[ERR] scheduler.QuotaIterator: %s", iter.buildErr)
+		iter.ctx.Logger().Named("stack").Error("scheduler.QuotaIterator", "error", iter.buildErr)
 		return
 	}
 
