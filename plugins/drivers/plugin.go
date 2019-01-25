@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+var _ plugin.GRPCPlugin = &PluginDriver{}
+
 // PluginDriver wraps a DriverPlugin and implements go-plugins GRPCPlugin
 // interface to expose the the interface over gRPC
 type PluginDriver struct {
@@ -19,7 +21,7 @@ type PluginDriver struct {
 	logger hclog.Logger
 }
 
-func NewDriverPlugin(d DriverPlugin, logger hclog.Logger) plugin.GRPCPlugin {
+func NewDriverPlugin(d DriverPlugin, logger hclog.Logger) *PluginDriver {
 	return &PluginDriver{
 		impl:   d,
 		logger: logger,
