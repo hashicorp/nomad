@@ -69,7 +69,7 @@ type executorDockerLoggerShim struct {
 
 func (e *executorDockerLoggerShim) Start(*docklog.StartOpts) error { return nil }
 func (e *executorDockerLoggerShim) Stop() error {
-	if err := e.exec.Shutdown("", 0); err != nil {
+	if err := e.exec.Shutdown("docker", 0); err != nil {
 		return err
 	}
 
