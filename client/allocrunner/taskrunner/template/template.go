@@ -441,7 +441,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 
 				if restart {
 					tm.config.Lifecycle.Restart(context.Background(),
-						structs.NewTaskEvent(structs.TaskRestarting).
+						structs.NewTaskEvent(structs.TaskRestartSignal).
 							SetDisplayMessage("Template with change_mode restart re-rendered"), false)
 				} else if len(signals) != 0 {
 					var mErr multierror.Error
