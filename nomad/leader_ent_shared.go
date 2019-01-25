@@ -58,7 +58,7 @@ START:
 		req.AuthToken = s.ReplicationToken()
 		err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
 		if err != nil {
-			s.logger.Error("failed to fetch namespaces from authoritative region", "region",  err)
+			s.logger.Error("failed to fetch namespaces from authoritative region", "error",  err)
 			goto ERR_WAIT
 		}
 
@@ -72,7 +72,7 @@ START:
 			}
 			_, _, err := s.raftApply(structs.NamespaceDeleteRequestType, args)
 			if err != nil {
-				s.logger.Error("failed to delete namespaces", err)
+				s.logger.Error("failed to delete namespaces", "error", err)
 				goto ERR_WAIT
 			}
 		}
