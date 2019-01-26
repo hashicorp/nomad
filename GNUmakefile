@@ -287,7 +287,7 @@ test-nomad: dev ## Run Nomad test suites
 	@go test $(if $(VERBOSE),-v) \
 			-cover \
 			-timeout=15m \
-			-tags="ent ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+			-tags="ent" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
