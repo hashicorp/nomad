@@ -224,6 +224,6 @@ Change the values of the `percent` options on your targets in the `spread` stanz
 [node-status]: /docs/commands/node/status.html
 [percent]: /docs/job-specification/spread.html#percent
 [spread-stanza]: /docs/job-specification/spread.html
-[scheduling]: /docs/internals/scheduling.html
+[scheduling]: /docs/internals/scheduling/scheduling.html
 [target]: /docs/job-specification/spread.html#target
 [verbose]: /docs/commands/alloc/status.html#verbose
