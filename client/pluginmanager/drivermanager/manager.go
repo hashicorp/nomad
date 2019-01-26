@@ -322,9 +322,12 @@ func (m *manager) storePluginReattachConfig(id loader.PluginID, c *plugin.Reatta
 	m.reattachConfigLock.Lock()
 	defer m.reattachConfigLock.Unlock()
 
-	// Store the new reattach config
-	m.reattachConfigs[id] = pstructs.ReattachConfigFromGoPlugin(c)
-
+	if c == nil {
+		delete(m.reattachConfigs, id)
+	} else {
+		// Store the new reattach config
+		m.reattachConfigs[id] = pstructs.ReattachConfigFromGoPlugin(c)
+	}
 	// Persist the state
 	s := &state.PluginState{
 		ReattachConfigs: make(map[string]*pstructs.ReattachConfig, len(m.reattachConfigs)),
