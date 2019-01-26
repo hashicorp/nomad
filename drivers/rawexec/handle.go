@@ -26,6 +26,7 @@ type taskHandle struct {
 	startedAt   time.Time
 	completedAt time.Time
 	exitResult  *drivers.ExitResult
+	doneCh      chan struct{}
 }
 
 func (h *taskHandle) TaskStatus() *drivers.TaskStatus {
@@ -52,6 +53,7 @@ func (h *taskHandle) IsRunning() bool {
 }
 
 func (h *taskHandle) run() {
+	defer close(h.doneCh)
 	h.stateLock.Lock()
 	if h.exitResult == nil {
 		h.exitResult = &drivers.ExitResult{}
