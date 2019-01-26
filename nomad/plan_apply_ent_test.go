@@ -134,7 +134,7 @@ func TestPlanApply_EvalPlan_AboveQuota(t *testing.T) {
 	pool := NewEvaluatePool(workerPoolSize, workerPoolBufferSize)
 	defer pool.Shutdown()
 
-	result, err := evaluatePlan(pool, snap, plan, testlog.Logger(t))
+	result, err := evaluatePlan(pool, snap, plan, testlog.HCLogger(t))
 	assert.Nil(err)
 	assert.NotNil(result)
 	assert.Empty(result.NodeAllocation)
