@@ -16,7 +16,7 @@ IMPROVEMENTS:
  * core: Added support for specifying node affinities. Affinities allow job operators to specify weighted placement preferences
  according to different node attributes [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * core: Added support for spreading allocations across a specific attribute. Operators can specify spread
-   target percentages across failure domains such as datacenter or rack [[GH-4512]gi(https://github.com/hashicorp/nomad/issues/4512)]
+   target percentages across failure domains such as datacenter or rack [[GH-4512](https://github.com/hashicorp/nomad/issues/4512)]
  * core: Added preemption support for system jobs. System jobs can now preempt other jobs of lower priority. See [preemption](https://www.nomadproject.io/docs/internals/scheduling/preemption.html) for more details. [[GH-4794](https://github.com/hashicorp/nomad/pull/4794)]
  * agent: Support JSON log output [[GH-5173](https://github.com/hashicorp/nomad/issues/5173)]
  * api: Reduced api package dependencies [[GH-5213](https://github.com/hashicorp/nomad/pull/5213)]
