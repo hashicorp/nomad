@@ -236,7 +236,7 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 prodev: GOOS=$(shell go env GOOS)
 prodev: GOARCH=$(shell go env GOARCH)
 prodev: GOPATH=$(shell go env GOPATH)
-prodev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)$(if $(HAS_LXC),-lxc)/nomad
+prodev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
 prodev: ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
@@ -299,7 +299,7 @@ protest: prodev ## Run Nomad test suites
 		go test \
 			-cover \
 			-timeout=900s \
-			-tags="pro $(if $(HAS_LXC),lxc)" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+			-tags="pro" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
