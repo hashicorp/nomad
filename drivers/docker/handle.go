@@ -125,12 +125,24 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	// Only send signal if killTimeout is set, otherwise stop container
 	if killTimeout > 0 {
 		if err := h.Signal(signal); err != nil {
-			return err
-		}
-		select {
-		case <-h.waitCh:
-			return nil
-		case <-time.After(killTimeout):
+			// Container has already been removed.
+			if strings.Contains(err.Error(), NoSuchContainerError) {
+				h.logger.Debug("attempted to signal nonexistent container")
+				return nil
+			}
+			// Container has already been stopped.
+			if strings.Contains(err.Error(), ContainerNotRunningError) {
+				h.logger.Debug("attempted to signal a not-running container")
+				return nil
+			}
+
+			h.logger.Error("failed to signal container while killing", "error", err)
+		} else {
+			select {
+			case <-h.waitCh:
+				return nil
+			case <-time.After(killTimeout):
+			}
 		}
 	}
 
