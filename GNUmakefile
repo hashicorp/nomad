@@ -187,10 +187,18 @@ checkscripts: ## Lint shell scripts
 .PHONY: generate-all
 generate-all: generate-structs proto
 
+.PHONY: progenerate-all
+progenerate-all: progenerate-structs proto
+
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate-structs: ## Update generated code
 	@go generate -tags="ent" $(LOCAL_PACKAGES)
+
+.PHONY: progenerate-structs
+progenerate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+progenerate-structs: ## Update generated code
+	@go generate -tags="pro" $(LOCAL_PACKAGES)
 
 .PHONY: proto
 proto:
@@ -198,12 +206,6 @@ proto:
 		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
 	done
 
-progenerate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
-progenerate-structs: ## Update generated code
-	@go generate -tags="pro" $(LOCAL_PACKAGES)
-
-.PHONY: progenerate-all
-progenerate-all: progenerate-structs proto
 
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
@@ -237,7 +239,7 @@ prodev: GOOS=$(shell go env GOOS)
 prodev: GOARCH=$(shell go env GOARCH)
 prodev: GOPATH=$(shell go env GOPATH)
 prodev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-prodev: ## Build for the current development platform
+prodev: vendorfmt changelogfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
@@ -251,8 +253,12 @@ prodev: ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS=ui release
+prerelease: GO_TAGS=ui release ent
 prerelease: check generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
+
+.PHONY: proprerelease
+proprerelease: GO_TAGS=ui release pro
+proprerelease: check progenerate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
 release: GO_TAGS=ui release ent
@@ -284,22 +290,23 @@ test: ## Run the Nomad test suite and/or the Nomad UI test suite
 .PHONY: test-nomad
 test-nomad: dev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
-	@go test $(if $(VERBOSE),-v) \
-			-cover \
-			-timeout=15m \
-			-tags="ent" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
+		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		-cover \
+		-timeout=15m \
+		-tags="ent" $(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
 
-.PHONY: protest
-protest: prodev ## Run Nomad test suites
+.PHONY: protest-nomad
+protest-nomad: prodev ## Run Nomad test suites
 	@echo "==> Running Nomad test suites:"
-	@NOMAD_TEST_RKT=1 \
-		go test \
-			-cover \
-			-timeout=900s \
-			-tags="pro" ./... $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
+	$(if $(ENABLE_RACE),GORACE="strip_path_prefix=$(GOPATH)/src") $(GO_TEST_CMD) \
+		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		-cover \
+		-timeout=15m \
+		-tags="pro" $(GOTEST_PKGS) $(if $(VERBOSE), >test.log ; echo $$? > exit-code)
 	@if [ $(VERBOSE) ] ; then \
 		bash -C "$(PROJECT_ROOT)/scripts/test_check.sh" ; \
 	fi
