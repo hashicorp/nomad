@@ -33,7 +33,7 @@ done
 
 # Make the checksums.
 pushd ./pkg/dist
-shasum -a256 * > "./nomad-enterprise_${VERSION}_SHA256SUMS"
+shasum -a256 -- * > "./nomad-enterprise_${VERSION}_SHA256SUMS"
 if [ -z "$NOSIGN" ]; then
   echo "==> Signing..."
   gpg --default-key 348FFC4C --detach-sig "./nomad-enterprise_${VERSION}_SHA256SUMS"
