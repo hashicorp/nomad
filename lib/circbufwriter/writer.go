@@ -43,15 +43,18 @@ func New(w io.Writer, bufferSize int64) io.WriteCloser {
 // the wrapped writer. If the wrapped writer blocks on write, subsequent write
 // will be written to the circle buffer.
 func (c *circbufWriter) Write(p []byte) (nn int, err error) {
-	// If the last write returned an error, return it here
+	// If the last write returned an error, return it here. Note there is a
+	// small chance of missing an error if multiple writes occure at the same
+	// time where the last write nils out the error before it can be returned
+	// here.
 	c.bufLock.Lock()
+	defer c.bufLock.Unlock()
 	if c.err != nil {
 		return nn, c.err
 	}
 
 	// Write to the buffer
 	nn, err = c.buf.Write(p)
-	c.bufLock.Unlock()
 
 	// Signal to flush the buffer
 	select {
