@@ -57,11 +57,7 @@ The `lxc` driver supports the following configuration in the job spec:
     }
     ```
 
-* `volumes` - (Optional) A list of `host_path:container_path` strings to bind-mount
-  host paths to container paths. Mounting host paths outside of the allocation
-  directory can be disabled on clients by setting the `lxc.volumes.enabled`
-  option set to false. This will limit volumes to directories that exist inside
-  the allocation directory.
+* `volumes` - (Optional) A list of `host_path:container_path` strings to bind-mount host paths to container paths. Mounting host paths outside of the allocation directory can be disabled on clients by setting the [`volumes_enabled`](#volumes_enabled) option set to false. This will limit volumes to directories that exist inside the allocation directory.
 
   Note that unlike the similar option for the docker driver, this
   option must not have an absolute path as the `container_path`
@@ -93,7 +89,8 @@ information.
 The `lxc` driver requires the following:
 
 * 64-bit Linux host
-* The `linux_amd64_lxc` Nomad binary
+* The `linux_amd64` Nomad binary
+* The LXC driver binary placed in the [plugin_dir][plugin_dir] directory. 
 * `liblxc` to be installed
 * `lxc-templates` to be installed
 
@@ -101,10 +98,9 @@ The `lxc` driver requires the following:
 
 * `enabled` - The `lxc` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
-* `volumes_enabled` - Specifies whether host can bind-mount host paths to container paths (defaults to `true`). 
+* `volumes_enabled`<a id="volumes_enabled"></a> - Specifies whether host can bind-mount host paths to container paths (defaults to `true`). 
 
-* `lxc_path` - The location in which all containers are stored (defaults to
-  `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details. 
+* `lxc_path` - The location in which all containers are stored (commonly defaults to `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details. 
 
 An example of using these plugin options with the new [plugin
 syntax][plugin] is shown below:
@@ -118,8 +114,7 @@ plugin "nomad-driver-lxc" {
   }
 }
 ```
-Please note the plugin name should match whatever name you have specified for
-the external driver in the [plugin_dir][plugin_dir] directory.
+Please note the plugin name should match whatever name you have specified for the external driver in the [plugin_dir][plugin_dir] directory.
 
 ## Client Configuration
 
