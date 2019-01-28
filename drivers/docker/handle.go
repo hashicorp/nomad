@@ -136,6 +136,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 				return nil
 			}
 
+			// Drop through to just attempting to stop the container
 			h.logger.Error("failed to signal container while killing", "error", err)
 		} else {
 			select {
