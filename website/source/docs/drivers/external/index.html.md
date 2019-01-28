@@ -15,5 +15,5 @@ Below is a list of external drivers you can use with Nomad:
 
 - [LXC][lxc]
 
-[lxc]: /docs/external/lxc.html 
+[lxc]: /docs/drivers/external/lxc.html 
 [plugin]: /docs/configuration/plugin.html
