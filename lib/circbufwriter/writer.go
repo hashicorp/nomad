@@ -82,6 +82,7 @@ func (c *circbufWriter) Close() error {
 func (c *circbufWriter) flushLoop() {
 	// Check buffer every 100ms in case a flush from Write was missed
 	ticker := time.NewTicker(time.Millisecond * 100)
+	defer ticker.Stop()
 	for {
 		var err error
 		select {
