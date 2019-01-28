@@ -204,5 +204,5 @@ plugin "nomad-driver-lxc" {
 [lxc-driver]: /coming/soon
 [lxc-docs]: /docs/drivers/external/lxc.htm
 [lxc_plugin_options]: /docs/drivers/external/lxc.html.md
-[plugin_dir]: /docs/configuration/index.html#plugin_dir
+[plugin_dir]: /docs/drivers/external/lxc.html#plugin-options
 [plugin_syntax]: /docs/configuration/plugin.html
