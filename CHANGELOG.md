@@ -26,7 +26,7 @@ __BACKWARDS INCOMPATIBILITIES:__
 
 FEATURES:
 
- * **Affinities and Spread**: Job's may now specify affinities towards certain
+ * **Affinities and Spread**: Jobs may now specify affinities towards certain
    node attributes. Affinities act as soft constraints, and inform the scheduler
    that a preference for certain node properties exists. The new spread stanza
    informs the scheduler that allocations should be spread across a specific
