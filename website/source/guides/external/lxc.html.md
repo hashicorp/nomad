@@ -8,7 +8,7 @@ description: |-
 
 ## LXC
 
-The `lxc` driver provides an interface for using LXC for running application containers. You can download the external LXC driver [here][lxc-driver]. This guide is compatible with Nomad 0.9 and above. If you are using an older version of Nomad, see the [LXC][lxc-docs] driver documentation.
+The `lxc` driver provides an interface for using LXC for running application containers. You can download the external LXC driver [here][lxc_driver_download]. This guide is compatible with Nomad 0.9 and above. If you are using an older version of Nomad, see the [LXC][lxc-docs] driver documentation.
 
 ## Reference Material
 
@@ -50,7 +50,7 @@ bind_addr = "0.0.0.0"
 
 ### Step 2: Download and Install the LXC Driver 
 
-Make a directory called `plugins` in [plugin_dir][plugin_dir] (which is `/opt/nomad/data` in our case) and download/place the [LXC driver][lxc-driver] in it. The following sequences of commands illustrate this process:
+Make a directory called `plugins` in [plugin_dir][plugin_dir] (which is `/opt/nomad/data` in our case) and download/place the [LXC driver][lxc_driver_download] in it. The following sequences of commands illustrate this process:
 
 ```shell
 $ sudo mkdir /opt/nomad/data/plugins
@@ -201,7 +201,7 @@ plugin "nomad-driver-lxc" {
 [data_dir]: /docs/configuration/index.html#data_dir
 [linux-containers]: https://linuxcontainers.org/lxc/introduction/
 [linux-containers-home]: https://linuxcontainers.org
-[lxc-driver]: /coming/soon
+[lxc_driver_download]: /coming/soon
 [lxc-docs]: /docs/drivers/external/lxc.htm
 [lxc_plugin_options]: /docs/drivers/external/lxc.html#plugin-options
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
