@@ -203,6 +203,6 @@ plugin "nomad-driver-lxc" {
 [linux-containers-home]: https://linuxcontainers.org
 [lxc-driver]: /coming/soon
 [lxc-docs]: /docs/drivers/external/lxc.htm
-[lxc_plugin_options]: /docs/drivers/external/lxc.html.md
-[plugin_dir]: /docs/drivers/external/lxc.html#plugin-options
+[lxc_plugin_options]: /docs/drivers/external/lxc.html#plugin-options
+[plugin_dir]: /docs/configuration/index.html#plugin_dir
 [plugin_syntax]: /docs/configuration/plugin.html
