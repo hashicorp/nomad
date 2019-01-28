@@ -101,7 +101,7 @@ The `lxc` driver requires the following:
 
 * `enabled` - The `lxc` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
-* `volumes_enabled` - Specifies whether host can bind-mount host paths to container paths (defaults to `false`). 
+* `volumes_enabled` - Specifies whether host can bind-mount host paths to container paths (defaults to `true`). 
 
 * `lxc_path` - The location in which all containers are stored (defaults to
   `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details. 
