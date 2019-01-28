@@ -136,14 +136,14 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 				return nil
 			}
 
-			// Drop through to just attempting to stop the container
 			h.logger.Error("failed to signal container while killing", "error", err)
-		} else {
-			select {
-			case <-h.waitCh:
-				return nil
-			case <-time.After(killTimeout):
-			}
+			return fmt.Errorf("Failed to signal container %q while killing: %v", h.containerID, err)
+		}
+
+		select {
+		case <-h.waitCh:
+			return nil
+		case <-time.After(killTimeout):
 		}
 	}
 
@@ -165,6 +165,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 		h.logger.Error("failed to stop container", "error", err)
 		return fmt.Errorf("Failed to stop container %s: %s", h.containerID, err)
 	}
+
 	h.logger.Info("stopped container")
 	return nil
 }
