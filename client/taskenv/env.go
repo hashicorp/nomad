@@ -126,6 +126,15 @@ func NewTaskEnv(env, deviceEnv, node map[string]string) *TaskEnv {
 	}
 }
 
+// NewEmptyTaskEnv creates a new empty task environment.
+func NewEmptyTaskEnv() *TaskEnv {
+	return &TaskEnv{
+		NodeAttrs: make(map[string]string),
+		deviceEnv: make(map[string]string),
+		EnvMap:    make(map[string]string),
+	}
+}
+
 // List returns the task's environment as a slice of NAME=value pair strings.
 func (t *TaskEnv) List() []string {
 	if t.envList != nil {
