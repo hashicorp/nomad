@@ -209,7 +209,7 @@ changes (use the `nomad alloc status` command as shown in the previous step).
 [constraint]: /docs/job-specification/constraint.html
 [client-metadata]: /docs/configuration/client.html#meta
 [node-status]: /docs/commands/node/status.html
-[scheduling]: /docs/internals/scheduling.html
+[scheduling]: /docs/internals/scheduling/scheduling.html
 [verbose]: /docs/commands/alloc/status.html#verbose
 [weight]: /docs/job-specification/affinity.html#weight
 

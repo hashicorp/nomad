@@ -216,7 +216,7 @@ Note that the results from the `allocation-spread`, `binpack`, `job-anti-affinit
 
 Change the values of the `percent` options on your targets in the `spread` stanza and observe how the placement behavior along with the final score given to each node changes (use the `nomad alloc status` command as shown in the previous step).
 
-[alloc status]: /docs/commands/alloc/status.ht
+[alloc status]: /docs/commands/alloc/status.html
 [attributes]: /docs/runtime/interpolation.html#node-variables-
 [client-metadata]: /docs/configuration/client.html#meta
 [constraint-stanza]: /docs/job-specification/constraint.html
@@ -224,6 +224,6 @@ Change the values of the `percent` options on your targets in the `spread` stanz
 [node-status]: /docs/commands/node/status.html
 [percent]: /docs/job-specification/spread.html#percent
 [spread-stanza]: /docs/job-specification/spread.html
-[scheduling]: /docs/internals/scheduling.html
+[scheduling]: /docs/internals/scheduling/scheduling.html
 [target]: /docs/job-specification/spread.html#target
 [verbose]: /docs/commands/alloc/status.html#verbose

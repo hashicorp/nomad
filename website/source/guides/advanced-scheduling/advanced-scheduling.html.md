@@ -23,5 +23,5 @@ Please refer to the guides below for using affinity and spread in Nomad 0.9.
 [affinity-stanza]: /docs/job-specification/affinity.html
 [spread-guide]: /guides/advanced-scheduling/spread.html
 [spread-stanza]: /docs/job-specification/spread.html
-[scheduling]: /docs/internals/scheduling.html
+[scheduling]: /docs/internals/scheduling/scheduling.html
 

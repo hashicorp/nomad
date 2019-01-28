@@ -53,15 +53,12 @@ func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*C
 	}
 	info.NomadClient = nomadClient
 
-	if len(os.Getenv(capi.HTTPAddrEnvName)) != 0 {
+	if opts.ExpectConsul {
 		consulClient, err := capi.NewClient(capi.DefaultConfig())
 		if err != nil && opts.ExpectConsul {
 			return nil, err
 		}
 		info.ConsulClient = consulClient
-	} else if opts.ExpectConsul {
-		return nil, fmt.Errorf("consul client expected but environment variable %s not set",
-			capi.HTTPAddrEnvName)
 	}
 
 	if len(os.Getenv(vapi.EnvVaultAddress)) != 0 {
