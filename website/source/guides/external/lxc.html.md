@@ -21,7 +21,7 @@ The `lxc` driver provides an interface for using LXC for running application con
 
 ## Challenge
 
-You need to deploy a workload using [Linux Containers][linux-containers-home]. Configure the client nodes that need to run this workload appropriately.
+You need to deploy a workload using [Linux Containers][linux-containers-home]. Configure the client nodes that need to run this workload appropriately. You will also need to install the `lxc-templates` package which will provide the templates needed to start your containers.
 
 ## Solution
 
@@ -100,15 +100,109 @@ Driver Status = docker,exec,java,lxc,mock_driver,raw_exec,rkt
 ...
 ```
 
+### Step 4: Install `lxc-templates` Package
 
+Before we generate a Nomad job file and deploy our workload, we will need to install the `lxc-templates` package which will provide the templates we need to start our container. Run the following command:
 
+```shell
+sudo apt install -y lxc-templates
+```
+
+We are now ready to create a job file and deploy our workload.
+
+### Step 5: Generate a Job File
+
+Create a file named `lxc.nomad` and place the following contents in it:
+
+```hcl
+job "example-lxc" {
+  datacenters = ["dc1"]
+  type        = "service"
+
+  group "example" {
+    task "example" {
+      driver = "lxc"
+
+      config {
+        log_level = "trace"
+        verbosity = "verbose"
+        template  = "/usr/share/lxc/templates/lxc-busybox"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 256
+      }
+    }
+  }
+}
+```
+
+### Step 6: Register the Nomad Job
+
+Run the following command to register your Nomad job:
+
+```shell
+$ nomad run lxc.nomad
+==> Monitoring evaluation "d8be10f4"
+    Evaluation triggered by job "example-lxc"
+    Allocation "4248c82e" created: node "81c22a0c", group "example"
+    Allocation "4248c82e" status changed: "pending" -> "running" (Tasks are running)
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "d8be10f4" finished with status "complete"
+```
+
+### Step 7: Check the Status of the Job
+
+You can run the following command to check the status of the jobs in your cluster:
+
+```shell
+$ nomad status
+ID           Type     Priority  Status   Submit Date
+example-lxc  service  50        running  2019-01-28T22:05:36Z
+```
+As shown above, our job is successfully running. You can see detailed information about our specific job with the following command:
+
+```shell
+$ nomad status example-lxc
+ID            = example-lxc
+Name          = example-lxc
+Submit Date   = 2019-01-28T22:05:36Z
+Type          = service
+Priority      = 50
+Datacenters   = dc1
+Status        = running
+Periodic      = false
+Parameterized = false
+
+Summary
+Task Group  Queued  Starting  Running  Failed  Complete  Lost
+example     0       0         1        0       0         0
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
+4248c82e  81c22a0c  example     0        run      running  6m58s ago  6m47s ago
+```
 
 ## Next Steps
 
+The LXC driver is enabled by default in the client configuration. For practice using the [plugin][plugin_syntax] syntax, explicitly add the [plugin options][lxc_plugin_options] for the `lxc` driver in the client config. Below is an example snippet of the configuration file:
+
+```hcl
+plugin "nomad-driver-lxc" {
+  config {
+    enabled = true
+    volumes_enabled = true
+    lxc_path = "/var/lib/lxc"
+  }
+}
+```
 
 [data_dir]: /docs/configuration/index.html#data_dir
 [linux-containers]: https://linuxcontainers.org/lxc/introduction/
 [linux-containers-home]: https://linuxcontainers.org
 [lxc-driver]: /coming/soon
-[lxc-docs]: /docs/drivers/external/lxc.html
+[lxc-docs]: /docs/drivers/external/lxc.htm
+[lxc_plugin_options]: /docs/drivers/external/lxc.html.md
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
+[plugin_syntax]: /docs/configuration/plugin.html
