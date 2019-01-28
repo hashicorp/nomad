@@ -2,8 +2,14 @@
 
 __BACKWARDS INCOMPATIBILITIES:__
 
- * core: Switch to structured logging using [go-hclog](https://github.com/hashicorp/go-hclog)
- * core: IOPS as a resource is now deprecated [[GH-4970](https://github.com/hashicorp/nomad/issues/4970)]
+ * core: Switch to structured logging using
+   [go-hclog](https://github.com/hashicorp/go-hclog). If you have tooling that
+   parses Nomad's logs, the format of logs has changed and your tools may need
+   updating.
+ * core: IOPS as a resource is now deprecated
+   [[GH-4970](https://github.com/hashicorp/nomad/issues/4970)]. Nomad continues
+   to parse IOPS in job's to allow job authors time to remove iops from their
+   jobs.
  * core: Allow the != constraint to match against keys that do not exist [[GH-4875](https://github.com/hashicorp/nomad/pull/4875)]
  * client: Task config interpolation requires names to be valid identifiers
    (`node.region` or `NOMAD_DC`). Interpolating other variables requires a new
