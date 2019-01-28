@@ -13,7 +13,7 @@ Name: `lxc`
 The `lxc` driver provides an interface for using LXC for running application
 containers. You can download the external LXC driver [here][lxc-driver].
 
-~> Nomad 0.9 does not maintain backward compatibility for the external LXC driver plugin when it comes to client configuration syntax. With Nomad 0.9, you must use the new [plugin syntax][plugin]. See [plugin options][plugin-options] below for an example.
+~> The LXC client set up has changed in Nomad 0.9. You must use the new [plugin syntax][plugin] and install the external LXC driver in the [plugin_dir][plugin_dir] prior to upgrading. See [plugin options][plugin-options] below for an example. Note the job specification remains the same.
 
 ## Task Configuration
 
