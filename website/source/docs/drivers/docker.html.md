@@ -480,7 +480,10 @@ Example agent configuration, using a helper script "docker-credential-ecr" in
 $PATH
 
 ```hcl
-client {...}
+client {
+  enabled = true
+}
+
 plugin "docker" {
   config {
     auth {
@@ -650,71 +653,83 @@ plugin "docker" {
     allow_privileged = false
     allow_caps       = ["CHOWN", "NET_RAW"]
 
-    # values can also be set to "ALL"
-    #allow_caps = ["ALL"]
+    # allow_caps can also be set to "ALL"
+    # allow_caps = ["ALL"]
   }
 }
 ```
 ## Plugin Options
 
-* `endpoint` - If using a non-standard socket, HTTP or another location, or if TLS is being used, docker.endpoint must be set. If unset, Nomad will attempt to instantiate a Docker client using the DOCKER_HOST environment variable and then fall back to the default listen address for the given operating system. Defaults to unix:///var/run/docker.sock on Unix platforms and npipe:////./pipe/docker_engine for Windows.
+* `endpoint` - If using a non-standard socket, HTTP or another location, or if
+  TLS is being used, docker.endpoint must be set. If unset, Nomad will attempt
+  to instantiate a Docker client using the DOCKER_HOST environment variable and
+  then fall back to the default listen address for the given operating system.
+  Defaults to unix:///var/run/docker.sock on Unix platforms and
+  npipe:////./pipe/docker_engine for Windows.
 
-* `allow_privileged` - Defaults to `false`. Changing this to true will allow containers to use privileged mode, which gives the containers full access to the host's devices. Note that you must set a similar setting on the Docker daemon for this to work.
+* `allow_privileged` - Defaults to `false`. Changing this to true will allow
+  containers to use privileged mode, which gives the containers full access to
+  the host's devices. Note that you must set a similar setting on the Docker
+  daemon for this to work.
 
-* `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities. Defaults to
-"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
-NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE", which is the list of capabilities allowed by docker by default, as defined here. Allows the operator to control which capabilities can be obtained by tasks using cap_add and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting all capabilities.
+* `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities.
+  Defaults to
+  "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
+  NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE", which is the list of
+  capabilities allowed by docker by default, as defined here. Allows the
+  operator to control which capabilities can be obtained by tasks using cap_add
+  and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting
+  all capabilities.
 
 * `auth` stanza:
     * `config`<a id="plugin_auth_file"></a> - Allows an operator to specify a
-  JSON file which is in the dockercfg format containing authentication
-  information for a private registry, from either (in order) `auths`,
-  `credHelpers` or `credsStore`. 
-    * `helper`<a id="plugin_auth_helper"></a> - Allows an operator to specify
-  a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
-  -like script on $PATH to lookup authentication information from external
-  sources. The script's name must begin with `docker-credential-` and this
-  option should include only the basename of the script, not the path.
+      JSON file which is in the dockercfg format containing authentication
+      information for a private registry, from either (in order) `auths`,
+      `credHelpers` or `credsStore`. 
+    * `helper`<a id="plugin_auth_helper"></a> - Allows an operator to specify a
+      [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
+      -like script on $PATH to lookup authentication information from external
+      sources. The script's name must begin with `docker-credential-` and this
+      option should include only the basename of the script, not the path.
 
 * `tls` stanza:
-    * `cert` - Path to the server's certificate file (`.pem`). Specify
-  this along with `key` and `ca` to use a TLS client to
-  connect to the docker daemon. `endpoint` must also be specified or
-  this setting will be ignored.
-    * `key` - Path to the client's private key (`.pem`). Specify this
-  along with `cert` and `ca` to use a TLS client to
-  connect to the docker daemon. `endpoint` must also be specified or
-  this setting will be ignored.
-    * `ca` - Path to the server's CA file (`.pem`). Specify this along
-  with `cert` and `key` to use a TLS client to connect to
-  the docker daemon. `endpoint` must also be specified or this setting
-  will be ignored.
+    * `cert` - Path to the server's certificate file (`.pem`). Specify this
+      along with `key` and `ca` to use a TLS client to connect to the docker
+      daemon. `endpoint` must also be specified or this setting will be ignored.
+    * `key` - Path to the client's private key (`.pem`). Specify this along with
+      `cert` and `ca` to use a TLS client to connect to the docker daemon.
+      `endpoint` must also be specified or this setting will be ignored.
+    * `ca` - Path to the server's CA file (`.pem`). Specify this along with
+      `cert` and `key` to use a TLS client to connect to the docker daemon.
+      `endpoint` must also be specified or this setting will be ignored.
 
 * `gc` stanza:
-    * `image` - Defaults to `true`. Changing this to `false` will
-  prevent Nomad from removing images from stopped tasks.
+    * `image` - Defaults to `true`. Changing this to `false` will prevent Nomad
+      from removing images from stopped tasks.
     * `image_delay` - A time duration, as [defined
-  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
-  delay controls how long Nomad will wait between an image being unused and
-  deleting it. If a tasks is received that uses the same image within the delay,
-  the image will be reused.
-    * `container` - Defaults to `true`. This option can be used to
-  disable Nomad from removing a container when the task exits. Under a name
-  conflict, Nomad may still remove the dead container.
+      here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`.
+      The delay controls how long Nomad will wait between an image being unused
+      and deleting it. If a tasks is received that uses the same image within
+      the delay, the image will be reused.
+    * `container` - Defaults to `true`. This option can be used to disable Nomad
+      from removing a container when the task exits. Under a name conflict,
+      Nomad may still remove the dead container.
 
 * `volumes` stanza:
     * `enabled` - Defaults to `true`. Allows tasks to bind host paths
-  (`volumes`) inside their container and use volume drivers (`volume_driver`).
-  Binding relative paths is always allowed and will be resolved relative to the
-  allocation's directory.
-    * `selinuxlabel` - Allows the operator to set a SELinux
-  label to the allocation and task local bind-mounts to containers. If used
-  with `docker.volumes.enabled` set to false, the labels will still be applied
-  to the standard binds in the container.
+      (`volumes`) inside their container and use volume drivers
+      (`volume_driver`). Binding relative paths is always allowed and will be
+      resolved relative to the allocation's directory.
+    * `selinuxlabel` - Allows the operator to set a SELinux label to the
+      allocation and task local bind-mounts to containers. If used with
+      `docker.volumes.enabled` set to false, the labels will still be applied to
+      the standard binds in the container.
 
 ## Client Configuration
 
-~> Note: client configuration options will soon be deprecated. Please use [plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
+~> Note: client configuration options will soon be deprecated. Please use
+[plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza]
+documentation for more information.
 
 The `docker` driver has the following [client configuration
 options](/docs/configuration/client.html#options):
@@ -731,21 +746,21 @@ options](/docs/configuration/client.html#options):
   information for a private registry, from either (in order) `auths`,
   `credHelpers` or `credsStore`.
 
-* `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify
-  a [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
+* `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify a
+  [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
   -like script on $PATH to lookup authentication information from external
   sources. The script's name must begin with `docker-credential-` and this
   option should include only the basename of the script, not the path.
 
 * `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
   this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
-  connect to the docker daemon. `docker.endpoint` must also be specified or
-  this setting will be ignored.
+  connect to the docker daemon. `docker.endpoint` must also be specified or this
+  setting will be ignored.
 
 * `docker.tls.key` - Path to the client's private key (`.pem`). Specify this
   along with `docker.tls.cert` and `docker.tls.ca` to use a TLS client to
-  connect to the docker daemon. `docker.endpoint` must also be specified or
-  this setting will be ignored.
+  connect to the docker daemon. `docker.endpoint` must also be specified or this
+  setting will be ignored.
 
 * `docker.tls.ca` - Path to the server's CA file (`.pem`). Specify this along
   with `docker.tls.cert` and `docker.tls.key` to use a TLS client to connect to
@@ -766,10 +781,10 @@ options](/docs/configuration/client.html#options):
   Binding relative paths is always allowed and will be resolved relative to the
   allocation's directory.
 
-* `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux
-  label to the allocation and task local bind-mounts to containers. If used
-  with `docker.volumes.enabled` set to false, the labels will still be applied
-  to the standard binds in the container.
+* `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux label to
+  the allocation and task local bind-mounts to containers. If used with
+  `docker.volumes.enabled` set to false, the labels will still be applied to the
+  standard binds in the container.
 
 * `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
   allow containers to use `privileged` mode, which gives the containers full
@@ -778,10 +793,11 @@ options](/docs/configuration/client.html#options):
 
 * `docker.caps.whitelist`: A list of allowed Linux capabilities. Defaults to
   `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,
-   SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`, which is the list of  capabilities allowed by docker by default, as
-  [defined here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
-  Allows the operator to control which capabilities can be obtained by
-  tasks using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
+  SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`, which is the list of
+  capabilities allowed by docker by default, as [defined
+  here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
+  Allows the operator to control which capabilities can be obtained by tasks
+  using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
   shortcut for whitelisting all capabilities.
 
 * `docker.cleanup.container`: Defaults to `true`. This option can be used to

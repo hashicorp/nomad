@@ -30,7 +30,12 @@ client {
 
 ## Plugin Options
 
-Nomad 0.9 now supports pluggable drivers. Operators should use the new [plugin][plugin-stanza] syntax to modify driver configuration. To find the plugin options supported by each individual Nomad driver, please see the [drivers documentation](/docs/drivers/index.html).
+Nomad 0.9 now supports pluggable drivers. Operators should use the new
+[plugin][plugin-stanza] syntax to modify driver configuration. To find the
+plugin options supported by each individual Nomad driver, please see the
+[drivers documentation](/docs/drivers/index.html). The pre-0.9 `client.options`
+stanza will be supported in 0.9 for backward compatibility (except for the `lxc`
+driver) but will be removed in a future release.
 
 ## `client` Parameters
 
@@ -162,7 +167,8 @@ the full list.
 
 ### `options` Parameters
 
-~> Note: client configuration options for drivers will soon be deprecated.. Please use [plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
+~> Note: client configuration options for drivers will soon be deprecated. See
+the [plugin stanza][plugin-stanza] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver, please
