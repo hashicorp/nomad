@@ -232,7 +232,7 @@ plugin "nomad-driver-lxc" {
 [linux-containers]: https://linuxcontainers.org/lxc/introduction/
 [linux-containers-home]: https://linuxcontainers.org
 [lxc_driver_download]: https://releases.hashicorp.com/nomad-driver-lxc 
-[lxc-docs]: /docs/drivers/external/lxc.htm
+[lxc-docs]: /docs/drivers/external/lxc.html
 [lxc_plugin_options]: /docs/drivers/external/lxc.html#plugin-options
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
 [plugin_syntax]: /docs/configuration/plugin.html
