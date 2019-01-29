@@ -77,7 +77,7 @@ sudo apt install -y lxc lxc-templates
 
 ### Step 3: Download and Install the LXC Driver 
 
-Make a directory called `plugins` in [plugin_dir][plugin_dir] (which is
+Make a directory called `plugins` in [data_dir][data_dir] (which is
 `/opt/nomad/data` in our case) and download/place the [LXC
 driver][lxc_driver_download] in it. The following sequences of commands
 illustrate this process:
