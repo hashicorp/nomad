@@ -13,6 +13,15 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+const (
+	// TaskDirHookIsDoneDataKey is used to mark whether the hook is done. We
+	// do not use the Done response value because we still need to set the
+	// environment variables every time a task starts.
+	// TODO(0.9.1): Use the resp.Env map and switch to resp.Done. We need to
+	// remove usage of the envBuilder
+	TaskDirHookIsDoneDataKey = "is_done"
+)
+
 type taskDirHook struct {
 	runner *TaskRunner
 	logger log.Logger
@@ -33,6 +42,15 @@ func (h *taskDirHook) Name() string {
 }
 
 func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	if v, ok := req.HookData[TaskDirHookIsDoneDataKey]; ok && v == "true" {
+		fsi := h.runner.driverCapabilities.FSIsolation
+		setEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
+		resp.HookData = map[string]string{
+			TaskDirHookIsDoneDataKey: "true",
+		}
+		return nil
+	}
+
 	cc := h.runner.clientConfig
 	chroot := cconfig.DefaultChrootEnv
 	if len(cc.ChrootEnv) > 0 {
@@ -51,7 +69,9 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 
 	// Update the environment variables based on the built task directory
 	setEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
-	resp.Done = true
+	resp.HookData = map[string]string{
+		TaskDirHookIsDoneDataKey: "true",
+	}
 	return nil
 }
 
