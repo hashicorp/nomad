@@ -305,4 +305,4 @@ Wed Jan 23 18:25:32 2019
 [docker-driver]: /docs/drivers/docker.html "Nomad docker Driver"
 [exec-driver]: /docs/drivers/exec.html "Nomad exec Driver"
 [java-driver]: /docs/drivers/java.html "Nomad java Driver"
-[lxc-driver]: /docs/drivers/lxc.html "Nomad lxc Driver"
+[lxc-driver]: /docs/drivers/external/lxc.html "Nomad lxc Driver"
