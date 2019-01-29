@@ -1,7 +1,7 @@
 ---
 layout: "guides"
 page_title: "LXC"
-sidebar_current: "guides-external"
+sidebar_current: "guides-external-lxc"
 description: |-
   Guide for using LXC external task driver plugin.
 ---
