@@ -42,8 +42,8 @@ func (h *taskDirHook) Name() string {
 }
 
 func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	fsi := h.runner.driverCapabilities.FSIsolation
 	if v, ok := req.HookData[TaskDirHookIsDoneDataKey]; ok && v == "true" {
-		fsi := h.runner.driverCapabilities.FSIsolation
 		setEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
 		resp.HookData = map[string]string{
 			TaskDirHookIsDoneDataKey: "true",
@@ -61,7 +61,6 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	h.runner.EmitEvent(structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
 
 	// Build the task directory structure
-	fsi := h.runner.driverCapabilities.FSIsolation
 	err := h.runner.taskDir.Build(fsi == drivers.FSIsolationChroot, chroot)
 	if err != nil {
 		return err
