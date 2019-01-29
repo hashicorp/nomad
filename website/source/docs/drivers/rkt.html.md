@@ -168,12 +168,20 @@ The `trust_prefix` must be accessible by the node running Nomad. This can be an
 internal source, private to your cluster, but it must be reachable by the client
 over HTTP.
 
+## Plugin Options
+
+* `volumes_enabled` - Defaults to `true`. Allows tasks to bind host paths
+  (`volumes`) inside their container. Binding relative paths is always allowed
+  and will be resolved relative to the allocation's directory. 
+
 ## Client Configuration
+
+~> Note: client configuration options will soon be deprecated. Please use [plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
 
 The `rkt` driver has the following [client configuration
 options](/docs/configuration/client.html#options):
 
-* `rkt.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
+* `rkt.volumes.enabled` - Defaults to `true`. Allows tasks to bind host paths
   (`volumes`) inside their container. Binding relative paths is always allowed
   and will be resolved relative to the allocation's directory.
 
@@ -208,3 +216,5 @@ isolation is not supported as of now.
 
 
 [user]: /docs/job-specification/task.html#user
+[plugin-options]: #plugin-options
+[plugin-stanza]: /docs/configuration/plugin.html
