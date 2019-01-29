@@ -144,7 +144,7 @@ deps:  ## Install build and development dependencies
 	go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
-	go get -u github.com/golang/protobuf/protoc-gen-go
+	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
 	go get -u gotest.tools/gotestsum
 
 .PHONY: lint-deps
