@@ -112,7 +112,7 @@ client {
 
 ## Client Options
 
-~> Note: client configuration options will soon be deprecated.. Please use 
+~> Note: client configuration options will soon be deprecated. Please use 
 [plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
 
 * `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
