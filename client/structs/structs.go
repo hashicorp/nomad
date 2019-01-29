@@ -43,7 +43,9 @@ type ClientMetadataUpdateRequest struct {
 	// node meta
 	Updates map[string]string
 
-	structs.NodeSpecificRequest
+	NodeID   string
+	SecretID string
+
 	structs.WriteRequest
 }
 
@@ -52,7 +54,9 @@ type ClientMetadataUpdateRequest struct {
 type ClientMetadataReplaceRequest struct {
 	Metadata map[string]string
 
-	structs.NodeSpecificRequest
+	NodeID   string
+	SecretID string
+
 	structs.WriteRequest
 }
 

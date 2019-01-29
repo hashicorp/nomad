@@ -246,6 +246,7 @@ type endpoints struct {
 	ClientStats       *ClientStats
 	FileSystem        *FileSystem
 	ClientAllocations *ClientAllocations
+	ClientMeta        *ClientMeta
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -1027,6 +1028,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		// Client endpoints
 		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
 		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs")}
+		s.staticEndpoints.ClientMeta = &ClientMeta{srv: s, logger: s.logger.Named("client_meta")}
 
 		// Streaming endpoints
 		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
@@ -1049,6 +1051,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	s.staticEndpoints.Enterprise.Register(server)
 	server.Register(s.staticEndpoints.ClientStats)
 	server.Register(s.staticEndpoints.ClientAllocations)
+	server.Register(s.staticEndpoints.ClientMeta)
 	server.Register(s.staticEndpoints.FileSystem)
 
 	// Create new dynamic endpoints and add them to the RPC server.
