@@ -83,7 +83,11 @@ func (t *taskRunnerState08) Upgrade(allocID, taskName string) (*state.LocalState
 
 	// Upgrade task dir state
 	ls.Hooks["task_dir"] = &state.HookState{
-		PrestartDone: t.TaskDirBuilt,
+		Data: map[string]string{
+			// "is_done" is equivalent to task_dir_hook.TaskDirHookIsDoneKey
+			// Does not import to avoid import cycle
+			"is_done": fmt.Sprintf("%v", t.TaskDirBuilt),
+		},
 	}
 
 	// Upgrade dispatch payload state
