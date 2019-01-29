@@ -284,6 +284,8 @@ func TestExecDriver_Stats(t *testing.T) {
 	select {
 	case stats := <-statsCh:
 		require.NotZero(stats.ResourceUsage.MemoryStats.RSS)
+		require.NotZero(stats.Timestamp)
+		require.WithinDuration(time.Now(), time.Unix(0, stats.Timestamp), time.Second)
 	case <-time.After(time.Second):
 		require.Fail("timeout receiving from channel")
 	}
