@@ -177,39 +177,6 @@ func TestJobEndpoint_Register_InvalidNamespace(t *testing.T) {
 	}
 }
 
-func TestJobEndpoint_Register_InvalidDriverConfig(t *testing.T) {
-	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-	})
-	defer s1.Shutdown()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request with a job containing an invalid driver
-	// config
-	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Config["foo"] = 1
-	req := &structs.JobRegisterRequest{
-		Job: job,
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			Namespace: job.Namespace,
-		},
-	}
-
-	// Fetch the response
-	var resp structs.JobRegisterResponse
-	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil {
-		t.Fatalf("expected a validation error")
-	}
-
-	if !strings.Contains(err.Error(), "-> config:") {
-		t.Fatalf("expected a driver config validation error but got: %v", err)
-	}
-}
-
 func TestJobEndpoint_Register_Payload(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
@@ -3913,74 +3880,6 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 
 	if !constraints[0].Equal(sigConstraint) {
 		t.Fatalf("Expected implicit vault constraint")
-	}
-}
-
-func TestJobEndpoint_ValidateJob_InvalidDriverConf(t *testing.T) {
-	t.Parallel()
-	// Create a mock job with an invalid config
-	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"foo": "bar",
-	}
-
-	err, warnings := validateJob(job)
-	if err == nil || !strings.Contains(err.Error(), "-> config") {
-		t.Fatalf("Expected config error; got %v", err)
-	}
-
-	if warnings != nil {
-		t.Fatalf("got unexpected warnings: %v", warnings)
-	}
-}
-
-func TestJobEndpoint_ValidateJob_InvalidSignals(t *testing.T) {
-	t.Parallel()
-	// Create a mock job that wants to send a signal to a driver that can't
-	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Driver = "qemu"
-	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
-		Policies:     []string{"foo"},
-		ChangeMode:   structs.VaultChangeModeSignal,
-		ChangeSignal: "SIGUSR1",
-	}
-
-	err, warnings := validateJob(job)
-	if err == nil || !strings.Contains(err.Error(), "support sending signals") {
-		t.Fatalf("Expected signal feasibility error; got %v", err)
-	}
-
-	if warnings != nil {
-		t.Fatalf("got unexpected warnings: %v", warnings)
-	}
-}
-
-func TestJobEndpoint_ValidateJob_KillSignal(t *testing.T) {
-	require := require.New(t)
-	t.Parallel()
-
-	// test validate fails if the driver does not support sending signals, but a
-	// stop_signal has been specified
-	{
-		job := mock.Job()
-		job.TaskGroups[0].Tasks[0].Driver = "qemu" // qemu does not support sending signals
-		job.TaskGroups[0].Tasks[0].KillSignal = "SIGINT"
-
-		err, warnings := validateJob(job)
-		require.NotNil(err)
-		require.True(strings.Contains(err.Error(), "support sending signals"))
-		require.Nil(warnings)
-	}
-
-	// test validate succeeds if the driver does support sending signals, and
-	// a stop_signal has been specified
-	{
-		job := mock.Job()
-		job.TaskGroups[0].Tasks[0].KillSignal = "SIGINT"
-
-		err, warnings := validateJob(job)
-		require.Nil(err)
-		require.Nil(warnings)
 	}
 }
 

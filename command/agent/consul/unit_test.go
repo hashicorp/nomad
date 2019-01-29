@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -67,7 +66,7 @@ func newMockExec() *mockExec {
 	}
 }
 
-func (m *mockExec) Exec(ctx context.Context, cmd string, args []string) ([]byte, int, error) {
+func (m *mockExec) Exec(dur time.Duration, cmd string, args []string) ([]byte, int, error) {
 	select {
 	case m.execs <- 1:
 	default:
@@ -76,6 +75,8 @@ func (m *mockExec) Exec(ctx context.Context, cmd string, args []string) ([]byte,
 		// Default impl is just "ok"
 		return []byte("ok"), 0, nil
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	defer cancel()
 	return m.ExecFunc(ctx, cmd, args)
 }
 
@@ -85,8 +86,9 @@ type restartRecorder struct {
 	restarts int64
 }
 
-func (r *restartRecorder) Restart(source, reason string, failure bool) {
+func (r *restartRecorder) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	atomic.AddInt64(&r.restarts, 1)
+	return nil
 }
 
 // testFakeCtx contains a fake Consul AgentAPI
@@ -117,7 +119,7 @@ func setupFake(t *testing.T) *testFakeCtx {
 	fc := NewMockAgent()
 	tt := testTask()
 	return &testFakeCtx{
-		ServiceClient: NewServiceClient(fc, testlog.Logger(t), true),
+		ServiceClient: NewServiceClient(fc, testlog.HCLogger(t), true),
 		FakeConsul:    fc,
 		Task:          tt,
 		MockExec:      tt.DriverExec.(*mockExec),
@@ -825,7 +827,7 @@ func TestConsul_ShutdownOK(t *testing.T) {
 		t.Fatalf("expected 1 checkTTL entry but found: %d", n)
 	}
 	for _, v := range ctx.FakeConsul.checkTTLs {
-		require.Equalf(2, v, "expected 2 updates but foud %d", v)
+		require.Equalf(2, v, "expected 2 updates but found %d", v)
 	}
 	for _, v := range ctx.FakeConsul.checks {
 		if v.Status != "passing" {
@@ -1110,7 +1112,7 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1214,7 +1216,7 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1278,7 +1280,7 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 		},
 	}
 
-	ctx.Task.DriverNetwork = &cstructs.DriverNetwork{
+	ctx.Task.DriverNetwork = &drivers.DriverNetwork{
 		PortMap: map[string]int{
 			"x": 8888,
 			"y": 9999,
@@ -1555,7 +1557,7 @@ func TestGetAddress(t *testing.T) {
 		Mode      string
 		PortLabel string
 		Host      map[string]int // will be converted to structs.Networks
-		Driver    *cstructs.DriverNetwork
+		Driver    *drivers.DriverNetwork
 
 		// Results
 		ExpectedIP   string
@@ -1568,7 +1570,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeAuto,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12435},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1580,7 +1582,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeHost,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1592,7 +1594,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1604,7 +1606,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeAuto,
 			PortLabel: "db",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap:       map[string]int{"db": 6379},
 				IP:            "10.1.2.3",
 				AutoAdvertise: true,
@@ -1617,7 +1619,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "7890",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1639,7 +1641,7 @@ func TestGetAddress(t *testing.T) {
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "bad-port-label",
 			Host:      map[string]int{"db": 12345},
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				PortMap: map[string]int{"db": 6379},
 				IP:      "10.1.2.3",
 			},
@@ -1649,7 +1651,7 @@ func TestGetAddress(t *testing.T) {
 			Name:      "DriverZeroPort",
 			Mode:      structs.AddressModeDriver,
 			PortLabel: "0",
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
 			ExpectedErr: "invalid port",
@@ -1679,7 +1681,7 @@ func TestGetAddress(t *testing.T) {
 		{
 			Name: "NoPort_DriverMode",
 			Mode: structs.AddressModeDriver,
-			Driver: &cstructs.DriverNetwork{
+			Driver: &drivers.DriverNetwork{
 				IP: "10.1.2.3",
 			},
 			ExpectedIP: "10.1.2.3",

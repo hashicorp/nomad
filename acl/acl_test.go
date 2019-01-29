@@ -262,3 +262,151 @@ func TestAllowNamespace(t *testing.T) {
 		})
 	}
 }
+
+func TestWildcardNamespaceMatching(t *testing.T) {
+	tests := []struct {
+		Policy string
+		Allow  bool
+	}{
+		{ // Wildcard matches
+			Policy: `namespace "prod-api-*" { policy = "write" }`,
+			Allow:  true,
+		},
+		{ // Non globbed namespaces are not wildcards
+			Policy: `namespace "prod-api" { policy = "write" }`,
+			Allow:  false,
+		},
+		{ // Concrete matches take precedence
+			Policy: `namespace "prod-api-services" { policy = "deny" }
+			         namespace "prod-api-*" { policy = "write" }`,
+			Allow: false,
+		},
+		{
+			Policy: `namespace "prod-api-*" { policy = "deny" }
+			         namespace "prod-api-services" { policy = "write" }`,
+			Allow: true,
+		},
+		{ // The closest character match wins
+			Policy: `namespace "*-api-services" { policy = "deny" }
+			         namespace "prod-api-*" { policy = "write" }`, // 4 vs 8 chars
+			Allow: false,
+		},
+		{
+			Policy: `namespace "prod-api-*" { policy = "write" }
+               namespace "*-api-services" { policy = "deny" }`, // 4 vs 8 chars
+			Allow: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.NoError(err)
+			assert.NotNil(policy.Namespaces)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			assert.Equal(tc.Allow, acl.AllowNamespace("prod-api-services"))
+		})
+	}
+}
+
+func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
+	tests := []struct {
+		Policy        string
+		NS            string
+		MatchingGlobs []string
+	}{
+		{
+			Policy:        `namespace "production-*" { policy = "write" }`,
+			NS:            "production-api",
+			MatchingGlobs: []string{"production-*"},
+		},
+		{
+			Policy:        `namespace "prod-*" { policy = "write" }`,
+			NS:            "production-api",
+			MatchingGlobs: nil,
+		},
+		{
+			Policy: `namespace "production-*" { policy = "write" }
+							 namespace "production-*-api" { policy = "deny" }`,
+
+			NS:            "production-admin-api",
+			MatchingGlobs: []string{"production-*", "production-*-api"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.NoError(err)
+			assert.NotNil(policy.Namespaces)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			var namespaces []string
+			for _, cs := range acl.findAllMatchingWildcards(tc.NS) {
+				namespaces = append(namespaces, cs.ns)
+			}
+
+			assert.Equal(tc.MatchingGlobs, namespaces)
+		})
+	}
+}
+
+func TestACL_matchingCapabilitySet_difference(t *testing.T) {
+	tests := []struct {
+		Policy     string
+		NS         string
+		Difference int
+	}{
+		{
+			Policy:     `namespace "production-*" { policy = "write" }`,
+			NS:         "production-api",
+			Difference: 3,
+		},
+		{
+			Policy:     `namespace "production-*" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 9,
+		},
+		{
+			Policy:     `namespace "production-**" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 9,
+		},
+		{
+			Policy:     `namespace "*" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 20,
+		},
+		{
+			Policy:     `namespace "*admin*" { policy = "write" }`,
+			NS:         "production-admin-api",
+			Difference: 15,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Policy, func(t *testing.T) {
+			assert := assert.New(t)
+
+			policy, err := Parse(tc.Policy)
+			assert.NoError(err)
+			assert.NotNil(policy.Namespaces)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			assert.Nil(err)
+
+			matches := acl.findAllMatchingWildcards(tc.NS)
+			assert.Equal(tc.Difference, matches[0].difference)
+		})
+	}
+
+}

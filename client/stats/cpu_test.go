@@ -1,13 +1,13 @@
 package stats
 
 import (
-	"log"
 	"math"
 	"os"
 	"testing"
 	"time"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,10 +26,10 @@ func TestHostStats_CPU(t *testing.T) {
 	assert := assert.New(t)
 	assert.Nil(shelpers.Init())
 
-	logger := log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
+	logger := testlog.HCLogger(t)
 	cwd, err := os.Getwd()
 	assert.Nil(err)
-	hs := NewHostStatsCollector(logger, cwd)
+	hs := NewHostStatsCollector(logger, cwd, nil)
 
 	// Collect twice so we can calculate percents we need to generate some work
 	// so that the cpu values change

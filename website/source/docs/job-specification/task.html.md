@@ -45,6 +45,9 @@ job "docs" {
   constraints on the task. This can be provided multiple times to define
   additional constraints.
 
+- `affinity` <code>([Affinity][]: nil)</code> - This can be provided
+  multiple times to define preferred placement criteria.
+
 - `dispatch_payload` <code>([DispatchPayload][]: nil)</code> - Configures the
   task to have access to dispatch payloads.
 
@@ -161,7 +164,7 @@ task "server" {
 ### Service Discovery
 
 This example creates a service in Consul. To read more about service discovery
-in Nomad, please see the [Nomad service discovery documentation][service].
+in Nomad, please see the [Nomad service discovery documentation][service_discovery].
 
 ```hcl
 task "server" {
@@ -190,17 +193,20 @@ task "server" {
 [artifact]: /docs/job-specification/artifact.html "Nomad artifact Job Specification"
 [consul]: https://www.consul.io/ "Consul by HashiCorp"
 [constraint]: /docs/job-specification/constraint.html "Nomad constraint Job Specification"
+[affinity]: /docs/job-specification/affinity.html "Nomad affinity Job Specification"
 [dispatchpayload]: /docs/job-specification/dispatch_payload.html "Nomad dispatch_payload Job Specification"
 [env]: /docs/job-specification/env.html "Nomad env Job Specification"
 [meta]: /docs/job-specification/meta.html "Nomad meta Job Specification"
 [resources]: /docs/job-specification/resources.html "Nomad resources Job Specification"
 [logs]: /docs/job-specification/logs.html "Nomad logs Job Specification"
-[service]: /docs/service-discovery/index.html "Nomad Service Discovery"
+[service]: /docs/job-specification/service.html "Nomad service Job Specification"
+[vault]: /docs/job-specification/vault.html "Nomad vault Job Specification"
 [exec]: /docs/drivers/exec.html "Nomad exec Driver"
 [java]: /docs/drivers/java.html "Nomad Java Driver"
 [Docker]: /docs/drivers/docker.html "Nomad Docker Driver"
 [rkt]: /docs/drivers/rkt.html "Nomad rkt Driver"
+[service_discovery]: /guides/operations/consul-integration/index.html#service-discovery/index.html "Nomad Service Discovery"
 [template]: /docs/job-specification/template.html "Nomad template Job Specification"
-[user_drivers]: /docs/agent/configuration/client.html#_quot_user_checked_drivers_quot_
-[user_blacklist]: /docs/agent/configuration/client.html#_quot_user_blacklist_quot_
-[max_kill]: /docs/agent/configuration/client.html#max_kill_timeout
+[user_drivers]: /docs/configuration/client.html#_quot_user_checked_drivers_quot_
+[user_blacklist]: /docs/configuration/client.html#_quot_user_blacklist_quot_
+[max_kill]: /docs/configuration/client.html#max_kill_timeout

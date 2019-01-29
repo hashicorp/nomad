@@ -2,11 +2,11 @@ package scheduler
 
 import (
 	"fmt"
-	"log"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -72,7 +72,7 @@ func (s *SetStatusError) Error() string {
 // most workloads. It also supports a 'batch' mode to optimize for fast decision
 // making at the cost of quality.
 type GenericScheduler struct {
-	logger  *log.Logger
+	logger  log.Logger
 	state   State
 	planner Planner
 	batch   bool
@@ -94,9 +94,9 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
+func NewServiceScheduler(logger log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger,
+		logger:  logger.Named("service_sched"),
 		state:   state,
 		planner: planner,
 		batch:   false,
@@ -105,9 +105,9 @@ func NewServiceScheduler(logger *log.Logger, state State, planner Planner) Sched
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger *log.Logger, state State, planner Planner) Scheduler {
+func NewBatchScheduler(logger log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:  logger,
+		logger:  logger.Named("batch_sched"),
 		state:   state,
 		planner: planner,
 		batch:   true,
@@ -120,13 +120,17 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 	// Store the evaluation
 	s.eval = eval
 
+	// Update our logger with the eval's information
+	s.logger = s.logger.With("eval_id", eval.ID, "job_id", eval.JobID, "namespace", eval.Namespace)
+
 	// Verify the evaluation trigger reason is understood
 	switch eval.TriggeredBy {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerJobDeregister,
 		structs.EvalTriggerNodeDrain, structs.EvalTriggerNodeUpdate,
-		structs.EvalTriggerRollingUpdate,
+		structs.EvalTriggerRollingUpdate, structs.EvalTriggerQueuedAllocs,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
-		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc:
+		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
+		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -243,7 +247,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// Compute the target job allocations
 	if err := s.computeJobAllocs(); err != nil {
-		s.logger.Printf("[ERR] sched: %#v: %v", s.eval, err)
+		s.logger.Error("failed to compute job allocations", "error", err)
 		return false, err
 	}
 
@@ -252,10 +256,10 @@ func (s *GenericScheduler) process() (bool, error) {
 	// current evaluation is already a blocked eval, we reuse it.
 	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil {
 		if err := s.createBlockedEval(false); err != nil {
-			s.logger.Printf("[ERR] sched: %#v failed to make blocked eval: %v", s.eval, err)
+			s.logger.Error("failed to make blocked eval", "error", err)
 			return false, err
 		}
-		s.logger.Printf("[DEBUG] sched: %#v: failed to place all allocations, blocked eval '%s' created", s.eval, s.blocked.ID)
+		s.logger.Debug("failed to place all allocations, blocked eval created", "blocked_eval_id", s.blocked.ID)
 	}
 
 	// If the plan is a no-op, we can bail. If AnnotatePlan is set submit the plan
@@ -270,10 +274,10 @@ func (s *GenericScheduler) process() (bool, error) {
 			eval.PreviousEval = s.eval.ID
 			// TODO(preetha) this should be batching evals before inserting them
 			if err := s.planner.CreateEval(eval); err != nil {
-				s.logger.Printf("[ERR] sched: %#v failed to make next eval for rescheduling: %v", s.eval, err)
+				s.logger.Error("failed to make next eval for rescheduling", "error", err)
 				return false, err
 			}
-			s.logger.Printf("[DEBUG] sched: %#v: found reschedulable allocs, next eval '%s' created", s.eval, eval.ID)
+			s.logger.Debug("found reschedulable allocs, followup eval created", "followup_eval_id", eval.ID)
 		}
 	}
 
@@ -290,7 +294,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// If we got a state refresh, try again since we have stale data
 	if newState != nil {
-		s.logger.Printf("[DEBUG] sched: %#v: refresh forced", s.eval)
+		s.logger.Debug("refresh forced")
 		s.state = newState
 		return false, nil
 	}
@@ -298,8 +302,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// Try again if the plan was not fully committed, potential conflict
 	fullCommit, expected, actual := result.FullCommit(s.plan)
 	if !fullCommit {
-		s.logger.Printf("[DEBUG] sched: %#v: attempted %d placements, %d placed",
-			s.eval, expected, actual)
+		s.logger.Debug("plan didn't fully commit", "attempted", expected, "placed", actual)
 		if newState == nil {
 			return false, fmt.Errorf("missing state refresh after partial commit")
 		}
@@ -332,11 +335,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// nodes to lost
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
-	reconciler := NewAllocReconciler(s.ctx.Logger(),
+	reconciler := NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID)
 	results := reconciler.Compute()
-	s.logger.Printf("[DEBUG] sched: %#v: %#v", s.eval, results)
+	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", results))
 
 	if s.eval.AnnotatePlan {
 		s.plan.Annotations = &structs.PlanAnnotations{
@@ -381,7 +384,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Nothing remaining to do if placement is not required
 	if len(results.place)+len(results.destructiveUpdate) == 0 {
-		if !s.job.Stopped() {
+		// If the job has been purged we don't have access to the job. Otherwise
+		// set the queued allocs to zero. This is true if the job is being
+		// stopped as well.
+		if s.job != nil {
 			for _, tg := range s.job.TaskGroups {
 				s.queuedAllocs[tg.Name] = 0
 			}
@@ -462,27 +468,38 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Compute penalty nodes for rescheduled allocs
 			selectOptions := getSelectOptions(prevAllocation, preferredNode)
-			option, _ := s.stack.Select(tg, selectOptions)
+			option := s.stack.Select(tg, selectOptions)
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
 
+			// Compute top K scoring node metadata
+			s.ctx.Metrics().PopulateScoreMetaData()
+
 			// Set fields based on if we found an allocation option
 			if option != nil {
+				resources := &structs.AllocatedResources{
+					Tasks: option.TaskResources,
+					Shared: structs.AllocatedSharedResources{
+						DiskMB: int64(tg.EphemeralDisk.SizeMB),
+					},
+				}
+
 				// Create an allocation for this
 				alloc := &structs.Allocation{
-					ID:            uuid.Generate(),
-					Namespace:     s.job.Namespace,
-					EvalID:        s.eval.ID,
-					Name:          missing.Name(),
-					JobID:         s.job.ID,
-					TaskGroup:     tg.Name,
-					Metrics:       s.ctx.Metrics(),
-					NodeID:        option.Node.ID,
-					DeploymentID:  deploymentID,
-					TaskResources: option.TaskResources,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-					ClientStatus:  structs.AllocClientStatusPending,
+					ID:                 uuid.Generate(),
+					Namespace:          s.job.Namespace,
+					EvalID:             s.eval.ID,
+					Name:               missing.Name(),
+					JobID:              s.job.ID,
+					TaskGroup:          tg.Name,
+					Metrics:            s.ctx.Metrics(),
+					NodeID:             option.Node.ID,
+					DeploymentID:       deploymentID,
+					TaskResources:      resources.OldTaskResources(),
+					AllocatedResources: resources,
+					DesiredStatus:      structs.AllocDesiredStatusRun,
+					ClientStatus:       structs.AllocClientStatusPending,
 
 					SharedResources: &structs.Resources{
 						DiskMB: tg.EphemeralDisk.SizeMB,
@@ -500,7 +517,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 				// If we are placing a canary and we found a match, add the canary
 				// to the deployment state object and mark it as a canary.
-				if missing.Canary() {
+				if missing.Canary() && s.deployment != nil {
 					if state, ok := s.deployment.TaskGroups[tg.Name]; ok {
 						state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
 					}
@@ -592,14 +609,18 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 }
 
 // findPreferredNode finds the preferred node for an allocation
-func (s *GenericScheduler) findPreferredNode(place placementResult) (node *structs.Node, err error) {
+func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.Node, error) {
 	if prev := place.PreviousAllocation(); prev != nil && place.TaskGroup().EphemeralDisk.Sticky == true {
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
-		preferredNode, err = s.state.NodeByID(ws, prev.NodeID)
-		if preferredNode.Ready() {
-			node = preferredNode
+		preferredNode, err := s.state.NodeByID(ws, prev.NodeID)
+		if err != nil {
+			return nil, err
+		}
+
+		if preferredNode != nil && preferredNode.Ready() {
+			return preferredNode, nil
 		}
 	}
-	return
+	return nil, nil
 }

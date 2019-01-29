@@ -1,0 +1,77 @@
+{{#freestyle-usage "progress-bar" title="Progress Bar"}}
+  <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
+    <progress
+      class="progress is-primary is-small"
+      value="0.33"
+      max="1">
+      0.33
+    </progress>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "progress-bar-colors" title="Progress Bar Colors"}}
+  <div class="columns">
+    <div class="column">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
+        <progress
+          class="progress is-info is-small"
+          value="0.33"
+          max="1">
+          0.33
+        </progress>
+      </div>
+    </div>
+    <div class="column">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
+        <progress
+          class="progress is-success is-small"
+          value="0.33"
+          max="1">
+          0.33
+        </progress>
+      </div>
+    </div>
+    <div class="column">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
+        <progress
+          class="progress is-warning is-small"
+          value="0.33"
+          max="1">
+          0.33
+        </progress>
+      </div>
+    </div>
+    <div class="column">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="5 / 15">
+        <progress
+          class="progress is-danger is-small"
+          value="0.33"
+          max="1">
+          0.33
+        </progress>
+      </div>
+    </div>
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "progress-bar-live" title="Progress Bar Live Updates"}}
+  <div class="columns">
+    <div class="column is-one-third">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="{{numerator}} / {{denominator}}">
+        <progress
+          class="progress is-primary is-small"
+          value="{{percentage}}"
+          max="1">
+          {{percentage}}
+        </progress>
+      </div>
+    </div>
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <div class="boxed-section">
+    <div class="boxed-section-body is-dark">
+      {{json-viewer json=liveDetails}}
+    </div>
+  </div>
+{{/freestyle-annotation}}

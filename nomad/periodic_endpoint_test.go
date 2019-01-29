@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -120,8 +120,9 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		eval, err := state.EvalByID(ws, resp.EvalID)
 		assert.Nil(err)
-		assert.NotNil(eval)
-		assert.Equal(eval.CreateIndex, resp.EvalCreateIndex)
+		if assert.NotNil(eval) {
+			assert.Equal(eval.CreateIndex, resp.EvalCreateIndex)
+		}
 	}
 
 	// Fetch the response with management token
@@ -135,8 +136,9 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		eval, err := state.EvalByID(ws, resp.EvalID)
 		assert.Nil(err)
-		assert.NotNil(eval)
-		assert.Equal(eval.CreateIndex, resp.EvalCreateIndex)
+		if assert.NotNil(eval) {
+			assert.Equal(eval.CreateIndex, resp.EvalCreateIndex)
+		}
 	}
 }
 

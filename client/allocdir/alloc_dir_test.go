@@ -9,14 +9,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -45,13 +45,6 @@ var (
 	}
 )
 
-func testLogger() *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, "", log.LstdFlags)
-	}
-	return log.New(ioutil.Discard, "", log.LstdFlags)
-}
-
 // Test that AllocDir.Build builds just the alloc directory.
 func TestAllocDir_BuildAlloc(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "AllocDir")
@@ -60,7 +53,7 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	d.NewTaskDir(t1.Name)
 	d.NewTaskDir(t2.Name)
@@ -89,15 +82,28 @@ func TestAllocDir_BuildAlloc(t *testing.T) {
 	}
 }
 
+// HACK: This function is copy/pasted from client.testutil to prevent a test
+//       import cycle, due to testutil transitively importing allocdir. This
+//       should be fixed after DriverManager is implemented.
+func MountCompatible(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support mount")
+	}
+
+	if syscall.Geteuid() != 0 {
+		t.Skip("Must be root to run test")
+	}
+}
+
 func TestAllocDir_MountSharedAlloc(t *testing.T) {
-	testutil.MountCompatible(t)
+	MountCompatible(t)
 	tmp, err := ioutil.TempDir("", "AllocDir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -105,11 +111,11 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td1.Build(true, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(false, nil, cstructs.FSIsolationChroot); err != nil {
+	if err := td2.Build(true, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -142,7 +148,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
@@ -150,11 +156,11 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	// Build 2 task dirs
 	td1 := d.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t1.Name, err)
 	}
 	td2 := d.NewTaskDir(t2.Name)
-	if err := td2.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td2.Build(false, nil); err != nil {
 		t.Fatalf("error build task=%q dir: %v", t2.Name, err)
 	}
 
@@ -229,20 +235,20 @@ func TestAllocDir_Move(t *testing.T) {
 	defer os.RemoveAll(tmp2)
 
 	// Create two alloc dirs
-	d1 := NewAllocDir(testLogger(), tmp1)
+	d1 := NewAllocDir(testlog.HCLogger(t), tmp1)
 	if err := d1.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d1.Destroy()
 
-	d2 := NewAllocDir(testLogger(), tmp2)
+	d2 := NewAllocDir(testlog.HCLogger(t), tmp2)
 	if err := d2.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d2.Destroy()
 
 	td1 := d1.NewTaskDir(t1.Name)
-	if err := td1.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td1.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build() faild: %v", err)
 	}
 
@@ -290,7 +296,7 @@ func TestAllocDir_EscapeChecking(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
@@ -331,14 +337,14 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 	defer d.Destroy()
 
 	td := d.NewTaskDir(t1.Name)
-	if err := td.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build() failed: %v", err)
 	}
 
@@ -416,14 +422,14 @@ func TestAllocDir_CreateDir(t *testing.T) {
 // TestAllocDir_Copy asserts that AllocDir.Copy does a deep copy of itself and
 // all TaskDirs.
 func TestAllocDir_Copy(t *testing.T) {
-	a := NewAllocDir(testLogger(), "foo")
+	a := NewAllocDir(testlog.HCLogger(t), "foo")
 	a.NewTaskDir("bar")
 	a.NewTaskDir("baz")
 
 	b := a.Copy()
-	if diff := pretty.Diff(a, b); len(diff) > 0 {
-		t.Errorf("differences between copies: %# v", pretty.Formatter(diff))
-	}
+
+	// Clear the logger
+	require.Equal(t, a, b)
 
 	// Make sure TaskDirs map is copied
 	a.NewTaskDir("new")

@@ -85,4 +85,12 @@ $lost: $dark;
   &.lost {
     background: $lost;
   }
+
+  @each $name, $pair in $colors {
+    $color: nth($pair, 1);
+
+    &.is-#{$name} {
+      background: $color;
+    }
+  }
 }

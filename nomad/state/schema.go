@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -44,6 +44,7 @@ func init() {
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
 		autopilotConfigTableSchema,
+		schedulerConfigTableSchema,
 	}...)
 }
 
@@ -594,6 +595,25 @@ func aclTokenTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.FieldSetIndex{
 					Field: "Global",
+				},
+			},
+		},
+	}
+}
+
+// schedulerConfigTableSchema returns the MemDB schema for the scheduler config table.
+// This table is used to store configuration options for the scheduler
+func schedulerConfigTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "scheduler_config",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: true,
+				Unique:       true,
+				// This indexer ensures that this table is a singleton
+				Indexer: &memdb.ConditionalIndex{
+					Conditional: func(obj interface{}) (bool, error) { return true, nil },
 				},
 			},
 		},

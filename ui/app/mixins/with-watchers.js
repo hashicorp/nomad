@@ -33,6 +33,9 @@ export default Mixin.create(WithVisibilityDetection, {
   actions: {
     willTransition() {
       this.cancelAllWatchers();
+
+      // Bubble the action up to the application route
+      return true;
     },
   },
 });

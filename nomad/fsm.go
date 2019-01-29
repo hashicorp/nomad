@@ -3,12 +3,12 @@ package nomad
 import (
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -44,6 +44,7 @@ const (
 	DeploymentSnapshot
 	ACLPolicySnapshot
 	ACLTokenSnapshot
+	SchedulerConfigSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -67,7 +68,7 @@ type nomadFSM struct {
 	evalBroker         *EvalBroker
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
-	logger             *log.Logger
+	logger             log.Logger
 	state              *state.StateStore
 	timetable          *TimeTable
 
@@ -112,8 +113,8 @@ type FSMConfig struct {
 	// be added to.
 	Blocked *BlockedEvals
 
-	// LogOutput is the writer logs should be written to
-	LogOutput io.Writer
+	// Logger is the logger used by the FSM
+	Logger log.Logger
 
 	// Region is the region of the server embedding the FSM
 	Region string
@@ -123,8 +124,8 @@ type FSMConfig struct {
 func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{
-		LogOutput: config.LogOutput,
-		Region:    config.Region,
+		Logger: config.Logger,
+		Region: config.Region,
 	}
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {
@@ -135,7 +136,7 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		evalBroker:          config.EvalBroker,
 		periodicDispatcher:  config.Periodic,
 		blockedEvals:        config.Blocked,
-		logger:              log.New(config.LogOutput, "", log.LstdFlags),
+		logger:              config.Logger.Named("fsm"),
 		config:              config,
 		state:               state,
 		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
@@ -246,6 +247,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
 	case structs.BatchNodeUpdateDrainRequestType:
 		return n.applyBatchDrainUpdate(buf[1:], log.Index)
+	case structs.SchedulerConfigRequestType:
+		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -255,7 +258,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 
 	// We didn't match anything, either panic or ignore
 	if ignoreUnknown {
-		n.logger.Printf("[WARN] nomad.fsm: ignoring unknown message type (%d), upgrade to newer version", msgType)
+		n.logger.Warn("ignoring unknown message type, upgrade to newer version", "msg_type", msgType)
 		return nil
 	}
 
@@ -273,7 +276,7 @@ func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
 	req.Node.Canonicalize()
 
 	if err := n.state.UpsertNode(index, req.Node); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertNode failed: %v", err)
+		n.logger.Error("UpsertNode failed", "error", err)
 		return err
 	}
 
@@ -294,7 +297,7 @@ func (n *nomadFSM) applyDeregisterNode(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.DeleteNode(index, req.NodeID); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteNode failed: %v", err)
+		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
 	return nil
@@ -308,7 +311,7 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpdateNodeStatus(index, req.NodeID, req.Status, req.NodeEvent); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeStatus failed: %v", err)
+		n.logger.Error("UpdateNodeStatus failed", "error", err)
 		return err
 	}
 
@@ -318,7 +321,7 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 		ws := memdb.NewWatchSet()
 		node, err := n.state.NodeByID(ws, req.NodeID)
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", req.NodeID, err)
+			n.logger.Error("looking up node failed", "node_id", req.NodeID, "error", err)
 			return err
 
 		}
@@ -350,7 +353,7 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.NodeEvent); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeDrain failed: %v", err)
+		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
 	return nil
@@ -364,7 +367,7 @@ func (n *nomadFSM) applyBatchDrainUpdate(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.BatchUpdateNodeDrain(index, req.Updates, req.NodeEvents); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: BatchUpdateNodeDrain failed: %v", err)
+		n.logger.Error("BatchUpdateNodeDrain failed", "error", err)
 		return err
 	}
 	return nil
@@ -380,12 +383,12 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 	// Lookup the existing node
 	node, err := n.state.NodeByID(nil, req.NodeID)
 	if err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed to lookup node %q: %v", req.NodeID, err)
+		n.logger.Error("UpdateNodeEligibility failed to lookup node", "node_id", req.NodeID, "error", err)
 		return err
 	}
 
 	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility, req.NodeEvent); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateNodeEligibility failed: %v", err)
+		n.logger.Error("UpdateNodeEligibility failed", "error", err)
 		return err
 	}
 
@@ -416,7 +419,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	req.Job.Canonicalize()
 
 	if err := n.state.UpsertJob(index, req.Job); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
+		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
 
@@ -424,7 +427,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// possibility that the periodic spec was removed and then we should stop
 	// tracking it.
 	if err := n.periodicDispatcher.Add(req.Job); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Add failed: %v", err)
+		n.logger.Error("periodicDispatcher.Add failed", "error", err)
 		return fmt.Errorf("failed adding job to periodic dispatcher: %v", err)
 	}
 
@@ -439,7 +442,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	if req.Job.IsPeriodicActive() {
 		prevLaunch, err := n.state.PeriodicLaunchByID(ws, req.Namespace, req.Job.ID)
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: PeriodicLaunchByID failed: %v", err)
+			n.logger.Error("PeriodicLaunchByID failed", "error", err)
 			return err
 		}
 
@@ -452,7 +455,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 				Launch:    time.Now(),
 			}
 			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
-				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
+				n.logger.Error("UpsertPeriodicLaunch failed", "error", err)
 				return err
 			}
 		}
@@ -463,7 +466,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	if parentID != "" {
 		parent, err := n.state.JobByID(ws, req.Namespace, parentID)
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: JobByID(%v) lookup for parent failed: %v", parentID, err)
+			n.logger.Error("JobByID lookup for parent failed", "parent_id", parentID, "namespace", req.Namespace, "error", err)
 			return err
 		} else if parent == nil {
 			// The parent has been deregistered.
@@ -473,7 +476,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		if parent.IsPeriodic() && !parent.IsParameterized() {
 			t, err := n.periodicDispatcher.LaunchTime(req.Job.ID)
 			if err != nil {
-				n.logger.Printf("[ERR] nomad.fsm: LaunchTime(%v) failed: %v", req.Job.ID, err)
+				n.logger.Error("LaunchTime failed", "job", req.Job.NamespacedID(), "error", err)
 				return err
 			}
 
@@ -483,7 +486,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 				Launch:    t,
 			}
 			if err := n.state.UpsertPeriodicLaunch(index, launch); err != nil {
-				n.logger.Printf("[ERR] nomad.fsm: UpsertPeriodicLaunch failed: %v", err)
+				n.logger.Error("UpsertPeriodicLaunch failed", "error", err)
 				return err
 			}
 		}
@@ -499,12 +502,14 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: deregistering job failed: %v", err)
-		return err
-	}
+	return n.state.WithWriteTransaction(func(tx state.Txn) error {
+		if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx); err != nil {
+			n.logger.Error("deregistering job failed", "error", err)
+			return err
+		}
 
-	return nil
+		return nil
+	})
 }
 
 func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
@@ -514,40 +519,58 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	for jobNS, options := range req.Jobs {
-		if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: deregistering %v failed: %v", jobNS, err)
+	// Perform all store updates atomically to ensure a consistent view for store readers.
+	// A partial update may increment the snapshot index, allowing eval brokers to process
+	// evals for jobs whose deregistering didn't get committed yet.
+	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
+		for jobNS, options := range req.Jobs {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
+				n.logger.Error("deregistering job failed", "job", jobNS, "error", err)
+				return err
+			}
+		}
+
+		if err := n.state.UpsertEvalsTxn(index, req.Evals, tx); err != nil {
+			n.logger.Error("UpsertEvals failed", "error", err)
 			return err
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
-	return n.upsertEvals(index, req.Evals)
+	// perform the side effects outside the transactions
+	n.handleUpsertedEvals(req.Evals)
+	return nil
 }
 
 // handleJobDeregister is used to deregister a job.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: periodicDispatcher.Remove failed: %v", err)
+		n.logger.Error("periodicDispatcher.Remove failed", "error", err)
 		return err
 	}
 
 	if purge {
-		if err := n.state.DeleteJob(index, namespace, jobID); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: DeleteJob failed: %v", err)
+		if err := n.state.DeleteJobTxn(index, namespace, jobID, tx); err != nil {
+			n.logger.Error("DeleteJob failed", "error", err)
 			return err
 		}
 
 		// We always delete from the periodic launch table because it is possible that
 		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
-		n.state.DeletePeriodicLaunch(index, namespace, jobID)
+		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
 		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByID(ws, namespace, jobID)
+		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: JobByID lookup failed: %v", err)
+			n.logger.Error("JobByID lookup failed", "error", err)
 			return err
 		}
 
@@ -558,8 +581,8 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped := current.Copy()
 		stopped.Stop = true
 
-		if err := n.state.UpsertJob(index, stopped); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: UpsertJob failed: %v", err)
+		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
+			n.logger.Error("UpsertJob failed", "error", err)
 			return err
 		}
 	}
@@ -578,7 +601,7 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 
 func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error {
 	if err := n.state.UpsertEvals(index, evals); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertEvals failed: %v", err)
+		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
 
@@ -608,7 +631,7 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 		len(eval.FailedTGAllocs) == 0 {
 		// If we have a successful evaluation for a node, untrack any
 		// blocked evaluation
-		n.blockedEvals.Untrack(eval.JobID)
+		n.blockedEvals.Untrack(eval.JobID, eval.Namespace)
 	}
 }
 
@@ -620,7 +643,7 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.DeleteEval(index, req.Evals, req.Allocs); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteEval failed: %v", err)
+		n.logger.Error("DeleteEval failed", "error", err)
 		return err
 	}
 	return nil
@@ -638,19 +661,12 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// prior to being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
+	// COMPAT(0.11): Remove in 0.11
 	// Calculate the total resources of allocations. It is pulled out in the
 	// payload to avoid encoding something that can be computed, but should be
 	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
 		if alloc.Resources != nil {
-			// COMPAT 0.4.1 -> 0.5
-			// Set the shared resources for allocations which don't have them
-			if alloc.SharedResources == nil {
-				alloc.SharedResources = &structs.Resources{
-					DiskMB: alloc.Resources.DiskMB,
-				}
-			}
-
 			continue
 		}
 
@@ -664,7 +680,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertAllocs failed: %v", err)
+		n.logger.Error("UpsertAllocs failed", "error", err)
 		return err
 	}
 	return nil
@@ -693,14 +709,14 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 
 	// Update all the client allocations
 	if err := n.state.UpdateAllocsFromClient(index, req.Alloc); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocFromClient failed: %v", err)
+		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
 
 	// Update any evals
 	if len(req.Evals) > 0 {
 		if err := n.upsertEvals(index, req.Evals); err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: applyAllocClientUpdate failed to update evaluations: %v", err)
+			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
 			return err
 		}
 	}
@@ -713,7 +729,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 			nodeID := alloc.NodeID
 			node, err := n.state.NodeByID(ws, nodeID)
 			if err != nil || node == nil {
-				n.logger.Printf("[ERR] nomad.fsm: looking up node %q failed: %v", nodeID, err)
+				n.logger.Error("looking up node failed", "node_id", nodeID, "error", err)
 				return err
 
 			}
@@ -721,7 +737,7 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 			// Unblock any associated quota
 			quota, err := n.allocQuota(alloc.ID)
 			if err != nil {
-				n.logger.Printf("[ERR] nomad.fsm: looking up quota associated with alloc %q failed: %v", alloc.ID, err)
+				n.logger.Error("looking up quota associated with alloc failed", "alloc_id", alloc.ID, "error", err)
 				return err
 			}
 
@@ -742,7 +758,7 @@ func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) i
 	}
 
 	if err := n.state.UpdateAllocsDesiredTransitions(index, req.Allocs, req.Evals); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateAllocsDesiredTransitions failed: %v", err)
+		n.logger.Error("UpdateAllocsDesiredTransitions failed", "error", err)
 		return err
 	}
 
@@ -763,12 +779,11 @@ func (n *nomadFSM) applyUpsertNodeEvent(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
 	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: failed to decode EmitNodeEventsRequest: %v", err)
-		return err
+		panic(fmt.Errorf("failed to decode EmitNodeEventsRequest: %v", err))
 	}
 
 	if err := n.state.UpsertNodeEvents(index, req.NodeEvents); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: failed to add node events: %v", err)
+		n.logger.Error("failed to add node events", "error", err)
 		return err
 	}
 
@@ -785,7 +800,7 @@ func (n *nomadFSM) applyUpsertVaultAccessor(buf []byte, index uint64) interface{
 	}
 
 	if err := n.state.UpsertVaultAccessor(index, req.Accessors); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertVaultAccessor failed: %v", err)
+		n.logger.Error("UpsertVaultAccessor failed", "error", err)
 		return err
 	}
 
@@ -801,7 +816,7 @@ func (n *nomadFSM) applyDeregisterVaultAccessor(buf []byte, index uint64) interf
 	}
 
 	if err := n.state.DeleteVaultAccessors(index, req.Accessors); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeregisterVaultAccessor failed: %v", err)
+		n.logger.Error("DeregisterVaultAccessor failed", "error", err)
 		return err
 	}
 
@@ -817,10 +832,12 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpsertPlanResults(index, &req); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: ApplyPlan failed: %v", err)
+		n.logger.Error("ApplyPlan failed", "error", err)
 		return err
 	}
 
+	// Add evals for jobs that were preempted
+	n.handleUpsertedEvals(req.PreemptionEvals)
 	return nil
 }
 
@@ -834,7 +851,7 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interfa
 	}
 
 	if err := n.state.UpdateDeploymentStatus(index, &req); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentStatusUpdate failed: %v", err)
+		n.logger.Error("UpsertDeploymentStatusUpdate failed", "error", err)
 		return err
 	}
 
@@ -851,7 +868,7 @@ func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{
 	}
 
 	if err := n.state.UpdateDeploymentPromotion(index, &req); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentPromotion failed: %v", err)
+		n.logger.Error("UpsertDeploymentPromotion failed", "error", err)
 		return err
 	}
 
@@ -869,7 +886,7 @@ func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interfac
 	}
 
 	if err := n.state.UpdateDeploymentAllocHealth(index, &req); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertDeploymentAllocHealth failed: %v", err)
+		n.logger.Error("UpsertDeploymentAllocHealth failed", "error", err)
 		return err
 	}
 
@@ -886,7 +903,7 @@ func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.DeleteDeployment(index, req.Deployments); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteDeployment failed: %v", err)
+		n.logger.Error("DeleteDeployment failed", "error", err)
 		return err
 	}
 
@@ -902,7 +919,7 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpdateJobStability(index, req.Namespace, req.JobID, req.JobVersion, req.Stable); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpdateJobStability failed: %v", err)
+		n.logger.Error("UpdateJobStability failed", "error", err)
 		return err
 	}
 
@@ -918,7 +935,7 @@ func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpsertACLPolicies(index, req.Policies); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertACLPolicies failed: %v", err)
+		n.logger.Error("UpsertACLPolicies failed", "error", err)
 		return err
 	}
 	return nil
@@ -933,7 +950,7 @@ func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.DeleteACLPolicies(index, req.Names); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteACLPolicies failed: %v", err)
+		n.logger.Error("DeleteACLPolicies failed", "error", err)
 		return err
 	}
 	return nil
@@ -948,7 +965,7 @@ func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpsertACLTokens(index, req.Tokens); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertACLTokens failed: %v", err)
+		n.logger.Error("UpsertACLTokens failed", "error", err)
 		return err
 	}
 	return nil
@@ -963,7 +980,7 @@ func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.DeleteACLTokens(index, req.AccessorIDs); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteACLTokens failed: %v", err)
+		n.logger.Error("DeleteACLTokens failed", "error", err)
 		return err
 	}
 	return nil
@@ -978,7 +995,7 @@ func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} 
 	}
 
 	if err := n.state.BootstrapACLTokens(index, req.ResetIndex, req.Token); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: BootstrapACLToken failed: %v", err)
+		n.logger.Error("BootstrapACLToken failed", "error", err)
 		return err
 	}
 	return nil
@@ -1001,6 +1018,23 @@ func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
 	return n.state.AutopilotSetConfig(index, &req.Config)
 }
 
+func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interface{} {
+	var req structs.SchedulerSetConfigRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_scheduler_config"}, time.Now())
+
+	if req.CAS {
+		applied, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
+		if err != nil {
+			return err
+		}
+		return applied
+	}
+	return n.state.SchedulerSetConfig(index, &req.Config)
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -1020,8 +1054,8 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 	// Create a new state store
 	config := &state.StateStoreConfig{
-		LogOutput: n.config.LogOutput,
-		Region:    n.config.Region,
+		Logger: n.config.Logger,
+		Region: n.config.Region,
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {
@@ -1221,6 +1255,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		case SchedulerConfigSnapshot:
+			schedConfig := new(structs.SchedulerConfiguration)
+			if err := dec.Decode(schedConfig); err != nil {
+				return err
+			}
+			if err := restore.SchedulerConfigRestore(schedConfig); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1358,6 +1401,11 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			break
 		}
 		job := rawJob.(*structs.Job)
+
+		// Nothing to do for queued allocations if the job is a parent periodic/parameterized job
+		if job.IsParameterized() || job.IsPeriodic() {
+			continue
+		}
 		planner := &scheduler.Harness{
 			State: &snap.StateStore,
 		}
@@ -1505,6 +1553,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistEnterpriseTables(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistSchedulerConfig(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1836,6 +1888,21 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		if err := encoder.Encode(token); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistSchedulerConfig(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get scheduler config
+	_, schedConfig, err := s.snap.SchedulerConfig()
+	if err != nil {
+		return err
+	}
+	// Write out scheduler config
+	sink.Write([]byte{byte(SchedulerConfigSnapshot)})
+	if err := encoder.Encode(schedConfig); err != nil {
+		return err
 	}
 	return nil
 }

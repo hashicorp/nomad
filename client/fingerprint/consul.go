@@ -2,13 +2,11 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
-
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	log "github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -18,17 +16,17 @@ const (
 
 // ConsulFingerprint is used to fingerprint for Consul
 type ConsulFingerprint struct {
-	logger    *log.Logger
+	logger    log.Logger
 	client    *consul.Client
 	lastState string
 }
 
 // NewConsulFingerprint is used to create a Consul fingerprint
-func NewConsulFingerprint(logger *log.Logger) Fingerprint {
-	return &ConsulFingerprint{logger: logger, lastState: consulUnavailable}
+func NewConsulFingerprint(logger log.Logger) Fingerprint {
+	return &ConsulFingerprint{logger: logger.Named("consul"), lastState: consulUnavailable}
 }
 
-func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	// Only create the client once to avoid creating too many connections to
 	// Consul.
 	if f.client == nil {
@@ -52,7 +50,7 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		// Print a message indicating that the Consul Agent is not available
 		// anymore
 		if f.lastState == consulAvailable {
-			f.logger.Printf("[INFO] fingerprint.consul: consul agent is unavailable")
+			f.logger.Info("consul agent is unavailable")
 		}
 		f.lastState = consulUnavailable
 		return nil
@@ -61,27 +59,27 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	if s, ok := info["Config"]["Server"].(bool); ok {
 		resp.AddAttribute("consul.server", strconv.FormatBool(s))
 	} else {
-		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.server")
+		f.logger.Warn("unable to fingerprint consul.server")
 	}
 	if v, ok := info["Config"]["Version"].(string); ok {
 		resp.AddAttribute("consul.version", v)
 	} else {
-		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.version")
+		f.logger.Warn("unable to fingerprint consul.version")
 	}
 	if r, ok := info["Config"]["Revision"].(string); ok {
 		resp.AddAttribute("consul.revision", r)
 	} else {
-		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.revision")
+		f.logger.Warn("unable to fingerprint consul.revision")
 	}
 	if n, ok := info["Config"]["NodeName"].(string); ok {
 		resp.AddAttribute("unique.consul.name", n)
 	} else {
-		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint unique.consul.name")
+		f.logger.Warn("unable to fingerprint unique.consul.name")
 	}
 	if d, ok := info["Config"]["Datacenter"].(string); ok {
 		resp.AddAttribute("consul.datacenter", d)
 	} else {
-		f.logger.Printf("[WARN] fingerprint.consul: unable to fingerprint consul.datacenter")
+		f.logger.Warn("unable to fingerprint consul.datacenter")
 	}
 
 	if dc, ok := resp.Attributes["consul.datacenter"]; ok {
@@ -89,13 +87,13 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 			resp.AddLink("consul", fmt.Sprintf("%s.%s", dc, name))
 		}
 	} else {
-		f.logger.Printf("[WARN] fingerprint.consul: malformed Consul response prevented linking")
+		f.logger.Warn("malformed Consul response prevented linking")
 	}
 
 	// If the Consul Agent was previously unavailable print a message to
 	// indicate the Agent is available now
 	if f.lastState == consulUnavailable {
-		f.logger.Printf("[INFO] fingerprint.consul: consul agent is available")
+		f.logger.Info("consul agent is available")
 	}
 	f.lastState = consulAvailable
 	resp.Detected = true
@@ -104,7 +102,7 @@ func (f *ConsulFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 
 // clearConsulAttributes removes consul attributes and links from the passed
 // Node.
-func (f *ConsulFingerprint) clearConsulAttributes(r *cstructs.FingerprintResponse) {
+func (f *ConsulFingerprint) clearConsulAttributes(r *FingerprintResponse) {
 	r.RemoveAttribute("consul.server")
 	r.RemoveAttribute("consul.version")
 	r.RemoveAttribute("consul.revision")

@@ -1,7 +1,7 @@
 import Mixin from '@ember/object/mixin';
 import { get, computed } from '@ember/object';
 import { reads } from '@ember/object/computed';
-import Fuse from 'npm:fuse.js';
+import Fuse from 'fuse.js';
 
 /**
   Searchable mixin
@@ -35,6 +35,16 @@ export default Mixin.create({
   exactMatchEnabled: true,
   fuzzySearchEnabled: false,
   regexEnabled: true,
+
+  // Search should reset pagination. Not every instance of
+  // search will be paired with pagination, but it's still
+  // preferable to generalize this rather than risking it being
+  // forgotten on a single page.
+  resetPagination() {
+    if (this.get('currentPage') != null) {
+      this.set('currentPage', 1);
+    }
+  },
 
   fuse: computed('listToSearch.[]', 'fuzzySearchProps.[]', function() {
     return new Fuse(this.get('listToSearch'), {

@@ -1,17 +1,21 @@
-{{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb index|}}
-    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
-      {{#link-to params=breadcrumb.args}}{{breadcrumb.label}}{{/link-to}}
-    </li>
-  {{/each}}
-{{/global-header}}
-{{#gutter-menu class="page-body" onNamespaceChange=(action "gotoJobs")}}
-  {{partial "jobs/job/subnav"}}
-  <section class="section">
+{{partial "jobs/job/subnav"}}
+<section class="section">
+  {{#unless isEditing}}
     <div class="boxed-section">
-      <div class="boxed-section-body is-dark">
-        {{json-viewer data-test-definition-view json=model.definition}}
+      <div class="boxed-section-head">
+        Job Definition
+        <button class="button is-light is-compact pull-right" type="button" onclick={{action edit}} data-test-edit-job>Edit</button>
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{json-viewer data-test-definition-view json=definition}}
       </div>
     </div>
-  </section>
-{{/gutter-menu}}
+  {{else}}
+    {{job-editor
+      job=job
+      cancelable=true
+      context="edit"
+      onCancel=(action onCancel)
+      onSubmit=(action onSubmit)}}
+  {{/unless}}
+</section>

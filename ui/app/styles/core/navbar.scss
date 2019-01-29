@@ -1,10 +1,13 @@
 .navbar {
+  display: flex;
+
   &.is-primary {
     background: linear-gradient(to right, $nomad-green-darker, $nomad-green-dark);
     height: 3.5rem;
     color: $primary-invert;
     padding-left: 20px;
     padding-right: 20px;
+    overflow: hidden;
 
     .navbar-item {
       color: rgba($primary-invert, 0.8);
@@ -35,11 +38,13 @@
           top: 1.25em;
         }
       }
+    }
 
-      &.is-logo img {
-        height: 26px;
-        max-height: 26px;
-      }
+    .navbar-end {
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-end;
+      margin-left: auto;
     }
 
     .navbar-end > a.navbar-item {
@@ -47,6 +52,12 @@
 
       &:hover {
         color: $primary-invert;
+        background: transparent;
+      }
+    }
+
+    .navbar-brand > a.navbar-item {
+      &:hover {
         background: transparent;
       }
     }
@@ -65,8 +76,24 @@
   }
 
   .navbar-item {
+    display: flex;
+    align-items: center;
+
     &.is-gutter {
       width: $gutter-width;
+      display: block;
+      padding: 0 1rem;
+      font-size: 1em;
+
+      // Unfortunate necessity to middle align an element larger than
+      // plain text in the subnav.
+      > * {
+        margin: -5px 0;
+      }
+
+      @media #{$mq-hidden-gutter} {
+        display: none;
+      }
     }
   }
 }

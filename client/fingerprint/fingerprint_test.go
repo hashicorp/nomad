@@ -3,22 +3,15 @@ package fingerprint
 // This file contains helper methods for testing fingerprinters
 
 import (
-	"log"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func testLogger() *log.Logger {
-	return log.New(os.Stderr, "", log.LstdFlags)
-}
-
-func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) *cstructs.FingerprintResponse {
-	request := &cstructs.FingerprintRequest{Config: new(config.Config), Node: node}
-	var response cstructs.FingerprintResponse
+func assertFingerprintOK(t *testing.T, fp Fingerprint, node *structs.Node) *FingerprintResponse {
+	request := &FingerprintRequest{Config: new(config.Config), Node: node}
+	var response FingerprintResponse
 	err := fp.Fingerprint(request, &response)
 	if err != nil {
 		t.Fatalf("Failed to fingerprint: %s", err)

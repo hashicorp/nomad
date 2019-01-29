@@ -1,65 +1,67 @@
-{{#global-header class="page-header"}}
-  <li class="is-active">
-    {{#link-to "jobs.index"}}Jobs{{/link-to}}
-  </li>
-{{/global-header}}
-{{#gutter-menu class="page-body" onNamespaceChange=(action "refresh")}}
-  <section class="section">
-    {{#if isForbidden}}
-      {{partial "partials/forbidden-message"}}
-    {{else}}
+<section class="section">
+  {{#if isForbidden}}
+    {{partial "partials/forbidden-message"}}
+  {{else}}
+    <div class="columns">
       {{#if filteredJobs.length}}
-        <div class="content">
-          <div>{{search-box data-test-jobs-search searchTerm=(mut searchTerm) placeholder="Search jobs..."}}</div>
+        <div class="column">
+          {{search-box
+            data-test-jobs-search
+            searchTerm=(mut searchTerm)
+            onChange=(action resetPagination)
+            placeholder="Search jobs..."}}
         </div>
       {{/if}}
-      {{#list-pagination
-        source=sortedJobs
-        size=pageSize
-        page=currentPage as |p|}}
-        {{#list-table
-          source=p.list
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          class="with-foot" as |t|}}
-          {{#t.head}}
-            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-            {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
-            {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
-            {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
-            <th>Groups</th>
-            <th class="is-3">Summary</th>
-          {{/t.head}}
-          {{#t.body key="model.id" as |row|}}
-            {{job-row data-test-job-row job=row.model onClick=(action "gotoJob" row.model)}}
-          {{/t.body}}
-        {{/list-table}}
-        <div class="table-foot">
-          <nav class="pagination">
-            <div class="pagination-numbers">
-              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedJobs.length}}
-              {{#if searchTerm}}
-                <em>({{dec sortedJobs.length filteredJobs.length}} hidden by search term)</em>
-              {{/if}}
-            </div>
-            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
-            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
-            <ul class="pagination-list"></ul>
-          </nav>
-        </div>
-      {{else}}
-        <div data-test-empty-jobs-list class="empty-message">
-          {{#if (eq filteredJobs.length 0)}}
-            <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Jobs</h3>
-            <p class="empty-message-body">
-              The cluster is currently empty.
-            </p>
-          {{else if searchTerm}}
-            <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>
-            <p class="empty-message-body">No jobs match the term <strong>{{searchTerm}}</strong></p>
-          {{/if}}
-        </div>
-      {{/list-pagination}}
-    {{/if}}
-  </section>
-{{/gutter-menu}}
+      <div class="column is-centered">
+        {{#link-to "jobs.run" data-test-run-job class="button is-primary is-pulled-right"}}Run Job{{/link-to}}
+      </div>
+    </div>
+    {{#list-pagination
+      source=sortedJobs
+      size=pageSize
+      page=currentPage as |p|}}
+      {{#list-table
+        source=p.list
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        class="with-foot" as |t|}}
+        {{#t.head}}
+          {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
+          {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
+          {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
+          {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
+          <th>Groups</th>
+          <th class="is-3">Summary</th>
+        {{/t.head}}
+        {{#t.body key="model.id" as |row|}}
+          {{job-row data-test-job-row=row.model.plainId job=row.model onClick=(action "gotoJob" row.model)}}
+        {{/t.body}}
+      {{/list-table}}
+      <div class="table-foot">
+        <nav class="pagination">
+          <div class="pagination-numbers">
+            {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedJobs.length}}
+            {{#if searchTerm}}
+              <em>({{dec sortedJobs.length filteredJobs.length}} hidden by search term)</em>
+            {{/if}}
+          </div>
+          {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
+          {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+          <ul class="pagination-list"></ul>
+        </nav>
+      </div>
+    {{else}}
+      <div data-test-empty-jobs-list class="empty-message">
+        {{#if (eq filteredJobs.length 0)}}
+          <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Jobs</h3>
+          <p class="empty-message-body">
+            The cluster is currently empty.
+          </p>
+        {{else if searchTerm}}
+          <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">No jobs match the term <strong>{{searchTerm}}</strong></p>
+        {{/if}}
+      </div>
+    {{/list-pagination}}
+  {{/if}}
+</section>

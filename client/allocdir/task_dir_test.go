@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 )
 
 // Test that building a chroot will skip nonexistent directories.
@@ -17,7 +17,7 @@ func TestTaskDir_EmbedNonexistent(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
@@ -39,7 +39,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
@@ -96,14 +96,14 @@ func TestTaskDir_NonRoot_Image(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 
-	if err := td.Build(false, nil, cstructs.FSIsolationImage); err != nil {
+	if err := td.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build failed: %v", err)
 	}
 }
@@ -119,14 +119,14 @@ func TestTaskDir_NonRoot(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testLogger(), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp)
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
 		t.Fatalf("Build() failed: %v", err)
 	}
 
-	if err := td.Build(false, nil, cstructs.FSIsolationNone); err != nil {
+	if err := td.Build(false, nil); err != nil {
 		t.Fatalf("TaskDir.Build failed: %v", err)
 	}
 

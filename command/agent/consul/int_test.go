@@ -1,31 +1,36 @@
 package consul_test
 
 import (
+	"context"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/boltdb/bolt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
-	"github.com/hashicorp/nomad/client"
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func testLogger() *log.Logger {
-	if testing.Verbose() {
-		return log.New(os.Stderr, "", log.LstdFlags)
-	}
-	return log.New(ioutil.Discard, "", 0)
+type mockUpdater struct {
+	logger log.Logger
+}
+
+func (m *mockUpdater) TaskStateUpdated() {
+	m.logger.Named("mock.updater").Debug("Update!")
 }
 
 // TestConsul_Integration asserts TaskRunner properly registers and deregisters
@@ -34,7 +39,7 @@ func TestConsul_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
-	assert := assert.New(t)
+	require := require.New(t)
 
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
@@ -68,15 +73,6 @@ func TestConsul_Integration(t *testing.T) {
 	}
 	defer os.RemoveAll(conf.AllocDir)
 
-	tmp, err := ioutil.TempFile("", "state-db")
-	if err != nil {
-		t.Fatalf("error creating state db file: %v", err)
-	}
-	db, err := bolt.Open(tmp.Name(), 0600, nil)
-	if err != nil {
-		t.Fatalf("error creating state db: %v", err)
-	}
-
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
@@ -91,9 +87,8 @@ func TestConsul_Integration(t *testing.T) {
 		MBits:         50,
 		ReservedPorts: []structs.Port{{Label: "http", Value: 3}},
 	}
-	alloc.Resources.Networks[0] = netResource
-	alloc.TaskResources["web"].Networks[0] = netResource
-	task.Resources.Networks[0] = netResource
+	alloc.AllocatedResources.Tasks["web"].Networks[0] = netResource
+
 	task.Services = []*structs.Service{
 		{
 			Name:      "httpd",
@@ -129,10 +124,8 @@ func TestConsul_Integration(t *testing.T) {
 		},
 	}
 
-	logger := testLogger()
-	logUpdate := func(name, state string, event *structs.TaskEvent, lazySync bool) {
-		logger.Printf("[TEST] test.updater: name=%q state=%q event=%v", name, state, event)
-	}
+	logger := testlog.HCLogger(t)
+	logUpdate := &mockUpdater{logger}
 	allocDir := allocdir.NewAllocDir(logger, filepath.Join(conf.AllocDir, alloc.ID))
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
@@ -140,17 +133,33 @@ func TestConsul_Integration(t *testing.T) {
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)
-	assert.Nil(err)
+	require.Nil(err)
 
-	serviceClient := consul.NewServiceClient(consulClient.Agent(), logger, true)
+	serviceClient := consul.NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
 	defer serviceClient.Shutdown() // just-in-case cleanup
 	consulRan := make(chan struct{})
 	go func() {
 		serviceClient.Run()
 		close(consulRan)
 	}()
-	tr := client.NewTaskRunner(logger, conf, db, logUpdate, taskDir, alloc, task, vclient, serviceClient)
-	tr.MarkReceived()
+
+	// Build the config
+	config := &taskrunner.Config{
+		Alloc:         alloc,
+		ClientConfig:  conf,
+		Consul:        serviceClient,
+		Task:          task,
+		TaskDir:       taskDir,
+		Logger:        logger,
+		Vault:         vclient,
+		StateDB:       state.NoopDB{},
+		StateUpdater:  logUpdate,
+		DeviceManager: devicemanager.NoopMockManager(),
+		DriverManager: drivermanager.TestDriverManager(t),
+	}
+
+	tr, err := taskrunner.NewTaskRunner(config)
+	require.NoError(err)
 	go tr.Run()
 	defer func() {
 		// Make sure we always shutdown task runner when the test exits
@@ -158,14 +167,14 @@ func TestConsul_Integration(t *testing.T) {
 		case <-tr.WaitCh():
 			// Exited cleanly, no need to kill
 		default:
-			tr.Kill("", "", true) // just in case
+			tr.Kill(context.Background(), &structs.TaskEvent{}) // just in case
 		}
 	}()
 
 	// Block waiting for the service to appear
 	catalog := consulClient.Catalog()
 	res, meta, err := catalog.Service("httpd2", "test", nil)
-	assert.Nil(err)
+	require.Nil(err)
 
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		//Expected initial request to fail, do a blocking query
@@ -174,7 +183,7 @@ func TestConsul_Integration(t *testing.T) {
 			t.Fatalf("error querying for service: %v", err)
 		}
 	}
-	assert.Len(res, 1)
+	require.Len(res, 1)
 
 	// Truncate results
 	res = res[:]
@@ -182,16 +191,16 @@ func TestConsul_Integration(t *testing.T) {
 	// Assert the service with the checks exists
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		res, meta, err = catalog.Service("httpd", "http", &consulapi.QueryOptions{WaitIndex: meta.LastIndex + 1, WaitTime: 3 * time.Second})
-		assert.Nil(err)
+		require.Nil(err)
 	}
-	assert.Len(res, 1)
+	require.Len(res, 1)
 
 	// Assert the script check passes (mock_driver script checks always
 	// pass) after having time to run once
 	time.Sleep(2 * time.Second)
 	checks, _, err := consulClient.Health().Checks("httpd", nil)
-	assert.Nil(err)
-	assert.Len(checks, 2)
+	require.Nil(err)
+	require.Len(checks, 2)
 
 	for _, check := range checks {
 		if expected := "httpd"; check.ServiceName != expected {
@@ -228,10 +237,10 @@ func TestConsul_Integration(t *testing.T) {
 		t.Fatalf("Unexpected number of checks registered. Got %d; want 2", cnum)
 	}
 
-	logger.Printf("[TEST] consul.test: killing task")
+	logger.Debug("killing task")
 
 	// Kill the task
-	tr.Kill("", "", false)
+	tr.Kill(context.Background(), &structs.TaskEvent{})
 
 	select {
 	case <-tr.WaitCh():
@@ -246,7 +255,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Ensure Consul is clean
 	services, _, err := catalog.Services(nil)
-	assert.Nil(err)
-	assert.Len(services, 1)
-	assert.Contains(services, "consul")
+	require.Nil(err)
+	require.Len(services, 1)
+	require.Contains(services, "consul")
 }

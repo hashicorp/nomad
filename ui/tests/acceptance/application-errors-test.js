@@ -1,6 +1,8 @@
-import { find, visit } from 'ember-native-dom-helpers';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { test } from 'qunit';
+import ClientsList from 'nomad-ui/tests/pages/clients/list';
+import JobsList from 'nomad-ui/tests/pages/jobs/list';
+import Job from 'nomad-ui/tests/pages/jobs/detail';
 
 moduleForAcceptance('Acceptance | application errors ', {
   beforeEach() {
@@ -13,16 +15,16 @@ moduleForAcceptance('Acceptance | application errors ', {
 test('transitioning away from an error page resets the global error', function(assert) {
   server.pretender.get('/v1/nodes', () => [500, {}, null]);
 
-  visit('/clients');
+  ClientsList.visit();
 
   andThen(() => {
-    assert.ok(find('[data-test-error]'), 'Application has errored');
+    assert.ok(ClientsList.error.isPresent, 'Application has errored');
   });
 
-  visit('/jobs');
+  JobsList.visit();
 
   andThen(() => {
-    assert.notOk(find('[data-test-error]'), 'Application is no longer in an error state');
+    assert.notOk(JobsList.error.isPresent, 'Application is no longer in an error state');
   });
 });
 
@@ -31,19 +33,15 @@ test('the 403 error page links to the ACL tokens page', function(assert) {
 
   server.pretender.get(`/v1/job/${job.id}`, () => [403, {}, null]);
 
-  visit(`/jobs/${job.id}`);
+  Job.visit({ id: job.id });
 
   andThen(() => {
-    assert.ok(find('[data-test-error]'), 'Error message is shown');
-    assert.equal(
-      find('[data-test-error] .title').textContent,
-      'Not Authorized',
-      'Error message is for 403'
-    );
+    assert.ok(Job.error.isPresent, 'Error message is shown');
+    assert.equal(Job.error.title, 'Not Authorized', 'Error message is for 403');
   });
 
   andThen(() => {
-    click('[data-test-error-acl-link]');
+    Job.error.seekHelp();
   });
 
   andThen(() => {
@@ -52,5 +50,45 @@ test('the 403 error page links to the ACL tokens page', function(assert) {
       '/settings/tokens',
       'Error message contains a link to the tokens page'
     );
+  });
+});
+
+test('the no leader error state gets its own error message', function(assert) {
+  server.pretender.get('/v1/jobs', () => [500, {}, 'No cluster leader']);
+
+  JobsList.visit();
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    assert.equal(
+      JobsList.error.title,
+      'No Cluster Leader',
+      'The error is specifically for the lack of a cluster leader'
+    );
+  });
+});
+
+test('error pages include links to the jobs and clients pages', function(assert) {
+  visit('/a/non-existent/page');
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    JobsList.error.gotoJobs();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/jobs', 'Now on the jobs page');
+    assert.notOk(JobsList.error.isPresent, 'The error is gone now');
+    visit('/a/non-existent/page');
+  });
+
+  andThen(() => {
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    JobsList.error.gotoClients();
+  });
+
+  andThen(() => {
+    assert.equal(currentURL(), '/clients', 'Now on the clients page');
+    assert.notOk(JobsList.error.isPresent, 'The error is gone now');
   });
 });

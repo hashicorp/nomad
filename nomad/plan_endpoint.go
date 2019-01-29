@@ -3,13 +3,16 @@ package nomad
 import (
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // Plan endpoint is used for plan interactions
 type Plan struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // Submit is used to submit a plan to the leader

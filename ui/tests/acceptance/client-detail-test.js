@@ -1,11 +1,13 @@
 import { assign } from '@ember/polyfills';
-import $ from 'jquery';
-import { click, find, findAll, currentURL, visit } from 'ember-native-dom-helpers';
+import { currentURL } from 'ember-native-dom-helpers';
 import { test } from 'qunit';
 import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import formatDuration from 'nomad-ui/utils/format-duration';
 import moment from 'moment';
+import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
+import Clients from 'nomad-ui/tests/pages/clients/list';
+import Jobs from 'nomad-ui/tests/pages/jobs/list';
 
 let node;
 
@@ -17,28 +19,28 @@ moduleForAcceptance('Acceptance | client detail', {
     // Related models
     server.create('agent');
     server.create('job', { createAllocations: false });
-    server.createList('allocation', 3, { nodeId: node.id });
+    server.createList('allocation', 3, { nodeId: node.id, clientStatus: 'running' });
   },
 });
 
 test('/clients/:id should have a breadcrumb trail linking back to clients', function(assert) {
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     assert.equal(
-      find('[data-test-breadcrumb="clients"]').textContent.trim(),
+      ClientDetail.breadcrumbFor('clients.index').text,
       'Clients',
       'First breadcrumb says clients'
     );
     assert.equal(
-      find('[data-test-breadcrumb="client"]').textContent.trim(),
+      ClientDetail.breadcrumbFor('clients.client').text,
       node.id.split('-')[0],
       'Second breadcrumb says the node short id'
     );
   });
 
   andThen(() => {
-    click(find('[data-test-breadcrumb="clients"]'));
+    ClientDetail.breadcrumbFor('clients.index').visit();
   });
 
   andThen(() => {
@@ -47,64 +49,68 @@ test('/clients/:id should have a breadcrumb trail linking back to clients', func
 });
 
 test('/clients/:id should list immediate details for the node in the title', function(assert) {
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    assert.ok(find('[data-test-title]').textContent.includes(node.name), 'Title includes name');
-    assert.ok(find('[data-test-title]').textContent.includes(node.id), 'Title includes id');
-    assert.ok(find(`[data-test-node-status="${node.status}"]`), 'Title includes status light');
+    assert.ok(ClientDetail.title.includes(node.name), 'Title includes name');
+    assert.ok(ClientDetail.title.includes(node.id), 'Title includes id');
+    assert.equal(
+      ClientDetail.statusLight.objectAt(0).id,
+      node.status,
+      'Title includes status light'
+    );
   });
 });
 
 test('/clients/:id should list additional detail for the node below the title', function(assert) {
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     assert.ok(
-      find('.inline-definitions .pair')
-        .textContent.trim()
-        .includes(node.status),
+      ClientDetail.statusDefinition.includes(node.status),
       'Status is in additional details'
     );
     assert.ok(
-      $('[data-test-status-definition] .status-text').hasClass(`node-${node.status}`),
+      ClientDetail.statusDecorationClass.includes(`node-${node.status}`),
       'Status is decorated with a status class'
     );
     assert.ok(
-      find('[data-test-address-definition]')
-        .textContent.trim()
-        .includes(node.httpAddr),
+      ClientDetail.addressDefinition.includes(node.httpAddr),
       'Address is in additional details'
     );
     assert.ok(
-      find('[data-test-draining]')
-        .textContent.trim()
-        .includes(node.drain + ''),
+      ClientDetail.drainingDefinition.includes(node.drain + ''),
       'Drain status is in additional details'
     );
     assert.ok(
-      find('[data-test-eligibility]')
-        .textContent.trim()
-        .includes(node.schedulingEligibility),
+      ClientDetail.eligibilityDefinition.includes(node.schedulingEligibility),
       'Scheduling eligibility is in additional details'
     );
     assert.ok(
-      find('[data-test-datacenter-definition]')
-        .textContent.trim()
-        .includes(node.datacenter),
+      ClientDetail.datacenterDefinition.includes(node.datacenter),
       'Datacenter is in additional details'
     );
+  });
+});
+
+test('/clients/:id should include resource utilization graphs', function(assert) {
+  ClientDetail.visit({ id: node.id });
+
+  andThen(() => {
+    assert.equal(ClientDetail.resourceCharts.length, 2, 'Two resource utilization graphs');
+    assert.equal(ClientDetail.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
+    assert.equal(ClientDetail.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 });
 
 test('/clients/:id should list all allocations on the node', function(assert) {
   const allocationsCount = server.db.allocations.where({ nodeId: node.id }).length;
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     assert.equal(
-      findAll('[data-test-allocation]').length,
+      ClientDetail.allocations.length,
       allocationsCount,
       `Allocations table lists all ${allocationsCount} associated allocations`
     );
@@ -127,87 +133,43 @@ test('each allocation should have high-level details for the allocation', functi
   const cpuUsed = tasks.reduce((sum, task) => sum + task.Resources.CPU, 0);
   const memoryUsed = tasks.reduce((sum, task) => sum + task.Resources.MemoryMB, 0);
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    const allocationRow = $(find('[data-test-allocation]'));
+    const allocationRow = ClientDetail.allocations.objectAt(0);
+
+    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short ID');
     assert.equal(
-      allocationRow
-        .find('[data-test-short-id]')
-        .text()
-        .trim(),
-      allocation.id.split('-')[0],
-      'Allocation short ID'
+      allocationRow.createTime,
+      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      'Allocation create time'
     );
     assert.equal(
-      allocationRow
-        .find('[data-test-modify-time]')
-        .text()
-        .trim(),
-      moment(allocation.modifyTime / 1000000).format('MM/DD HH:mm:ss'),
+      allocationRow.modifyTime,
+      moment(allocation.modifyTime / 1000000).fromNow(),
       'Allocation modify time'
     );
+    assert.equal(allocationRow.status, allocation.clientStatus, 'Client status');
+    assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
+    assert.ok(allocationRow.taskGroup, 'Task group name');
+    assert.ok(allocationRow.jobVersion, 'Job Version');
     assert.equal(
-      allocationRow
-        .find('[data-test-name]')
-        .text()
-        .trim(),
-      allocation.name,
-      'Allocation name'
-    );
-    assert.equal(
-      allocationRow
-        .find('[data-test-client-status]')
-        .text()
-        .trim(),
-      allocation.clientStatus,
-      'Client status'
-    );
-    assert.equal(
-      allocationRow
-        .find('[data-test-job]')
-        .text()
-        .trim(),
-      server.db.jobs.find(allocation.jobId).name,
-      'Job name'
-    );
-    assert.ok(
-      allocationRow
-        .find('[data-test-task-group]')
-        .text()
-        .includes(allocation.taskGroup),
-      'Task group name'
-    );
-    assert.ok(
-      allocationRow
-        .find('[data-test-job-version]')
-        .text()
-        .includes(allocation.jobVersion),
-      'Job Version'
-    );
-    assert.equal(
-      allocationRow
-        .find('[data-test-cpu]')
-        .text()
-        .trim(),
+      allocationRow.cpu,
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
       'CPU %'
     );
     assert.equal(
-      allocationRow.find('[data-test-cpu] .tooltip').attr('aria-label'),
+      allocationRow.cpuTooltip,
       `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
       'Detailed CPU information is in a tooltip'
     );
     assert.equal(
-      allocationRow
-        .find('[data-test-mem]')
-        .text()
-        .trim(),
+      allocationRow.mem,
       allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
       'Memory used'
     );
     assert.equal(
-      allocationRow.find('[data-test-mem] .tooltip').attr('aria-label'),
+      allocationRow.memTooltip,
       `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
       'Detailed memory information is in a tooltip'
     );
@@ -218,40 +180,28 @@ test('each allocation should show job information even if the job is incomplete 
   // First, visit clients to load the allocations for each visible node.
   // Don't load the job belongsTo of the allocation! Leave it unfulfilled.
 
-  visit('/clients');
+  Clients.visit();
 
   // Then, visit jobs to load all jobs, which should implicitly fulfill
   // the job belongsTo of each allocation pointed at each job.
 
-  visit('/jobs');
+  Jobs.visit();
 
   // Finally, visit a node to assert that the job name and task group name are
   // present. This will require reloading the job, since task groups aren't a
   // part of the jobs list response.
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    const allocationRow = $(find('[data-test-allocation]'));
+    const allocationRow = ClientDetail.allocations.objectAt(0);
     const allocation = server.db.allocations
       .where({ nodeId: node.id })
       .sortBy('modifyIndex')
       .reverse()[0];
 
-    assert.ok(
-      allocationRow
-        .find('[data-test-job]')
-        .text()
-        .includes(server.db.jobs.find(allocation.jobId).name),
-      'Job name'
-    );
-    assert.ok(
-      allocationRow
-        .find('[data-test-task-group]')
-        .text()
-        .includes(allocation.taskGroup),
-      'Task group name'
-    );
+    assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
+    assert.ok(allocationRow.taskGroup.includes(allocation.taskGroup), 'Task group name');
   });
 });
 
@@ -261,10 +211,10 @@ test('each allocation should link to the allocation detail page', function(asser
     .sortBy('modifyIndex')
     .reverse()[0];
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    click('[data-test-short-id] a');
+    ClientDetail.allocations.objectAt(0).visit();
   });
 
   andThen(() => {
@@ -277,13 +227,13 @@ test('each allocation should link to the allocation detail page', function(asser
 });
 
 test('each allocation should link to the job the allocation belongs to', function(assert) {
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   const allocation = server.db.allocations.where({ nodeId: node.id })[0];
   const job = server.db.jobs.find(allocation.jobId);
 
   andThen(() => {
-    click('[data-test-job]');
+    ClientDetail.allocations.objectAt(0).visitJob();
   });
 
   andThen(() => {
@@ -296,30 +246,31 @@ test('each allocation should link to the job the allocation belongs to', functio
 });
 
 test('/clients/:id should list all attributes for the node', function(assert) {
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    assert.ok(find('[data-test-attributes]'), 'Attributes table is on the page');
+    assert.ok(ClientDetail.attributesTable, 'Attributes table is on the page');
   });
 });
 
 test('/clients/:id lists all meta attributes', function(assert) {
   node = server.create('node', 'forceIPv4', 'withMeta');
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    assert.ok(find('[data-test-meta]'), 'Meta attributes table is on the page');
-    assert.notOk(find('[data-test-empty-meta-message]'), 'Meta attributes is not empty');
+    assert.ok(ClientDetail.metaTable, 'Meta attributes table is on the page');
+    assert.notOk(ClientDetail.emptyMetaMessage, 'Meta attributes is not empty');
 
     const firstMetaKey = Object.keys(node.meta)[0];
+    const firstMetaAttribute = ClientDetail.metaAttributes.objectAt(0);
     assert.equal(
-      find('[data-test-meta] [data-test-key]').textContent.trim(),
+      firstMetaAttribute.key,
       firstMetaKey,
       'Meta attributes for the node are bound to the attributes table'
     );
     assert.equal(
-      find('[data-test-meta] [data-test-value]').textContent.trim(),
+      firstMetaAttribute.value,
       node.meta[firstMetaKey],
       'Meta attributes for the node are bound to the attributes table'
     );
@@ -327,16 +278,16 @@ test('/clients/:id lists all meta attributes', function(assert) {
 });
 
 test('/clients/:id shows an empty message when there is no meta data', function(assert) {
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    assert.notOk(find('[data-test-meta]'), 'Meta attributes table is not on the page');
-    assert.ok(find('[data-test-empty-meta-message]'), 'Meta attributes is empty');
+    assert.notOk(ClientDetail.metaTable, 'Meta attributes table is not on the page');
+    assert.ok(ClientDetail.emptyMetaMessage, 'Meta attributes is empty');
   });
 });
 
 test('when the node is not found, an error message is shown, but the URL persists', function(assert) {
-  visit('/clients/not-a-real-node');
+  ClientDetail.visit({ id: 'not-a-real-node' });
 
   andThen(() => {
     assert.equal(
@@ -345,20 +296,16 @@ test('when the node is not found, an error message is shown, but the URL persist
       'A request to the nonexistent node is made'
     );
     assert.equal(currentURL(), '/clients/not-a-real-node', 'The URL persists');
-    assert.ok(find('[data-test-error]'), 'Error message is shown');
-    assert.equal(
-      find('[data-test-error-title]').textContent.trim(),
-      'Not Found',
-      'Error message is for 404'
-    );
+    assert.ok(ClientDetail.error.isShown, 'Error message is shown');
+    assert.equal(ClientDetail.error.title, 'Not Found', 'Error message is for 404');
   });
 });
 
 test('/clients/:id shows the recent events list', function(assert) {
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    assert.ok(find('[data-test-client-events]'), 'Client events section exists');
+    assert.ok(ClientDetail.hasEvents, 'Client events section exists');
   });
 });
 
@@ -368,34 +315,13 @@ test('each node event shows basic node event information', function(assert) {
     .sortBy('time')
     .reverse()[0];
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    const eventRow = $(find('[data-test-client-event]'));
-    assert.equal(
-      eventRow
-        .find('[data-test-client-event-time]')
-        .text()
-        .trim(),
-      moment(event.time).format('MM/DD/YY HH:mm:ss'),
-      'Event timestamp'
-    );
-    assert.equal(
-      eventRow
-        .find('[data-test-client-event-subsystem]')
-        .text()
-        .trim(),
-      event.subsystem,
-      'Event subsystem'
-    );
-    assert.equal(
-      eventRow
-        .find('[data-test-client-event-message]')
-        .text()
-        .trim(),
-      event.message,
-      'Event message'
-    );
+    const eventRow = ClientDetail.events.objectAt(0);
+    assert.equal(eventRow.time, moment(event.time).format('MM/DD/YY HH:mm:ss'), 'Event timestamp');
+    assert.equal(eventRow.subsystem, event.subsystem, 'Event subsystem');
+    assert.equal(eventRow.message, event.message, 'Event message');
   });
 });
 
@@ -417,57 +343,37 @@ test('/clients/:id shows the driver status of every driver for the node', functi
 
   assert.ok(drivers.length > 0, 'Node has drivers');
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    const driverRows = findAll('[data-test-driver-status] [data-test-accordion-head]');
-
     drivers.forEach((driver, index) => {
-      const driverRow = $(driverRows[index]);
+      const driverHead = ClientDetail.driverHeads.objectAt(index);
 
+      assert.equal(driverHead.name, driver.Name, `${driver.Name}: Name is correct`);
       assert.equal(
-        driverRow
-          .find('[data-test-name]')
-          .text()
-          .trim(),
-        driver.Name,
-        `${driver.Name}: Name is correct`
-      );
-      assert.equal(
-        driverRow
-          .find('[data-test-detected]')
-          .text()
-          .trim(),
+        driverHead.detected,
         driver.Detected ? 'Yes' : 'No',
         `${driver.Name}: Detection is correct`
       );
       assert.equal(
-        driverRow
-          .find('[data-test-last-updated]')
-          .text()
-          .trim(),
+        driverHead.lastUpdated,
         moment(driver.UpdateTime).fromNow(),
         `${driver.Name}: Last updated shows time since now`
       );
 
       if (driver.Name === undetectedDriver) {
         assert.notOk(
-          driverRow.find('[data-test-health]').length,
+          driverHead.healthIsShown,
           `${driver.Name}: No health for the undetected driver`
         );
       } else {
         assert.equal(
-          driverRow
-            .find('[data-test-health]')
-            .text()
-            .trim(),
+          driverHead.health,
           driver.Healthy ? 'Healthy' : 'Unhealthy',
           `${driver.Name}: Health is correct`
         );
         assert.ok(
-          driverRow
-            .find('[data-test-health] .color-swatch')
-            .hasClass(driver.Healthy ? 'running' : 'failed'),
+          driverHead.healthClass.includes(driver.Healthy ? 'running' : 'failed'),
           `${driver.Name}: Swatch with correct class is shown`
         );
       }
@@ -487,35 +393,23 @@ test('each driver can be opened to see a message and attributes', function(asser
     .map(driverName => assign({ Name: driverName }, node.drivers[driverName]))
     .sortBy('Name')[0];
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
+  const driverHead = ClientDetail.driverHeads.objectAt(0);
+  const driverBody = ClientDetail.driverBodies.objectAt(0);
 
   andThen(() => {
-    const driverBody = $(find('[data-test-driver-status] [data-test-accordion-body]'));
-    assert.notOk(
-      driverBody.find('[data-test-health-description]').length,
-      'Driver health description is not shown'
-    );
-    assert.notOk(
-      driverBody.find('[data-test-driver-attributes]').length,
-      'Driver attributes section is not shown'
-    );
-    click('[data-test-driver-status] [data-test-accordion-toggle]');
+    assert.notOk(driverBody.descriptionIsShown, 'Driver health description is not shown');
+    assert.notOk(driverBody.attributesAreShown, 'Driver attributes section is not shown');
+    driverHead.toggle();
   });
 
   andThen(() => {
-    const driverBody = $(find('[data-test-driver-status] [data-test-accordion-body]'));
     assert.equal(
-      driverBody
-        .find('[data-test-health-description]')
-        .text()
-        .trim(),
+      driverBody.description,
       driver.HealthDescription,
       'Driver health description is now shown'
     );
-    assert.ok(
-      driverBody.find('[data-test-driver-attributes]').length,
-      'Driver attributes section is now shown'
-    );
+    assert.ok(driverBody.attributesAreShown, 'Driver attributes section is now shown');
   });
 });
 
@@ -524,11 +418,12 @@ test('the status light indicates when the node is ineligible for scheduling', fu
     schedulingEligibility: 'ineligible',
   });
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    assert.ok(
-      find('[data-test-node-status="ineligible"]'),
+    assert.equal(
+      ClientDetail.statusLight.objectAt(0).id,
+      'ineligible',
       'Title status light is in the ineligible state'
     );
   });
@@ -548,34 +443,26 @@ test('when the node has a drain strategy with a positive deadline, the drain sta
     },
   });
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     assert.ok(
-      find('[data-test-drain-deadline]')
-        .textContent.trim()
-        .includes(formatDuration(deadline)),
+      ClientDetail.drain.deadline.includes(formatDuration(deadline)),
       'Deadline is shown in a human formatted way'
     );
 
     assert.ok(
-      find('[data-test-drain-forced-deadline]')
-        .textContent.trim()
-        .includes(forceDeadline.format('MM/DD/YY HH:mm:ss')),
+      ClientDetail.drain.forcedDeadline.includes(forceDeadline.format('MM/DD/YY HH:mm:ss')),
       'Force deadline is shown as an absolute date'
     );
 
     assert.ok(
-      find('[data-test-drain-forced-deadline]')
-        .textContent.trim()
-        .includes(forceDeadline.fromNow()),
+      ClientDetail.drain.forcedDeadline.includes(forceDeadline.fromNow()),
       'Force deadline is shown as a relative date'
     );
 
     assert.ok(
-      find('[data-test-drain-ignore-system-jobs]')
-        .textContent.trim()
-        .endsWith('No'),
+      ClientDetail.drain.ignoreSystemJobs.endsWith('No'),
       'Ignore System Jobs state is shown'
     );
   });
@@ -594,25 +481,21 @@ test('when the node has a drain stategy with no deadline, the drain stategy sect
     },
   });
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
     assert.ok(
-      find('[data-test-drain-deadline]')
-        .textContent.trim()
-        .includes('No deadline'),
+      ClientDetail.drain.deadline.includes('No deadline'),
       'The value for Deadline is "no deadline"'
     );
 
     assert.notOk(
-      find('[data-test-drain-forced-deadline]'),
+      ClientDetail.drain.hasForcedDeadline,
       'Forced deadline is not shown since there is no forced deadline'
     );
 
     assert.ok(
-      find('[data-test-drain-ignore-system-jobs]')
-        .textContent.trim()
-        .endsWith('Yes'),
+      ClientDetail.drain.ignoreSystemJobs.endsWith('Yes'),
       'Ignore System Jobs state is shown'
     );
   });
@@ -631,26 +514,66 @@ test('when the node has a drain stategy with a negative deadline, the drain stra
     },
   });
 
-  visit(`/clients/${node.id}`);
+  ClientDetail.visit({ id: node.id });
 
   andThen(() => {
-    assert.ok(
-      find('[data-test-drain-deadline] .badge.is-danger')
-        .textContent.trim()
-        .includes('Forced Drain'),
-      'Forced Drain is shown in a red badge'
-    );
+    assert.equal(ClientDetail.drain.badgeLabel, 'Forced Drain', 'Forced Drain badge is described');
+    assert.ok(ClientDetail.drain.badgeIsDangerous, 'Forced Drain is shown in a red badge');
 
     assert.notOk(
-      find('[data-test-drain-forced-deadline]'),
+      ClientDetail.drain.hasForcedDeadline,
       'Forced deadline is not shown since there is no forced deadline'
     );
 
     assert.ok(
-      find('[data-test-drain-ignore-system-jobs]')
-        .textContent.trim()
-        .endsWith('No'),
+      ClientDetail.drain.ignoreSystemJobs.endsWith('No'),
       'Ignore System Jobs state is shown'
+    );
+  });
+});
+
+moduleForAcceptance('Acceptance | client detail (multi-namespace)', {
+  beforeEach() {
+    server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
+    node = server.db.nodes[0];
+
+    // Related models
+    server.create('namespace');
+    server.create('namespace', { id: 'other-namespace' });
+
+    server.create('agent');
+
+    // Make a job for each namespace, but have both scheduled on the same node
+    server.create('job', { id: 'job-1', namespaceId: 'default', createAllocations: false });
+    server.createList('allocation', 3, { nodeId: node.id, clientStatus: 'running' });
+
+    server.create('job', { id: 'job-2', namespaceId: 'other-namespace', createAllocations: false });
+    server.createList('allocation', 3, {
+      nodeId: node.id,
+      jobId: 'job-2',
+      clientStatus: 'running',
+    });
+  },
+});
+
+test('when the node has allocations on different namespaces, the associated jobs are fetched correctly', function(assert) {
+  window.localStorage.nomadActiveNamespace = 'other-namespace';
+
+  ClientDetail.visit({ id: node.id });
+
+  andThen(() => {
+    assert.equal(
+      ClientDetail.allocations.length,
+      server.db.allocations.length,
+      'All allocations are scheduled on this node'
+    );
+    assert.ok(
+      server.pretender.handledRequests.findBy('url', '/v1/job/job-1'),
+      'Job One fetched correctly'
+    );
+    assert.ok(
+      server.pretender.handledRequests.findBy('url', '/v1/job/job-2?namespace=other-namespace'),
+      'Job Two fetched correctly'
     );
   });
 });

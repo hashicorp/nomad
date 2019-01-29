@@ -5,6 +5,7 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"strings"
@@ -16,7 +17,12 @@ import (
 //
 // See https://goo.gl/mU7yje for more details.
 func (c *Client) Version() (*Env, error) {
-	resp, err := c.do("GET", "/version", doOptions{})
+	return c.VersionWithContext(nil)
+}
+
+// VersionWithContext returns version information about the docker server.
+func (c *Client) VersionWithContext(ctx context.Context) (*Env, error) {
+	resp, err := c.do("GET", "/version", doOptions{context: ctx})
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +85,21 @@ type DockerInfo struct {
 	Labels             []string
 	ServerVersion      string
 	ClusterStore       string
+	Runtimes           map[string]Runtime
 	ClusterAdvertise   string
 	Isolation          string
 	InitBinary         string
 	DefaultRuntime     string
 	LiveRestoreEnabled bool
 	Swarm              swarm.Info
+}
+
+// Runtime describes an OCI runtime
+//
+// for more information, see: https://dockr.ly/2NKM8qq
+type Runtime struct {
+	Path string
+	Args []string `json:"runtimeArgs"`
 }
 
 // PluginsInfo is a struct with the plugins registered with the docker daemon

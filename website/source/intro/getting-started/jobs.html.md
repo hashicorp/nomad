@@ -90,7 +90,7 @@ An allocation represents an instance of Task Group placed on a node. To inspect
 an allocation we use the [`alloc status` command](/docs/commands/alloc/status.html):
 
 ```text
-$ nomad alloc status 8ba85cef 
+$ nomad alloc status 8ba85cef
 ID                  = 8ba85cef
 Eval ID             = 13ebb66d
 Name                = example.cache[0]
@@ -108,8 +108,8 @@ Deployment Health   = healthy
 
 Task "redis" is "running"
 Task Resources
-CPU        Memory           Disk     IOPS  Addresses
-8/500 MHz  6.3 MiB/256 MiB  300 MiB  0     db: 127.0.0.1:22672
+CPU        Memory           Disk     Addresses
+8/500 MHz  6.3 MiB/256 MiB  300 MiB  db: 127.0.0.1:22672
 
 Task Events:
 Started At     = 10/31/17 22:58:49 UTC
@@ -129,7 +129,7 @@ We can see that Nomad reports the state of the allocation as well as its
 current resource usage. By supplying the `-stats` flag, more detailed resource
 usage statistics will be reported.
 
-To see the logs of a task, we can use the [logs command](/docs/commands/alloc/logs.html):
+To see the logs of a task, we can use the [`logs` command](/docs/commands/alloc/logs.html):
 
 ```text
 $ nomad alloc logs 8ba85cef redis
@@ -256,9 +256,9 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
-The plan output shows us that one allocation will be updated and that the other 
-two will be ignored. This is due to the `max_parallel` setting in the `update` 
-stanza, which is set to 1 to instruct Nomad to perform only a single change at 
+The plan output shows us that one allocation will be updated and that the other
+two will be ignored. This is due to the `max_parallel` setting in the `update`
+stanza, which is set to 1 to instruct Nomad to perform only a single change at
 a time.
 
 Once ready, use `run` to push the updated specification:

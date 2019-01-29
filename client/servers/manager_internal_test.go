@@ -2,12 +2,12 @@ package servers
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
-	"os"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/helper/testlog"
 )
 
 func init() {
@@ -36,14 +36,14 @@ func (cp *fauxConnPool) Ping(net.Addr) error {
 }
 
 func testManager(t *testing.T) (m *Manager) {
-	logger := log.New(os.Stderr, "", 0)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m = New(logger, shutdownCh, &fauxConnPool{})
 	return m
 }
 
-func testManagerFailProb(failPct float64) (m *Manager) {
-	logger := log.New(os.Stderr, "", 0)
+func testManagerFailProb(t *testing.T, failPct float64) (m *Manager) {
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 	m = New(logger, shutdownCh, &fauxConnPool{failPct: failPct})
 	return m
@@ -136,7 +136,7 @@ func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 		{1000000, 19, 10 * time.Minute},
 	}
 
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := testlog.HCLogger(t)
 	shutdownCh := make(chan struct{})
 
 	for _, s := range clusters {

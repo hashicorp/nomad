@@ -1,0 +1,42 @@
+{{#freestyle-usage "line-chart-standard" title="Standard"}}
+  <div class="block" style="height:100px; width: 400px;">
+    {{line-chart data=lineChartData xProp="year" yProp="value" chartClass="is-primary"}}
+  </div>
+  <div class="block" style="height:100px; width: 400px;">
+    {{line-chart data=lineChartMild xProp="year" yProp="value" chartClass="is-info"}}
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "line-chart-fill-width" title="Fluid width"}}
+  <div class="block" style="height:250px;">
+    {{line-chart data=lineChartData xProp="year" yProp="value" chartClass="is-danger"}}
+  </div>
+  <div class="block" style="height:250px;">
+    {{line-chart data=lineChartMild xProp="year" yProp="value" chartClass="is-warning"}}
+  </div>
+{{/freestyle-usage}}
+{{#freestyle-annotation}}
+  <p>A line chart will assume the width of its container. This includes the dimensions of the axes, which are calculated based on real DOM measurements. This requires a two-pass render: first the axes are placed with their real domains (in order to capture width and height of tick labels), second the axes are adjusted to make sure both the x and y axes are within the height and width bounds of the container.</p>
+{{/freestyle-annotation}}
+
+{{#freestyle-usage "line-chart-live-data" title="Live data"}}
+  <div class="block" style="height:250px">
+    {{line-chart
+      data=lineChartLive
+      xProp="ts"
+      yProp="val"
+      timeseries=true
+      chartClass="is-primary"
+      xFormat=secondsFormat}}
+  </div>
+{{/freestyle-usage}}
+
+{{#freestyle-usage "line-chart-with-gaps" title="Data with gaps"}}
+  <div class="block" style="height:250px">
+    {{line-chart
+      data=lineChartGapData
+      xProp="year"
+      yProp="value"
+      chartClass="is-primary"}}
+  </div>
+{{/freestyle-usage}}

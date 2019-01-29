@@ -1,10 +1,10 @@
 import Component from '@ember/component';
-import { computed, observer } from '@ember/object';
+import { computed, observer, set } from '@ember/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { guidFor, copy } from '@ember/object/internals';
-import d3 from 'npm:d3-selection';
-import 'npm:d3-transition';
+import d3 from 'd3-selection';
+import 'd3-transition';
 import WindowResizable from '../mixins/window-resizable';
 import styleStringProperty from '../utils/properties/style-string';
 
@@ -76,6 +76,9 @@ export default Component.extend(WindowResizable, {
     const { chart, _data, isNarrow } = this.getProperties('chart', '_data', 'isNarrow');
     const width = this.$('svg').width();
     const filteredData = _data.filter(d => d.value > 0);
+    filteredData.forEach((d, index) => {
+      set(d, 'index', index);
+    });
 
     let slices = chart.select('.bars').selectAll('g').data(filteredData, d => d.label);
     let sliceCount = filteredData.length;
@@ -114,8 +117,15 @@ export default Component.extend(WindowResizable, {
 
     this.set('slices', slices);
 
-    const setWidth = d => `${width * d.percent - (d.index === sliceCount - 1 || d.index === 0 ? 1 : 2)}px`
-    const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`
+    const setWidth = d => {
+      // Remove a pixel from either side of the slice
+      let modifier = 2;
+      if (d.index === 0) modifier--; // But not the left side
+      if (d.index === sliceCount - 1) modifier--; // But not the right side
+
+      return `${width * d.percent - modifier}px`;
+    };
+    const setOffset = d => `${width * d.offset + (d.index === 0 ? 0 : 1)}px`;
 
     let hoverTargets = slices.selectAll('.target').data(d => [d]);
     hoverTargets.enter()

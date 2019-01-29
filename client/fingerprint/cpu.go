@@ -2,9 +2,8 @@ package fingerprint
 
 import (
 	"fmt"
-	"log"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -12,25 +11,32 @@ import (
 // CPUFingerprint is used to fingerprint the CPU
 type CPUFingerprint struct {
 	StaticFingerprinter
-	logger *log.Logger
+	logger log.Logger
 }
 
 // NewCPUFingerprint is used to create a CPU fingerprint
-func NewCPUFingerprint(logger *log.Logger) Fingerprint {
-	f := &CPUFingerprint{logger: logger}
+func NewCPUFingerprint(logger log.Logger) Fingerprint {
+	f := &CPUFingerprint{logger: logger.Named("cpu")}
 	return f
 }
 
-func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
 	setResourcesCPU := func(totalCompute int) {
+		// COMPAT(0.10): Remove in 0.10
 		resp.Resources = &structs.Resources{
 			CPU: totalCompute,
+		}
+
+		resp.NodeResources = &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{
+				CpuShares: int64(totalCompute),
+			},
 		}
 	}
 
 	if err := stats.Init(); err != nil {
-		f.logger.Printf("[WARN] fingerprint.cpu: %v", err)
+		f.logger.Warn("failed initializing stats collector", "error", err)
 	}
 
 	if cfg.CpuCompute != 0 {
@@ -44,17 +50,17 @@ func (f *CPUFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cst
 
 	if mhz := stats.CPUMHzPerCore(); mhz > 0 {
 		resp.AddAttribute("cpu.frequency", fmt.Sprintf("%.0f", mhz))
-		f.logger.Printf("[DEBUG] fingerprint.cpu: frequency: %.0f MHz", mhz)
+		f.logger.Debug("detected cpu frequency", "MHz", log.Fmt("%.0f", mhz))
 	}
 
 	if numCores := stats.CPUNumCores(); numCores > 0 {
 		resp.AddAttribute("cpu.numcores", fmt.Sprintf("%d", numCores))
-		f.logger.Printf("[DEBUG] fingerprint.cpu: core count: %d", numCores)
+		f.logger.Debug("detected core count", "cores", numCores)
 	}
 
 	tt := int(stats.TotalTicksAvailable())
 	if cfg.CpuCompute > 0 {
-		f.logger.Printf("[DEBUG] fingerprint.cpu: Using specified cpu compute %d", cfg.CpuCompute)
+		f.logger.Debug("using user specified cpu compute", "cpu_compute", cfg.CpuCompute)
 		tt = cfg.CpuCompute
 	}
 

@@ -1,11 +1,4 @@
-{{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb index|}}
-    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
-      {{#link-to data-test-breadcrumb=breadcrumb.label params=breadcrumb.args}}{{breadcrumb.label}}{{/link-to}}
-    </li>
-  {{/each}}
-{{/global-header}}
-{{#job-page/parts/body job=job onNamespaceChange=onNamespaceChange}}
+{{#job-page/parts/body job=job}}
   {{job-page/parts/error errorMessage=errorMessage onDismiss=(action "clearErrorMessage")}}
 
   {{job-page/parts/title job=job title=job.trimmedName handleError=(action "handleError")}}
@@ -36,5 +29,5 @@
     sortDescending=sortDescending
     gotoTaskGroup=gotoTaskGroup}}
 
-  {{job-page/parts/evaluations job=job}}
+  {{job-page/parts/recent-allocations job=job}}
 {{/job-page/parts/body}}

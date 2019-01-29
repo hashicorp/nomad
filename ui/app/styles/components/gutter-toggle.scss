@@ -1,0 +1,19 @@
+.gutter-toggle {
+  display: none;
+
+  position: absolute;
+  left: 0;
+  padding: 1.25rem 0.7rem;
+  z-index: 1; // Make sure the toggle is on top of its siblings
+  height: 100%;
+  fill: desaturate(lighten($nomad-green, 20%), 30%);
+  cursor: pointer;
+
+  > svg {
+    width: 15px;
+  }
+
+  @media #{$mq-hidden-gutter} {
+    display: inline-block;
+  }
+}

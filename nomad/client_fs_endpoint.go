@@ -9,8 +9,10 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/nomad/acl"
+	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -19,7 +21,8 @@ import (
 // FileSystem endpoint is used for accessing the logs and filesystem of
 // allocations from a Node.
 type FileSystem struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 func (f *FileSystem) register() {
@@ -289,6 +292,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 				code = helper.Int64ToPtr(404)
 			}
 			f.handleStreamResultError(err, code, encoder)
+			return
 		}
 
 		// Get a connection to the server

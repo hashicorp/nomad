@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -56,12 +56,12 @@ func lastToken(s string) string {
 type EnvGCEFingerprint struct {
 	StaticFingerprinter
 	client      *http.Client
-	logger      *log.Logger
+	logger      log.Logger
 	metadataURL string
 }
 
 // NewEnvGCEFingerprint is used to create a fingerprint from GCE metadata
-func NewEnvGCEFingerprint(logger *log.Logger) Fingerprint {
+func NewEnvGCEFingerprint(logger log.Logger) Fingerprint {
 	// Read the internal metadata URL from the environment, allowing test files to
 	// provide their own
 	metadataURL := os.Getenv("GCE_ENV_URL")
@@ -77,7 +77,7 @@ func NewEnvGCEFingerprint(logger *log.Logger) Fingerprint {
 
 	return &EnvGCEFingerprint{
 		client:      client,
-		logger:      logger,
+		logger:      logger.Named("env_gce"),
 		metadataURL: metadataURL,
 	}
 }
@@ -103,15 +103,18 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 	}
 
 	res, err := f.client.Do(req)
-	if err != nil || res.StatusCode != http.StatusOK {
-		f.logger.Printf("[DEBUG] fingerprint.env_gce: Could not read value for attribute %q", attribute)
+	if err != nil {
+		f.logger.Debug("could not read value for attribute", "attribute", attribute, "error", err)
+		return "", err
+	} else if res.StatusCode != http.StatusOK {
+		f.logger.Debug("could not read value for attribute", "attribute", attribute, "resp_code", res.StatusCode)
 		return "", err
 	}
 
 	resp, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		f.logger.Printf("[ERR] fingerprint.env_gce: Error reading response body for GCE %s", attribute)
+		f.logger.Error("error reading response body for GCE attribute", "attribute", attribute, "error", err)
 		return "", err
 	}
 
@@ -122,18 +125,18 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 	return string(resp), nil
 }
 
-func checkError(err error, logger *log.Logger, desc string) error {
+func checkError(err error, logger log.Logger, desc string) error {
 	// If it's a URL error, assume we're not actually in an GCE environment.
 	// To the outer layers, this isn't an error so return nil.
 	if _, ok := err.(*url.Error); ok {
-		logger.Printf("[DEBUG] fingerprint.env_gce: Error querying GCE " + desc + ", skipping")
+		logger.Debug("error querying GCE attribute; skipping", "attribute", desc)
 		return nil
 	}
 	// Otherwise pass the error through.
 	return err
 }
 
-func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *cstructs.FingerprintResponse) error {
+func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
 
 	// Check if we should tighten the timeout
@@ -191,12 +194,12 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 	// Get internal and external IPs (if they exist)
 	value, err := f.Get("network-interfaces/", true)
 	if err != nil {
-		f.logger.Printf("[WARN] fingerprint.env_gce: Error retrieving network interface information: %s", err)
+		f.logger.Warn("error retrieving network interface information", "error", err)
 	} else {
 
 		var interfaces []GCEMetadataNetworkInterface
 		if err := json.Unmarshal([]byte(value), &interfaces); err != nil {
-			f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding network interface information: %s", err.Error())
+			f.logger.Warn("error decoding network interface information", "error", err)
 		}
 
 		for _, intf := range interfaces {
@@ -216,7 +219,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		return checkError(err, f.logger, "tags")
 	}
 	if err := json.Unmarshal([]byte(value), &tagList); err != nil {
-		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance tags: %s", err.Error())
+		f.logger.Warn("error decoding instance tags", "error", err)
 	}
 	for _, tag := range tagList {
 		attr := "platform.gce.tag."
@@ -240,7 +243,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *cstructs.FingerprintRequest, resp *
 		return checkError(err, f.logger, "attributes/")
 	}
 	if err := json.Unmarshal([]byte(value), &attrDict); err != nil {
-		f.logger.Printf("[WARN] fingerprint.env_gce: Error decoding instance attributes: %s", err.Error())
+		f.logger.Warn("error decoding instance attributes", "error", err)
 	}
 	for k, v := range attrDict {
 		attr := "platform.gce.attr."
@@ -276,7 +279,7 @@ func (f *EnvGCEFingerprint) isGCE() bool {
 	if err != nil {
 		if re, ok := err.(ReqError); !ok || re.StatusCode != 404 {
 			// If it wasn't a 404 error, print an error message.
-			f.logger.Printf("[DEBUG] fingerprint.env_gce: Error querying GCE Metadata URL, skipping")
+			f.logger.Debug("error querying GCE Metadata URL, skipping")
 		}
 		return false
 	}

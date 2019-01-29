@@ -2,10 +2,11 @@ package drainer
 
 import (
 	"context"
-	"log"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/time/rate"
@@ -70,10 +71,10 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 	// Register interest in the draining jobs.
 	jobs, err := draining.DrainingJobs()
 	if err != nil {
-		n.logger.Printf("[ERR] nomad.drain: error retrieving draining jobs on node %q: %v", node.ID, err)
+		n.logger.Error("error retrieving draining jobs on node", "node_id", node.ID, "error", err)
 		return
 	}
-	n.logger.Printf("[TRACE] nomad.drain: node %q has %d draining jobs on it", node.ID, len(jobs))
+	n.logger.Trace("node has draining jobs on it", "node_id", node.ID, "num_jobs", len(jobs))
 	n.jobWatcher.RegisterJobs(jobs)
 
 	// TODO Test at this layer as well that a node drain on a node without
@@ -82,7 +83,7 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 	// nothing on it we unset drain
 	done, err := draining.IsDone()
 	if err != nil {
-		n.logger.Printf("[ERR] nomad.drain: failed to check if node %q is done draining: %v", node.ID, err)
+		n.logger.Error("failed to check if node is done draining", "node_id", node.ID, "error", err)
 		return
 	}
 
@@ -91,14 +92,12 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		// marking node as complete.
 		remaining, err := draining.RemainingAllocs()
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.drain: error getting remaining allocs on drained node %q: %v",
-				node.ID, err)
+			n.logger.Error("error getting remaining allocs on drained node", "node_id", node.ID, "error", err)
 		} else if len(remaining) > 0 {
 			future := structs.NewBatchFuture()
 			n.drainAllocs(future, remaining)
 			if err := future.Wait(); err != nil {
-				n.logger.Printf("[ERR] nomad.drain: failed to drain %d remaining allocs from done node %q: %v",
-					len(remaining), node.ID, err)
+				n.logger.Error("failed to drain remaining allocs from done node", "num_allocs", len(remaining), "node_id", node.ID, "error", err)
 			}
 		}
 
@@ -109,9 +108,9 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 
 		index, err := n.raft.NodesDrainComplete([]string{node.ID}, event)
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.drain: failed to unset drain for node %q: %v", node.ID, err)
+			n.logger.Error("failed to unset drain for node", "node_id", node.ID, "error", err)
 		} else {
-			n.logger.Printf("[INFO] nomad.drain: node %q completed draining at index %d", node.ID, index)
+			n.logger.Info("node completed draining at index", "node_id", node.ID, "index", index)
 		}
 	}
 }
@@ -120,7 +119,7 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 // changing their drain strategy.
 type nodeDrainWatcher struct {
 	ctx    context.Context
-	logger *log.Logger
+	logger log.Logger
 
 	// state is the state that is watched for state changes.
 	state *state.StateStore
@@ -134,11 +133,11 @@ type nodeDrainWatcher struct {
 }
 
 // NewNodeDrainWatcher returns a new node drain watcher.
-func NewNodeDrainWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger *log.Logger, tracker NodeTracker) *nodeDrainWatcher {
+func NewNodeDrainWatcher(ctx context.Context, limiter *rate.Limiter, state *state.StateStore, logger log.Logger, tracker NodeTracker) *nodeDrainWatcher {
 	w := &nodeDrainWatcher{
 		ctx:     ctx,
 		limiter: limiter,
-		logger:  logger,
+		logger:  logger.Named("node_watcher"),
 		tracker: tracker,
 		state:   state,
 	}
@@ -151,19 +150,19 @@ func NewNodeDrainWatcher(ctx context.Context, limiter *rate.Limiter, state *stat
 func (w *nodeDrainWatcher) watch() {
 	nindex := uint64(1)
 	for {
-		w.logger.Printf("[TRACE] nomad.drain.node_watcher: getting nodes at index %d", nindex)
+		w.logger.Trace("getting nodes at index", "index", nindex)
 		nodes, index, err := w.getNodes(nindex)
-		w.logger.Printf("[TRACE] nomad.drain.node_watcher: got nodes %d at index %d: %v", len(nodes), nindex, err)
+		w.logger.Trace("got nodes at index", "num_nodes", len(nodes), "index", nindex, "error", err)
 		if err != nil {
 			if err == context.Canceled {
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: shutting down")
+				w.logger.Trace("shutting down")
 				return
 			}
 
-			w.logger.Printf("[ERR] nomad.drain.node_watcher: error watching node updates at index %d: %v", nindex, err)
+			w.logger.Error("error watching node updates at index", "index", nindex, "error", err)
 			select {
 			case <-w.ctx.Done():
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: shutting down")
+				w.logger.Trace("shutting down")
 				return
 			case <-time.After(stateReadErrorDelay):
 				continue
@@ -181,20 +180,20 @@ func (w *nodeDrainWatcher) watch() {
 			switch {
 			// If the node is tracked but not draining, untrack
 			case tracked && !newDraining:
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q is no longer draining", nodeID)
+				w.logger.Trace("tracked node is no longer draining", "node_id", nodeID)
 				w.tracker.Remove(nodeID)
 
 				// If the node is not being tracked but is draining, track
 			case !tracked && newDraining:
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: untracked node %q is draining", nodeID)
+				w.logger.Trace("untracked node is draining", "node_id", nodeID)
 				w.tracker.Update(node)
 
 				// If the node is being tracked but has changed, update:
 			case tracked && newDraining && !currentNode.DrainStrategy.Equal(node.DrainStrategy):
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q has updated drain", nodeID)
+				w.logger.Trace("tracked node has updated drain", "node_id", nodeID)
 				w.tracker.Update(node)
 			default:
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: node %q at index %v: tracked %v, draining %v", nodeID, node.ModifyIndex, tracked, newDraining)
+				w.logger.Trace("no changes for node", "node_id", nodeID, "node_modify_index", node.ModifyIndex, "tracked", tracked, "newly_draining", newDraining)
 			}
 
 			// TODO(schmichael) handle the case of a lost node
@@ -202,7 +201,7 @@ func (w *nodeDrainWatcher) watch() {
 
 		for nodeID := range tracked {
 			if _, ok := nodes[nodeID]; !ok {
-				w.logger.Printf("[TRACE] nomad.drain.node_watcher: tracked node %q is no longer exists", nodeID)
+				w.logger.Trace("tracked node no longer exists", "node_id", nodeID)
 				w.tracker.Remove(nodeID)
 			}
 		}
@@ -236,6 +235,7 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 		return nil, 0, err
 	}
 
+	var maxIndex uint64 = 0
 	resp := make(map[string]*structs.Node, 64)
 	for {
 		raw := iter.Next()
@@ -245,6 +245,15 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 
 		node := raw.(*structs.Node)
 		resp[node.ID] = node
+		if maxIndex < node.ModifyIndex {
+			maxIndex = node.ModifyIndex
+		}
+	}
+
+	// Prefer using the actual max index of affected nodes since it means less
+	// unblocking
+	if maxIndex != 0 {
+		index = maxIndex
 	}
 
 	return resp, index, nil

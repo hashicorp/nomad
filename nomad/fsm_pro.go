@@ -46,7 +46,7 @@ func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 	for _, ns := range req.Namespaces {
 		old, err := n.state.NamespaceByName(nil, ns.Name)
 		if err != nil {
-			n.logger.Printf("[ERR] nomad.fsm: namespace lookup failed: %v", err)
+			n.logger.Named("nomad.fsm").Error("namespace lookup failed", "error", err)
 			return err
 		}
 
@@ -58,7 +58,7 @@ func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.UpsertNamespaces(index, req.Namespaces); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: UpsertNamespaces failed: %v", err)
+		n.logger.Named("nomad.fsm").Error("UpsertNamespaces failed", "error", err)
 		return err
 	}
 
@@ -79,7 +79,7 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 	}
 
 	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
-		n.logger.Printf("[ERR] nomad.fsm: DeleteNamespaces failed: %v", err)
+		n.logger.Named("nomad.fsm").Error("DeleteNamespaces failed", "error", err)
 		return err
 	}
 

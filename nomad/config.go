@@ -8,7 +8,10 @@ import (
 	"runtime"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -71,6 +74,9 @@ type Config struct {
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
+
+	// Logger is the logger used by the server.
+	Logger log.Logger
 
 	// ProtocolVersion is the protocol version to speak. This must be between
 	// ProtocolVersionMin and ProtocolVersionMax.
@@ -274,6 +280,10 @@ type Config struct {
 	// key/value/tag format, or simply a key/value format
 	DisableTaggedMetrics bool
 
+	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
+	// publishing Job summary metrics
+	DisableDispatchedJobSummaryMetrics bool
+
 	// BackwardsCompatibleMetrics determines whether to show methods of
 	// displaying metrics for older versions, or to only show the new format
 	BackwardsCompatibleMetrics bool
@@ -290,6 +300,13 @@ type Config struct {
 	// autopilot tasks, such as promoting eligible non-voters and removing
 	// dead servers.
 	AutopilotInterval time.Duration
+
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid

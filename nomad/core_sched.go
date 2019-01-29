@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,15 +23,17 @@ var (
 // as "_core". It is used to run various administrative work
 // across the cluster.
 type CoreScheduler struct {
-	srv  *Server
-	snap *state.StateSnapshot
+	srv    *Server
+	snap   *state.StateSnapshot
+	logger log.Logger
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
 func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Scheduler {
 	s := &CoreScheduler{
-		srv:  srv,
-		snap: snap,
+		srv:    srv,
+		snap:   snap,
+		logger: srv.logger.ResetNamed("core.sched"),
 	}
 	return s
 }
@@ -84,14 +87,14 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced job GC")
+		c.logger.Debug("forced job GC")
 	} else {
 		// Get the time table to calculate GC cutoffs.
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.JobGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: job GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.JobGCThreshold)
+		c.logger.Debug("job GC scanning before cutoff index",
+			"index", oldThreshold, "job_gc_threshold", c.srv.config.JobGCThreshold)
 	}
 
 	// Collect the allocations, evaluations and jobs to GC
@@ -110,7 +113,7 @@ OUTER:
 		ws := memdb.NewWatchSet()
 		evals, err := c.snap.EvalsByJob(ws, job.Namespace, job.ID)
 		if err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: failed to get evals for job %s: %v", job.ID, err)
+			c.logger.Error("job GC failed to get evals for job", "job", job.ID, "error", err)
 			continue
 		}
 
@@ -143,8 +146,8 @@ OUTER:
 	if len(gcEval) == 0 && len(gcAlloc) == 0 && len(gcJob) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: job GC: %d jobs, %d evaluations, %d allocs eligible",
-		len(gcJob), len(gcEval), len(gcAlloc))
+	c.logger.Debug("job GC found eligible objects",
+		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
 
 	// Reap the evals and allocs
 	if err := c.evalReap(gcEval, gcAlloc); err != nil {
@@ -161,7 +164,7 @@ func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 	for _, req := range c.partitionJobReap(jobs, leaderACL) {
 		var resp structs.JobBatchDeregisterResponse
 		if err := c.srv.RPC("Job.BatchDeregister", req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: batch job reap failed: %v", err)
+			c.logger.Error("batch job reap failed", "error", err)
 			return err
 		}
 	}
@@ -221,7 +224,7 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced eval GC")
+		c.logger.Debug("forced eval GC")
 	} else {
 		// Compute the old threshold limit for GC using the FSM
 		// time table.  This is a rough mapping of a time to the
@@ -229,8 +232,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.EvalGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: eval GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.EvalGCThreshold)
+		c.logger.Debug("eval GC scanning before cutoff index",
+			"index", oldThreshold, "eval_gc_threshold", c.srv.config.EvalGCThreshold)
 	}
 
 	// Collect the allocations and evaluations to GC
@@ -255,8 +258,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	if len(gcEval) == 0 && len(gcAlloc) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: eval GC: %d evaluations, %d allocs eligible",
-		len(gcEval), len(gcAlloc))
+	c.logger.Debug("eval GC found eligibile objects",
+		"evals", len(gcEval), "allocs", len(gcAlloc))
 
 	return c.evalReap(gcEval, gcAlloc)
 }
@@ -279,6 +282,14 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	// Look up the job
 	job, err := c.snap.JobByID(ws, eval.Namespace, eval.JobID)
 	if err != nil {
+		return false, nil, err
+	}
+
+	// Get the allocations by eval
+	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
+	if err != nil {
+		c.logger.Error("failed to get allocs for eval",
+			"eval_id", eval.ID, "error", err)
 		return false, nil, err
 	}
 
@@ -307,16 +318,10 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		// We don't want to gc anything related to a job which is not dead
 		// If the batch job doesn't exist we can GC it regardless of allowBatch
 		if !collect {
-			return false, nil, nil
+			// Find allocs associated with older (based on createindex) and GC them if terminal
+			oldAllocs := olderVersionTerminalAllocs(allocs, job)
+			return false, oldAllocs, nil
 		}
-	}
-
-	// Get the allocations by eval
-	allocs, err := c.snap.AllocsByEval(ws, eval.ID)
-	if err != nil {
-		c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for eval %s: %v",
-			eval.ID, err)
-		return false, nil, err
 	}
 
 	// Scan the allocations to ensure they are terminal and old
@@ -336,6 +341,18 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	return gcEval, gcAllocIDs, nil
 }
 
+// olderVersionTerminalAllocs returns terminal allocations whose job create index
+// is older than the job's create index
+func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job) []string {
+	var ret []string
+	for _, alloc := range allocs {
+		if alloc.Job != nil && alloc.Job.CreateIndex < job.CreateIndex && alloc.TerminalStatus() {
+			ret = append(ret, alloc.ID)
+		}
+	}
+	return ret
+}
+
 // evalReap contacts the leader and issues a reap on the passed evals and
 // allocs.
 func (c *CoreScheduler) evalReap(evals, allocs []string) error {
@@ -343,7 +360,7 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	for _, req := range c.partitionEvalReap(evals, allocs) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Eval.Reap", req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: eval reap failed: %v", err)
+			c.logger.Error("eval reap failed", "error", err)
 			return err
 		}
 	}
@@ -410,7 +427,7 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced node GC")
+		c.logger.Debug("forced node GC")
 	} else {
 		// Compute the old threshold limit for GC using the FSM
 		// time table.  This is a rough mapping of a time to the
@@ -418,8 +435,8 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.NodeGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: node GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.NodeGCThreshold)
+		c.logger.Debug("node GC scanning before cutoff index",
+			"index", oldThreshold, "node_gc_threshold", c.srv.config.NodeGCThreshold)
 	}
 
 	// Collect the nodes to GC
@@ -441,8 +458,8 @@ OUTER:
 		ws := memdb.NewWatchSet()
 		allocs, err := c.snap.AllocsByNode(ws, node.ID)
 		if err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for node %s: %v",
-				eval.ID, err)
+			c.logger.Error("failed to get allocs for node",
+				"node_id", node.ID, "error", err)
 			continue
 		}
 
@@ -464,7 +481,7 @@ OUTER:
 	if len(gcNode) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: node GC: %d nodes eligible", len(gcNode))
+	c.logger.Debug("node GC found eligible nodes", "nodes", len(gcNode))
 
 	// Call to the leader to issue the reap
 	for _, nodeID := range gcNode {
@@ -477,7 +494,7 @@ OUTER:
 		}
 		var resp structs.NodeUpdateResponse
 		if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: node '%s' reap failed: %v", nodeID, err)
+			c.logger.Error("node reap failed", "node_id", nodeID, "error", err)
 			return err
 		}
 	}
@@ -498,7 +515,7 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		// The GC was forced, so set the threshold to its maximum so everything
 		// will GC.
 		oldThreshold = math.MaxUint64
-		c.srv.logger.Println("[DEBUG] sched.core: forced deployment GC")
+		c.logger.Debug("forced deployment GC")
 	} else {
 		// Compute the old threshold limit for GC using the FSM
 		// time table.  This is a rough mapping of a time to the
@@ -506,8 +523,8 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * c.srv.config.DeploymentGCThreshold)
 		oldThreshold = tt.NearestIndex(cutoff)
-		c.srv.logger.Printf("[DEBUG] sched.core: deployment GC: scanning before index %d (%v)",
-			oldThreshold, c.srv.config.DeploymentGCThreshold)
+		c.logger.Debug("deployment GC scanning before cutoff index",
+			"index", oldThreshold, "deployment_gc_threshold", c.srv.config.DeploymentGCThreshold)
 	}
 
 	// Collect the deployments to GC
@@ -529,8 +546,8 @@ OUTER:
 		// Ensure there are no allocs referencing this deployment.
 		allocs, err := c.snap.AllocsByDeployment(ws, deploy.ID)
 		if err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: failed to get allocs for deployment %s: %v",
-				deploy.ID, err)
+			c.logger.Error("failed to get allocs for deployment",
+				"deployment_id", deploy.ID, "error", err)
 			continue
 		}
 
@@ -549,7 +566,7 @@ OUTER:
 	if len(gcDeployment) == 0 {
 		return nil
 	}
-	c.srv.logger.Printf("[DEBUG] sched.core: deployment GC: %d deployments eligible", len(gcDeployment))
+	c.logger.Debug("deployment GC found eligible deployments", "deployments", len(gcDeployment))
 	return c.deploymentReap(gcDeployment)
 }
 
@@ -560,7 +577,7 @@ func (c *CoreScheduler) deploymentReap(deployments []string) error {
 	for _, req := range c.partitionDeploymentReap(deployments) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Deployment.Reap", req, &resp); err != nil {
-			c.srv.logger.Printf("[ERR] sched.core: deployment reap failed: %v", err)
+			c.logger.Error("deployment reap failed", "error", err)
 			return err
 		}
 	}
@@ -602,6 +619,12 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
 	// Not in a terminal status and old enough
 	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+		return false
+	}
+
+	// If the allocation is still running on the client we can not garbage
+	// collect it.
+	if a.ClientStatus == structs.AllocClientStatusRunning {
 		return false
 	}
 

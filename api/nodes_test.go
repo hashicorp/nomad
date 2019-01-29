@@ -184,8 +184,8 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	if out.SchedulingEligibility != NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
 	}
 
 	// Toggle off again
@@ -202,7 +202,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	if out.DrainStrategy != nil {
 		t.Fatalf("drain strategy should be unset")
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+	if out.SchedulingEligibility != NodeSchedulingEligible {
 		t.Fatalf("should be eligible")
 	}
 }
@@ -236,7 +236,7 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
+	if out.SchedulingEligibility != NodeSchedulingEligible {
 		t.Fatalf("node should be eligible")
 	}
 
@@ -252,8 +252,8 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingIneligible)
+	if out.SchedulingEligibility != NodeSchedulingIneligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
 	}
 
 	// Toggle on
@@ -268,8 +268,8 @@ func TestNodes_ToggleEligibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if out.SchedulingEligibility != structs.NodeSchedulingEligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	if out.SchedulingEligibility != NodeSchedulingEligible {
+		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingEligible)
 	}
 	if out.DrainStrategy != nil {
 		t.Fatalf("drain strategy should be unset")
@@ -530,4 +530,89 @@ func TestNodes_DrainStrategy_Equal(t *testing.T) {
 
 	o.IgnoreSystemJobs = true
 	require.True(d.Equal(o))
+}
+
+func TestNodeStatValueFormatting(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		expected string
+		value    StatValue
+	}{
+		{
+			"true",
+			StatValue{BoolVal: boolToPtr(true)},
+		},
+		{
+			"false",
+			StatValue{BoolVal: boolToPtr(false)},
+		},
+		{
+			"myvalue",
+			StatValue{StringVal: stringToPtr("myvalue")},
+		},
+		{
+			"2.718",
+			StatValue{
+				FloatNumeratorVal: float64ToPtr(2.718),
+			},
+		},
+		{
+			"2.718 / 3.14",
+			StatValue{
+				FloatNumeratorVal:   float64ToPtr(2.718),
+				FloatDenominatorVal: float64ToPtr(3.14),
+			},
+		},
+		{
+			"2.718 MHz",
+			StatValue{
+				FloatNumeratorVal: float64ToPtr(2.718),
+				Unit:              "MHz",
+			},
+		},
+		{
+			"2.718 / 3.14 MHz",
+			StatValue{
+				FloatNumeratorVal:   float64ToPtr(2.718),
+				FloatDenominatorVal: float64ToPtr(3.14),
+				Unit:                "MHz",
+			},
+		},
+		{
+			"2",
+			StatValue{
+				IntNumeratorVal: int64ToPtr(2),
+			},
+		},
+		{
+			"2 / 3",
+			StatValue{
+				IntNumeratorVal:   int64ToPtr(2),
+				IntDenominatorVal: int64ToPtr(3),
+			},
+		},
+		{
+			"2 MHz",
+			StatValue{
+				IntNumeratorVal: int64ToPtr(2),
+				Unit:            "MHz",
+			},
+		},
+		{
+			"2 / 3 MHz",
+			StatValue{
+				IntNumeratorVal:   int64ToPtr(2),
+				IntDenominatorVal: int64ToPtr(3),
+				Unit:              "MHz",
+			},
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("case %d %v", i, c.expected), func(t *testing.T) {
+			formatted := c.value.String()
+			require.Equal(t, c.expected, formatted)
+		})
+	}
 }

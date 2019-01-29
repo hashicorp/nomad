@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	validNamespace = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+	validNamespace = regexp.MustCompile("^[a-zA-Z0-9-*]{1,128}$")
 )
 
 // Policy represents a parsed HCL or JSON policy.

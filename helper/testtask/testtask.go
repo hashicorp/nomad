@@ -7,17 +7,15 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kardianos/osext"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // Path returns the path to the currently running executable.
 func Path() string {
-	path, err := osext.Executable()
+	path, err := os.Executable()
 	if err != nil {
 		panic(err)
 	}
@@ -33,6 +31,15 @@ func SetCmdEnv(cmd *exec.Cmd) {
 // SetTaskEnv configures the environment of t so that Run executes a testtask
 // script when called from within t.
 func SetTaskEnv(t *structs.Task) {
+	if t.Env == nil {
+		t.Env = map[string]string{}
+	}
+	t.Env["TEST_TASK"] = "execute"
+}
+
+// SetTaskConfigEnv configures the environment of t so that Run executes a testtask
+// script when called from within t.
+func SetTaskConfigEnv(t *drivers.TaskConfig) {
 	if t.Env == nil {
 		t.Env = map[string]string{}
 	}
@@ -106,21 +113,11 @@ func execute() {
 			ioutil.WriteFile(file, []byte(msg), 0666)
 
 		case "pgrp":
-			// pgrp <group_int> puts the pid in a new process group
 			if len(args) < 1 {
 				fmt.Fprintln(os.Stderr, "expected process group number for pgrp")
 				os.Exit(1)
 			}
-			num := popArg()
-			grp, err := strconv.Atoi(num)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "failed to convert process group number %q: %v\n", num, err)
-				os.Exit(1)
-			}
-			if err := syscall.Setpgid(0, grp); err != nil {
-				fmt.Fprintf(os.Stderr, "failed to set process group: %v\n", err)
-				os.Exit(1)
-			}
+			executeProcessGroup(popArg())
 
 		case "fork/exec":
 			// fork/exec <pid_file> <args> forks execs the helper process

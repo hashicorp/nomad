@@ -1,11 +1,12 @@
-import { none } from '@ember/object/computed';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { alias, none, and } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragment, fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
 
 export default Fragment.extend({
+  allocation: fragmentOwner(),
+
   name: attr('string'),
   state: attr('string'),
   startedAt: attr('date'),
@@ -13,8 +14,8 @@ export default Fragment.extend({
   failed: attr('boolean'),
 
   isActive: none('finishedAt'),
+  isRunning: and('isActive', 'allocation.isRunning'),
 
-  allocation: fragmentOwner(),
   task: computed('allocation.taskGroup.tasks.[]', function() {
     const tasks = this.get('allocation.taskGroup.tasks');
     return tasks && tasks.findBy('name', this.get('name'));

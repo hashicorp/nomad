@@ -26,11 +26,8 @@ apt-get install -y \
 	build-essential \
 	git \
 	libc6-dev-i386 \
-	liblxc1 \
 	libpcre3-dev \
 	linux-libc-dev:i386 \
-	lxc-dev \
-	lxc-templates \
 	pkg-config \
 	zip
 

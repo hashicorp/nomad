@@ -7,7 +7,7 @@ export default ApplicationAdapter.extend({
   namespace: namespace + '/acl',
 
   findSelf() {
-    return this.ajax(`${this.buildURL()}/token/self`).then(token => {
+    return this.ajax(`${this.buildURL()}/token/self`, 'GET').then(token => {
       const store = this.get('store');
       store.pushPayload('token', {
         tokens: [token],

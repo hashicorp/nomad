@@ -7,8 +7,10 @@ export default ApplicationSerializer.extend({
   system: service(),
 
   normalize(typeHash, hash) {
-    hash.FailedTGAllocs = Object.keys(hash.FailedTGAllocs || {}).map(key => {
-      return assign({ Name: key }, get(hash, `FailedTGAllocs.${key}`) || {});
+    const failures = hash.FailedTGAllocs || {};
+    hash.FailedTGAllocs = Object.keys(failures).map(key => {
+      const propertiesForKey = failures[key] || {};
+      return assign({ Name: key }, propertiesForKey);
     });
 
     hash.PlainJobId = hash.JobID;
@@ -18,9 +20,6 @@ export default ApplicationSerializer.extend({
       this.get('system.activeNamespace.id') ||
       'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
-
-    // TEMPORARY: https://github.com/emberjs/data/issues/5209
-    hash.OriginalJobId = hash.JobID;
 
     return this._super(typeHash, hash);
   },

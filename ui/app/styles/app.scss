@@ -1,8 +1,9 @@
 @import './core';
-@import './components';
-@import './charts';
 
 @import 'ember-power-select';
+
+@import './components';
+@import './charts';
 
 // Only necessary in dev
 @import './styleguide.scss';

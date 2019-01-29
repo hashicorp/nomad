@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-memdb"
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,7 +16,8 @@ import (
 
 // Alloc endpoint is used for manipulating allocations
 type Alloc struct {
-	srv *Server
+	srv    *Server
+	logger log.Logger
 }
 
 // List is used to list the allocations in the system
@@ -225,7 +228,7 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Commit this update via Raft
 	_, index, err := a.srv.raftApply(structs.AllocUpdateDesiredTransitionRequestType, args)
 	if err != nil {
-		a.srv.logger.Printf("[ERR] nomad.allocs: AllocUpdateDesiredTransitionRequest failed: %v", err)
+		a.logger.Error("AllocUpdateDesiredTransitionRequest failed", "error", err)
 		return err
 	}
 

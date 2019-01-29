@@ -444,7 +444,9 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		state := s.server.State()
 		alloc := mock.Alloc()
 		alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-		alloc.Job.TaskGroups[0].Tasks[0].Config["run_for"] = "30s"
+		alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+			"run_for": "30s",
+		}
 		alloc.NodeID = s.client.NodeID()
 		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
 		if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc.Copy()}); err != nil {
@@ -453,7 +455,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 
 		// Wait for the client to run it
 		testutil.WaitForResult(func() (bool, error) {
-			if _, err := s.client.GetClientAlloc(alloc.ID); err != nil {
+			if _, err := s.client.GetAllocState(alloc.ID); err != nil {
 				return false, err
 			}
 
@@ -479,7 +481,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 
 		// require Snapshot fails
 		if err := allocDir.Snapshot(ioutil.Discard); err != nil {
-			s.logger.Printf("[DEBUG] agent.test: snapshot returned error: %v", err)
+			t.Logf("[DEBUG] agent.test: snapshot returned error: %v", err)
 		} else {
 			t.Errorf("expected Snapshot() to fail but it did not")
 		}

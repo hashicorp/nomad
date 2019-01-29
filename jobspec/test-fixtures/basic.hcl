@@ -16,6 +16,24 @@ job "binstore-storagelocker" {
     value     = "windows"
   }
 
+  affinity {
+    attribute = "${meta.team}"
+    value = "mobile"
+    operator = "="
+    weight = 50
+  }
+
+   spread {
+     attribute = "${meta.rack}"
+     weight = 100
+     target "r1" {
+       percent = 40
+     }
+     target "r2" {
+       percent = 60
+     }
+   }
+
   update {
     stagger      = "60s"
     max_parallel = 2
@@ -76,10 +94,39 @@ job "binstore-storagelocker" {
         healthy_deadline = "11m"
     }
 
+    affinity {
+      attribute = "${node.datacenter}"
+      value = "dc2"
+      operator = "="
+      weight = 100
+    }
+    
+    spread {
+      attribute = "${node.datacenter}"
+      weight = 50
+      target "dc1" {
+        percent = 50
+      }
+      target "dc2" {
+        percent = 25
+      }
+      target "dc3" {
+        percent = 25
+      }
+    }
+
+
     task "binstore" {
       driver = "docker"
       user   = "bob"
       leader = true
+
+      affinity {
+        attribute = "${meta.foo}"
+        value = "a,b,c"
+        operator = "set_contains"
+        weight = 25
+      }
 
       config {
         image = "hashicorp/binstore"
@@ -149,6 +196,23 @@ job "binstore-storagelocker" {
           port "admin" {
           }
         }
+
+        device "nvidia/gpu" {
+            count = 10
+            constraint {
+              attribute = "${device.attr.memory}"
+              value = "2GB"
+              operator = ">"
+            }
+
+            affinity {
+              attribute = "${device.model}"
+              value     = "1080ti"
+              weight = 50
+            }
+        }
+        
+        device "intel/gpu" {}
       }
 
       kill_timeout = "22s"
@@ -206,7 +270,6 @@ job "binstore-storagelocker" {
       resources {
         cpu    = 500
         memory = 128
-        iops   = 30
       }
 
       constraint {

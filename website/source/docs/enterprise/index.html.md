@@ -9,7 +9,7 @@ description: |-
 
 # Nomad Enterprise
 
-[Nomad Enterprise](https://www.hashicorp.com/products/nomad/) adds collaboration, 
+[Nomad Enterprise](https://www.hashicorp.com/go/nomad-enterprise) adds collaboration, 
 operational, and governance capabilities to Nomad. Namespaces allow multiple 
 teams to safely use a shared multi-region deployment. With Resource Quotas, 
 operators can limit resource consumption across teams or projects. Sentinel 
@@ -23,4 +23,7 @@ links below for a detailed overview of each feature.
 - [Sentinel Policies](/docs/enterprise/sentinel/index.html)
 - [Advanced Autopilot](/docs/enterprise/autopilot/index.html)
 
-These features are part of [Nomad Enterprise](https://www.hashicorp.com/products/nomad/).
+Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or request a trial 
+of Nomad Enterprise.
+
+

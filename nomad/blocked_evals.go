@@ -4,8 +4,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
+	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -29,6 +31,9 @@ const (
 // allocations. It is unblocked when the capacity of a node that could run the
 // failed allocation becomes available.
 type BlockedEvals struct {
+	// logger is the logger to use by the blocked eval tracker.
+	logger log.Logger
+
 	evalBroker *EvalBroker
 	enabled    bool
 	stats      *BlockedStats
@@ -47,7 +52,7 @@ type BlockedEvals struct {
 
 	// jobs is the map of blocked job and is used to ensure that only one
 	// blocked eval exists for each job. The value is the blocked evaluation ID.
-	jobs map[string]string
+	jobs map[structs.NamespacedID]string
 
 	// unblockIndexes maps computed node classes or quota name to the index in
 	// which they were unblocked. This is used to check if an evaluation could
@@ -102,12 +107,13 @@ type BlockedStats struct {
 
 // NewBlockedEvals creates a new blocked eval tracker that will enqueue
 // unblocked evals into the passed broker.
-func NewBlockedEvals(evalBroker *EvalBroker) *BlockedEvals {
+func NewBlockedEvals(evalBroker *EvalBroker, logger log.Logger) *BlockedEvals {
 	return &BlockedEvals{
+		logger:           logger.Named("blocked_evals"),
 		evalBroker:       evalBroker,
 		captured:         make(map[string]wrappedEval),
 		escaped:          make(map[string]wrappedEval),
-		jobs:             make(map[string]string),
+		jobs:             make(map[structs.NamespacedID]string),
 		unblockIndexes:   make(map[string]uint64),
 		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
 		duplicateCh:      make(chan struct{}, 1),
@@ -132,8 +138,8 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 		b.l.Unlock()
 		return
 	} else if enabled {
-		go b.watchCapacity()
-		go b.prune()
+		go b.watchCapacity(b.stopCh, b.capacityChangeCh)
+		go b.prune(b.stopCh)
 	} else {
 		close(b.stopCh)
 	}
@@ -176,19 +182,11 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 		return
 	}
 
-	// Check if the job already has a blocked evaluation. If it does add it to
-	// the list of duplicates. We only ever want one blocked evaluation per job,
-	// otherwise we would create unnecessary work for the scheduler as multiple
-	// evals for the same job would be run, all producing the same outcome.
-	if _, existing := b.jobs[eval.JobID]; existing {
-		b.duplicates = append(b.duplicates, eval)
-
-		// Unblock any waiter.
-		select {
-		case b.duplicateCh <- struct{}{}:
-		default:
-		}
-
+	// Handle the new evaluation being for a job we are already tracking.
+	if b.processBlockJobDuplicate(eval) {
+		// If process block job duplicate returns true, the new evaluation has
+		// been marked as a duplicate and we have nothing to do, so return
+		// early.
 		return
 	}
 
@@ -205,7 +203,7 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	}
 
 	// Mark the job as tracked.
-	b.jobs[eval.JobID] = eval.ID
+	b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)] = eval.ID
 	b.stats.TotalBlocked++
 
 	// Track that the evaluation is being added due to reaching the quota limit
@@ -232,6 +230,71 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	// Add the eval to the set of blocked evals whose jobs constraints are
 	// captured by computed node class.
 	b.captured[eval.ID] = wrapped
+}
+
+// processBlockJobDuplicate handles the case where the new eval is for a job
+// that we are already tracking. If the eval is a duplicate, we add the older
+// evaluation by Raft index to the list of duplicates such that it can be
+// cancelled. We only ever want one blocked evaluation per job, otherwise we
+// would create unnecessary work for the scheduler as multiple evals for the
+// same job would be run, all producing the same outcome. It is critical to
+// prefer the newer evaluation, since it will contain the most up to date set of
+// class eligibility. The return value is set to true, if the passed evaluation
+// is cancelled. This should be called with the lock held.
+func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCancelled bool) {
+	existingID, hasExisting := b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)]
+	if !hasExisting {
+		return
+	}
+
+	var dup *structs.Evaluation
+	existingW, ok := b.captured[existingID]
+	if ok {
+		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
+			delete(b.captured, existingID)
+			b.stats.TotalBlocked--
+			dup = existingW.eval
+		} else {
+			dup = eval
+			newCancelled = true
+		}
+	} else {
+		existingW, ok = b.escaped[existingID]
+		if !ok {
+			// This is a programming error
+			b.logger.Error("existing blocked evaluation is neither tracked as captured or escaped", "existing_id", existingID)
+			delete(b.jobs, structs.NewNamespacedID(eval.JobID, eval.Namespace))
+			return
+		}
+
+		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
+			delete(b.escaped, existingID)
+			b.stats.TotalEscaped--
+			dup = existingW.eval
+		} else {
+			dup = eval
+			newCancelled = true
+		}
+	}
+
+	b.duplicates = append(b.duplicates, dup)
+
+	// Unblock any waiter.
+	select {
+	case b.duplicateCh <- struct{}{}:
+	default:
+	}
+
+	return
+}
+
+// latestEvalIndex returns the max of the evaluations create and snapshot index
+func latestEvalIndex(eval *structs.Evaluation) uint64 {
+	if eval == nil {
+		return 0
+	}
+
+	return helper.Uint64Max(eval.CreateIndex, eval.SnapshotIndex)
 }
 
 // missedUnblock returns whether an evaluation missed an unblock while it was in
@@ -291,7 +354,7 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 // Untrack causes any blocked evaluation for the passed job to be no longer
 // tracked. Untrack is called when there is a successful evaluation for the job
 // and a blocked evaluation is no longer needed.
-func (b *BlockedEvals) Untrack(jobID string) {
+func (b *BlockedEvals) Untrack(jobID, namespace string) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
@@ -300,8 +363,10 @@ func (b *BlockedEvals) Untrack(jobID string) {
 		return
 	}
 
+	nsID := structs.NewNamespacedID(jobID, namespace)
+
 	// Get the evaluation ID to cancel
-	evalID, ok := b.jobs[jobID]
+	evalID, ok := b.jobs[nsID]
 	if !ok {
 		// No blocked evaluation so exit
 		return
@@ -309,7 +374,7 @@ func (b *BlockedEvals) Untrack(jobID string) {
 
 	// Attempt to delete the evaluation
 	if w, ok := b.captured[evalID]; ok {
-		delete(b.jobs, w.eval.JobID)
+		delete(b.jobs, nsID)
 		delete(b.captured, evalID)
 		b.stats.TotalBlocked--
 		if w.eval.QuotaLimitReached != "" {
@@ -318,7 +383,7 @@ func (b *BlockedEvals) Untrack(jobID string) {
 	}
 
 	if w, ok := b.escaped[evalID]; ok {
-		delete(b.jobs, w.eval.JobID)
+		delete(b.jobs, nsID)
 		delete(b.escaped, evalID)
 		b.stats.TotalEscaped--
 		b.stats.TotalBlocked--
@@ -410,12 +475,12 @@ func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 
 // watchCapacity is a long lived function that watches for capacity changes in
 // nodes and unblocks the correct set of evals.
-func (b *BlockedEvals) watchCapacity() {
+func (b *BlockedEvals) watchCapacity(stopCh <-chan struct{}, changeCh <-chan *capacityUpdate) {
 	for {
 		select {
-		case <-b.stopCh:
+		case <-stopCh:
 			return
-		case update := <-b.capacityChangeCh:
+		case update := <-changeCh:
 			b.unblock(update.computedClass, update.quotaChange, update.index)
 		}
 	}
@@ -440,7 +505,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 		for id, wrapped := range b.escaped {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.escaped, id)
-			delete(b.jobs, wrapped.eval.JobID)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 
 			if wrapped.eval.QuotaLimitReached != "" {
 				numQuotaLimit++
@@ -467,7 +532,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 		// is eligible based on the computed node class, or never seen the
 		// computed node class.
 		unblocked[wrapped.eval] = wrapped.token
-		delete(b.jobs, wrapped.eval.JobID)
+		delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 		delete(b.captured, id)
 		if wrapped.eval.QuotaLimitReached != "" {
 			numQuotaLimit++
@@ -502,7 +567,7 @@ func (b *BlockedEvals) UnblockFailed() {
 		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.captured, id)
-			delete(b.jobs, wrapped.eval.JobID)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 			if wrapped.eval.QuotaLimitReached != "" {
 				quotaLimit++
 			}
@@ -513,7 +578,7 @@ func (b *BlockedEvals) UnblockFailed() {
 		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.escaped, id)
-			delete(b.jobs, wrapped.eval.JobID)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 			b.stats.TotalEscaped -= 1
 			if wrapped.eval.QuotaLimitReached != "" {
 				quotaLimit++
@@ -541,6 +606,11 @@ SCAN:
 		b.l.Unlock()
 		return dups
 	}
+
+	// Capture chans inside the lock to prevent a race with them getting
+	// reset in Flush
+	dupCh := b.duplicateCh
+	stopCh := b.stopCh
 	b.l.Unlock()
 
 	// Create the timer
@@ -551,11 +621,11 @@ SCAN:
 	}
 
 	select {
-	case <-b.stopCh:
+	case <-stopCh:
 		return nil
 	case <-timeoutCh:
 		return nil
-	case <-b.duplicateCh:
+	case <-dupCh:
 		goto SCAN
 	}
 }
@@ -571,7 +641,7 @@ func (b *BlockedEvals) Flush() {
 	b.stats.TotalQuotaLimit = 0
 	b.captured = make(map[string]wrappedEval)
 	b.escaped = make(map[string]wrappedEval)
-	b.jobs = make(map[string]string)
+	b.jobs = make(map[structs.NamespacedID]string)
 	b.unblockIndexes = make(map[string]uint64)
 	b.timetable = nil
 	b.duplicates = nil
@@ -611,13 +681,13 @@ func (b *BlockedEvals) EmitStats(period time.Duration, stopCh chan struct{}) {
 }
 
 // prune is a long lived function that prunes unnecessary objects on a timer.
-func (b *BlockedEvals) prune() {
+func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 	ticker := time.NewTicker(pruneInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-b.stopCh:
+		case <-stopCh:
 			return
 		case <-ticker.C:
 			b.pruneUnblockIndexes()

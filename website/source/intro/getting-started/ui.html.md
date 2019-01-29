@@ -1,12 +1,12 @@
 ---
 layout: "intro"
-page_title: "Nomad Web UI"
+page_title: "Web UI"
 sidebar_current: "getting-started-ui"
 description: |-
   Visit the Nomad Web UI to inspect jobs, allocations, and more.
 ---
 
-# Nomad Web UI
+# Web UI
 
 At this point we have a fully functioning cluster with a job running in it. We have
 learned how to inspect a job using `nomad status`, next we'll learn how to inspect
@@ -17,7 +17,7 @@ a job in the web client.
 As long as Nomad is running, the Nomad UI is also running. It is hosted at the same address
 and port as the Nomad HTTP API under the `/ui` namespace.
 
-With Nomad running, visit [http://localhost:4646](http://localhost:4646) to open the Nomad UI.
+With Nomad running, visit `http://localhost:4646` to open the Nomad UI.
 
 [![Nomad UI Jobs List][img-jobs-list]][img-jobs-list]
 
@@ -29,8 +29,7 @@ port mapping:
 ==> default: Fixed port collision for 4646 => 4646. Now on port 2200.
 ```
 
-In the case above you would connect to
-[http://localhost:2200](http://localhost:2200) instead.
+In the case above you would connect to `http://localhost:2200` instead.
 
 ## Inspecting a Job
 

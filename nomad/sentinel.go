@@ -165,13 +165,13 @@ func (s *Server) gcSentinelPolicies(stopCh chan struct{}) {
 			// Snapshot the current state
 			snap, err := s.State().Snapshot()
 			if err != nil {
-				s.logger.Printf("[ERR] sentinel.gc: failed to snapshot state: %v", err)
+				s.logger.Named("sentinel.gc").Error("failed to snapshot state", "error", err)
 				continue
 			}
 
 			// Invalidate the unused policies
 			if err := invalidateUnusedPolicies(s.sentinel, snap); err != nil {
-				s.logger.Printf("[ERR] sentinel.gc: failed to GC sentinel policies: %v", err)
+				s.logger.Named("sentinel.gc").Error("failed to GC sentinel policies", "error", err)
 			}
 		}
 	}

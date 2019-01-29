@@ -2,7 +2,7 @@ import { assert } from '@ember/debug';
 import Mixin from '@ember/object/mixin';
 import { computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
-import queryString from 'npm:query-string';
+import queryString from 'query-string';
 
 const MAX_OUTPUT_LENGTH = 50000;
 

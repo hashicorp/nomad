@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
+	testing "github.com/mitchellh/go-testing-interface"
+
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/go-testing-interface"
 )
 
 // RejectPlan is used to always reject the entire plan and force a state refresh
@@ -96,6 +97,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	result := new(structs.PlanResult)
 	result.NodeUpdate = plan.NodeUpdate
 	result.NodeAllocation = plan.NodeAllocation
+	result.NodePreemptions = plan.NodePreemptions
 	result.AllocIndex = index
 
 	// Flatten evicts and allocs
@@ -116,6 +118,15 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		}
 	}
 
+	// Set modify time for preempted allocs and flatten them
+	var preemptedAllocs []*structs.Allocation
+	for _, preemptions := range result.NodePreemptions {
+		for _, alloc := range preemptions {
+			alloc.ModifyTime = now
+			preemptedAllocs = append(preemptedAllocs, alloc)
+		}
+	}
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -125,6 +136,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
+		NodePreemptions:   preemptedAllocs,
 	}
 
 	// Apply the full plan
@@ -203,7 +215,7 @@ func (h *Harness) Snapshot() State {
 // Scheduler is used to return a new scheduler from
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory Factory) Scheduler {
-	logger := testlog.Logger(h.t)
+	logger := testlog.HCLogger(h.t)
 	return factory(logger, h.Snapshot(), h)
 }
 

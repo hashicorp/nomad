@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSystemSched_JobRegister(t *testing.T) {
@@ -218,7 +220,7 @@ func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
 		JobID:       job1.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval1}))
 
 	// Process the evaluation
 	if err := h1.Process(NewSystemScheduler, eval1); err != nil {
@@ -238,6 +240,13 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 	// Create a nodes
 	node := mock.Node()
 	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+
+	// Enable Preemption
+	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: true,
+		},
+	})
 
 	// Create a service job which consumes most of the system resources
 	svcJob := mock.Job()
@@ -274,15 +283,31 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval1}))
 	// Process the evaluation
 	if err := h.Process(NewSystemScheduler, eval1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Ensure that we have one allocation queued from the system job eval
+	// System scheduler will preempt the service job and would have placed eval1
+	require := require.New(t)
+
+	newPlan := h.Plans[1]
+	require.Len(newPlan.NodeAllocation, 1)
+	require.Len(newPlan.NodePreemptions, 1)
+
+	for _, allocList := range newPlan.NodeAllocation {
+		require.Len(allocList, 1)
+		require.Equal(job.ID, allocList[0].JobID)
+	}
+
+	for _, allocList := range newPlan.NodePreemptions {
+		require.Len(allocList, 1)
+		require.Equal(svcJob.ID, allocList[0].JobID)
+	}
+	// Ensure that we have no queued allocations on the second eval
 	queued := h.Evals[1].QueuedAllocations["web"]
-	if queued != 1 {
+	if queued != 0 {
 		t.Fatalf("expected: %v, actual: %v", 1, queued)
 	}
 }
@@ -1528,4 +1553,332 @@ func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestSystemSched_Preemption(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create nodes
+	var nodes []*structs.Node
+	for i := 0; i < 2; i++ {
+		node := mock.Node()
+		//TODO(preetha): remove in 0.11
+		node.Resources = &structs.Resources{
+			CPU:      3072,
+			MemoryMB: 5034,
+			DiskMB:   20 * 1024,
+			Networks: []*structs.NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		}
+		node.NodeResources = &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{
+				CpuShares: 3072,
+			},
+			Memory: structs.NodeMemoryResources{
+				MemoryMB: 5034,
+			},
+			Disk: structs.NodeDiskResources{
+				DiskMB: 20 * 1024,
+			},
+			Networks: []*structs.NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		}
+		noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+		nodes = append(nodes, node)
+	}
+
+	// Enable Preemption
+	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		PreemptionConfig: structs.PreemptionConfig{
+			SystemSchedulerEnabled: true,
+		},
+	})
+
+	// Create some low priority batch jobs and allocations for them
+	// One job uses a reserved port
+	job1 := mock.BatchJob()
+	job1.Type = structs.JobTypeBatch
+	job1.Priority = 20
+	job1.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      512,
+		MemoryMB: 1024,
+		Networks: []*structs.NetworkResource{
+			{
+				MBits: 200,
+				ReservedPorts: []structs.Port{
+					{
+						Label: "web",
+						Value: 80,
+					},
+				},
+			},
+		},
+	}
+
+	alloc1 := mock.Alloc()
+	alloc1.Job = job1
+	alloc1.JobID = job1.ID
+	alloc1.NodeID = nodes[0].ID
+	alloc1.Name = "my-job[0]"
+	alloc1.TaskGroup = job1.TaskGroups[0].Name
+	alloc1.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 512,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 1024,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
+						MBits:         200,
+					},
+				},
+			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 5 * 1024,
+		},
+	}
+
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job1))
+
+	job2 := mock.BatchJob()
+	job2.Type = structs.JobTypeBatch
+	job2.Priority = 20
+	job2.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      512,
+		MemoryMB: 1024,
+		Networks: []*structs.NetworkResource{
+			{
+				MBits: 200,
+			},
+		},
+	}
+
+	alloc2 := mock.Alloc()
+	alloc2.Job = job2
+	alloc2.JobID = job2.ID
+	alloc2.NodeID = nodes[0].ID
+	alloc2.Name = "my-job[2]"
+	alloc2.TaskGroup = job2.TaskGroups[0].Name
+	alloc2.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 512,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 1024,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  200,
+					},
+				},
+			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 5 * 1024,
+		},
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	job3 := mock.Job()
+	job3.Type = structs.JobTypeBatch
+	job3.Priority = 40
+	job3.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      1024,
+		MemoryMB: 2048,
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				MBits:  400,
+			},
+		},
+	}
+
+	alloc3 := mock.Alloc()
+	alloc3.Job = job3
+	alloc3.JobID = job3.ID
+	alloc3.NodeID = nodes[0].ID
+	alloc3.Name = "my-job[0]"
+	alloc3.TaskGroup = job3.TaskGroups[0].Name
+	alloc3.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 1024,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 25,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
+						MBits:         400,
+					},
+				},
+			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 5 * 1024,
+		},
+	}
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc1, alloc2, alloc3}))
+
+	// Create a high priority job and allocs for it
+	// These allocs should not be preempted
+
+	job4 := mock.BatchJob()
+	job4.Type = structs.JobTypeBatch
+	job4.Priority = 100
+	job4.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      1024,
+		MemoryMB: 2048,
+		Networks: []*structs.NetworkResource{
+			{
+				MBits: 100,
+			},
+		},
+	}
+
+	alloc4 := mock.Alloc()
+	alloc4.Job = job4
+	alloc4.JobID = job4.ID
+	alloc4.NodeID = nodes[0].ID
+	alloc4.Name = "my-job4[0]"
+	alloc4.TaskGroup = job4.TaskGroups[0].Name
+	alloc4.AllocatedResources = &structs.AllocatedResources{
+		Tasks: map[string]*structs.AllocatedTaskResources{
+			"web": {
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 1024,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 2048,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "web", Value: 80}},
+						MBits:         100,
+					},
+				},
+			},
+		},
+		Shared: structs.AllocatedSharedResources{
+			DiskMB: 2 * 1024,
+		},
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job4))
+	noErr(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc4}))
+
+	// Create a system job such that it would need to preempt both allocs to succeed
+	job := mock.SystemJob()
+	job.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      1948,
+		MemoryMB: 256,
+		Networks: []*structs.NetworkResource{
+			{
+				MBits:        800,
+				DynamicPorts: []structs.Port{{Label: "http"}},
+			},
+		},
+	}
+	noErr(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	require := require.New(t)
+	require.Nil(err)
+
+	// Ensure a single plan
+	require.Equal(1, len(h.Plans))
+	plan := h.Plans[0]
+
+	// Ensure the plan doesn't have annotations.
+	require.Nil(plan.Annotations)
+
+	// Ensure the plan allocated on both nodes
+	var planned []*structs.Allocation
+	preemptingAllocId := ""
+	require.Equal(2, len(plan.NodeAllocation))
+
+	// The alloc that got placed on node 1 is the preemptor
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+		for _, alloc := range allocList {
+			if alloc.NodeID == nodes[0].ID {
+				preemptingAllocId = alloc.ID
+			}
+		}
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	noErr(t, err)
+
+	// Ensure all allocations placed
+	require.Equal(2, len(out))
+
+	// Verify that one node has preempted allocs
+	require.NotNil(plan.NodePreemptions[nodes[0].ID])
+	preemptedAllocs := plan.NodePreemptions[nodes[0].ID]
+
+	// Verify that three jobs have preempted allocs
+	require.Equal(3, len(preemptedAllocs))
+
+	expectedPreemptedJobIDs := []string{job1.ID, job2.ID, job3.ID}
+
+	// We expect job1, job2 and job3 to have preempted allocations
+	// job4 should not have any allocs preempted
+	for _, alloc := range preemptedAllocs {
+		require.Contains(expectedPreemptedJobIDs, alloc.JobID)
+	}
+	// Look up the preempted allocs by job ID
+	ws = memdb.NewWatchSet()
+
+	for _, jobId := range expectedPreemptedJobIDs {
+		out, err = h.State.AllocsByJob(ws, structs.DefaultNamespace, jobId, false)
+		noErr(t, err)
+		for _, alloc := range out {
+			require.Equal(structs.AllocDesiredStatusEvict, alloc.DesiredStatus)
+			require.Equal(fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocId), alloc.DesiredDescription)
+		}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
 }

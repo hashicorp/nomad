@@ -96,7 +96,8 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 			return false, err
 		}
 		for _, node := range nodes {
-			if node.Status == structs.NodeStatusReady {
+			if _, ok := node.Drivers["mock_driver"]; ok &&
+				node.Status == structs.NodeStatusReady {
 				return true, nil
 			}
 		}
@@ -222,6 +223,65 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 	out := ui.OutputWriter.String()
 	require.Contains(out, "Replacement Alloc ID")
 	require.Regexp(regexp.MustCompile(".*Reschedule Attempts\\s*=\\s*1/2"), out)
+}
+
+func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+	// Test node metrics
+	require := require.New(t)
+	state := srv.Agent.Server().State()
+	a := mock.Alloc()
+	mockNode1 := mock.Node()
+	mockNode2 := mock.Node()
+	a.Metrics = &structs.AllocMetric{
+		ScoreMetaData: []*structs.NodeScoreMeta{
+			{
+				NodeID: mockNode1.ID,
+				Scores: map[string]float64{
+					"binpack":       0.77,
+					"node-affinity": 0.5,
+				},
+			},
+			{
+				NodeID: mockNode2.ID,
+				Scores: map[string]float64{
+					"binpack":       0.75,
+					"node-affinity": 0.33,
+				},
+			},
+		},
+	}
+	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+	require.Contains(out, "Placement Metrics")
+	require.Contains(out, mockNode1.ID)
+	require.Contains(out, mockNode2.ID)
+	require.Contains(out, "final score")
 }
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {

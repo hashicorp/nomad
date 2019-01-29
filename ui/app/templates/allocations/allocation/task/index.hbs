@@ -1,96 +1,106 @@
-{{#global-header class="page-header"}}
-  {{#each breadcrumbs as |breadcrumb index|}}
-    <li class="{{if (eq (inc index) breadcrumbs.length) "is-active"}}">
-      {{#link-to
-        data-test-breadcrumb=breadcrumb.label
-        params=breadcrumb.args}}
-        {{breadcrumb.label}}
-      {{/link-to}}
-    </li>
-  {{/each}}
-{{/global-header}}
-{{#gutter-menu class="page-body"}}
-  {{partial "allocations/allocation/task/subnav"}}
-  <section class="section">
-    <h1 class="title" data-test-title>
-      {{model.name}}
-      <span class="bumper-left tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
-    </h1>
+{{partial "allocations/allocation/task/subnav"}}
+<section class="section">
+  <h1 class="title" data-test-title>
+    {{model.name}}
+    <span class="bumper-left tag {{model.stateClass}}" data-test-state>{{model.state}}</span>
+  </h1>
 
-    <div class="boxed-section is-small">
-      <div class="boxed-section-body inline-definitions">
-        <span class="label">Task Details</span>
-        <span class="pair" data-test-started-at>
-          <span class="term">Started At</span>
-          {{moment-format model.startedAt "MM/DD/YY HH:mm:ss"}}
-        </span>
-        {{#if model.finishedAt}}
-          <span class="pair">
-            <span class="term">Finished At</span>
-            {{moment-format model.finishedAt "MM/DD/YY HH:mm:ss"}}
-          </span>
-        {{/if}}
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Task Details</span>
+      <span class="pair" data-test-started-at>
+        <span class="term">Started At</span>
+        {{moment-format model.startedAt "MM/DD/YY HH:mm:ss"}}
+      </span>
+      {{#if model.finishedAt}}
         <span class="pair">
-          <span class="term">Driver</span>
-          {{model.task.driver}}
+          <span class="term">Finished At</span>
+          {{moment-format model.finishedAt "MM/DD/YY HH:mm:ss"}}
         </span>
-      </div>
+      {{/if}}
+      <span class="pair">
+        <span class="term">Driver</span>
+        {{model.task.driver}}
+      </span>
     </div>
+  </div>
 
-    {{#if ports.length}}
-      <div class="boxed-section" data-test-task-addresses>
-        <div class="boxed-section-head">
-          Addresses
+  <div class="boxed-section">
+    <div class="boxed-section-head is-hollow">
+      Resource Utilization
+    </div>
+    <div class="boxed-section-body">
+      {{#if model.isRunning}}
+        <div class="columns">
+          <div class="column">
+            {{primary-metric resource=model metric="cpu"}}
+          </div>
+          <div class="column">
+            {{primary-metric resource=model metric="memory"}}
+          </div>
         </div>
-        <div class="boxed-section-body is-full-bleed">
-          {{#list-table source=ports as |t|}}
-            {{#t.head}}
-              <th class="is-1">Dynamic?</th>
-              <th class="is-2">Name</th>
-              <th>Address</th>
-            {{/t.head}}
-            {{#t.body as |row|}}
-              <tr data-test-task-address>
-                <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
-                <td data-test-task-address-name>{{row.model.name}}</td>
-                <td data-test-task-address-address>
-                  <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank">
-                    {{network.ip}}:{{row.model.port}}
-                  </a>
-                </td>
-              </tr>
-            {{/t.body}}
-          {{/list-table}}
+      {{else}}
+        <div data-test-resource-error class="empty-message">
+          <h3 data-test-resource-error-headline class="empty-message-headline">Task isn't running</h3>
+          <p class="empty-message-body">Only running tasks utilize resources.</p>
         </div>
-      </div>
-    {{/if}}
+      {{/if}}
+    </div>
+  </div>
 
-    <div class="boxed-section">
+  {{#if ports.length}}
+    <div class="boxed-section" data-test-task-addresses>
       <div class="boxed-section-head">
-        Recent Events
+        Addresses
       </div>
       <div class="boxed-section-body is-full-bleed">
-        {{#list-table source=(reverse model.events) class="is-striped" as |t|}}
+        {{#list-table source=ports as |t|}}
           {{#t.head}}
-            <th class="is-3">Time</th>
-            <th class="is-1">Type</th>
-            <th>Description</th>
+            <th class="is-1">Dynamic?</th>
+            <th class="is-2">Name</th>
+            <th>Address</th>
           {{/t.head}}
           {{#t.body as |row|}}
-            <tr data-test-task-event>
-              <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
-              <td data-test-task-event-type>{{row.model.type}}</td>
-              <td data-test-task-event-message>
-                {{#if row.model.message}}
-                  {{row.model.message}}
-                {{else}}
-                  <em>No message</em>
-                {{/if}}
+            <tr data-test-task-address>
+              <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+              <td data-test-task-address-name>{{row.model.name}}</td>
+              <td data-test-task-address-address>
+                <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank">
+                  {{network.ip}}:{{row.model.port}}
+                </a>
               </td>
             </tr>
           {{/t.body}}
         {{/list-table}}
       </div>
     </div>
-  </section>
-{{/gutter-menu}}
+  {{/if}}
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Recent Events
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{#list-table source=(reverse model.events) class="is-striped" as |t|}}
+        {{#t.head}}
+          <th class="is-3">Time</th>
+          <th class="is-1">Type</th>
+          <th>Description</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          <tr data-test-task-event>
+            <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
+            <td data-test-task-event-type>{{row.model.type}}</td>
+            <td data-test-task-event-message>
+              {{#if row.model.message}}
+                {{row.model.message}}
+              {{else}}
+                <em>No message</em>
+              {{/if}}
+            </td>
+          </tr>
+        {{/t.body}}
+      {{/list-table}}
+    </div>
+  </div>
+</section>

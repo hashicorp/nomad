@@ -1,4 +1,4 @@
-package swarm
+package swarm // import "github.com/docker/docker/api/types/swarm"
 
 import (
 	"time"
@@ -55,6 +55,7 @@ type ContainerSpec struct {
 	User            string                  `json:",omitempty"`
 	Groups          []string                `json:",omitempty"`
 	Privileges      *Privileges             `json:",omitempty"`
+	Init            *bool                   `json:",omitempty"`
 	StopSignal      string                  `json:",omitempty"`
 	TTY             bool                    `json:",omitempty"`
 	OpenStdin       bool                    `json:",omitempty"`
@@ -70,4 +71,5 @@ type ContainerSpec struct {
 	Secrets   []*SecretReference  `json:",omitempty"`
 	Configs   []*ConfigReference  `json:",omitempty"`
 	Isolation container.Isolation `json:",omitempty"`
+	Sysctls   map[string]string   `json:",omitempty"`
 }

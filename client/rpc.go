@@ -71,8 +71,15 @@ TRY:
 		return nil
 	}
 
+	// If shutting down, exit without logging the error
+	select {
+	case <-c.shutdownCh:
+		return nil
+	default:
+	}
+
 	// Move off to another server, and see if we can retry.
-	c.logger.Printf("[ERR] nomad: %q RPC failed to server %s: %v", method, server.Addr, rpcErr)
+	c.rpcLogger.Error("error performing RPC to server", "error", rpcErr, "rpc", method, "server", server.Addr)
 	c.servers.NotifyFailedServer(server)
 	if retry := canRetry(args, rpcErr); !retry {
 		return rpcErr
@@ -119,7 +126,7 @@ func (c *Client) RemoteStreamingRpcHandler(method string) (structs.StreamingRpcH
 	conn, err := c.streamingRpcConn(server, method)
 	if err != nil {
 		// Move off to another server
-		c.logger.Printf("[ERR] nomad: %q RPC failed to server %s: %v", method, server.Addr, err)
+		c.rpcLogger.Error("error performing RPC to server", "error", err, "rpc", method, "server", server.Addr)
 		c.servers.NotifyFailedServer(server)
 		return nil, err
 	}
@@ -261,7 +268,7 @@ func (c *Client) listenConn(s *yamux.Session) {
 				return
 			}
 
-			c.logger.Printf("[ERR] client.rpc: failed to accept RPC conn: %v", err)
+			c.rpcLogger.Error("failed to accept RPC conn", "error", err)
 			continue
 		}
 
@@ -277,7 +284,7 @@ func (c *Client) handleConn(conn net.Conn) {
 	buf := make([]byte, 1)
 	if _, err := conn.Read(buf); err != nil {
 		if err != io.EOF {
-			c.logger.Printf("[ERR] client.rpc: failed to read byte: %v", err)
+			c.rpcLogger.Error("error reading byte", "error", err)
 		}
 		conn.Close()
 		return
@@ -292,7 +299,7 @@ func (c *Client) handleConn(conn net.Conn) {
 		c.handleStreamingConn(conn)
 
 	default:
-		c.logger.Printf("[ERR] client.rpc: unrecognized RPC byte: %v", buf[0])
+		c.rpcLogger.Error("unrecognized RPC byte", "byte", buf[0])
 		conn.Close()
 		return
 	}
@@ -311,7 +318,7 @@ func (c *Client) handleNomadConn(conn net.Conn) {
 
 		if err := c.rpcServer.ServeRequest(rpcCodec); err != nil {
 			if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-				c.logger.Printf("[ERR] client.rpc: RPC error: %v (%v)", err, conn)
+				c.rpcLogger.Error("error performing RPC", "error", err, "addr", conn.RemoteAddr())
 				metrics.IncrCounter([]string{"client", "rpc", "request_error"}, 1)
 			}
 			return
@@ -329,7 +336,7 @@ func (c *Client) handleStreamingConn(conn net.Conn) {
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
 	if err := decoder.Decode(&header); err != nil {
 		if err != io.EOF && !strings.Contains(err.Error(), "closed") {
-			c.logger.Printf("[ERR] client.rpc: Streaming RPC error: %v (%v)", err, conn)
+			c.rpcLogger.Error("error performing streaming RPC", "error", err, "addr", conn.RemoteAddr())
 			metrics.IncrCounter([]string{"client", "streaming_rpc", "request_error"}, 1)
 		}
 
@@ -339,7 +346,7 @@ func (c *Client) handleStreamingConn(conn net.Conn) {
 	ack := structs.StreamingRpcAck{}
 	handler, err := c.streamingRpcs.GetHandler(header.Method)
 	if err != nil {
-		c.logger.Printf("[ERR] client.rpc: Streaming RPC error: %v (%v)", err, conn)
+		c.rpcLogger.Error("streaming RPC error", "addr", conn.RemoteAddr(), "error", err)
 		metrics.IncrCounter([]string{"client", "streaming_rpc", "request_error"}, 1)
 		ack.Error = err.Error()
 	}

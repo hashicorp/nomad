@@ -2,8 +2,11 @@ package acl
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	iradix "github.com/hashicorp/go-immutable-radix"
+	glob "github.com/ryanuber/go-glob"
 )
 
 // ManagementACL is a singleton used for management tokens
@@ -44,6 +47,10 @@ type ACL struct {
 	// namespaces maps a namespace to a capabilitySet
 	namespaces *iradix.Tree
 
+	// wildcardNamespaces maps a glob pattern of a namespace to a capabilitySet
+	// We use an iradix for the purposes of ordered iteration.
+	wildcardNamespaces *iradix.Tree
+
 	agent    string
 	node     string
 	operator string
@@ -75,18 +82,33 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	// Create the ACL object
 	acl := &ACL{}
 	nsTxn := iradix.New().Txn()
+	wnsTxn := iradix.New().Txn()
 
 	for _, policy := range policies {
 	NAMESPACES:
 		for _, ns := range policy.Namespaces {
+			// Should the namespace be matched using a glob?
+			globDefinition := strings.Contains(ns.Name, "*")
+
 			// Check for existing capabilities
 			var capabilities capabilitySet
-			raw, ok := nsTxn.Get([]byte(ns.Name))
-			if ok {
-				capabilities = raw.(capabilitySet)
+
+			if globDefinition {
+				raw, ok := wnsTxn.Get([]byte(ns.Name))
+				if ok {
+					capabilities = raw.(capabilitySet)
+				} else {
+					capabilities = make(capabilitySet)
+					wnsTxn.Insert([]byte(ns.Name), capabilities)
+				}
 			} else {
-				capabilities = make(capabilitySet)
-				nsTxn.Insert([]byte(ns.Name), capabilities)
+				raw, ok := nsTxn.Get([]byte(ns.Name))
+				if ok {
+					capabilities = raw.(capabilitySet)
+				} else {
+					capabilities = make(capabilitySet)
+					nsTxn.Insert([]byte(ns.Name), capabilities)
+				}
 			}
 
 			// Deny always takes precedence
@@ -123,6 +145,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 
 	// Finalize the namespaces
 	acl.namespaces = nsTxn.Commit()
+	acl.wildcardNamespaces = wnsTxn.Commit()
 	return acl, nil
 }
 
@@ -139,13 +162,12 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 	}
 
 	// Check for a matching capability set
-	raw, ok := a.namespaces.Get([]byte(ns))
+	capabilities, ok := a.matchingCapabilitySet(ns)
 	if !ok {
 		return false
 	}
 
 	// Check if the capability has been granted
-	capabilities := raw.(capabilitySet)
 	return capabilities.Check(op)
 }
 
@@ -157,18 +179,89 @@ func (a *ACL) AllowNamespace(ns string) bool {
 	}
 
 	// Check for a matching capability set
-	raw, ok := a.namespaces.Get([]byte(ns))
+	capabilities, ok := a.matchingCapabilitySet(ns)
 	if !ok {
 		return false
 	}
 
 	// Check if the capability has been granted
-	capabilities := raw.(capabilitySet)
 	if len(capabilities) == 0 {
 		return false
 	}
 
 	return !capabilities.Check(PolicyDeny)
+}
+
+// matchingCapabilitySet looks for a capabilitySet that matches the namespace,
+// if no concrete definitions are found, then we return the closest matching
+// glob.
+// The closest matching glob is the one that has the smallest character
+// difference between the namespace and the glob.
+func (a *ACL) matchingCapabilitySet(ns string) (capabilitySet, bool) {
+	// Check for a concrete matching capability set
+	raw, ok := a.namespaces.Get([]byte(ns))
+	if ok {
+		return raw.(capabilitySet), true
+	}
+
+	// We didn't find a concrete match, so lets try and evaluate globs.
+	return a.findClosestMatchingGlob(ns)
+}
+
+type matchingGlob struct {
+	ns            string
+	difference    int
+	capabilitySet capabilitySet
+}
+
+func (a *ACL) findClosestMatchingGlob(ns string) (capabilitySet, bool) {
+	// First, find all globs that match.
+	matchingGlobs := a.findAllMatchingWildcards(ns)
+
+	// If none match, let's return.
+	if len(matchingGlobs) == 0 {
+		return capabilitySet{}, false
+	}
+
+	// If a single matches, lets be efficient and return early.
+	if len(matchingGlobs) == 1 {
+		return matchingGlobs[0].capabilitySet, true
+	}
+
+	// Stable sort the matched globs, based on the character difference between
+	// the glob definition and the requested namespace. This allows us to be
+	// more consistent about results based on the policy definition.
+	sort.SliceStable(matchingGlobs, func(i, j int) bool {
+		return matchingGlobs[i].difference <= matchingGlobs[j].difference
+	})
+
+	return matchingGlobs[0].capabilitySet, true
+}
+
+func (a *ACL) findAllMatchingWildcards(ns string) []matchingGlob {
+	var matches []matchingGlob
+
+	nsLen := len(ns)
+
+	a.wildcardNamespaces.Root().Walk(func(bk []byte, iv interface{}) bool {
+		k := string(bk)
+		v := iv.(capabilitySet)
+
+		isMatch := glob.Glob(k, ns)
+		if isMatch {
+			pair := matchingGlob{
+				ns:            k,
+				difference:    nsLen - len(k) + strings.Count(k, glob.GLOB),
+				capabilitySet: v,
+			}
+			matches = append(matches, pair)
+		}
+
+		// We always want to walk the entire tree, never terminate early.
+		return false
+	})
+
+	return matches
 }
 
 // AllowAgentRead checks if read operations are allowed for an agent

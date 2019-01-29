@@ -1,13 +1,17 @@
 import Component from '@ember/component';
-import { inject as service } from '@ember/service';
-import { alias } from '@ember/object/computed';
+import { computed } from '@ember/object';
 
 export default Component.extend({
-  store: service(),
-
   job: null,
-
-  summary: alias('job.summary'),
-
   classNames: ['boxed-section'],
+
+  isExpanded: computed(function() {
+    const storageValue = window.localStorage.nomadExpandJobSummary;
+    return storageValue != null ? JSON.parse(storageValue) : true;
+  }),
+
+  persist(item, isOpen) {
+    window.localStorage.nomadExpandJobSummary = isOpen;
+    this.notifyPropertyChange('isExpanded');
+  },
 });

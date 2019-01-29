@@ -68,8 +68,8 @@ Modified               = 22s ago
 
 Task "demo" is "dead"
 Task Resources
-CPU      Memory   Disk     IOPS  Addresses
-100 MHz  300 MiB  300 MiB  0
+CPU      Memory   Disk     Addresses
+100 MHz  300 MiB  300 MiB
 
 Task Events:
 Started At     = 2018-04-12T22:29:08Z

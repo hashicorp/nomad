@@ -45,7 +45,9 @@ func TestConfig_Merge(t *testing.T) {
 		Datacenter:                "dc1",
 		NodeName:                  "node1",
 		DataDir:                   "/tmp/dir1",
+		PluginDir:                 "/tmp/pluginDir1",
 		LogLevel:                  "INFO",
+		LogJson:                   false,
 		EnableDebug:               false,
 		LeaveOnInt:                false,
 		LeaveOnTerm:               false,
@@ -76,6 +78,7 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusCheckTags:                  "cat1:tag1,cat2:tag2",
 			CirconusBrokerID:                   "0",
 			CirconusBrokerSelectTag:            "dc:dc1",
+			PrefixFilter:                       []string{"filter1", "filter2"},
 		},
 		Client: &ClientConfig{
 			Enabled:   false,
@@ -91,12 +94,10 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout: "20s",
 			ClientMaxPort:  19996,
 			Reserved: &Resources{
-				CPU:                 10,
-				MemoryMB:            10,
-				DiskMB:              10,
-				IOPS:                10,
-				ReservedPorts:       "1,10-30,55",
-				ParsedReservedPorts: []int{1, 2, 4},
+				CPU:           10,
+				MemoryMB:      10,
+				DiskMB:        10,
+				ReservedPorts: "1,10-30,55",
 			},
 		},
 		Server: &ServerConfig{
@@ -175,6 +176,15 @@ func TestConfig_Merge(t *testing.T) {
 			DisableUpgradeMigration: &falseValue,
 			EnableCustomUpgrades:    &falseValue,
 		},
+		Plugins: []*config.PluginConfig{
+			{
+				Name: "docker",
+				Args: []string{"foo"},
+				Config: map[string]interface{}{
+					"bar": 1,
+				},
+			},
+		},
 	}
 
 	c3 := &Config{
@@ -182,7 +192,9 @@ func TestConfig_Merge(t *testing.T) {
 		Datacenter:                "dc2",
 		NodeName:                  "node2",
 		DataDir:                   "/tmp/dir2",
+		PluginDir:                 "/tmp/pluginDir2",
 		LogLevel:                  "DEBUG",
+		LogJson:                   true,
 		EnableDebug:               true,
 		LeaveOnInt:                true,
 		LeaveOnTerm:               true,
@@ -215,6 +227,9 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusCheckTags:                  "cat1:tag1,cat2:tag2",
 			CirconusBrokerID:                   "1",
 			CirconusBrokerSelectTag:            "dc:dc2",
+			PrefixFilter:                       []string{"prefix1", "prefix2"},
+			DisableDispatchedJobSummaryMetrics: true,
+			FilterDefault:                      helper.BoolToPtr(false),
 		},
 		Client: &ClientConfig{
 			Enabled:   true,
@@ -237,12 +252,10 @@ func TestConfig_Merge(t *testing.T) {
 			MemoryMB:       105,
 			MaxKillTimeout: "50s",
 			Reserved: &Resources{
-				CPU:                 15,
-				MemoryMB:            15,
-				DiskMB:              15,
-				IOPS:                15,
-				ReservedPorts:       "2,10-30,55",
-				ParsedReservedPorts: []int{1, 2, 3},
+				CPU:           15,
+				MemoryMB:      15,
+				DiskMB:        15,
+				ReservedPorts: "2,10-30,55",
 			},
 			GCInterval:            6 * time.Second,
 			GCParallelDestroys:    6,
@@ -340,6 +353,22 @@ func TestConfig_Merge(t *testing.T) {
 			EnableRedundancyZones:   &trueValue,
 			DisableUpgradeMigration: &trueValue,
 			EnableCustomUpgrades:    &trueValue,
+		},
+		Plugins: []*config.PluginConfig{
+			{
+				Name: "docker",
+				Args: []string{"bam"},
+				Config: map[string]interface{}{
+					"baz": 2,
+				},
+			},
+			{
+				Name: "exec",
+				Args: []string{"arg"},
+				Config: map[string]interface{}{
+					"config": true,
+				},
+			},
 		},
 	}
 
@@ -849,54 +878,6 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 	}
 }
 
-func TestResources_ParseReserved(t *testing.T) {
-	cases := []struct {
-		Input  string
-		Parsed []int
-		Err    bool
-	}{
-		{
-			"1,2,3",
-			[]int{1, 2, 3},
-			false,
-		},
-		{
-			"3,1,2,1,2,3,1-3",
-			[]int{1, 2, 3},
-			false,
-		},
-		{
-			"3-1",
-			nil,
-			true,
-		},
-		{
-			"1-3,2-4",
-			[]int{1, 2, 3, 4},
-			false,
-		},
-		{
-			"1-3,4,5-5,6,7,8-10",
-			[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-			false,
-		},
-	}
-
-	for i, tc := range cases {
-		r := &Resources{ReservedPorts: tc.Input}
-		err := r.ParseReserved()
-		if (err != nil) != tc.Err {
-			t.Fatalf("test case %d: %v", i, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(r.ParsedReservedPorts, tc.Parsed) {
-			t.Fatalf("test case %d: \n\n%#v\n\n%#v", i, r.ParsedReservedPorts, tc.Parsed)
-		}
-
-	}
-}
-
 func TestIsMissingPort(t *testing.T) {
 	_, _, err := net.SplitHostPort("localhost")
 	if missing := isMissingPort(err); !missing {
@@ -1012,4 +993,69 @@ func TestMergeServerJoin(t *testing.T) {
 		require.Equal(result.RetryMaxAttempts, retryMaxAttempts)
 		require.Equal(result.RetryInterval, retryInterval)
 	}
+}
+
+func TestTelemetry_PrefixFilters(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in       []string
+		expAllow []string
+		expBlock []string
+		expErr   bool
+	}{
+		{
+			in:       []string{"+foo"},
+			expAllow: []string{"foo"},
+		},
+		{
+			in:       []string{"-foo"},
+			expBlock: []string{"foo"},
+		},
+		{
+			in:       []string{"+a.b.c", "-x.y.z"},
+			expAllow: []string{"a.b.c"},
+			expBlock: []string{"x.y.z"},
+		},
+		{
+			in:     []string{"+foo", "bad", "-bar"},
+			expErr: true,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("PrefixCase%d", i), func(t *testing.T) {
+			require := require.New(t)
+			tel := &Telemetry{
+				PrefixFilter: c.in,
+			}
+
+			allow, block, err := tel.PrefixFilters()
+			require.Exactly(c.expAllow, allow)
+			require.Exactly(c.expBlock, block)
+			require.Equal(c.expErr, err != nil)
+		})
+	}
+}
+
+func TestTelemetry_Parse(t *testing.T) {
+	require := require.New(t)
+	dir, err := ioutil.TempDir("", "nomad")
+	require.NoError(err)
+	defer os.RemoveAll(dir)
+
+	file1 := filepath.Join(dir, "config1.hcl")
+	err = ioutil.WriteFile(file1, []byte(`telemetry{
+		prefix_filter = ["+nomad.raft"]
+		filter_default = false
+		disable_dispatched_job_summary_metrics = true
+	}`), 0600)
+	require.NoError(err)
+
+	// Works on config dir
+	config, err := LoadConfig(dir)
+	require.NoError(err)
+
+	require.False(*config.Telemetry.FilterDefault)
+	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
+	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
 }

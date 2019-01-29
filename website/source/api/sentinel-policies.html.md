@@ -9,9 +9,9 @@ description: |-
 # Sentinel Policies HTTP API
 
 The `/sentinel/policies` and `/sentinel/policy/` endpoints are used to manage Sentinel policies.
-For more details about Sentinel policies, please see the [Sentinel Policy Guide](/guides/sentinel-policy.html).
+For more details about Sentinel policies, please see the [Sentinel Policy Guide](/guides/security/sentinel-policy.html).
 
-Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](/guides/acl.html).
+Sentinel endpoints are only available when ACLs are enabled. For more details about ACLs, please see the [ACL Guide](/guides/security/acl.html).
 
 ~> **Enterprise Only!** This API endpoint and functionality only exists in
 Nomad Enterprise. This is not present in the open source version of Nomad.

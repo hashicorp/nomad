@@ -11,8 +11,10 @@ export default Route.extend(WithWatchers, {
     controller.set('watchers', {
       model: this.get('watch').perform(model),
       summary: this.get('watchSummary').perform(model.get('summary')),
+      allocations: this.get('watchAllocations').perform(model),
       evaluations: this.get('watchEvaluations').perform(model),
-      deployments: model.get('supportsDeployments') && this.get('watchDeployments').perform(model),
+      latestDeployment:
+        model.get('supportsDeployments') && this.get('watchLatestDeployment').perform(model),
       list: model.get('hasChildren') && this.get('watchAll').perform(),
     });
   },
@@ -20,8 +22,16 @@ export default Route.extend(WithWatchers, {
   watch: watchRecord('job'),
   watchAll: watchAll('job'),
   watchSummary: watchRecord('job-summary'),
+  watchAllocations: watchRelationship('allocations'),
   watchEvaluations: watchRelationship('evaluations'),
-  watchDeployments: watchRelationship('deployments'),
+  watchLatestDeployment: watchRelationship('latestDeployment'),
 
-  watchers: collect('watch', 'watchAll', 'watchSummary', 'watchEvaluations', 'watchDeployments'),
+  watchers: collect(
+    'watch',
+    'watchAll',
+    'watchSummary',
+    'watchAllocations',
+    'watchEvaluations',
+    'watchLatestDeployment'
+  ),
 });

@@ -14,7 +14,7 @@ as interacting with the Raft subsystem.
 ~> Use this interface with extreme caution, as improper use could lead to a
 Nomad outage and even loss of data.
 
-See the [Outage Recovery](/guides/outage.html) guide for some examples of how
+See the [Outage Recovery](/guides/operations/outage.html) guide for some examples of how
 these capabilities are used. For a CLI to perform these operations manually,
 please see the documentation for the
 [`nomad operator`](/docs/commands/operator.html) command.
@@ -115,9 +115,6 @@ The table below shows this endpoint's support for
 - `id` `(string: <optional>)` - Specifies the server to remove as
   `id`. This cannot be provided along with the `address` parameter.
 
-- `stale` - Specifies if the cluster should respond without an active leader.
-  This is specified as a querystring parameter.
-
 ### Sample Request
 
 ```text
@@ -135,13 +132,12 @@ This endpoint retrieves its latest Autopilot configuration.
 | `GET`  | `/operator/autopilot/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required    |
-| ---------------- | ----------------- | --------------- |
-| `NO`             | `none`            | `operator:read` |
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
 
 ### Sample Request
 
@@ -167,7 +163,7 @@ $ curl \
 ```
 
 For more information about the Autopilot configuration options, see the
-[agent configuration section](/docs/agent/configuration/autopilot.html).
+[agent configuration section](/docs/configuration/autopilot.html).
 
 ## Update Autopilot Configuration
 
@@ -178,13 +174,12 @@ This endpoint updates the Autopilot configuration of the cluster.
 | `PUT`  | `/operator/autopilot/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required     |
-| ---------------- | ----------------- | ---------------- |
-| `NO`             | `none`            | `operator:write` |
+| Blocking Queries | ACL Required     |
+| ---------------- | ---------------- |
+| `NO`             | `operator:write` |
 
 ### Parameters
 
@@ -243,13 +238,12 @@ This endpoint queries the health of the autopilot status.
 | `GET`  | `/operator/autopilot/health` | `application/json`         |
 
 The table below shows this endpoint's support for
-[blocking queries](/api/index.html#blocking-queries),
-[consistency modes](/api/index.html#consistency-modes), and
+[blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required    |
-| ---------------- | ----------------- | --------------- |
-| `NO`             | `none`            | `operator:read` |
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
 
 ### Sample Request
 
@@ -331,3 +325,95 @@ $ curl \
 
   The HTTP status code will indicate the health of the cluster. If `Healthy` is true, then a
   status of 200 will be returned. If `Healthy` is false, then a status of 429 will be returned.
+
+
+## Read Scheduler Configuration
+
+This endpoint retrieves the latest Scheduler configuration. This API was introduced in
+Nomad 0.9 and currently supports enabling/disabling preemption. More options may be added in
+the future.
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `GET`  | `/operator/scheduler/configuration` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries |  ACL Required    |
+| ---------------- | ---------------  |
+| `NO`             | `operator:read`  |
+
+### Sample Request
+
+```text
+$ curl \
+    https://localhost:4646/operator/scheduler/configuration
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 5,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "SchedulerConfig": {
+    "CreateIndex": 5,
+    "ModifyIndex": 5,
+    "PreemptionConfig": {
+      "SystemSchedulerEnabled": true
+    }
+  }
+}
+```
+#### Field Reference
+
+- `Index` `(int)` - The `Index` value is the Raft commit index corresponding to this
+  configuration.
+
+- `SchedulerConfig` `(SchedulerConfig)` - The returned `SchedulerConfig` object has configuration
+  settings mentioned below.
+
+  - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
+         - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
+         this defaults to true.
+  - `CreateIndex` - The Raft index at which the config was created.
+  - `ModifyIndex` - The Raft index at which the config was modified.
+
+## Update Scheduler Configuration
+
+This endpoint updates the scheduler configuration of the cluster.
+
+| Method | Path                         | Produces                   |
+| ------ | ---------------------------- | -------------------------- |
+| `PUT`, `POST`  | `/operator/scheduler/configuration` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api/index.html#blocking-queries) and
+[required ACLs](/api/index.html#acls).
+
+| Blocking Queries |  ACL Required     |
+| ---------------- | ----------------  |
+| `NO`             | `operator:write`  |
+
+### Parameters
+
+- `cas` `(int: 0)` - Specifies to use a Check-And-Set operation. The update will
+  only happen if the given index matches the `ModifyIndex` of the configuration
+  at the time of writing.
+
+### Sample Payload
+
+```json
+{
+  "PreemptionConfig": {
+    "EnablePreemption": false
+  }
+}
+```
+
+- `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
+ - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
+         if this is set to true, then system jobs can preempt any other jobs.

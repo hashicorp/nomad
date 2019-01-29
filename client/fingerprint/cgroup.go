@@ -1,10 +1,9 @@
 package fingerprint
 
 import (
-	"log"
 	"time"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	log "github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -13,7 +12,7 @@ const (
 )
 
 type CGroupFingerprint struct {
-	logger             *log.Logger
+	logger             log.Logger
 	lastState          string
 	mountPointDetector MountPointDetector
 }
@@ -35,9 +34,9 @@ func (b *DefaultMountPointDetector) MountPoint() (string, error) {
 }
 
 // NewCGroupFingerprint returns a new cgroup fingerprinter
-func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
+func NewCGroupFingerprint(logger log.Logger) Fingerprint {
 	f := &CGroupFingerprint{
-		logger:             logger,
+		logger:             logger.Named("cgroup"),
 		lastState:          cgroupUnavailable,
 		mountPointDetector: &DefaultMountPointDetector{},
 	}
@@ -46,7 +45,7 @@ func NewCGroupFingerprint(logger *log.Logger) Fingerprint {
 
 // clearCGroupAttributes clears any node attributes related to cgroups that might
 // have been set in a previous fingerprint run.
-func (f *CGroupFingerprint) clearCGroupAttributes(r *cstructs.FingerprintResponse) {
+func (f *CGroupFingerprint) clearCGroupAttributes(r *FingerprintResponse) {
 	r.RemoveAttribute("unique.cgroup.mountpoint")
 }
 

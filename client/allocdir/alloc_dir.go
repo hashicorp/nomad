@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
@@ -58,6 +59,8 @@ var (
 	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
 )
 
+// AllocDir allows creating, destroying, and accessing an allocation's
+// directory. All methods are safe for concurrent use.
 type AllocDir struct {
 	// AllocDir is the directory used for storing any state
 	// of this allocation. It will be purged on alloc destroy.
@@ -73,7 +76,9 @@ type AllocDir struct {
 	// built is true if Build has successfully run
 	built bool
 
-	logger *log.Logger
+	mu sync.RWMutex
+
+	logger hclog.Logger
 }
 
 // AllocDirFS exposes file operations on the alloc dir
@@ -88,7 +93,8 @@ type AllocDirFS interface {
 
 // NewAllocDir initializes the AllocDir struct with allocDir as base path for
 // the allocation directory.
-func NewAllocDir(logger *log.Logger, allocDir string) *AllocDir {
+func NewAllocDir(logger hclog.Logger, allocDir string) *AllocDir {
+	logger = logger.Named("alloc_dir")
 	return &AllocDir{
 		AllocDir:  allocDir,
 		SharedDir: filepath.Join(allocDir, SharedAllocName),
@@ -100,6 +106,9 @@ func NewAllocDir(logger *log.Logger, allocDir string) *AllocDir {
 // Copy an AllocDir and all of its TaskDirs. Returns nil if AllocDir is
 // nil.
 func (d *AllocDir) Copy() *AllocDir {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	if d == nil {
 		return nil
 	}
@@ -117,6 +126,9 @@ func (d *AllocDir) Copy() *AllocDir {
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
 func (d *AllocDir) NewTaskDir(name string) *TaskDir {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	td := newTaskDir(d.logger, d.AllocDir, name)
 	d.TaskDirs[name] = td
 	return td
@@ -129,6 +141,9 @@ func (d *AllocDir) NewTaskDir(name string) *TaskDir {
 // file "NOMAD-${ALLOC_ID}-ERROR.log" will be appended to the tar with the
 // error message as the contents.
 func (d *AllocDir) Snapshot(w io.Writer) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	allocDataDir := filepath.Join(d.SharedDir, SharedDataDir)
 	rootPaths := []string{allocDataDir}
 	for _, taskdir := range d.TaskDirs {
@@ -195,7 +210,7 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 				// the snapshotting side closed the connect
 				// prematurely and won't try to use the tar
 				// anyway.
-				d.logger.Printf("[WARN] client: snapshotting failed and unable to write error marker: %v", writeErr)
+				d.logger.Warn("snapshotting failed and unable to write error marker", "error", writeErr)
 			}
 			return fmt.Errorf("failed to snapshot %s: %v", path, err)
 		}
@@ -206,10 +221,15 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 
 // Move other alloc directory's shared path and local dir to this alloc dir.
 func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
+	d.mu.RLock()
 	if !d.built {
 		// Enforce the invariant that Build is called before Move
+		d.mu.RUnlock()
 		return fmt.Errorf("unable to move to %q - alloc dir is not built", d.AllocDir)
 	}
+
+	// Moving is slow and only reads immutable fields, so unlock during heavy IO
+	d.mu.RUnlock()
 
 	// Move the data directory
 	otherDataDir := filepath.Join(other.SharedDir, SharedDataDir)
@@ -246,7 +266,6 @@ func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
 
 // Tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
-
 	// Unmount all mounted shared alloc dirs.
 	var mErr multierror.Error
 	if err := d.UnmountAll(); err != nil {
@@ -258,12 +277,17 @@ func (d *AllocDir) Destroy() error {
 	}
 
 	// Unset built since the alloc dir has been destroyed.
+	d.mu.Lock()
 	d.built = false
+	d.mu.Unlock()
 	return mErr.ErrorOrNil()
 }
 
 // UnmountAll linked/mounted directories in task dirs.
 func (d *AllocDir) UnmountAll() error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	var mErr multierror.Error
 	for _, dir := range d.TaskDirs {
 		// Check if the directory has the shared alloc mounted.
@@ -322,7 +346,9 @@ func (d *AllocDir) Build() error {
 	}
 
 	// Mark as built
+	d.mu.Lock()
 	d.built = true
+	d.mu.Unlock()
 	return nil
 }
 
@@ -386,11 +412,14 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 	p := filepath.Join(d.AllocDir, path)
 
 	// Check if it is trying to read into a secret directory
+	d.mu.RLock()
 	for _, dir := range d.TaskDirs {
 		if filepath.HasPrefix(p, dir.SecretsDir) {
+			d.mu.RUnlock()
 			return nil, fmt.Errorf("Reading secret file prohibited: %s", path)
 		}
 	}
+	d.mu.RUnlock()
 
 	f, err := os.Open(p)
 	if err != nil {

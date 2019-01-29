@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 func Node() *structs.Node {
@@ -21,18 +22,12 @@ func Node() *structs.Node {
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
 		},
+
+		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{
 			CPU:      4000,
 			MemoryMB: 8192,
 			DiskMB:   100 * 1024,
-			IOPS:     150,
-			Networks: []*structs.NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
 		},
 		Reserved: &structs.Resources{
 			CPU:      100,
@@ -45,6 +40,39 @@ func Node() *structs.Node {
 					ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
 					MBits:         1,
 				},
+			},
+		},
+
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{
+				CpuShares: 4000,
+			},
+			Memory: structs.NodeMemoryResources{
+				MemoryMB: 8192,
+			},
+			Disk: structs.NodeDiskResources{
+				DiskMB: 100 * 1024,
+			},
+			Networks: []*structs.NetworkResource{
+				{
+					Device: "eth0",
+					CIDR:   "192.168.0.100/32",
+					MBits:  1000,
+				},
+			},
+		},
+		ReservedResources: &structs.NodeReservedResources{
+			Cpu: structs.NodeReservedCpuResources{
+				CpuShares: 100,
+			},
+			Memory: structs.NodeReservedMemoryResources{
+				MemoryMB: 256,
+			},
+			Disk: structs.NodeReservedDiskResources{
+				DiskMB: 4 * 1024,
+			},
+			Networks: structs.NodeReservedNetworkResources{
+				ReservedHostPorts: "22",
 			},
 		},
 		Links: map[string]string{
@@ -61,6 +89,36 @@ func Node() *structs.Node {
 	}
 	node.ComputeClass()
 	return node
+}
+
+// NvidiaNode returns a node with two instances of an Nvidia GPU
+func NvidiaNode() *structs.Node {
+	n := Node()
+	n.NodeResources.Devices = []*structs.NodeDeviceResource{
+		{
+			Type:   "gpu",
+			Vendor: "nvidia",
+			Name:   "1080ti",
+			Attributes: map[string]*psstructs.Attribute{
+				"memory":           psstructs.NewIntAttribute(11, psstructs.UnitGiB),
+				"cuda_cores":       psstructs.NewIntAttribute(3584, ""),
+				"graphics_clock":   psstructs.NewIntAttribute(1480, psstructs.UnitMHz),
+				"memory_bandwidth": psstructs.NewIntAttribute(11, psstructs.UnitGBPerS),
+			},
+			Instances: []*structs.NodeDevice{
+				{
+					ID:      uuid.Generate(),
+					Healthy: true,
+				},
+				{
+					ID:      uuid.Generate(),
+					Healthy: true,
+				},
+			},
+		},
+	}
+	n.ComputeClass()
+	return n
 }
 
 func HCL() string {
@@ -214,7 +272,7 @@ func BatchJob() *structs.Job {
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "worker",
+				Name:  "web",
 				Count: 10,
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
@@ -233,7 +291,7 @@ func BatchJob() *structs.Job {
 				},
 				Tasks: []*structs.Task{
 					{
-						Name:   "worker",
+						Name:   "web",
 						Driver: "mock_driver",
 						Config: map[string]interface{}{
 							"run_for": "500ms",
@@ -376,6 +434,8 @@ func Alloc() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
@@ -408,6 +468,31 @@ func Alloc() *structs.Allocation {
 		SharedResources: &structs.Resources{
 			DiskMB: 150,
 		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 500,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: 150,
+			},
+		},
 		Job:           Job(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
@@ -422,7 +507,9 @@ func BatchAlloc() *structs.Allocation {
 		EvalID:    uuid.Generate(),
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
-		TaskGroup: "worker",
+		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
@@ -438,20 +525,47 @@ func BatchAlloc() *structs.Allocation {
 			},
 		},
 		TaskResources: map[string]*structs.Resources{
-			"worker": {
-				CPU:      100,
-				MemoryMB: 100,
+			"web": {
+				CPU:      500,
+				MemoryMB: 256,
 				Networks: []*structs.NetworkResource{
 					{
-						Device: "eth0",
-						IP:     "192.168.0.100",
-						MBits:  50,
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+						MBits:         50,
+						DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
 					},
 				},
 			},
 		},
 		SharedResources: &structs.Resources{
 			DiskMB: 150,
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 500,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: 150,
+			},
 		},
 		Job:           BatchJob(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
@@ -468,6 +582,8 @@ func SystemAlloc() *structs.Allocation {
 		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
 		Namespace: structs.DefaultNamespace,
 		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
 		Resources: &structs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
@@ -499,6 +615,31 @@ func SystemAlloc() *structs.Allocation {
 		},
 		SharedResources: &structs.Resources{
 			DiskMB: 150,
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 500,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+					Networks: []*structs.NetworkResource{
+						{
+							Device:        "eth0",
+							IP:            "192.168.0.100",
+							ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+							MBits:         50,
+							DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+						},
+					},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: 150,
+			},
 		},
 		Job:           SystemJob(),
 		DesiredStatus: structs.AllocDesiredStatusRun,

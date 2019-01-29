@@ -5,8 +5,17 @@ variable "instance_type" {}
 variable "key_name" {}
 variable "server_count" {}
 variable "client_count" {}
-variable "retry_join" {}
 variable "nomad_binary" {}
+
+variable "retry_join" {
+  type = "map"
+
+  default = {
+    provider  = "aws"
+    tag_key   = "ConsulAutoJoin"
+    tag_value = "auto-join"
+  }
+}
 
 data "aws_vpc" "default" {
   default = true
@@ -27,6 +36,14 @@ resource "aws_security_group" "primary" {
   ingress {
     from_port   = 4646
     to_port     = 4646
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Fabio 
+  ingress {
+    from_port   = 9998
+    to_port     = 9999
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -84,7 +101,7 @@ data "template_file" "user_data_server" {
   vars {
     server_count = "${var.server_count}"
     region       = "${var.region}"
-    retry_join   = "${var.retry_join}"
+    retry_join   = "${chomp(join(" ", formatlist("%s=%s", keys(var.retry_join), values(var.retry_join))))}"
     nomad_binary = "${var.nomad_binary}"
   }
 }
@@ -93,8 +110,8 @@ data "template_file" "user_data_client" {
   template = "${file("${path.root}/user-data-client.sh")}"
 
   vars {
-    region     = "${var.region}"
-    retry_join = "${var.retry_join}"
+    region       = "${var.region}"
+    retry_join   = "${chomp(join(" ", formatlist("%s=%s ", keys(var.retry_join), values(var.retry_join))))}"
     nomad_binary = "${var.nomad_binary}"
   }
 }
@@ -106,11 +123,11 @@ resource "aws_instance" "server" {
   vpc_security_group_ids = ["${aws_security_group.primary.id}"]
   count                  = "${var.server_count}"
 
-  #Instance tags
-  tags {
-    Name           = "${var.name}-server-${count.index}"
-    ConsulAutoJoin = "auto-join"
-  }
+  # instance tags
+  tags = "${merge(
+    map("Name", "${var.name}-server-${count.index}"),
+    map(lookup(var.retry_join, "tag_key"), lookup(var.retry_join, "tag_value"))
+  )}"
 
   user_data            = "${data.template_file.user_data_server.rendered}"
   iam_instance_profile = "${aws_iam_instance_profile.instance_profile.name}"
@@ -124,17 +141,17 @@ resource "aws_instance" "client" {
   count                  = "${var.client_count}"
   depends_on             = ["aws_instance.server"]
 
-  #Instance tags
-  tags {
-    Name           = "${var.name}-client-${count.index}"
-    ConsulAutoJoin = "auto-join"
-  }
+  # instance tags
+  tags = "${merge(
+    map("Name", "${var.name}-client-${count.index}"),
+    map(lookup(var.retry_join, "tag_key"), lookup(var.retry_join, "tag_value"))
+  )}"
 
-  ebs_block_device =  {
-    device_name                 = "/dev/xvdd"
-    volume_type                 = "gp2"
-    volume_size                 = "50"
-    delete_on_termination       = "true"
+  ebs_block_device = {
+    device_name           = "/dev/xvdd"
+    volume_type           = "gp2"
+    volume_size           = "50"
+    delete_on_termination = "true"
   }
 
   user_data            = "${data.template_file.user_data_client.rendered}"

@@ -221,17 +221,20 @@ $ curl \
       "dc1"
     ],
     "Constraints": null,
+    "Affinities": null,
     "TaskGroups": [
       {
         "Name": "cache",
         "Count": 1,
         "Constraints": null,
+        "Affinities": null,
         "RestartPolicy": {
           "Attempts": 10,
           "Interval": 300000000000,
           "Delay": 25000000000,
           "Mode": "delay"
         },
+        "Spreads": null,
         "Tasks": [
           {
             "Name": "redis",
@@ -273,11 +276,11 @@ $ curl \
             "Vault": null,
             "Templates": null,
             "Constraints": null,
+            "Affinities": null,
             "Resources": {
               "CPU": 500,
               "MemoryMB": 10,
               "DiskMB": 0,
-              "IOPS": 0,
               "Networks": [
                 {
                   "Device": "",
@@ -294,6 +297,7 @@ $ curl \
                 }
               ]
             },
+            "Spreads": null,
             "DispatchPayload": null,
             "Meta": null,
             "KillTimeout": 5000000000,
@@ -320,6 +324,7 @@ $ curl \
     "Periodic": null,
     "ParameterizedJob": null,
     "Payload": null,
+    "Spreads": null,
     "Meta": null,
     "VaultToken": "",
     "Status": "pending",
@@ -333,7 +338,6 @@ $ curl \
     "CPU": 500,
     "MemoryMB": 10,
     "DiskMB": 300,
-    "IOPS": 0,
     "Networks": [
       {
         "Device": "lo0",
@@ -354,7 +358,6 @@ $ curl \
     "CPU": 0,
     "MemoryMB": 0,
     "DiskMB": 300,
-    "IOPS": 0,
     "Networks": null
   },
   "TaskResources": {
@@ -362,7 +365,6 @@ $ curl \
       "CPU": 500,
       "MemoryMB": 10,
       "DiskMB": 0,
-      "IOPS": 0,
       "Networks": [
         {
           "Device": "lo0",
