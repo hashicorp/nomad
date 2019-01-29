@@ -178,9 +178,9 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 					case <-time.After(time.Second):
 						return false, fmt.Errorf("stats failed to send on interval")
 					case ru := <-ch:
-						if len(ru.Pids) == 0 {
-							return false, fmt.Errorf("no pids recorded in stats")
-						}
+						assert.NotEmpty(t, ru.Pids, "no pids recorded in stats")
+						assert.NotZero(t, ru.ResourceUsage.MemoryStats.RSS)
+						assert.WithinDuration(t, time.Now(), time.Unix(0, ru.Timestamp), time.Second)
 					}
 					proc, err := os.FindProcess(ps.Pid)
 					if err != nil {
