@@ -8,7 +8,11 @@ description: |-
 
 ## LXC
 
-The `lxc` driver provides an interface for using LXC for running application containers. You can download the external LXC driver [here][lxc_driver_download]. This guide is compatible with Nomad 0.9 and above. If you are using an older version of Nomad, see the [LXC][lxc-docs] driver documentation.
+The `lxc` driver provides an interface for using LXC for running application
+containers. You can download the external LXC driver
+[here][lxc_driver_download]. This guide is compatible with Nomad 0.9 and above.
+If you are using an older version of Nomad, see the [LXC][lxc-docs] driver
+documentation.
 
 ## Reference Material
 
@@ -21,25 +25,38 @@ The `lxc` driver provides an interface for using LXC for running application con
 
 ## Challenge
 
-You need to deploy a workload using [Linux Containers][linux-containers-home]. Configure the client nodes that need to run this workload appropriately. You will also need to install the `lxc-templates` package which will provide the templates needed to start your containers.
+You need to deploy a workload using [Linux Containers][linux-containers-home].
+Configure the client nodes that need to run this workload appropriately. You
+will also need to install the `lxc-templates` package which will provide the
+templates needed to start your containers.
 
 ## Solution
 
-Install and configure the LXC external driver plugin. Verify the configuration on the client node and deploy the application.
+Install and configure the LXC external driver plugin. Verify the configuration
+on the client node and deploy the application.
 
 ## Prerequisites
 
 To perform the tasks described in this guide, you need to have a Nomad
 environment with Consul installed. You can use this
-[repo](https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud) to easily provision a sandbox environment. This guide will assume a cluster with one server node and one client node.
+[repo](https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud)
+to easily provision a sandbox environment. This guide will assume a cluster with
+one server node and one client node.
 
--> **Please Note:** This guide is for demo purposes and is only using a single server node. In a production cluster, 3 or 5 server nodes are recommended.
+-> **Please Note:** This guide is for demo purposes and is only using a single
+server node. In a production cluster, 3 or 5 server nodes are recommended.
 
 ## Steps
 
 ### Step 1: Verify Client Node Configuration
 
-External drivers must be placed in the [plugin_dir][plugin_dir] directory which defaults to [`data_dir`][data_dir]`/plugins`. Verify the `data_dir` directory on the client node configuration. If you are using the environment provided by this guide, the client configuration is located at `/etc/nomad.d/nomad.hcl`. The configuration file will show you that the `data_dir` directory is `/opt/nomad/data`. The relevant snippet of the configuration file is shown below:
+External drivers must be placed in the [plugin_dir][plugin_dir] directory which
+defaults to [`data_dir`][data_dir]`/plugins`. Verify the `data_dir` directory on
+the client node configuration. If you are using the environment provided by this
+guide, the client configuration is located at `/etc/nomad.d/nomad.hcl`. The
+configuration file will show you that the `data_dir` directory is
+`/opt/nomad/data`. The relevant snippet of the configuration file is shown
+below:
 
 ```shell
 $ cat /etc/nomad.d/nomad.hcl 
@@ -50,7 +67,10 @@ bind_addr = "0.0.0.0"
 
 ### Step 2: Download and Install the LXC Driver 
 
-Make a directory called `plugins` in [plugin_dir][plugin_dir] (which is `/opt/nomad/data` in our case) and download/place the [LXC driver][lxc_driver_download] in it. The following sequences of commands illustrate this process:
+Make a directory called `plugins` in [plugin_dir][plugin_dir] (which is
+`/opt/nomad/data` in our case) and download/place the [LXC
+driver][lxc_driver_download] in it. The following sequences of commands
+illustrate this process:
 
 ```shell
 $ sudo mkdir /opt/nomad/data/plugins
@@ -68,7 +88,8 @@ $ rm ./nomad-driver-lxc.zip
 
 ### Step 3: Verify the LXC Driver Status
 
-After completing the previous steps, you do not need to explicitly enable the LXC driver in the client configuration, as it is enabled by default.
+After completing the previous steps, you do not need to explicitly enable the
+LXC driver in the client configuration, as it is enabled by default.
 
 Restart the Nomad client service:
 
@@ -76,7 +97,8 @@ Restart the Nomad client service:
 $ sudo systemctl restart nomad
 ```
 
-After a few seconds, run the `nomad node status` command to verify the client node is ready:
+After a few seconds, run the `nomad node status` command to verify the client
+node is ready:
 
 ```shell
 $ nomad node status
@@ -84,7 +106,10 @@ ID        DC   Name             Class   Drain  Eligibility  Status
 81c22a0c  dc1  ip-172-31-5-174  <none>  false  eligible     ready
 ```
 
-You can now run the `nomad node status` command against the specific node ID to see which drivers are initialized on the client. In our case, the client node ID is `81c22a0c` (your client node ID will be different). You should see `lxc` appear in the `Driver Status` section as show below:
+You can now run the `nomad node status` command against the specific node ID to
+see which drivers are initialized on the client. In our case, the client node ID
+is `81c22a0c` (your client node ID will be different). You should see `lxc`
+appear in the `Driver Status` section as show below:
 
 ```shell
 $ nomad node status 81c22a0c
@@ -102,7 +127,9 @@ Driver Status = docker,exec,java,lxc,mock_driver,raw_exec,rkt
 
 ### Step 4: Install `lxc-templates` Package
 
-Before we generate a Nomad job file and deploy our workload, we will need to install the `lxc-templates` package which will provide the templates we need to start our container. Run the following command:
+Before we generate a Nomad job file and deploy our workload, we will need to
+install the `lxc-templates` package which will provide the templates we need to
+start our container. Run the following command:
 
 ```shell
 sudo apt install -y lxc-templates
@@ -154,14 +181,16 @@ $ nomad run lxc.nomad
 
 ### Step 7: Check the Status of the Job
 
-You can run the following command to check the status of the jobs in your cluster:
+You can run the following command to check the status of the jobs in your
+cluster:
 
 ```shell
 $ nomad status
 ID           Type     Priority  Status   Submit Date
 example-lxc  service  50        running  2019-01-28T22:05:36Z
 ```
-As shown above, our job is successfully running. You can see detailed information about our specific job with the following command:
+As shown above, our job is successfully running. You can see detailed
+information about our specific job with the following command:
 
 ```shell
 $ nomad status example-lxc
@@ -186,7 +215,10 @@ ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
 
 ## Next Steps
 
-The LXC driver is enabled by default in the client configuration. For practice using the [plugin][plugin_syntax] syntax, explicitly add the [plugin options][lxc_plugin_options] for the `lxc` driver in the client config. Below is an example snippet of the configuration file:
+The LXC driver is enabled by default in the client configuration. For practice
+using the [plugin][plugin_syntax] syntax, explicitly add the [plugin
+options][lxc_plugin_options] for the `lxc` driver in the client config. Below is
+an example snippet of the configuration file:
 
 ```hcl
 plugin "nomad-driver-lxc" {
