@@ -79,6 +79,12 @@ func (m *Import) reflectMap(mv reflect.Value) (reflect.Value, error) {
 			return mv, err
 		}
 
+		// If the value isn't valid, we set the value of the map to
+		// the zero value for the proper type.
+		if !v.IsValid() {
+			v = reflect.Zero(mv.Type().Elem())
+		}
+
 		mv.SetMapIndex(k, v)
 	}
 

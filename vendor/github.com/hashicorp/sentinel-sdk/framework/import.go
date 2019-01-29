@@ -71,14 +71,14 @@ func (m *Import) Get(reqs []*sdk.GetReq) ([]*sdk.GetResult, error) {
 				if !ok {
 					return nil, fmt.Errorf(
 						"key %q doesn't support function calls",
-						strings.Join(req.Keys[:i], "."))
+						strings.Join(req.Keys[:i+1], "."))
 				}
 
 				v, err := m.call(x.Func(k), req.Args)
 				if err != nil {
 					return nil, fmt.Errorf(
 						"error calling function %q: %s",
-						strings.Join(req.Keys[:i], "."), err)
+						strings.Join(req.Keys[:i+1], "."), err)
 				}
 
 				result = v
@@ -92,7 +92,7 @@ func (m *Import) Get(reqs []*sdk.GetReq) ([]*sdk.GetResult, error) {
 				if err != nil {
 					return nil, fmt.Errorf(
 						"error retrieving key %q: %s",
-						strings.Join(req.Keys[:i], "."), err)
+						strings.Join(req.Keys[:i+1], "."), err)
 				}
 
 				result = v

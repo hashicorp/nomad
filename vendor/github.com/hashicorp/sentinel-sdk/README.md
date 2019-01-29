@@ -7,7 +7,7 @@ information for use in their policies.
 Sentinel imports can be written in any language, but the recommended
 language is [Go](https://golang.org/). We provide a high-level framework
 to make writing imports in Go extremely easy. For other languages, imports
-can be written by implementing the [protocol](#) over gRPC.
+can be written by implementing the [protocol](https://github.com/hashicorp/sentinel-sdk/blob/master/proto/import.proto) over gRPC.
 
 To get started writing a Sentinel import, we recommend reading the
-[extending Sentinel](#) guide.
+[extending Sentinel](https://docs.hashicorp.com/sentinel/extending/dev) guide.
