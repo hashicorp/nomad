@@ -292,6 +292,8 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		procState:    drivers.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
 		exitResult:   &drivers.ExitResult{},
+		logger:       d.logger,
+		doneCh:       make(chan struct{}),
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
@@ -356,6 +358,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		procState:    drivers.TaskStateRunning,
 		startedAt:    time.Now().Round(time.Millisecond),
 		logger:       d.logger,
+		doneCh:       make(chan struct{}),
 	}
 
 	driverState := TaskState{
@@ -425,6 +428,12 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		}
 		return fmt.Errorf("executor Shutdown failed: %v", err)
 	}
+
+	// Wait for handle to finish
+	<-handle.doneCh
+
+	// Kill executor
+	handle.pluginClient.Kill()
 
 	return nil
 }
