@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -74,6 +75,14 @@ func (m *ErrDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 }
 
 func (m *ErrDB) PutDriverPluginState(ps *driverstate.PluginState) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetMetadataConfiguration() (*cstructs.MetadataConfiguration, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutMetadataConfiguration(*cstructs.MetadataConfiguration) error {
 	return fmt.Errorf("Error!")
 }
 

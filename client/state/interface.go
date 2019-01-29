@@ -4,6 +4,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -68,6 +69,14 @@ type StateDB interface {
 	// PutDriverPluginState is used to store the driver manager's plugin
 	// state.
 	PutDriverPluginState(state *driverstate.PluginState) error
+
+	// GetMetadataConfiguration is used to retrieve the metadata configuration
+	// diff that should be applied when restarting a client.
+	GetMetadataConfiguration() (*cstructs.MetadataConfiguration, error)
+
+	// PutMetadataConfiguration is used to store the metadata configuration
+	// diff that should be applied when restarting a client.
+	PutMetadataConfiguration(*cstructs.MetadataConfiguration) error
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.

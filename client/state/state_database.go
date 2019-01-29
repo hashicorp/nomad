@@ -10,6 +10,7 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -20,6 +21,8 @@ The client has a boltDB backed state store. The schema as of 0.9 looks as follow
 meta/
 |--> version -> '2' (not msgpack encoded)
 |--> upgraded -> time.Now().Format(timeRFC3339)
+configuration/
+|--> meta -> *cstructs.MetadataConfiguration
 allocations/
 |--> <alloc-id>/
    |--> alloc         -> allocEntry{*structs.Allocation}
@@ -50,6 +53,14 @@ var (
 	// metaUpgradedKey is the key that stores the timestamp of the last
 	// time the schema was upgraded.
 	metaUpgradedKey = []byte("upgraded")
+
+	// configBucketName is the key that stores local state related to config
+	// changes
+	configBucketName = []byte("configuration")
+
+	// configMetaKey is the key that is used to store the client metadata diff in
+	// the config bucket.
+	configMetaKey = []byte("meta")
 
 	// allocationsBucketName is the bucket name containing all allocation related
 	// data
@@ -585,6 +596,42 @@ func (s *BoltStateDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 	}
 
 	return ps, nil
+}
+
+func (s *BoltStateDB) GetMetadataConfiguration() (*cstructs.MetadataConfiguration, error) {
+	var cfg *cstructs.MetadataConfiguration
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		bkt := tx.Bucket(configBucketName)
+		if bkt == nil {
+			// No State, return
+			return nil
+		}
+
+		cfg = &cstructs.MetadataConfiguration{}
+		if err := bkt.Get(configMetaKey, cfg); err != nil {
+			if !boltdd.IsErrNotFound(err) {
+				return fmt.Errorf("failed to read configuration state: %v", err)
+			}
+			// Key not found, reset to nil
+			cfg = nil
+		}
+
+		return nil
+	})
+
+	return cfg, err
+}
+
+func (s *BoltStateDB) PutMetadataConfiguration(cfg *cstructs.MetadataConfiguration) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		bkt, err := tx.CreateBucketIfNotExists(configBucketName)
+		if err != nil {
+			return err
+		}
+
+		return bkt.Put(configMetaKey, cfg)
+	})
 }
 
 // init initializes metadata entries in a newly created state database.

@@ -311,6 +311,26 @@ func joinStringSet(s1, s2 []string) []string {
 	return j
 }
 
+type MetadataDiffType uint8
+
+const (
+	MetadataDiffTypeNone MetadataDiffType = iota
+	MetadataDiffTypeAdd
+	MetadataDiffTypeUpdate
+	MetadataDiffTypeRemove
+)
+
+type MetadataDiff struct {
+	Type MetadataDiffType
+	Key  string
+	From string
+	To   string
+}
+
+type MetadataConfiguration struct {
+	Diff []*MetadataDiff
+}
+
 // HealthCheckRequest is the request type for a type that fulfils the Health
 // Check interface
 type HealthCheckRequest struct{}

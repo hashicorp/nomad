@@ -9,6 +9,7 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -241,6 +242,29 @@ func TestStateDB_DriverManager(t *testing.T) {
 		require.NoError(err)
 		require.NotNil(ps)
 		require.Equal(state, ps)
+	})
+}
+
+func TestStateDB_MetadataConfiguration(t *testing.T) {
+	t.Parallel()
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		require := require.New(t)
+
+		// Get nonexistent state returns nil
+		cfg, err := db.GetMetadataConfiguration()
+		require.NoError(err)
+		require.Nil(cfg)
+
+		// Setting state should not return an error
+		config := &cstructs.MetadataConfiguration{}
+		require.NoError(db.PutMetadataConfiguration(config))
+
+		// Getting should return the state
+		cfg, err = db.GetMetadataConfiguration()
+		require.NoError(err)
+		require.NotNil(cfg)
+		require.Equal(config, cfg)
 	})
 }
 

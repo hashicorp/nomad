@@ -4,6 +4,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -68,6 +69,14 @@ func (n NoopDB) PutDriverPluginState(ps *driverstate.PluginState) error {
 
 func (n NoopDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 	return nil, nil
+}
+
+func (n NoopDB) GetMetadataConfiguration() (*cstructs.MetadataConfiguration, error) {
+	return nil, nil
+}
+
+func (n NoopDB) PutMetadataConfiguration(*cstructs.MetadataConfiguration) error {
+	return nil
 }
 
 func (n NoopDB) Close() error {
