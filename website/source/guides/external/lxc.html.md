@@ -84,16 +84,16 @@ illustrate this process:
 
 ```shell
 $ sudo mkdir -p /opt/nomad/data/plugins
-$ curl -O /link/to/driver.zip
-$ unzip nomad-driver-lxc.zip
-Archive:  nomad-driver-lxc.zip
-  inflating: nomad-driver-lxc   
+$ curl -O https://releases.hashicorp.com/nomad-driver-lxc/0.1.0-rc1/nomad-driver-lxc_0.1.0-rc1_linux_amd64.zip
+$ unzip nomad-driver-lxc_0.1.0-rc1_linux_amd64.zip 
+Archive:  nomad-driver-lxc_0.1.0-rc1_linux_amd64.zip
+  inflating: nomad-driver-lxc
 $ sudo mv nomad-driver-lxc /opt/nomad/data/plugins
 ```
 You can now delete the original zip file:
 
 ```shell
-$ rm ./nomad-driver-lxc.zip
+$ rm ./nomad-driver-lxc*.zip
 ```
 
 ### Step 4: Verify the LXC Driver Status
@@ -231,7 +231,7 @@ plugin "nomad-driver-lxc" {
 [data_dir]: /docs/configuration/index.html#data_dir
 [linux-containers]: https://linuxcontainers.org/lxc/introduction/
 [linux-containers-home]: https://linuxcontainers.org
-[lxc_driver_download]: /coming/soon
+[lxc_driver_download]: https://releases.hashicorp.com/nomad-driver-lxc 
 [lxc-docs]: /docs/drivers/external/lxc.htm
 [lxc_plugin_options]: /docs/drivers/external/lxc.html#plugin-options
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
