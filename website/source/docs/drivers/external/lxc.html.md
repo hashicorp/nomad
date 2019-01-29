@@ -140,7 +140,7 @@ This driver supports CPU and memory isolation via the `lxc` library. Network
 isolation is not supported as of now.
 
 [lxc-create]: https://linuxcontainers.org/lxc/manpages/man1/lxc-create.1.html
-[lxc-driver]: /placeholder/for/lxc-driver/link
+[lxc-driver]: https://releases.hashicorp.com/nomad-driver-lxc
 [lxc_man]: https://linuxcontainers.org/lxc/manpages/man5/lxc.container.conf.5.html#lbAM
 [plugin]: /docs/configuration/plugin.html
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
