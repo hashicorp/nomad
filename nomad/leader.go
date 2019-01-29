@@ -42,7 +42,7 @@ const (
 
 var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
-var minSchedulerconfigVersion = version.Must(version.NewVersion("0.9.0"))
+var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 
 // Default configuration for scheduler with preemption enabled for system jobs
 var defaultSchedulerConfig = &structs.SchedulerConfiguration{
@@ -1269,8 +1269,8 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 	if config != nil {
 		return config
 	}
-	if !ServersMeetMinimumVersion(s.Members(), minSchedulerconfigVersion) {
-		s.logger.Named("core").Warn("can't initialize scheduler config until all servers are above minimum version", "min_version", minSchedulerconfigVersion)
+	if !ServersMeetMinimumVersion(s.Members(), minSchedulerConfigVersion) {
+		s.logger.Named("core").Warn("can't initialize scheduler config until all servers are above minimum version", "min_version", minSchedulerConfigVersion)
 		return nil
 	}
 
