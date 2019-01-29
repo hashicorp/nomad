@@ -292,6 +292,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 				code = helper.Int64ToPtr(404)
 			}
 			f.handleStreamResultError(err, code, encoder)
+			return
 		}
 
 		// Get a connection to the server

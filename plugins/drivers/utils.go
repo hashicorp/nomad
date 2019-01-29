@@ -412,7 +412,7 @@ func TaskStatsFromProto(pb *proto.TaskStats) (*TaskResourceUsage, error) {
 	}
 
 	stats := &TaskResourceUsage{
-		Timestamp:     timestamp.Unix(),
+		Timestamp:     timestamp.UnixNano(),
 		ResourceUsage: resourceUsageFromProto(pb.AggResourceUsage),
 		Pids:          pids,
 	}

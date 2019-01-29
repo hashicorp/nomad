@@ -23,11 +23,12 @@ description: |-
   </tr>
 </table>
 
-The spread stanza allows operators to influence the placement of allocations in a task group.
-Operators can use spread to increase failure tolerance of their application.
-The operator can specify a node attribute such as datacenter, availability zone, or even rack
-in a physical datacenter to spread the allocations over. By default, when using spread the scheduler will attempt to place allocations equally
-among the available values of the given target.
+The `spread` stanza allows operators to increase the failure tolerance of their
+applications by specifying a node attribute that allocations should be spread
+over. This allows operators to spread allocations over attributes such as
+datacenter, availability zone, or even rack in a physical datacenter. By
+default, when using spread the scheduler will attempt to place allocations
+equally among the available values of the given target.
 
 
 ```hcl

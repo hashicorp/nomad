@@ -38,6 +38,8 @@ func (d *Driver) recoverPre09Task(h *drivers.TaskHandle) error {
 		procState:    drivers.TaskStateRunning,
 		startedAt:    time.Now(),
 		exitResult:   &drivers.ExitResult{},
+		logger:       d.logger,
+		doneCh:       make(chan struct{}),
 	}
 
 	d.tasks.Set(h.Config.ID, th)
