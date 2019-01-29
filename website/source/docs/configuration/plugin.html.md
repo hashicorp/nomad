@@ -17,7 +17,7 @@ description: |-
   </tr>
 </table>
 
-The `plugin` stanza is used to configure an individual plugin.
+The `plugin` stanza is used to configure plugins.
 
 ```hcl
 plugin "example-plugin" {
