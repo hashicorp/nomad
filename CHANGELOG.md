@@ -102,6 +102,7 @@ BUG FIXES:
  * core: Removed some GPL code inadvertently added for macOS support [[GH-5202](https://github.com/hashicorp/nomad/pull/5202)]
  * core: Fix an issue where artifact checksums containing interpolated variables failed validation [[GH-4810](https://github.com/hashicorp/nomad/pull/4819)]
  * core: Fix an issue where job summaries for parent dispatch/periodic jobs were not being computed correctly [[GH-5205](https://github.com/hashicorp/nomad/pull/5205)]
+ * core: Fix an issue where a canary allocation with a deployment no longer in the state store caused a panic [[GH-5259](https://github.com/hashicorp/nomad/pull/5259)
  * client: Fix an issue reloading the client config [[GH-4730](https://github.com/hashicorp/nomad/issues/4730)]
  * client: Fix an issue where driver attributes are not updated in node API responses if they change after after startup [[GH-4984](https://github.com/hashicorp/nomad/pull/4984)]
  * driver/docker: Fix a path traversal issue where mounting paths outside alloc dir might be possible despite `docker.volumes.enabled` set to false [[GH-4983](https://github.com/hashicorp/nomad/pull/4983)]
