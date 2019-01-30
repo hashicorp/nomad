@@ -11,7 +11,7 @@ func boolToPtr(b bool) *bool {
 	return &b
 }
 
-// int8ToPtr returns the pointer to an int
+// int8ToPtr returns the pointer to an int8
 func int8ToPtr(i int8) *int8 {
 	return &i
 }
