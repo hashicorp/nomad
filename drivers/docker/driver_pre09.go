@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -22,7 +21,6 @@ func (d *Driver) recoverPre09Task(h *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode reattach config from pre09 handle: %v", err)
 	}
 
-	h.Config.ID = fmt.Sprintf("pre09-%s", uuid.Generate())
 	exec, pluginClient, err := executor.ReattachToPre09Executor(reattach,
 		d.logger.With("task_name", h.Config.Name, "alloc_id", h.Config.AllocID))
 	if err != nil {
