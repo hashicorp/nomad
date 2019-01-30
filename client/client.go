@@ -1191,6 +1191,7 @@ func (c *Client) updateNodeMetadata(request *cstructs.ClientMetadataUpdateReques
 	}
 
 	if nodeHasChanged {
+		c.updateNodeMetaDiffLocked()
 		c.updateNodeLocked()
 	}
 
@@ -1202,6 +1203,7 @@ func (c *Client) replaceNodeMetadata(request *cstructs.ClientMetadataReplaceRequ
 	defer c.configLock.Unlock()
 
 	c.config.Node.Meta = request.Metadata
+	c.updateNodeMetaDiffLocked()
 	c.updateNodeLocked()
 
 	return c.configCopy.Node
@@ -1914,6 +1916,29 @@ OUTER:
 		case <-c.shutdownCh:
 			return
 		}
+	}
+}
+
+func (c *Client) updateNodeMetaDiffLocked() {
+	newMeta := c.config.Node.Meta
+	oldMeta := c.configCopy.Node.Meta
+
+	diff := config.ComputeMetadataDiff(oldMeta, newMeta)
+
+	state, err := c.stateDB.GetMetadataConfiguration()
+	if err != nil {
+		c.logger.Error("Failed to retrieve dynamic metadata diff", "error", err)
+	}
+
+	if state == nil {
+		state = &cstructs.MetadataConfiguration{}
+	}
+
+	state.Diff = append(state.Diff, diff...)
+
+	err = c.stateDB.PutMetadataConfiguration(state)
+	if err != nil {
+		c.logger.Error("Failed to update dynamic metadata diff", "error", err)
 	}
 }
 
