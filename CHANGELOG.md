@@ -27,11 +27,11 @@ __BACKWARDS INCOMPATIBILITIES:__
 FEATURES:
 
  * **Affinities and Spread**: Jobs may now specify affinities towards certain
-   node attributes. Affinities act as soft constraints, and inform the scheduler
-   that a preference for certain node properties exists. The new spread stanza
-   informs the scheduler that allocations should be spread across a specific
-   property such as datacenter or availability zone. This is useful to increase
-   failure tolerance of critical applications.
+   node attributes. Affinities act as soft constraints, and inform the
+   scheduler that the job has a preference for certain node properties. The new
+   spread stanza informs the scheduler that allocations should be spread across a
+   specific property such as datacenter or availability zone. This is useful to
+   increase failure tolerance of critical applications.
  * **System Job Preemption**: System jobs may now preempt lower priority
    allocations. The ability to place system jobs on all targeted nodes is
    critical since system jobs often run applications that provide services for
@@ -46,7 +46,7 @@ FEATURES:
    usage statistics. Device plugins can be developed and distributed
    independently from Nomad.
  * **Nvidia GPU Device Plugin**: Nomad builds-in a Nvidia GPU device plugin to
-   add out of the box support for scheduling Nvidia GPUs.
+   add out-of-the-box support for scheduling Nvidia GPUs.
  * **Client Refactor**: Major focus has been put in this release to refactor the
    Nomad Client codebase. The goal of the refactor has been to make the
    codebase more modular to increase developer velocity and testability.
