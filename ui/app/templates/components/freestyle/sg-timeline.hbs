@@ -50,7 +50,7 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-from-now (now)}}</span>
+            <span class="tooltip" aria-label="{{moment-format (now) "MM/DD HH:mm:ss"}}">{{moment-from-now (now)}}</span>
           </span>
         </div>
       </div>
@@ -65,7 +65,7 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-format yesterday}}</span>
+            <span>{{moment-format yesterday "MM/DD HH:mm:ss"}}</span>
           </span>
         </div>
       </div>
@@ -83,7 +83,7 @@
           </span>
           <span class="bumper-left pair is-faded">
             <span class="term">Submitted</span>
-            <span>{{moment-format yesterday}}</span>
+            <span>{{moment-format yesterday "MM/DD HH:mm:ss"}}</span>
           </span>
         </div>
       </div>

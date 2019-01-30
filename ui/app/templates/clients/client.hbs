@@ -204,7 +204,9 @@
               <span class="is-pulled-right">
                 <span class="pair">
                   <span class="term">Last Updated</span>
-                  <span data-test-last-updated>{{moment-from-now a.item.updateTime interval=1000}}</span>
+                  <span data-test-last-updated class="tooltip" aria-label="{{moment-format a.item.updateTime "MM/DD/YY HH:mm:ss"}}">
+                    {{moment-from-now a.item.updateTime interval=1000}}
+                  </span>
                 </span>
               </span>
             </div>

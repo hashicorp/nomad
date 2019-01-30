@@ -23,7 +23,11 @@
   </td>
 {{/if}}
 <td data-test-create-time>{{moment-format allocation.createTime "MM/DD HH:mm:ss"}}</td>
-<td data-test-modify-time>{{moment-from-now allocation.modifyTime}}</td>
+<td data-test-modify-time>
+  <span class="tooltip" aria-label="{{moment-format allocation.modifyTime "MM/DD HH:mm:ss"}}">
+    {{moment-from-now allocation.modifyTime}}
+  </span>
+</td>
 <td data-test-client-status class="is-one-line">
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
