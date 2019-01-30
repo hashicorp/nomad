@@ -65,7 +65,7 @@ func IntToPtr(i int) *int {
 	return &i
 }
 
-// Int8ToPtr returns the pointer to an int
+// Int8ToPtr returns the pointer to an int8
 func Int8ToPtr(i int8) *int8 {
 	return &i
 }
