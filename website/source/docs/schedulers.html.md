@@ -44,3 +44,8 @@ This scheduler type is extremely useful for deploying and managing tasks that
 should be present on every node in the cluster. Since these tasks are
 managed by Nomad, they can take advantage of job updating, rolling deploys,
 service discovery and more.
+
+Since Nomad 0.9, the system scheduler will preempt eligible lower priority
+tasks running on a node if there isn't enough capacity to place a system job.
+See [preemption](/docs/internals/scheduling/preemption.html) for details on how
+tasks that get preempted are chosen.
