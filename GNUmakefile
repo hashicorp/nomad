@@ -139,13 +139,13 @@ bootstrap: deps lint-deps # Install all dependencies
 deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
 	go get -u github.com/kardianos/govendor
-	go get -u github.com/ugorji/go/codec/codecgen
 	go get -u github.com/hashicorp/go-bindata/go-bindata
 	go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
 	go get -u github.com/a8m/tree/cmd/tree
 	go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
-	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
 	go get -u gotest.tools/gotestsum
+	@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
+	@bash -C "$(PROJECT_ROOT)/scripts/install-protoc-gen-go.sh"
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -190,10 +190,12 @@ generate-all: generate-structs proto
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate-structs: ## Update generated code
+	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
 
 .PHONY: proto
 proto:
+	@echo "--> Generating proto bindings..."
 	@for file in $$(git ls-files "*.proto" | grep -v "vendor\/.*.proto"); do \
 		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
 	done
@@ -280,6 +282,7 @@ clean: ## Remove build artifacts
 	@rm -rf "$(PROJECT_ROOT)/bin/"
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
 	@rm -f "$(GOPATH)/bin/nomad"
+	@find client nomad -name '*.generated.*' -delete
 
 .PHONY: travis
 travis: ## Run Nomad test suites with output to prevent timeouts under Travis CI
