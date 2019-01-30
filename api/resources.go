@@ -223,4 +223,8 @@ func (d *RequestedDevice) Canonicalize() {
 	if d.Count == nil {
 		d.Count = uint64ToPtr(1)
 	}
+
+	for _, a := range d.Affinities {
+		a.Canonicalize()
+	}
 }

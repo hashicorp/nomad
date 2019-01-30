@@ -615,14 +615,14 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 func TestServiceSched_Spread(t *testing.T) {
 	assert := assert.New(t)
 
-	start := uint32(100)
-	step := uint32(10)
+	start := uint8(100)
+	step := uint8(10)
 
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("%d%% in dc1", start)
 		t.Run(name, func(t *testing.T) {
 			h := NewHarness(t)
-			remaining := uint32(100 - start)
+			remaining := uint8(100 - start)
 			// Create a job that uses spread over data center
 			job := mock.Job()
 			job.Datacenters = []string{"dc1", "dc2"}

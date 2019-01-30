@@ -324,7 +324,7 @@ OUTER:
 				// Add the scores
 				if len(req.Affinities) != 0 {
 					for _, a := range req.Affinities {
-						totalDeviceAffinityWeight += math.Abs(a.Weight)
+						totalDeviceAffinityWeight += math.Abs(float64(a.Weight))
 					}
 					sumMatchingAffinities += sumAffinities
 				}
@@ -572,13 +572,13 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 	// TODO(preetha): we should calculate normalized weights once and reuse it here
 	sumWeight := 0.0
 	for _, affinity := range iter.affinities {
-		sumWeight += math.Abs(affinity.Weight)
+		sumWeight += math.Abs(float64(affinity.Weight))
 	}
 
 	totalAffinityScore := 0.0
 	for _, affinity := range iter.affinities {
 		if matchesAffinity(iter.ctx, affinity, option.Node) {
-			totalAffinityScore += affinity.Weight
+			totalAffinityScore += float64(affinity.Weight)
 		}
 	}
 	normScore := totalAffinityScore / sumWeight

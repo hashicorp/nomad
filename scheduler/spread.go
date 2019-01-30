@@ -28,7 +28,7 @@ type SpreadIterator struct {
 
 	// sumSpreadWeights tracks the total weight across all spread
 	// stanzas
-	sumSpreadWeights int
+	sumSpreadWeights int32
 
 	// hasSpread is used to early return when the job/task group
 	// does not have spread configured
@@ -43,7 +43,7 @@ type SpreadIterator struct {
 type spreadAttributeMap map[string]*spreadInfo
 
 type spreadInfo struct {
-	weight        int
+	weight        int8
 	desiredCounts map[string]float64
 }
 
@@ -246,7 +246,7 @@ func (iter *SpreadIterator) computeSpreadInfo(tg *structs.TaskGroup) {
 			si.desiredCounts[implicitTarget] = remainingCount
 		}
 		spreadInfos[spread.Attribute] = si
-		iter.sumSpreadWeights += spread.Weight
+		iter.sumSpreadWeights += int32(spread.Weight)
 	}
 	iter.tgSpreadInfo[tg.Name] = spreadInfos
 }

@@ -6455,11 +6455,11 @@ func (c *Constraint) Validate() error {
 
 // Affinity is used to score placement options based on a weight
 type Affinity struct {
-	LTarget string  // Left-hand target
-	RTarget string  // Right-hand target
-	Operand string  // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
-	Weight  float64 // Weight applied to nodes that match the affinity. Can be negative
-	str     string  // Memoized string
+	LTarget string // Left-hand target
+	RTarget string // Right-hand target
+	Operand string // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
+	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
+	str     string // Memoized string
 }
 
 // Equal checks if two affinities are equal
@@ -6539,7 +6539,7 @@ type Spread struct {
 
 	// Weight is the relative weight of this spread, useful when there are multiple
 	// spread and affinities
-	Weight int
+	Weight int8
 
 	// SpreadTarget is used to describe desired percentages for each attribute value
 	SpreadTarget []*SpreadTarget
@@ -6589,7 +6589,7 @@ func (s *Spread) Validate() error {
 		if target.Percent < 0 || target.Percent > 100 {
 			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target percentage for value %q must be between 0 and 100", target.Value)))
 		}
-		sumPercent += target.Percent
+		sumPercent += uint32(target.Percent)
 	}
 	if sumPercent > 100 {
 		mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Sum of spread target percentages must not be greater than 100%%; got %d%%", sumPercent)))
@@ -6603,7 +6603,7 @@ type SpreadTarget struct {
 	Value string
 
 	// Percent is the desired percentage of allocs
-	Percent uint32
+	Percent uint8
 
 	// Memoized string representation
 	str string

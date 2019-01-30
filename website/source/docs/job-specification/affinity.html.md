@@ -98,7 +98,7 @@ restricted only to nodes that meet the constraint's criteria.
   or any [Nomad interpolated
   values](/docs/runtime/interpolation.html#interpreted_node_vars).
 
-- `weight` `(integer:0)` - Specifies a weight for the affinity. The weight is used
+- `weight` `(integer: 50)` - Specifies a weight for the affinity. The weight is used
   during scoring and must be an integer between -100 to 100. Negative weights act as
   anti affinities, causing nodes that match them to be scored lower. Weights can be used
   when there is more than one affinity to express relative preference across them.

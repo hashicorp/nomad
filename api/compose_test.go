@@ -79,13 +79,13 @@ func TestCompose(t *testing.T) {
 						LTarget: "${node.class}",
 						RTarget: "large",
 						Operand: "=",
-						Weight:  50,
+						Weight:  int8ToPtr(50),
 					},
 				},
 				Spreads: []*Spread{
 					{
 						Attribute: "${node.datacenter}",
-						Weight:    intToPtr(30),
+						Weight:    int8ToPtr(30),
 						SpreadTarget: []*SpreadTarget{
 							{
 								Value:   "dc1",
