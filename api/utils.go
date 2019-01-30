@@ -21,6 +21,11 @@ func uint64ToPtr(u uint64) *uint64 {
 	return &u
 }
 
+// float64ToPtr returns the pointer to an float64
+func float64ToPtr(f float64) *float64 {
+	return &f
+}
+
 // stringToPtr returns the pointer to a string
 func stringToPtr(str string) *string {
 	return &str

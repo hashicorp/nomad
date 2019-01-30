@@ -79,7 +79,7 @@ func TestCompose(t *testing.T) {
 						LTarget: "${node.class}",
 						RTarget: "large",
 						Operand: "=",
-						Weight:  50,
+						Weight:  float64ToPtr(50.0),
 					},
 				},
 				Spreads: []*Spread{

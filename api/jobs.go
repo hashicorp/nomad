@@ -726,6 +726,10 @@ func (j *Job) Canonicalize() {
 	for _, spread := range j.Spreads {
 		spread.Canonicalize()
 	}
+
+	for _, a := range j.Affinities {
+		a.Canonicalize()
+	}
 }
 
 // LookupTaskGroup finds a task group by name

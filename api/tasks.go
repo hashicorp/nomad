@@ -159,10 +159,10 @@ func (r *ReschedulePolicy) Canonicalize(jobType string) {
 
 // Affinity is used to serialize task group affinities
 type Affinity struct {
-	LTarget string  // Left-hand target
-	RTarget string  // Right-hand target
-	Operand string  // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
-	Weight  float64 // Weight applied to nodes that match the affinity. Can be negative
+	LTarget string   // Left-hand target
+	RTarget string   // Right-hand target:
+	Operand string   // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
+	Weight  *float64 // Weight applied to nodes that match the affinity. Can be negative
 }
 
 func NewAffinity(LTarget string, Operand string, RTarget string, Weight float64) *Affinity {
@@ -170,7 +170,13 @@ func NewAffinity(LTarget string, Operand string, RTarget string, Weight float64)
 		LTarget: LTarget,
 		RTarget: RTarget,
 		Operand: Operand,
-		Weight:  Weight,
+		Weight:  float64ToPtr(Weight),
+	}
+}
+
+func (a *Affinity) Canonicalize() {
+	if a.Weight == nil {
+		a.Weight = float64ToPtr(50.0)
 	}
 }
 
@@ -597,6 +603,9 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		spread.Canonicalize()
 	}
 
+	for _, a := range g.Affinities {
+		a.Canonicalize()
+	}
 }
 
 // Constrain is used to add a constraint to a task group.
@@ -712,6 +721,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, s := range t.Services {
 		s.Canonicalize(t, tg, job)
+	}
+	for _, a := range t.Affinities {
+		a.Canonicalize()
 	}
 }
 

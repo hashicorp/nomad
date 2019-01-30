@@ -1352,13 +1352,13 @@ func TestJobs_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  100,
+			Weight:  float64ToPtr(100.0),
 		},
 		{
 			LTarget: "${node.datacenter}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  50,
+			Weight:  float64ToPtr(50.0),
 		},
 	}
 	if !reflect.DeepEqual(job.Affinities, expect) {

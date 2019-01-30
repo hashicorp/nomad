@@ -1216,7 +1216,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				LTarget: "a",
 				RTarget: "b",
 				Operand: "c",
-				Weight:  50,
+				Weight:  helper.Float64ToPtr(50.0),
 			},
 		},
 		Update: &api.UpdateStrategy{
@@ -1273,7 +1273,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LTarget: "x",
 						RTarget: "y",
 						Operand: "z",
-						Weight:  100,
+						Weight:  helper.Float64ToPtr(100.0),
 					},
 				},
 				RestartPolicy: &api.RestartPolicy{
@@ -1348,7 +1348,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LTarget: "a",
 								RTarget: "b",
 								Operand: "c",
-								Weight:  50,
+								Weight:  helper.Float64ToPtr(50.0),
 							},
 						},
 
@@ -1432,7 +1432,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											LTarget: "a",
 											RTarget: "b",
 											Operand: "c",
-											Weight:  50,
+											Weight:  helper.Float64ToPtr(50.0),
 										},
 									},
 								},

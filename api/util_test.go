@@ -85,8 +85,3 @@ func testQuotaSpec() *QuotaSpec {
 func int64ToPtr(i int64) *int64 {
 	return &i
 }
-
-// float64ToPtr returns the pointer to an float64
-func float64ToPtr(f float64) *float64 {
-	return &f
-}

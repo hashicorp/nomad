@@ -50,7 +50,7 @@ func TestParse(t *testing.T) {
 						LTarget: "${meta.team}",
 						RTarget: "mobile",
 						Operand: "=",
-						Weight:  50,
+						Weight:  helper.Float64ToPtr(50.0),
 					},
 				},
 
@@ -114,7 +114,7 @@ func TestParse(t *testing.T) {
 								LTarget: "${node.datacenter}",
 								RTarget: "dc2",
 								Operand: "=",
-								Weight:  100,
+								Weight:  helper.Float64ToPtr(100.0),
 							},
 						},
 						Meta: map[string]string{
@@ -189,7 +189,7 @@ func TestParse(t *testing.T) {
 										LTarget: "${meta.foo}",
 										RTarget: "a,b,c",
 										Operand: "set_contains",
-										Weight:  25,
+										Weight:  helper.Float64ToPtr(25.0),
 									},
 								},
 								Services: []*api.Service{
@@ -245,7 +245,7 @@ func TestParse(t *testing.T) {
 													LTarget: "${device.model}",
 													RTarget: "1080ti",
 													Operand: "=",
-													Weight:  50,
+													Weight:  helper.Float64ToPtr(50.0),
 												},
 											},
 										},

@@ -949,7 +949,7 @@ func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {
 		LTarget: a1.LTarget,
 		Operand: a1.Operand,
 		RTarget: a1.RTarget,
-		Weight:  a1.Weight,
+		Weight:  *a1.Weight,
 	}
 }
 
