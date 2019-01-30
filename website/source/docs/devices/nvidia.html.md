@@ -231,6 +231,7 @@ job "gpu-test" {
           affinity {
             attribute = "${device.model}"
             value     = "Tesla K80"
+            weight    = 50
           }
         }
       }
