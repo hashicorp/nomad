@@ -84,9 +84,9 @@ illustrate this process:
 
 ```shell
 $ sudo mkdir -p /opt/nomad/data/plugins
-$ curl -O https://releases.hashicorp.com/nomad-driver-lxc/0.1.0-rc1/nomad-driver-lxc_0.1.0-rc1_linux_amd64.zip
-$ unzip nomad-driver-lxc_0.1.0-rc1_linux_amd64.zip 
-Archive:  nomad-driver-lxc_0.1.0-rc1_linux_amd64.zip
+$ curl -O https://releases.hashicorp.com/nomad-driver-lxc/0.1.0-rc2/nomad-driver-lxc_0.1.0-rc2_linux_amd64.zip
+$ unzip nomad-driver-lxc_0.1.0-rc2_linux_amd64.zip 
+Archive:  nomad-driver-lxc_0.1.0-rc2_linux_amd64.zip
   inflating: nomad-driver-lxc
 $ sudo mv nomad-driver-lxc /opt/nomad/data/plugins
 ```
