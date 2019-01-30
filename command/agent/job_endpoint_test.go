@@ -1216,7 +1216,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				LTarget: "a",
 				RTarget: "b",
 				Operand: "c",
-				Weight:  50,
+				Weight:  helper.Int8ToPtr(50),
 			},
 		},
 		Update: &api.UpdateStrategy{
@@ -1232,7 +1232,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Spreads: []*api.Spread{
 			{
 				Attribute: "${meta.rack}",
-				Weight:    helper.IntToPtr(100),
+				Weight:    helper.Int8ToPtr(100),
 				SpreadTarget: []*api.SpreadTarget{
 					{
 						Value:   "r1",
@@ -1273,7 +1273,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						LTarget: "x",
 						RTarget: "y",
 						Operand: "z",
-						Weight:  100,
+						Weight:  helper.Int8ToPtr(100),
 					},
 				},
 				RestartPolicy: &api.RestartPolicy{
@@ -1299,7 +1299,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Spreads: []*api.Spread{
 					{
 						Attribute: "${node.datacenter}",
-						Weight:    helper.IntToPtr(100),
+						Weight:    helper.Int8ToPtr(100),
 						SpreadTarget: []*api.SpreadTarget{
 							{
 								Value:   "dc1",
@@ -1348,7 +1348,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LTarget: "a",
 								RTarget: "b",
 								Operand: "c",
-								Weight:  50,
+								Weight:  helper.Int8ToPtr(50),
 							},
 						},
 
@@ -1432,7 +1432,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											LTarget: "a",
 											RTarget: "b",
 											Operand: "c",
-											Weight:  50,
+											Weight:  helper.Int8ToPtr(50),
 										},
 									},
 								},
