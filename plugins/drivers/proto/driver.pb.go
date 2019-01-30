@@ -50,7 +50,7 @@ func (x TaskState) String() string {
 	return proto.EnumName(TaskState_name, int32(x))
 }
 func (TaskState) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{0}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{0}
 }
 
 type FingerprintResponse_HealthState int32
@@ -76,7 +76,7 @@ func (x FingerprintResponse_HealthState) String() string {
 	return proto.EnumName(FingerprintResponse_HealthState_name, int32(x))
 }
 func (FingerprintResponse_HealthState) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{5, 0}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{5, 0}
 }
 
 type StartTaskResponse_Result int32
@@ -102,7 +102,7 @@ func (x StartTaskResponse_Result) String() string {
 	return proto.EnumName(StartTaskResponse_Result_name, int32(x))
 }
 func (StartTaskResponse_Result) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{9, 0}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{9, 0}
 }
 
 type DriverCapabilities_FSIsolation int32
@@ -128,7 +128,7 @@ func (x DriverCapabilities_FSIsolation) String() string {
 	return proto.EnumName(DriverCapabilities_FSIsolation_name, int32(x))
 }
 func (DriverCapabilities_FSIsolation) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{25, 0}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{25, 0}
 }
 
 type CPUUsage_Fields int32
@@ -163,7 +163,7 @@ func (x CPUUsage_Fields) String() string {
 	return proto.EnumName(CPUUsage_Fields_name, int32(x))
 }
 func (CPUUsage_Fields) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{43, 0}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{43, 0}
 }
 
 type MemoryUsage_Fields int32
@@ -198,7 +198,7 @@ func (x MemoryUsage_Fields) String() string {
 	return proto.EnumName(MemoryUsage_Fields_name, int32(x))
 }
 func (MemoryUsage_Fields) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{44, 0}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{44, 0}
 }
 
 type TaskConfigSchemaRequest struct {
@@ -211,7 +211,7 @@ func (m *TaskConfigSchemaRequest) Reset()         { *m = TaskConfigSchemaRequest
 func (m *TaskConfigSchemaRequest) String() string { return proto.CompactTextString(m) }
 func (*TaskConfigSchemaRequest) ProtoMessage()    {}
 func (*TaskConfigSchemaRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{0}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{0}
 }
 func (m *TaskConfigSchemaRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskConfigSchemaRequest.Unmarshal(m, b)
@@ -243,7 +243,7 @@ func (m *TaskConfigSchemaResponse) Reset()         { *m = TaskConfigSchemaRespon
 func (m *TaskConfigSchemaResponse) String() string { return proto.CompactTextString(m) }
 func (*TaskConfigSchemaResponse) ProtoMessage()    {}
 func (*TaskConfigSchemaResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{1}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{1}
 }
 func (m *TaskConfigSchemaResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskConfigSchemaResponse.Unmarshal(m, b)
@@ -280,7 +280,7 @@ func (m *CapabilitiesRequest) Reset()         { *m = CapabilitiesRequest{} }
 func (m *CapabilitiesRequest) String() string { return proto.CompactTextString(m) }
 func (*CapabilitiesRequest) ProtoMessage()    {}
 func (*CapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{2}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{2}
 }
 func (m *CapabilitiesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CapabilitiesRequest.Unmarshal(m, b)
@@ -315,7 +315,7 @@ func (m *CapabilitiesResponse) Reset()         { *m = CapabilitiesResponse{} }
 func (m *CapabilitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*CapabilitiesResponse) ProtoMessage()    {}
 func (*CapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{3}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{3}
 }
 func (m *CapabilitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CapabilitiesResponse.Unmarshal(m, b)
@@ -352,7 +352,7 @@ func (m *FingerprintRequest) Reset()         { *m = FingerprintRequest{} }
 func (m *FingerprintRequest) String() string { return proto.CompactTextString(m) }
 func (*FingerprintRequest) ProtoMessage()    {}
 func (*FingerprintRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{4}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{4}
 }
 func (m *FingerprintRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FingerprintRequest.Unmarshal(m, b)
@@ -395,7 +395,7 @@ func (m *FingerprintResponse) Reset()         { *m = FingerprintResponse{} }
 func (m *FingerprintResponse) String() string { return proto.CompactTextString(m) }
 func (*FingerprintResponse) ProtoMessage()    {}
 func (*FingerprintResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{5}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{5}
 }
 func (m *FingerprintResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FingerprintResponse.Unmarshal(m, b)
@@ -450,7 +450,7 @@ func (m *RecoverTaskRequest) Reset()         { *m = RecoverTaskRequest{} }
 func (m *RecoverTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*RecoverTaskRequest) ProtoMessage()    {}
 func (*RecoverTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{6}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{6}
 }
 func (m *RecoverTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RecoverTaskRequest.Unmarshal(m, b)
@@ -494,7 +494,7 @@ func (m *RecoverTaskResponse) Reset()         { *m = RecoverTaskResponse{} }
 func (m *RecoverTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*RecoverTaskResponse) ProtoMessage()    {}
 func (*RecoverTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{7}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{7}
 }
 func (m *RecoverTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RecoverTaskResponse.Unmarshal(m, b)
@@ -526,7 +526,7 @@ func (m *StartTaskRequest) Reset()         { *m = StartTaskRequest{} }
 func (m *StartTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*StartTaskRequest) ProtoMessage()    {}
 func (*StartTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{8}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{8}
 }
 func (m *StartTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartTaskRequest.Unmarshal(m, b)
@@ -580,7 +580,7 @@ func (m *StartTaskResponse) Reset()         { *m = StartTaskResponse{} }
 func (m *StartTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*StartTaskResponse) ProtoMessage()    {}
 func (*StartTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{9}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{9}
 }
 func (m *StartTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartTaskResponse.Unmarshal(m, b)
@@ -640,7 +640,7 @@ func (m *WaitTaskRequest) Reset()         { *m = WaitTaskRequest{} }
 func (m *WaitTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*WaitTaskRequest) ProtoMessage()    {}
 func (*WaitTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{10}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{10}
 }
 func (m *WaitTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WaitTaskRequest.Unmarshal(m, b)
@@ -681,7 +681,7 @@ func (m *WaitTaskResponse) Reset()         { *m = WaitTaskResponse{} }
 func (m *WaitTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*WaitTaskResponse) ProtoMessage()    {}
 func (*WaitTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{11}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{11}
 }
 func (m *WaitTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WaitTaskResponse.Unmarshal(m, b)
@@ -733,7 +733,7 @@ func (m *StopTaskRequest) Reset()         { *m = StopTaskRequest{} }
 func (m *StopTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*StopTaskRequest) ProtoMessage()    {}
 func (*StopTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{12}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{12}
 }
 func (m *StopTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopTaskRequest.Unmarshal(m, b)
@@ -784,7 +784,7 @@ func (m *StopTaskResponse) Reset()         { *m = StopTaskResponse{} }
 func (m *StopTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*StopTaskResponse) ProtoMessage()    {}
 func (*StopTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{13}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{13}
 }
 func (m *StopTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopTaskResponse.Unmarshal(m, b)
@@ -818,7 +818,7 @@ func (m *DestroyTaskRequest) Reset()         { *m = DestroyTaskRequest{} }
 func (m *DestroyTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*DestroyTaskRequest) ProtoMessage()    {}
 func (*DestroyTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{14}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{14}
 }
 func (m *DestroyTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DestroyTaskRequest.Unmarshal(m, b)
@@ -862,7 +862,7 @@ func (m *DestroyTaskResponse) Reset()         { *m = DestroyTaskResponse{} }
 func (m *DestroyTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*DestroyTaskResponse) ProtoMessage()    {}
 func (*DestroyTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{15}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{15}
 }
 func (m *DestroyTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DestroyTaskResponse.Unmarshal(m, b)
@@ -894,7 +894,7 @@ func (m *InspectTaskRequest) Reset()         { *m = InspectTaskRequest{} }
 func (m *InspectTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*InspectTaskRequest) ProtoMessage()    {}
 func (*InspectTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{16}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{16}
 }
 func (m *InspectTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InspectTaskRequest.Unmarshal(m, b)
@@ -937,7 +937,7 @@ func (m *InspectTaskResponse) Reset()         { *m = InspectTaskResponse{} }
 func (m *InspectTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*InspectTaskResponse) ProtoMessage()    {}
 func (*InspectTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{17}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{17}
 }
 func (m *InspectTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InspectTaskResponse.Unmarshal(m, b)
@@ -992,7 +992,7 @@ func (m *TaskStatsRequest) Reset()         { *m = TaskStatsRequest{} }
 func (m *TaskStatsRequest) String() string { return proto.CompactTextString(m) }
 func (*TaskStatsRequest) ProtoMessage()    {}
 func (*TaskStatsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{18}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{18}
 }
 func (m *TaskStatsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStatsRequest.Unmarshal(m, b)
@@ -1038,7 +1038,7 @@ func (m *TaskStatsResponse) Reset()         { *m = TaskStatsResponse{} }
 func (m *TaskStatsResponse) String() string { return proto.CompactTextString(m) }
 func (*TaskStatsResponse) ProtoMessage()    {}
 func (*TaskStatsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{19}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{19}
 }
 func (m *TaskStatsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStatsResponse.Unmarshal(m, b)
@@ -1075,7 +1075,7 @@ func (m *TaskEventsRequest) Reset()         { *m = TaskEventsRequest{} }
 func (m *TaskEventsRequest) String() string { return proto.CompactTextString(m) }
 func (*TaskEventsRequest) ProtoMessage()    {}
 func (*TaskEventsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{20}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{20}
 }
 func (m *TaskEventsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskEventsRequest.Unmarshal(m, b)
@@ -1109,7 +1109,7 @@ func (m *SignalTaskRequest) Reset()         { *m = SignalTaskRequest{} }
 func (m *SignalTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*SignalTaskRequest) ProtoMessage()    {}
 func (*SignalTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{21}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{21}
 }
 func (m *SignalTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SignalTaskRequest.Unmarshal(m, b)
@@ -1153,7 +1153,7 @@ func (m *SignalTaskResponse) Reset()         { *m = SignalTaskResponse{} }
 func (m *SignalTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*SignalTaskResponse) ProtoMessage()    {}
 func (*SignalTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{22}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{22}
 }
 func (m *SignalTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SignalTaskResponse.Unmarshal(m, b)
@@ -1190,7 +1190,7 @@ func (m *ExecTaskRequest) Reset()         { *m = ExecTaskRequest{} }
 func (m *ExecTaskRequest) String() string { return proto.CompactTextString(m) }
 func (*ExecTaskRequest) ProtoMessage()    {}
 func (*ExecTaskRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{23}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{23}
 }
 func (m *ExecTaskRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecTaskRequest.Unmarshal(m, b)
@@ -1247,7 +1247,7 @@ func (m *ExecTaskResponse) Reset()         { *m = ExecTaskResponse{} }
 func (m *ExecTaskResponse) String() string { return proto.CompactTextString(m) }
 func (*ExecTaskResponse) ProtoMessage()    {}
 func (*ExecTaskResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{24}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{24}
 }
 func (m *ExecTaskResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExecTaskResponse.Unmarshal(m, b)
@@ -1306,7 +1306,7 @@ func (m *DriverCapabilities) Reset()         { *m = DriverCapabilities{} }
 func (m *DriverCapabilities) String() string { return proto.CompactTextString(m) }
 func (*DriverCapabilities) ProtoMessage()    {}
 func (*DriverCapabilities) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{25}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{25}
 }
 func (m *DriverCapabilities) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverCapabilities.Unmarshal(m, b)
@@ -1392,7 +1392,7 @@ func (m *TaskConfig) Reset()         { *m = TaskConfig{} }
 func (m *TaskConfig) String() string { return proto.CompactTextString(m) }
 func (*TaskConfig) ProtoMessage()    {}
 func (*TaskConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{26}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{26}
 }
 func (m *TaskConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskConfig.Unmarshal(m, b)
@@ -1531,7 +1531,7 @@ func (m *Resources) Reset()         { *m = Resources{} }
 func (m *Resources) String() string { return proto.CompactTextString(m) }
 func (*Resources) ProtoMessage()    {}
 func (*Resources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{27}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{27}
 }
 func (m *Resources) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Resources.Unmarshal(m, b)
@@ -1578,7 +1578,7 @@ func (m *AllocatedTaskResources) Reset()         { *m = AllocatedTaskResources{}
 func (m *AllocatedTaskResources) String() string { return proto.CompactTextString(m) }
 func (*AllocatedTaskResources) ProtoMessage()    {}
 func (*AllocatedTaskResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{28}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{28}
 }
 func (m *AllocatedTaskResources) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AllocatedTaskResources.Unmarshal(m, b)
@@ -1630,7 +1630,7 @@ func (m *AllocatedCpuResources) Reset()         { *m = AllocatedCpuResources{} }
 func (m *AllocatedCpuResources) String() string { return proto.CompactTextString(m) }
 func (*AllocatedCpuResources) ProtoMessage()    {}
 func (*AllocatedCpuResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{29}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{29}
 }
 func (m *AllocatedCpuResources) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AllocatedCpuResources.Unmarshal(m, b)
@@ -1668,7 +1668,7 @@ func (m *AllocatedMemoryResources) Reset()         { *m = AllocatedMemoryResourc
 func (m *AllocatedMemoryResources) String() string { return proto.CompactTextString(m) }
 func (*AllocatedMemoryResources) ProtoMessage()    {}
 func (*AllocatedMemoryResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{30}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{30}
 }
 func (m *AllocatedMemoryResources) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AllocatedMemoryResources.Unmarshal(m, b)
@@ -1711,7 +1711,7 @@ func (m *NetworkResource) Reset()         { *m = NetworkResource{} }
 func (m *NetworkResource) String() string { return proto.CompactTextString(m) }
 func (*NetworkResource) ProtoMessage()    {}
 func (*NetworkResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{31}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{31}
 }
 func (m *NetworkResource) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NetworkResource.Unmarshal(m, b)
@@ -1785,7 +1785,7 @@ func (m *NetworkPort) Reset()         { *m = NetworkPort{} }
 func (m *NetworkPort) String() string { return proto.CompactTextString(m) }
 func (*NetworkPort) ProtoMessage()    {}
 func (*NetworkPort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{32}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{32}
 }
 func (m *NetworkPort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NetworkPort.Unmarshal(m, b)
@@ -1845,7 +1845,7 @@ func (m *LinuxResources) Reset()         { *m = LinuxResources{} }
 func (m *LinuxResources) String() string { return proto.CompactTextString(m) }
 func (*LinuxResources) ProtoMessage()    {}
 func (*LinuxResources) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{33}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{33}
 }
 func (m *LinuxResources) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_LinuxResources.Unmarshal(m, b)
@@ -1937,7 +1937,7 @@ func (m *Mount) Reset()         { *m = Mount{} }
 func (m *Mount) String() string { return proto.CompactTextString(m) }
 func (*Mount) ProtoMessage()    {}
 func (*Mount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{34}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{34}
 }
 func (m *Mount) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Mount.Unmarshal(m, b)
@@ -2000,7 +2000,7 @@ func (m *Device) Reset()         { *m = Device{} }
 func (m *Device) String() string { return proto.CompactTextString(m) }
 func (*Device) ProtoMessage()    {}
 func (*Device) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{35}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{35}
 }
 func (m *Device) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Device.Unmarshal(m, b)
@@ -2061,7 +2061,7 @@ func (m *TaskHandle) Reset()         { *m = TaskHandle{} }
 func (m *TaskHandle) String() string { return proto.CompactTextString(m) }
 func (*TaskHandle) ProtoMessage()    {}
 func (*TaskHandle) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{36}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{36}
 }
 func (m *TaskHandle) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskHandle.Unmarshal(m, b)
@@ -2128,7 +2128,7 @@ func (m *NetworkOverride) Reset()         { *m = NetworkOverride{} }
 func (m *NetworkOverride) String() string { return proto.CompactTextString(m) }
 func (*NetworkOverride) ProtoMessage()    {}
 func (*NetworkOverride) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{37}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{37}
 }
 func (m *NetworkOverride) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NetworkOverride.Unmarshal(m, b)
@@ -2186,7 +2186,7 @@ func (m *ExitResult) Reset()         { *m = ExitResult{} }
 func (m *ExitResult) String() string { return proto.CompactTextString(m) }
 func (*ExitResult) ProtoMessage()    {}
 func (*ExitResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{38}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{38}
 }
 func (m *ExitResult) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExitResult.Unmarshal(m, b)
@@ -2249,7 +2249,7 @@ func (m *TaskStatus) Reset()         { *m = TaskStatus{} }
 func (m *TaskStatus) String() string { return proto.CompactTextString(m) }
 func (*TaskStatus) ProtoMessage()    {}
 func (*TaskStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{39}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{39}
 }
 func (m *TaskStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStatus.Unmarshal(m, b)
@@ -2324,7 +2324,7 @@ func (m *TaskDriverStatus) Reset()         { *m = TaskDriverStatus{} }
 func (m *TaskDriverStatus) String() string { return proto.CompactTextString(m) }
 func (*TaskDriverStatus) ProtoMessage()    {}
 func (*TaskDriverStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{40}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{40}
 }
 func (m *TaskDriverStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskDriverStatus.Unmarshal(m, b)
@@ -2369,7 +2369,7 @@ func (m *TaskStats) Reset()         { *m = TaskStats{} }
 func (m *TaskStats) String() string { return proto.CompactTextString(m) }
 func (*TaskStats) ProtoMessage()    {}
 func (*TaskStats) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{41}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{41}
 }
 func (m *TaskStats) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskStats.Unmarshal(m, b)
@@ -2431,7 +2431,7 @@ func (m *TaskResourceUsage) Reset()         { *m = TaskResourceUsage{} }
 func (m *TaskResourceUsage) String() string { return proto.CompactTextString(m) }
 func (*TaskResourceUsage) ProtoMessage()    {}
 func (*TaskResourceUsage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{42}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{42}
 }
 func (m *TaskResourceUsage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TaskResourceUsage.Unmarshal(m, b)
@@ -2483,7 +2483,7 @@ func (m *CPUUsage) Reset()         { *m = CPUUsage{} }
 func (m *CPUUsage) String() string { return proto.CompactTextString(m) }
 func (*CPUUsage) ProtoMessage()    {}
 func (*CPUUsage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{43}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{43}
 }
 func (m *CPUUsage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CPUUsage.Unmarshal(m, b)
@@ -2570,7 +2570,7 @@ func (m *MemoryUsage) Reset()         { *m = MemoryUsage{} }
 func (m *MemoryUsage) String() string { return proto.CompactTextString(m) }
 func (*MemoryUsage) ProtoMessage()    {}
 func (*MemoryUsage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{44}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{44}
 }
 func (m *MemoryUsage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MemoryUsage.Unmarshal(m, b)
@@ -2661,7 +2661,7 @@ func (m *DriverTaskEvent) Reset()         { *m = DriverTaskEvent{} }
 func (m *DriverTaskEvent) String() string { return proto.CompactTextString(m) }
 func (*DriverTaskEvent) ProtoMessage()    {}
 func (*DriverTaskEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_driver_7505ca5155ee1b5b, []int{45}
+	return fileDescriptor_driver_50fc54a49fb06bcb, []int{45}
 }
 func (m *DriverTaskEvent) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DriverTaskEvent.Unmarshal(m, b)
@@ -3396,10 +3396,10 @@ var _Driver_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("plugins/drivers/proto/driver.proto", fileDescriptor_driver_7505ca5155ee1b5b)
+	proto.RegisterFile("plugins/drivers/proto/driver.proto", fileDescriptor_driver_50fc54a49fb06bcb)
 }
 
-var fileDescriptor_driver_7505ca5155ee1b5b = []byte{
+var fileDescriptor_driver_50fc54a49fb06bcb = []byte{
 	// 2990 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x59, 0xcb, 0x6f, 0x23, 0xc7,
 	0xd1, 0x17, 0x9f, 0x22, 0x8b, 0x12, 0x35, 0xdb, 0xbb, 0x6b, 0xd3, 0x34, 0xbe, 0xcf, 0xeb, 0x01,
