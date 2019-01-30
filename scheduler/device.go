@@ -77,14 +77,14 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 				lVal, lOk := resolveDeviceTarget(a.LTarget, devInst.Device)
 				rVal, rOk := resolveDeviceTarget(a.RTarget, devInst.Device)
 
-				totalWeight += math.Abs(a.Weight)
+				totalWeight += math.Abs(float64(a.Weight))
 
 				// Check if satisfied
 				if !checkAttributeAffinity(d.ctx, a.Operand, lVal, rVal, lOk, rOk) {
 					continue
 				}
-				choiceScore += a.Weight
-				sumMatchedWeights += a.Weight
+				choiceScore += float64(a.Weight)
+				sumMatchedWeights += float64(a.Weight)
 			}
 
 			// normalize

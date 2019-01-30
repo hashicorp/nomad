@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -98,6 +99,7 @@ func (t *taskRunnerState08) Upgrade(allocID, taskName string) (*state.LocalState
 	// Add necessary fields to TaskConfig
 	ls.TaskHandle = drivers.NewTaskHandle(drivers.Pre09TaskHandleVersion)
 	ls.TaskHandle.Config = &drivers.TaskConfig{
+		ID:      fmt.Sprintf("pre09-%s", uuid.Generate()),
 		Name:    taskName,
 		AllocID: allocID,
 	}

@@ -1352,13 +1352,13 @@ func TestJobs_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  100,
+			Weight:  int8ToPtr(100),
 		},
 		{
 			LTarget: "${node.datacenter}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  50,
+			Weight:  int8ToPtr(50),
 		},
 	}
 	if !reflect.DeepEqual(job.Affinities, expect) {
@@ -1412,7 +1412,7 @@ func TestJobs_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    intToPtr(100),
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -1422,7 +1422,7 @@ func TestJobs_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    intToPtr(100),
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",

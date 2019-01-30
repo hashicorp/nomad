@@ -79,13 +79,13 @@ func TestTaskGroup_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  100,
+			Weight:  int8ToPtr(100),
 		},
 		{
 			LTarget: "${node.affinity}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  50,
+			Weight:  int8ToPtr(50),
 		},
 	}
 	if !reflect.DeepEqual(grp.Affinities, expect) {
@@ -143,7 +143,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    intToPtr(100),
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -153,7 +153,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    intToPtr(100),
+			Weight:    int8ToPtr(100),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",
@@ -340,13 +340,13 @@ func TestTask_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  100,
+			Weight:  int8ToPtr(100),
 		},
 		{
 			LTarget: "${node.datacenter}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  50,
+			Weight:  int8ToPtr(50),
 		},
 	}
 	if !reflect.DeepEqual(task.Affinities, expect) {
@@ -766,7 +766,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 	type testCase struct {
 		desc           string
 		spread         *Spread
-		expectedWeight int
+		expectedWeight int8
 	}
 	cases := []testCase{
 		{
@@ -781,7 +781,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 			"Zero spread",
 			&Spread{
 				Attribute: "test",
-				Weight:    intToPtr(0),
+				Weight:    int8ToPtr(0),
 			},
 			0,
 		},
@@ -789,7 +789,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 			"Non Zero spread",
 			&Spread{
 				Attribute: "test",
-				Weight:    intToPtr(100),
+				Weight:    int8ToPtr(100),
 			},
 			100,
 		},
