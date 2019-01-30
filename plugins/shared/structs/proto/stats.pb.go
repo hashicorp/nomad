@@ -35,7 +35,7 @@ func (m *StatObject) Reset()         { *m = StatObject{} }
 func (m *StatObject) String() string { return proto.CompactTextString(m) }
 func (*StatObject) ProtoMessage()    {}
 func (*StatObject) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_9457a07d62f0d5fa, []int{0}
+	return fileDescriptor_stats_73a5e405c9cf442c, []int{0}
 }
 func (m *StatObject) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StatObject.Unmarshal(m, b)
@@ -100,7 +100,7 @@ func (m *StatValue) Reset()         { *m = StatValue{} }
 func (m *StatValue) String() string { return proto.CompactTextString(m) }
 func (*StatValue) ProtoMessage()    {}
 func (*StatValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_9457a07d62f0d5fa, []int{1}
+	return fileDescriptor_stats_73a5e405c9cf442c, []int{1}
 }
 func (m *StatValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StatValue.Unmarshal(m, b)
@@ -184,10 +184,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("plugins/shared/structs/proto/stats.proto", fileDescriptor_stats_9457a07d62f0d5fa)
+	proto.RegisterFile("plugins/shared/structs/proto/stats.proto", fileDescriptor_stats_73a5e405c9cf442c)
 }
 
-var fileDescriptor_stats_9457a07d62f0d5fa = []byte{
+var fileDescriptor_stats_73a5e405c9cf442c = []byte{
 	// 444 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0xd2, 0xdf, 0x6a, 0x13, 0x41,
 	0x14, 0x06, 0x70, 0x36, 0xdb, 0x24, 0xcd, 0xc9, 0x45, 0xed, 0x14, 0x61, 0x89, 0x22, 0xa1, 0x17,

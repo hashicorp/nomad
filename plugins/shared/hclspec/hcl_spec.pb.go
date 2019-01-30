@@ -94,7 +94,7 @@ func (m *Spec) Reset()         { *m = Spec{} }
 func (m *Spec) String() string { return proto.CompactTextString(m) }
 func (*Spec) ProtoMessage()    {}
 func (*Spec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{0}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{0}
 }
 func (m *Spec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Spec.Unmarshal(m, b)
@@ -522,7 +522,7 @@ func (m *Attr) Reset()         { *m = Attr{} }
 func (m *Attr) String() string { return proto.CompactTextString(m) }
 func (*Attr) ProtoMessage()    {}
 func (*Attr) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{1}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{1}
 }
 func (m *Attr) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Attr.Unmarshal(m, b)
@@ -611,7 +611,7 @@ func (m *Block) Reset()         { *m = Block{} }
 func (m *Block) String() string { return proto.CompactTextString(m) }
 func (*Block) ProtoMessage()    {}
 func (*Block) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{2}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{2}
 }
 func (m *Block) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Block.Unmarshal(m, b)
@@ -697,7 +697,7 @@ func (m *BlockAttrs) Reset()         { *m = BlockAttrs{} }
 func (m *BlockAttrs) String() string { return proto.CompactTextString(m) }
 func (*BlockAttrs) ProtoMessage()    {}
 func (*BlockAttrs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{3}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{3}
 }
 func (m *BlockAttrs) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockAttrs.Unmarshal(m, b)
@@ -792,7 +792,7 @@ func (m *BlockList) Reset()         { *m = BlockList{} }
 func (m *BlockList) String() string { return proto.CompactTextString(m) }
 func (*BlockList) ProtoMessage()    {}
 func (*BlockList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{4}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{4}
 }
 func (m *BlockList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockList.Unmarshal(m, b)
@@ -875,7 +875,7 @@ func (m *BlockSet) Reset()         { *m = BlockSet{} }
 func (m *BlockSet) String() string { return proto.CompactTextString(m) }
 func (*BlockSet) ProtoMessage()    {}
 func (*BlockSet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{5}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{5}
 }
 func (m *BlockSet) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockSet.Unmarshal(m, b)
@@ -974,7 +974,7 @@ func (m *BlockMap) Reset()         { *m = BlockMap{} }
 func (m *BlockMap) String() string { return proto.CompactTextString(m) }
 func (*BlockMap) ProtoMessage()    {}
 func (*BlockMap) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{6}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{6}
 }
 func (m *BlockMap) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockMap.Unmarshal(m, b)
@@ -1044,7 +1044,7 @@ func (m *Literal) Reset()         { *m = Literal{} }
 func (m *Literal) String() string { return proto.CompactTextString(m) }
 func (*Literal) ProtoMessage()    {}
 func (*Literal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{7}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{7}
 }
 func (m *Literal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Literal.Unmarshal(m, b)
@@ -1108,7 +1108,7 @@ func (m *Default) Reset()         { *m = Default{} }
 func (m *Default) String() string { return proto.CompactTextString(m) }
 func (*Default) ProtoMessage()    {}
 func (*Default) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{8}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{8}
 }
 func (m *Default) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Default.Unmarshal(m, b)
@@ -1182,7 +1182,7 @@ func (m *Object) Reset()         { *m = Object{} }
 func (m *Object) String() string { return proto.CompactTextString(m) }
 func (*Object) ProtoMessage()    {}
 func (*Object) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{9}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{9}
 }
 func (m *Object) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Object.Unmarshal(m, b)
@@ -1238,7 +1238,7 @@ func (m *Array) Reset()         { *m = Array{} }
 func (m *Array) String() string { return proto.CompactTextString(m) }
 func (*Array) ProtoMessage()    {}
 func (*Array) Descriptor() ([]byte, []int) {
-	return fileDescriptor_hcl_spec_45ead239ae3df7c4, []int{10}
+	return fileDescriptor_hcl_spec_8d078e4df12ae415, []int{10}
 }
 func (m *Array) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Array.Unmarshal(m, b)
@@ -1281,10 +1281,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("plugins/shared/hclspec/hcl_spec.proto", fileDescriptor_hcl_spec_45ead239ae3df7c4)
+	proto.RegisterFile("plugins/shared/hclspec/hcl_spec.proto", fileDescriptor_hcl_spec_8d078e4df12ae415)
 }
 
-var fileDescriptor_hcl_spec_45ead239ae3df7c4 = []byte{
+var fileDescriptor_hcl_spec_8d078e4df12ae415 = []byte{
 	// 624 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x96, 0x4d, 0x6f, 0xd3, 0x4c,
 	0x10, 0xc7, 0xe3, 0xc4, 0xaf, 0xd3, 0xc3, 0xf3, 0x68, 0x85, 0x90, 0x55, 0x0e, 0x54, 0x96, 0x40,
