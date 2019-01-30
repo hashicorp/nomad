@@ -15,6 +15,92 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.9.0
+
+### Preemption
+
+Nomad 0.9 adds preemption support for system jobs. If a system job is submitted
+that has a higher priority than other running jobs on the node, and the node
+does not have capacity remaining, Nomad may preempt those lower priority
+allocations to place the system job. See [preemption][preemption] for more
+details.
+
+### Task Driver Plugins
+
+All task drivers have become [plugins][plugins] in Nomad 0.9.0. There are no user visible
+differences between 0.8 and 0.9 drivers except for [LXC][lxc]. There is a new
+method for client driver configuration options, but existing `client.options`
+settings are supported in 0.9. See [plugin configuration][plugin-stanza] for
+details.
+
+#### LXC
+
+LXC is now an external plugin and must be installed separately. See [the LXC
+driver's documentation][lxc] for details.
+
+### Structured Logging
+
+Nomad 0.9.0 switches to structured logging. Any log processing on the pre-0.9
+log output will need to be updated to match the structured output.
+
+Structured log lines have the format:
+
+```
+# <Timestamp> [<Level>] <Component>: <Message>: <KeyN>=<ValueN> ...
+
+2019-01-29T05:52:09.221Z [INFO ] client.plugin: starting plugin manager: plugin-type=device
+```
+
+Values containing whitespace will be quoted:
+
+```
+... starting plugin: task=redis args="[/opt/gopath/bin/nomad logmon]"
+```
+
+### HCL2 Transition
+
+Nomad 0.9.0 begins a transition to [HCL2][hcl2], the next version of the
+HashiCorp configuration language. While Nomad has begun integrating HCL2,
+users will need to continue to use HCL1 in Nomad 0.9.0 as the transition is
+incomplete.
+
+If you interpolate variables in your [`task.config`][task-config] containing
+consecutive dots in their name, you will need to change your job specification
+to use the `env` map. See the following example:
+
+```hcl
+env {
+  # Note the multiple consecutive dots
+  image...version = "3.2"
+
+  # Valid in both v0.8 and v0.9
+  image.version = "3.2"
+}
+
+# v0.8 task config stanza:
+task {
+  driver = "docker"
+  config {
+    image = "redis:${image...version}"
+  }
+}
+
+# v0.9 task config stanza:
+task {
+  driver = "docker"
+  config {
+    image = "redis:${env["image...version"]}"
+  }
+}
+```
+
+This only affects users who interpolate unusual variables with multiple
+consecutive dots in their task `config` stanza. All other interpolation is
+unchanged.
+
+Since HCL2 uses dotted object notation for interpolation users should
+transition away from variable names with multiple consecutive dots.
+
 ## Nomad 0.8.0
 
 ### Raft Protocol Version Compatibility
@@ -242,4 +328,10 @@ deleted and then Nomad 0.3.0 can be launched.
 
 [drain-api]: /api/nodes.html#drain-node
 [drain-cli]: /docs/commands/node/drain.html
+[hcl2]: https://github.com/hashicorp/hcl2
+[lxc]: /docs/drivers/external/lxc.html
 [migrate]: /docs/job-specification/migrate.html
+[plugins]: /docs/drivers/external/index.html
+[plugin-stanza]: /docs/configuration/plugin.html
+[preemption]: /docs/internals/scheduling/preemption.html
+[task-config]: /docs/job-specification/task.html#config

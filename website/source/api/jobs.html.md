@@ -189,9 +189,9 @@ The table below shows this endpoint's support for
                 "Attempts": 10,
                 "Delay": 30000000000,
                 "DelayFunction": "exponential",
-                "Interval": 0,
+                "Interval": 36000000000000,
                 "MaxDelay": 3600000000000,
-                "Unlimited": true
+                "Unlimited": false
             },
             "EphemeralDisk": {
                 "SizeMB": 300
@@ -213,7 +213,7 @@ The table below shows this endpoint's support for
 ```text
 $ curl \
     --request POST \
-    --data @my-job.nomad \
+    --data @my-job.json \
     https://localhost:4646/v1/jobs
 ```
 
