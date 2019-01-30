@@ -159,18 +159,24 @@ func (r *ReschedulePolicy) Canonicalize(jobType string) {
 
 // Affinity is used to serialize task group affinities
 type Affinity struct {
-	LTarget string  // Left-hand target
-	RTarget string  // Right-hand target
-	Operand string  // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
-	Weight  float64 // Weight applied to nodes that match the affinity. Can be negative
+	LTarget string // Left-hand target
+	RTarget string // Right-hand target
+	Operand string // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
+	Weight  *int8  // Weight applied to nodes that match the affinity. Can be negative
 }
 
-func NewAffinity(LTarget string, Operand string, RTarget string, Weight float64) *Affinity {
+func NewAffinity(LTarget string, Operand string, RTarget string, Weight int8) *Affinity {
 	return &Affinity{
 		LTarget: LTarget,
 		RTarget: RTarget,
 		Operand: Operand,
-		Weight:  Weight,
+		Weight:  int8ToPtr(Weight),
+	}
+}
+
+func (a *Affinity) Canonicalize() {
+	if a.Weight == nil {
+		a.Weight = int8ToPtr(50)
 	}
 }
 
@@ -237,34 +243,34 @@ func (p *ReschedulePolicy) String() string {
 // Spread is used to serialize task group allocation spread preferences
 type Spread struct {
 	Attribute    string
-	Weight       *int
+	Weight       *int8
 	SpreadTarget []*SpreadTarget
 }
 
 // SpreadTarget is used to serialize target allocation spread percentages
 type SpreadTarget struct {
 	Value   string
-	Percent uint32
+	Percent uint8
 }
 
-func NewSpreadTarget(value string, percent uint32) *SpreadTarget {
+func NewSpreadTarget(value string, percent uint8) *SpreadTarget {
 	return &SpreadTarget{
 		Value:   value,
 		Percent: percent,
 	}
 }
 
-func NewSpread(attribute string, weight int, spreadTargets []*SpreadTarget) *Spread {
+func NewSpread(attribute string, weight int8, spreadTargets []*SpreadTarget) *Spread {
 	return &Spread{
 		Attribute:    attribute,
-		Weight:       intToPtr(weight),
+		Weight:       int8ToPtr(weight),
 		SpreadTarget: spreadTargets,
 	}
 }
 
 func (s *Spread) Canonicalize() {
 	if s.Weight == nil {
-		s.Weight = intToPtr(50)
+		s.Weight = int8ToPtr(50)
 	}
 }
 
@@ -596,7 +602,9 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, spread := range g.Spreads {
 		spread.Canonicalize()
 	}
-
+	for _, a := range g.Affinities {
+		a.Canonicalize()
+	}
 }
 
 // Constrain is used to add a constraint to a task group.
@@ -712,6 +720,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, s := range t.Services {
 		s.Canonicalize(t, tg, job)
+	}
+	for _, a := range t.Affinities {
+		a.Canonicalize()
 	}
 }
 

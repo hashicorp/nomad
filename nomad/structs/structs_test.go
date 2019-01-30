@@ -1642,7 +1642,7 @@ func TestAffinity_Validate(t *testing.T) {
 				Operand: "=",
 				LTarget: "${meta.node_class}",
 				RTarget: "c4",
-				Weight:  500,
+				Weight:  110,
 			},
 			err: fmt.Errorf("Affinity weight must be within the range [-100,100]"),
 		},
@@ -1659,7 +1659,7 @@ func TestAffinity_Validate(t *testing.T) {
 				Operand: "version",
 				LTarget: "${meta.os}",
 				RTarget: ">>2.0",
-				Weight:  500,
+				Weight:  110,
 			},
 			err: fmt.Errorf("Version affinity is invalid"),
 		},
@@ -4078,7 +4078,7 @@ func TestSpread_Validate(t *testing.T) {
 		{
 			spread: &Spread{
 				Attribute: "${node.datacenter}",
-				Weight:    200,
+				Weight:    110,
 			},
 			err:  fmt.Errorf("Spread stanza must have a positive weight from 0 to 100"),
 			name: "Invalid weight",
