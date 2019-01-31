@@ -575,9 +575,15 @@ func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container,
 		return fmt.Errorf("unable to set lxc.uts.name to '%s': %v", c.Name(), err)
 	}
 
-	// Set the network type to none
-	if err := c.SetConfigItem("lxc.net.0.type", "none"); err != nil {
-		return fmt.Errorf("error setting network type configuration: %v", err)
+	// Set the network type to none if not previously set
+	netZeroType := c.ConfigItem("lxc.net.0.type")
+	if len(netZeroType) == 0 || netZeroType[0] == "" {
+		if err := c.SetConfigItem("lxc.net.0.type", "none"); err != nil {
+			return fmt.Errorf("error setting network type configuration: %v", err)
+		}
+	} else {
+
+		d.logger.Printf("[INFO] driver.lxc: lxc.net.0.type set as %#v, not overriding.", netZeroType)
 	}
 
 	// Bind mount the shared alloc dir and task local dir in the container
