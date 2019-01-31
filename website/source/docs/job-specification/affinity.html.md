@@ -40,7 +40,7 @@ job "docs" {
   group "example" {
     # Prefer the "r1" rack
     affinity {
-      operator  = "${meta.rack}"
+      attribute  = "${meta.rack}"
       value     = "r1"
       weight    = 50
     }
@@ -186,8 +186,8 @@ higher than "3.19".
 ```hcl
 affinity {
   attribute = "${attr.kernel.version}"
-  operator  = "version"
-  value     = "> 3.19"
+  operator  = ">"
+  value     = "3.19"
   weight    = 50
 }
 ```
