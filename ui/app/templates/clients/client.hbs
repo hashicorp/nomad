@@ -65,7 +65,7 @@
         {{#if model.drainStrategy.forceDeadline}}
           <span class="pair" data-test-drain-forced-deadline>
             <span class="term">Forced Deadline</span>
-            {{moment-format model.drainStrategy.forceDeadline "MM/DD/YY HH:mm:ss"}}
+            {{format-ts model.drainStrategy.forceDeadline}}
             ({{moment-from-now model.drainStrategy.forceDeadline interval=1000}})
           </span>
         {{/if}}
@@ -159,7 +159,7 @@
         {{/t.head}}
         {{#t.body as |row|}}
           <tr data-test-client-event>
-            <td data-test-client-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
+            <td data-test-client-event-time>{{format-ts row.model.time}}</td>
             <td data-test-client-event-subsystem>{{row.model.subsystem}}</td>
             <td data-test-client-event-message>
               {{#if row.model.message}}
@@ -204,7 +204,7 @@
               <span class="is-pulled-right">
                 <span class="pair">
                   <span class="term">Last Updated</span>
-                  <span data-test-last-updated class="tooltip" aria-label="{{moment-format a.item.updateTime "MM/DD/YY HH:mm:ss"}}">
+                  <span data-test-last-updated class="tooltip" aria-label="{{format-ts a.item.updateTime}}">
                     {{moment-from-now a.item.updateTime interval=1000}}
                   </span>
                 </span>

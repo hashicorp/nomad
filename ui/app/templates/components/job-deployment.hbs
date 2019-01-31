@@ -9,7 +9,7 @@
       <span class="term">Version</span>
       <span class="has-emphasis" data-test-deployment-version>#{{deployment.version.number}}</span>
       <span data-test-deployment-submit-time>|
-        <span class="tooltip" aria-label="{{moment-format deployment.version.submitTime "MM/DD/YY HH:mm:ss"}}">
+        <span class="tooltip" aria-label="{{format-ts deployment.version.submitTime}}">
           {{moment-from-now deployment.version.submitTime}}
         </span>
       </span>

@@ -22,9 +22,9 @@
     {{/link-to}}
   </td>
 {{/if}}
-<td data-test-create-time>{{moment-format allocation.createTime "MM/DD HH:mm:ss"}}</td>
+<td data-test-create-time>{{format-month-ts allocation.createTime}}</td>
 <td data-test-modify-time>
-  <span class="tooltip" aria-label="{{moment-format allocation.modifyTime "MM/DD HH:mm:ss"}}">
+  <span class="tooltip" aria-label="{{format-month-ts allocation.modifyTime}}">
     {{moment-from-now allocation.modifyTime}}
   </span>
 </td>

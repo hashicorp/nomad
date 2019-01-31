@@ -5,7 +5,7 @@
         {{if job.latestDeployment.isRunning "Active" "Latest"}} Deployment
         <span class="badge is-white {{if job.latestDeployment.isRunning "is-subtle"}} bumper-left" data-test-active-deployment-stat="id">{{job.latestDeployment.shortId}}</span>
         {{#if job.latestDeployment.version.submitTime}}
-          <span class="pull-right submit-time tooltip" data-test-active-deployment-stat="submit-time" aria-label="{{moment-format job.latestDeployment.version.submitTime "MM/DD/YY HH:mm:ss"}}">
+          <span class="pull-right submit-time tooltip" data-test-active-deployment-stat="submit-time" aria-label="{{format-ts job.latestDeployment.version.submitTime}}">
             {{moment-from-now job.latestDeployment.version.submitTime}}
           </span>
         {{/if}}
