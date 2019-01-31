@@ -1,5 +1,129 @@
-version: 2
+version: 2.1
+
+executors:
+  go:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    docker:
+      - image: dantoml/nomad-build-image:e8d69b1e8
+  go-machine:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine:
+      image: circleci/classic:201808-01
+  docker-builder:
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    machine: true # TODO: Find latest docker image id
+
 jobs:
+  build-deps-image:
+    executor: docker-builder
+    steps:
+      - checkout
+      - run: docker pull dantoml/nomad-build-image:latest || true
+      - run: docker build -t dantoml/nomad-build-image:$CIRCLE_SHA1 ./.circleci/build-images/go
+      - run: docker push dantoml/nomad-build-image:$CIRCLE_SHA1
+
+  lint:
+    executor: go
+    environment:
+      GOPATH: /home/circleci/go
+    steps:
+      - checkout
+      - run: make check
+
+  test-container:
+    executor: go
+    parameters:
+      test_packages:
+        type: string
+        default: ""
+      exclude_packages:
+        type: string
+        default: ""
+    environment:
+      GOTEST_PKGS: "<< parameters.test_packages >>"
+      GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
+      GOPATH: /home/circleci/go
+      GOTESTSUM_JUNITFILE: /tmp/results.xml
+      GOMAXPROCS: 1
+      NOMAD_SLOW_TEST: 1
+    steps:
+      - checkout
+      - run: |
+          if [ -z $GOTEST_PKGS_EXCLUDE ];
+          then
+            unset GOTEST_PKGS_EXCLUDE
+          else
+            unset GOTEST_PKGS
+          fi
+          make test-nomad
+      - store_test_results:
+          path: /tmp
+
+  test-machine:
+    executor: go-machine
+    parameters:
+      test_packages:
+        type: string
+        default: ""
+      exclude_packages:
+        type: string
+        default: ""
+    environment:
+      GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
+      GOTEST_PKGS: "<< parameters.test_packages >>"
+      GOTESTSUM_JUNITFILE: /tmp/results.xml
+      GOPATH: /home/circleci/go
+      GOVERSION: 1.11.5
+      PROTOC_VERSION: 3.6.1
+      GOMAXPROCS: 1
+      NOMAD_SLOW_TEST: 1
+    steps:
+      - checkout
+      - run:
+          name: install go
+          command: |
+            sudo rm -rf /usr/local/go
+            wget https://dl.google.com/go/go$GOVERSION.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go$GOVERSION.linux-amd64.tar.gz
+      - run:
+          name: install protoc
+          command: |
+            sudo rm -rf /usr/bin/protoc
+
+            wget -q -O /tmp/protoc.zip https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip \
+                && unzip /tmp/protoc.zip -d /tmp/protoc3 \
+                && sudo mv /tmp/protoc3/bin/* /usr/local/bin/ \
+                && sudo mv /tmp/protoc3/include/* /usr/local/include/ \
+                && sudo ln -s /usr/local/bin/protoc /usr/bin/protoc \
+                && rm -rf /tmp/protoc*
+      - run:
+          name: Install Vault/Consul
+          command: |
+            export VAULT_VERSION="1.1.0"
+            export CONSUL_VERSION="1.4.0"
+
+            wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
+            && sudo unzip -d /usr/local/bin /tmp/vault.zip \
+            && rm -rf /tmp/vault*
+
+            wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip \
+            && sudo unzip -d /usr/local/bin /tmp/consul.zip \
+            && rm -rf /tmp/consul*
+      - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
+      - run: |
+          if [ -z $GOTEST_PKGS_EXCLUDE ];
+          then
+            unset GOTEST_PKGS_EXCLUDE
+          else
+            unset GOTEST_PKGS
+          fi
+
+          env
+
+          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+      - store_test_results:
+          path: /tmp
+
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
@@ -33,7 +157,39 @@ jobs:
           command: ./scripts/deploy.sh
 
 workflows:
-  version: 2
+  build-test:
+    jobs:
+      - lint
+      - test-machine:
+          name: "test-client"
+          test_packages: "./client/..."
+      - test-machine:
+          name: "test-nomad"
+          test_packages: "./nomad/..."
+      - test-container:
+          name: "test-api"
+          test_packages: "./api/..."
+      - test-container:
+          name: "test-devices"
+          test_packages: "./devices/..."
+      - test-machine:
+          name: "test-other"
+          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices"
+      - test-machine:
+          name: "test-docker"
+          test_packages: "./drivers/docker"
+      - test-machine:
+          name: "test-exec"
+          test_packages: "./drivers/exec"
+      - test-machine:
+          name: "test-shared-exec"
+          test_packages: "./drivers/shared/executor"
+      # - build-deps-image:
+      #     context: dani-test
+      #     filters:
+      #       branches:
+      #         only: dani/circleci
+
   website:
     jobs:
       - build-website:

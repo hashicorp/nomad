@@ -1,0 +1,32 @@
+FROM circleci/golang:1.11.5
+ENV PROTOC_VERSION 3.6.1
+ENV VAULT_VERSION 1.1.0
+ENV CONSUL_VERSION 1.4.0
+
+RUN sudo apt-get update \
+    && sudo apt-get -y upgrade \
+    && sudo apt-get install -y unzip \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+COPY GNUmakefile ./
+COPY ./scripts/ ./scripts/
+
+RUN make bootstrap \
+      && rm GNUmakefile \
+      && sudo rm -rf scripts
+
+RUN wget -q -O /tmp/protoc.zip https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip \
+    && unzip /tmp/protoc.zip -d /tmp/protoc3 \
+    && sudo mv /tmp/protoc3/bin/* /usr/local/bin/ \
+    && sudo mv /tmp/protoc3/include/* /usr/local/include/ \
+    && sudo ln -s /usr/local/bin/protoc /usr/bin/protoc \
+    && rm -rf /tmp/protoc*
+
+RUN wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
+    && sudo unzip -d /usr/local/bin /tmp/vault.zip \
+    && rm -rf /tmp/vault*
+
+RUN wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip \
+    && sudo unzip -d /usr/local/bin /tmp/consul.zip \
+    && rm -rf /tmp/consul*
+
