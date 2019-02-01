@@ -11,7 +11,7 @@ description: |-
 Name: `lxc`
 
 The `lxc` driver provides an interface for using LXC for running application
-containers. You can download the external LXC driver [here][lxc-driver].
+containers. You can download the external LXC driver [here][lxc-driver]. For more detailed instructions on how to set up and use this driver, please refer to the [LXC guide][lxc-guide].
 
 ~> The LXC client set up has changed in Nomad 0.9. You must use the new [plugin syntax][plugin] and install the external LXC driver in the [plugin_dir][plugin_dir] prior to upgrading. See [plugin options][plugin-options] below for an example. Note the job specification remains the same.
 
@@ -141,6 +141,7 @@ isolation is not supported as of now.
 
 [lxc-create]: https://linuxcontainers.org/lxc/manpages/man1/lxc-create.1.html
 [lxc-driver]: https://releases.hashicorp.com/nomad-driver-lxc
+[lxc-guide]: /guides/external/lxc.html
 [lxc_man]: https://linuxcontainers.org/lxc/manpages/man5/lxc.container.conf.5.html#lbAM
 [plugin]: /docs/configuration/plugin.html
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
