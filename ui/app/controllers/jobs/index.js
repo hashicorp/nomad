@@ -19,7 +19,7 @@ const qpDeserialize = str => {
   }
 };
 
-const selectionFromQP = qpKey =>
+const qpSelection = qpKey =>
   computed(qpKey, function() {
     return qpDeserialize(this.get(qpKey));
   });
@@ -51,7 +51,7 @@ export default Controller.extend(Sortable, Searchable, {
   fuzzySearchProps: computed(() => ['name']),
   fuzzySearchEnabled: true,
 
-  facetOptionsType: computed(() => [
+  optionsType: computed(() => [
     { key: 'batch', label: 'Batch' },
     { key: 'parameterized', label: 'Parameterized' },
     { key: 'periodic', label: 'Periodic' },
@@ -59,13 +59,13 @@ export default Controller.extend(Sortable, Searchable, {
     { key: 'system', label: 'System' },
   ]),
 
-  facetOptionsStatus: computed(() => [
+  optionsStatus: computed(() => [
     { key: 'pending', label: 'Pending' },
     { key: 'running', label: 'Running' },
     { key: 'dead', label: 'Dead' },
   ]),
 
-  facetOptionsDatacenter: computed('visibleJobs.[]', function() {
+  optionsDatacenter: computed('visibleJobs.[]', function() {
     const flatten = (acc, val) => acc.concat(val);
     const allDatacenters = new Set(
       this.get('visibleJobs')
@@ -78,14 +78,14 @@ export default Controller.extend(Sortable, Searchable, {
     scheduleOnce('actions', () => {
       this.set(
         'qpDatacenter',
-        qpSerialize(intersection(availableDatacenters, this.get('facetSelectionDatacenter')))
+        qpSerialize(intersection(availableDatacenters, this.get('selectionDatacenter')))
       );
     });
 
     return availableDatacenters.sort().map(dc => ({ key: dc, label: dc }));
   }),
 
-  facetOptionsPrefix: computed('visibleJobs.[]', function() {
+  optionsPrefix: computed('visibleJobs.[]', function() {
     // A prefix is defined as the start of a job name up to the first - or .
     // ex: mktg-analytics -> mktg, ds.supermodel.classifier -> ds
     const hasPrefix = /.[-._]/;
@@ -114,7 +114,7 @@ export default Controller.extend(Sortable, Searchable, {
     scheduleOnce('actions', () => {
       this.set(
         'qpPrefix',
-        qpSerialize(intersection(availablePrefixes, this.get('facetSelectionPrefix')))
+        qpSerialize(intersection(availablePrefixes, this.get('selectionPrefix')))
       );
     });
 
@@ -130,10 +130,10 @@ export default Controller.extend(Sortable, Searchable, {
   qpDatacenter: '',
   qpPrefix: '',
 
-  facetSelectionType: selectionFromQP('qpType'),
-  facetSelectionStatus: selectionFromQP('qpStatus'),
-  facetSelectionDatacenter: selectionFromQP('qpDatacenter'),
-  facetSelectionPrefix: selectionFromQP('qpPrefix'),
+  selectionType: qpSelection('qpType'),
+  selectionStatus: qpSelection('qpStatus'),
+  selectionDatacenter: qpSelection('qpDatacenter'),
+  selectionPrefix: qpSelection('qpPrefix'),
 
   /**
     Filtered jobs are those that match the selected namespace and aren't children
@@ -153,21 +153,21 @@ export default Controller.extend(Sortable, Searchable, {
 
   filteredJobs: computed(
     'visibleJobs.[]',
-    'facetSelectionType',
-    'facetSelectionStatus',
-    'facetSelectionDatacenter',
-    'facetSelectionPrefix',
+    'selectionType',
+    'selectionStatus',
+    'selectionDatacenter',
+    'selectionPrefix',
     function() {
       const {
-        facetSelectionType: types,
-        facetSelectionStatus: statuses,
-        facetSelectionDatacenter: datacenters,
-        facetSelectionPrefix: prefixes,
+        selectionType: types,
+        selectionStatus: statuses,
+        selectionDatacenter: datacenters,
+        selectionPrefix: prefixes,
       } = this.getProperties(
-        'facetSelectionType',
-        'facetSelectionStatus',
-        'facetSelectionDatacenter',
-        'facetSelectionPrefix'
+        'selectionType',
+        'selectionStatus',
+        'selectionDatacenter',
+        'selectionPrefix'
       );
 
       // A job must match ALL filter facets, but it can match ANY selection within a facet
