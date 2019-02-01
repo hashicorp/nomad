@@ -13,7 +13,9 @@
   {{#if (and allocation.followUpEvaluation.waitUntil (not allocation.nextAllocation))}}
     <li class="timeline-note" data-test-attempt-notice>
       {{x-icon "clock" class="is-info is-text"}} Nomad will attempt to reschedule
-      {{moment-from-now allocation.followUpEvaluation.waitUntil interval=1000}}
+      <span class="tooltip" aria-label="{{format-ts allocation.followUpEvaluation.waitUntil}}">
+        {{moment-from-now allocation.followUpEvaluation.waitUntil interval=1000}}
+      </span>
     </li>
   {{/if}}
   {{reschedule-event-row
