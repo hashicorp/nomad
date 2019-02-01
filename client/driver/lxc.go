@@ -538,8 +538,25 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 
 	go h.run()
 
-	return &StartResponse{Handle: &h}, nil, noCleanup
+	net := cstructs.DriverNetwork{}
+	ipv4Addrs, err := c.IPv4Addresses()
+	if err != nil {
+		d.logger.Printf("[ERROR] error getting IPv4Addresses for container %s: %v", c.Name(), err)
+	} else if len(ipv4Addrs) == 0 {
+		d.logger.Printf("[INFO] No ipv4 address found for container %s", c.Name())
+	} else {
+		d.logger.Printf("[INFO] Found ipv4 address %#v for container %s", ipv4Addrs[0], c.Name())
+		net = cstructs.DriverNetwork{
+			IP:            ipv4Addrs[0],
+			AutoAdvertise: true,
+		}
+	}
 
+	resp := &StartResponse{
+		Handle:  &h,
+		Network: &net,
+	}
+	return resp, nil, noCleanup
 }
 
 func extractVgName(baseLvName string) (string, error) {
@@ -576,9 +593,15 @@ func (d *LxcDriver) setCommonContainerConfig(ctx *ExecContext, c *lxc.Container,
 		return fmt.Errorf("unable to set lxc.uts.name to '%s': %v", c.Name(), err)
 	}
 
-	// Set the network type to none
-	if err := c.SetConfigItem("lxc.net.0.type", "none"); err != nil {
-		return fmt.Errorf("error setting network type configuration: %v", err)
+	// Set the network type to none if not previously set
+	netZeroType := c.ConfigItem("lxc.net.0.type")
+	if len(netZeroType) == 0 || netZeroType[0] == "" {
+		if err := c.SetConfigItem("lxc.net.0.type", "none"); err != nil {
+			return fmt.Errorf("error setting network type configuration: %v", err)
+		}
+	} else {
+
+		d.logger.Printf("[INFO] driver.lxc: lxc.net.0.type set as %#v, not overriding.", netZeroType)
 	}
 
 	// Bind mount the shared alloc dir and task local dir in the container
