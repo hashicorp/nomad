@@ -9,7 +9,7 @@ description: |-
 # Consul Integration
 
 [Consul][] is a tool for discovering and configuring services in your 
-infrastructure. Consul's key features include service discover, health checking, 
+infrastructure. Consul's key features include service discovery, health checking, 
 a KV store, and robust support for multi-datacenter deployments. Nomad's integration 
 with Consul enables automatic clustering, built-in service registration, and 
 dynamic rendering of configuration files and environment variables. The sections 
