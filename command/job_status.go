@@ -575,6 +575,7 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 	}
 	sort.Strings(taskGroups)
 	var evalDetails []string
+	first := true
 	for _, taskGroup := range taskGroups {
 		evalID := followUpEvalIds[taskGroup]
 		evaluation, _, err := client.Evaluations().Info(evalID, nil)
@@ -585,13 +586,18 @@ func (c *JobStatusCommand) outputReschedulingEvals(client *api.Client, job *api.
 		}
 		evalTime := prettyTimeDiff(evaluation.WaitUntil, time.Now())
 		if c.verbose {
-			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
+			if first {
+				delayedEvalInfos = append(delayedEvalInfos, "Task Group|Reschedule Policy|Eval ID|Eval Time")
+			}
 			rp := job.LookupTaskGroup(taskGroup).ReschedulePolicy
 			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s|%s", taskGroup, rp.String(), limit(evalID, uuidLength), evalTime))
 		} else {
-			delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+			if first {
+				delayedEvalInfos = append(delayedEvalInfos, "Task Group|Eval ID|Eval Time")
+			}
 			evalDetails = append(evalDetails, fmt.Sprintf("%s|%s|%s", taskGroup, limit(evalID, uuidLength), evalTime))
 		}
+		first = false
 	}
 	if len(evalDetails) == 0 {
 		return nil
