@@ -148,7 +148,7 @@ test('each allocation should show basic information about the allocation', funct
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short id');
     assert.equal(
       allocationRow.createTime,
-      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
       'Allocation create time'
     );
     assert.equal(

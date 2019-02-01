@@ -95,7 +95,7 @@ test('each task row should list high-level information for the task', function(a
   assert.equal(taskRow.message, event.displayMessage, 'Event Message');
   assert.equal(
     taskRow.time,
-    moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss'),
+    moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
     'Event Time'
   );
 
