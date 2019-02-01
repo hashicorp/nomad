@@ -17,26 +17,26 @@
           {{multi-select-dropdown
             data-test-type-facet
             label="Type"
-            options=facetOptionsType
-            selection=facetSelectionType
+            options=optionsType
+            selection=selectionType
             onSelect=(action setFacetQueryParam "qpType")}}
           {{multi-select-dropdown
             data-test-status-facet
             label="Status"
-            options=facetOptionsStatus
-            selection=facetSelectionStatus
+            options=optionsStatus
+            selection=selectionStatus
             onSelect=(action setFacetQueryParam "qpStatus")}}
           {{multi-select-dropdown
             data-test-datacenter-facet
             label="Datacenter"
-            options=facetOptionsDatacenter
-            selection=facetSelectionDatacenter
+            options=optionsDatacenter
+            selection=selectionDatacenter
             onSelect=(action setFacetQueryParam "qpDatacenter")}}
           {{multi-select-dropdown
             data-test-prefix-facet
             label="Prefix"
-            options=facetOptionsPrefix
-            selection=facetSelectionPrefix
+            options=optionsPrefix
+            selection=selectionPrefix
             onSelect=(action setFacetQueryParam "qpPrefix")}}
         </div>
       </div>
