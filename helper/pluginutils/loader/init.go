@@ -10,20 +10,11 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	version "github.com/hashicorp/go-version"
-	hcl2 "github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/zclconf/go-cty/cty/msgpack"
-)
-
-var (
-	// configParseCtx is the context used to parse a plugin's configuration
-	// stanza
-	configParseCtx = &hcl2.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
 )
 
 // validateConfig returns whether or not the configuration is valid
@@ -466,7 +457,7 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	}
 
 	// Parse the config using the spec
-	val, diag := hclutils.ParseHclInterface(info.config, spec, configParseCtx)
+	val, diag := hclutils.ParseHclInterface(info.config, spec, nil)
 	if diag.HasErrors() {
 		multierror.Append(&mErr, diag.Errs()...)
 		return multierror.Prefix(&mErr, "failed parsing config:")

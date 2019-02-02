@@ -11,7 +11,6 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcldec"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -620,12 +619,7 @@ func (tr *TaskRunner) runDriver() error {
 		tr.logger.Warn("some environment variables not available for rendering", "keys", strings.Join(keys, ", "))
 	}
 
-	evalCtx := &hcl.EvalContext{
-		Variables: vars,
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-
-	val, diag := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, evalCtx)
+	val, diag := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
 	if diag.HasErrors() {
 		return multierror.Append(errors.New("failed to parse config"), diag.Errs()...)
 	}
