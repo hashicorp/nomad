@@ -356,6 +356,8 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 						"tag": "driver-test",
 					},
 				},
+				Devices: []docker.DockerDevice{},
+				Mounts:  []docker.DockerMount{},
 			},
 			expectedType: &docker.TaskConfig{},
 		},
