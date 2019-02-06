@@ -186,8 +186,8 @@ higher than "3.19".
 ```hcl
 affinity {
   attribute = "${attr.kernel.version}"
-  operator  = ">"
-  value     = "3.19"
+  operator  = "version"
+  value     = "> 3.19"
   weight    = 50
 }
 ```
