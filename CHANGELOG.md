@@ -8,7 +8,7 @@ __BACKWARDS INCOMPATIBILITIES:__
    updating.
  * core: IOPS as a resource is now deprecated
    [[GH-4970](https://github.com/hashicorp/nomad/issues/4970)]. Nomad continues
-   to parse IOPS in job's to allow job authors time to remove iops from their
+   to parse IOPS in jobs to allow job authors time to remove iops from their
    jobs.
  * core: Allow the != constraint to match against keys that do not exist [[GH-4875](https://github.com/hashicorp/nomad/pull/4875)]
  * client: Task config interpolation requires names to be valid identifiers
