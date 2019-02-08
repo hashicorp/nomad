@@ -19,6 +19,7 @@ RestartSec=2
 StartLimitBurst=3
 StartLimitIntervalSec=10
 LimitNOFILE=65536
+TasksMax=infinity
 
 [Install]
 WantedBy=multi-user.target
