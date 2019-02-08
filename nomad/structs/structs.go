@@ -4415,6 +4415,9 @@ type TaskGroup struct {
 	// be scheduled.
 	Count int
 
+	// Volumes are the collection of storage volumes that the task group requests
+	Volumes []*Volume
+
 	// Update is used to control the update strategy for this task group
 	Update *UpdateStrategy
 
@@ -4459,6 +4462,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	*ntg = *tg
 	ntg.Update = ntg.Update.Copy()
 	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
+	ntg.Volumes = CopySliceVolumes(ntg.Volumes)
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
