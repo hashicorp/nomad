@@ -1508,6 +1508,9 @@ type Node struct {
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*DriverInfo
 
+	// StorageProviders is a map of storage provider names to provider information.
+	StorageProviders map[string]*StorageInfo
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64

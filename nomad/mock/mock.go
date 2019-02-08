@@ -83,6 +83,7 @@ func Node() *structs.Node {
 			"database": "mysql",
 			"version":  "5.6",
 		},
+		StorageProviders:      map[string]*structs.StorageInfo{},
 		NodeClass:             "linux-medium-pci",
 		Status:                structs.NodeStatusReady,
 		SchedulingEligibility: structs.NodeSchedulingEligible,

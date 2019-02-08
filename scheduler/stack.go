@@ -238,6 +238,7 @@ type SystemStack struct {
 	taskGroupDrivers    *DriverChecker
 	taskGroupConstraint *ConstraintChecker
 	taskGroupDevices    *DeviceChecker
+	taskGroupVolumes    *StorageProviderChecker
 
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
@@ -269,12 +270,15 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Filter on task group devices
 	s.taskGroupDevices = NewDeviceChecker(ctx)
 
+	// Filter on task group volumes
+	s.taskGroupVolumes = NewStorageProviderChecker(ctx, nil)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupDevices}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint, s.taskGroupDevices, s.taskGroupVolumes}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs)
 
 	// Filter on distinct property constraints.
@@ -327,6 +331,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
+	// TODO(dani): Propogate volumes: s.taskGroupVolumes.SetProviders(...)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)

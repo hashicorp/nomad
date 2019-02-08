@@ -81,6 +81,53 @@ func TestRandomIterator(t *testing.T) {
 	}
 }
 
+func TestStorageProviderChecker(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[0].StorageProviders["foo"] = &structs.StorageInfo{}
+	nodes[1].StorageProviders["bar"] = &structs.StorageInfo{
+		Detected: true,
+		Healthy:  true,
+	}
+	nodes[2].StorageProviders["bar"] = &structs.StorageInfo{}
+	nodes[3].StorageProviders["foo"] = &structs.StorageInfo{}
+
+	checker := NewStorageProviderChecker(ctx, []string{"bar"})
+	cases := []struct {
+		Node   *structs.Node
+		Result bool
+	}{
+		{
+			Node:   nodes[0],
+			Result: false,
+		},
+		{
+			Node:   nodes[1],
+			Result: true,
+		},
+		{
+			Node:   nodes[2],
+			Result: false,
+		},
+		{
+			Node:   nodes[3],
+			Result: false,
+		},
+	}
+
+	for i, c := range cases {
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+
+}
+
 func TestDriverChecker(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{

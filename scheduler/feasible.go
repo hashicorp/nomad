@@ -96,6 +96,48 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	return NewStaticIterator(ctx, nodes)
 }
 
+// StorageProviderChecker is a FeasabilityChecker which returns whether a node
+// has the storage provider necessary to schedule a task group.
+type StorageProviderChecker struct {
+	ctx       Context
+	providers []string
+}
+
+// NewStorageProviderChecker creates a DrChecker from a set of drivers
+func NewStorageProviderChecker(ctx Context, providers []string) *StorageProviderChecker {
+	return &StorageProviderChecker{
+		ctx:       ctx,
+		providers: providers,
+	}
+}
+
+func (s *StorageProviderChecker) SetProviders(providers []string) {
+	s.providers = providers
+}
+
+func (s *StorageProviderChecker) Feasible(option *structs.Node) bool {
+	// Use this node if possible
+	if s.hasProviders(option) {
+		return true
+	}
+	s.ctx.Metrics().FilterNode(option, "missing drivers")
+	return false
+}
+
+func (s *StorageProviderChecker) hasProviders(option *structs.Node) bool {
+	for _, provider := range s.providers {
+		driverInfo, ok := option.StorageProviders[provider]
+		if !ok {
+			s.ctx.Logger().Named("storage_provider_checker").Warn("node has no storage info set", "node_id", option.ID, "storage_provider", provider)
+			return false
+		}
+
+		return driverInfo.Detected && driverInfo.Healthy
+	}
+
+	return true
+}
+
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
 // drivers necessary to scheduler a task group.
 type DriverChecker struct {
