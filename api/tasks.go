@@ -480,6 +480,18 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 	return nm
 }
 
+// Volume describes the groups persistent volume dependencies
+type Volume struct {
+	Name     string
+	Provider string
+	ReadOnly bool
+}
+
+type VolumeMount struct {
+	VolumeName string
+	MountPath  string
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name             *string
@@ -488,6 +500,7 @@ type TaskGroup struct {
 	Affinities       []*Affinity
 	Tasks            []*Task
 	Spreads          []*Spread
+	Volumes          []*Volume
 	RestartPolicy    *RestartPolicy
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk
@@ -688,6 +701,7 @@ type Task struct {
 	KillTimeout     *time.Duration `mapstructure:"kill_timeout"`
 	LogConfig       *LogConfig     `mapstructure:"logs"`
 	Artifacts       []*TaskArtifact
+	VolumeMounts    []*VolumeMount
 	Vault           *Vault
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig

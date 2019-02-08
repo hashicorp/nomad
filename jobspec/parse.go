@@ -315,6 +315,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"vault",
 			"migrate",
 			"spread",
+			"volume",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -334,6 +335,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "vault")
 		delete(m, "migrate")
 		delete(m, "spread")
+		delete(m, "volume")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -353,6 +355,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("affinity"); len(o.Items) > 0 {
 			if err := parseAffinities(&g.Affinities, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', affinity ->", n))
+			}
+		}
+
+		// Parse volumes
+		if o := listVal.Filter("volume"); len(o.Items) > 0 {
+			if err := parseVolumes(&g.Volumes, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', volume ->", n))
 			}
 		}
 
@@ -688,6 +697,34 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 	return nil
 }
 
+func parseVolumes(result *[]*api.Volume, list *ast.ObjectList) error {
+	for _, o := range list.Elem().Items {
+		// Check for invalid keys
+		valid := []string{
+			"name",
+			"provider",
+			"readonly",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		var v api.Volume
+		if err := mapstructure.WeakDecode(m, &v); err != nil {
+			return err
+		}
+
+		*result = append(*result, &v)
+	}
+
+	return nil
+}
+
 func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) > 1 {
@@ -874,6 +911,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 			"user",
 			"vault",
 			"kill_signal",
+			"volume_mount",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -895,6 +933,7 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		delete(m, "service")
 		delete(m, "template")
 		delete(m, "vault")
+		delete(m, "volume_mount")
 
 		// Build the task
 		var t api.Task
@@ -925,6 +964,12 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 				if err := mapstructure.WeakDecode(m, &t.Env); err != nil {
 					return err
 				}
+			}
+		}
+
+		if o := listVal.Filter("volume_mount"); len(o.Items) > 0 {
+			if err := parseVolumeMounts(jobName, taskGroupName, &t, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 			}
 		}
 
@@ -1187,6 +1232,35 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		}
 
 		*result = append(*result, templ)
+	}
+
+	return nil
+}
+
+func parseVolumeMounts(jobName string, taskGroupName string, task *api.Task, volumeMountObjs *ast.ObjectList) error {
+	task.VolumeMounts = make([]*api.VolumeMount, len(volumeMountObjs.Items))
+	for idx, o := range volumeMountObjs.Items {
+		// Check for invalid keys
+		valid := []string{
+			"volume_name",
+			"readonly",
+			"mount_path",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("volume_mount (%d) ->", idx))
+		}
+
+		var mount api.VolumeMount
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		if err := mapstructure.WeakDecode(m, &mount); err != nil {
+			return err
+		}
+
+		task.VolumeMounts[idx] = &mount
 	}
 
 	return nil
