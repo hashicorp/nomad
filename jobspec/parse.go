@@ -315,7 +315,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"vault",
 			"migrate",
 			"spread",
-			"volume",
+			"host_volume",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
@@ -335,7 +335,6 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "vault")
 		delete(m, "migrate")
 		delete(m, "spread")
-		delete(m, "volume")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
@@ -698,10 +697,11 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 }
 
 func parseHostVolumes(result *[]*api.HostVolume, list *ast.ObjectList) error {
-	for _, o := range list.Elem().Items {
+	for _, o := range list.Items {
+		n := o.Keys[0].Token.Value().(string)
+
 		// Check for invalid keys
 		valid := []string{
-			"name",
 			"readonly",
 			"path",
 		}
@@ -718,6 +718,8 @@ func parseHostVolumes(result *[]*api.HostVolume, list *ast.ObjectList) error {
 		if err := mapstructure.WeakDecode(m, &v); err != nil {
 			return err
 		}
+
+		v.Name = n
 
 		*result = append(*result, &v)
 	}
@@ -933,7 +935,6 @@ func parseTasks(jobName string, taskGroupName string, result *[]*api.Task, list 
 		delete(m, "service")
 		delete(m, "template")
 		delete(m, "vault")
-		delete(m, "volume_mount")
 
 		// Build the task
 		var t api.Task
@@ -1240,9 +1241,10 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 func parseVolumeMounts(jobName string, taskGroupName string, task *api.Task, volumeMountObjs *ast.ObjectList) error {
 	task.VolumeMounts = make([]*api.VolumeMount, len(volumeMountObjs.Items))
 	for idx, o := range volumeMountObjs.Items {
+		n := o.Keys[0].Token.Value().(string)
+
 		// Check for invalid keys
 		valid := []string{
-			"volume_name",
 			"readonly",
 			"mount_path",
 		}
@@ -1259,6 +1261,8 @@ func parseVolumeMounts(jobName string, taskGroupName string, task *api.Task, vol
 		if err := mapstructure.WeakDecode(m, &mount); err != nil {
 			return err
 		}
+
+		mount.VolumeName = n
 
 		task.VolumeMounts[idx] = &mount
 	}

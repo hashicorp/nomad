@@ -5178,6 +5178,9 @@ type Task struct {
 	// the task.
 	Artifacts []*TaskArtifact
 
+	// VolumeMounts are the configuration options for mounts that the task requires.
+	VolumeMounts []*VolumeMount
+
 	// Leader marks the task as the leader within the group. When the leader
 	// task exits, other tasks will be gracefully terminated.
 	Leader bool
@@ -5216,6 +5219,7 @@ func (t *Task) Copy() *Task {
 	nt.Resources = nt.Resources.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
+	nt.VolumeMounts = CopySliceVolumeMount(t.VolumeMounts)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))

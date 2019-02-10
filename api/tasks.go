@@ -489,8 +489,8 @@ type HostVolume struct {
 
 // VolumeMount describes a relationship between a volume and a task.
 type VolumeMount struct {
-	VolumeName string
-	MountPath  string
+	VolumeName string `mapstructure:"volume_name"`
+	MountPath  string `mapstructure:"mount_path"`
 	ReadOnly   bool
 }
 
