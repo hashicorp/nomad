@@ -480,16 +480,18 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 	return nm
 }
 
-// Volume describes the groups persistent volume dependencies
-type Volume struct {
+// HostVolume declares a dependency on a host volume mount
+type HostVolume struct {
 	Name     string
-	Provider string
+	Path     string
 	ReadOnly bool
 }
 
+// VolumeMount describes a relationship between a volume and a task.
 type VolumeMount struct {
 	VolumeName string
 	MountPath  string
+	ReadOnly   bool
 }
 
 // TaskGroup is the unit of scheduling.
@@ -500,7 +502,7 @@ type TaskGroup struct {
 	Affinities       []*Affinity
 	Tasks            []*Task
 	Spreads          []*Spread
-	Volumes          []*Volume
+	HostVolumes      []*HostVolume
 	RestartPolicy    *RestartPolicy
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk

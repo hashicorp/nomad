@@ -359,9 +359,9 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		}
 
 		// Parse volumes
-		if o := listVal.Filter("volume"); len(o.Items) > 0 {
-			if err := parseVolumes(&g.Volumes, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("'%s', volume ->", n))
+		if o := listVal.Filter("host_volume"); len(o.Items) > 0 {
+			if err := parseHostVolumes(&g.HostVolumes, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', host_volume ->", n))
 			}
 		}
 
@@ -697,13 +697,13 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseVolumes(result *[]*api.Volume, list *ast.ObjectList) error {
+func parseHostVolumes(result *[]*api.HostVolume, list *ast.ObjectList) error {
 	for _, o := range list.Elem().Items {
 		// Check for invalid keys
 		valid := []string{
 			"name",
-			"provider",
 			"readonly",
+			"path",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -714,7 +714,7 @@ func parseVolumes(result *[]*api.Volume, list *ast.ObjectList) error {
 			return err
 		}
 
-		var v api.Volume
+		var v api.HostVolume
 		if err := mapstructure.WeakDecode(m, &v); err != nil {
 			return err
 		}
