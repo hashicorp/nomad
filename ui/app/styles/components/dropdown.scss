@@ -142,4 +142,10 @@
       }
     }
   }
+
+  .dropdown-empty {
+    display: block;
+    padding: 8px 12px;
+    color: $grey-light;
+  }
 }

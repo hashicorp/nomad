@@ -18,7 +18,7 @@
   {{#dd.content class="dropdown-options"}}
     <ul role="listbox" data-test-dropdown-options>
       {{#each options key="key" as |option|}}
-        <li data-test-dropdown-option class="dropdown-option" tabindex="1" onkeydown={{action "traverseList" option}}>
+        <li data-test-dropdown-option={{option.key}} class="dropdown-option" tabindex="1" onkeydown={{action "traverseList" option}}>
           <label>
             <input
               type="checkbox"
@@ -28,6 +28,8 @@
             {{option.label}}
           </label>
         </li>
+      {{else}}
+        <em data-test-dropdown-empty class="dropdown-empty">No options</em>
       {{/each}}
     </ul>
   {{/dd.content}}

@@ -9,6 +9,8 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import facet from 'nomad-ui/tests/pages/components/facet';
+
 export default create({
   pageSize: 10,
 
@@ -54,5 +56,12 @@ export default create({
     options: collection('.ember-power-select-option', {
       label: text(),
     }),
+  },
+
+  facets: {
+    type: facet('[data-test-type-facet]'),
+    status: facet('[data-test-status-facet]'),
+    datacenter: facet('[data-test-datacenter-facet]'),
+    prefix: facet('[data-test-prefix-facet]'),
   },
 });
