@@ -15,8 +15,14 @@ import (
 )
 
 // ParseHclInterface is used to convert an interface value representing a hcl2
-// body and return the interpolated value.
-func ParseHclInterface(val interface{}, spec hcldec.Spec, ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+// body and return the interpolated value. Vars may be nil if there are no
+// variables to interpolate.
+func ParseHclInterface(val interface{}, spec hcldec.Spec, vars map[string]cty.Value) (cty.Value, hcl.Diagnostics) {
+	evalCtx := &hcl.EvalContext{
+		Variables: vars,
+		Functions: GetStdlibFuncs(),
+	}
+
 	// Encode to json
 	var buf bytes.Buffer
 	enc := codec.NewEncoder(&buf, structs.JsonHandle)
@@ -37,7 +43,7 @@ func ParseHclInterface(val interface{}, spec hcldec.Spec, ctx *hcl.EvalContext) 
 		return cty.NilVal, diag
 	}
 
-	value, decDiag := hcldec.Decode(hclFile.Body, spec, ctx)
+	value, decDiag := hcldec.Decode(hclFile.Body, spec, evalCtx)
 	diag = diag.Extend(decDiag)
 	if diag.HasErrors() {
 		return cty.NilVal, diag

@@ -1935,6 +1935,8 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	c.logger.Debug("allocation updates", "added", len(diff.added), "removed", len(diff.removed),
 		"updated", len(diff.updated), "ignored", len(diff.ignore))
 
+	errs := 0
+
 	// Remove the old allocations
 	for _, remove := range diff.removed {
 		c.removeAlloc(remove)
@@ -1949,6 +1951,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	// Make room for new allocations before running
 	if err := c.garbageCollector.MakeRoomFor(diff.added); err != nil {
 		c.logger.Error("error making room for new allocations", "error", err)
+		errs++
 	}
 
 	// Start the new allocations
@@ -1956,6 +1959,7 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		migrateToken := update.migrateTokens[add.ID]
 		if err := c.addAlloc(add, migrateToken); err != nil {
 			c.logger.Error("error adding alloc", "error", err, "alloc_id", add.ID)
+			errs++
 			// We mark the alloc as failed and send an update to the server
 			// We track the fact that creating an allocrunner failed so that we don't send updates again
 			if add.ClientStatus != structs.AllocClientStatusFailed {
@@ -1967,6 +1971,8 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	// Trigger the GC once more now that new allocs are started that could
 	// have caused thresholds to be exceeded
 	c.garbageCollector.Trigger()
+	c.logger.Debug("allocation updates applied", "added", len(diff.added), "removed", len(diff.removed),
+		"updated", len(diff.updated), "ignored", len(diff.ignore), "errors", errs)
 }
 
 // makeFailedAlloc creates a stripped down version of the allocation passed in
