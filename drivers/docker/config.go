@@ -253,7 +253,7 @@ var (
 		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
 		"labels":             hclspec.NewBlockAttrs("labels", "string", false),
 		"load":               hclspec.NewAttr("load", "string", false),
-		"logging": hclspec.NewBlockSet("logging", hclspec.NewObject(map[string]*hclspec.Spec{
+		"logging": hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"type":   hclspec.NewAttr("type", "string", false),
 			"config": hclspec.NewBlockAttrs("config", "string", false),
 		})),
@@ -276,7 +276,7 @@ var (
 			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
 				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
 				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
-				"driver_config": hclspec.NewBlockSet("driver_config", hclspec.NewObject(map[string]*hclspec.Spec{
+				"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
 					"name":    hclspec.NewAttr("name", "string", false),
 					"options": hclspec.NewBlockAttrs("options", "string", false),
 				})),
