@@ -51,6 +51,16 @@ export default Controller.extend(Sortable, Searchable, {
   fuzzySearchProps: computed(() => ['name']),
   fuzzySearchEnabled: true,
 
+  qpType: '',
+  qpStatus: '',
+  qpDatacenter: '',
+  qpPrefix: '',
+
+  selectionType: qpSelection('qpType'),
+  selectionStatus: qpSelection('qpStatus'),
+  selectionDatacenter: qpSelection('qpDatacenter'),
+  selectionPrefix: qpSelection('qpPrefix'),
+
   optionsType: computed(() => [
     { key: 'batch', label: 'Batch' },
     { key: 'parameterized', label: 'Parameterized' },
@@ -125,18 +135,8 @@ export default Controller.extend(Sortable, Searchable, {
     }));
   }),
 
-  qpType: '',
-  qpStatus: '',
-  qpDatacenter: '',
-  qpPrefix: '',
-
-  selectionType: qpSelection('qpType'),
-  selectionStatus: qpSelection('qpStatus'),
-  selectionDatacenter: qpSelection('qpDatacenter'),
-  selectionPrefix: qpSelection('qpPrefix'),
-
   /**
-    Filtered jobs are those that match the selected namespace and aren't children
+    Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
   visibleJobs: computed('model.[]', 'model.@each.parent', function() {
