@@ -468,7 +468,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	}
 
 	// No shutdown escape hatch for this delay, so don't set it too high
-	task.ShutdownDelay = 500 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
+	task.ShutdownDelay = 1000 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()

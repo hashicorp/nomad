@@ -3,10 +3,17 @@ package taskrunner
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
+
+// Statically assert the stats hook implements the expected interfaces
+var _ interfaces.TaskPoststartHook = (*serviceHook)(nil)
+var _ interfaces.TaskExitedHook = (*serviceHook)(nil)
+var _ interfaces.TaskPreKillHook = (*serviceHook)(nil)
+var _ interfaces.TaskUpdateHook = (*serviceHook)(nil)
 
 // TestTaskRunner_ServiceHook_InterpolateServices asserts that all service
 // and check fields are properly interpolated.
