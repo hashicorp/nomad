@@ -2,16 +2,44 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
-    {{#if nodes.length}}
-      <div class="content">
-        <div>
+    <div class="columns">
+      {{#if nodes.length}}
+        <div class="column is-one-third">
           {{search-box
             searchTerm=(mut searchTerm)
             onChange=(action resetPagination)
             placeholder="Search clients..."}}
         </div>
+      {{/if}}
+      <div class="column is-centered">
+        <div class="button-bar is-pulled-right">
+          {{multi-select-dropdown
+            data-test-facet-class
+            label="Class"
+            options=optionsClass
+            selection=selectionClass
+            onSelect=(action setFacetQueryParam "qpClass")}}
+          {{multi-select-dropdown
+            data-test-facet-status
+            label="Status"
+            options=optionsStatus
+            selection=selectionStatus
+            onSelect=(action setFacetQueryParam "qpStatus")}}
+          {{multi-select-dropdown
+            data-test-facet-datacenter
+            label="Datacenter"
+            options=optionsDatacenter
+            selection=selectionDatacenter
+            onSelect=(action setFacetQueryParam "qpDatacenter")}}
+          {{multi-select-dropdown
+            data-test-facet-flags
+            label="Flags"
+            options=optionsFlags
+            selection=selectionFlags
+            onSelect=(action setFacetQueryParam "qpFlags")}}
+        </div>
       </div>
-    {{/if}}
+    </div>
     {{#list-pagination
       source=sortedNodes
       size=pageSize
