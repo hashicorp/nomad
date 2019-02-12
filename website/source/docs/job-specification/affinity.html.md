@@ -40,7 +40,7 @@ job "docs" {
   group "example" {
     # Prefer the "r1" rack
     affinity {
-      operator  = "${meta.rack}"
+      attribute  = "${meta.rack}"
       value     = "r1"
       weight    = 50
     }
