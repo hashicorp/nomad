@@ -14,6 +14,7 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -451,4 +452,22 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	}
 
 	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  command = "/bin/bash"
+  args = ["-c", "echo hello"]
+}`
+
+	expected := &TaskConfig{
+		Command: "/bin/bash",
+		Args:    []string{"-c", "echo hello"},
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -374,4 +375,34 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
 	}
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  image_path = "/tmp/image_path"
+  accelerator = "kvm"
+  args = ["arg1", "arg2"]
+  port_map {
+    http = 80
+    https = 443
+  }
+  graceful_shutdown = true
+}`
+
+	expected := &TaskConfig{
+		ImagePath:   "/tmp/image_path",
+		Accelerator: "kvm",
+		Args:        []string{"arg1", "arg2"},
+		PortMap: map[string]int{
+			"http":  80,
+			"https": 443,
+		},
+		GracefulShutdown: true,
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
 }

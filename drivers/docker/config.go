@@ -235,7 +235,7 @@ var (
 		"command":        hclspec.NewAttr("command", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
 		"cpu_cfs_period": hclspec.NewAttr("cpu_cfs_period", "number", false),
-		"devices": hclspec.NewBlockSet("devices", hclspec.NewObject(map[string]*hclspec.Spec{
+		"devices": hclspec.NewBlockList("devices", hclspec.NewObject(map[string]*hclspec.Spec{
 			"host_path":          hclspec.NewAttr("host_path", "string", false),
 			"container_path":     hclspec.NewAttr("container_path", "string", false),
 			"cgroup_permissions": hclspec.NewAttr("cgroup_permissions", "string", false),
@@ -258,7 +258,7 @@ var (
 			"config": hclspec.NewBlockAttrs("config", "string", false),
 		})),
 		"mac_address": hclspec.NewAttr("mac_address", "string", false),
-		"mounts": hclspec.NewBlockSet("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
+		"mounts": hclspec.NewBlockList("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
 			"type": hclspec.NewDefault(
 				hclspec.NewAttr("type", "string", false),
 				hclspec.NewLiteral("\"volume\""),
@@ -276,7 +276,7 @@ var (
 			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
 				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
 				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
-				"driver_config": hclspec.NewBlockSet("driver_config", hclspec.NewObject(map[string]*hclspec.Spec{
+				"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
 					"name":    hclspec.NewAttr("name", "string", false),
 					"options": hclspec.NewBlockAttrs("options", "string", false),
 				})),
