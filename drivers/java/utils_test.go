@@ -139,7 +139,7 @@ func TestDriver_javaVersionInfo_JavaVersionFails(t *testing.T) {
 
 	javaVersionCommand = []string{
 		"/bin/sh", "-c",
-		fmt.Sprintf("exit 127"),
+		"exit 127",
 	}
 
 	version, runtime, vm, err := javaVersionInfo()
