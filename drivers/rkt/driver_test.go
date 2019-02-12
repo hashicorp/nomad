@@ -12,6 +12,7 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -861,4 +862,57 @@ func TestRktDriver_Stats(t *testing.T) {
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  image = "docker://redis:3.2"
+  command = "/bin/bash"
+  args = ["-c", "echo hi"]
+  trust_prefix = "coreos.com/etcd"
+  dns_servers = ["8.8.8.8"]
+  dns_search_domains = ["example.com"]
+  net = ["network1"]
+  port_map {
+    http = "80-tcp"
+    https = "443-tcp"
+  }
+  volumes = [
+    "/host-path:/container-path",
+  ]
+  insecure_options = ["image", "tls", "ondisk"]
+  no_overlay = true
+  debug = true
+  group = "mygroup"
+}`
+
+	expected := &TaskConfig{
+		ImageName:        "docker://redis:3.2",
+		Command:          "/bin/bash",
+		Args:             []string{"-c", "echo hi"},
+		TrustPrefix:      "coreos.com/etcd",
+		DNSServers:       []string{"8.8.8.8"},
+		DNSSearchDomains: []string{"example.com"},
+		Net:              []string{"network1"},
+		PortMap: map[string]string{
+			"http":  "80-tcp",
+			"https": "443-tcp",
+		},
+		Volumes: []string{
+			"/host-path:/container-path",
+		},
+		InsecureOptions: []string{"image", "tls", "ondisk"},
+		NoOverlay:       true,
+		Debug:           true,
+		Group:           "mygroup",
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(t).
+		Spec(taskConfigSpec).
+		Hcl(cfgStr).
+		Parse(&tc)
+
+	require.EqualValues(t, expected, tc)
 }
