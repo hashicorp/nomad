@@ -312,10 +312,7 @@ config {
 	}
 
 	var tc *TaskConfig
-	hclutils.NewConfigParser(t).
-		Spec(taskConfigSpec).
-		Hcl(cfgStr).
-		Parse(&tc)
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
 }

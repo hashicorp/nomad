@@ -27,15 +27,13 @@ func TestConfig_ParseHCL(t *testing.T) {
 		},
 	}
 
+	parser := hclutils.NewConfigParser(taskConfigSpec)
 	for _, c := range cases {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
 			var tc *TaskConfig
 
-			hclutils.NewConfigParser(t).
-				Spec(taskConfigSpec).
-				Hcl(c.input).
-				Parse(&tc)
+			parser.ParseHCL(t, c.input, &tc)
 
 			require.EqualValues(t, c.expected, tc)
 
@@ -292,10 +290,7 @@ config {
 	}
 
 	var tc *TaskConfig
-	hclutils.NewConfigParser(t).
-		Spec(taskConfigSpec).
-		Hcl(cfgStr).
-		Parse(&tc)
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
 }

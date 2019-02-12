@@ -15,63 +15,70 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-type HCLParserBuilder struct {
-	t         *testing.T
-	configStr string
-	format    string
-	spec      *hclspec.Spec
-	vars      map[string]cty.Value
+type HCLParser struct {
+	spec *hclspec.Spec
+	vars map[string]cty.Value
 }
 
-func NewConfigParser(t *testing.T) *HCLParserBuilder {
-	return &HCLParserBuilder{t: t}
-}
-
-func (b *HCLParserBuilder) Json(configStr string) *HCLParserBuilder {
-	b.configStr = configStr
-	b.format = "json"
-	return b
-}
-
-func (b *HCLParserBuilder) Hcl(configStr string) *HCLParserBuilder {
-	b.configStr = configStr
-	b.format = "hcl"
-	return b
-}
-
-func (b *HCLParserBuilder) Vars(vars map[string]cty.Value) *HCLParserBuilder {
-	b.vars = vars
-	return b
-}
-
-func (b *HCLParserBuilder) Spec(spec *hclspec.Spec) *HCLParserBuilder {
-	b.spec = spec
-	return b
-}
-
-func (b *HCLParserBuilder) Parse(taskConfig interface{}) {
-	decSpec, diags := hclspecutils.Convert(b.spec)
-	require.Empty(b.t, diags)
-
-	var config interface{}
-	switch b.format {
-	case "hcl":
-		config = HclConfigToInterface(b.t, b.configStr)
-	case "json":
-		config = JsonConfigToInterface(b.t, b.configStr)
-	default:
-		require.Fail(b.t, "unexpected format: "+b.format)
+// NewConfigParser return a helper for parsing drivers TaskConfig
+// Parser is an immutable object can be used in multiple tests
+func NewConfigParser(spec *hclspec.Spec) *HCLParser {
+	return &HCLParser{
+		spec: spec,
 	}
+}
+
+// WithVars returns a new parser that uses passed vars when interpolated strings in config
+func (b *HCLParser) WithVars(vars map[string]cty.Value) *HCLParser {
+	return &HCLParser{
+		spec: b.spec,
+		vars: vars,
+	}
+}
+
+// ParseJson parses the json config string and decode it into the `out` parameter.
+// out parameter should be a golang reference to a driver specific TaskConfig reference.
+// The function terminates and reports errors if any is found during conversion.
+//
+// Sample invocation would be
+//
+// ```
+// var tc *TaskConfig
+// hclutils.NewConfigParser(spec).ParseJson(t, configString, &tc)
+// ```
+func (b *HCLParser) ParseJson(t *testing.T, configStr string, out interface{}) {
+	config := JsonConfigToInterface(t, configStr)
+	b.parse(t, config, out)
+}
+
+// ParseHCL parses the hcl config string and decode it into the `out` parameter.
+// out parameter should be a golang reference to a driver specific TaskConfig reference.
+// The function terminates and reports errors if any is found during conversion.
+//
+// Sample invocation would be
+//
+// ```
+// var tc *TaskConfig
+// hclutils.NewConfigParser(spec).ParseHCL(t, configString, &tc)
+// ```
+func (b *HCLParser) ParseHCL(t *testing.T, configStr string, out interface{}) {
+	config := HclConfigToInterface(t, configStr)
+	b.parse(t, config, out)
+}
+
+func (b *HCLParser) parse(t *testing.T, config, out interface{}) {
+	decSpec, diags := hclspecutils.Convert(b.spec)
+	require.Empty(t, diags)
 
 	ctyValue, diag := ParseHclInterface(config, decSpec, b.vars)
-	require.Empty(b.t, diag)
+	require.Empty(t, diag)
 
 	// encode
 	dtc := &drivers.TaskConfig{}
-	require.NoError(b.t, dtc.EncodeDriverConfig(ctyValue))
+	require.NoError(t, dtc.EncodeDriverConfig(ctyValue))
 
 	// decode
-	require.NoError(b.t, dtc.DecodeDriverConfig(taskConfig))
+	require.NoError(t, dtc.DecodeDriverConfig(out))
 }
 
 func HclConfigToInterface(t *testing.T, config string) interface{} {
