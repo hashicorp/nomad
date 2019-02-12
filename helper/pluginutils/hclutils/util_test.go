@@ -1,6 +1,7 @@
 package hclutils_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/hcl2/hcldec"
@@ -8,10 +9,74 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 )
+
+func TestJsonArrays(t *testing.T) {
+	spec := hclspec.NewObject(map[string]*hclspec.Spec{
+		"port_map": hclspec.NewBlockAttrs("port_map", "number", false),
+	})
+	decSpec, diags := hclspecutils.Convert(spec)
+	require.Empty(t, diags)
+
+	type PidMapTaskConfig struct {
+		PortMap map[string]int `codec:"port_map"`
+	}
+
+	cases := []struct {
+		name string
+		json string
+	}{
+		{
+			"simple map",
+			`{"Config": {"port_map": {"http": 80, "https": 443, "ssh": 25}}}`,
+		},
+		{
+			"array of map entries",
+			`{"Config": {"port_map": [{"http": 80}, {"https": 443}, {"ssh": 25}]}}`,
+		},
+		{
+			"array with one map",
+			`{"Config": {"port_map": [{"http": 80, "https": 443, "ssh": 25}]}}`,
+		},
+		{
+			"array of maps",
+			`{"Config": {"port_map": [{"http": 80, "https": 443}, {"ssh": 25}]}}`,
+		},
+	}
+
+	expected := PidMapTaskConfig{
+		PortMap: map[string]int{
+			"http":  80,
+			"https": 443,
+			"ssh":   25,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			config := hclutils.JsonConfigToInterface(t, c.json)
+			fmt.Printf("PARSED CONFIG WAS: %v\n", pretty.Sprint(config))
+			// Parse the interface
+			ctyValue, diag := hclutils.ParseHclInterface(config, decSpec, nil)
+			require.Empty(t, diag)
+
+			// Test encoding
+			taskConfig := &drivers.TaskConfig{}
+			require.NoError(t, taskConfig.EncodeDriverConfig(ctyValue))
+
+			// Test decoding
+			var c PidMapTaskConfig
+			require.NoError(t, taskConfig.DecodeDriverConfig(&c))
+
+			require.EqualValues(t, expected, c)
+
+		})
+	}
+}
 
 func TestParseHclInterface_Hcl(t *testing.T) {
 	dockerDriver := new(docker.Driver)
