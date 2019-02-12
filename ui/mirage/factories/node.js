@@ -5,6 +5,7 @@ import moment from 'moment';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const NODE_STATUSES = ['initializing', 'ready', 'down'];
+const NODE_CLASSES = provide(7, faker.company.bsBuzz.bind(faker.company));
 const REF_DATE = new Date();
 
 export default Factory.extend({
@@ -12,6 +13,7 @@ export default Factory.extend({
   name: i => `nomad@${HOSTS[i % HOSTS.length]}`,
 
   datacenter: faker.list.random(...DATACENTERS),
+  nodeClass: faker.list.random(...NODE_CLASSES),
   drain: faker.random.boolean,
   status: faker.list.random(...NODE_STATUSES),
   tls_enabled: faker.random.boolean,
