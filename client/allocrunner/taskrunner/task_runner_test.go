@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -952,6 +955,60 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	require.True(t, state.Failed)
 	require.Len(t, state.Events, 3)
 	require.True(t, state.Events[2].FailsTask)
+}
+
+// TestTaskRunner_Download_List asserts that multiple artificats are downloaded
+// before a task is run.
+func TestTaskRunner_Download_List(t *testing.T) {
+	t.Parallel()
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))
+	defer ts.Close()
+
+	// Create an allocation that has a task with a list of artifacts.
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	f1 := "task_runner_test.go"
+	f2 := "task_runner.go"
+	artifact1 := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f1),
+	}
+	artifact2 := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f2),
+	}
+	task.Artifacts = []*structs.TaskArtifact{&artifact1, &artifact2}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Wait for task to run and exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task runner to exit")
+	}
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.False(t, state.Failed)
+
+	require.Len(t, state.Events, 5)
+	assert.Equal(t, structs.TaskReceived, state.Events[0].Type)
+	assert.Equal(t, structs.TaskSetup, state.Events[1].Type)
+	assert.Equal(t, structs.TaskDownloadingArtifacts, state.Events[2].Type)
+	assert.Equal(t, structs.TaskStarted, state.Events[3].Type)
+	assert.Equal(t, structs.TaskTerminated, state.Events[4].Type)
+
+	// Check that both files exist.
+	_, err = os.Stat(filepath.Join(conf.TaskDir.Dir, f1))
+	require.NoErrorf(t, err, "%v not downloaded", f1)
+
+	_, err = os.Stat(filepath.Join(conf.TaskDir.Dir, f2))
+	require.NoErrorf(t, err, "%v not downloaded", f2)
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
