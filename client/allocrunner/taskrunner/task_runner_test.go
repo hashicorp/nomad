@@ -767,6 +767,83 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	require.True(t, state.Failed, pretty.Sprint(state))
 }
 
+// TestTaskRunner_BlockForVault asserts tasks do not start until a vault token
+// is derived.
+func TestTaskRunner_BlockForVault(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Control when we get a Vault token
+	token := "1234"
+	waitCh := make(chan struct{})
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		<-waitCh
+		return map[string]string{task.Name: token}, nil
+	}
+	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vaultClient.DeriveTokenFn = handler
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Assert TR blocks on vault token (does *not* exit)
+	select {
+	case <-tr.WaitCh():
+		require.Fail(t, "tr exited before vault unblocked")
+	case <-time.After(1 * time.Second):
+	}
+
+	// Assert task state is still Pending
+	require.Equal(t, structs.TaskStatePending, tr.TaskState().State)
+
+	// Unblock vault token
+	close(waitCh)
+
+	// TR should exit now that it's unblocked by vault as its a batch job
+	// with 0 sleeping.
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for batch task to exit")
+	}
+
+	// Assert task exited successfully
+	finalState := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, finalState.State)
+	require.False(t, finalState.Failed)
+
+	// Check that the token is on disk
+	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	require.NoError(t, err)
+	require.Equal(t, token, string(data))
+
+	// Check the token was revoked
+	testutil.WaitForResult(func() (bool, error) {
+		if len(vaultClient.StoppedTokens()) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", vaultClient.StoppedTokens())
+		}
+
+		if a := vaultClient.StoppedTokens()[0]; a != token {
+			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
+		}
+		return true, nil
+	}, func(err error) {
+		require.Fail(t, err.Error())
+	})
+}
+
 // testWaitForTaskToStart waits for the task to be running or fails the test
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
