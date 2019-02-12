@@ -14,25 +14,25 @@
       <div class="column is-centered">
         <div class="button-bar is-pulled-right">
           {{multi-select-dropdown
-            data-test-facet-class
+            data-test-class-facet
             label="Class"
             options=optionsClass
             selection=selectionClass
             onSelect=(action setFacetQueryParam "qpClass")}}
           {{multi-select-dropdown
-            data-test-facet-status
+            data-test-status-facet
             label="Status"
             options=optionsStatus
             selection=selectionStatus
             onSelect=(action setFacetQueryParam "qpStatus")}}
           {{multi-select-dropdown
-            data-test-facet-datacenter
+            data-test-datacenter-facet
             label="Datacenter"
             options=optionsDatacenter
             selection=selectionDatacenter
             onSelect=(action setFacetQueryParam "qpDatacenter")}}
           {{multi-select-dropdown
-            data-test-facet-flags
+            data-test-flags-facet
             label="Flags"
             options=optionsFlags
             selection=selectionFlags
@@ -80,6 +80,11 @@
           <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Clients</h3>
           <p class="empty-message-body">
             The cluster currently has no client nodes.
+          </p>
+        {{else if (eq filteredNodes.length 0)}}
+          <h3 data-test-empty-clients-list-headline class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">
+            No clients match your current filter selection.
           </p>
         {{else if searchTerm}}
           <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Matches</h3>
