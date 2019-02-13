@@ -373,6 +373,17 @@ OUTER:
 		}
 		if len(allocsToPreempt) > 0 {
 			option.PreemptedAllocs = allocsToPreempt
+			// Calculate net priority to track its min value in the iterator's context
+			priorities := map[int]struct{}{}
+			netPriority := 0
+			for _, alloc := range option.PreemptedAllocs {
+				_, ok := priorities[alloc.Job.Priority]
+				if !ok {
+					priorities[alloc.Job.Priority] = struct{}{}
+					netPriority += alloc.Job.Priority
+				}
+			}
+			iter.ctx.Metrics().UpdatePreemptedMinNetPriority(netPriority)
 		}
 
 		// Score the fit normally otherwise

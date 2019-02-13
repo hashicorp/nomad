@@ -7969,6 +7969,9 @@ type AllocMetric struct {
 	// This is to prevent creating many failed allocations for a
 	// single task group.
 	CoalescedFailures int
+
+	// PreemptedMinNetPriority tracks metadata used in scoring during preemption
+	PreemptedMinNetPriority int
 }
 
 func (a *AllocMetric) Copy() *AllocMetric {
@@ -8073,6 +8076,14 @@ func (a *AllocMetric) PopulateScoreMetaData() {
 	heapItems := a.topScores.GetItemsReverse()
 	for i, item := range heapItems {
 		a.ScoreMetaData[i] = item.(*NodeScoreMeta)
+	}
+}
+
+// UpdatePreemptedMinNetPriority is used to track the minimum net priority of
+// preempted allocations in the current scheduler context
+func (a *AllocMetric) UpdatePreemptedMinNetPriority(netPriority int) {
+	if a.PreemptedMinNetPriority == 0 || netPriority < a.PreemptedMinNetPriority {
+		a.PreemptedMinNetPriority = netPriority
 	}
 }
 
