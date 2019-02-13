@@ -68,6 +68,7 @@
     "ember-native-dom-helpers": "^0.5.4",
     "ember-power-select": "^1.10.4",
     "ember-resolver": "^4.5.0",
+    "ember-responsive": "^3.0.0",
     "ember-sinon": "^1.0.1",
     "ember-source": "~2.18.2",
     "ember-test-selectors": "^0.3.8",
