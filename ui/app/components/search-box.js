@@ -22,6 +22,11 @@ export default Component.extend({
       this.set('_searchTerm', e.target.value);
       run.debounce(this, updateSearch, this.get('debounce'));
     },
+
+    clear() {
+      this.set('_searchTerm', '');
+      run.debounce(this, updateSearch, this.get('debounce'));
+    },
   },
 });
 
