@@ -410,7 +410,7 @@ job "example" {
         }
       }
 
-# The "artifact" stanza instructs Nomad to download an artifact from a
+      # The "artifact" stanza instructs Nomad to download an artifact from a
       # remote source prior to starting the task. This provides a convenient
       # mechanism for downloading configuration files or data needed to run the
       # task. It is possible to specify the "artifact" stanza multiple times to
