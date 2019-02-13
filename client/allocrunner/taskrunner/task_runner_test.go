@@ -953,6 +953,50 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	require.NoErrorf(t, err, "%v not downloaded", f2)
 }
 
+// TestTaskRunner_Download_Retries asserts that failed artifact downloads are
+// retried according to the task's restart policy.
+func TestTaskRunner_Download_Retries(t *testing.T) {
+	t.Parallel()
+
+	// Create an allocation that has a task with bad artifacts.
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	artifact := structs.TaskArtifact{
+		GetterSource: "http://127.0.0.1:0/foo/bar/baz",
+	}
+	task.Artifacts = []*structs.TaskArtifact{&artifact}
+
+	// Make the restart policy retry once
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Attempts: 1,
+		Interval: 10 * time.Minute,
+		Delay:    1 * time.Second,
+		Mode:     structs.RestartPolicyModeFail,
+	}
+
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	defer cleanup()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task to exit")
+	}
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.True(t, state.Failed)
+	require.Len(t, state.Events, 8, pretty.Sprint(state.Events))
+	require.Equal(t, structs.TaskReceived, state.Events[0].Type)
+	require.Equal(t, structs.TaskSetup, state.Events[1].Type)
+	require.Equal(t, structs.TaskDownloadingArtifacts, state.Events[2].Type)
+	require.Equal(t, structs.TaskArtifactDownloadFailed, state.Events[3].Type)
+	require.Equal(t, structs.TaskRestarting, state.Events[4].Type)
+	require.Equal(t, structs.TaskDownloadingArtifacts, state.Events[5].Type)
+	require.Equal(t, structs.TaskArtifactDownloadFailed, state.Events[6].Type)
+	require.Equal(t, structs.TaskNotRestarting, state.Events[7].Type)
+}
+
 // testWaitForTaskToStart waits for the task to be running or fails the test
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {

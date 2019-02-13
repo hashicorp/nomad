@@ -113,11 +113,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 		taskEvent = structs.NewTaskEvent(structs.TaskHookFailed).SetMessage(message)
 	}
 
-	// The TaskEvent returned by a HookError may be nil if the hook chooses to opt
-	// out of sending a task event.
-	if taskEvent != nil {
-		tr.EmitEvent(taskEvent)
-	}
+	tr.EmitEvent(taskEvent)
 }
 
 // prestart is used to run the runners prestart hooks.
