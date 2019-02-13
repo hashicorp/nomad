@@ -1130,6 +1130,73 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	})
 }
 
+// TestTaskRunner_RestartSignalTask_NotRunning asserts resilience to failures
+// when a restart or signal is triggered and the task is not running.
+func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+
+	// Use vault to block the start
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Control when we get a Vault token
+	waitCh := make(chan struct{}, 1)
+	defer close(waitCh)
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		<-waitCh
+		return map[string]string{task.Name: "1234"}, nil
+	}
+	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vaultClient.DeriveTokenFn = handler
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	select {
+	case <-tr.WaitCh():
+		require.Fail(t, "unexpected exit")
+	case <-time.After(1 * time.Second):
+	}
+
+	// Send a signal and restart
+	err = tr.Signal(structs.NewTaskEvent("don't panic"), "QUIT")
+	require.EqualError(t, err, ErrTaskNotRunning.Error())
+
+	// Send a restart
+	err = tr.Restart(context.Background(), structs.NewTaskEvent("don't panic"), false)
+	require.EqualError(t, err, ErrTaskNotRunning.Error())
+
+	// Unblock and let it finish
+	waitCh <- struct{}{}
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timed out waiting for task to complete")
+	}
+
+	// Assert the task ran and never restarted
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.False(t, state.Failed)
+	require.Len(t, state.Events, 4, pretty.Sprint(state.Events))
+	require.Equal(t, structs.TaskReceived, state.Events[0].Type)
+	require.Equal(t, structs.TaskSetup, state.Events[1].Type)
+	require.Equal(t, structs.TaskStarted, state.Events[2].Type)
+	require.Equal(t, structs.TaskTerminated, state.Events[3].Type)
+}
+
 // testWaitForTaskToStart waits for the task to be running or fails the test
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
