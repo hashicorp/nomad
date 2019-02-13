@@ -106,6 +106,22 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	return conf, trCleanup
 }
 
+// runTestTaskRunner runs a TaskRunner and returns its configuration as well as
+// a cleanup function that ensures the runner is stopped and cleaned up. Tests
+// which need to change the Config *must* use testTaskRunnerConfig instead.
+func runTestTaskRunner(t *testing.T, alloc *structs.Allocation, taskName string) (*TaskRunner, *Config, func()) {
+	config, cleanup := testTaskRunnerConfig(t, alloc, taskName)
+
+	tr, err := NewTaskRunner(config)
+	require.NoError(t, err)
+	go tr.Run()
+
+	return tr, config, func() {
+		tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+		cleanup()
+	}
+}
+
 // TestTaskRunner_Restore asserts restoring a running task does not rerun the
 // task.
 func TestTaskRunner_Restore_Running(t *testing.T) {
@@ -170,7 +186,6 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 		"common_user": "somebody",
 	}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
 	task.Meta = map[string]string{
 		"foo": "bar",
 	}
@@ -181,14 +196,8 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 		"stdout_string": `${node.region} ${NOMAD_META_foo} ${NOMAD_META_common_user}`,
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
-
-	// Run the first TaskRunner
-	tr, err := NewTaskRunner(conf)
-	require.NoError(err)
-	go tr.Run()
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for task to complete
 	select {
@@ -206,48 +215,6 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	require.NotNil(driverCfg)
 	require.NotNil(mockCfg)
 	assert.Equal(t, "global bar somebody", mockCfg.StdoutString)
-}
-
-func TestTaskRunner_TaskConfig(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	alloc := mock.BatchAlloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-
-	//// Use interpolation from both node attributes and meta vars
-	//task.Config = map[string]interface{}{
-	//	"run_for": "1ms",
-	//}
-
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
-	// Run the first TaskRunner
-	tr, err := NewTaskRunner(conf)
-	require.NoError(err)
-	go tr.Run()
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-
-	// Wait for task to complete
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(3 * time.Second):
-	}
-
-	// Get the mock driver plugin
-	driverPlugin, err := conf.DriverManager.Dispense(mockdriver.PluginID.Name)
-	require.NoError(err)
-	mockDriver := driverPlugin.(*mockdriver.Driver)
-
-	// Assert its config has been properly interpolated
-	driverCfg, mockCfg := mockDriver.GetTaskConfig()
-	require.NotNil(driverCfg)
-	require.NotNil(mockCfg)
-	assert.Equal(t, alloc.Job.Name, driverCfg.JobName)
-	assert.Equal(t, alloc.TaskGroup, driverCfg.TaskGroupName)
-	assert.Equal(t, alloc.Job.TaskGroups[0].Tasks[0].Name, driverCfg.Name)
 }
 
 // Test that devices get sent to the driver
@@ -473,15 +440,10 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	// No shutdown escape hatch for this delay, so don't set it too high
 	task.ShutdownDelay = 1000 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
 	mockConsul := conf.Consul.(*consul.MockConsulServiceClient)
-
-	tr, err := NewTaskRunner(conf)
-	require.NoError(t, err)
-	go tr.Run()
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, tr)
@@ -568,13 +530,8 @@ func TestTaskRunner_Dispatch_Payload(t *testing.T) {
 	compressed := snappy.Encode(nil, expected)
 	alloc.Job.Payload = compressed
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
-
-	tr, err := NewTaskRunner(conf)
-	require.NoError(t, err)
-	go tr.Run()
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	// Wait for it to finish
 	testutil.WaitForResult(func() (bool, error) {
@@ -610,13 +567,8 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 		"signal_error": errMsg,
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
-
-	tr, err := NewTaskRunner(conf)
-	require.NoError(t, err)
-	go tr.Run()
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	testWaitForTaskToStart(t, tr)
 
@@ -635,13 +587,8 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 		"run_for": "10m",
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
-
-	tr, err := NewTaskRunner(conf)
-	require.NoError(t, err)
-	go tr.Run()
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
 	testWaitForTaskToStart(t, tr)
 
@@ -977,13 +924,8 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	}
 	task.Artifacts = []*structs.TaskArtifact{&artifact1, &artifact2}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
-
-	tr, err := NewTaskRunner(conf)
-	require.NoError(t, err)
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	go tr.Run()
 
 	// Wait for task to run and exit
 	select {
@@ -1004,7 +946,7 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	assert.Equal(t, structs.TaskTerminated, state.Events[4].Type)
 
 	// Check that both files exist.
-	_, err = os.Stat(filepath.Join(conf.TaskDir.Dir, f1))
+	_, err := os.Stat(filepath.Join(conf.TaskDir.Dir, f1))
 	require.NoErrorf(t, err, "%v not downloaded", f1)
 
 	_, err = os.Stat(filepath.Join(conf.TaskDir.Dir, f2))
