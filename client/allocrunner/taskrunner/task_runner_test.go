@@ -1197,6 +1197,47 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	require.Equal(t, structs.TaskTerminated, state.Events[3].Type)
 }
 
+// TestTaskRunner_Run_RecoverableStartError asserts tasks are restarted if they
+// return a recoverable error from StartTask.
+func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]interface{}{
+		"start_error":             "driver failure",
+		"start_error_recoverable": true,
+	}
+
+	// Make the restart policy retry once
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Attempts: 1,
+		Interval: 10 * time.Minute,
+		Delay:    0,
+		Mode:     structs.RestartPolicyModeFail,
+	}
+
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	defer cleanup()
+
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task to exit")
+	}
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.True(t, state.Failed)
+	require.Len(t, state.Events, 6, pretty.Sprint(state.Events))
+	require.Equal(t, structs.TaskReceived, state.Events[0].Type)
+	require.Equal(t, structs.TaskSetup, state.Events[1].Type)
+	require.Equal(t, structs.TaskDriverFailure, state.Events[2].Type)
+	require.Equal(t, structs.TaskRestarting, state.Events[3].Type)
+	require.Equal(t, structs.TaskDriverFailure, state.Events[4].Type)
+	require.Equal(t, structs.TaskNotRestarting, state.Events[5].Type)
+}
+
 // testWaitForTaskToStart waits for the task to be running or fails the test
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
