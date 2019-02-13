@@ -340,6 +340,52 @@ job "example" {
       size = 300
     }
 
+
+    # The "affinity" stanza enables operators to express placement preferences
+    # based on node attributes or metadata.
+    #
+    # For more information and examples on the "affinity" stanza, please
+    # see the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/affinity.html
+    #
+    # affinity {
+    # attribute specifies the name of a node attribute or metadata
+    #   attribute = "${node.datacenter}"
+    #
+    # value specifies the desired attribute value. In this example Nomad
+    # will prefer placement in the "us-west1" datacenter.
+    #   value  = "us-west1"
+
+    # weight can be used to indicate relative preference
+    # when the job has more than one affinity. It defaults to 50 if not set.
+    #   weight = 100
+    # }
+
+    # The "spread" stanza allows operators to increase the failure tolerance of
+    # their applications by specifying a node attribute that allocations
+    # should be spread over.
+    #
+    # For more information and examples on the "spread" stanza, please
+    # see the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/spread.html
+    #
+    # spread {
+    # attribute specifies the name of a node attribute or metadata
+    # attribute = "${node.datacenter}"
+    #
+    # target can be used to define desired percentages of allocations
+    # in each target attribute value.
+    #
+    #   target "us-east1" {
+    #    percent = 60
+    #   }
+    #   target "us-west1" {
+    #    percent = 40
+    #   }
+    # }
+
     # The "task" stanza creates an individual unit of work, such as a Docker
     # container, web application, or batch processing.
     #
@@ -364,7 +410,7 @@ job "example" {
         }
       }
 
-      # The "artifact" stanza instructs Nomad to download an artifact from a
+# The "artifact" stanza instructs Nomad to download an artifact from a
       # remote source prior to starting the task. This provides a convenient
       # mechanism for downloading configuration files or data needed to run the
       # task. It is possible to specify the "artifact" stanza multiple times to
