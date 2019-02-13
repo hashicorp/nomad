@@ -8,6 +8,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -251,11 +252,11 @@ var (
 		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
 		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
 		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
-		"labels":             hclspec.NewBlockAttrs("labels", "string", false),
+		"labels":             hclspec.NewAttr("labels", "list(map(string))", false),
 		"load":               hclspec.NewAttr("load", "string", false),
 		"logging": hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"type":   hclspec.NewAttr("type", "string", false),
-			"config": hclspec.NewBlockAttrs("config", "string", false),
+			"config": hclspec.NewAttr("config", "list(map(string))", false),
 		})),
 		"mac_address": hclspec.NewAttr("mac_address", "string", false),
 		"mounts": hclspec.NewBlockList("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
@@ -275,10 +276,10 @@ var (
 			})),
 			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
 				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
-				"labels":  hclspec.NewBlockAttrs("labels", "string", false),
+				"labels":  hclspec.NewAttr("labels", "list(map(string))", false),
 				"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
 					"name":    hclspec.NewAttr("name", "string", false),
-					"options": hclspec.NewBlockAttrs("options", "string", false),
+					"options": hclspec.NewAttr("options", "list(map(string))", false),
 				})),
 			})),
 		})),
@@ -286,15 +287,15 @@ var (
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
-		"port_map":        hclspec.NewBlockAttrs("port_map", "number", false),
+		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
 		"privileged":      hclspec.NewAttr("privileged", "bool", false),
 		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
 		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
 		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
-		"storage_opt":     hclspec.NewBlockAttrs("storage_opt", "string", false),
-		"sysctl":          hclspec.NewBlockAttrs("sysctl", "string", false),
+		"storage_opt":     hclspec.NewAttr("storage_opt", "list(map(string))", false),
+		"sysctl":          hclspec.NewAttr("sysctl", "list(map(string))", false),
 		"tty":             hclspec.NewAttr("tty", "bool", false),
-		"ulimit":          hclspec.NewBlockAttrs("ulimit", "string", false),
+		"ulimit":          hclspec.NewAttr("ulimit", "list(map(string))", false),
 		"uts_mode":        hclspec.NewAttr("uts_mode", "string", false),
 		"userns_mode":     hclspec.NewAttr("userns_mode", "string", false),
 		"volumes":         hclspec.NewAttr("volumes", "list(string)", false),
@@ -312,51 +313,51 @@ var (
 )
 
 type TaskConfig struct {
-	Image             string            `codec:"image"`
-	AdvertiseIPv6Addr bool              `codec:"advertise_ipv6_address"`
-	Args              []string          `codec:"args"`
-	Auth              DockerAuth        `codec:"auth"`
-	AuthSoftFail      bool              `codec:"auth_soft_fail"`
-	CapAdd            []string          `codec:"cap_add"`
-	CapDrop           []string          `codec:"cap_drop"`
-	Command           string            `codec:"command"`
-	CPUCFSPeriod      int64             `codec:"cpu_cfs_period"`
-	CPUHardLimit      bool              `codec:"cpu_hard_limit"`
-	Devices           []DockerDevice    `codec:"devices"`
-	DNSSearchDomains  []string          `codec:"dns_search_domains"`
-	DNSOptions        []string          `codec:"dns_options"`
-	DNSServers        []string          `codec:"dns_servers"`
-	Entrypoint        []string          `codec:"entrypoint"`
-	ExtraHosts        []string          `codec:"extra_hosts"`
-	ForcePull         bool              `codec:"force_pull"`
-	Hostname          string            `codec:"hostname"`
-	Interactive       bool              `codec:"interactive"`
-	IPCMode           string            `codec:"ipc_mode"`
-	IPv4Address       string            `codec:"ipv4_address"`
-	IPv6Address       string            `codec:"ipv6_address"`
-	Labels            map[string]string `codec:"labels"`
-	LoadImage         string            `codec:"load"`
-	Logging           DockerLogging     `codec:"logging"`
-	MacAddress        string            `codec:"mac_address"`
-	Mounts            []DockerMount     `codec:"mounts"`
-	NetworkAliases    []string          `codec:"network_aliases"`
-	NetworkMode       string            `codec:"network_mode"`
-	PidsLimit         int64             `codec:"pids_limit"`
-	PidMode           string            `codec:"pid_mode"`
-	PortMap           map[string]int    `codec:"port_map"`
-	Privileged        bool              `codec:"privileged"`
-	ReadonlyRootfs    bool              `codec:"readonly_rootfs"`
-	SecurityOpt       []string          `codec:"security_opt"`
-	ShmSize           int64             `codec:"shm_size"`
-	StorageOpt        map[string]string `codec:"storage_opt"`
-	Sysctl            map[string]string `codec:"sysctl"`
-	TTY               bool              `codec:"tty"`
-	Ulimit            map[string]string `codec:"ulimit"`
-	UTSMode           string            `codec:"uts_mode"`
-	UsernsMode        string            `codec:"userns_mode"`
-	Volumes           []string          `codec:"volumes"`
-	VolumeDriver      string            `codec:"volume_driver"`
-	WorkDir           string            `codec:"work_dir"`
+	Image             string             `codec:"image"`
+	AdvertiseIPv6Addr bool               `codec:"advertise_ipv6_address"`
+	Args              []string           `codec:"args"`
+	Auth              DockerAuth         `codec:"auth"`
+	AuthSoftFail      bool               `codec:"auth_soft_fail"`
+	CapAdd            []string           `codec:"cap_add"`
+	CapDrop           []string           `codec:"cap_drop"`
+	Command           string             `codec:"command"`
+	CPUCFSPeriod      int64              `codec:"cpu_cfs_period"`
+	CPUHardLimit      bool               `codec:"cpu_hard_limit"`
+	Devices           []DockerDevice     `codec:"devices"`
+	DNSSearchDomains  []string           `codec:"dns_search_domains"`
+	DNSOptions        []string           `codec:"dns_options"`
+	DNSServers        []string           `codec:"dns_servers"`
+	Entrypoint        []string           `codec:"entrypoint"`
+	ExtraHosts        []string           `codec:"extra_hosts"`
+	ForcePull         bool               `codec:"force_pull"`
+	Hostname          string             `codec:"hostname"`
+	Interactive       bool               `codec:"interactive"`
+	IPCMode           string             `codec:"ipc_mode"`
+	IPv4Address       string             `codec:"ipv4_address"`
+	IPv6Address       string             `codec:"ipv6_address"`
+	Labels            hclutils.MapStrStr `codec:"labels"`
+	LoadImage         string             `codec:"load"`
+	Logging           DockerLogging      `codec:"logging"`
+	MacAddress        string             `codec:"mac_address"`
+	Mounts            []DockerMount      `codec:"mounts"`
+	NetworkAliases    []string           `codec:"network_aliases"`
+	NetworkMode       string             `codec:"network_mode"`
+	PidsLimit         int64              `codec:"pids_limit"`
+	PidMode           string             `codec:"pid_mode"`
+	PortMap           hclutils.MapStrInt `codec:"port_map"`
+	Privileged        bool               `codec:"privileged"`
+	ReadonlyRootfs    bool               `codec:"readonly_rootfs"`
+	SecurityOpt       []string           `codec:"security_opt"`
+	ShmSize           int64              `codec:"shm_size"`
+	StorageOpt        hclutils.MapStrStr `codec:"storage_opt"`
+	Sysctl            hclutils.MapStrStr `codec:"sysctl"`
+	TTY               bool               `codec:"tty"`
+	Ulimit            hclutils.MapStrStr `codec:"ulimit"`
+	UTSMode           string             `codec:"uts_mode"`
+	UsernsMode        string             `codec:"userns_mode"`
+	Volumes           []string           `codec:"volumes"`
+	VolumeDriver      string             `codec:"volume_driver"`
+	WorkDir           string             `codec:"work_dir"`
 }
 
 type DockerAuth struct {
@@ -395,8 +396,8 @@ func (d DockerDevice) toDockerDevice() (docker.Device, error) {
 }
 
 type DockerLogging struct {
-	Type   string            `codec:"type"`
-	Config map[string]string `codec:"config"`
+	Type   string             `codec:"type"`
+	Config hclutils.MapStrStr `codec:"config"`
 }
 
 type DockerMount struct {
@@ -454,7 +455,7 @@ func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
 
 type DockerVolumeOptions struct {
 	NoCopy       bool                     `codec:"no_copy"`
-	Labels       map[string]string        `codec:"labels"`
+	Labels       hclutils.MapStrStr       `codec:"labels"`
 	DriverConfig DockerVolumeDriverConfig `codec:"driver_config"`
 }
 
@@ -469,8 +470,8 @@ type DockerTmpfsOptions struct {
 
 // DockerVolumeDriverConfig holds a map of volume driver specific options
 type DockerVolumeDriverConfig struct {
-	Name    string            `codec:"name"`
-	Options map[string]string `codec:"options"`
+	Name    string             `codec:"name"`
+	Options hclutils.MapStrStr `codec:"options"`
 }
 
 type DriverConfig struct {
