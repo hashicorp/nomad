@@ -375,14 +375,14 @@ job "example" {
     # attribute specifies the name of a node attribute or metadata
     # attribute = "${node.datacenter}"
     #
-    # target can be used to define desired percentages of allocations
-    # in each target attribute value.
+    # targets can be used to define desired percentages of allocations
+    # for each targeted attribute value.
     #
     #   target "us-east1" {
-    #    percent = 60
+    #     percent = 60
     #   }
     #   target "us-west1" {
-    #    percent = 40
+    #     percent = 40
     #   }
     # }
 
