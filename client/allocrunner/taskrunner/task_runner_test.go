@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -995,6 +996,138 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	require.Equal(t, structs.TaskDownloadingArtifacts, state.Events[5].Type)
 	require.Equal(t, structs.TaskArtifactDownloadFailed, state.Events[6].Type)
 	require.Equal(t, structs.TaskNotRestarting, state.Events[7].Type)
+}
+
+// TestTaskRunner_DriverNetwork asserts that a driver's network is properly
+// used in services and checks.
+func TestTaskRunner_DriverNetwork(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for":         "100s",
+		"driver_ip":       "10.1.2.3",
+		"driver_port_map": "http:80",
+	}
+
+	// Create services and checks with custom address modes to exercise
+	// address detection logic
+	task.Services = []*structs.Service{
+		{
+			Name:        "host-service",
+			PortLabel:   "http",
+			AddressMode: "host",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:        "driver-check",
+					Type:        "tcp",
+					PortLabel:   "1234",
+					AddressMode: "driver",
+				},
+			},
+		},
+		{
+			Name:        "driver-service",
+			PortLabel:   "5678",
+			AddressMode: "driver",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:      "host-check",
+					Type:      "tcp",
+					PortLabel: "http",
+				},
+				{
+					Name:        "driver-label-check",
+					Type:        "tcp",
+					PortLabel:   "http",
+					AddressMode: "driver",
+				},
+			},
+		},
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Use a mock agent to test for services
+	consulAgent := agentconsul.NewMockAgent()
+	consulClient := agentconsul.NewServiceClient(consulAgent, conf.Logger, true)
+	defer consulClient.Shutdown()
+	go consulClient.Run()
+
+	conf.Consul = consulClient
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Wait for the task to start
+	testWaitForTaskToStart(t, tr)
+
+	testutil.WaitForResult(func() (bool, error) {
+		services, _ := consulAgent.Services()
+		if n := len(services); n != 2 {
+			return false, fmt.Errorf("expected 2 services, but found %d", n)
+		}
+		for _, s := range services {
+			switch s.Service {
+			case "host-service":
+				if expected := "192.168.0.100"; s.Address != expected {
+					return false, fmt.Errorf("expected host-service to have IP=%s but found %s",
+						expected, s.Address)
+				}
+			case "driver-service":
+				if expected := "10.1.2.3"; s.Address != expected {
+					return false, fmt.Errorf("expected driver-service to have IP=%s but found %s",
+						expected, s.Address)
+				}
+				if expected := 5678; s.Port != expected {
+					return false, fmt.Errorf("expected driver-service to have port=%d but found %d",
+						expected, s.Port)
+				}
+			default:
+				return false, fmt.Errorf("unexpected service: %q", s.Service)
+			}
+
+		}
+
+		checks := consulAgent.CheckRegs()
+		if n := len(checks); n != 3 {
+			return false, fmt.Errorf("expected 3 checks, but found %d", n)
+		}
+		for _, check := range checks {
+			switch check.Name {
+			case "driver-check":
+				if expected := "10.1.2.3:1234"; check.TCP != expected {
+					return false, fmt.Errorf("expected driver-check to have address %q but found %q", expected, check.TCP)
+				}
+			case "driver-label-check":
+				if expected := "10.1.2.3:80"; check.TCP != expected {
+					return false, fmt.Errorf("expected driver-label-check to have address %q but found %q", expected, check.TCP)
+				}
+			case "host-check":
+				if expected := "192.168.0.100:"; !strings.HasPrefix(check.TCP, expected) {
+					return false, fmt.Errorf("expected host-check to have address start with %q but found %q", expected, check.TCP)
+				}
+			default:
+				return false, fmt.Errorf("unexpected check: %q", check.Name)
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		services, _ := consulAgent.Services()
+		for _, s := range services {
+			t.Logf(pretty.Sprint("Service: ", s))
+		}
+		for _, c := range consulAgent.CheckRegs() {
+			t.Logf(pretty.Sprint("Check:   ", c))
+		}
+		require.NoError(t, err)
+	})
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
