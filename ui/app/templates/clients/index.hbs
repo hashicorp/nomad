@@ -11,8 +11,8 @@
             placeholder="Search clients..."}}
         </div>
       {{/if}}
-      <div class="column is-centered">
-        <div class="button-bar is-pulled-right">
+      <div class="column is-vcentered {{if (media "isMobile") "is-associative" "is-right-aligned"}}">
+        <div class="button-bar">
           {{multi-select-dropdown
             data-test-class-facet
             label="Class"
