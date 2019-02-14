@@ -1022,6 +1022,14 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		signal = "SIGINT"
 	}
 
+	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
+	// allows for graceful shutdown before being followed up by a SIGKILL.
+	// Supported signals:
+	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
+	if runtime.GOOS == "windows" && signal == "SIGINT" {
+		signal = "SIGTERM"
+	}
+
 	sig, err := signals.Parse(signal)
 	if err != nil {
 		return fmt.Errorf("failed to parse signal: %v", err)
