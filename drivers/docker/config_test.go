@@ -41,7 +41,7 @@ func TestConfig_ParseHCL(t *testing.T) {
 	}
 }
 
-func TestConfig_ParseJSON_Regression(t *testing.T) {
+func TestConfig_ParseJSON(t *testing.T) {
 	cases := []struct {
 		name     string
 		input    string
