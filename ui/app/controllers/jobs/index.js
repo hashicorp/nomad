@@ -6,23 +6,7 @@ import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
-
-// An unattractive but robust way to encode query params
-const qpSerialize = arr => (arr.length ? JSON.stringify(arr) : '');
-const qpDeserialize = str => {
-  try {
-    return JSON.parse(str)
-      .compact()
-      .without('');
-  } catch (e) {
-    return [];
-  }
-};
-
-const qpSelection = qpKey =>
-  computed(qpKey, function() {
-    return qpDeserialize(this.get(qpKey));
-  });
+import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
 
 export default Controller.extend(Sortable, Searchable, {
   system: service(),
@@ -56,10 +40,10 @@ export default Controller.extend(Sortable, Searchable, {
   qpDatacenter: '',
   qpPrefix: '',
 
-  selectionType: qpSelection('qpType'),
-  selectionStatus: qpSelection('qpStatus'),
-  selectionDatacenter: qpSelection('qpDatacenter'),
-  selectionPrefix: qpSelection('qpPrefix'),
+  selectionType: selection('qpType'),
+  selectionStatus: selection('qpStatus'),
+  selectionDatacenter: selection('qpDatacenter'),
+  selectionPrefix: selection('qpPrefix'),
 
   optionsType: computed(() => [
     { key: 'batch', label: 'Batch' },
@@ -88,7 +72,7 @@ export default Controller.extend(Sortable, Searchable, {
     scheduleOnce('actions', () => {
       this.set(
         'qpDatacenter',
-        qpSerialize(intersection(availableDatacenters, this.get('selectionDatacenter')))
+        serialize(intersection(availableDatacenters, this.get('selectionDatacenter')))
       );
     });
 
@@ -122,10 +106,7 @@ export default Controller.extend(Sortable, Searchable, {
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
-      this.set(
-        'qpPrefix',
-        qpSerialize(intersection(availablePrefixes, this.get('selectionPrefix')))
-      );
+      this.set('qpPrefix', serialize(intersection(availablePrefixes, this.get('selectionPrefix'))));
     });
 
     // Sort, format, and include the count in the label
@@ -202,7 +183,7 @@ export default Controller.extend(Sortable, Searchable, {
   isShowingDeploymentDetails: false,
 
   setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, qpSerialize(selection));
+    this.set(queryParam, serialize(selection));
   },
 
   actions: {
