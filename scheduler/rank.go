@@ -374,15 +374,7 @@ OUTER:
 		if len(allocsToPreempt) > 0 {
 			option.PreemptedAllocs = allocsToPreempt
 			// Calculate net priority to track its min value in the iterator's context
-			priorities := map[int]struct{}{}
-			netPriority := 0
-			for _, alloc := range option.PreemptedAllocs {
-				_, ok := priorities[alloc.Job.Priority]
-				if !ok {
-					priorities[alloc.Job.Priority] = struct{}{}
-					netPriority += alloc.Job.Priority
-				}
-			}
+			netPriority := netAggregatePriority(option.PreemptedAllocs)
 			iter.ctx.Metrics().UpdatePreemptedMinNetPriority(netPriority)
 		}
 
@@ -646,4 +638,18 @@ func (iter *ScoreNormalizationIterator) Next() *RankedNode {
 	//TODO(preetha): Turn map in allocmetrics into a heap of topK scores
 	iter.ctx.Metrics().ScoreNode(option.Node, "normalized-score", option.FinalScore)
 	return option
+}
+
+// netAggregatePriority is the sum of distinct priorities of jobs in the input slice of allocations
+func netAggregatePriority(allocs []*structs.Allocation) int {
+	priorities := map[int]struct{}{}
+	netPriority := 0
+	for _, alloc := range allocs {
+		_, ok := priorities[alloc.Job.Priority]
+		if !ok {
+			priorities[alloc.Job.Priority] = struct{}{}
+			netPriority += alloc.Job.Priority
+		}
+	}
+	return netPriority
 }

@@ -26,15 +26,7 @@ func (iter *PreemptionScoringIterator) Next() *RankedNode {
 		return option
 	}
 	if option.PreemptedAllocs != nil {
-		priorities := map[int]struct{}{}
-		netPriority := 0
-		for _, alloc := range option.PreemptedAllocs {
-			_, ok := priorities[alloc.Job.Priority]
-			if !ok {
-				priorities[alloc.Job.Priority] = struct{}{}
-				netPriority += alloc.Job.Priority
-			}
-		}
+		netPriority := netAggregatePriority(option.PreemptedAllocs)
 
 		// The max score of 1 is when the net priority is equal to the min across all options
 		minNetPriority := iter.ctx.Metrics().PreemptedMinNetPriority

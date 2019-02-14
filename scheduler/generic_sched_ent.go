@@ -18,20 +18,23 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 
 // handlePreemptions sets relevant preeemption related fields
 func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.Allocation, missing placementResult) {
+	if option.PreemptedAllocs == nil {
+		return
+	}
 	// If this placement involves preemption, set DesiredState to evict for those allocations
-	if option.PreemptedAllocs != nil {
-		var preemptedAllocIDs []string
-		for _, stop := range option.PreemptedAllocs {
-			s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
-			preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
-			if s.eval.AnnotatePlan && s.plan.Annotations != nil {
-				s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
-				if s.plan.Annotations.DesiredTGUpdates != nil {
-					desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup().Name]
-					desired.Preemptions += 1
-				}
+
+	var preemptedAllocIDs []string
+	for _, stop := range option.PreemptedAllocs {
+		s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
+		preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
+		if s.eval.AnnotatePlan && s.plan.Annotations != nil {
+			s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
+			if s.plan.Annotations.DesiredTGUpdates != nil {
+				desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup().Name]
+				desired.Preemptions += 1
 			}
 		}
-		alloc.PreemptedAllocations = preemptedAllocIDs
 	}
+	alloc.PreemptedAllocations = preemptedAllocIDs
+
 }

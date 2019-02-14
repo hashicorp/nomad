@@ -168,7 +168,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 			ReservedHostPorts: "22",
 		},
 	}
-	noErr(t, h.State.UpsertNode(h.NextIndex(), node))
+	require.NoError(h.State.UpsertNode(h.NextIndex(), node))
 
 	// Create a couple of jobs and schedule them
 	job1 := mock.Job()
@@ -178,7 +178,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 	r1.CPU = 500
 	r1.MemoryMB = 1024
 	r1.Networks = nil
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job1))
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job1))
 
 	job2 := mock.Job()
 	job2.TaskGroups[0].Count = 1
@@ -187,7 +187,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 	r2.CPU = 350
 	r2.MemoryMB = 512
 	r2.Networks = nil
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job2))
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job2))
 
 	// Create a mock evaluation to register the jobs
 	eval1 := &structs.Evaluation{
@@ -207,12 +207,11 @@ func TestServiceSched_Preemption(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval1, eval2}))
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval1, eval2}))
 
 	expectedPreemptedAllocs := make(map[string]struct{})
 	// Process the two evals for job1 and job2 and make sure they allocated
 	for index, eval := range []*structs.Evaluation{eval1, eval2} {
-		//h = NewHarness(t)
 		// Process the evaluation
 		err := h.Process(NewServiceScheduler, eval)
 		require.Nil(err)
@@ -242,7 +241,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 	r3.CPU = 900
 	r3.MemoryMB = 1700
 	r3.Networks = nil
-	noErr(t, h.State.UpsertJob(h.NextIndex(), job3))
+	require.NoError(h.State.UpsertJob(h.NextIndex(), job3))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -254,7 +253,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	noErr(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.NoError(h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
@@ -276,7 +275,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job3.Namespace, job3.ID, false)
-	noErr(t, err)
+	require.NoError(err)
 
 	// Ensure all allocations placed
 	require.Equal(1, len(out))
@@ -285,5 +284,4 @@ func TestServiceSched_Preemption(t *testing.T) {
 		actualPreemptedAllocs[id] = struct{}{}
 	}
 	require.Equal(expectedPreemptedAllocs, actualPreemptedAllocs)
-
 }
