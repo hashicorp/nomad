@@ -835,7 +835,7 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 	// Check the token was revoked
 	testutil.WaitForResult(func() (bool, error) {
 		if len(vaultClient.StoppedTokens()) != 1 {
-			return false, fmt.Errorf("Expected a stopped token: %v", vaultClient.StoppedTokens())
+			return false, fmt.Errorf("Expected a stopped token %q but found: %v", token, vaultClient.StoppedTokens())
 		}
 
 		if a := vaultClient.StoppedTokens()[0]; a != token {
