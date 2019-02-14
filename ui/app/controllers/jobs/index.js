@@ -9,6 +9,7 @@ import Searchable from 'nomad-ui/mixins/searchable';
 import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
 
 export default Controller.extend(Sortable, Searchable, {
+  media: service(),
   system: service(),
   jobsController: controller('jobs'),
 

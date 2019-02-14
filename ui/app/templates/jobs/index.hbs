@@ -5,15 +5,24 @@
     <div class="columns">
       {{#if filteredJobs.length}}
         <div class="column is-one-third">
-          {{search-box
-            data-test-jobs-search
-            searchTerm=(mut searchTerm)
-            onChange=(action resetPagination)
-            placeholder="Search jobs..."}}
+          <div class="field is-grouped">
+            <p class="control is-expanded">
+              {{search-box
+                data-test-jobs-search
+                searchTerm=(mut searchTerm)
+                onChange=(action resetPagination)
+                placeholder="Search jobs..."}}
+            </p>
+            {{#if (media "isMobile")}}
+              <p class="control">
+                {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+              </p>
+            {{/if}}
+          </div>
         </div>
       {{/if}}
-      <div class="column is-centered">
-        <div class="button-bar is-pulled-right">
+      <div class="column is-vcentered {{if (media "isMobile") "is-associative" "is-right-aligned"}}">
+        <div class="button-bar">
           {{multi-select-dropdown
             data-test-type-facet
             label="Type"
@@ -40,9 +49,11 @@
             onSelect=(action setFacetQueryParam "qpPrefix")}}
         </div>
       </div>
-      <div class="column is-minimum is-centered">
-        {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
-      </div>
+      {{#if (not (media "isMobile"))}}
+        <div class="column is-minimum is-centered">
+          {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+        </div>
+      {{/if}}
     </div>
     {{#list-pagination
       source=sortedJobs
