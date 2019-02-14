@@ -1,5 +1,9 @@
 .columns {
   .column {
+    &.is-vcentered {
+      align-self: center;
+    }
+
     &.is-centered {
       align-self: center;
       justify-self: center;
@@ -8,6 +12,10 @@
 
     &.is-minimum {
       flex-grow: 0;
+    }
+
+    &.is-right-aligned {
+      text-align: right;
     }
   }
 }
