@@ -140,7 +140,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	return h.consul.UpdateTask(oldTaskServices, newTaskServices)
 }
 
-func (h *serviceHook) Killing(ctx context.Context, req *interfaces.TaskPreKillRequest, resp *interfaces.TaskPreKillResponse) error {
+func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKillRequest, resp *interfaces.TaskPreKillResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 

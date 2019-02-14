@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -468,7 +471,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	}
 
 	// No shutdown escape hatch for this delay, so don't set it too high
-	task.ShutdownDelay = 500 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
+	task.ShutdownDelay = 1000 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	defer cleanup()
@@ -765,6 +768,247 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 
 	require.Equal(t, structs.TaskStateDead, state.State)
 	require.True(t, state.Failed, pretty.Sprint(state))
+}
+
+// TestTaskRunner_BlockForVault asserts tasks do not start until a vault token
+// is derived.
+func TestTaskRunner_BlockForVault(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Control when we get a Vault token
+	token := "1234"
+	waitCh := make(chan struct{})
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		<-waitCh
+		return map[string]string{task.Name: token}, nil
+	}
+	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vaultClient.DeriveTokenFn = handler
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Assert TR blocks on vault token (does *not* exit)
+	select {
+	case <-tr.WaitCh():
+		require.Fail(t, "tr exited before vault unblocked")
+	case <-time.After(1 * time.Second):
+	}
+
+	// Assert task state is still Pending
+	require.Equal(t, structs.TaskStatePending, tr.TaskState().State)
+
+	// Unblock vault token
+	close(waitCh)
+
+	// TR should exit now that it's unblocked by vault as its a batch job
+	// with 0 sleeping.
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
+		require.Fail(t, "timed out waiting for batch task to exit")
+	}
+
+	// Assert task exited successfully
+	finalState := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, finalState.State)
+	require.False(t, finalState.Failed)
+
+	// Check that the token is on disk
+	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	require.NoError(t, err)
+	require.Equal(t, token, string(data))
+
+	// Check the token was revoked
+	testutil.WaitForResult(func() (bool, error) {
+		if len(vaultClient.StoppedTokens()) != 1 {
+			return false, fmt.Errorf("Expected a stopped token %q but found: %v", token, vaultClient.StoppedTokens())
+		}
+
+		if a := vaultClient.StoppedTokens()[0]; a != token {
+			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
+		}
+		return true, nil
+	}, func(err error) {
+		require.Fail(t, err.Error())
+	})
+}
+
+// TestTaskRunner_DeriveToken_Retry asserts that if a recoverable error is
+// returned when deriving a vault token a task will continue to block while
+// it's retried.
+func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
+	t.Parallel()
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Fail on the first attempt to derive a vault token
+	token := "1234"
+	count := 0
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		if count > 0 {
+			return map[string]string{task.Name: token}, nil
+		}
+
+		count++
+		return nil, structs.NewRecoverableError(fmt.Errorf("Want a retry"), true)
+	}
+	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vaultClient.DeriveTokenFn = handler
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Wait for TR to exit and check its state
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task runner to exit")
+	}
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.False(t, state.Failed)
+
+	require.Equal(t, 1, count)
+
+	// Check that the token is on disk
+	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	require.NoError(t, err)
+	require.Equal(t, token, string(data))
+
+	// Check the token was revoked
+	testutil.WaitForResult(func() (bool, error) {
+		if len(vaultClient.StoppedTokens()) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", vaultClient.StoppedTokens())
+		}
+
+		if a := vaultClient.StoppedTokens()[0]; a != token {
+			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
+		}
+		return true, nil
+	}, func(err error) {
+		require.Fail(t, err.Error())
+	})
+}
+
+// TestTaskRunner_DeriveToken_Unrecoverable asserts that an unrecoverable error
+// from deriving a vault token will fail a task.
+func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
+	t.Parallel()
+
+	// Use a batch job with no restarts
+	alloc := mock.BatchAlloc()
+	tg := alloc.Job.TaskGroups[0]
+	tg.RestartPolicy.Attempts = 0
+	tg.RestartPolicy.Interval = 0
+	tg.RestartPolicy.Delay = 0
+	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
+	task := tg.Tasks[0]
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Error the token derivation
+	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vaultClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, fmt.Errorf("Non recoverable"))
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Wait for the task to die
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task runner to fail")
+	}
+
+	// Task should be dead and last event should have failed task
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.True(t, state.Failed)
+	require.Len(t, state.Events, 3)
+	require.True(t, state.Events[2].FailsTask)
+}
+
+// TestTaskRunner_Download_List asserts that multiple artificats are downloaded
+// before a task is run.
+func TestTaskRunner_Download_List(t *testing.T) {
+	t.Parallel()
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))
+	defer ts.Close()
+
+	// Create an allocation that has a task with a list of artifacts.
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	f1 := "task_runner_test.go"
+	f2 := "task_runner.go"
+	artifact1 := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f1),
+	}
+	artifact2 := structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, f2),
+	}
+	task.Artifacts = []*structs.TaskArtifact{&artifact1, &artifact2}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Wait for task to run and exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task runner to exit")
+	}
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.False(t, state.Failed)
+
+	require.Len(t, state.Events, 5)
+	assert.Equal(t, structs.TaskReceived, state.Events[0].Type)
+	assert.Equal(t, structs.TaskSetup, state.Events[1].Type)
+	assert.Equal(t, structs.TaskDownloadingArtifacts, state.Events[2].Type)
+	assert.Equal(t, structs.TaskStarted, state.Events[3].Type)
+	assert.Equal(t, structs.TaskTerminated, state.Events[4].Type)
+
+	// Check that both files exist.
+	_, err = os.Stat(filepath.Join(conf.TaskDir.Dir, f1))
+	require.NoErrorf(t, err, "%v not downloaded", f1)
+
+	_, err = os.Stat(filepath.Join(conf.TaskDir.Dir, f2))
+	require.NoErrorf(t, err, "%v not downloaded", f2)
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
