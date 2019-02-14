@@ -41,6 +41,34 @@ func TestConfig_ParseHCL(t *testing.T) {
 	}
 }
 
+func TestConfig_ParseJSON_Regression(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected TaskConfig
+	}{
+		{
+			name:  "nil values for blocks are safe",
+			input: `{"Config": {"image": "bash:3", "mounts": null}}`,
+			expected: TaskConfig{
+				Image:   "bash:3",
+				Mounts:  []DockerMount{},
+				Devices: []DockerDevice{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			var tc TaskConfig
+			hclutils.NewConfigParser(taskConfigSpec).ParseJson(t, c.input, &tc)
+
+			require.Equal(t, c.expected, tc)
+		})
+	}
+}
+
 func TestConfig_ParseAllHCL(t *testing.T) {
 	cfgStr := `
 config {
