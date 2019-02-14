@@ -478,6 +478,44 @@ func (s *BlockListSpec) decode(content *hcl.BodyContent, blockLabels []blockLabe
 	if len(elems) == 0 {
 		ret = cty.ListValEmpty(s.Nested.impliedType())
 	} else {
+		// Since our target is a list, all of the decoded elements must have the
+		// same type or cty.ListVal will panic below. Different types can arise
+		// if there is an attribute spec of type cty.DynamicPseudoType in the
+		// nested spec; all given values must be convertable to a single type
+		// in order for the result to be considered valid.
+		etys := make([]cty.Type, len(elems))
+		for i, v := range elems {
+			etys[i] = v.Type()
+		}
+		ety, convs := convert.UnifyUnsafe(etys)
+		if ety == cty.NilType {
+			// FIXME: This is a pretty terrible error message.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Unconsistent argument types in %s blocks", s.TypeName),
+				Detail:   "Corresponding attributes in all blocks of this type must be the same.",
+				Subject:  &sourceRanges[0],
+			})
+			return cty.DynamicVal, diags
+		}
+		for i, v := range elems {
+			if convs[i] != nil {
+				newV, err := convs[i](v)
+				if err != nil {
+					// FIXME: This is a pretty terrible error message.
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  fmt.Sprintf("Unconsistent argument types in %s blocks", s.TypeName),
+						Detail:   fmt.Sprintf("Block with index %d has inconsistent argument types: %s.", i, err),
+						Subject:  &sourceRanges[i],
+					})
+					// Bail early here so we won't panic below in cty.ListVal
+					return cty.DynamicVal, diags
+				}
+				elems[i] = newV
+			}
+		}
+
 		ret = cty.ListVal(elems)
 	}
 
@@ -489,6 +527,127 @@ func (s *BlockListSpec) impliedType() cty.Type {
 }
 
 func (s *BlockListSpec) sourceRange(content *hcl.BodyContent, blockLabels []blockLabel) hcl.Range {
+	// We return the source range of the _first_ block of the given type,
+	// since they are not guaranteed to form a contiguous range.
+
+	var childBlock *hcl.Block
+	for _, candidate := range content.Blocks {
+		if candidate.Type != s.TypeName {
+			continue
+		}
+
+		childBlock = candidate
+		break
+	}
+
+	if childBlock == nil {
+		return content.MissingItemRange
+	}
+
+	return sourceRange(childBlock.Body, labelsForBlock(childBlock), s.Nested)
+}
+
+// A BlockTupleSpec is a Spec that produces a cty tuple of the results of
+// decoding all of the nested blocks of a given type, using a nested spec.
+//
+// This is similar to BlockListSpec, but it permits the nested blocks to have
+// different result types in situations where cty.DynamicPseudoType attributes
+// are present.
+type BlockTupleSpec struct {
+	TypeName string
+	Nested   Spec
+	MinItems int
+	MaxItems int
+}
+
+func (s *BlockTupleSpec) visitSameBodyChildren(cb visitFunc) {
+	// leaf node ("Nested" does not use the same body)
+}
+
+// blockSpec implementation
+func (s *BlockTupleSpec) blockHeaderSchemata() []hcl.BlockHeaderSchema {
+	return []hcl.BlockHeaderSchema{
+		{
+			Type:       s.TypeName,
+			LabelNames: findLabelSpecs(s.Nested),
+		},
+	}
+}
+
+// blockSpec implementation
+func (s *BlockTupleSpec) nestedSpec() Spec {
+	return s.Nested
+}
+
+// specNeedingVariables implementation
+func (s *BlockTupleSpec) variablesNeeded(content *hcl.BodyContent) []hcl.Traversal {
+	var ret []hcl.Traversal
+
+	for _, childBlock := range content.Blocks {
+		if childBlock.Type != s.TypeName {
+			continue
+		}
+
+		ret = append(ret, Variables(childBlock.Body, s.Nested)...)
+	}
+
+	return ret
+}
+
+func (s *BlockTupleSpec) decode(content *hcl.BodyContent, blockLabels []blockLabel, ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	if s.Nested == nil {
+		panic("BlockListSpec with no Nested Spec")
+	}
+
+	var elems []cty.Value
+	var sourceRanges []hcl.Range
+	for _, childBlock := range content.Blocks {
+		if childBlock.Type != s.TypeName {
+			continue
+		}
+
+		val, _, childDiags := decode(childBlock.Body, labelsForBlock(childBlock), ctx, s.Nested, false)
+		diags = append(diags, childDiags...)
+		elems = append(elems, val)
+		sourceRanges = append(sourceRanges, sourceRange(childBlock.Body, labelsForBlock(childBlock), s.Nested))
+	}
+
+	if len(elems) < s.MinItems {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Insufficient %s blocks", s.TypeName),
+			Detail:   fmt.Sprintf("At least %d %q blocks are required.", s.MinItems, s.TypeName),
+			Subject:  &content.MissingItemRange,
+		})
+	} else if s.MaxItems > 0 && len(elems) > s.MaxItems {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Too many %s blocks", s.TypeName),
+			Detail:   fmt.Sprintf("No more than %d %q blocks are allowed", s.MaxItems, s.TypeName),
+			Subject:  &sourceRanges[s.MaxItems],
+		})
+	}
+
+	var ret cty.Value
+
+	if len(elems) == 0 {
+		ret = cty.EmptyTupleVal
+	} else {
+		ret = cty.TupleVal(elems)
+	}
+
+	return ret, diags
+}
+
+func (s *BlockTupleSpec) impliedType() cty.Type {
+	// We can't predict our type, because we don't know how many blocks
+	// there will be until we decode.
+	return cty.DynamicPseudoType
+}
+
+func (s *BlockTupleSpec) sourceRange(content *hcl.BodyContent, blockLabels []blockLabel) hcl.Range {
 	// We return the source range of the _first_ block of the given type,
 	// since they are not guaranteed to form a contiguous range.
 
@@ -593,6 +752,44 @@ func (s *BlockSetSpec) decode(content *hcl.BodyContent, blockLabels []blockLabel
 	if len(elems) == 0 {
 		ret = cty.SetValEmpty(s.Nested.impliedType())
 	} else {
+		// Since our target is a set, all of the decoded elements must have the
+		// same type or cty.SetVal will panic below. Different types can arise
+		// if there is an attribute spec of type cty.DynamicPseudoType in the
+		// nested spec; all given values must be convertable to a single type
+		// in order for the result to be considered valid.
+		etys := make([]cty.Type, len(elems))
+		for i, v := range elems {
+			etys[i] = v.Type()
+		}
+		ety, convs := convert.UnifyUnsafe(etys)
+		if ety == cty.NilType {
+			// FIXME: This is a pretty terrible error message.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Unconsistent argument types in %s blocks", s.TypeName),
+				Detail:   "Corresponding attributes in all blocks of this type must be the same.",
+				Subject:  &sourceRanges[0],
+			})
+			return cty.DynamicVal, diags
+		}
+		for i, v := range elems {
+			if convs[i] != nil {
+				newV, err := convs[i](v)
+				if err != nil {
+					// FIXME: This is a pretty terrible error message.
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  fmt.Sprintf("Unconsistent argument types in %s blocks", s.TypeName),
+						Detail:   fmt.Sprintf("Block with index %d has inconsistent argument types: %s.", i, err),
+						Subject:  &sourceRanges[i],
+					})
+					// Bail early here so we won't panic below in cty.ListVal
+					return cty.DynamicVal, diags
+				}
+				elems[i] = newV
+			}
+		}
+
 		ret = cty.SetVal(elems)
 	}
 
@@ -673,7 +870,10 @@ func (s *BlockMapSpec) decode(content *hcl.BodyContent, blockLabels []blockLabel
 	var diags hcl.Diagnostics
 
 	if s.Nested == nil {
-		panic("BlockSetSpec with no Nested Spec")
+		panic("BlockMapSpec with no Nested Spec")
+	}
+	if ImpliedType(s).HasDynamicTypes() {
+		panic("cty.DynamicPseudoType attributes may not be used inside a BlockMapSpec")
 	}
 
 	elems := map[string]interface{}{}
@@ -746,6 +946,150 @@ func (s *BlockMapSpec) impliedType() cty.Type {
 }
 
 func (s *BlockMapSpec) sourceRange(content *hcl.BodyContent, blockLabels []blockLabel) hcl.Range {
+	// We return the source range of the _first_ block of the given type,
+	// since they are not guaranteed to form a contiguous range.
+
+	var childBlock *hcl.Block
+	for _, candidate := range content.Blocks {
+		if candidate.Type != s.TypeName {
+			continue
+		}
+
+		childBlock = candidate
+		break
+	}
+
+	if childBlock == nil {
+		return content.MissingItemRange
+	}
+
+	return sourceRange(childBlock.Body, labelsForBlock(childBlock), s.Nested)
+}
+
+// A BlockObjectSpec is a Spec that produces a cty object of the results of
+// decoding all of the nested blocks of a given type, using a nested spec.
+//
+// One level of object structure is created for each of the given label names.
+// There must be at least one given label name.
+//
+// This is similar to BlockMapSpec, but it permits the nested blocks to have
+// different result types in situations where cty.DynamicPseudoType attributes
+// are present.
+type BlockObjectSpec struct {
+	TypeName   string
+	LabelNames []string
+	Nested     Spec
+}
+
+func (s *BlockObjectSpec) visitSameBodyChildren(cb visitFunc) {
+	// leaf node ("Nested" does not use the same body)
+}
+
+// blockSpec implementation
+func (s *BlockObjectSpec) blockHeaderSchemata() []hcl.BlockHeaderSchema {
+	return []hcl.BlockHeaderSchema{
+		{
+			Type:       s.TypeName,
+			LabelNames: append(s.LabelNames, findLabelSpecs(s.Nested)...),
+		},
+	}
+}
+
+// blockSpec implementation
+func (s *BlockObjectSpec) nestedSpec() Spec {
+	return s.Nested
+}
+
+// specNeedingVariables implementation
+func (s *BlockObjectSpec) variablesNeeded(content *hcl.BodyContent) []hcl.Traversal {
+	var ret []hcl.Traversal
+
+	for _, childBlock := range content.Blocks {
+		if childBlock.Type != s.TypeName {
+			continue
+		}
+
+		ret = append(ret, Variables(childBlock.Body, s.Nested)...)
+	}
+
+	return ret
+}
+
+func (s *BlockObjectSpec) decode(content *hcl.BodyContent, blockLabels []blockLabel, ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	if s.Nested == nil {
+		panic("BlockObjectSpec with no Nested Spec")
+	}
+
+	elems := map[string]interface{}{}
+	for _, childBlock := range content.Blocks {
+		if childBlock.Type != s.TypeName {
+			continue
+		}
+
+		childLabels := labelsForBlock(childBlock)
+		val, _, childDiags := decode(childBlock.Body, childLabels[len(s.LabelNames):], ctx, s.Nested, false)
+		targetMap := elems
+		for _, key := range childBlock.Labels[:len(s.LabelNames)-1] {
+			if _, exists := targetMap[key]; !exists {
+				targetMap[key] = make(map[string]interface{})
+			}
+			targetMap = targetMap[key].(map[string]interface{})
+		}
+
+		diags = append(diags, childDiags...)
+
+		key := childBlock.Labels[len(s.LabelNames)-1]
+		if _, exists := targetMap[key]; exists {
+			labelsBuf := bytes.Buffer{}
+			for _, label := range childBlock.Labels {
+				fmt.Fprintf(&labelsBuf, " %q", label)
+			}
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicate %s block", s.TypeName),
+				Detail: fmt.Sprintf(
+					"A block for %s%s was already defined. The %s labels must be unique.",
+					s.TypeName, labelsBuf.String(), s.TypeName,
+				),
+				Subject: &childBlock.DefRange,
+			})
+			continue
+		}
+
+		targetMap[key] = val
+	}
+
+	if len(elems) == 0 {
+		return cty.EmptyObjectVal, diags
+	}
+
+	var ctyObj func(map[string]interface{}, int) cty.Value
+	ctyObj = func(raw map[string]interface{}, depth int) cty.Value {
+		vals := make(map[string]cty.Value, len(raw))
+		if depth == 1 {
+			for k, v := range raw {
+				vals[k] = v.(cty.Value)
+			}
+		} else {
+			for k, v := range raw {
+				vals[k] = ctyObj(v.(map[string]interface{}), depth-1)
+			}
+		}
+		return cty.ObjectVal(vals)
+	}
+
+	return ctyObj(elems, len(s.LabelNames)), diags
+}
+
+func (s *BlockObjectSpec) impliedType() cty.Type {
+	// We can't predict our type, since we don't know how many blocks are
+	// present and what labels they have until we decode.
+	return cty.DynamicPseudoType
+}
+
+func (s *BlockObjectSpec) sourceRange(content *hcl.BodyContent, blockLabels []blockLabel) hcl.Range {
 	// We return the source range of the _first_ block of the given type,
 	// since they are not guaranteed to form a contiguous range.
 
