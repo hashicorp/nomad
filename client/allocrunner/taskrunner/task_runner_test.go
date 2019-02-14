@@ -817,7 +817,7 @@ func TestTaskRunner_BlockForVault(t *testing.T) {
 	// with 0 sleeping.
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
 		require.Fail(t, "timed out waiting for batch task to exit")
 	}
 
