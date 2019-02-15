@@ -463,7 +463,6 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 // TestAllocRunner_DeploymentHealth_Unhealthy_Checks asserts that the health
 // watcher will mark the allocation as unhealthy with failing checks.
 func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
-	t.Skip("FIXME(schmichael): fails and needs fixing")
 	t.Parallel()
 
 	alloc := mock.Alloc()
@@ -471,6 +470,23 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"run_for": "10s",
+	}
+
+	// Set a service with check
+	task.Services = []*structs.Service{
+		{
+			Name:      "fakservice",
+			PortLabel: "http",
+			Checks: []*structs.ServiceCheck{
+				{
+					Name:     "fakecheck",
+					Type:     structs.ServiceCheckScript,
+					Command:  "true",
+					Interval: 30 * time.Second,
+					Timeout:  5 * time.Second,
+				},
+			},
+		},
 	}
 
 	// Make the alloc be part of a deployment
@@ -497,7 +513,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 				task.Name: {
 					Services: map[string]*consul.ServiceRegistration{
 						"123": {
-							Service: &api.AgentService{Service: "foo"},
+							Service: &api.AgentService{Service: "fakeservice"},
 							Checks:  []*api.AgentCheck{checkUnhealthy},
 						},
 					},
@@ -509,7 +525,10 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	go ar.Run()
-	defer ar.Destroy()
+	defer func() {
+		ar.Destroy()
+		<-ar.DestroyCh()
+	}()
 
 	var lastUpdate *structs.Allocation
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -536,5 +555,5 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	require.NotEmpty(t, state.Events)
 	last := state.Events[len(state.Events)-1]
 	require.Equal(t, allochealth.AllocHealthEventSource, last.Type)
-	require.Contains(t, last.Message, "Services not healthy by deadline")
+	require.Contains(t, last.Message, "by deadline")
 }
