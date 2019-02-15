@@ -124,6 +124,7 @@ type AllocRunner interface {
 	DestroyCh() <-chan struct{}
 	ShutdownCh() <-chan struct{}
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
+	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
 }
 
 // Client is used to implement the client interaction with Nomad. Clients

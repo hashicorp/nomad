@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"io"
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -59,6 +60,11 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 		return nil, 0, err
 	}
 	return res.Stdout, res.ExitResult.ExitCode, res.ExitResult.Err
+}
+
+func (h *DriverHandle) ExecStreaming(ctx context.Context, execOpts drivers.ExecOptions,
+	stdin io.Reader, stdout, stderr io.Writer, resizeCh <-chan drivers.TerminalSize) (*drivers.ExitResult, error) {
+	return h.driver.ExecTaskStreaming(ctx, h.taskID, execOpts, stdin, stdout, stderr, resizeCh)
 }
 
 func (h *DriverHandle) Network() *drivers.DriverNetwork {
