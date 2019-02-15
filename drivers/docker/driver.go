@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -1200,6 +1201,70 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 	defer cancel()
 
 	return h.Exec(ctx, cmd[0], cmd[1:])
+}
+
+func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts drivers.ExecOptions,
+	stdin io.Reader, stdout, stderr io.Writer, resizeCh <-chan drivers.TerminalSize) (*drivers.ExitResult, error) {
+
+	d.logger.Info("exectaskstreaming is called")
+
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, drivers.ErrTaskNotFound
+	}
+
+	if len(execOpts.Command) == 0 {
+		return nil, fmt.Errorf("cmd is required but was empty")
+	}
+
+	createExecOpts := docker.CreateExecOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          execOpts.Tty,
+		Cmd:          execOpts.Command,
+		Container:    h.containerID,
+		Context:      ctx,
+	}
+	exec, err := h.client.CreateExec(createExecOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exec object: %v", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				d.logger.Info("delect resize ctx is done")
+				return
+			case s := <-resizeCh:
+				d.logger.Info("delect resize", "size", s)
+				client.ResizeExecTTY(exec.ID, int(s.Height), int(s.Width))
+			}
+		}
+	}()
+
+	startOpts := docker.StartExecOptions{
+		Detach:       false,
+		Tty:          execOpts.Tty,
+		RawTerminal:  execOpts.Tty,
+		InputStream:  stdin,
+		OutputStream: stdout,
+		ErrorStream:  stderr,
+		Context:      ctx,
+	}
+	if err := client.StartExec(exec.ID, startOpts); err != nil {
+		return nil, fmt.Errorf("failed to start exec: %v", err)
+	}
+
+	res, err := client.InspectExec(exec.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect exec result: %v", err)
+	}
+
+	return &drivers.ExitResult{
+		ExitCode: res.ExitCode,
+	}, nil
 }
 
 // dockerClients creates two *docker.Client, one for long running operations and

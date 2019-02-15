@@ -3,6 +3,7 @@ package drivermanager
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
@@ -28,6 +29,9 @@ type Manager interface {
 	// handling reattaching to an existing driver if available
 	Dispense(driver string) (drivers.DriverPlugin, error)
 }
+
+type TaskExecHandler func(ctx context.Context, execOpts drivers.ExecOptions,
+	stdin io.Reader, stdout, stderr io.Writer, resizeCh <-chan drivers.TerminalSize) (*drivers.ExitResult, error)
 
 // EventHandler is a callback to be called for a task.
 // The handler should not block execution.

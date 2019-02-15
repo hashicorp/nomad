@@ -1229,3 +1229,7 @@ func appendTaskEvent(state *structs.TaskState, event *structs.TaskEvent, capacit
 
 	state.Events = append(state.Events, event)
 }
+
+func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
+	return tr.getDriverHandle().ExecStreaming
+}
