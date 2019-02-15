@@ -132,6 +132,8 @@ type AllocRunner interface {
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartAll(taskEvent *structs.TaskEvent) error
+
+	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
 }
 
 // Client is used to implement the client interaction with Nomad. Clients

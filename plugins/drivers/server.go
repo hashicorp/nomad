@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -275,6 +276,93 @@ func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRe
 	}
 
 	return resp, nil
+}
+
+func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStreamingServer) error {
+	// first received message should always be message
+	msg, err := server.Recv()
+	if msg.Setup != nil {
+		return errors.New("first message should always be setup")
+	}
+
+	inReader, inWriter := io.Pipe()
+	outReader, outWriter := io.Pipe()
+	errReader, errWriter := io.Pipe()
+	resize := make(chan TerminalSize, 2)
+
+	// go routines for managing output
+	go func() {
+		bytes := make([]byte, 1024)
+		typ := proto.ExecTaskStreamingResponse_Output_STDOUT
+
+		for {
+
+			n, err := outReader.Read(bytes)
+			if err != nil {
+				return
+			}
+
+			server.Send(&proto.ExecTaskStreamingResponse{
+				Output: &proto.ExecTaskStreamingResponse_Output{
+					Type:  typ,
+					Value: bytes[:n],
+				},
+			})
+		}
+	}()
+	go func() {
+		bytes := make([]byte, 1024)
+		typ := proto.ExecTaskStreamingResponse_Output_STDERR
+
+		for {
+
+			n, err := errReader.Read(bytes)
+			if err != nil {
+				return
+			}
+
+			server.Send(&proto.ExecTaskStreamingResponse{
+				Output: &proto.ExecTaskStreamingResponse_Output{
+					Type:  typ,
+					Value: bytes[:n],
+				},
+			})
+		}
+	}()
+
+	for {
+		msg, err = server.Recv()
+		if err != nil {
+			return err
+		}
+
+		switch {
+		case msg.Resize != nil:
+			resize <- TerminalSize{
+				Height: int(msg.Resize.Height),
+				Width:  int(msg.Resize.Width),
+			}
+		case msg.Input != nil:
+			inWriter.Write(msg.Input.Value)
+		}
+	}
+
+	result, err := b.impl.ExecTaskStreaming(server.Context(),
+		msg.Setup.TaskId, ExecOptions{
+			Command: msg.Setup.Command,
+			Tty:     msg.Setup.Tty,
+		},
+		inReader, outWriter, errWriter, resize)
+
+	if err != nil {
+		return err
+	}
+
+	err = server.Send(&proto.ExecTaskStreamingResponse{
+		Result: exitResultToProto(result),
+	})
+
+	return err
 }
 
 func (b *driverPluginServer) SignalTask(ctx context.Context, req *proto.SignalTaskRequest) (*proto.SignalTaskResponse, error) {

@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
+	framer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -316,6 +318,27 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	return s.fsStreamImpl(resp, req, "FileSystem.Logs", fsReq, fsReq.AllocID)
 }
 
+func (s *HTTPServer) myCopy(encoder *codec.Encoder, reader io.Reader) {
+	if reader == nil {
+		return
+	}
+
+	decoder := json.NewDecoder(reader)
+
+	var sf framer.StreamFrame
+	for {
+		err := decoder.Decode(&sf)
+		if err != nil {
+			fmt.Printf("giving up")
+			return
+		}
+		err = encoder.Encode(sf)
+		if err != nil {
+			fmt.Printf("error encoding %#v", err)
+		}
+	}
+}
+
 // fsStreamImpl is used to make a streaming filesystem call that serializes the
 // args and then expects a stream of StreamErrWrapper results where the payload
 // is copied to the response body.
@@ -363,6 +386,8 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			errCh <- CodedError(500, err.Error())
 			return
 		}
+
+		go s.myCopy(encoder, req.Body)
 
 		for {
 			select {
