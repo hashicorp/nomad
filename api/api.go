@@ -655,6 +655,23 @@ func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, erro
 	return resp.Body, nil
 }
 
+// rawPostQuery makes a POST request to the specified endpoint but returns just the
+// response body.
+func (c *Client) rawPostQuery(endpoint string, body io.Reader, q *QueryOptions) (io.ReadCloser, error) {
+	r, err := c.newRequest("POST", endpoint)
+	if err != nil {
+		return nil, err
+	}
+	r.setQueryOptions(q)
+	r.body = body
+	_, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
+}
+
 // query is used to do a GET request against an endpoint
 // and deserialize the response into an interface using
 // standard Nomad conventions.

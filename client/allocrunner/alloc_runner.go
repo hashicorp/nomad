@@ -989,3 +989,12 @@ func (ar *allocRunner) Signal(taskName, signal string) error {
 
 	return err.ErrorOrNil()
 }
+
+func (ar *allocRunner) GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler {
+	tr, ok := ar.tasks[taskName]
+	if !ok {
+		return nil
+	}
+
+	return tr.TaskExecHandler()
+}
