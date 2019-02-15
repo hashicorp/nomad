@@ -217,7 +217,7 @@ func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
 	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
-	c.endpoints.Allocations = &Allocations{c}
+	c.endpoints.Allocations = NewAllocationsEndpoint(c)
 
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()

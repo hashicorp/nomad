@@ -1,8 +1,12 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -61,6 +65,134 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 	return &resp, qm, nil
 }
 
+func (a *Allocations) Exec(alloc *Allocation, task string, tty bool, command []string,
+	input io.Reader, cancel <-chan struct{},
+	terminalSizeCh <-chan TerminalSize,
+	q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+	errCh := make(chan error, 1)
+
+	nodeClient, err := a.client.GetNodeClientWithTimeout(alloc.NodeID, ClientConnTimeout, q)
+	if err != nil {
+		errCh <- err
+		return nil, errCh
+	}
+
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
+	commandBytes, err := json.Marshal(command)
+	if err != nil {
+		errCh <- fmt.Errorf("failed to marshal command: %s", err)
+		return nil, errCh
+	}
+
+	q.Params["tty"] = strconv.FormatBool(tty)
+	q.Params["task"] = task
+	q.Params["command"] = string(commandBytes)
+
+	reqPath := fmt.Sprintf("/v1/client/allocation/%s/exec", alloc.ID)
+
+	pr, pw := io.Pipe()
+	enc := json.NewEncoder(pw)
+
+	r, err := nodeClient.rawPostQuery(reqPath, pr, q)
+	if err != nil {
+		// There was a networking error when talking directly to the client.
+		if _, ok := err.(net.Error); !ok {
+			errCh <- err
+			return nil, errCh
+		}
+
+		// Try via the server
+		r, err = a.client.rawQuery(reqPath, q)
+		if err != nil {
+			errCh <- err
+			return nil, errCh
+		}
+	}
+
+	go func() {
+		for s := range terminalSizeCh {
+			sj, err := json.Marshal(s)
+			if err != nil {
+				errCh <- err
+				return
+			}
+			frame := StreamFrame{
+				Data:      sj,
+				FileEvent: "resize",
+				File:      "resize",
+			}
+
+			enc.Encode(frame)
+		}
+	}()
+
+	go func() {
+		bytes := make([]byte, 1024)
+
+		for {
+			n, err := input.Read(bytes)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			frame := StreamFrame{
+				Data: bytes[:n],
+				File: "stdin",
+			}
+
+			enc.Encode(frame)
+		}
+	}()
+
+	// Create the output channel
+	frames := make(chan *StreamFrame, 10)
+
+	go func() {
+		// Close the body
+		defer r.Close()
+
+		// Create a decoder
+		dec := json.NewDecoder(r)
+
+		for {
+			// Check if we have been cancelled
+			select {
+			case <-cancel:
+				return
+			default:
+			}
+
+			// Decode the next frame
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				if err == io.EOF || err == io.ErrClosedPipe {
+					close(frames)
+				} else {
+					errCh <- err
+				}
+				return
+			}
+
+			// Discard heartbeat frames
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			frames <- &frame
+		}
+	}()
+
+	return frames, errCh
+
+}
+
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
 	var resp AllocResourceUsage
 	path := fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID)
@@ -87,6 +219,11 @@ func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOption
 	var resp struct{}
 	_, err := a.client.putQuery("/v1/client/allocation/"+alloc.ID+"/restart", &req, &resp, q)
 	return err
+}
+
+type TerminalSize struct {
+	Height int32
+	Width  int32
 }
 
 // Allocation is used for serialization of allocations.

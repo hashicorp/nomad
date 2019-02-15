@@ -93,6 +93,8 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	switch tokens[1] {
 	case "stats":
 		return s.allocStats(allocID, resp, req)
+	case "exec":
+		return s.allocExec(allocID, resp, req)
 	case "snapshot":
 		if s.agent.client == nil {
 			return nil, clientNotRunning
@@ -269,4 +271,24 @@ func (s *HTTPServer) allocStats(allocID string, resp http.ResponseWriter, req *h
 	}
 
 	return reply.Stats, rpcErr
+}
+
+func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	// Build the request and parse the ACL token
+	task := req.URL.Query().Get("task")
+	cmdJsonStr := req.URL.Query().Get("command")
+	var command []string
+	json.Unmarshal([]byte(cmdJsonStr), &command)
+
+	tty := req.URL.Query().Get("tty")
+	args := cstructs.AllocExecRequest{
+		AllocID: allocID,
+		Task:    task,
+		Cmd:     command,
+		Tty:     tty == "true",
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	return s.fsStreamImpl(resp, req, "Allocations.Exec", args, args.AllocID)
 }

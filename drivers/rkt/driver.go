@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"net"
@@ -889,6 +891,11 @@ func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration
 		},
 	}, nil
 
+}
+
+func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts drivers.ExecOptions,
+	stdin io.Reader, stdout, stderr io.Writer, resizeCh <-chan drivers.TerminalSize) (*drivers.ExitResult, error) {
+	return nil, errors.New("not supported")
 }
 
 // GetAbsolutePath returns the absolute path of the passed binary by resolving
