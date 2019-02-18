@@ -2,6 +2,7 @@ package docklog
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -63,12 +64,12 @@ func ReattachDockerLogger(reattachCfg *plugin.ReattachConfig) (DockerLogger, *pl
 
 	rpcClient, err := client.Client()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Failed to get rpc Client: %v", err)
 	}
 
 	raw, err := rpcClient.Dispense(PluginName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Failed to dispense plugin: %v", err)
 	}
 
 	l := raw.(DockerLogger)

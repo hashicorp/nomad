@@ -150,7 +150,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 			d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
 		}
 
-		return fmt.Errorf("failed to reattach to docker logger process")
+		return fmt.Errorf("failed to reattach to docker logger process: %v", err)
 	}
 
 	h := &taskHandle{
