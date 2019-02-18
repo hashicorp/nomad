@@ -145,6 +145,11 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 
 	dlogger, dloggerPluginClient, err := docklog.ReattachDockerLogger(reattach)
 	if err != nil {
+		d.logger.Error("Failed to reconnect to docker logger, stopping container", "container_id", handleState.ContainerID)
+		if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+			d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+		}
+
 		return fmt.Errorf("failed to reattach to docker logger process")
 	}
 
