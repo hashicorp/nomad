@@ -20,57 +20,17 @@ documentation.
 - Nomad [LXC][lxc-docs] external driver documentation
 - Nomad LXC external driver [repo][lxc-driver-repo]
 
-## Estimated Time to Complete
-
-20 minutes
-
-## Challenge
-
-You need to deploy a workload using [Linux Containers][linux-containers-home].
-Configure the client nodes that need to run this workload appropriately. You
-will also need to install the `lxc-templates` package which will provide the
-templates needed to start your containers.
-
-## Solution
-
-Install and configure the LXC external driver plugin. Verify the configuration
-on the client node and deploy the application.
-
-## Prerequisites
-
-To perform the tasks described in this guide, you need to have a Nomad
-environment with Consul installed. You can use this
-[repo](https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud)
-to easily provision a sandbox environment. This guide will assume a cluster with
-one server node and one client node.
-
--> **Please Note:** This guide is for demo purposes and is only using a single
-server node. In a production cluster, 3 or 5 server nodes are recommended.
-
 ## Steps
 
 ### Step 1: Verify Client Node Configuration
 
 External drivers must be placed in the [plugin_dir][plugin_dir] directory which
 defaults to [`data_dir`][data_dir]`/plugins`. Verify the `data_dir` directory on
-the client node configuration. If you are using the environment provided by this
-guide, the client configuration is located at `/etc/nomad.d/nomad.hcl`. The
-configuration file will show you that the `data_dir` directory is
-`/opt/nomad/data`. The relevant snippet of the configuration file is shown
-below:
-
-```shell
-$ cat /etc/nomad.d/nomad.hcl 
-data_dir = "/opt/nomad/data"
-bind_addr = "0.0.0.0"
-...
-```
+the client node configuration. 
 
 ### Step 2: Install the `lxc` and `lxc-templates` Packages
 
-Before we generate a Nomad job file and deploy our workload, we will need to
-install the `lxc` and `lxc-templates` packages which will provide the runtime
-and templates we need to start our container. Run the following command:
+Before deploying an LXC workload, you will need to install the `lxc` and `lxc-templates` packages which will provide the runtime and templates to start your container. Run the following command:
 
 ```shell
 sudo apt install -y lxc lxc-templates
@@ -79,7 +39,7 @@ sudo apt install -y lxc lxc-templates
 ### Step 3: Download and Install the LXC Driver 
 
 Make a directory called `plugins` in [data_dir][data_dir] (which is
-`/opt/nomad/data` in our case) and download/place the [LXC
+`/opt/nomad/data` in the example below) and download/place the [LXC
 driver][lxc_driver_download] in it. The following sequences of commands
 illustrate this process:
 
@@ -136,37 +96,9 @@ Driver Status = docker,exec,java,lxc,mock_driver,raw_exec,rkt
 ...
 ```
 
-### Step 5: Generate a Job File
+### Step 5: Register the Nomad Job
 
-Create a file named `lxc.nomad` and place the following contents in it:
-
-```hcl
-job "example-lxc" {
-  datacenters = ["dc1"]
-  type        = "service"
-
-  group "example" {
-    task "example" {
-      driver = "lxc"
-
-      config {
-        log_level = "trace"
-        verbosity = "verbose"
-        template  = "/usr/share/lxc/templates/lxc-busybox"
-      }
-
-      resources {
-        cpu    = 500
-        memory = 256
-      }
-    }
-  }
-}
-```
-
-### Step 6: Register the Nomad Job
-
-Run the following command to register your Nomad job:
+Register a Nomad job that deploys an LXC workload and confirm the evaluation (you can find and example job [here][lxc-job]):
 
 ```shell
 $ nomad run lxc.nomad
@@ -178,7 +110,7 @@ $ nomad run lxc.nomad
 ==> Evaluation "d8be10f4" finished with status "complete"
 ```
 
-### Step 7: Check the Status of the Job
+### Step 6: Check the Status of the Job
 
 You can run the following command to check the status of the jobs in your
 cluster:
@@ -212,8 +144,6 @@ ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
 4248c82e  81c22a0c  example     0        run      running  6m58s ago  6m47s ago
 ```
 
-## Next Steps
-
 The LXC driver is enabled by default in the client configuration. In order to
 provide additional options to the LXC plugin, add [plugin
 options][lxc_plugin_options] `volumes_enabled` and `lxc_path` for the `lxc`
@@ -235,6 +165,7 @@ plugin "nomad-driver-lxc" {
 [lxc_driver_download]: https://releases.hashicorp.com/nomad-driver-lxc 
 [lxc-driver-repo]: https://github.com/hashicorp/nomad-driver-lxc
 [lxc-docs]: /docs/drivers/external/lxc.html
+[lxc-job]: https://github.com/hashicorp/nomad-education-content/blob/master/lxc.nomad
 [lxc_plugin_options]: /docs/drivers/external/lxc.html#plugin-options
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
 [plugin_syntax]: /docs/configuration/plugin.html
