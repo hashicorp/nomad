@@ -3,6 +3,7 @@ package docklog
 import (
 	"fmt"
 	"io"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
@@ -75,18 +76,45 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancelCtx = cancel
 
+	inactivityTimeout := 5 * time.Minute
+
 	logOpts := docker.LogsOptions{
-		Context:      ctx,
-		Container:    opts.ContainerID,
-		OutputStream: d.stdout,
-		ErrorStream:  d.stderr,
-		Since:        0,
-		Follow:       true,
-		Stdout:       true,
-		Stderr:       true,
+		Context:           ctx,
+		Container:         opts.ContainerID,
+		OutputStream:      d.stdout,
+		ErrorStream:       d.stderr,
+		Since:             0,
+		Follow:            true,
+		Stdout:            true,
+		Stderr:            true,
+		InactivityTimeout: inactivityTimeout,
 	}
 
-	go func() { client.Logs(logOpts) }()
+	go func() {
+		sinceTime := time.Unix(0, 0)
+
+		for {
+			err := client.Logs(logOpts)
+			if err != nil {
+				d.logger.Error("Log streaming ended with error", "error", err)
+			}
+
+			sinceTime = time.Now()
+			if err == docker.ErrInactivityTimeout {
+				sinceTime = sinceTime.Add(-inactivityTimeout)
+			}
+
+			container, err := client.InspectContainer(opts.ContainerID)
+			if err != nil {
+				_, notFoundOk := err.(*docker.NoSuchContainer)
+				if !notFoundOk {
+					return
+				}
+			} else if container.State.Running {
+				continue
+			}
+		}
+	}()
 	return nil
 
 }
