@@ -15,18 +15,19 @@ import (
 	"syscall"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul/lib"
-	checkpoint "github.com/hashicorp/go-checkpoint"
-	discover "github.com/hashicorp/go-discover"
-	gsyslog "github.com/hashicorp/go-syslog"
+	"github.com/hashicorp/go-checkpoint"
+	"github.com/hashicorp/go-discover"
+	"github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
-	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/helper/flag-helpers"
+	"github.com/hashicorp/nomad/helper/gated-writer"
+	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -575,6 +576,12 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 	defer c.agent.Shutdown()
+
+	// After the agent is created we have a logger, so swap out the implementation
+	// of the UI if json logging is enabled
+	if config.LogJson {
+		c.Ui = &logging.HcLogUI{Log: c.agent.logger}
+	}
 
 	// Shutdown the HTTP server at the end
 	defer func() {
