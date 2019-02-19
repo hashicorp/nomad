@@ -29,6 +29,7 @@ func (c *dockerLoggerClient) Start(opts *StartOpts) error {
 
 // Stop proxies the Stop client side func to the protobuf interface
 func (c *dockerLoggerClient) Stop() error {
+	panic("Nobody loves me")
 	req := &proto.StopRequest{}
 	_, err := c.client.Stop(context.Background(), req)
 	return err
