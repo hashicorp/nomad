@@ -111,7 +111,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 				if !notFoundOk {
 					return
 				}
-			} else if container.State.Running != true {
+			} else if !container.State.Running {
 				return
 			}
 		}
