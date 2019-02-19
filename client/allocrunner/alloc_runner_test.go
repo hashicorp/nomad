@@ -2,6 +2,7 @@ package allocrunner
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -16,6 +17,12 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
+
+// destroy does a blocking destroy on an alloc runner
+func destroy(ar *allocRunner) {
+	ar.Destroy()
+	<-ar.DestroyCh()
+}
 
 // TestAllocRunner_AllocState_Initialized asserts that getting TaskStates via
 // AllocState() are initialized even before the AllocRunner has run.
@@ -69,7 +76,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	defer cleanup()
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
-	defer ar.Destroy()
+	defer destroy(ar)
 	go ar.Run()
 
 	// Wait for all tasks to be killed
@@ -162,7 +169,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	defer cleanup()
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
-	defer ar.Destroy()
+	defer destroy(ar)
 	go ar.Run()
 
 	// Wait for tasks to start
@@ -267,7 +274,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	// Create a new AllocRunner to test RestoreState and Run
 	ar2, err := NewAllocRunner(conf)
 	require.NoError(t, err)
-	defer ar2.Destroy()
+	defer destroy(ar2)
 
 	if err := ar2.Restore(); err != nil {
 		t.Fatalf("error restoring state: %v", err)
@@ -377,7 +384,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	go ar.Run()
-	defer ar.Destroy()
+	defer destroy(ar)
 
 	upd := conf.StateUpdater.(*MockStateUpdater)
 	testutil.WaitForResult(func() (bool, error) {
@@ -433,7 +440,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 
 	start, done := time.Now(), time.Time{}
 	go ar.Run()
-	defer ar.Destroy()
+	defer destroy(ar)
 
 	upd := conf.StateUpdater.(*MockStateUpdater)
 	testutil.WaitForResult(func() (bool, error) {
@@ -525,10 +532,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	go ar.Run()
-	defer func() {
-		ar.Destroy()
-		<-ar.DestroyCh()
-	}()
+	defer destroy(ar)
 
 	var lastUpdate *structs.Allocation
 	upd := conf.StateUpdater.(*MockStateUpdater)
@@ -556,4 +560,68 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	last := state.Events[len(state.Events)-1]
 	require.Equal(t, allochealth.AllocHealthEventSource, last.Type)
 	require.Contains(t, last.Message, "by deadline")
+}
+
+// TestAllocRunner_Destroy asserts that Destroy kills and cleans up a running
+// alloc.
+func TestAllocRunner_Destroy(t *testing.T) {
+	t.Parallel()
+
+	// Ensure task takes some time
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config["run_for"] = "10s"
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	// Use a MemDB to assert alloc state gets cleaned up
+	conf.StateDB = state.NewMemDB()
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	go ar.Run()
+
+	// Wait for alloc to be running
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+
+		return state.ClientStatus == structs.AllocClientStatusRunning,
+			fmt.Errorf("got client status %v; want running", state.ClientStatus)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Assert state was stored
+	ls, ts, err := conf.StateDB.GetTaskRunnerState(alloc.ID, task.Name)
+	require.NoError(t, err)
+	require.NotNil(t, ls)
+	require.NotNil(t, ts)
+
+	// Now destroy
+	ar.Destroy()
+
+	select {
+	case <-ar.DestroyCh():
+		// Destroyed properly!
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "timed out waiting for alloc to be destroyed")
+	}
+
+	// Assert alloc is dead
+	state := ar.AllocState()
+	require.Equal(t, structs.AllocClientStatusComplete, state.ClientStatus)
+
+	// Assert the state was cleaned
+	ls, ts, err = conf.StateDB.GetTaskRunnerState(alloc.ID, task.Name)
+	require.NoError(t, err)
+	require.Nil(t, ls)
+	require.Nil(t, ts)
+
+	// Assert the alloc directory was cleaned
+	if _, err := os.Stat(ar.allocDir.AllocDir); err == nil {
+		require.Fail(t, "alloc dir still exists: %v", ar.allocDir.AllocDir)
+	} else if !os.IsNotExist(err) {
+		require.Failf(t, "expected NotExist error", "found %v", err)
+	}
 }
