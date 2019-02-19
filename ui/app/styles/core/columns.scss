@@ -1,13 +1,39 @@
 .columns {
+  &.is-wrappable {
+    flex-wrap: wrap;
+  }
+
   .column {
+    order: 1;
+
     &.is-centered {
       align-self: center;
       justify-self: center;
       text-align: center;
     }
 
+    &.is-right-aligned {
+      text-align: right;
+
+      @include mobile {
+        text-align: left;
+      }
+    }
+
     &.is-minimum {
       flex-grow: 0;
+    }
+
+    &.is-mobile-last {
+      @include mobile {
+        order: 100;
+      }
+    }
+
+    &.no-wrap {
+      @include mobile {
+        min-width: 100%;
+      }
     }
   }
 }

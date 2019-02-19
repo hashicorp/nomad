@@ -2,7 +2,7 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
-    <div class="columns">
+    <div class="columns is-mobile is-wrappable">
       {{#if filteredJobs.length}}
         <div class="column is-one-third">
           {{search-box
@@ -12,8 +12,8 @@
             placeholder="Search jobs..."}}
         </div>
       {{/if}}
-      <div class="column is-centered">
-        <div class="button-bar is-pulled-right">
+      <div class="column is-right-aligned no-wrap is-mobile-last">
+        <div class="button-bar">
           {{multi-select-dropdown
             data-test-type-facet
             label="Type"
@@ -40,7 +40,7 @@
             onSelect=(action setFacetQueryParam "qpPrefix")}}
         </div>
       </div>
-      <div class="column is-minimum is-centered">
+      <div class="column is-minimum">
         {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
       </div>
     </div>
