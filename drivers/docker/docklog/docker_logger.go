@@ -96,7 +96,10 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 			}
 
 			err := client.Logs(logOpts)
-			if err != nil {
+			if ctx.Err() != nil {
+				// If context is terminated then we can safely break the loop
+				return
+			} else if err != nil {
 				d.logger.Error("Log streaming ended with error", "error", err)
 			}
 
