@@ -1,6 +1,7 @@
 package command
 
 import (
+	"os"
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
@@ -25,10 +26,17 @@ func (e *DockerLoggerPluginCommand) Synopsis() string {
 }
 
 func (e *DockerLoggerPluginCommand) Run(args []string) int {
+	f, err := os.Create("/tmp/dockerlogger.out")
+	if err != nil {
+		return 2
+	}
+	defer f.Close()
+
 	logger := log.New(&log.LoggerOptions{
 		Level:      log.Trace,
 		JSONFormat: true,
 		Name:       docklog.PluginName,
+		Output:     f,
 	})
 
 	plugin.Serve(&plugin.ServeConfig{
