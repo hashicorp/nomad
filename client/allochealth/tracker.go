@@ -300,8 +300,8 @@ func (t *Tracker) watchTaskEvents() {
 	}
 }
 
-// watchConsulEvents iis a long lived watcher that watches for the health of the
-// allocation's Consul checks.
+// watchConsulEvents is a long lived watcher for the health of the allocation's
+// Consul checks.
 func (t *Tracker) watchConsulEvents() {
 	// checkTicker is the ticker that triggers us to look at the checks in
 	// Consul
