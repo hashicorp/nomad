@@ -16,6 +16,10 @@ func DockerIsConnected(t *testing.T) bool {
 		return runtime.GOOS == "linux"
 	}
 
+	if testutil.IsAppVeyor() {
+		return runtime.GOOS == "windows"
+	}
+
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
 		return false
