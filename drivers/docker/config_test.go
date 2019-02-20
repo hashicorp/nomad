@@ -69,6 +69,78 @@ func TestConfig_ParseJSON(t *testing.T) {
 	}
 }
 
+func TestConfig_PortMap_Deserialization(t *testing.T) {
+	parser := hclutils.NewConfigParser(taskConfigSpec)
+
+	expectedMap := map[string]int{
+		"ssh":   25,
+		"http":  80,
+		"https": 443,
+	}
+
+	t.Run("parsing hcl block case", func(t *testing.T) {
+		validHCL := `
+config {
+  image = "redis"
+  port_map {
+    ssh   = 25
+    http  = 80
+    https = 443
+  }
+}`
+
+		var tc *TaskConfig
+		parser.ParseHCL(t, validHCL, &tc)
+
+		require.EqualValues(t, expectedMap, tc.PortMap)
+	})
+
+	t.Run("parsing hcl assignment case", func(t *testing.T) {
+		validHCL := `
+config {
+  image = "redis"
+  port_map = {
+    ssh   = 25
+    http  = 80
+    https = 443
+  }
+}`
+
+		var tc *TaskConfig
+		parser.ParseHCL(t, validHCL, &tc)
+
+		require.EqualValues(t, expectedMap, tc.PortMap)
+	})
+
+	validJsons := []struct {
+		name string
+		json string
+	}{
+		{
+			"single map in an array",
+			`{"Config": {"image": "redis", "port_map": [{"ssh": 25, "http": 80, "https": 443}]}}`,
+		},
+		{
+			"array of single map entries",
+			`{"Config": {"image": "redis", "port_map": [{"ssh": 25}, {"http": 80}, {"https": 443}]}}`,
+		},
+		{
+			"array of maps",
+			`{"Config": {"image": "redis", "port_map": [{"ssh": 25, "http": 80}, {"https": 443}]}}`,
+		},
+	}
+
+	for _, c := range validJsons {
+		t.Run("json:"+c.name, func(t *testing.T) {
+			var tc *TaskConfig
+			parser.ParseJson(t, c.json, &tc)
+
+			require.EqualValues(t, expectedMap, tc.PortMap)
+		})
+	}
+
+}
+
 func TestConfig_ParseAllHCL(t *testing.T) {
 	cfgStr := `
 config {
