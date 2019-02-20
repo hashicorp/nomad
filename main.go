@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/version"
+	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
 	"github.com/sean-/seed"
 	"golang.org/x/crypto/ssh/terminal"
@@ -91,8 +92,8 @@ func RunCustom(args []string) int {
 	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
 	metaPtr.Ui = &cli.BasicUi{
 		Reader:      os.Stdin,
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
+		Writer:      colorable.NewColorableStdout(),
+		ErrorWriter: colorable.NewColorableStderr(),
 	}
 
 	// The Nomad agent never outputs color
