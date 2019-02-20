@@ -199,16 +199,16 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 
 		h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
 		if err != nil {
-			// TODO(dani): FIXME: Here we will leak the users container. Simply removing
-			//                    the container here will cause a user restart-stanza
-			//                    based cycle.
+			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			}
 			return fmt.Errorf("failed to setup replacement docker logger: %v", err)
 		}
 
 		if err := handle.SetDriverState(h.buildState()); err != nil {
-			// TODO(dani): FIXME: Here we will leak the users container. Simply removing
-			//                    the container here will cause a user restart-stanza
-			//                    based cycle.
+			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			}
 			return fmt.Errorf("failed to store driver state: %v", err)
 		}
 	}
