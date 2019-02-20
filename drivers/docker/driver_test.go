@@ -651,6 +651,11 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows Docker does not support SIGUSR1")
+	}
+
 	timeout := 2 * time.Second
 	taskCfg := newTaskConfig("", []string{"sleep", "10"})
 	task := &drivers.TaskConfig{
@@ -1140,6 +1145,9 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows docker does not support setting MacAddress")
+	}
 
 	task, cfg, _ := dockerTask(t)
 	cfg.MacAddress = "00:16:3e:00:00:00"
@@ -1455,6 +1463,12 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
+	if runtime.GOOS == "windows" {
+		// Nomad assumes : as the delimiter between host:path container, but Windows uses it for
+		// drive paths (e.g. `C:\Users...`).  Lookup volume syntax for windows and update test
+		t.Skip("TODO: Windows volume sharing doesn't work")
+	}
+
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	require.NoError(t, err)
 
@@ -1610,6 +1624,10 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support OOM Killer")
+	}
+
 	taskCfg := newTaskConfig("", []string{"sh", "-c", `sleep 2 && x=a && while true; do x="$x$x"; done`})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -1759,6 +1777,10 @@ func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows Docker does not support root filesystem in read-only mode")
+	}
 
 	task, cfg, _ := dockerTask(t)
 	cfg.ReadonlyRootfs = true
