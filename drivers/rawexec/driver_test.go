@@ -369,8 +369,8 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 		time.Sleep(1 * time.Second)
 		err := harness.StopTask(task.ID, 0, "")
 
-		// Can't rely on the ordering between wait and kill on travis...
-		if !testutil.IsTravis() {
+		// Can't rely on the ordering between wait and kill on CI/travis...
+		if !testutil.IsCI() {
 			require.NoError(err)
 		}
 	}()

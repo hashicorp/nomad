@@ -77,7 +77,7 @@ func TestRktDriver_SetConfig(t *testing.T) {
 // Also verifies sending sigterm correctly stops the driver instance
 func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -160,7 +160,7 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 // Verifies waiting on task to exit cleanly
 func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -218,7 +218,7 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 // Verifies that skipping trust_prefix works
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -276,7 +276,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 // Verifies that an invalid trust prefix returns expected error
 func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -330,7 +330,7 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 // to remove the task and then reattaches to it
 func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -424,7 +424,7 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 // some data to it from inside the container
 func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -509,7 +509,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 // some data to it from inside the container
 func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -648,7 +648,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 // It verifies that running ps inside the container shows the expected user and group
 func TestRktDriver_UserGroup(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -715,7 +715,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 //  Verifies executing both correct and incorrect commands inside the container
 func TestRktDriver_Exec(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -796,7 +796,7 @@ func TestRktDriver_Exec(t *testing.T) {
 // TODO(preetha) figure out why stats are zero
 func TestRktDriver_Stats(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 

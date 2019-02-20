@@ -51,7 +51,7 @@ func AssertUntil(until time.Duration, test testFn, error errorFn) {
 // TestMultiplier returns a multiplier for retries and waits given environment
 // the tests are being run under.
 func TestMultiplier() int64 {
-	if IsTravis() {
+	if IsCI() {
 		return 4
 	}
 
