@@ -17,6 +17,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -215,7 +216,14 @@ func (a *TestAgent) start() (*Agent, error) {
 		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
-	agent, err := NewAgent(a.Config, a.LogOutput, inm)
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:       "agent",
+		Level:      hclog.LevelFromString(a.Config.LogLevel),
+		Output:     a.LogOutput,
+		JSONFormat: a.Config.LogJson,
+	})
+
+	agent, err := NewAgent(a.Config, logger, a.LogOutput, inm)
 	if err != nil {
 		return nil, err
 	}

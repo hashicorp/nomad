@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	golog "log"
 	"net"
@@ -13,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"io"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
@@ -87,7 +88,7 @@ type Agent struct {
 }
 
 // NewAgent is used to create a new agent with the given configuration
-func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
+func NewAgent(config *Config, logger log.Logger, logOutput io.Writer, inmem *metrics.InmemSink) (*Agent, error) {
 	a := &Agent{
 		config:     config,
 		logOutput:  logOutput,
@@ -96,12 +97,7 @@ func NewAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) (*A
 	}
 
 	// Create the loggers
-	a.logger = log.New(&log.LoggerOptions{
-		Name:       "agent",
-		Level:      log.LevelFromString(config.LogLevel),
-		Output:     logOutput,
-		JSONFormat: config.LogJson,
-	})
+	a.logger = logger
 	a.httpLogger = a.logger.ResetNamed("http")
 
 	// Global logger should match internal logger as much as possible

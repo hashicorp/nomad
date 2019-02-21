@@ -22,11 +22,12 @@ import (
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-checkpoint"
 	"github.com/hashicorp/go-discover"
-	"github.com/hashicorp/go-syslog"
+	"github.com/hashicorp/go-hclog"
+	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/flag-helpers"
-	"github.com/hashicorp/nomad/helper/gated-writer"
+	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
@@ -403,9 +404,9 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter,
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logOutput io.Writer, inmem *metrics.InmemSink) error {
+func (c *Command) setupAgent(config *Config, logger hclog.Logger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
-	agent, err := NewAgent(config, logOutput, inmem)
+	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
@@ -556,6 +557,19 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// Create logger
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:       "agent",
+		Level:      hclog.LevelFromString(config.LogLevel),
+		Output:     logOutput,
+		JSONFormat: config.LogJson,
+	})
+
+	// Swap out UI implementation if json logging is enabled
+	if config.LogJson {
+		c.Ui = &logging.HcLogUI{Log: logger}
+	}
+
 	// Log config files
 	if len(config.Files) > 0 {
 		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
@@ -571,17 +585,11 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Create the agent
-	if err := c.setupAgent(config, logOutput, inmem); err != nil {
+	if err := c.setupAgent(config, logger, logOutput, inmem); err != nil {
 		logGate.Flush()
 		return 1
 	}
 	defer c.agent.Shutdown()
-
-	// After the agent is created we have a logger, so swap out the implementation
-	// of the UI if json logging is enabled
-	if config.LogJson {
-		c.Ui = &logging.HcLogUI{Log: c.agent.logger}
-	}
 
 	// Shutdown the HTTP server at the end
 	defer func() {
