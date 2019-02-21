@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base32"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -6246,6 +6247,32 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 
 func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
+}
+
+// Hash creates a unique identifier for a TaskArtifact as the same GetterSource
+// may be specified multiple times with different destinations.
+func (ta *TaskArtifact) Hash() string {
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	hash.Write([]byte(ta.GetterSource))
+
+	// Must iterate over keys in a consistent order
+	keys := make([]string, 0, len(ta.GetterOptions))
+	for k := range ta.GetterOptions {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		hash.Write([]byte(k))
+		hash.Write([]byte(ta.GetterOptions[k]))
+	}
+
+	hash.Write([]byte(ta.GetterMode))
+	hash.Write([]byte(ta.RelativeDest))
+	return base64.RawStdEncoding.EncodeToString(hash.Sum(nil))
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation
