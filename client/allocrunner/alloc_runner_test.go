@@ -715,3 +715,63 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	require.NotNilf(t, fileInfo, "file %q not found", dataFile)
 
 }
+
+// TestAllocRuner_HandlesArtifactFailure ensures that if one task in a task group is
+// retrying fetching an artifact, other tasks in the group should be able
+// to proceed.
+func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Mode:     structs.RestartPolicyModeFail,
+		Attempts: 1,
+		Delay:    time.Nanosecond,
+		Interval: time.Hour,
+	}
+
+	// Create a new task with a bad artifact
+	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	badtask.Name = "bad"
+	badtask.Artifacts = []*structs.TaskArtifact{
+		{GetterSource: "http://127.0.0.1:0/foo/bar/baz"},
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, badtask)
+	alloc.AllocatedResources.Tasks["bad"] = &structs.AllocatedTaskResources{
+		Cpu: structs.AllocatedCpuResources{
+			CpuShares: 500,
+		},
+		Memory: structs.AllocatedMemoryResources{
+			MemoryMB: 256,
+		},
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	go ar.Run()
+	defer ar.Destroy()
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+
+		switch state.ClientStatus {
+		case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed:
+			return true, nil
+		default:
+			return false, fmt.Errorf("got status %v but want terminal", state.ClientStatus)
+		}
+
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	state := ar.AllocState()
+	require.Equal(t, structs.AllocClientStatusFailed, state.ClientStatus)
+	require.Equal(t, structs.TaskStateDead, state.TaskStates["web"].State)
+	require.True(t, state.TaskStates["web"].Successful())
+	require.Equal(t, structs.TaskStateDead, state.TaskStates["bad"].State)
+	require.True(t, state.TaskStates["bad"].Failed)
+}
