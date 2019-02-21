@@ -1,6 +1,7 @@
 package taskrunner
 
 import (
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -112,4 +113,17 @@ func (tr *TaskRunner) hasRunLaunched() bool {
 	tr.runLaunchedLock.Lock()
 	defer tr.runLaunchedLock.Unlock()
 	return tr.runLaunched
+}
+
+// hookState returns the state for the given hook or nil if no state is
+// persisted for the hook.
+func (tr *TaskRunner) hookState(name string) *state.HookState {
+	tr.stateLock.RLock()
+	defer tr.stateLock.RUnlock()
+
+	var s *state.HookState
+	if tr.localState.Hooks != nil {
+		s = tr.localState.Hooks[name].Copy()
+	}
+	return s
 }

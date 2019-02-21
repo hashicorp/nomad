@@ -46,7 +46,7 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 	require.NoError(t, hook.Prestart(context.Background(), &req, &resp))
 	defer hook.Stop(context.Background(), nil, nil)
 
-	origHookData := resp.HookData[logmonReattachKey]
+	origHookData := resp.State[logmonReattachKey]
 	require.NotEmpty(t, origHookData)
 
 	// Pluck PID out of reattach synthesize a crash
@@ -75,14 +75,14 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 
 	// Running prestart again should return a recoverable error with no
 	// reattach config to cause the task to be restarted with a new logmon.
-	req.HookData = map[string]string{
+	req.PreviousState = map[string]string{
 		logmonReattachKey: origHookData,
 	}
 	resp = interfaces.TaskPrestartResponse{}
 	err = hook.Prestart(context.Background(), &req, &resp)
 	require.Error(t, err)
 	require.True(t, structs.IsRecoverable(err))
-	require.Empty(t, resp.HookData)
+	require.Empty(t, resp.State)
 
 	// Running stop should shutdown logmon
 	require.NoError(t, hook.Stop(context.Background(), nil, nil))

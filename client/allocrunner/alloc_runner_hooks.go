@@ -110,8 +110,6 @@ func (ar *allocRunner) prerun() error {
 			continue
 		}
 
-		//TODO Check hook state
-
 		name := pre.Name()
 		var start time.Time
 		if ar.logger.IsTrace() {
@@ -123,11 +121,9 @@ func (ar *allocRunner) prerun() error {
 			return fmt.Errorf("pre-run hook %q failed: %v", name, err)
 		}
 
-		//TODO Persist hook state locally
-
 		if ar.logger.IsTrace() {
 			end := time.Now()
-			ar.logger.Trace("finished pre-run hooks", "name", name, "end", end, "duration", end.Sub(start))
+			ar.logger.Trace("finished pre-run hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 

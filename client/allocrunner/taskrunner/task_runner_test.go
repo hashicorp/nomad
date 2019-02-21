@@ -1546,11 +1546,18 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	consul := conf.Consul.(*consulapi.MockConsulServiceClient)
 	consulOps := consul.GetOps()
 	require.Len(t, consulOps, 6)
-	// pattern: add followed by two removals
+
+	// Initial add
 	require.Equal(t, "add", consulOps[0].Op)
+
+	// Removing canary and non-canary entries on first exit
 	require.Equal(t, "remove", consulOps[1].Op)
 	require.Equal(t, "remove", consulOps[2].Op)
+
+	// Second add on retry
 	require.Equal(t, "add", consulOps[3].Op)
+
+	// Removing canary and non-canary entries on retry
 	require.Equal(t, "remove", consulOps[4].Op)
 	require.Equal(t, "remove", consulOps[5].Op)
 }

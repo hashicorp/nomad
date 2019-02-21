@@ -43,8 +43,9 @@ type TaskHook interface {
 }
 
 type TaskPrestartRequest struct {
-	// HookData is previously set data by the hook
-	HookData map[string]string
+	// PreviousState is previously set data by the hook. It must be copied
+	// to State below to be maintained across restarts.
+	PreviousState map[string]string
 
 	// Task is the task to run
 	Task *structs.Task
@@ -72,18 +73,21 @@ type TaskPrestartResponse struct {
 	// Devices are the set of devices to mount into the task
 	Devices []*drivers.DeviceConfig
 
-	// HookData allows the hook to emit data to be passed in the next time it is
-	// run
-	HookData map[string]string
+	// State allows the hook to emit data to be passed in the next time it is
+	// run. Hooks must copy relevant PreviousState to State to maintain it
+	// across restarts.
+	State map[string]string
 
-	// Done lets the hook indicate that it should only be run once
+	// Done lets the hook indicate that it completed successfully and
+	// should not be run again.
 	Done bool
 }
 
 type TaskPrestartHook interface {
 	TaskHook
 
-	// Prestart is called before the task is started.
+	// Prestart is called before the task is started including after every
+	// restart.
 	Prestart(context.Context, *TaskPrestartRequest, *TaskPrestartResponse) error
 }
 
@@ -120,7 +124,8 @@ type TaskPreKillResponse struct{}
 type TaskPreKillHook interface {
 	TaskHook
 
-	// PreKilling is called right before a task is going to be killed or restarted.
+	// PreKilling is called right before a task is going to be killed or
+	// restarted. They are called concurrently with TaskRunner.Run.
 	PreKilling(context.Context, *TaskPreKillRequest, *TaskPreKillResponse) error
 }
 
@@ -130,7 +135,7 @@ type TaskExitedResponse struct{}
 type TaskExitedHook interface {
 	TaskHook
 
-	// Exited is called when a task exits and may or may not be restarted.
+	// Exited is called after a task exits and may or may not be restarted.
 	Exited(context.Context, *TaskExitedRequest, *TaskExitedResponse) error
 }
 
@@ -151,12 +156,23 @@ type TaskUpdateHook interface {
 	Update(context.Context, *TaskUpdateRequest, *TaskUpdateResponse) error
 }
 
-type TaskStopRequest struct{}
+type TaskStopRequest struct {
+	// ExistingState is previously set hook data and should only be
+	// read. Stop hooks cannot alter state.
+	ExistingState map[string]string
+}
+
 type TaskStopResponse struct{}
 
 type TaskStopHook interface {
 	TaskHook
 
-	// Stop is called after the task has exited and will not be started again.
+	// Stop is called after the task has exited and will not be started
+	// again. It is the only hook guaranteed to be executed whenever
+	// TaskRunner.Run is called (and not gracefully shutting down).
+	// Therefore it may be called even when prestart and the other hooks
+	// have not.
+	//
+	// Stop hooks must be idempotent.
 	Stop(context.Context, *TaskStopRequest, *TaskStopResponse) error
 }
