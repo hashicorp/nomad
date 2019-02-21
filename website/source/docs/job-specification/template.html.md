@@ -69,14 +69,14 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   resulting template should be rendered, relative to the task directory.
 
 - `env` `(bool: false)` - Specifies the template should be read back in as
-  environment variables for the task. (See below)
+  environment variables for the task. ([See below](#environment-variables))
 
 - `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
   template. The default is "{{" for some templates, it may be easier to use a
   different delimiter that does not conflict with the output file itself.
 
 - `perms` `(string: "644")` - Specifies the rendered template's permissions.
-  File permissions are given as octal of the Unix file permissions rwxrwxrwx.
+  File permissions are given as octal of the Unix file permissions `rwxrwxrwx`.
 
 - `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
@@ -178,9 +178,9 @@ template {
 ### Environment Variables
 
 Since v0.6.0 templates may be used to create environment variables for tasks.
-Env templates work exactly like other templates except once they're written,
-they're read back in as `KEY=value` pairs. Those key value pairs are included
-in the task's environment.
+Env templates work exactly like other templates except once the templates are
+written, they are parsed as `KEY=value` pairs. Those key value pairs are
+included in the task's environment.
 
 For example the following template stanza:
 
@@ -211,7 +211,12 @@ This allows [12factor app](https://12factor.net/config) style environment
 variable based configuration while keeping all of the familiar features and
 semantics of Nomad templates.
 
-If a value may include newlines you should JSON encode it:
+Secrets or certificates may contain a wide variety of characters such as
+newlines, quotes, and backslashes which may be difficult to quote or escape
+properly.
+
+Whenever a templated variable may include special characters, use the `toJSON`
+function to ensure special characters are properly parsed by Nomad:
 
 ```
 CERT_PEM={{ file "path/to/cert.pem" | toJSON }}
@@ -219,6 +224,18 @@ CERT_PEM={{ file "path/to/cert.pem" | toJSON }}
 
 The parser will read the JSON string, so the `$CERT_PEM` environment variable
 will be identical to the contents of the file.
+
+Likewise when evaluating a password that may contain quotes or `#`, use the
+`toJSON` function to ensure Nomad passes the password to task unchanged:
+
+```
+# Passwords may contain any character including special characters like:
+#   \"'#
+# Use toJSON to ensure Nomad passes them to the environment unchanged.
+{{ with secret "secrets/data/application/backend" }}
+DB_PASSWD={{ .Data.data.DB_PASSWD | toJSON }}
+{{ end }}
+```
 
 For more details see [go-envparser's
 README](https://github.com/hashicorp/go-envparse#readme).
