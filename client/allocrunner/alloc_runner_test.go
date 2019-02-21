@@ -2,12 +2,15 @@ package allocrunner
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/allochealth"
+	"github.com/hashicorp/nomad/client/allocwatcher"
 	cconsul "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -624,4 +627,91 @@ func TestAllocRunner_Destroy(t *testing.T) {
 	} else if !os.IsNotExist(err) {
 		require.Failf(t, "expected NotExist error", "found %v", err)
 	}
+}
+
+func TestAllocRunner_SimpleRun(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	go ar.Run()
+	defer ar.Destroy()
+
+	// Wait for alloc to be running
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+
+		if state.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusComplete)
+		}
+
+		for t, s := range state.TaskStates {
+			if s.FinishedAt.IsZero() {
+				return false, fmt.Errorf("task %q has zero FinishedAt value", t)
+			}
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+}
+
+func TestAllocRunner_MoveAllocDir(t *testing.T) {
+	t.Parallel()
+
+	// Step 1: start and run a task
+	alloc := mock.BatchAlloc()
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	ar.Run()
+	defer ar.Destroy()
+
+	require.Equal(t, structs.AllocClientStatusComplete, ar.AllocState().ClientStatus)
+
+	// Step 2. Modify its directory
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	dataFile := filepath.Join(ar.allocDir.SharedDir, "data", "data_file")
+	ioutil.WriteFile(dataFile, []byte("hello world"), os.ModePerm)
+	taskDir := ar.allocDir.TaskDirs[task.Name]
+	taskLocalFile := filepath.Join(taskDir.LocalDir, "local_file")
+	ioutil.WriteFile(taskLocalFile, []byte("good bye world"), os.ModePerm)
+
+	// Step 3. Start a new alloc
+	alloc2 := mock.BatchAlloc()
+	alloc2.PreviousAllocation = alloc.ID
+	alloc2.Job.TaskGroups[0].EphemeralDisk.Sticky = true
+
+	conf2, cleanup := testAllocRunnerConfig(t, alloc2)
+	conf2.PrevAllocWatcher, conf2.PrevAllocMigrator = allocwatcher.NewAllocWatcher(allocwatcher.Config{
+		Alloc:          alloc2,
+		PreviousRunner: ar,
+		Logger:         conf2.Logger,
+	})
+	defer cleanup()
+	ar2, err := NewAllocRunner(conf2)
+	require.NoError(t, err)
+
+	ar2.Run()
+	defer ar2.Destroy()
+
+	require.Equal(t, structs.AllocClientStatusComplete, ar2.AllocState().ClientStatus)
+
+	// Ensure that data from ar was moved to ar2
+	dataFile = filepath.Join(ar2.allocDir.SharedDir, "data", "data_file")
+	fileInfo, _ := os.Stat(dataFile)
+	require.NotNilf(t, fileInfo, "file %q not found", dataFile)
+
+	taskDir = ar2.allocDir.TaskDirs[task.Name]
+	taskLocalFile = filepath.Join(taskDir.LocalDir, "local_file")
+	fileInfo, _ = os.Stat(taskLocalFile)
+	require.NotNilf(t, fileInfo, "file %q not found", dataFile)
+
 }
