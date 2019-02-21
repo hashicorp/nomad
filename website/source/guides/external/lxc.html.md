@@ -9,10 +9,9 @@ description: |-
 ## LXC
 
 The `lxc` driver provides an interface for using LXC for running application
-containers. You can download the external LXC driver
-[here][lxc_driver_download]. This guide is compatible with Nomad 0.9 and above.
-If you are using an older version of Nomad, see the [LXC][lxc-docs] driver
-documentation.
+containers. This guide walks through the steps involved in configuring a Nomad client agent to be able to run lxc jobs. You can download the external LXC driver [here][lxc_driver_download].
+
+~> Note: This guide is compatible with Nomad 0.9 and above. If you are using an older version of Nomad, see the [LXC][lxc-docs] driver documentation.
 
 ## Reference Material
 
@@ -20,15 +19,9 @@ documentation.
 - Nomad [LXC][lxc-docs] external driver documentation
 - Nomad LXC external driver [repo][lxc-driver-repo]
 
-## Steps
+## Installation Instructions 
 
-### Step 1: Verify Client Node Configuration
-
-External drivers must be placed in the [plugin_dir][plugin_dir] directory which
-defaults to [`data_dir`][data_dir]`/plugins`. Verify the `data_dir` directory on
-the client node configuration. 
-
-### Step 2: Install the `lxc` and `lxc-templates` Packages
+### Step 1: Install the `lxc` and `lxc-templates` Packages
 
 Before deploying an LXC workload, you will need to install the `lxc` and `lxc-templates` packages which will provide the runtime and templates to start your container. Run the following command:
 
@@ -36,12 +29,10 @@ Before deploying an LXC workload, you will need to install the `lxc` and `lxc-te
 sudo apt install -y lxc lxc-templates
 ```
 
-### Step 3: Download and Install the LXC Driver 
+### Step 2: Download and Install the LXC Driver 
 
-Make a directory called `plugins` in [data_dir][data_dir] (which is
-`/opt/nomad/data` in the example below) and download/place the [LXC
-driver][lxc_driver_download] in it. The following sequences of commands
-illustrate this process:
+External drivers must be placed in the [plugin_dir][plugin_dir] directory which
+defaults to [`data_dir`][data_dir]`/plugins`. Make a directory called `plugins` in [data_dir][data_dir] (which is `/opt/nomad/data` in the example below) and download/place the [LXC driver][lxc_driver_download] in it. The following sequence of commands illustrate this process:
 
 ```shell
 $ sudo mkdir -p /opt/nomad/data/plugins
@@ -57,7 +48,7 @@ You can now delete the original zip file:
 $ rm ./nomad-driver-lxc*.zip
 ```
 
-### Step 4: Verify the LXC Driver Status
+### Step 3: Verify the LXC Driver Status
 
 After completing the previous steps, you do not need to explicitly enable the
 LXC driver in the client configuration, as it is enabled by default.
@@ -96,9 +87,9 @@ Driver Status = docker,exec,java,lxc,mock_driver,raw_exec,rkt
 ...
 ```
 
-### Step 5: Register the Nomad Job
+### Step 4: Register the Nomad Job
 
-Register a Nomad job that deploys an LXC workload and confirm the evaluation (you can find and example job [here][lxc-job]):
+You can run this [LXC example job][lxc-job] to register a Nomad job that deploys an LXC workload.
 
 ```shell
 $ nomad run lxc.nomad
@@ -110,9 +101,9 @@ $ nomad run lxc.nomad
 ==> Evaluation "d8be10f4" finished with status "complete"
 ```
 
-### Step 6: Check the Status of the Job
+### Step 5: Check the Status of the Job
 
-You can run the following command to check the status of the jobs in your
+Run the following command to check the status of the jobs in your
 cluster:
 
 ```shell
@@ -143,6 +134,8 @@ Allocations
 ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
 4248c82e  81c22a0c  example     0        run      running  6m58s ago  6m47s ago
 ```
+
+### More Configuration Options
 
 The LXC driver is enabled by default in the client configuration. In order to
 provide additional options to the LXC plugin, add [plugin
