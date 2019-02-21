@@ -518,6 +518,7 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
 				time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
 			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
+			updateEval.NextEval = followupEval.ID
 
 			// Update via Raft
 			req := structs.EvalUpdateRequest{

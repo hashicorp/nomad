@@ -580,7 +580,9 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 		if out.Status != structs.EvalStatusFailed {
 			return false, fmt.Errorf("got status %v; want %v", out.Status, structs.EvalStatusFailed)
 		}
-
+		if out.NextEval == "" {
+			return false, fmt.Errorf("got empty NextEval")
+		}
 		// See if there is a followup
 		evals, err := state.EvalsByJob(ws, eval.Namespace, eval.JobID)
 		if err != nil {
@@ -599,6 +601,11 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 			if e.Status != structs.EvalStatusPending {
 				return false, fmt.Errorf("follow up eval has status %v; want %v",
 					e.Status, structs.EvalStatusPending)
+			}
+
+			if e.ID != out.NextEval {
+				return false, fmt.Errorf("follow up eval id is %v; orig eval NextEval %v",
+					e.ID, out.NextEval)
 			}
 
 			if e.Wait < s1.config.EvalFailedFollowupBaselineDelay ||
