@@ -47,7 +47,7 @@ var testResources = &drivers.Resources{
 }
 
 func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 	require := require.New(t)
