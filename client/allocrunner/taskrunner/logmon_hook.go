@@ -15,6 +15,12 @@ import (
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
+const (
+	// logmonReattachKey is the HookData key where logmon's reattach config
+	// is stored.
+	logmonReattachKey = "reattach_config"
+)
+
 // logmonHook launches logmon and manages task logging
 type logmonHook struct {
 	// logmon is the handle to the log monitor process for the task.
@@ -72,17 +78,17 @@ func (h *logmonHook) launchLogMon(reattachConfig *plugin.ReattachConfig) error {
 }
 
 func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig, error) {
-	if data == nil || data["reattach_config"] == "" {
+	if data == nil || data[logmonReattachKey] == "" {
 		return nil, nil
 	}
 
-	var cfg *pstructs.ReattachConfig
-	err := json.Unmarshal([]byte(data["reattach_config"]), cfg)
+	var cfg pstructs.ReattachConfig
+	err := json.Unmarshal([]byte(data[logmonReattachKey]), &cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return pstructs.ReattachConfigToGoPlugin(cfg)
+	return pstructs.ReattachConfigToGoPlugin(&cfg)
 }
 
 func (h *logmonHook) Prestart(ctx context.Context,
@@ -122,14 +128,11 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	req.HookData = map[string]string{"reattach_config": string(jsonCfg)}
-
-	resp.Done = true
+	resp.HookData = map[string]string{logmonReattachKey: string(jsonCfg)}
 	return nil
 }
 
 func (h *logmonHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
-
 	if h.logmon != nil {
 		h.logmon.Stop()
 	}
