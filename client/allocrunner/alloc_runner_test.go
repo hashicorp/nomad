@@ -639,7 +639,7 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	go ar.Run()
-	defer ar.Destroy()
+	defer destroy(ar)
 
 	// Wait for alloc to be running
 	testutil.WaitForResult(func() (bool, error) {
@@ -662,6 +662,8 @@ func TestAllocRunner_SimpleRun(t *testing.T) {
 
 }
 
+// TestAllocRunner_MoveAllocDir asserts that a rescheduled
+// allocation copies ephemeral disk content from previous alloc run
 func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	t.Parallel()
 
@@ -672,7 +674,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	ar.Run()
-	defer ar.Destroy()
+	defer destroy(ar)
 
 	require.Equal(t, structs.AllocClientStatusComplete, ar.AllocState().ClientStatus)
 
@@ -700,7 +702,7 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	require.NoError(t, err)
 
 	ar2.Run()
-	defer ar2.Destroy()
+	defer destroy(ar2)
 
 	require.Equal(t, structs.AllocClientStatusComplete, ar2.AllocState().ClientStatus)
 
@@ -752,7 +754,7 @@ func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
 	go ar.Run()
-	defer ar.Destroy()
+	defer destroy(ar)
 
 	testutil.WaitForResult(func() (bool, error) {
 		state := ar.AllocState()

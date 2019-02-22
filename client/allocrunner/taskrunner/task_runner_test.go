@@ -1296,6 +1296,8 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 	require.NoErrorf(t, err, "%v not rendered", f2)
 }
 
+// TestTaskRunner_Template_NewVaultToken asserts that a new vault token is
+// created when rendering template and that it is revoked on alloc completion
 func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	t.Parallel()
 
@@ -1321,10 +1323,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	// Wait for a Vault token
 	var token string
 	testutil.WaitForResult(func() (bool, error) {
-		tr.vaultTokenLock.Lock()
-		defer tr.vaultTokenLock.Unlock()
-
-		token = tr.vaultToken
+		token = tr.getVaultToken()
 
 		if token == "" {
 			return false, fmt.Errorf("No Vault token")
@@ -1344,10 +1343,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 
 	var token2 string
 	testutil.WaitForResult(func() (bool, error) {
-		tr.vaultTokenLock.Lock()
-		defer tr.vaultTokenLock.Unlock()
-
-		token2 = tr.vaultToken
+		token2 = tr.getVaultToken()
 
 		if token2 == "" {
 			return false, fmt.Errorf("No Vault token")
@@ -1379,15 +1375,15 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 
 }
 
+// TestTaskRunner_VaultManager_Restart asserts that the alloc is restarted when the alloc
+// derived vault token expires, when task is configured with Restart change mode
 func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
-		"exit_code": "0",
-		"run_for":   "10s",
+		"run_for": "10s",
 	}
 	task.Vault = &structs.Vault{
 		Policies:   []string{"default"},
@@ -1446,15 +1442,15 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 	})
 }
 
+// TestTaskRunner_VaultManager_Signal asserts that the alloc is signalled when the alloc
+// derived vault token expires, when task is configured with signal change mode
 func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
-		"exit_code": "0",
-		"run_for":   "10s",
+		"run_for": "10s",
 	}
 	task.Vault = &structs.Vault{
 		Policies:     []string{"default"},
