@@ -6498,11 +6498,13 @@ type Evaluation struct {
 	WaitUntil time.Time
 
 	// NextEval is the evaluation ID for the eval created to do a followup.
-	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	// This is used to support rolling upgrades and failed-follow-up evals, where
+	// we need a chain of evaluations.
 	NextEval string
 
 	// PreviousEval is the evaluation ID for the eval creating this one to do a followup.
-	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	// This is used to support rolling upgrades and failed-follow-up evals, where
+	// we need a chain of evaluations.
 	PreviousEval string
 
 	// BlockedEval is the evaluation ID for a created blocked eval. A
@@ -6688,7 +6690,8 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 
 // CreateFailedFollowUpEval creates a follow up evaluation when the current one
 // has been marked as failed because it has hit the delivery limit and will not
-// be retried by the eval_broker.
+// be retried by the eval_broker. Callers should copy the created eval's ID to
+// into the old eval's NextEval field.
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             uuid.Generate(),
