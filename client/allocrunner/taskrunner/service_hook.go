@@ -236,6 +236,15 @@ func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) 
 			}
 		}
 
+		if service.SidecarService != nil {
+			interpolateConfig(taskEnv, service.SidecarService.Config)
+			for _, upstream := range service.SidecarService.Upstreams {
+				upstream.DestinationName = taskEnv.ReplaceEnv(upstream.DestinationName)
+				upstream.Datacenter = taskEnv.ReplaceEnv(upstream.Datacenter)
+				interpolateConfig(taskEnv, upstream.Config)
+			}
+		}
+
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
@@ -244,4 +253,14 @@ func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) 
 	}
 
 	return interpolated
+}
+
+func interpolateConfig(taskEnv *taskenv.TaskEnv, config map[string]interface{}) {
+	if config != nil {
+		for k, v := range config {
+			if str, ok := v.(string); ok {
+				config[k] = taskEnv.ReplaceEnv(str)
+			}
+		}
+	}
 }

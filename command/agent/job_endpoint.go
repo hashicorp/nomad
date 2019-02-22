@@ -747,6 +747,8 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 
+	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
+
 	if l := len(apiTask.Services); l != 0 {
 		structsTask.Services = make([]*structs.Service, l)
 		for i, service := range apiTask.Services {
@@ -788,10 +790,30 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 					}
 				}
 			}
+
+			if service.SidecarService != nil {
+				port := structs.Port{Label: fmt.Sprintf("sidecar.%s.%s", service.Name, service.PortLabel)}
+				structsTask.Resources.Networks[0].SidecarPorts = append(structsTask.Resources.Networks[0].SidecarPorts, port)
+				structsTask.Services[i].SidecarService = &structs.SidecarService{
+					Config: service.SidecarService.Config,
+				}
+				if l := len(service.SidecarService.Upstreams); l != 0 {
+					structsTask.Services[i].SidecarService.Upstreams = make([]*structs.ProxyUpstream, l)
+					for j, upstream := range service.SidecarService.Upstreams {
+						port = structs.Port{Label: fmt.Sprintf("upstream.%s", upstream.Name)}
+						structsTask.Resources.Networks[0].SidecarPorts = append(structsTask.Resources.Networks[0].SidecarPorts, port)
+						structsTask.Services[i].SidecarService.Upstreams[j] = &structs.ProxyUpstream{
+							Name:            upstream.Name,
+							DestinationName: upstream.DestinationName,
+							DestinationType: upstream.DestinationType,
+							Datacenter:      upstream.Datacenter,
+							Config:          upstream.Config,
+						}
+					}
+				}
+			}
 		}
 	}
-
-	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
 	structsTask.LogConfig = &structs.LogConfig{
 		MaxFiles:      *apiTask.LogConfig.MaxFiles,

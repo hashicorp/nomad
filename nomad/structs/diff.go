@@ -580,6 +580,10 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, cDiffs...)
 	}
 
+	if sidecarDiffs := sidecarDiffs(old.SidecarService, new.SidecarService, contextual); sidecarDiffs != nil {
+		diff.Objects = append(diff.Objects, sidecarDiffs)
+	}
+
 	return diff
 }
 
@@ -607,6 +611,96 @@ func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
 		// Diff the added
 		if old, ok := oldMap[name]; !ok {
 			if diff := serviceDiff(old, newService, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+func sidecarDiffs(old, new *SidecarService, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Sidecar"}
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &SidecarService{}
+		diff.Type = DiffTypeAdded
+	} else if new == nil {
+		new = &SidecarService{}
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	// Config diff
+	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
+		diff.Objects = append(diff.Objects, cDiff)
+	}
+
+	// Upstreams diffs
+	if cDiffs := proxyUpstreamDiffs(old.Upstreams, new.Upstreams, contextual); cDiffs != nil {
+		diff.Objects = append(diff.Objects, cDiffs...)
+	}
+
+	return diff
+}
+
+func proxyUpstreamDiff(old, new *ProxyUpstream, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Upstream"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ProxyUpstream{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &ProxyUpstream{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Config diff
+	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
+		diff.Objects = append(diff.Objects, cDiff)
+	}
+
+	return diff
+}
+
+func proxyUpstreamDiffs(old, new []*ProxyUpstream, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]*ProxyUpstream, len(old))
+	newMap := make(map[string]*ProxyUpstream, len(new))
+	for _, o := range old {
+		oldMap[o.Name] = o
+	}
+	for _, n := range new {
+		newMap[n.Name] = n
+	}
+
+	var diffs []*ObjectDiff
+	for name, oldProxyUpstream := range oldMap {
+		// Diff the same, deleted and edited
+		if diff := proxyUpstreamDiff(oldProxyUpstream, newMap[name], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for name, newProxyUpstream := range newMap {
+		// Diff the added
+		if old, ok := oldMap[name]; !ok {
+			if diff := proxyUpstreamDiff(old, newProxyUpstream, contextual); diff != nil {
 				diffs = append(diffs, diff)
 			}
 		}
@@ -875,13 +969,17 @@ func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	// Port diffs
-	resPorts := portDiffs(r.ReservedPorts, other.ReservedPorts, false, contextual)
-	dynPorts := portDiffs(r.DynamicPorts, other.DynamicPorts, true, contextual)
+	resPorts := portDiffs(r.ReservedPorts, other.ReservedPorts, "", contextual)
+	dynPorts := portDiffs(r.DynamicPorts, other.DynamicPorts, "dynamic", contextual)
+	sidPorts := portDiffs(r.SidecarPorts, other.SidecarPorts, "sidecar", contextual)
 	if resPorts != nil {
 		diff.Objects = append(diff.Objects, resPorts...)
 	}
 	if dynPorts != nil {
 		diff.Objects = append(diff.Objects, dynPorts...)
+	}
+	if sidPorts != nil {
+		diff.Objects = append(diff.Objects, sidPorts...)
 	}
 
 	return diff
@@ -905,16 +1003,29 @@ func networkResourceDiffs(old, new []*NetworkResource, contextual bool) []*Objec
 
 	oldSet := makeSet(old)
 	newSet := makeSet(new)
+	if len(oldSet) == len(newSet) && len(newSet) == 1 {
+		for k, v := range oldSet {
+			delete(oldSet, k)
+			oldSet["key"] = v
+			break
+		}
+		for k, v := range newSet {
+			delete(newSet, k)
+			newSet["key"] = v
+			break
+		}
+	}
 
 	var diffs []*ObjectDiff
 	for k, oldV := range oldSet {
-		if newV, ok := newSet[k]; !ok {
-			if diff := oldV.Diff(newV, contextual); diff != nil {
-				diffs = append(diffs, diff)
-			}
+		// Diff the edited and deleted
+		newV := newSet[k]
+		if diff := oldV.Diff(newV, contextual); diff != nil {
+			diffs = append(diffs, diff)
 		}
 	}
 	for k, newV := range newSet {
+		// Diff the added
 		if oldV, ok := oldSet[k]; !ok {
 			if diff := oldV.Diff(newV, contextual); diff != nil {
 				diffs = append(diffs, diff)
@@ -930,7 +1041,7 @@ func networkResourceDiffs(old, new []*NetworkResource, contextual bool) []*Objec
 // portDiffs returns the diff of two sets of ports. The dynamic flag marks the
 // set of ports as being Dynamic ports versus Static ports. If contextual diff is enabled,
 // non-changed fields will still be returned.
-func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
+func portDiffs(old, new []Port, dynamic string, contextual bool) []*ObjectDiff {
 	makeSet := func(ports []Port) map[string]Port {
 		portMap := make(map[string]Port, len(ports))
 		for _, port := range ports {
@@ -945,9 +1056,12 @@ func portDiffs(old, new []Port, dynamic bool, contextual bool) []*ObjectDiff {
 
 	var filter []string
 	name := "Static Port"
-	if dynamic {
+	if dynamic != "" {
 		filter = []string{"Value"}
 		name = "Dynamic Port"
+		if dynamic == "sidecar" {
+			name = "Sidecar Port"
+		}
 	}
 
 	var diffs []*ObjectDiff

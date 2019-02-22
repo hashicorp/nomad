@@ -437,7 +437,7 @@ func (c *ServiceClient) sync() error {
 	}
 
 	// Remove Nomad services in Consul but unknown locally
-	for id := range consulServices {
+	for id, svc := range consulServices {
 		if _, ok := c.services[id]; ok {
 			// Known service, skip
 			continue
@@ -447,7 +447,7 @@ func (c *ServiceClient) sync() error {
 		// Nomad managed services if this is not a client agent.
 		// This is to prevent server agents from removing services
 		// registered by client agents
-		if !isNomadService(id) || !c.isClientAgent {
+		if !isNomadService(id) || !c.isClientAgent || isSidecarProxy(svc) {
 			// Not managed by Nomad, skip
 			continue
 		}
@@ -489,7 +489,7 @@ func (c *ServiceClient) sync() error {
 		// Nomad managed checks if this is not a client agent.
 		// This is to prevent server agents from removing checks
 		// registered by client agents
-		if !isNomadService(check.ServiceID) || !c.isClientAgent {
+		if !isNomadService(check.ServiceID) || !c.isClientAgent || isSidecarProxy(consulServices[check.ServiceID]) {
 			// Service not managed by Nomad, skip
 			continue
 		}
@@ -671,6 +671,46 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		Meta: map[string]string{
 			"external-source": "nomad",
 		},
+	}
+
+	if service.SidecarService != nil {
+		serviceReg.Connect = &api.AgentServiceConnect{
+			SidecarService: &api.AgentServiceRegistration{
+				Proxy: &api.AgentServiceConnectProxyConfig{
+					DestinationServiceName: service.Name,
+					DestinationServiceID:   id,
+					LocalServicePort:       port,
+					Config:                 service.SidecarService.Config,
+				},
+			},
+		}
+		upstreamIP, sidecarPort, err := getAddress(structs.AddressModeHost, fmt.Sprintf("sidecar.%s.%s", service.Name, service.PortLabel), task.Networks, task.DriverNetwork)
+		if err != nil {
+			return nil, err
+		}
+		serviceReg.Connect.SidecarService.Port = sidecarPort
+		if l := len(service.SidecarService.Upstreams); l != 0 {
+			serviceReg.Connect.SidecarService.Proxy.Upstreams = make([]api.Upstream, l)
+			for i, upstream := range service.SidecarService.Upstreams {
+				portLabel := fmt.Sprintf("upstream.%s", upstream.Name)
+				/*upstreamIP,*/ _, upstreamPort, err := getAddress(addrMode, portLabel, task.Networks, task.DriverNetwork)
+				if err != nil {
+					return nil, err
+				}
+				destType := upstream.DestinationType
+				if destType == "" {
+					destType = structs.DestinationTypeService
+				}
+				serviceReg.Connect.SidecarService.Proxy.Upstreams[i] = api.Upstream{
+					DestinationType:  api.UpstreamDestType(destType),
+					DestinationName:  upstream.DestinationName,
+					Datacenter:       upstream.Datacenter,
+					LocalBindPort:    upstreamPort,
+					LocalBindAddress: upstreamIP,
+					Config:           upstream.Config,
+				}
+			}
+		}
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1159,6 +1199,10 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 // client and server agents may be running on the same machine. #2827
 func isNomadService(id string) bool {
 	return strings.HasPrefix(id, nomadTaskPrefix) || isOldNomadService(id)
+}
+
+func isSidecarProxy(svc *api.AgentService) bool {
+	return svc.Kind == api.ServiceKindConnectProxy
 }
 
 // isOldNomadService returns true if the ID matches an old pattern managed by

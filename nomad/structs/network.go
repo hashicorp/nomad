@@ -282,6 +282,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 			MBits:         ask.MBits,
 			ReservedPorts: ask.ReservedPorts,
 			DynamicPorts:  ask.DynamicPorts,
+			SidecarPorts:  ask.SidecarPorts,
 		}
 
 		// Try to stochastically pick the dynamic ports as it is faster and
@@ -301,8 +302,13 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		}
 
 	BUILD_OFFER:
+		ld := len(offer.DynamicPorts)
 		for i, port := range dynPorts {
-			offer.DynamicPorts[i].Value = port
+			if i < ld {
+				offer.DynamicPorts[i].Value = port
+			} else {
+				offer.SidecarPorts[i-ld].Value = port
+			}
 		}
 
 		// Stop, we have an offer!
@@ -341,7 +347,7 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, ask *NetworkResource) ([]int, error
 	availablePorts := usedSet.IndexesInRange(false, MinDynamicPort, MaxDynamicPort)
 
 	// Randomize the amount we need
-	numDyn := len(ask.DynamicPorts)
+	numDyn := len(ask.DynamicPorts) + len(ask.SidecarPorts)
 	if len(availablePorts) < numDyn {
 		return nil, fmt.Errorf("dynamic port selection failed")
 	}
@@ -366,7 +372,7 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, ask *NetworkResource) ([]int, er
 		reserved = append(reserved, port.Value)
 	}
 
-	for i := 0; i < len(ask.DynamicPorts); i++ {
+	for i := 0; i < len(ask.DynamicPorts)+len(ask.SidecarPorts); i++ {
 		attempts := 0
 	PICK:
 		attempts++

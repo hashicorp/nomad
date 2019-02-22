@@ -1204,6 +1204,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 			"check",
 			"address_mode",
 			"check_restart",
+			"sidecar",
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("service (%d) ->", idx))
@@ -1217,6 +1218,7 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 
 		delete(m, "check")
 		delete(m, "check_restart")
+		delete(m, "sidecar")
 
 		if err := mapstructure.WeakDecode(m, &service); err != nil {
 			return err
@@ -1245,6 +1247,16 @@ func parseServices(jobName string, taskGroupName string, task *api.Task, service
 				return multierror.Prefix(err, fmt.Sprintf("service: '%s',", service.Name))
 			} else {
 				service.CheckRestart = cr
+			}
+		}
+
+		// Filter sidecar services
+		if sidecar := checkList.Filter("sidecar"); len(sidecar.Items) > 0 {
+			if len(sidecar.Items) > 1 {
+				return fmt.Errorf("sidecar `%s`: cannot have more than 1 sidecar", service.Name)
+			}
+			if err := parseSidecarService(&service, sidecar.Items[0]); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("service: %q", service.Name))
 			}
 		}
 
@@ -1386,6 +1398,131 @@ func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 	}
 
 	return &checkRestart, nil
+}
+
+func parseSidecarService(service *api.Service, sc *ast.ObjectItem) error {
+	valid := []string{
+		"config",
+		"upstream",
+	}
+
+	var listVal *ast.ObjectList
+	if ot, ok := sc.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return fmt.Errorf("sidecar: should be an object")
+	}
+
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return multierror.Prefix(err, "sidecar ->")
+	}
+
+	var sidecar api.SidecarService
+	var scm map[string]interface{}
+	if err := hcl.DecodeObject(&scm, listVal); err != nil {
+		return err
+	}
+	service.SidecarService = &sidecar
+
+	delete(scm, "upstream")
+	delete(scm, "config")
+
+	// If we have config, then parse that
+	if o := listVal.Filter("config"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return fmt.Errorf("only one 'config' block is allowed in sidecar. Number of config block found: %d", len(o.Items))
+		}
+		configBlock := o.Items[0]
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, configBlock.Val); err != nil {
+			return err
+		}
+
+		if err := mapstructure.WeakDecode(m, &service.SidecarService.Config); err != nil {
+			return err
+		}
+	}
+
+	if upstreams := listVal.Filter("upstream"); len(upstreams.Items) > 0 {
+		knownUpstreams := make(map[string]bool)
+		for _, upstream := range upstreams.Items {
+			if len(upstream.Keys) == 0 {
+				return fmt.Errorf("upstream must be named")
+			}
+			name := upstream.Keys[0].Token.Value().(string)
+			name = strings.ToLower(name)
+			if knownUpstreams[name] {
+				return fmt.Errorf("found a upstream name collision: %s", name)
+			}
+			up, err := parseUpstream(service, upstream)
+			if err != nil {
+				return multierror.Prefix(err, "upstream: ")
+			}
+			up.Name = name
+			sidecar.Upstreams = append(sidecar.Upstreams, up)
+			knownUpstreams[name] = true
+		}
+	}
+
+	return nil
+}
+
+func parseUpstream(service *api.Service, uo *ast.ObjectItem) (*api.ProxyUpstream, error) {
+	valid := []string{
+		"destination",
+		"type",
+		"datacenter",
+		"config",
+	}
+
+	var listVal *ast.ObjectList
+	if ot, ok := uo.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("upstream: should be an object")
+	}
+
+	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		return nil, multierror.Prefix(err, "upstream ->")
+	}
+
+	var upstream api.ProxyUpstream
+	var um map[string]interface{}
+	if err := hcl.DecodeObject(&um, listVal); err != nil {
+		return nil, err
+	}
+
+	delete(um, "config")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &upstream,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(um); err != nil {
+		return nil, err
+	}
+
+	// If we have config, then parse that
+	if o := listVal.Filter("config"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return nil, fmt.Errorf("only one 'config' block is allowed in upstream. Number of config block found: %d", len(o.Items))
+		}
+		configBlock := o.Items[0]
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, configBlock.Val); err != nil {
+			return nil, err
+		}
+
+		if err := mapstructure.WeakDecode(m, &upstream.Config); err != nil {
+			return nil, err
+		}
+	}
+
+	return &upstream, nil
 }
 
 func parseResources(result *api.Resources, list *ast.ObjectList) error {

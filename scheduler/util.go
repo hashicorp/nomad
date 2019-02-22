@@ -418,11 +418,14 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 // values. The value for dynamic ports is disregarded even if it is set. This
 // makes this function suitable for comparing two network resources for changes.
 func networkPortMap(n *structs.NetworkResource) map[string]int {
-	m := make(map[string]int, len(n.DynamicPorts)+len(n.ReservedPorts))
+	m := make(map[string]int, len(n.DynamicPorts)+len(n.ReservedPorts)+len(n.SidecarPorts))
 	for _, p := range n.ReservedPorts {
 		m[p.Label] = p.Value
 	}
 	for _, p := range n.DynamicPorts {
+		m[p.Label] = -1
+	}
+	for _, p := range n.SidecarPorts {
 		m[p.Label] = -1
 	}
 	return m

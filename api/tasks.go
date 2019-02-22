@@ -364,14 +364,15 @@ type ServiceCheck struct {
 
 // The Service model represents a Consul service definition
 type Service struct {
-	Id           string
-	Name         string
-	Tags         []string
-	CanaryTags   []string `mapstructure:"canary_tags"`
-	PortLabel    string   `mapstructure:"port"`
-	AddressMode  string   `mapstructure:"address_mode"`
-	Checks       []ServiceCheck
-	CheckRestart *CheckRestart `mapstructure:"check_restart"`
+	Id             string
+	Name           string
+	Tags           []string
+	CanaryTags     []string `mapstructure:"canary_tags"`
+	PortLabel      string   `mapstructure:"port"`
+	AddressMode    string   `mapstructure:"address_mode"`
+	Checks         []ServiceCheck
+	CheckRestart   *CheckRestart   `mapstructure:"check_restart"`
+	SidecarService *SidecarService `mapstructure:"sidecar"`
 }
 
 func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
@@ -389,6 +390,31 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	for i, check := range s.Checks {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
 		s.Checks[i].CheckRestart.Canonicalize()
+	}
+
+	if s.SidecarService != nil && s.SidecarService.Upstreams != nil {
+		for _, u := range s.SidecarService.Upstreams {
+			u.Canonicalize()
+		}
+	}
+}
+
+type SidecarService struct {
+	Upstreams []*ProxyUpstream
+	Config    map[string]interface{} `mapstructure:"config"`
+}
+
+type ProxyUpstream struct {
+	Name            string                 `mapstructure:"name"`
+	DestinationName string                 `mapstructure:"destination"`
+	DestinationType string                 `mapstructure:"type"`
+	Datacenter      string                 `mapstructure:"datacenter"`
+	Config          map[string]interface{} `mapstructure:"config"`
+}
+
+func (u *ProxyUpstream) Canonicalize() {
+	if u.DestinationType == "" {
+		u.DestinationType = "service"
 	}
 }
 

@@ -694,27 +694,43 @@ func (b *Builder) SetDriverNetwork(n *drivers.DriverNetwork) *Builder {
 func buildNetworkEnv(envMap map[string]string, nets structs.Networks, driverNet *drivers.DriverNetwork) {
 	for _, n := range nets {
 		for _, p := range n.ReservedPorts {
-			buildPortEnv(envMap, p, n.IP, driverNet)
+			buildPortEnv(envMap, p, n.IP, driverNet, false)
 		}
 		for _, p := range n.DynamicPorts {
-			buildPortEnv(envMap, p, n.IP, driverNet)
+			buildPortEnv(envMap, p, n.IP, driverNet, false)
+		}
+		for _, p := range n.SidecarPorts {
+			buildPortEnv(envMap, p, n.IP, driverNet, true)
 		}
 	}
 }
 
-func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *drivers.DriverNetwork) {
+func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet *drivers.DriverNetwork, sidecar bool) {
+	label := p.Label
+	if sidecar {
+		if strings.HasPrefix(label, "upstream") {
+			tokens := strings.Split(label, ".")
+			if len(tokens) != 2 {
+				return
+			}
+			label = fmt.Sprintf("UPSTREAM_%s", tokens[1])
+		} else {
+			return
+		}
+	}
+
 	// Host IP, port, and address
 	portStr := strconv.Itoa(p.Value)
-	envMap[IpPrefix+p.Label] = ip
-	envMap[HostPortPrefix+p.Label] = portStr
-	envMap[AddrPrefix+p.Label] = net.JoinHostPort(ip, portStr)
+	envMap[IpPrefix+label] = ip
+	envMap[HostPortPrefix+label] = portStr
+	envMap[AddrPrefix+label] = net.JoinHostPort(ip, portStr)
 
 	// Set Port to task's value if there's a port map
-	if driverNet != nil && driverNet.PortMap[p.Label] != 0 {
-		envMap[PortPrefix+p.Label] = strconv.Itoa(driverNet.PortMap[p.Label])
+	if driverNet != nil && driverNet.PortMap[label] != 0 {
+		envMap[PortPrefix+label] = strconv.Itoa(driverNet.PortMap[label])
 	} else {
 		// Default to host's
-		envMap[PortPrefix+p.Label] = portStr
+		envMap[PortPrefix+label] = portStr
 	}
 }
 

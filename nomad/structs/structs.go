@@ -7,11 +7,13 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/asn1"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"math"
 	"net"
@@ -1901,6 +1903,7 @@ type NetworkResource struct {
 	MBits         int    // Throughput
 	ReservedPorts []Port // Host Reserved ports
 	DynamicPorts  []Port // Host Dynamically assigned ports
+	SidecarPorts  []Port // Host Dynamically assigned sidecar ports
 }
 
 func (nr *NetworkResource) Equals(other *NetworkResource) bool {
@@ -1956,6 +1959,9 @@ func (n *NetworkResource) Canonicalize() {
 	if len(n.DynamicPorts) == 0 {
 		n.DynamicPorts = nil
 	}
+	if len(n.SidecarPorts) == 0 {
+		n.SidecarPorts = nil
+	}
 }
 
 // MeetsMinResources returns an error if the resources specified are less than
@@ -1983,6 +1989,10 @@ func (n *NetworkResource) Copy() *NetworkResource {
 		newR.DynamicPorts = make([]Port, len(n.DynamicPorts))
 		copy(newR.DynamicPorts, n.DynamicPorts)
 	}
+	if n.SidecarPorts != nil {
+		newR.SidecarPorts = make([]Port, len(n.SidecarPorts))
+		copy(newR.SidecarPorts, n.SidecarPorts)
+	}
 	return newR
 }
 
@@ -1994,6 +2004,7 @@ func (n *NetworkResource) Add(delta *NetworkResource) {
 	}
 	n.MBits += delta.MBits
 	n.DynamicPorts = append(n.DynamicPorts, delta.DynamicPorts...)
+	n.SidecarPorts = append(n.SidecarPorts, delta.SidecarPorts...)
 }
 
 func (n *NetworkResource) GoString() string {
@@ -2008,6 +2019,9 @@ func (n *NetworkResource) PortLabels() map[string]int {
 		labelValues[port.Label] = port.Value
 	}
 	for _, port := range n.DynamicPorts {
+		labelValues[port.Label] = port.Value
+	}
+	for _, port := range n.SidecarPorts {
 		labelValues[port.Label] = port.Value
 	}
 	return labelValues
@@ -2025,6 +2039,11 @@ func (ns Networks) Port(label string) (string, int) {
 			}
 		}
 		for _, p := range n.DynamicPorts {
+			if p.Label == label {
+				return n.IP, p.Value
+			}
+		}
+		for _, p := range n.SidecarPorts {
 			if p.Label == label {
 				return n.IP, p.Value
 			}
@@ -4933,6 +4952,101 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// SidecarService respresents the Consul embedded sidecar service definition
+type SidecarService struct {
+	// Config is an opaque config block available to the sidecar
+	Config map[string]interface{}
+
+	// Upstreams are the services which will need to have a proxy to
+	Upstreams []*ProxyUpstream
+}
+
+func (s *SidecarService) Copy() *SidecarService {
+	if s == nil {
+		return nil
+	}
+	ns := new(SidecarService)
+	*ns = *s
+	if i, err := copystructure.Copy(ns.Config); err != nil {
+		panic(err.Error())
+	} else {
+		ns.Config = i.(map[string]interface{})
+	}
+
+	if s.Upstreams != nil {
+		upstreams := make([]*ProxyUpstream, len(ns.Upstreams))
+		for i, u := range ns.Upstreams {
+			upstreams[i] = u.Copy()
+		}
+		ns.Upstreams = upstreams
+	}
+
+	return ns
+}
+
+// ProxyUpstream represents an upstream service which the sidecar proxt should
+// create listeners for
+type ProxyUpstream struct {
+	// Name of the upstream
+	Name string
+
+	//DestinationName is the name of the service or prepared query to route connect to.
+	DestinationName string
+
+	// DestinationType is the type of discovery query to use to find an instance
+	// to connect to. Valid values are 'service' or 'prepared_query'.
+	DestinationType string
+
+	// Datacenter specifies the datacenter to issue the discovery query to
+	Datacenter string
+
+	// Config is an opaque config block available to the sidecar
+	Config map[string]interface{}
+}
+
+func (u *ProxyUpstream) Copy() *ProxyUpstream {
+	if u == nil {
+		return nil
+	}
+	nu := new(ProxyUpstream)
+	*nu = *u
+	if i, err := copystructure.Copy(nu.Config); err != nil {
+		panic(err.Error())
+	} else {
+		nu.Config = i.(map[string]interface{})
+	}
+
+	return nu
+}
+
+const (
+	DestinationTypeService = "service"
+	DestinationTypeQuery   = "prepared_query"
+)
+
+// Validate checks if the Check definition is valid
+func (u *ProxyUpstream) validate() error {
+	var mErr multierror.Error
+
+	// Ensure the service name is valid per the below RFCs but make an exception
+	// for our interpolation syntax by first stripping any environment variables from the name
+
+	destinationNameStripped := args.ReplaceEnvWithPlaceHolder(u.DestinationName, "ENV-VAR")
+
+	if err := validateServiceName(destinationNameStripped); err != nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("destinationName name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes: %q", u.DestinationName))
+	}
+
+	switch u.DestinationType {
+	case "", DestinationTypeService, DestinationTypeQuery:
+		// OK
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("service address_mode must be %q, or %q; not %q", DestinationTypeService, DestinationTypeQuery, u.DestinationType))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 const (
 	AddressModeAuto   = "auto"
 	AddressModeHost   = "host"
@@ -4958,6 +5072,9 @@ type Service struct {
 	Tags       []string        // List of tags for the service
 	CanaryTags []string        // List of tags for the service when it is a canary
 	Checks     []*ServiceCheck // List of checks associated with the service
+	// SidecarService is the configuration to populate the service configuration
+	// for a sidecar
+	SidecarService *SidecarService
 }
 
 func (s *Service) Copy() *Service {
@@ -4975,6 +5092,9 @@ func (s *Service) Copy() *Service {
 			checks[i] = c.Copy()
 		}
 		ns.Checks = checks
+	}
+	if s.SidecarService != nil {
+		ns.SidecarService = s.SidecarService.Copy()
 	}
 
 	return ns
@@ -5039,12 +5159,18 @@ func (s *Service) Validate() error {
 		}
 	}
 
+	if s.SidecarService != nil {
+		for _, u := range s.SidecarService.Upstreams {
+			if err := u.validate(); err != nil {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("upstream %s invalid: %v", u.DestinationName, err))
+			}
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
-// ValidateName checks if the services Name is valid and should be called after
-// the name has been interpolated
-func (s *Service) ValidateName(name string) error {
+func validateServiceName(name string) error {
 	// Ensure the service name is valid per RFC-952 §1
 	// (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
 	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
@@ -5054,6 +5180,12 @@ func (s *Service) ValidateName(name string) error {
 		return fmt.Errorf("service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters: %q", name)
 	}
 	return nil
+}
+
+// ValidateName checks if the services Name is valid and should be called after
+// the name has been interpolated
+func (s *Service) ValidateName(name string) error {
+	return validateServiceName(name)
 }
 
 // Hash returns a base32 encoded hash of a Service's contents excluding checks
@@ -5077,11 +5209,35 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 		h.Write([]byte("Canary"))
 	}
 
+	if s.SidecarService != nil {
+		encodeConfig(s.SidecarService.Config, h)
+		if s.SidecarService.Upstreams != nil {
+			for _, v := range s.SidecarService.Upstreams {
+				io.WriteString(h, v.DestinationName)
+				io.WriteString(h, v.DestinationType)
+				io.WriteString(h, v.Datacenter)
+				encodeConfig(v.Config, h)
+			}
+		}
+	}
+
 	// Base32 is used for encoding the hash as sha1 hashes can always be
 	// encoded without padding, only 4 bytes larger than base64, and saves
 	// 8 bytes vs hex. Since these hashes are used in Consul URLs it's nice
 	// to have a reasonably compact URL-safe representation.
 	return b32.EncodeToString(h.Sum(nil))
+}
+
+func encodeConfig(configMap map[string]interface{}, h hash.Hash) {
+	if len(configMap) > 0 {
+		config := make([]string, 0, len(configMap))
+		for k, v := range configMap {
+			b, _ := asn1.Marshal(v)
+			config = append(config, k+string(b))
+		}
+		sort.Strings(config)
+		io.WriteString(h, strings.Join(config, ""))
+	}
 }
 
 const (
