@@ -42,10 +42,6 @@ var (
 	// running operations such as waiting on containers and collect stats
 	waitClient *docker.Client
 
-	// The statistics the Docker driver exposes
-	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage"}
-	DockerMeasuredCpuStats = []string{"Throttled Periods", "Throttled Time", "Percent"}
-
 	// recoverableErrTimeouts returns a recoverable error if the error was due
 	// to timeouts
 	recoverableErrTimeouts = func(err error) error {
