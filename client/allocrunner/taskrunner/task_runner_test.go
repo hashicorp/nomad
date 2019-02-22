@@ -1379,6 +1379,73 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 
 }
 
+func TestTaskRunner_VaultManager_Restart(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "0",
+		"run_for":   "10s",
+	}
+	task.Vault = &structs.Vault{
+		Policies:   []string{"default"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	testWaitForTaskToStart(t, tr)
+
+	tr.vaultTokenLock.Lock()
+	token := tr.vaultToken
+	tr.vaultTokenLock.Unlock()
+
+	require.NotEmpty(t, token)
+
+	vault := conf.Vault.(*vaultclient.MockVaultClient)
+	renewalCh, ok := vault.RenewTokens()[token]
+	require.True(t, ok, "no renewal channel for token")
+
+	renewalCh <- fmt.Errorf("Test killing")
+	close(renewalCh)
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := tr.TaskState()
+
+		if len(state.Events) == 0 {
+			return false, fmt.Errorf("no events yet")
+		}
+
+		// TODO: check for RestartSignal too - 0.8 sent that event, but not 0.9
+		foundRestarting := false
+		for _, e := range state.Events {
+			if e.Type == structs.TaskRestarting {
+				foundRestarting = true
+			}
+		}
+
+		if !foundRestarting {
+			return false, fmt.Errorf("no restarting event yet: %#v", state.Events)
+		}
+
+		lastEvent := state.Events[len(state.Events)-1]
+		if lastEvent.Type != structs.TaskStarted {
+			return false, fmt.Errorf("expected last event to be task restarting but was %#v", lastEvent)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+}
+
 // TestTaskRunner_UnregisterConsul_Retries asserts a task is unregistered from
 // Consul when waiting to be retried.
 func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
