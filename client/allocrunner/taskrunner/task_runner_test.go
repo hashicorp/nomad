@@ -1379,6 +1379,49 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 
 }
 
+// TestTaskRunner_UnregisterConsul_Retries asserts a task is unregistered from
+// Consul when waiting to be retried.
+func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	// Make the restart policy try one ctx.update
+	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+		Attempts: 1,
+		Interval: 10 * time.Minute,
+		Delay:    time.Nanosecond,
+		Mode:     structs.RestartPolicyModeFail,
+	}
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"exit_code": "1",
+		"run_for":   "1ns",
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	tr.Run()
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+
+	consul := conf.Consul.(*consulapi.MockConsulServiceClient)
+	consulOps := consul.GetOps()
+	require.Len(t, consulOps, 6)
+	// pattern: add followed by two removals
+	require.Equal(t, "add", consulOps[0].Op)
+	require.Equal(t, "remove", consulOps[1].Op)
+	require.Equal(t, "remove", consulOps[2].Op)
+	require.Equal(t, "add", consulOps[3].Op)
+	require.Equal(t, "remove", consulOps[4].Op)
+	require.Equal(t, "remove", consulOps[5].Op)
+}
+
 // testWaitForTaskToStart waits for the task to be running or fails the test
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
