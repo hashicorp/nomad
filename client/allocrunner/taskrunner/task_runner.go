@@ -656,7 +656,9 @@ func (tr *TaskRunner) runDriver() error {
 				return fmt.Errorf("failed to start task after driver exited unexpectedly: %v", err)
 			}
 		} else {
-			return fmt.Errorf("driver start failed: %v", err)
+			// Do *NOT* wrap the error here without maintaining
+			// whether or not is Recoverable.
+			return err
 		}
 	}
 
