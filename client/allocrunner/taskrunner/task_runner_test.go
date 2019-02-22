@@ -1296,6 +1296,89 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 	require.NoErrorf(t, err, "%v not rendered", f2)
 }
 
+func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Templates = []*structs.Template{
+		{
+			EmbeddedTmpl: `{{key "foo"}}`,
+			DestPath:     "local/test",
+			ChangeMode:   structs.TemplateChangeModeNoop,
+		},
+	}
+	task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Wait for a Vault token
+	var token string
+	testutil.WaitForResult(func() (bool, error) {
+		tr.vaultTokenLock.Lock()
+		defer tr.vaultTokenLock.Unlock()
+
+		token = tr.vaultToken
+
+		if token == "" {
+			return false, fmt.Errorf("No Vault token")
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	vault := conf.Vault.(*vaultclient.MockVaultClient)
+	renewalCh, ok := vault.RenewTokens()[token]
+	require.True(t, ok, "no renewal channel for token")
+
+	renewalCh <- fmt.Errorf("Test killing")
+	close(renewalCh)
+
+	var token2 string
+	testutil.WaitForResult(func() (bool, error) {
+		tr.vaultTokenLock.Lock()
+		defer tr.vaultTokenLock.Unlock()
+
+		token2 = tr.vaultToken
+
+		if token2 == "" {
+			return false, fmt.Errorf("No Vault token")
+		}
+
+		if token2 == token {
+			return false, fmt.Errorf("token wasn't recreated")
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Check the token was revoked
+	testutil.WaitForResult(func() (bool, error) {
+		if len(vault.StoppedTokens()) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", vault.StoppedTokens())
+		}
+
+		if a := vault.StoppedTokens()[0]; a != token {
+			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+}
+
 // testWaitForTaskToStart waits for the task to be running or fails the test
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
