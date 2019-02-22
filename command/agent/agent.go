@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	golog "log"
 	"net"
@@ -12,8 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"io"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
