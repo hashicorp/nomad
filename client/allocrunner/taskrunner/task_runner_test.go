@@ -1238,6 +1238,64 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 	require.Equal(t, structs.TaskNotRestarting, state.Events[5].Type)
 }
 
+// TestTaskRunner_Template_Artifact asserts that tasks can use artifacts as templates.
+func TestTaskRunner_Template_Artifact(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.FileServer(http.Dir(".")))
+	defer ts.Close()
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	f1 := "task_runner.go"
+	f2 := "test"
+	task.Artifacts = []*structs.TaskArtifact{
+		{GetterSource: fmt.Sprintf("%s/%s", ts.URL, f1)},
+	}
+	task.Templates = []*structs.Template{
+		{
+			SourcePath: f1,
+			DestPath:   "local/test",
+			ChangeMode: structs.TemplateChangeModeNoop,
+		},
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	// Wait for task to run and exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
+		require.Fail(t, "timed out waiting for task runner to exit")
+	}
+
+	state := tr.TaskState()
+	require.Equal(t, structs.TaskStateDead, state.State)
+	require.True(t, state.Successful())
+	require.False(t, state.Failed)
+
+	artifactsDownloaded := false
+	for _, e := range state.Events {
+		if e.Type == structs.TaskDownloadingArtifacts {
+			artifactsDownloaded = true
+		}
+	}
+	assert.True(t, artifactsDownloaded, "expected artifacts downloaded events")
+
+	// Check that both files exist.
+	_, err = os.Stat(filepath.Join(conf.TaskDir.Dir, f1))
+	require.NoErrorf(t, err, "%v not downloaded", f1)
+
+	_, err = os.Stat(filepath.Join(conf.TaskDir.LocalDir, f2))
+	require.NoErrorf(t, err, "%v not rendered", f2)
+}
+
 // testWaitForTaskToStart waits for the task to be running or fails the test
 func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 	testutil.WaitForResult(func() (bool, error) {
