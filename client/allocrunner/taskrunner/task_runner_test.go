@@ -1420,12 +1420,18 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 			return false, fmt.Errorf("no events yet")
 		}
 
-		// TODO: check for RestartSignal too - 0.8 sent that event, but not 0.9
-		foundRestarting := false
+		foundRestartSignal, foundRestarting := false, false
 		for _, e := range state.Events {
-			if e.Type == structs.TaskRestarting {
+			switch e.Type {
+			case structs.TaskRestartSignal:
+				foundRestartSignal = true
+			case structs.TaskRestarting:
 				foundRestarting = true
 			}
+		}
+
+		if !foundRestartSignal {
+			return false, fmt.Errorf("no restart signal event yet: %#v", state.Events)
 		}
 
 		if !foundRestarting {
@@ -1434,7 +1440,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 
 		lastEvent := state.Events[len(state.Events)-1]
 		if lastEvent.Type != structs.TaskStarted {
-			return false, fmt.Errorf("expected last event to be task restarting but was %#v", lastEvent)
+			return false, fmt.Errorf("expected last event to be task starting but was %#v", lastEvent)
 		}
 		return true, nil
 	}, func(err error) {
