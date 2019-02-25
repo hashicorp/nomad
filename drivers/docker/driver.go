@@ -598,23 +598,28 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	}
 
 	for _, userbind := range driverConfig.Volumes {
-		parts := strings.Split(userbind, ":")
-		if len(parts) < 2 {
-			return nil, fmt.Errorf("invalid docker volume: %q", userbind)
+
+		src, dst, mode, err := parseVolumeSpec(userbind, runtime.GOOS)
+		if err != nil {
+			return nil, fmt.Errorf("invalid docker volume %q: %v", userbind, err)
 		}
 
 		// Paths inside task dir are always allowed, Relative paths are always allowed as they mount within a container
 		// When a VolumeDriver is set, we assume we receive a binding in the format volume-name:container-dest
 		// Otherwise, we assume we receive a relative path binding in the format relative/to/task:/also/in/container
 		if localBindVolume {
-			parts[0] = expandPath(task.TaskDir().Dir, parts[0])
+			src = expandPath(task.TaskDir().Dir, src)
 
-			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, parts[0]) {
+			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, src) {
 				return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
 			}
 		}
 
-		binds = append(binds, strings.Join(parts, ":"))
+		bind := src + ":" + dst
+		if mode != "" {
+			bind += ":" + mode
+		}
+		binds = append(binds, bind)
 	}
 
 	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
