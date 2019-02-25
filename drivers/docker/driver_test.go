@@ -1553,12 +1553,6 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	if runtime.GOOS == "windows" {
-		// Nomad assumes : as the delimiter between host:path container, but Windows uses it for
-		// drive paths (e.g. `C:\Users...`).  Lookup volume syntax for windows and update test
-		t.Skip("TODO: Windows volume sharing doesn't work")
-	}
-
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	require.NoError(t, err)
 
