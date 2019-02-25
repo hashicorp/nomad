@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -102,8 +103,10 @@ func (h *logmonHook) Prestart(ctx context.Context,
 
 	// Launch or reattach logmon instance for the task.
 	if err := h.launchLogMon(reattachConfig); err != nil {
+		// Retry errors launching logmon as logmon may have crashed and
+		// subsequent attempts will start a new one.
 		h.logger.Error("failed to launch logmon process", "error", err)
-		return err
+		return structs.NewRecoverableError(err, true)
 	}
 
 	// Only tell logmon to start when we are not reattaching to a running instance
