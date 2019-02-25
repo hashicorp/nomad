@@ -117,6 +117,8 @@
 		{"path":"github.com/docker/docker/pkg/term/windows","checksumSHA1":"TeOtxuBbbZtp6wDK/t4DdaGGSC0=","revision":"baab736a364959f10a5ef86f0cd8a8e44bdcc576","revisionTime":"2018-11-29T15:58:16Z"},
 		{"path":"github.com/docker/docker/registry","checksumSHA1":"0ZOQ9gYPwnxxjSIytDpwvsN5Rl0=","revision":"baab736a364959f10a5ef86f0cd8a8e44bdcc576","revisionTime":"2018-11-29T15:58:16Z"},
 		{"path":"github.com/docker/docker/registry/resumable","checksumSHA1":"jH7uQnDehFQygPP3zLC/mLSqgOk=","revision":"baab736a364959f10a5ef86f0cd8a8e44bdcc576","revisionTime":"2018-11-29T15:58:16Z"},
+		{"path":"github.com/docker/docker/volume","checksumSHA1":"Bs344j8rU7oCQyIcIhO9FJyk3ts=","revision":"baab736a364959f10a5ef86f0cd8a8e44bdcc576","revisionTime":"2018-11-29T15:58:16Z"},
+		{"path":"github.com/docker/docker/volume/mounts","checksumSHA1":"J4wlScrHqr/jCIn82fgVF5mzO34=","revision":"baab736a364959f10a5ef86f0cd8a8e44bdcc576","revisionTime":"2018-11-29T15:58:16Z"},
 		{"path":"github.com/docker/go-connections/nat","checksumSHA1":"JbiWTzH699Sqz25XmDlsARpMN9w=","revision":"7da10c8c50cad14494ec818dcdfb6506265c0086","revisionTime":"2017-02-03T23:56:24Z"},
 		{"path":"github.com/docker/go-connections/sockets","checksumSHA1":"jUfDG3VQsA2UZHvvIXncgiddpYA=","origin":"github.com/docker/docker/vendor/github.com/docker/go-connections/sockets","revision":"320063a2ad06a1d8ada61c94c29dbe44e2d87473","revisionTime":"2018-08-16T08:14:46Z"},
 		{"path":"github.com/docker/go-connections/tlsconfig","checksumSHA1":"zUG/J7nb6PWxfSXOoET6NePfyc0=","origin":"github.com/docker/docker/vendor/github.com/docker/go-connections/tlsconfig","revision":"320063a2ad06a1d8ada61c94c29dbe44e2d87473","revisionTime":"2018-08-16T08:14:46Z"},
