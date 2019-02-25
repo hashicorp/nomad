@@ -99,6 +99,11 @@ type Driver struct {
 	// whether it has been successful
 	fingerprintSuccess *bool
 	fingerprintLock    sync.RWMutex
+
+	// A boolean to know if the docker driver has ever been correctly detected
+	// for use during fingerprinting.
+	detected     bool
+	detectedLock sync.RWMutex
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
