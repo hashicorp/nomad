@@ -17,6 +17,20 @@ func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, 
 	return ch, nil
 }
 
+func (d *Driver) previouslyDetected() bool {
+	d.detectedLock.RLock()
+	defer d.detectedLock.RUnlock()
+
+	return d.detected
+}
+
+func (d *Driver) setDetected(detected bool) {
+	d.detectedLock.Lock()
+	defer d.detectedLock.Unlock()
+
+	d.detected = detected
+}
+
 // setFingerprintSuccess marks the driver as having fingerprinted successfully
 func (d *Driver) setFingerprintSuccess() {
 	d.fingerprintLock.Lock()
@@ -79,12 +93,19 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
 		}
 		d.setFingerprintFailure()
+
+		result := drivers.HealthStateUndetected
+		if d.previouslyDetected() {
+			result = drivers.HealthStateUnhealthy
+		}
+
 		return &drivers.Fingerprint{
-			Health:            drivers.HealthStateUnhealthy,
+			Health:            result,
 			HealthDescription: "Failed to connect to docker daemon",
 		}
 	}
 
+	d.setDetected(true)
 	fp.Attributes["driver.docker"] = pstructs.NewBoolAttribute(true)
 	fp.Attributes["driver.docker.version"] = pstructs.NewStringAttribute(env.Get("Version"))
 	if d.config.AllowPrivileged {
