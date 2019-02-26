@@ -4578,6 +4578,75 @@ func (m *MigrateStrategy) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// Volume is a representation of a storage volume that a TaskGroup wishes to use.
+type Volume struct {
+	Name     string
+	Type     string
+	ReadOnly bool
+	Hidden   bool
+
+	Config map[string]interface{}
+}
+
+func (v *Volume) Copy() *Volume {
+	if v == nil {
+		return nil
+	}
+	nv := new(Volume)
+	*nv = *v
+
+	if i, err := copystructure.Copy(nv.Config); err != nil {
+		panic(err.Error())
+	} else {
+		nv.Config = i.(map[string]interface{})
+	}
+
+	return nv
+}
+
+func CopyMapVolumes(s map[string]*Volume) map[string]*Volume {
+	if s == nil {
+		return nil
+	}
+
+	l := len(s)
+	c := make(map[string]*Volume, l)
+	for k, v := range s {
+		c[k] = v.Copy()
+	}
+	return c
+}
+
+// VolumeMount is ...
+type VolumeMount struct {
+	Volume      string
+	Destination string
+	ReadOnly    bool
+}
+
+func (v *VolumeMount) Copy() *VolumeMount {
+	if v == nil {
+		return nil
+	}
+
+	nv := new(VolumeMount)
+	*nv = *v
+	return nv
+}
+
+func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
+	l := len(s)
+	if l == 0 {
+		return nil
+	}
+
+	c := make([]*VolumeMount, l)
+	for i, v := range s {
+		c[i] = v.Copy()
+	}
+	return c
+}
+
 // TaskGroup is an atomic unit of placement. Each task group belongs to
 // a job and may contain any number of tasks. A task group support running
 // in many replicas using the same configuration..
@@ -4623,6 +4692,10 @@ type TaskGroup struct {
 	// Spread can be specified at the task group level to express spreading
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
+
+	// Volumes can be specified at the task group level to make volumes available
+	// to tasks within a task group.
+	Volumes map[string]*Volume
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4637,6 +4710,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
+	ntg.Volumes = CopyMapVolumes(ntg.Volumes)
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))
@@ -5358,6 +5432,10 @@ type Task struct {
 	// task from Consul and sending it a signal to shutdown. See #2441
 	ShutdownDelay time.Duration
 
+	// VolumeMounts is a list of Volume name <-> mount configurations that will be
+	// attached to this task.
+	VolumeMounts []*VolumeMount
+
 	// The kill signal to use for the task. This is an optional specification,
 
 	// KillSignal is the kill signal to use for the task. This is an optional
@@ -5383,6 +5461,7 @@ func (t *Task) Copy() *Task {
 
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 	nt.Affinities = CopySliceAffinities(nt.Affinities)
+	nt.VolumeMounts = CopySliceVolumeMount(nt.VolumeMounts)
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
