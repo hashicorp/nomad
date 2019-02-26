@@ -12,6 +12,7 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -76,7 +77,7 @@ func TestRktDriver_SetConfig(t *testing.T) {
 // Also verifies sending sigterm correctly stops the driver instance
 func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -159,7 +160,7 @@ func TestRktDriver_Start_Wait_Stop_DNS(t *testing.T) {
 // Verifies waiting on task to exit cleanly
 func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -217,7 +218,7 @@ func TestRktDriver_Start_Wait_Stop(t *testing.T) {
 // Verifies that skipping trust_prefix works
 func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -275,7 +276,7 @@ func TestRktDriver_Start_Wait_Skip_Trust(t *testing.T) {
 // Verifies that an invalid trust prefix returns expected error
 func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -329,7 +330,7 @@ func TestRktDriver_InvalidTrustPrefix(t *testing.T) {
 // to remove the task and then reattaches to it
 func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -423,7 +424,7 @@ func TestRktDriver_StartWaitRecoverWaitStop(t *testing.T) {
 // some data to it from inside the container
 func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -508,7 +509,7 @@ func TestRktDriver_Start_Wait_Volume(t *testing.T) {
 // some data to it from inside the container
 func TestRktDriver_Start_Wait_TaskMounts(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -647,7 +648,7 @@ func TestRktDriver_PortMapping(t *testing.T) {
 // It verifies that running ps inside the container shows the expected user and group
 func TestRktDriver_UserGroup(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -714,7 +715,7 @@ func TestRktDriver_UserGroup(t *testing.T) {
 //  Verifies executing both correct and incorrect commands inside the container
 func TestRktDriver_Exec(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -795,7 +796,7 @@ func TestRktDriver_Exec(t *testing.T) {
 // TODO(preetha) figure out why stats are zero
 func TestRktDriver_Stats(t *testing.T) {
 	ctestutil.RktCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -861,4 +862,54 @@ func TestRktDriver_Stats(t *testing.T) {
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  image = "docker://redis:3.2"
+  command = "/bin/bash"
+  args = ["-c", "echo hi"]
+  trust_prefix = "coreos.com/etcd"
+  dns_servers = ["8.8.8.8"]
+  dns_search_domains = ["example.com"]
+  net = ["network1"]
+  port_map {
+    http = "80-tcp"
+    https = "443-tcp"
+  }
+  volumes = [
+    "/host-path:/container-path",
+  ]
+  insecure_options = ["image", "tls", "ondisk"]
+  no_overlay = true
+  debug = true
+  group = "mygroup"
+}`
+
+	expected := &TaskConfig{
+		ImageName:        "docker://redis:3.2",
+		Command:          "/bin/bash",
+		Args:             []string{"-c", "echo hi"},
+		TrustPrefix:      "coreos.com/etcd",
+		DNSServers:       []string{"8.8.8.8"},
+		DNSSearchDomains: []string{"example.com"},
+		Net:              []string{"network1"},
+		PortMap: map[string]string{
+			"http":  "80-tcp",
+			"https": "443-tcp",
+		},
+		Volumes: []string{
+			"/host-path:/container-path",
+		},
+		InsecureOptions: []string{"image", "tls", "ondisk"},
+		NoOverlay:       true,
+		Debug:           true,
+		Group:           "mygroup",
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
 }

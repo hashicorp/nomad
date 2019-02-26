@@ -190,7 +190,7 @@ func newTestDockerClient(t *testing.T) *docker.Client {
 /*
 // This test should always pass, even if docker daemon is not available
 func TestDockerDriver_Fingerprint(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 
@@ -231,7 +231,7 @@ func TestDockerDriver_Fingerprint(t *testing.T) {
 // TestDockerDriver_Fingerprint_Bridge asserts that if Docker is running we set
 // the bridge network's IP as a node attribute. See #2785
 func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -281,7 +281,7 @@ func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
 }
 
 func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -317,7 +317,7 @@ func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
 }*/
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -352,7 +352,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_WaitFinish(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -394,7 +394,7 @@ func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 //
 // See https://github.com/hashicorp/nomad/issues/3419
 func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -453,7 +453,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 }
 
 func TestDockerDriver_Start_LoadImage(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -502,7 +502,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 }
 
 func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -538,7 +538,7 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	// This test requires that the alloc dir be mounted into docker as a volume.
@@ -600,7 +600,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -647,10 +647,15 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 }
 
 func TestDockerDriver_Start_KillTimeout(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows Docker does not support SIGUSR1")
+	}
+
 	timeout := 2 * time.Second
 	taskCfg := newTaskConfig("", []string{"sleep", "10"})
 	task := &drivers.TaskConfig{
@@ -696,7 +701,7 @@ func TestDockerDriver_StartN(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows Docker does not support SIGINT")
 	}
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -743,7 +748,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipped on windows, we don't have image variants available")
 	}
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -805,7 +810,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 }
 
 func TestDockerDriver_Labels(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -833,7 +838,7 @@ func TestDockerDriver_Labels(t *testing.T) {
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -858,7 +863,7 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 		t.Skip("TODO: Skipped digest test on Windows")
 	}
 
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -885,7 +890,7 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support seccomp")
 	}
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -926,7 +931,7 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 }
 
 func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	if !testutil.DockerIsConnected(t) {
@@ -1001,7 +1006,7 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 }
 
 func TestDockerDriver_Capabilities(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1111,7 +1116,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 }
 
 func TestDockerDriver_DNS(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1136,10 +1141,13 @@ func TestDockerDriver_DNS(t *testing.T) {
 }
 
 func TestDockerDriver_MACAddress(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows docker does not support setting MacAddress")
+	}
 
 	task, cfg, _ := dockerTask(t)
 	cfg.MacAddress = "00:16:3e:00:00:00"
@@ -1156,7 +1164,7 @@ func TestDockerDriver_MACAddress(t *testing.T) {
 }
 
 func TestDockerWorkDir(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1184,7 +1192,7 @@ func inSlice(needle string, haystack []string) bool {
 }
 
 func TestDockerDriver_PortsNoMap(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1227,7 +1235,7 @@ func TestDockerDriver_PortsNoMap(t *testing.T) {
 }
 
 func TestDockerDriver_PortsMapping(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1274,7 +1282,7 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 }
 
 func TestDockerDriver_CleanupContainer(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1309,7 +1317,7 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 }
 
 func TestDockerDriver_Stats(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1382,7 +1390,7 @@ func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath strin
 }
 
 func TestDockerDriver_VolumesDisabled(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1450,10 +1458,16 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 }
 
 func TestDockerDriver_VolumesEnabled(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+
+	if runtime.GOOS == "windows" {
+		// Nomad assumes : as the delimiter between host:path container, but Windows uses it for
+		// drive paths (e.g. `C:\Users...`).  Lookup volume syntax for windows and update test
+		t.Skip("TODO: Windows volume sharing doesn't work")
+	}
 
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	require.NoError(t, err)
@@ -1486,7 +1500,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 }
 
 func TestDockerDriver_Mounts(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1554,7 +1568,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 }
 
 func TestDockerDriver_AuthConfiguration(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1605,10 +1619,14 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 }
 
 func TestDockerDriver_OOMKilled(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support OOM Killer")
+	}
 
 	taskCfg := newTaskConfig("", []string{"sh", "-c", `sleep 2 && x=a && while true; do x="$x$x"; done`})
 	task := &drivers.TaskConfig{
@@ -1651,7 +1669,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 }
 
 func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1690,7 +1708,7 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 }
 
 func TestDockerDriver_Device_Success(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1729,7 +1747,7 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 }
 
 func TestDockerDriver_Entrypoint(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -1755,10 +1773,14 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 }
 
 func TestDockerDriver_ReadonlyRootfs(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows Docker does not support root filesystem in read-only mode")
+	}
 
 	task, cfg, _ := dockerTask(t)
 	cfg.ReadonlyRootfs = true
@@ -1794,7 +1816,7 @@ func (fakeDockerClient) RemoveContainer(opts docker.RemoveContainerOptions) erro
 // TestDockerDriver_VolumeError asserts volume related errors when creating a
 // container are recoverable.
 func TestDockerDriver_VolumeError(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 
@@ -1808,7 +1830,7 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 }
 
 func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)

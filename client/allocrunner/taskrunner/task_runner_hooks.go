@@ -113,11 +113,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 		taskEvent = structs.NewTaskEvent(structs.TaskHookFailed).SetMessage(message)
 	}
 
-	// The TaskEvent returned by a HookError may be nil if the hook chooses to opt
-	// out of sending a task event.
-	if taskEvent != nil {
-		tr.EmitEvent(taskEvent)
-	}
+	tr.EmitEvent(taskEvent)
 }
 
 // prestart is used to run the runners prestart hooks.
@@ -462,7 +458,7 @@ func (tr *TaskRunner) preKill() {
 		var start time.Time
 		if tr.logger.IsTrace() {
 			start = time.Now()
-			tr.logger.Trace("running kill hook", "name", name, "start", start)
+			tr.logger.Trace("running prekill hook", "name", name, "start", start)
 		}
 
 		// Run the pre kill hook
@@ -470,14 +466,14 @@ func (tr *TaskRunner) preKill() {
 		var resp interfaces.TaskPreKillResponse
 		if err := killHook.PreKilling(context.Background(), &req, &resp); err != nil {
 			tr.emitHookError(err, name)
-			tr.logger.Error("kill hook failed", "name", name, "error", err)
+			tr.logger.Error("prekill hook failed", "name", name, "error", err)
 		}
 
 		// No need to persist as TaskKillResponse is currently empty
 
 		if tr.logger.IsTrace() {
 			end := time.Now()
-			tr.logger.Trace("finished kill hook", "name", name, "end", end, "duration", end.Sub(start))
+			tr.logger.Trace("finished prekill hook", "name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 }

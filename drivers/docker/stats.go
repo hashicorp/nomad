@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"runtime"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/drivers/docker/util"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -86,6 +85,7 @@ func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskRes
 		return
 	}
 }
+
 func dockerStatsCollector(destCh chan *cstructs.TaskResourceUsage, statsCh <-chan *docker.Stats, interval time.Duration) {
 	var resourceUsage *cstructs.TaskResourceUsage
 
@@ -117,7 +117,7 @@ func dockerStatsCollector(destCh chan *cstructs.TaskResourceUsage, statsCh <-cha
 			}
 			// s should always be set, but check and skip just in case
 			if s != nil {
-				resourceUsage = dockerStatsToTaskResourceUsage(s)
+				resourceUsage = util.DockerStatsToTaskResourceUsage(s)
 				// send stats next interation if this is the first time received
 				// from docker
 				if !hasSentInitialStats {
@@ -127,51 +127,4 @@ func dockerStatsCollector(destCh chan *cstructs.TaskResourceUsage, statsCh <-cha
 			}
 		}
 	}
-}
-
-func dockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage {
-	ms := &cstructs.MemoryStats{
-		RSS:      s.MemoryStats.Stats.Rss,
-		Cache:    s.MemoryStats.Stats.Cache,
-		Swap:     s.MemoryStats.Stats.Swap,
-		Usage:    s.MemoryStats.Usage,
-		MaxUsage: s.MemoryStats.MaxUsage,
-		Measured: DockerMeasuredMemStats,
-	}
-
-	cs := &cstructs.CpuStats{
-		ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
-		ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
-		Measured:         DockerMeasuredCpuStats,
-	}
-
-	// Calculate percentage
-	cs.Percent = calculatePercent(
-		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-		s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, runtime.NumCPU())
-	cs.SystemMode = calculatePercent(
-		s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
-		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
-	cs.UserMode = calculatePercent(
-		s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
-		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
-	cs.TotalTicks = (cs.Percent / 100) * stats.TotalTicksAvailable() / float64(runtime.NumCPU())
-
-	return &cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
-			MemoryStats: ms,
-			CpuStats:    cs,
-		},
-		Timestamp: s.Read.UTC().UnixNano(),
-	}
-}
-
-func calculatePercent(newSample, oldSample, newTotal, oldTotal uint64, cores int) float64 {
-	numerator := newSample - oldSample
-	denom := newTotal - oldTotal
-	if numerator <= 0 || denom <= 0 {
-		return 0.0
-	}
-
-	return (float64(numerator) / float64(denom)) * float64(cores) * 100.0
 }

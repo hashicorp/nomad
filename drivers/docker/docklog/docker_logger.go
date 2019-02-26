@@ -3,6 +3,7 @@ package docklog
 import (
 	"fmt"
 	"io"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
@@ -30,6 +31,10 @@ type StartOpts struct {
 	Stdout string
 	//Stderr path to fifo
 	Stderr string
+
+	// StartTime is the Unix time that the docker logger should fetch logs beginning
+	// from
+	StartTime int64
 
 	// TLS settings for docker client
 	TLSCert string
@@ -75,18 +80,42 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancelCtx = cancel
 
-	logOpts := docker.LogsOptions{
-		Context:      ctx,
-		Container:    opts.ContainerID,
-		OutputStream: d.stdout,
-		ErrorStream:  d.stderr,
-		Since:        0,
-		Follow:       true,
-		Stdout:       true,
-		Stderr:       true,
-	}
+	go func() {
+		sinceTime := time.Unix(opts.StartTime, 0)
 
-	go func() { client.Logs(logOpts) }()
+		for {
+			logOpts := docker.LogsOptions{
+				Context:      ctx,
+				Container:    opts.ContainerID,
+				OutputStream: d.stdout,
+				ErrorStream:  d.stderr,
+				Since:        sinceTime.Unix(),
+				Follow:       true,
+				Stdout:       true,
+				Stderr:       true,
+			}
+
+			err := client.Logs(logOpts)
+			if ctx.Err() != nil {
+				// If context is terminated then we can safely break the loop
+				return
+			} else if err != nil {
+				d.logger.Error("Log streaming ended with error", "error", err)
+			}
+
+			sinceTime = time.Now()
+
+			container, err := client.InspectContainer(opts.ContainerID)
+			if err != nil {
+				_, notFoundOk := err.(*docker.NoSuchContainer)
+				if !notFoundOk {
+					return
+				}
+			} else if !container.State.Running {
+				return
+			}
+		}
+	}()
 	return nil
 
 }

@@ -2,7 +2,7 @@
   {{#if record.meta.showDate}}
     <li data-test-deployment-time class="timeline-note">
       {{#if record.deployment.version.submitTime}}
-        {{moment-format record.deployment.version.submitTime "MMMM D, YYYY"}}
+        {{format-date record.deployment.version.submitTime}}
       {{else}}
         Unknown time
       {{/if}}

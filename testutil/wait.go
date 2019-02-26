@@ -10,12 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	// TravisRunEnv is an environment variable that is set if being run by
-	// Travis.
-	TravisRunEnv = "CI"
-)
-
 type testFn func() (bool, error)
 type errorFn func(error)
 
@@ -57,7 +51,7 @@ func AssertUntil(until time.Duration, test testFn, error errorFn) {
 // TestMultiplier returns a multiplier for retries and waits given environment
 // the tests are being run under.
 func TestMultiplier() int64 {
-	if IsTravis() {
+	if IsCI() {
 		return 4
 	}
 
@@ -69,8 +63,18 @@ func Timeout(original time.Duration) time.Duration {
 	return original * time.Duration(TestMultiplier())
 }
 
+func IsCI() bool {
+	_, ok := os.LookupEnv("CI")
+	return ok
+}
+
 func IsTravis() bool {
-	_, ok := os.LookupEnv(TravisRunEnv)
+	_, ok := os.LookupEnv("TRAVIS")
+	return ok
+}
+
+func IsAppVeyor() bool {
+	_, ok := os.LookupEnv("APPVEYOR")
 	return ok
 }
 

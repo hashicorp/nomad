@@ -10,12 +10,12 @@
       <span class="label">Task Details</span>
       <span class="pair" data-test-started-at>
         <span class="term">Started At</span>
-        {{moment-format model.startedAt "MM/DD/YY HH:mm:ss"}}
+        {{format-ts model.startedAt}}
       </span>
       {{#if model.finishedAt}}
         <span class="pair">
           <span class="term">Finished At</span>
-          {{moment-format model.finishedAt "MM/DD/YY HH:mm:ss"}}
+          {{format-ts model.finishedAt}}
         </span>
       {{/if}}
       <span class="pair">
@@ -89,7 +89,7 @@
         {{/t.head}}
         {{#t.body as |row|}}
           <tr data-test-task-event>
-            <td data-test-task-event-time>{{moment-format row.model.time "MM/DD/YY HH:mm:ss"}}</td>
+            <td data-test-task-event-time>{{format-ts row.model.time}}</td>
             <td data-test-task-event-type>{{row.model.type}}</td>
             <td data-test-task-event-message>
               {{#if row.model.message}}

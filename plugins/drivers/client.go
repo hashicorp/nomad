@@ -282,6 +282,11 @@ func (d *driverPluginClient) handleStats(ctx context.Context, ch chan<- *cstruct
 	defer close(ch)
 	for {
 		resp, err := stream.Recv()
+		if ctx.Err() != nil {
+			// Context canceled; exit gracefully
+			return
+		}
+
 		if err != nil {
 			if err != io.EOF {
 				d.logger.Error("error receiving stream from TaskStats driver RPC, closing stream", "error", err)

@@ -18,7 +18,7 @@
     <em>No message</em>
   {{/if}}
 </td>
-<td data-test-time>{{moment-format task.events.lastObject.time "MM/DD/YY HH:mm:ss"}}</td>
+<td data-test-time>{{format-ts task.events.lastObject.time}}</td>
 <td data-test-ports>
   <ul>
     {{#with task.resources.networks.firstObject as |network|}}

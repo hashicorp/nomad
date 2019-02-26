@@ -24,7 +24,7 @@ test('/allocation/:id/:task_name should name the task and list high-level task i
   assert.ok(Task.state.includes(task.state), 'Task state');
 
   assert.ok(
-    Task.startedAt.includes(moment(task.startedAt).format('MM/DD/YY HH:mm:ss')),
+    Task.startedAt.includes(moment(task.startedAt).format("MMM DD, 'YY HH:mm:ss ZZ")),
     'Task started at'
   );
 });
@@ -142,7 +142,7 @@ test('each recent event should list the time, type, and description of the event
 
   assert.equal(
     recentEvent.time,
-    moment(event.time / 1000000).format('MM/DD/YY HH:mm:ss'),
+    moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
     'Event timestamp'
   );
   assert.equal(recentEvent.type, event.type, 'Event type');

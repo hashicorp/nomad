@@ -254,7 +254,7 @@ OUTER:
 			case structs.VaultChangeModeRestart:
 				const noFailure = false
 				h.lifecycle.Restart(h.ctx,
-					structs.NewTaskEvent(structs.TaskRestarting).
+					structs.NewTaskEvent(structs.TaskRestartSignal).
 						SetDisplayMessage("Vault: new Vault token acquired"), false)
 			case structs.VaultChangeModeNoop:
 				fallthrough

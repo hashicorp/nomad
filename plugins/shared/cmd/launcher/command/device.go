@@ -14,7 +14,6 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
-	hcl2 "github.com/hashicorp/hcl2/hcl"
 	"github.com/hashicorp/hcl2/hcldec"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -197,11 +196,7 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 
 	c.logger.Trace("raw hcl config", "config", hclog.Fmt("% #v", pretty.Formatter(configVal)))
 
-	ctx := &hcl2.EvalContext{
-		Functions: hclutils.GetStdlibFuncs(),
-	}
-
-	val, diag := hclutils.ParseHclInterface(configVal, spec, ctx)
+	val, diag := hclutils.ParseHclInterface(configVal, spec, nil)
 	if diag.HasErrors() {
 		errStr := "failed to parse config"
 		for _, err := range diag.Errs() {

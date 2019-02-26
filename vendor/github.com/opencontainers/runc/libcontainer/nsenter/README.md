@@ -1,17 +1,17 @@
 ## nsenter
 
-The `nsenter` package registers a special init constructor that is called before
-the Go runtime has a chance to boot.  This provides us the ability to `setns` on
-existing namespaces and avoid the issues that the Go runtime has with multiple
-threads.  This constructor will be called if this package is registered,
+The `nsenter` package registers a special init constructor that is called before 
+the Go runtime has a chance to boot.  This provides us the ability to `setns` on 
+existing namespaces and avoid the issues that the Go runtime has with multiple 
+threads.  This constructor will be called if this package is registered, 
 imported, in your go application.
 
 The `nsenter` package will `import "C"` and it uses [cgo](https://golang.org/cmd/cgo/)
-package. In cgo, if the import of "C" is immediately preceded by a comment, that comment,
+package. In cgo, if the import of "C" is immediately preceded by a comment, that comment, 
 called the preamble, is used as a header when compiling the C parts of the package.
-So every time we  import package `nsenter`, the C code function `nsexec()` would be
-called. And package `nsenter` is now only imported in `main_unix.go`, so every time
-before we call `cmd.Start` on linux, that C code would run.
+So every time we  import package `nsenter`, the C code function `nsexec()` would be 
+called. And package `nsenter` is only imported in `init.go`, so every time the runc
+`init` command is invoked, that C code is run.
 
 Because `nsexec()` must be run before the Go runtime in order to use the
 Linux kernel namespace, you must `import` this library into a package if
@@ -37,5 +37,8 @@ the parent `nsexec()` will exit and the child `nsexec()` process will
 return to allow the Go runtime take over.
 
 NOTE: We do both `setns(2)` and `clone(2)` even if we don't have any
-CLONE_NEW* clone flags because we must fork a new process in order to
+`CLONE_NEW*` clone flags because we must fork a new process in order to
 enter the PID namespace.
+
+
+

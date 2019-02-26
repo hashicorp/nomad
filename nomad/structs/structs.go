@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base32"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -6248,6 +6249,32 @@ func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
 }
 
+// Hash creates a unique identifier for a TaskArtifact as the same GetterSource
+// may be specified multiple times with different destinations.
+func (ta *TaskArtifact) Hash() string {
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	hash.Write([]byte(ta.GetterSource))
+
+	// Must iterate over keys in a consistent order
+	keys := make([]string, 0, len(ta.GetterOptions))
+	for k := range ta.GetterOptions {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		hash.Write([]byte(k))
+		hash.Write([]byte(ta.GetterOptions[k]))
+	}
+
+	hash.Write([]byte(ta.GetterMode))
+	hash.Write([]byte(ta.RelativeDest))
+	return base64.RawStdEncoding.EncodeToString(hash.Sum(nil))
+}
+
 // PathEscapesAllocDir returns if the given path escapes the allocation
 // directory. The prefix allows adding a prefix if the path will be joined, for
 // example a "task/local" prefix may be provided if the path will be joined
@@ -8024,11 +8051,13 @@ type Evaluation struct {
 	WaitUntil time.Time
 
 	// NextEval is the evaluation ID for the eval created to do a followup.
-	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	// This is used to support rolling upgrades and failed-follow-up evals, where
+	// we need a chain of evaluations.
 	NextEval string
 
 	// PreviousEval is the evaluation ID for the eval creating this one to do a followup.
-	// This is used to support rolling upgrades, where we need a chain of evaluations.
+	// This is used to support rolling upgrades and failed-follow-up evals, where
+	// we need a chain of evaluations.
 	PreviousEval string
 
 	// BlockedEval is the evaluation ID for a created blocked eval. A
@@ -8215,7 +8244,8 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 
 // CreateFailedFollowUpEval creates a follow up evaluation when the current one
 // has been marked as failed because it has hit the delivery limit and will not
-// be retried by the eval_broker.
+// be retried by the eval_broker. Callers should copy the created eval's ID to
+// into the old eval's NextEval field.
 func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 	return &Evaluation{
 		ID:             uuid.Generate(),

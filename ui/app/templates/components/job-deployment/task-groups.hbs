@@ -32,7 +32,7 @@
           <td data-test-deployment-task-group-healthy>{{row.model.healthyAllocs}}</td>
           <td data-test-deployment-task-group-unhealthy>{{row.model.unhealthyAllocs}}</td>
           <td data-test-deployment-task-group-progress-deadline>
-            <span class="nowrap">{{moment-format row.model.requireProgressBy "MM/DD/YY HH:mm:ss"}}</span>
+            <span class="nowrap">{{format-ts row.model.requireProgressBy}}</span>
           </td>
         </tr>
       {{/t.body}}

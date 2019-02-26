@@ -141,7 +141,7 @@ test('each allocation should have high-level details for the allocation', functi
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation short ID');
     assert.equal(
       allocationRow.createTime,
-      moment(allocation.createTime / 1000000).format('MM/DD HH:mm:ss'),
+      moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
       'Allocation create time'
     );
     assert.equal(
@@ -319,7 +319,11 @@ test('each node event shows basic node event information', function(assert) {
 
   andThen(() => {
     const eventRow = ClientDetail.events.objectAt(0);
-    assert.equal(eventRow.time, moment(event.time).format('MM/DD/YY HH:mm:ss'), 'Event timestamp');
+    assert.equal(
+      eventRow.time,
+      moment(event.time).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'Event timestamp'
+    );
     assert.equal(eventRow.subsystem, event.subsystem, 'Event subsystem');
     assert.equal(eventRow.message, event.message, 'Event message');
   });
@@ -452,7 +456,7 @@ test('when the node has a drain strategy with a positive deadline, the drain sta
     );
 
     assert.ok(
-      ClientDetail.drain.forcedDeadline.includes(forceDeadline.format('MM/DD/YY HH:mm:ss')),
+      ClientDetail.drain.forcedDeadline.includes(forceDeadline.format("MMM DD, 'YY HH:mm:ss ZZ")),
       'Force deadline is shown as an absolute date'
     );
 

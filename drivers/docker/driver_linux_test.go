@@ -45,7 +45,7 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)

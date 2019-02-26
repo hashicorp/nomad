@@ -1,7 +1,7 @@
 {{#each annotatedVersions key="version.id" as |record|}}
   {{#if record.meta.showDate}}
     <li data-test-version-time class="timeline-note">
-      {{moment-format record.version.submitTime "MMMM D, YYYY"}}
+      {{format-date record.version.submitTime}}
     </li>
   {{/if}}
   <li data-test-version class="timeline-object">

@@ -24,7 +24,7 @@ import (
 )
 
 func TestDockerDriver_User(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -51,7 +51,7 @@ func TestDockerDriver_User(t *testing.T) {
 }
 
 func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -100,7 +100,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 }
 
 func TestDockerDriver_NetworkMode_Host(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
@@ -144,7 +144,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 }
 
 func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
-	if !tu.IsTravis() {
+	if !tu.IsCI() {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)

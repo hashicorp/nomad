@@ -9,6 +9,10 @@ environment:
   GOMAXPROCS: 1
 
 install:
+  # do basic docker smoke test, and pull image in preparation for tests
+  - cmd: docker info
+  - cmd: docker run --rm dantoml/busybox-windows:08012019 echo hi there
+
   - cmd: set PATH=%GOBIN%;c:\go\bin;%PATH%
   - cmd: echo %Path%
   - cmd: go version
@@ -31,10 +35,12 @@ install:
 build_script:
   - cmd: |
       set PATH=%GOPATH%/bin;%PATH%
-      mkdir -p $GOPATH\bin
-      go build -o $GOPATH\bin\nomad
-# test_script:
-#   - cmd: gotestsum -f short-verbose --junitfile results.xml
+      go build -o %GOPATH%\bin\nomad.exe
+test_script:
+  # only test docker driver tests for now
+  - cmd:
+      gotestsum --junitfile results.xml
+           github.com/hashicorp/nomad/drivers/docker
 # on_finish:
 #   - ps: |
 #       Push-AppveyorArtifact (Resolve-Path .\results.xml)

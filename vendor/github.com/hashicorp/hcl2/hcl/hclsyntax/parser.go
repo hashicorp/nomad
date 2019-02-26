@@ -9,7 +9,6 @@ import (
 	"github.com/apparentlymart/go-textseg/textseg"
 	"github.com/hashicorp/hcl2/hcl"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
 )
 
 type parser struct {
@@ -131,7 +130,7 @@ func (p *parser) ParseBodyItem() (Node, hcl.Diagnostics) {
 
 	switch next.Type {
 	case TokenEqual:
-		return p.finishParsingBodyAttribute(ident)
+		return p.finishParsingBodyAttribute(ident, false)
 	case TokenOQuote, TokenOBrace, TokenIdent:
 		return p.finishParsingBodyBlock(ident)
 	default:
@@ -149,7 +148,72 @@ func (p *parser) ParseBodyItem() (Node, hcl.Diagnostics) {
 	return nil, nil
 }
 
-func (p *parser) finishParsingBodyAttribute(ident Token) (Node, hcl.Diagnostics) {
+// parseSingleAttrBody is a weird variant of ParseBody that deals with the
+// body of a nested block containing only one attribute value all on a single
+// line, like foo { bar = baz } . It expects to find a single attribute item
+// immediately followed by the end token type with no intervening newlines.
+func (p *parser) parseSingleAttrBody(end TokenType) (*Body, hcl.Diagnostics) {
+	ident := p.Read()
+	if ident.Type != TokenIdent {
+		p.recoverAfterBodyItem()
+		return nil, hcl.Diagnostics{
+			{
+				Severity: hcl.DiagError,
+				Summary:  "Argument or block definition required",
+				Detail:   "An argument or block definition is required here.",
+				Subject:  &ident.Range,
+			},
+		}
+	}
+
+	var attr *Attribute
+	var diags hcl.Diagnostics
+
+	next := p.Peek()
+
+	switch next.Type {
+	case TokenEqual:
+		node, attrDiags := p.finishParsingBodyAttribute(ident, true)
+		diags = append(diags, attrDiags...)
+		attr = node.(*Attribute)
+	case TokenOQuote, TokenOBrace, TokenIdent:
+		p.recoverAfterBodyItem()
+		return nil, hcl.Diagnostics{
+			{
+				Severity: hcl.DiagError,
+				Summary:  "Argument definition required",
+				Detail:   fmt.Sprintf("A single-line block definition can contain only a single argument. If you meant to define argument %q, use an equals sign to assign it a value. To define a nested block, place it on a line of its own within its parent block.", ident.Bytes),
+				Subject:  hcl.RangeBetween(ident.Range, next.Range).Ptr(),
+			},
+		}
+	default:
+		p.recoverAfterBodyItem()
+		return nil, hcl.Diagnostics{
+			{
+				Severity: hcl.DiagError,
+				Summary:  "Argument or block definition required",
+				Detail:   "An argument or block definition is required here. To set an argument, use the equals sign \"=\" to introduce the argument value.",
+				Subject:  &ident.Range,
+			},
+		}
+	}
+
+	return &Body{
+		Attributes: Attributes{
+			string(ident.Bytes): attr,
+		},
+
+		SrcRange: attr.SrcRange,
+		EndRange: hcl.Range{
+			Filename: attr.SrcRange.Filename,
+			Start:    attr.SrcRange.End,
+			End:      attr.SrcRange.End,
+		},
+	}, diags
+
+}
+
+func (p *parser) finishParsingBodyAttribute(ident Token, singleLine bool) (Node, hcl.Diagnostics) {
 	eqTok := p.Read() // eat equals token
 	if eqTok.Type != TokenEqual {
 		// should never happen if caller behaves
@@ -166,22 +230,33 @@ func (p *parser) finishParsingBodyAttribute(ident Token) (Node, hcl.Diagnostics)
 		endRange = p.PrevRange()
 		p.recoverAfterBodyItem()
 	} else {
-		end := p.Peek()
-		if end.Type != TokenNewline && end.Type != TokenEOF {
-			if !p.recovery {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Missing newline after argument",
-					Detail:   "An argument definition must end with a newline.",
-					Subject:  &end.Range,
-					Context:  hcl.RangeBetween(ident.Range, end.Range).Ptr(),
-				})
+		endRange = p.PrevRange()
+		if !singleLine {
+			end := p.Peek()
+			if end.Type != TokenNewline && end.Type != TokenEOF {
+				if !p.recovery {
+					summary := "Missing newline after argument"
+					detail := "An argument definition must end with a newline."
+
+					if end.Type == TokenComma {
+						summary = "Unexpected comma after argument"
+						detail = "Argument definitions must be separated by newlines, not commas. " + detail
+					}
+
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  summary,
+						Detail:   detail,
+						Subject:  &end.Range,
+						Context:  hcl.RangeBetween(ident.Range, end.Range).Ptr(),
+					})
+				}
+				endRange = p.PrevRange()
+				p.recoverAfterBodyItem()
+			} else {
+				endRange = p.PrevRange()
+				p.Read() // eat newline
 			}
-			endRange = p.PrevRange()
-			p.recoverAfterBodyItem()
-		} else {
-			endRange = p.PrevRange()
-			p.Read() // eat newline
 		}
 	}
 
@@ -218,19 +293,9 @@ Token:
 			diags = append(diags, labelDiags...)
 			labels = append(labels, label)
 			labelRanges = append(labelRanges, labelRange)
-			if labelDiags.HasErrors() {
-				p.recoverAfterBodyItem()
-				return &Block{
-					Type:   blockType,
-					Labels: labels,
-					Body:   nil,
-
-					TypeRange:       ident.Range,
-					LabelRanges:     labelRanges,
-					OpenBraceRange:  ident.Range, // placeholder
-					CloseBraceRange: ident.Range, // placeholder
-				}, diags
-			}
+			// parseQuoteStringLiteral recovers up to the closing quote
+			// if it encounters problems, so we can continue looking for
+			// more labels and eventually the block body even.
 
 		case TokenIdent:
 			tok = p.Read() // eat token
@@ -273,7 +338,10 @@ Token:
 			return &Block{
 				Type:   blockType,
 				Labels: labels,
-				Body:   nil,
+				Body: &Body{
+					SrcRange: ident.Range,
+					EndRange: ident.Range,
+				},
 
 				TypeRange:       ident.Range,
 				LabelRanges:     labelRanges,
@@ -285,7 +353,51 @@ Token:
 
 	// Once we fall out here, the peeker is pointed just after our opening
 	// brace, so we can begin our nested body parsing.
-	body, bodyDiags := p.ParseBody(TokenCBrace)
+	var body *Body
+	var bodyDiags hcl.Diagnostics
+	switch p.Peek().Type {
+	case TokenNewline, TokenEOF, TokenCBrace:
+		body, bodyDiags = p.ParseBody(TokenCBrace)
+	default:
+		// Special one-line, single-attribute block parsing mode.
+		body, bodyDiags = p.parseSingleAttrBody(TokenCBrace)
+		switch p.Peek().Type {
+		case TokenCBrace:
+			p.Read() // the happy path - just consume the closing brace
+		case TokenComma:
+			// User seems to be trying to use the object-constructor
+			// comma-separated style, which isn't permitted for blocks.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid single-argument block definition",
+				Detail:   "Single-line block syntax can include only one argument definition. To define multiple arguments, use the multi-line block syntax with one argument definition per line.",
+				Subject:  p.Peek().Range.Ptr(),
+			})
+			p.recover(TokenCBrace)
+		case TokenNewline:
+			// We don't allow weird mixtures of single and multi-line syntax.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid single-argument block definition",
+				Detail:   "An argument definition on the same line as its containing block creates a single-line block definition, which must also be closed on the same line. Place the block's closing brace immediately after the argument definition.",
+				Subject:  p.Peek().Range.Ptr(),
+			})
+			p.recover(TokenCBrace)
+		default:
+			// Some other weird thing is going on. Since we can't guess a likely
+			// user intent for this one, we'll skip it if we're already in
+			// recovery mode.
+			if !p.recovery {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid single-argument block definition",
+					Detail:   "A single-line block definition must end with a closing brace immediately after its single argument definition.",
+					Subject:  p.Peek().Range.Ptr(),
+				})
+			}
+			p.recover(TokenCBrace)
+		}
+	}
 	diags = append(diags, bodyDiags...)
 	cBraceRange := p.PrevRange()
 
@@ -459,7 +571,14 @@ func (p *parser) parseBinaryOps(ops []map[TokenType]*Operation) (Expression, hcl
 
 func (p *parser) parseExpressionWithTraversals() (Expression, hcl.Diagnostics) {
 	term, diags := p.parseExpressionTerm()
-	ret := term
+	ret, moreDiags := p.parseExpressionTraversals(term)
+	diags = append(diags, moreDiags...)
+	return ret, diags
+}
+
+func (p *parser) parseExpressionTraversals(from Expression) (Expression, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	ret := from
 
 Traversal:
 	for {
@@ -657,44 +776,81 @@ Traversal:
 			// the key value is something constant.
 
 			open := p.Read()
-			// TODO: If we have a TokenStar inside our brackets, parse as
-			// a Splat expression: foo[*].baz[0].
-			var close Token
-			p.PushIncludeNewlines(false) // arbitrary newlines allowed in brackets
-			keyExpr, keyDiags := p.ParseExpression()
-			diags = append(diags, keyDiags...)
-			if p.recovery && keyDiags.HasErrors() {
-				close = p.recover(TokenCBrack)
-			} else {
-				close = p.Read()
+			switch p.Peek().Type {
+			case TokenStar:
+				// This is a full splat expression, like foo[*], which consumes
+				// the rest of the traversal steps after it using a recursive
+				// call to this function.
+				p.Read() // consume star
+				close := p.Read()
 				if close.Type != TokenCBrack && !p.recovery {
 					diags = append(diags, &hcl.Diagnostic{
 						Severity: hcl.DiagError,
-						Summary:  "Missing close bracket on index",
-						Detail:   "The index operator must end with a closing bracket (\"]\").",
+						Summary:  "Missing close bracket on splat index",
+						Detail:   "The star for a full splat operator must be immediately followed by a closing bracket (\"]\").",
 						Subject:  &close.Range,
 					})
 					close = p.recover(TokenCBrack)
 				}
-			}
-			p.PopIncludeNewlines()
-
-			if lit, isLit := keyExpr.(*LiteralValueExpr); isLit {
-				litKey, _ := lit.Value(nil)
-				rng := hcl.RangeBetween(open.Range, close.Range)
-				step := hcl.TraverseIndex{
-					Key:      litKey,
-					SrcRange: rng,
+				// Splat expressions use a special "anonymous symbol"  as a
+				// placeholder in an expression to be evaluated once for each
+				// item in the source expression.
+				itemExpr := &AnonSymbolExpr{
+					SrcRange: hcl.RangeBetween(open.Range, close.Range),
 				}
-				ret = makeRelativeTraversal(ret, step, rng)
-			} else {
-				rng := hcl.RangeBetween(open.Range, close.Range)
-				ret = &IndexExpr{
-					Collection: ret,
-					Key:        keyExpr,
+				// Now we'll recursively call this same function to eat any
+				// remaining traversal steps against the anonymous symbol.
+				travExpr, nestedDiags := p.parseExpressionTraversals(itemExpr)
+				diags = append(diags, nestedDiags...)
 
-					SrcRange:  rng,
-					OpenRange: open.Range,
+				ret = &SplatExpr{
+					Source: ret,
+					Each:   travExpr,
+					Item:   itemExpr,
+
+					SrcRange:    hcl.RangeBetween(open.Range, travExpr.Range()),
+					MarkerRange: hcl.RangeBetween(open.Range, close.Range),
+				}
+
+			default:
+
+				var close Token
+				p.PushIncludeNewlines(false) // arbitrary newlines allowed in brackets
+				keyExpr, keyDiags := p.ParseExpression()
+				diags = append(diags, keyDiags...)
+				if p.recovery && keyDiags.HasErrors() {
+					close = p.recover(TokenCBrack)
+				} else {
+					close = p.Read()
+					if close.Type != TokenCBrack && !p.recovery {
+						diags = append(diags, &hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Missing close bracket on index",
+							Detail:   "The index operator must end with a closing bracket (\"]\").",
+							Subject:  &close.Range,
+						})
+						close = p.recover(TokenCBrack)
+					}
+				}
+				p.PopIncludeNewlines()
+
+				if lit, isLit := keyExpr.(*LiteralValueExpr); isLit {
+					litKey, _ := lit.Value(nil)
+					rng := hcl.RangeBetween(open.Range, close.Range)
+					step := hcl.TraverseIndex{
+						Key:      litKey,
+						SrcRange: rng,
+					}
+					ret = makeRelativeTraversal(ret, step, rng)
+				} else {
+					rng := hcl.RangeBetween(open.Range, close.Range)
+					ret = &IndexExpr{
+						Collection: ret,
+						Key:        keyExpr,
+
+						SrcRange:  rng,
+						OpenRange: open.Range,
+					}
 				}
 			}
 
@@ -813,7 +969,7 @@ func (p *parser) parseExpressionTerm() (Expression, hcl.Diagnostics) {
 	case TokenOQuote, TokenOHeredoc:
 		open := p.Read() // eat opening marker
 		closer := p.oppositeBracket(open.Type)
-		exprs, passthru, _, diags := p.parseTemplateInner(closer)
+		exprs, passthru, _, diags := p.parseTemplateInner(closer, tokenOpensFlushHeredoc(open))
 
 		closeRange := p.PrevRange()
 
@@ -891,11 +1047,10 @@ func (p *parser) parseExpressionTerm() (Expression, hcl.Diagnostics) {
 }
 
 func (p *parser) numberLitValue(tok Token) (cty.Value, hcl.Diagnostics) {
-	// We'll lean on the cty converter to do the conversion, to ensure that
-	// the behavior is the same as what would happen if converting a
-	// non-literal string to a number.
-	numStrVal := cty.StringVal(string(tok.Bytes))
-	numVal, err := convert.Convert(numStrVal, cty.Number)
+	// The cty.ParseNumberVal is always the same behavior as converting a
+	// string to a number, ensuring we always interpret decimal numbers in
+	// the same way.
+	numVal, err := cty.ParseNumberVal(string(tok.Bytes))
 	if err != nil {
 		ret := cty.UnknownVal(cty.Number)
 		return ret, hcl.Diagnostics{
@@ -1087,12 +1242,12 @@ func (p *parser) parseObjectCons() (Expression, hcl.Diagnostics) {
 		panic("parseObjectCons called without peeker pointing to open brace")
 	}
 
-	p.PushIncludeNewlines(true)
-	defer p.PopIncludeNewlines()
-
 	if forKeyword.TokenMatches(p.Peek()) {
 		return p.finishParsingForExpr(open)
 	}
+
+	p.PushIncludeNewlines(true)
+	defer p.PopIncludeNewlines()
 
 	var close Token
 
@@ -1132,7 +1287,8 @@ func (p *parser) parseObjectCons() (Expression, hcl.Diagnostics) {
 		next = p.Peek()
 		if next.Type != TokenEqual && next.Type != TokenColon {
 			if !p.recovery {
-				if next.Type == TokenNewline || next.Type == TokenComma {
+				switch next.Type {
+				case TokenNewline, TokenComma:
 					diags = append(diags, &hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  "Missing attribute value",
@@ -1140,7 +1296,23 @@ func (p *parser) parseObjectCons() (Expression, hcl.Diagnostics) {
 						Subject:  &next.Range,
 						Context:  hcl.RangeBetween(open.Range, next.Range).Ptr(),
 					})
-				} else {
+				case TokenIdent:
+					// Although this might just be a plain old missing equals
+					// sign before a reference, one way to get here is to try
+					// to write an attribute name containing a period followed
+					// by a digit, which was valid in HCL1, like this:
+					//     foo1.2_bar = "baz"
+					// We can't know exactly what the user intended here, but
+					// we'll augment our message with an extra hint in this case
+					// in case it is helpful.
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Missing key/value separator",
+						Detail:   "Expected an equals sign (\"=\") to mark the beginning of the attribute value. If you intended to given an attribute name containing periods or spaces, write the name in quotes to create a string literal.",
+						Subject:  &next.Range,
+						Context:  hcl.RangeBetween(open.Range, next.Range).Ptr(),
+					})
+				default:
 					diags = append(diags, &hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  "Missing key/value separator",
@@ -1472,7 +1644,16 @@ Token:
 				Subject: &tok.Range,
 				Context: hcl.RangeBetween(oQuote.Range, tok.Range).Ptr(),
 			})
-			p.recover(TokenTemplateSeqEnd)
+
+			// Now that we're returning an error callers won't attempt to use
+			// the result for any real operations, but they might try to use
+			// the partial AST for other analyses, so we'll leave a marker
+			// to indicate that there was something invalid in the string to
+			// help avoid misinterpretation of the partial result
+			ret.WriteString(which)
+			ret.WriteString("{ ... }")
+
+			p.recover(TokenTemplateSeqEnd) // we'll try to keep parsing after the sequence ends
 
 		case TokenEOF:
 			diags = append(diags, &hcl.Diagnostic{
@@ -1493,7 +1674,7 @@ Token:
 				Subject:  &tok.Range,
 				Context:  hcl.RangeBetween(oQuote.Range, tok.Range).Ptr(),
 			})
-			p.recover(TokenOQuote)
+			p.recover(TokenCQuote)
 			break Token
 
 		}

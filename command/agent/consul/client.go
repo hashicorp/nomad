@@ -533,8 +533,11 @@ func (c *ServiceClient) sync() error {
 		}
 	}
 
-	c.logger.Debug("sync complete", "registered_services", sreg, "deregistered_services", sdereg,
-		"registered_checks", creg, "deregistered_checks", cdereg)
+	// Only log if something was actually synced
+	if sreg > 0 || sdereg > 0 || creg > 0 || cdereg > 0 {
+		c.logger.Debug("sync complete", "registered_services", sreg, "deregistered_services", sdereg,
+			"registered_checks", creg, "deregistered_checks", cdereg)
+	}
 	return nil
 }
 

@@ -649,7 +649,7 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 
 	freezer := cgroupFs.FreezerGroup{}
 	subsystem := freezer.Name()
-	path, err := cgroups.FindCgroupMountpoint(subsystem)
+	path, err := cgroups.FindCgroupMountpoint("", subsystem)
 	if err != nil {
 		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
 	}
@@ -693,7 +693,7 @@ func JoinRootCgroup(subsystems []string) error {
 	mErrs := new(multierror.Error)
 	paths := map[string]string{}
 	for _, s := range subsystems {
-		mnt, _, err := cgroups.FindCgroupMountpointAndRoot(s)
+		mnt, _, err := cgroups.FindCgroupMountpointAndRoot("", s)
 		if err != nil {
 			multierror.Append(mErrs, fmt.Errorf("error getting cgroup path for subsystem: %s", s))
 			continue
