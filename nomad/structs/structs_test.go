@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2605,6 +2606,93 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 	if err := valid.Validate(); err == nil {
 		t.Fatalf("expected error: %v", err)
 	}
+}
+
+// TestTaskArtifact_Hash asserts an artifact's hash changes when any of the
+// fields change.
+func TestTaskArtifact_Hash(t *testing.T) {
+	t.Parallel()
+
+	cases := []TaskArtifact{
+		{},
+		{
+			GetterSource: "a",
+		},
+		{
+			GetterSource: "b",
+		},
+		{
+			GetterSource:  "b",
+			GetterOptions: map[string]string{"c": "c"},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "d",
+			},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode: "f",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode: "g",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:   "g",
+			RelativeDest: "h",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:   "g",
+			RelativeDest: "i",
+		},
+	}
+
+	// Map of hash to source
+	hashes := make(map[string]TaskArtifact, len(cases))
+	for _, tc := range cases {
+		h := tc.Hash()
+
+		// Hash should be deterministic
+		require.Equal(t, h, tc.Hash())
+
+		// Hash should be unique
+		if orig, ok := hashes[h]; ok {
+			require.Failf(t, "hashes match", "artifact 1: %s\n\n artifact 2: %s\n",
+				pretty.Sprint(tc), pretty.Sprint(orig),
+			)
+		}
+		hashes[h] = tc
+	}
+
+	require.Len(t, hashes, len(cases))
 }
 
 func TestAllocation_ShouldMigrate(t *testing.T) {

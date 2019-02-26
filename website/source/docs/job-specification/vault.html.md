@@ -47,7 +47,7 @@ job "docs" {
 ```
 
 The Nomad client will make the Vault token available to the task by writing it
-to the secret directory at `secret/vault_token` and by injecting a VAULT_TOKEN
+to the secret directory at `secrets/vault_token` and by injecting a VAULT_TOKEN
 environment variable.
 
 If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or

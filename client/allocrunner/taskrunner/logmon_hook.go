@@ -12,7 +12,14 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+)
+
+const (
+	// logmonReattachKey is the HookData key where logmon's reattach config
+	// is stored.
+	logmonReattachKey = "reattach_config"
 )
 
 // logmonHook launches logmon and manages task logging
@@ -72,17 +79,17 @@ func (h *logmonHook) launchLogMon(reattachConfig *plugin.ReattachConfig) error {
 }
 
 func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig, error) {
-	if data == nil || data["reattach_config"] == "" {
+	if data == nil || data[logmonReattachKey] == "" {
 		return nil, nil
 	}
 
-	var cfg *pstructs.ReattachConfig
-	err := json.Unmarshal([]byte(data["reattach_config"]), cfg)
+	var cfg pstructs.ReattachConfig
+	err := json.Unmarshal([]byte(data[logmonReattachKey]), &cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return pstructs.ReattachConfigToGoPlugin(cfg)
+	return pstructs.ReattachConfigToGoPlugin(&cfg)
 }
 
 func (h *logmonHook) Prestart(ctx context.Context,
@@ -96,8 +103,10 @@ func (h *logmonHook) Prestart(ctx context.Context,
 
 	// Launch or reattach logmon instance for the task.
 	if err := h.launchLogMon(reattachConfig); err != nil {
+		// Retry errors launching logmon as logmon may have crashed and
+		// subsequent attempts will start a new one.
 		h.logger.Error("failed to launch logmon process", "error", err)
-		return err
+		return structs.NewRecoverableError(err, true)
 	}
 
 	// Only tell logmon to start when we are not reattaching to a running instance
@@ -122,14 +131,11 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	req.HookData = map[string]string{"reattach_config": string(jsonCfg)}
-
-	resp.Done = true
+	resp.HookData = map[string]string{logmonReattachKey: string(jsonCfg)}
 	return nil
 }
 
 func (h *logmonHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
-
 	if h.logmon != nil {
 		h.logmon.Stop()
 	}

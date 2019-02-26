@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// LaunchLogMon an instance of logmon
+// LaunchLogMon launches a new logmon or reattaches to an existing one.
 // TODO: Integrate with base plugin loader
 func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (LogMon, *plugin.Client, error) {
 	logger = logger.Named("logmon")
@@ -21,18 +21,25 @@ func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (L
 		return nil, nil, err
 	}
 
-	client := plugin.NewClient(&plugin.ClientConfig{
+	conf := &plugin.ClientConfig{
 		HandshakeConfig: base.Handshake,
-		Reattach:        reattachConfig,
 		Plugins: map[string]plugin.Plugin{
 			"logmon": &Plugin{},
 		},
-		Cmd: exec.Command(bin, "logmon"),
 		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
 		Logger: logger,
-	})
+	}
+
+	// Only set one of Cmd or Reattach
+	if reattachConfig == nil {
+		conf.Cmd = exec.Command(bin, "logmon")
+	} else {
+		conf.Reattach = reattachConfig
+	}
+
+	client := plugin.NewClient(conf)
 
 	rpcClient, err := client.Client()
 	if err != nil {

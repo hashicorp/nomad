@@ -14,6 +14,7 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -33,7 +34,7 @@ func javaCompatible(t *testing.T) {
 
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -55,7 +56,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 
 func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -95,7 +96,7 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 
 func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -156,7 +157,7 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 
 func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -290,4 +291,28 @@ func copyFile(src, dst string, t *testing.T) {
 	if err := out.Sync(); err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  class = "java.main"
+  class_path = "/tmp/cp"
+  jar_path = "/tmp/jar.jar"
+  jvm_options = ["-Xmx600"]
+  args = ["arg1", "arg2"]
+}`
+
+	expected := &TaskConfig{
+		Class:     "java.main",
+		ClassPath: "/tmp/cp",
+		JarPath:   "/tmp/jar.jar",
+		JvmOpts:   []string{"-Xmx600"},
+		Args:      []string{"arg1", "arg2"},
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -110,7 +111,7 @@ var (
 		"dns_servers":        hclspec.NewAttr("dns_servers", "list(string)", false),
 		"dns_search_domains": hclspec.NewAttr("dns_search_domains", "list(string)", false),
 		"net":                hclspec.NewAttr("net", "list(string)", false),
-		"port_map":           hclspec.NewBlockAttrs("port_map", "string", false),
+		"port_map":           hclspec.NewAttr("port_map", "list(map(string))", false),
 		"volumes":            hclspec.NewAttr("volumes", "list(string)", false),
 		"insecure_options":   hclspec.NewAttr("insecure_options", "list(string)", false),
 		"no_overlay":         hclspec.NewAttr("no_overlay", "bool", false),
@@ -140,16 +141,16 @@ type Config struct {
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	ImageName        string            `codec:"image"`
-	Command          string            `codec:"command"`
-	Args             []string          `codec:"args"`
-	TrustPrefix      string            `codec:"trust_prefix"`
-	DNSServers       []string          `codec:"dns_servers"`        // DNS Server for containers
-	DNSSearchDomains []string          `codec:"dns_search_domains"` // DNS Search domains for containers
-	Net              []string          `codec:"net"`                // Networks for the containers
-	PortMap          map[string]string `codec:"port_map"`           // A map of host port and the port name defined in the image manifest file
-	Volumes          []string          `codec:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
-	InsecureOptions  []string          `codec:"insecure_options"`   // list of args for --insecure-options
+	ImageName        string             `codec:"image"`
+	Command          string             `codec:"command"`
+	Args             []string           `codec:"args"`
+	TrustPrefix      string             `codec:"trust_prefix"`
+	DNSServers       []string           `codec:"dns_servers"`        // DNS Server for containers
+	DNSSearchDomains []string           `codec:"dns_search_domains"` // DNS Search domains for containers
+	Net              []string           `codec:"net"`                // Networks for the containers
+	PortMap          hclutils.MapStrStr `codec:"port_map"`           // A map of host port and the port name defined in the image manifest file
+	Volumes          []string           `codec:"volumes"`            // Host-Volumes to mount in, syntax: /path/to/host/directory:/destination/path/in/container[:readOnly]
+	InsecureOptions  []string           `codec:"insecure_options"`   // list of args for --insecure-options
 
 	NoOverlay bool   `codec:"no_overlay"` // disable overlayfs for rkt run
 	Debug     bool   `codec:"debug"`      // Enable debug option for rkt command

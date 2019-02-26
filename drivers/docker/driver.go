@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/devices/gpu/nvidia"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
@@ -23,6 +24,7 @@ import (
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -39,10 +41,6 @@ var (
 	// waitClient is a docker client with no timeouts. This is used for long
 	// running operations such as waiting on containers and collect stats
 	waitClient *docker.Client
-
-	// The statistics the Docker driver exposes
-	DockerMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage"}
-	DockerMeasuredCpuStats = []string{"Throttled Periods", "Throttled Time", "Percent"}
 
 	// recoverableErrTimeouts returns a recoverable error if the error was due
 	// to timeouts
@@ -97,6 +95,11 @@ type Driver struct {
 	// whether it has been successful
 	fingerprintSuccess *bool
 	fingerprintLock    sync.RWMutex
+
+	// A boolean to know if the docker driver has ever been correctly detected
+	// for use during fingerprinting.
+	detected     bool
+	detectedLock sync.RWMutex
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -111,6 +114,46 @@ func NewDockerDriver(logger hclog.Logger) drivers.DriverPlugin {
 		signalShutdown: cancel,
 		logger:         logger,
 	}
+}
+
+func (d *Driver) reattachToDockerLogger(reattachConfig *structs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
+	reattach, err := pstructs.ReattachConfigToGoPlugin(reattachConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dlogger, dloggerPluginClient, err := docklog.ReattachDockerLogger(reattach)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to reattach to docker logger process: %v", err)
+	}
+
+	return dlogger, dloggerPluginClient, nil
+}
+
+func (d *Driver) setupNewDockerLogger(container *docker.Container, cfg *drivers.TaskConfig, startTime time.Time) (docklog.DockerLogger, *plugin.Client, error) {
+	dlogger, pluginClient, err := docklog.LaunchDockerLogger(d.logger)
+	if err != nil {
+		if pluginClient != nil {
+			pluginClient.Kill()
+		}
+		return nil, nil, fmt.Errorf("failed to launch docker logger plugin: %v", err)
+	}
+
+	if err := dlogger.Start(&docklog.StartOpts{
+		Endpoint:    d.config.Endpoint,
+		ContainerID: container.ID,
+		Stdout:      cfg.StdoutPath,
+		Stderr:      cfg.StderrPath,
+		TLSCert:     d.config.TLS.Cert,
+		TLSKey:      d.config.TLS.Key,
+		TLSCA:       d.config.TLS.CA,
+		StartTime:   startTime.Unix(),
+	}); err != nil {
+		pluginClient.Kill()
+		return nil, nil, fmt.Errorf("failed to launch docker logger process %s: %v", container.ID, err)
+	}
+
+	return dlogger, pluginClient, nil
 }
 
 func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
@@ -138,21 +181,9 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
 	}
 
-	reattach, err := pstructs.ReattachConfigToGoPlugin(handleState.ReattachConfig)
-	if err != nil {
-		return err
-	}
-
-	dlogger, dloggerPluginClient, err := docklog.ReattachDockerLogger(reattach)
-	if err != nil {
-		return fmt.Errorf("failed to reattach to docker logger process")
-	}
-
 	h := &taskHandle{
 		client:                client,
 		waitClient:            waitClient,
-		dlogger:               dlogger,
-		dloggerPluginClient:   dloggerPluginClient,
 		logger:                d.logger.With("container_id", container.ID),
 		task:                  handle.Config,
 		containerID:           container.ID,
@@ -161,6 +192,26 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		waitCh:                make(chan struct{}),
 		removeContainerOnExit: d.config.GC.Container,
 		net:                   handleState.DriverNetwork,
+	}
+
+	h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
+	if err != nil {
+		d.logger.Warn("failed to reattach to docker logger process", "error", err)
+
+		h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+		if err != nil {
+			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			}
+			return fmt.Errorf("failed to setup replacement docker logger: %v", err)
+		}
+
+		if err := handle.SetDriverState(h.buildState()); err != nil {
+			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			}
+			return fmt.Errorf("failed to store driver state: %v", err)
+		}
 	}
 
 	d.tasks.Set(handle.Config.ID, h)
@@ -247,30 +298,11 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
-	dlogger, pluginClient, err := docklog.LaunchDockerLogger(d.logger)
+	dlogger, pluginClient, err := d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
 	if err != nil {
-		if pluginClient != nil {
-			pluginClient.Kill()
-		}
 		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
 		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
-		return nil, nil, fmt.Errorf("failed to launch docker logger plugin: %v", err)
-	}
-
-	if err := dlogger.Start(&docklog.StartOpts{
-		Endpoint:    d.config.Endpoint,
-		ContainerID: container.ID,
-		Stdout:      cfg.StdoutPath,
-		Stderr:      cfg.StderrPath,
-		TLSCert:     d.config.TLS.Cert,
-		TLSKey:      d.config.TLS.Key,
-		TLSCA:       d.config.TLS.CA,
-	}); err != nil {
-		pluginClient.Kill()
-
-		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
-		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
-		return nil, nil, fmt.Errorf("failed to launch docker logger process %s: %v", container.ID, err)
+		return nil, nil, err
 	}
 
 	// Detect container address
@@ -1020,6 +1052,14 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 
 	if signal == "" {
 		signal = "SIGINT"
+	}
+
+	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
+	// allows for graceful shutdown before being followed up by a SIGKILL.
+	// Supported signals:
+	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
+	if runtime.GOOS == "windows" && signal == "SIGINT" {
+		signal = "SIGTERM"
 	}
 
 	sig, err := signals.Parse(signal)

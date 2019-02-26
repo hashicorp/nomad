@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -25,6 +26,9 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 	stats.MemoryStats.Stats.Swap = 0
 	stats.MemoryStats.Usage = 5651904
 	stats.MemoryStats.MaxUsage = 6651904
+	stats.MemoryStats.Commit = 123231
+	stats.MemoryStats.CommitPeak = 321323
+	stats.MemoryStats.PrivateWorkingSet = 62222
 
 	go dockerStatsCollector(dst, src, time.Second)
 
@@ -36,13 +40,22 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 
 	select {
 	case ru := <-dst:
-		require.Equal(stats.MemoryStats.Stats.Rss, ru.ResourceUsage.MemoryStats.RSS)
-		require.Equal(stats.MemoryStats.Stats.Cache, ru.ResourceUsage.MemoryStats.Cache)
-		require.Equal(stats.MemoryStats.Stats.Swap, ru.ResourceUsage.MemoryStats.Swap)
-		require.Equal(stats.MemoryStats.Usage, ru.ResourceUsage.MemoryStats.Usage)
-		require.Equal(stats.MemoryStats.MaxUsage, ru.ResourceUsage.MemoryStats.MaxUsage)
-		require.Equal(stats.CPUStats.ThrottlingData.ThrottledPeriods, ru.ResourceUsage.CpuStats.ThrottledPeriods)
-		require.Equal(stats.CPUStats.ThrottlingData.ThrottledTime, ru.ResourceUsage.CpuStats.ThrottledTime)
+		if runtime.GOOS != "windows" {
+			require.Equal(stats.MemoryStats.Stats.Rss, ru.ResourceUsage.MemoryStats.RSS)
+			require.Equal(stats.MemoryStats.Stats.Cache, ru.ResourceUsage.MemoryStats.Cache)
+			require.Equal(stats.MemoryStats.Stats.Swap, ru.ResourceUsage.MemoryStats.Swap)
+			require.Equal(stats.MemoryStats.Usage, ru.ResourceUsage.MemoryStats.Usage)
+			require.Equal(stats.MemoryStats.MaxUsage, ru.ResourceUsage.MemoryStats.MaxUsage)
+			require.Equal(stats.CPUStats.ThrottlingData.ThrottledPeriods, ru.ResourceUsage.CpuStats.ThrottledPeriods)
+			require.Equal(stats.CPUStats.ThrottlingData.ThrottledTime, ru.ResourceUsage.CpuStats.ThrottledTime)
+		} else {
+			require.Equal(stats.MemoryStats.PrivateWorkingSet, ru.ResourceUsage.MemoryStats.RSS)
+			require.Equal(stats.MemoryStats.Commit, ru.ResourceUsage.MemoryStats.Usage)
+			require.Equal(stats.MemoryStats.CommitPeak, ru.ResourceUsage.MemoryStats.MaxUsage)
+			require.Equal(stats.CPUStats.ThrottlingData.ThrottledPeriods, ru.ResourceUsage.CpuStats.ThrottledPeriods)
+			require.Equal(stats.CPUStats.ThrottlingData.ThrottledTime, ru.ResourceUsage.CpuStats.ThrottledTime)
+
+		}
 	case <-time.After(time.Second):
 		require.Fail("receiving stats should not block here")
 	}

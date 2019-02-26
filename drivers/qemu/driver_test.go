@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,7 +27,7 @@ import (
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -88,7 +89,7 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 // Verifies monitor socket path for old qemu
 func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -143,7 +144,7 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 // Verifies monitor socket path for new qemu version
 func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -223,7 +224,7 @@ func copyFile(src, dst string, t *testing.T) {
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_User(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -280,7 +281,7 @@ func TestQemuDriver_User(t *testing.T) {
 // TODO(preetha) this test needs random sleeps to pass
 func TestQemuDriver_Stats(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -358,7 +359,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	require := require.New(t)
 
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsTravis() {
+	if !testutil.IsCI() {
 		t.Parallel()
 	}
 
@@ -374,4 +375,34 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
 	}
+}
+
+func TestConfig_ParseAllHCL(t *testing.T) {
+	cfgStr := `
+config {
+  image_path = "/tmp/image_path"
+  accelerator = "kvm"
+  args = ["arg1", "arg2"]
+  port_map {
+    http = 80
+    https = 443
+  }
+  graceful_shutdown = true
+}`
+
+	expected := &TaskConfig{
+		ImagePath:   "/tmp/image_path",
+		Accelerator: "kvm",
+		Args:        []string{"arg1", "arg2"},
+		PortMap: map[string]int{
+			"http":  80,
+			"https": 443,
+		},
+		GracefulShutdown: true,
+	}
+
+	var tc *TaskConfig
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
+
+	require.EqualValues(t, expected, tc)
 }

@@ -194,7 +194,7 @@ test('each task group in the expanded task group section shows task group detail
         assert.equal(findForTaskGroup('name').textContent.trim(), task.get('name'));
         assert.equal(
           findForTaskGroup('progress-deadline').textContent.trim(),
-          moment(task.get('requireProgressBy')).format('MM/DD/YY HH:mm:ss')
+          moment(task.get('requireProgressBy')).format("MMM DD, 'YY HH:mm:ss ZZ")
         );
       });
   });

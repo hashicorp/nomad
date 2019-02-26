@@ -1,6 +1,7 @@
 package hclsyntax
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/apparentlymart/go-textseg/textseg"
@@ -89,6 +90,7 @@ const (
 	TokenBitwiseNot TokenType = '~'
 	TokenBitwiseXor TokenType = '^'
 	TokenStarStar   TokenType = '➚'
+	TokenApostrophe TokenType = '\''
 	TokenBacktick   TokenType = '`'
 	TokenSemicolon  TokenType = ';'
 	TokenTabs       TokenType = '␉'
@@ -114,10 +116,11 @@ const (
 )
 
 type tokenAccum struct {
-	Filename string
-	Bytes    []byte
-	Pos      hcl.Pos
-	Tokens   []Token
+	Filename  string
+	Bytes     []byte
+	Pos       hcl.Pos
+	Tokens    []Token
+	StartByte int
 }
 
 func (f *tokenAccum) emitToken(ty TokenType, startOfs, endOfs int) {
@@ -125,11 +128,11 @@ func (f *tokenAccum) emitToken(ty TokenType, startOfs, endOfs int) {
 	// the start pos to get our end pos.
 
 	start := f.Pos
-	start.Column += startOfs - f.Pos.Byte // Safe because only ASCII spaces can be in the offset
-	start.Byte = startOfs
+	start.Column += startOfs + f.StartByte - f.Pos.Byte // Safe because only ASCII spaces can be in the offset
+	start.Byte = startOfs + f.StartByte
 
 	end := start
-	end.Byte = endOfs
+	end.Byte = endOfs + f.StartByte
 	b := f.Bytes[startOfs:endOfs]
 	for len(b) > 0 {
 		advance, seq, _ := textseg.ScanGraphemeClusters(b, true)
@@ -160,6 +163,13 @@ type heredocInProgress struct {
 	StartOfLine bool
 }
 
+func tokenOpensFlushHeredoc(tok Token) bool {
+	if tok.Type != TokenOHeredoc {
+		return false
+	}
+	return bytes.HasPrefix(tok.Bytes, []byte{'<', '<', '-'})
+}
+
 // checkInvalidTokens does a simple pass across the given tokens and generates
 // diagnostics for tokens that should _never_ appear in HCL source. This
 // is intended to avoid the need for the parser to have special support
@@ -174,11 +184,15 @@ func checkInvalidTokens(tokens Tokens) hcl.Diagnostics {
 	toldBitwise := 0
 	toldExponent := 0
 	toldBacktick := 0
+	toldApostrophe := 0
 	toldSemicolon := 0
 	toldTabs := 0
 	toldBadUTF8 := 0
 
 	for _, tok := range tokens {
+		// copy token so it's safe to point to it
+		tok := tok
+
 		switch tok.Type {
 		case TokenBitwiseAnd, TokenBitwiseOr, TokenBitwiseXor, TokenBitwiseNot:
 			if toldBitwise < 4 {
@@ -214,15 +228,29 @@ func checkInvalidTokens(tokens Tokens) hcl.Diagnostics {
 		case TokenBacktick:
 			// Only report for alternating (even) backticks, so we won't report both start and ends of the same
 			// backtick-quoted string.
-			if toldExponent < 4 && (toldExponent%2) == 0 {
+			if (toldBacktick % 2) == 0 {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid character",
 					Detail:   "The \"`\" character is not valid. To create a multi-line string, use the \"heredoc\" syntax, like \"<<EOT\".",
 					Subject:  &tok.Range,
 				})
-
+			}
+			if toldBacktick <= 2 {
 				toldBacktick++
+			}
+		case TokenApostrophe:
+			if (toldApostrophe % 2) == 0 {
+				newDiag := &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid character",
+					Detail:   "Single quotes are not valid. Use double quotes (\") to enclose strings.",
+					Subject:  &tok.Range,
+				}
+				diags = append(diags, newDiag)
+			}
+			if toldApostrophe <= 2 {
+				toldApostrophe++
 			}
 		case TokenSemicolon:
 			if toldSemicolon < 1 {
@@ -264,9 +292,21 @@ func checkInvalidTokens(tokens Tokens) hcl.Diagnostics {
 				Detail:   "This character is not used within the language.",
 				Subject:  &tok.Range,
 			})
-
-			toldTabs++
 		}
 	}
 	return diags
+}
+
+var utf8BOM = []byte{0xef, 0xbb, 0xbf}
+
+// stripUTF8BOM checks whether the given buffer begins with a UTF-8 byte order
+// mark (0xEF 0xBB 0xBF) and, if so, returns a truncated slice with the same
+// backing array but with the BOM skipped.
+//
+// If there is no BOM present, the given slice is returned verbatim.
+func stripUTF8BOM(src []byte) []byte {
+	if bytes.HasPrefix(src, utf8BOM) {
+		return src[3:]
+	}
+	return src
 }

@@ -43,13 +43,13 @@ job "docs" {
           count = 2
 
           constraint {
-            attribute = "${driver.attr.memory}"
+            attribute = "${device.attr.memory}"
             operator  = ">="
             value     = "2 GiB"
           }
 
           affinity {
-            attribute = "${driver.attr.memory}"
+            attribute = "${device.attr.memory}"
             operator  = ">="
             value     = "4 GiB"
             weight    = 75

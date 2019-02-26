@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/version"
+	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
 )
 
@@ -63,8 +64,8 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 	if meta.Ui == nil {
 		meta.Ui = &cli.BasicUi{
 			Reader:      os.Stdin,
-			Writer:      os.Stdout,
-			ErrorWriter: os.Stderr,
+			Writer:      colorable.NewColorableStdout(),
+			ErrorWriter: colorable.NewColorableStderr(),
 		}
 	}
 

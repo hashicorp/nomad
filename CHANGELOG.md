@@ -8,7 +8,7 @@ __BACKWARDS INCOMPATIBILITIES:__
    updating.
  * core: IOPS as a resource is now deprecated
    [[GH-4970](https://github.com/hashicorp/nomad/issues/4970)]. Nomad continues
-   to parse IOPS in job's to allow job authors time to remove iops from their
+   to parse IOPS in jobs to allow job authors time to remove iops from their
    jobs.
  * core: Allow the != constraint to match against keys that do not exist [[GH-4875](https://github.com/hashicorp/nomad/pull/4875)]
  * client: Task config interpolation requires names to be valid identifiers
@@ -71,12 +71,16 @@ IMPROVEMENTS:
  * client: Extend timeout to 60 seconds for Windows CPU fingerprinting [[GH-4441](https://github.com/hashicorp/nomad/pull/4441)]
  * client: Refactor client to support plugins and improve state handling [[GH-4792](https://github.com/hashicorp/nomad/pull/4792)]
  * client: Updated consul-template library to pick up recent fixes and improvements[[GH-4885](https://github.com/hashicorp/nomad/pull/4885)]
+ * client: When retrying a failed artifact, do not download any successfully downloaded artifacts again [[GH-5322](https://github.com/hashicorp/nomad/issues/5322)]
  * client: Added service metadata tag that enables the Consul UI to show a Nomad icon for services registered by Nomad [[GH-4889](https://github.com/hashicorp/nomad/issues/4889)]
+ * cli: Added support for coloured output on Windows [[GH-5342](https://github.com/hashicorp/nomad/pull/5342)]
  * driver/docker: Support logs when using Docker for Mac [[GH-4758](https://github.com/hashicorp/nomad/issues/4758)]
  * driver/docker: Added support for specifying `storage_opt` in the Docker driver [[GH-4908](https://github.com/hashicorp/nomad/pull/4908)]
  * driver/docker: Added support for specifying `cpu_cfs_period` in the Docker driver [[GH-4462](https://github.com/hashicorp/nomad/pull/4462)]
  * driver/docker: Added support for setting bind and tmpfs mounts in the Docker driver [[GH-4924](https://github.com/hashicorp/nomad/pull/4924)]
  * driver/docker: Report container images with user friendly name rather than underlying image ID [[GH-4926](https://github.com/hashicorp/nomad/pull/4926)]
+ * driver/docker: Add support for collecting stats on Windows [[GH-5355](https://github.com/hashicorp/nomad/pull/5355)]
+   drivers/docker: Report docker driver as undetected before first connecting to the docker daemon [[GH-5362](https://github.com/hashicorp/nomad/pull/5362)]
  * drivers: Added total memory usage to task resource metrics [[GH-5190](https://github.com/hashicorp/nomad/pull/5190)]
  * server/rpc: Reduce logging when undergoing temporary network errors such as hitting file descriptor limits [[GH-4974](https://github.com/hashicorp/nomad/issues/4974)]
  * server/vault: Tweaked logs to better identify vault connection errors [[GH-5228](https://github.com/hashicorp/nomad/pull/5228)]
