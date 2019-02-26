@@ -480,6 +480,21 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 	return nm
 }
 
+type Volume struct {
+	Name     string
+	Type     string
+	ReadOnly bool `mapstructure:"read_only"`
+	Hidden   bool
+
+	Config map[string]interface{}
+}
+
+type VolumeMount struct {
+	Volume      string
+	Destination string
+	ReadOnly    bool `mapstructure:"read_only"`
+}
+
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
 	Name             *string
@@ -488,6 +503,7 @@ type TaskGroup struct {
 	Affinities       []*Affinity
 	Tasks            []*Task
 	Spreads          []*Spread
+	Volumes          map[string]*Volume
 	RestartPolicy    *RestartPolicy
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk
@@ -690,6 +706,7 @@ type Task struct {
 	Vault           *Vault
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
+	VolumeMounts    []*VolumeMount
 	Leader          bool
 	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 	KillSignal      string        `mapstructure:"kill_signal"`
