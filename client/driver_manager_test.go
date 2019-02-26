@@ -102,7 +102,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	// we eventually get an unhealthy one eventually
+	// eventually, the mock_driver is marked as unhealthy
 	testutil.WaitForResult(func() (bool, error) {
 		node := testClient.configCopy.Node
 
@@ -163,7 +163,7 @@ func TestDriverManager_NodeAttributes_Run(t *testing.T) {
 		}
 
 		if d.Attributes["driver.mock_driver"] != "" {
-			return false, fmt.Errorf("mock driver driver attribvutes contain duplicate health info: %#v", d.Attributes)
+			return false, fmt.Errorf("mock driver driver attributes contain duplicate health info: %#v", d.Attributes)
 		}
 
 		// check raw_exec
