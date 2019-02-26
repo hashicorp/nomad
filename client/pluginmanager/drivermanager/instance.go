@@ -371,7 +371,7 @@ func (i *instanceManager) handleFingerprint(fp *drivers.Fingerprint) {
 
 	// if this is the first fingerprint, mark that we have received it
 	if !i.hasFingerprinted {
-		i.logger.Trace("initial driver fingerprint", "fingerprint", fp)
+		i.logger.Debug("initial driver fingerprint", "health", fp.Health, "description", fp.HealthDescription)
 		close(i.firstFingerprintCh)
 		i.hasFingerprinted = true
 	}

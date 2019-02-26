@@ -118,6 +118,11 @@ func (c *grpcExecutorClient) handleStats(ctx context.Context, stream proto.Execu
 	defer close(ch)
 	for {
 		resp, err := stream.Recv()
+		if ctx.Err() != nil {
+			// Context canceled; exit gracefully
+			return
+		}
+
 		if err != nil {
 			if err != io.EOF {
 				c.logger.Error("error receiving stream from Stats executor RPC, closing stream", "error", err)
