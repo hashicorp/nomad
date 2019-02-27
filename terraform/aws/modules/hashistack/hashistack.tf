@@ -6,6 +6,7 @@ variable "key_name" {}
 variable "server_count" {}
 variable "client_count" {}
 variable "nomad_binary" {}
+variable "root_block_device_size" {}
 
 variable "retry_join" {
   type = "map"
@@ -129,6 +130,12 @@ resource "aws_instance" "server" {
     map(lookup(var.retry_join, "tag_key"), lookup(var.retry_join, "tag_value"))
   )}"
 
+  root_block_device {
+    volume_type           = "gp2"
+    volume_size           = "${var.root_block_device_size}"
+    delete_on_termination = "true"
+  }
+
   user_data            = "${data.template_file.user_data_server.rendered}"
   iam_instance_profile = "${aws_iam_instance_profile.instance_profile.name}"
 }
@@ -146,6 +153,12 @@ resource "aws_instance" "client" {
     map("Name", "${var.name}-client-${count.index}"),
     map(lookup(var.retry_join, "tag_key"), lookup(var.retry_join, "tag_value"))
   )}"
+
+  root_block_device {
+    volume_type           = "gp2"
+    volume_size           = "${var.root_block_device_size}"
+    delete_on_termination = "true"
+  }
 
   ebs_block_device = {
     device_name           = "/dev/xvdd"
