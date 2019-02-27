@@ -726,6 +726,19 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		}
 	}
 
+	if l := len(taskGroup.Volumes); l != 0 {
+		tg.Volumes = make(map[string]*structs.Volume, l)
+		for k, v := range taskGroup.Volumes {
+			tg.Volumes[k] = &structs.Volume{
+				Name:     v.Name,
+				Type:     v.Type,
+				ReadOnly: v.ReadOnly,
+				Hidden:   v.Hidden,
+				Config:   v.Config,
+			}
+		}
+	}
+
 	if taskGroup.Update != nil {
 		tg.Update = &structs.UpdateStrategy{
 			Stagger:          *taskGroup.Update.Stagger,
@@ -772,6 +785,17 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.KillSignal = apiTask.KillSignal
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
+
+	if l := len(apiTask.VolumeMounts); l != 0 {
+		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
+		for i, mount := range apiTask.VolumeMounts {
+			structsTask.VolumeMounts[i] = &structs.VolumeMount{
+				Volume:      mount.Volume,
+				Destination: mount.Destination,
+				ReadOnly:    mount.ReadOnly,
+			}
+		}
+	}
 
 	if l := len(apiTask.Services); l != 0 {
 		structsTask.Services = make([]*structs.Service, l)
