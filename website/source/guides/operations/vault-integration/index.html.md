@@ -588,7 +588,7 @@ There are a few key points to note here:
   artifact stanza][remote-template] to download an input template from a remote
   source such as an S3 bucket.
 - We are using the `toJSON` function to ensure Nomad passes the password to task
-  unchanged. You can see [go-envparser's README][go-envparser]
+  unchanged. You can see [go-envparser's README][go-envparser] for more details.
 - Finally, note that that [destination][destination] of our template is the
   [secrets/][secrets-task-directory] task directory. This ensures the data is
   not accessible with a command like [nomad alloc fs][nomad-alloc-fs] or
