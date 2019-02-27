@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDockerDriver_FingersprintHealth asserts that docker reports healthy
-// whenever Docker is supported.  In particular.
+// TestDockerDriver_FingerprintHealth asserts that docker reports healthy
+// whenever Docker is supported.
 //
 // In Linux CI and AppVeyor Windows environment, it should be enabled.
 func TestDockerDriver_FingerprintHealth(t *testing.T) {
