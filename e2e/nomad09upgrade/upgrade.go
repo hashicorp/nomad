@@ -101,7 +101,7 @@ type nomadAgent struct {
 }
 
 func (tc *UpgradePathTC) newNomadServer(t *testing.T, ver string) (*nomadAgent, error) {
-	dir, err := ioutil.TempDir("/opt", "nomade2e")
+	dir, err := ioutil.TempDir("", "nomade2e")
 	if err != nil {
 		return nil, err
 	}
