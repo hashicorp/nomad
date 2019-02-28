@@ -539,6 +539,7 @@ job "nomad-vault-demo" {
     "host": "database.service.consul",
     "port": 5432,
     "username": "{{ .Data.username }}",
+    {{ /* Ensure password is a properly escaped JSON string. */ }}
     "password": {{ .Data.password | toJSON }},
     "db": "postgres"
   }
