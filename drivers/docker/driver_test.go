@@ -930,6 +930,52 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	require.EqualValues(t, opt, c.HostConfig.StorageOpt)
 }
 
+func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		loggingConfig  DockerLogging
+		expectedDriver string
+	}{
+		{
+			"simple type",
+			DockerLogging{Type: "fluentd"},
+			"fluentd",
+		},
+		{
+			"simple driver",
+			DockerLogging{Driver: "fluentd"},
+			"fluentd",
+		},
+		{
+			"type takes precedence",
+			DockerLogging{
+				Type:   "json-file",
+				Driver: "fluentd",
+			},
+			"json-file",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			task, cfg, _ := dockerTask(t)
+
+			cfg.Logging = c.loggingConfig
+			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			dh := dockerDriverHarness(t, nil)
+			driver := dh.Impl().(*Driver)
+
+			cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+			require.NoError(t, err)
+
+			require.Equal(t, c.expectedDriver, cc.HostConfig.LogConfig.Type)
+		})
+	}
+}
+
 func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
