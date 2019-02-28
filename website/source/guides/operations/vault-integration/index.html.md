@@ -588,8 +588,9 @@ There are a few key points to note here:
   [inline][inline], we can use the template stanza [in conjunction with the
   artifact stanza][remote-template] to download an input template from a remote
   source such as an S3 bucket.
-- We are using the `toJSON` function to ensure Nomad passes the password to task
-  unchanged. You can see [go-envparser's README][go-envparser] for more details.
+- We are using the `toJSON` function to ensure the password is encoded as a JSON
+  string. Any templated value which may contain special characters (like quotes
+  or newlines) should be passed through the `toJSON` function.
 - Finally, note that that [destination][destination] of our template is the
   [secrets/][secrets-task-directory] task directory. This ensures the data is
   not accessible with a command like [nomad alloc fs][nomad-alloc-fs] or
@@ -662,7 +663,6 @@ below </h2>
 [fabio]: https://github.com/fabiolb/fabio
 [fabio-job]: /guides/load-balancing/fabio.html#step-1-create-a-job-for-fabio
 [fabio-lb]: /guides/load-balancing/fabio.html
-[go-envparser]: https://github.com/hashicorp/go-envparse#readme
 [inline]: /docs/job-specification/template.html#inline-template
 [login]: https://www.vaultproject.io/docs/commands/login.html
 [nomad-alloc-fs]: /docs/commands/alloc/fs.html
