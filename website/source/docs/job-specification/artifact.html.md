@@ -30,7 +30,7 @@ job "docs" {
     task "server" {
       artifact {
         source      = "https://example.com/file.tar.gz"
-        destination = "/tmp/directory"
+        destination = "local/some-directory"
         options {
           checksum = "md5:df6a4178aec9fbdc1d6d7e3634d1bc33"
         }
@@ -77,18 +77,6 @@ This example downloads the artifact from the provided URL and places it in
 ```hcl
 artifact {
   source = "https://example.com/file.txt"
-}
-```
-
-### Download with Custom Destination
-
-This example downloads the artifact from the provided URL and places it at
-`/tmp/example/file.txt`, as specified by the optional `destination` parameter.
-
-```hcl
-artifact {
-  source      = "https://example.com/file.txt"
-  destination = "/tmp/example"
 }
 ```
 
