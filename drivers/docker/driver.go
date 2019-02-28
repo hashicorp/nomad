@@ -706,8 +706,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
 	}
 
+	loggingDriver := driverConfig.Logging.Driver
+	if loggingDriver == "" {
+		loggingDriver = driverConfig.Logging.Type
+	}
+
 	hostConfig.LogConfig = docker.LogConfig{
-		Type:   driverConfig.Logging.Type,
+		Type:   loggingDriver,
 		Config: driverConfig.Logging.Config,
 	}
 

@@ -181,7 +181,8 @@ config {
   }
   load = "/tmp/image.tar.gz"
   logging {
-    type = "json-file"
+    driver = "json-file-driver"
+    type   = "json-file"
     config {
       "max-file" = "3"
       "max-size" = "10m"
@@ -308,7 +309,8 @@ config {
 		},
 		LoadImage: "/tmp/image.tar.gz",
 		Logging: DockerLogging{
-			Type: "json-file",
+			Driver: "json-file-driver",
+			Type:   "json-file",
 			Config: map[string]string{
 				"max-file": "3",
 				"max-size": "10m",
