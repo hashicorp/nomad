@@ -35,17 +35,19 @@ database and return information.
 Deploy Vault and configure the nodes in your Nomad cluster to integrate with it.
 Use the appropriate [templating syntax][nomad-template-vault] to retrieve
 credentials from Vault and then store those credentials in the
-[secrets][secrets-task-directory] task directory to be consumed by the Nomad task.
+[secrets][secrets-task-directory] task directory to be consumed by the Nomad
+task.
 
 ## Prerequisites
 
 To perform the tasks described in this guide, you need to have a Nomad
-environment with Consul and Vault installed. You can use this [repo][repo]
-to easily provision a sandbox environment. This guide will assume a cluster with
+environment with Consul and Vault installed. You can use this [repo][repo] to
+easily provision a sandbox environment. This guide will assume a cluster with
 one server node and three client nodes.
 
 -> **Please Note:** This guide is for demo purposes and is only using a single
-Nomad server with Vault installed alongside. In a production cluster, 3 or 5 Nomad server nodes are recommended along with a separate Vault cluster.
+Nomad server with Vault installed alongside. In a production cluster, 3 or 5
+Nomad server nodes are recommended along with a separate Vault cluster.
 
 ## Steps
 
@@ -62,7 +64,9 @@ $ vault operator init -key-shares=1 -key-threshold=1
 The `vault operator init` command above creates a single Vault unseal key for
 convenience. For a production environment, it is recommended that you create at
 least five unseal key shares and securely distribute them to independent
-operators. The `vault operator init` command defaults to five key shares and a key threshold of three. If you provisioned more than one server, the others will become standby nodes but should still be unsealed.
+operators. The `vault operator init` command defaults to five key shares and a
+key threshold of three. If you provisioned more than one server, the others will
+become standby nodes but should still be unsealed.
 
 ### Step 2: Unseal Vault
 
@@ -112,11 +116,13 @@ again. Future Vault requests will automatically use this token.
 
 To use the Vault integration, you must provide a Vault token to your Nomad
 servers. Although you can provide your root token to easily get started, the
-recommended approach is to use a token [role][role] based token.
-This first requires writing a policy that you will attach to the token you
-provide to your Nomad servers. By using this approach, you can limit the set of [policies][policy] that tasks managed by Nomad can access.
+recommended approach is to use a token [role][role] based token. This first
+requires writing a policy that you will attach to the token you provide to your
+Nomad servers. By using this approach, you can limit the set of
+[policies][policy] that tasks managed by Nomad can access.
 
-For this exercise, use the following policy for the token you will create for your Nomad server. Place this policy in a file named `nomad-server-policy.hcl`.
+For this exercise, use the following policy for the token you will create for
+your Nomad server. Place this policy in a file named `nomad-server-policy.hcl`.
 
 ```'hcl
 # Allow creating tokens under "nomad-cluster" token role. The token role name
@@ -161,7 +167,8 @@ path "auth/token/renew-self" {
   capabilities = ["update"]
 }
 ```
-You can now write a policy called `nomad-server` by running the following command:
+You can now write a policy called `nomad-server` by running the following
+command:
 
 ```shell
 $ vault policy write nomad-server nomad-server-policy.hcl
@@ -189,9 +196,10 @@ submitted to Nomad. We will use the following token role:
   "renewable": true
 }
 ```
-Please notice that the `access-tables` policy is listed under the `allowed_policies` key. We have not created this policy yet, but it will be used by our job to
-retrieve credentials to access the database. A job running in our Nomad cluster
-will only be allowed to use the `access-tables` policy.
+Please notice that the `access-tables` policy is listed under the
+`allowed_policies` key. We have not created this policy yet, but it will be used
+by our job to retrieve credentials to access the database. A job running in our
+Nomad cluster will only be allowed to use the `access-tables` policy.
 
 If you would like to allow all policies to be used by any job in the Nomad
 cluster except for the ones you specifically prohibit, then use the
@@ -228,7 +236,10 @@ Run the following command to create a token for your Nomad server:
 ```shell
 $ vault token create -policy nomad-server -period 72h -orphan
 ```
-The `-orphan` flag is included when generating the Nomad server token above to prevent revocation of the token when its parent expires. Vault typically creates tokens with a parent-child relationship. When an ancestor token is revoked, all of its descendant tokens and their associated leases are revoked as well.
+The `-orphan` flag is included when generating the Nomad server token above to
+prevent revocation of the token when its parent expires. Vault typically creates
+tokens with a parent-child relationship. When an ancestor token is revoked, all
+of its descendant tokens and their associated leases are revoked as well.
 
 If everything works, you should see output similar to the following:
 
@@ -245,11 +256,14 @@ policies             ["default" "nomad-server"]
 ```
 ### Step 7: Edit the Nomad Server Configuration to Enable Vault Integration
 
-At this point, you are ready to edit the [vault stanza][vault-stanza] in the Nomad Server's configuration file located at `/etc/nomad.d/nomad.hcl`. Provide the token you generated in the previous step in the `vault` stanza of
-your Nomad server configuration. The token can also be provided as an
-environment variable called `VAULT_TOKEN`. Be sure to specify the
-`nomad-cluster-role` in the [create_from_role][create-from-role] option. After
-following these steps and enabling Vault, the `vault` stanza in your Nomad server configuration will be similar to what is shown below:
+At this point, you are ready to edit the [vault stanza][vault-stanza] in the
+Nomad Server's configuration file located at `/etc/nomad.d/nomad.hcl`. Provide
+the token you generated in the previous step in the `vault` stanza of your Nomad
+server configuration. The token can also be provided as an environment variable
+called `VAULT_TOKEN`. Be sure to specify the `nomad-cluster-role` in the
+[create_from_role][create-from-role] option. After following these steps and
+enabling Vault, the `vault` stanza in your Nomad server configuration will be
+similar to what is shown below:
 
 ```hcl
 vault {
@@ -271,7 +285,8 @@ NOTE: Nomad servers will renew the token automatically.
 
 Vault integration needs to be enabled on the client nodes as well, but this has
 been configured for you already in this environment. You will see the `vault`
-stanza in your Nomad clients' configuration (located at `/etc/nomad.d/nomad.hcl`) looks similar to the following:
+stanza in your Nomad clients' configuration (located at
+`/etc/nomad.d/nomad.hcl`) looks similar to the following:
 
 ```hcl
 vault {
@@ -455,8 +470,10 @@ lease_renewable    true
 password           A1a-3pMGjpDXHZ2Qzuf7
 username           v-root-accessdb-5LA65urB4daA8KYy2xku-1542318363
 ```
-Congratulations! You have configured Vault's connection to your database and
-can now generate credentials with the previously specified privileges. Now we need to deploy our application and make sure that it will be able to communicate with Vault and obtain the credentials as well.
+Congratulations! You have configured Vault's connection to your database and can
+now generate credentials with the previously specified privileges. Now we need
+to deploy our application and make sure that it will be able to communicate with
+Vault and obtain the credentials as well.
 
 ### Step 13: Create the `access-tables` Policy for Your Nomad Job to Use
 
@@ -467,7 +484,8 @@ and give it the capability to read from the `database/creds/accessdb` endpoint
 our database). We will then specify this policy in our Nomad job which will
 allow it to retrieve credentials for itself to access the database.
 
-On the Nomad server (which is also running Vault), create a file named `access-tables-policy.hcl` with the following content:
+On the Nomad server (which is also running Vault), create a file named
+`access-tables-policy.hcl` with the following content:
 
 ```hcl
 path "database/creds/accessdb" {
@@ -521,7 +539,8 @@ job "nomad-vault-demo" {
     "host": "database.service.consul",
     "port": 5432,
     "username": "{{ .Data.username }}",
-    "password": "{{ .Data.password }}",
+    {{ /* Ensure password is a properly escaped JSON string. */ }}
+    "password": {{ .Data.password | toJSON }},
     "db": "postgres"
   }
 {{ end }}
@@ -557,18 +576,25 @@ There are a few key points to note here:
 
 - We have specified the `access-tables` policy in the [vault][vault-jobspec]
   stanza of this job. The Nomad client will receive a token with this policy
-attached. Recall from the previous step that this policy will allow our
-application to read from the `database/creds/accessdb` endpoint in Vault and retrieve credentials.
+  attached. Recall from the previous step that this policy will allow our
+  application to read from the `database/creds/accessdb` endpoint in Vault and
+  retrieve credentials.
 - We are using the [template][template] stanza's [vault
   integration][nomad-template-vault] to populate the JSON configuration file
-that our application needs. The underlying tool being used is [Consul
-Template][consul-template]. You can use Consul Template's documentation to learn
-more about the [syntax][consul-temp-syntax] needed to interact with Vault.
-Please note that although we have defined the template [inline][inline], we can use the template stanza [in conjunction with the artifact stanza][remote-template] to download an input template from a remote source such as an S3 bucket.
+  that our application needs. The underlying tool being used is [Consul
+  Template][consul-template]. You can use Consul Template's documentation to
+  learn more about the [syntax][consul-temp-syntax] needed to interact with
+  Vault. Please note that although we have defined the template
+  [inline][inline], we can use the template stanza [in conjunction with the
+  artifact stanza][remote-template] to download an input template from a remote
+  source such as an S3 bucket.
+- We are using the `toJSON` function to ensure the password is encoded as a JSON
+  string. Any templated value which may contain special characters (like quotes
+  or newlines) should be passed through the `toJSON` function.
 - Finally, note that that [destination][destination] of our template is the
   [secrets/][secrets-task-directory] task directory. This ensures the data is
-not accessible with a command like [nomad alloc fs][nomad-alloc-fs] or
-filesystem APIs.
+  not accessible with a command like [nomad alloc fs][nomad-alloc-fs] or
+  filesystem APIs.
 
 Use the following command to run the job:
 
@@ -596,7 +622,8 @@ $ curl nomad-vault-demo.service.consul:30478/names
 <body>
 
 <h1> Welcome! </h1>
-<h2> If everything worked correctly, you should be able to see a list of names below </h2>
+<h2> If everything worked correctly, you should be able to see a list of names
+below </h2>
 
 <hr>
 
@@ -619,11 +646,11 @@ $ curl nomad-vault-demo.service.consul:30478/names
 ```
 - You can also deploy [fabio][fabio] and visit any Nomad client at its public IP
   address using a fixed port. The details of this method are beyond the scope of
-this guide, but you can refer to the [Load Balancing with Fabio][fabio-lb] guide
-for more information on this topic. Alternatively, you could use the `nomad`
-[alloc status][alloc-status] command along with the AWS console to determine the
-public IP and port your service is running (remember to open the port in your
-AWS security group if you choose this method).
+  this guide, but you can refer to the [Load Balancing with Fabio][fabio-lb]
+  guide for more information on this topic. Alternatively, you could use the
+  `nomad` [alloc status][alloc-status] command along with the AWS console to
+  determine the public IP and port your service is running (remember to open the
+  port in your AWS security group if you choose this method).
 
 [![Web Service][web-service]][web-service]
 
