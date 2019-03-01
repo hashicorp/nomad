@@ -137,7 +137,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 		"run_for": "2s",
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	conf.StateDB = cstate.NewMemDB() // "persist" state between task runners
+	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 	defer cleanup()
 
 	// Run the first TaskRunner
@@ -235,7 +235,7 @@ func TestTaskRunner_DevicePropogation(t *testing.T) {
 	tRes.Devices = append(tRes.Devices, &structs.AllocatedDeviceResource{Type: "mock"})
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	conf.StateDB = cstate.NewMemDB() // "persist" state between task runners
+	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 	defer cleanup()
 
 	// Setup the devicemanager
@@ -323,7 +323,7 @@ func TestTaskRunner_Restore_HookEnv(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	conf.StateDB = cstate.NewMemDB() // "persist" state between prestart calls
+	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between prestart calls
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
@@ -368,7 +368,7 @@ func TestTaskRunner_RecoverFromDriverExiting(t *testing.T) {
 	}
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	conf.StateDB = cstate.NewMemDB() // "persist" state between prestart calls
+	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between prestart calls
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)

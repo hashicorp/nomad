@@ -265,7 +265,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	defer cleanup()
 
 	// Use a memory backed statedb
-	conf.StateDB = state.NewMemDB()
+	conf.StateDB = state.NewMemDB(conf.Logger)
 
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
@@ -579,7 +579,7 @@ func TestAllocRunner_Destroy(t *testing.T) {
 	defer cleanup()
 
 	// Use a MemDB to assert alloc state gets cleaned up
-	conf.StateDB = state.NewMemDB()
+	conf.StateDB = state.NewMemDB(conf.Logger)
 
 	ar, err := NewAllocRunner(conf)
 	require.NoError(t, err)
