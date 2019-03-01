@@ -28,9 +28,8 @@ func (iter *PreemptionScoringIterator) Next() *RankedNode {
 	if option.PreemptedAllocs != nil {
 		netPriority := netAggregatePriority(option.PreemptedAllocs)
 
-		// The max score of 1 is when the net priority is equal to the min across all options
-		minNetPriority := iter.ctx.Metrics().PreemptedMinNetPriority
-		preemptionScore := float64(minNetPriority) / float64(netPriority)
+		// preemption score is inversly proportional to netPriority
+		preemptionScore := 1.0 / float64(netPriority)
 		option.Scores = append(option.Scores, preemptionScore)
 		iter.ctx.Metrics().ScoreNode(option.Node, "preemption-score", preemptionScore)
 	}

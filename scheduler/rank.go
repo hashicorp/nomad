@@ -373,9 +373,6 @@ OUTER:
 		}
 		if len(allocsToPreempt) > 0 {
 			option.PreemptedAllocs = allocsToPreempt
-			// Calculate net priority to track its min value in the iterator's context
-			netPriority := netAggregatePriority(option.PreemptedAllocs)
-			iter.ctx.Metrics().UpdatePreemptedMinNetPriority(netPriority)
 		}
 
 		// Score the fit normally otherwise
