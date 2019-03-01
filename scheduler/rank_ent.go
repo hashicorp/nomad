@@ -2,7 +2,8 @@
 
 package scheduler
 
-// PreemptionScoringIterator is used to add a
+// PreemptionScoringIterator is used to score nodes according to the
+// combination of preemptible allocations in them
 type PreemptionScoringIterator struct {
 	ctx    Context
 	source RankIterator
