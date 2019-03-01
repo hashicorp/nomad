@@ -1,4 +1,4 @@
-// +build ent
+// +build pro ent
 
 package scheduler
 
