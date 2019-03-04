@@ -141,7 +141,7 @@ func (h *logmonHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, _ 
 	// restarts. Attempt to reattach to an existing logmon.
 	if h.logmon == nil || h.logmonPluginClient == nil {
 		if err := h.reattach(req); err != nil {
-			h.logger.Debug("error reattaching to logmon when stopping")
+			h.logger.Trace("error reattaching to logmon when stopping", "error", err)
 		}
 	}
 
