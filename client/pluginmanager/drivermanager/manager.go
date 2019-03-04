@@ -148,10 +148,10 @@ func New(c *Config) *manager {
 	}
 }
 
-// PluginType returns the type of plugin this mananger mananges
+// PluginType returns the type of plugin this manager mananges
 func (*manager) PluginType() string { return base.PluginTypeDriver }
 
-// Run starts the mananger, initializes driver plugins and blocks until Shutdown
+// Run starts the manager, initializes driver plugins and blocks until Shutdown
 // is called.
 func (m *manager) Run() {
 	// Load any previous plugin reattach configuration
