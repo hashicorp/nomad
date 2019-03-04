@@ -162,7 +162,7 @@ func TestServersMeetMinimumVersion(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		result := ServersMeetMinimumVersion(tc.members, tc.ver)
+		result := ServersMeetMinimumVersion(tc.members, tc.ver, false)
 		if result != tc.expected {
 			t.Fatalf("bad: %v, %v, %v", result, tc.ver.String(), tc)
 		}

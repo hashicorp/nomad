@@ -23,6 +23,10 @@ type SystemScheduler struct {
 	state   State
 	planner Planner
 
+	// Temporary flag introduced till the code for sending/committing full allocs in the Plan can
+	// be safely removed
+	allowPlanOptimization bool
+
 	eval       *structs.Evaluation
 	job        *structs.Job
 	plan       *structs.Plan
@@ -41,11 +45,12 @@ type SystemScheduler struct {
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+func NewSystemScheduler(logger log.Logger, state State, planner Planner, allowPlanOptimization bool) Scheduler {
 	return &SystemScheduler{
-		logger:  logger.Named("system_sched"),
-		state:   state,
-		planner: planner,
+		logger:                logger.Named("system_sched"),
+		state:                 state,
+		planner:               planner,
+		allowPlanOptimization: allowPlanOptimization,
 	}
 }
 
@@ -110,7 +115,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	}
 
 	// Create a plan
-	s.plan = s.eval.MakePlan(s.job)
+	s.plan = s.eval.MakePlan(s.job, s.allowPlanOptimization)
 
 	// Reset the failed allocations
 	s.failedTGAllocs = nil
@@ -210,18 +215,18 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNotNeeded, "")
 	}
 
 	// Add all the allocs to migrate
 	for _, e := range diff.migrate {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNodeTainted, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNodeTainted, "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range diff.lost {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
+		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost)
 	}
 
 	// Attempt to do the upgrades in place
@@ -351,7 +356,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			if option.PreemptedAllocs != nil {
 				var preemptedAllocIDs []string
 				for _, stop := range option.PreemptedAllocs {
-					s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
+					s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 
 					preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
 					if s.eval.AnnotatePlan && s.plan.Annotations != nil {
