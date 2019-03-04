@@ -14,6 +14,11 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
+// MinVersionPlanDenormalization is the minimum version to support the
+// denormalization of Plan in SubmitPlan, and the raft log entry committed
+// in ApplyPlanResultsRequest
+var MinVersionPlanDenormalization = version.Must(version.NewVersion("0.9.1"))
+
 // ensurePath is used to make sure a path exists
 func ensurePath(path string, dir bool) error {
 	if !dir {
@@ -145,9 +150,9 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 
 // ServersMeetMinimumVersion returns whether the given alive servers are at least on the
 // given Nomad version
-func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Version) bool {
+func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Version, checkFailedServers bool) bool {
 	for _, member := range members {
-		if valid, parts := isNomadServer(member); valid && parts.Status == serf.StatusAlive {
+		if valid, parts := isNomadServer(member); valid && (parts.Status == serf.StatusAlive || (checkFailedServers && parts.Status == serf.StatusFailed)) {
 			// Check if the versions match - version.LessThan will return true for
 			// 0.8.0-rc1 < 0.8.0, so we want to ignore the metadata
 			versionsMatch := slicesMatch(minVersion.Segments(), parts.Build.Segments())

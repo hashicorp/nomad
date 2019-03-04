@@ -216,7 +216,7 @@ func (h *Harness) Snapshot() State {
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory Factory) Scheduler {
 	logger := testlog.HCLogger(h.t)
-	return factory(logger, h.Snapshot(), h)
+	return factory(logger, h.Snapshot(), h, false)
 }
 
 // Process is used to process an evaluation given a factory

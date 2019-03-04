@@ -1078,7 +1078,7 @@ func (s *Server) setupRaft() error {
 		Region:     s.Region(),
 	}
 	var err error
-	s.fsm, err = NewFSM(fsmConfig)
+	s.fsm, err = NewFSM(fsmConfig, s)
 	if err != nil {
 		return err
 	}
@@ -1173,7 +1173,7 @@ func (s *Server) setupRaft() error {
 			if err != nil {
 				return fmt.Errorf("recovery failed to parse peers.json: %v", err)
 			}
-			tmpFsm, err := NewFSM(fsmConfig)
+			tmpFsm, err := NewFSM(fsmConfig, s)
 			if err != nil {
 				return fmt.Errorf("recovery failed to make temp FSM: %v", err)
 			}
