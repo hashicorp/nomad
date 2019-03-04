@@ -247,7 +247,7 @@ type ClientConfig struct {
 
 	// HostVolumes contains information about the volumes an operator has made
 	// available to jobs running on this node.
-	HostVolumes map[string]*config.HostVolumeConfig `hcl:"host_volume"`
+	HostVolumes map[string]*structs.HostVolumeConfig `hcl:"host_volume"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -1307,13 +1307,13 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	if len(a.HostVolumes) == 0 && len(b.HostVolumes) != 0 {
-		cc := make(map[string]*config.HostVolumeConfig, len(b.HostVolumes))
+		cc := make(map[string]*structs.HostVolumeConfig, len(b.HostVolumes))
 		for k, v := range b.HostVolumes {
 			cc[k] = v.Copy()
 		}
 		result.HostVolumes = cc
 	} else if len(b.HostVolumes) != 0 {
-		result.HostVolumes = config.HostVolumeSetMerge(a.HostVolumes, b.HostVolumes)
+		result.HostVolumes = structs.HostVolumeSetMerge(a.HostVolumes, b.HostVolumes)
 	}
 
 	return &result

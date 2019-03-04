@@ -1579,8 +1579,7 @@ type Node struct {
 	Drivers map[string]*DriverInfo
 
 	// HostVolumes is a map of host volume names to their configuration
-	// TODO(dani): Use a seperate volume definition here?
-	HostVolumes map[string]*Volume
+	HostVolumes map[string]*HostVolumeConfig
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -1659,13 +1658,13 @@ func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
 }
 
 // copyNodeHostVolumes is a helper to copy a map of string to Volume
-func copyNodeHostVolumes(volumes map[string]*Volume) map[string]*Volume {
+func copyNodeHostVolumes(volumes map[string]*HostVolumeConfig) map[string]*HostVolumeConfig {
 	l := len(volumes)
 	if l == 0 {
 		return nil
 	}
 
-	c := make(map[string]*Volume, l)
+	c := make(map[string]*HostVolumeConfig, l)
 	for volume, v := range volumes {
 		c[volume] = v.Copy()
 	}
@@ -4596,75 +4595,6 @@ func (m *MigrateStrategy) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
-}
-
-// Volume is a representation of a storage volume that a TaskGroup wishes to use.
-type Volume struct {
-	Name     string
-	Type     string
-	ReadOnly bool
-	Hidden   bool
-
-	Config map[string]interface{}
-}
-
-func (v *Volume) Copy() *Volume {
-	if v == nil {
-		return nil
-	}
-	nv := new(Volume)
-	*nv = *v
-
-	if i, err := copystructure.Copy(nv.Config); err != nil {
-		panic(err.Error())
-	} else {
-		nv.Config = i.(map[string]interface{})
-	}
-
-	return nv
-}
-
-func CopyMapVolumes(s map[string]*Volume) map[string]*Volume {
-	if s == nil {
-		return nil
-	}
-
-	l := len(s)
-	c := make(map[string]*Volume, l)
-	for k, v := range s {
-		c[k] = v.Copy()
-	}
-	return c
-}
-
-// VolumeMount is ...
-type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool
-}
-
-func (v *VolumeMount) Copy() *VolumeMount {
-	if v == nil {
-		return nil
-	}
-
-	nv := new(VolumeMount)
-	*nv = *v
-	return nv
-}
-
-func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
-	l := len(s)
-	if l == 0 {
-		return nil
-	}
-
-	c := make([]*VolumeMount, l)
-	for i, v := range s {
-		c[i] = v.Copy()
-	}
-	return c
 }
 
 // TaskGroup is an atomic unit of placement. Each task group belongs to

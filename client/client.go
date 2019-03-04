@@ -1228,15 +1228,9 @@ func (c *Client) setupNode() error {
 	// TODO(dani): Fingerprint these to handle volumes that don't exist/have bad perms.
 	if node.HostVolumes == nil {
 		if l := len(c.config.HostVolumes); l != 0 {
-			node.HostVolumes = make(map[string]*structs.Volume, l)
+			node.HostVolumes = make(map[string]*structs.HostVolumeConfig, l)
 			for k, v := range c.config.HostVolumes {
-				node.HostVolumes[k] = &structs.Volume{
-					Type:     "host",
-					Name:     v.Name,
-					ReadOnly: v.ReadOnly,
-					Hidden:   v.Hidden,
-					Config:   map[string]interface{}{"source": v.Source},
-				}
+				node.HostVolumes[k] = v.Copy()
 			}
 		}
 	}

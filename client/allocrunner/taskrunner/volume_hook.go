@@ -35,18 +35,29 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	mounts := h.runner.hookResources.getMounts()
 
 	for _, m := range req.Task.VolumeMounts {
-		v := volumes[m.Volume]
-		// TODO: Validate mounts before now.
-		if v.Type == "host" {
-			mcfg := &drivers.MountConfig{
-				HostPath: v.Config["source"].(string),
-				TaskPath: m.Destination,
-				Readonly: v.ReadOnly || m.ReadOnly,
-			}
-			mounts = append(mounts, mcfg)
-		} else {
-			return fmt.Errorf("Unsupported mount type: %s", v.Type)
+		volumeRequest, ok := volumes[m.Volume]
+		if !ok {
+			return fmt.Errorf("Could not find volume declaration named: %s", m.Volume)
 		}
+
+		if volumeRequest.Type != "host" {
+			// We currently only handle host volumes in this hook, and other types
+			// should not get scheduled yet.
+			continue
+		}
+
+		hostVolume, ok := h.runner.clientConfig.Node.HostVolumes[volumeRequest.Name]
+		if !ok {
+			h.logger.Error("Failed to find host volume", "existing", h.runner.clientConfig.Node.HostVolumes, "requested", volumeRequest)
+			return fmt.Errorf("Could not find host volume named: %s", m.Volume)
+		}
+
+		mcfg := &drivers.MountConfig{
+			HostPath: hostVolume.Source,
+			TaskPath: m.Destination,
+			Readonly: hostVolume.ReadOnly || volumeRequest.ReadOnly || m.ReadOnly,
+		}
+		mounts = append(mounts, mcfg)
 	}
 
 	h.runner.hookResources.setMounts(mounts)
