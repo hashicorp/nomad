@@ -221,6 +221,9 @@ type Config struct {
 
 	// StateDBFactory is used to override stateDB implementations,
 	StateDBFactory state.NewStateDBFunc
+
+	// HostVolumes is the set of configured host volumes
+	HostVolumes map[string]*config.HostVolumeConfig
 }
 
 func (c *Config) Copy() *Config {
