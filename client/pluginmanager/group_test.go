@@ -15,13 +15,13 @@ func TestPluginGroup_RegisterAndRun(t *testing.T) {
 	var hasRun bool
 	var wg sync.WaitGroup
 	wg.Add(1)
-	mananger := &MockPluginManager{RunF: func() {
+	manager := &MockPluginManager{RunF: func() {
 		hasRun = true
 		wg.Done()
 	}}
 
 	group := New(testlog.HCLogger(t))
-	require.NoError(group.RegisterAndRun(mananger))
+	require.NoError(group.RegisterAndRun(manager))
 	wg.Wait()
 	require.True(hasRun)
 }
@@ -39,7 +39,7 @@ func TestPluginGroup_Shutdown(t *testing.T) {
 		i := i
 		runWg.Add(1)
 		shutdownWg.Add(1)
-		mananger := &MockPluginManager{RunF: func() {
+		manager := &MockPluginManager{RunF: func() {
 			stackMu.Lock()
 			defer stackMu.Unlock()
 			defer runWg.Done()
@@ -53,7 +53,7 @@ func TestPluginGroup_Shutdown(t *testing.T) {
 			require.Equal(i, val)
 			stack = stack[:idx]
 		}}
-		require.NoError(group.RegisterAndRun(mananger))
+		require.NoError(group.RegisterAndRun(manager))
 		runWg.Wait()
 	}
 	group.Shutdown()
