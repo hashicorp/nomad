@@ -493,7 +493,15 @@ MAIN:
 	// that should be terminal, so if the handle still exists we should
 	// kill it here.
 	if tr.getDriverHandle() != nil {
-		tr.handleKill()
+		if result = tr.handleKill(); result != nil {
+			tr.emitExitResultEvent(result)
+		}
+
+		tr.clearDriverHandle()
+
+		if err := tr.exited(); err != nil {
+			tr.logger.Error("exited hooks failed while cleaning up terminal task", "error", err)
+		}
 	}
 
 	// Mark the task as dead
@@ -540,6 +548,14 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWai
 		return true
 	}
 
+	// Emit Terminated event
+	tr.emitExitResultEvent(result)
+
+	return false
+}
+
+// emitExitResultEvent emits a TaskTerminated event for an ExitResult.
+func (tr *TaskRunner) emitExitResultEvent(result *drivers.ExitResult) {
 	event := structs.NewTaskEvent(structs.TaskTerminated).
 		SetExitCode(result.ExitCode).
 		SetSignal(result.Signal).
@@ -551,8 +567,6 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWai
 	if result.OOMKilled && !tr.clientConfig.DisableTaggedMetrics {
 		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
 	}
-
-	return false
 }
 
 // handleUpdates runs update hooks when triggerUpdateCh is ticked and exits

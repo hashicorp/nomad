@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -111,4 +112,21 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 
 	// Assert logmon was cleaned up
 	require.Error(t, logmonProc.Signal(syscall.Signal(0)))
+
+	// Assert consul was cleaned up:
+	//   2 removals (canary+noncanary) during prekill
+	//   2 removals (canary+noncanary) during exited
+	consulOps := conf2.Consul.(*consul.MockConsulServiceClient).GetOps()
+	require.Len(t, consulOps, 4)
+	for _, op := range consulOps {
+		require.Equal(t, "remove", op.Op)
+	}
+
+	// Assert terminated task event was emitted
+	events := ar2.AllocState().TaskStates[task.Name].Events
+	require.Len(t, events, 4)
+	require.Equal(t, events[0].Type, structs.TaskReceived)
+	require.Equal(t, events[1].Type, structs.TaskSetup)
+	require.Equal(t, events[2].Type, structs.TaskStarted)
+	require.Equal(t, events[3].Type, structs.TaskTerminated)
 }

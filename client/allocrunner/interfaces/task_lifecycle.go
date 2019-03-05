@@ -87,7 +87,7 @@ type TaskPrestartHook interface {
 	TaskHook
 
 	// Prestart is called before the task is started including after every
-	// restart.
+	// restart. Prestart is not called if the allocation is terminal.
 	Prestart(context.Context, *TaskPrestartRequest, *TaskPrestartResponse) error
 }
 
@@ -114,7 +114,8 @@ type TaskPoststartResponse struct{}
 type TaskPoststartHook interface {
 	TaskHook
 
-	// Poststart is called after the task has started.
+	// Poststart is called after the task has started. Poststart is not
+	// called if the allocation is terminal.
 	Poststart(context.Context, *TaskPoststartRequest, *TaskPoststartResponse) error
 }
 
@@ -125,7 +126,8 @@ type TaskPreKillHook interface {
 	TaskHook
 
 	// PreKilling is called right before a task is going to be killed or
-	// restarted. They are called concurrently with TaskRunner.Run.
+	// restarted. They are called concurrently with TaskRunner.Run and may
+	// be called without Prestart being called.
 	PreKilling(context.Context, *TaskPreKillRequest, *TaskPreKillResponse) error
 }
 
@@ -136,6 +138,7 @@ type TaskExitedHook interface {
 	TaskHook
 
 	// Exited is called after a task exits and may or may not be restarted.
+	// Prestart may or may not have been called.
 	Exited(context.Context, *TaskExitedRequest, *TaskExitedResponse) error
 }
 
