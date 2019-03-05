@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -88,6 +88,7 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	}
 }
 
+// COMPAT 0.11: Uses AllocUpdateRequest.Alloc
 // This test checks that:
 // 1) The job is denormalized
 // 2) Allocations are created
@@ -138,6 +139,94 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 	assert.Nil(err)
 	assert.NotNil(evalOut)
 	assert.EqualValues(1000, evalOut.ModifyIndex)
+}
+
+// This test checks that:
+// 1) The job is denormalized
+// 2) Allocations are denormalized and updated with the diff
+func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+
+	stoppedAlloc := mock.Alloc()
+	stoppedAlloc.Job = job
+	stoppedAllocDiff := &structs.Allocation{
+		ID: stoppedAlloc.ID,
+		DesiredDescription: "desired desc",
+		ClientStatus: structs.AllocClientStatusLost,
+	}
+	preemptedAlloc := mock.Alloc()
+	preemptedAlloc.Job = job
+	preemptedAllocDiff := &structs.Allocation{
+		ID: preemptedAlloc.ID,
+		PreemptedByAllocation: alloc.ID,
+	}
+
+	if err := state.UpsertAllocs(900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if err := state.UpsertJob(999, job); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	if err := state.UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create a plan result
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			AllocsUpdated: []*structs.Allocation{alloc},
+			AllocsStopped: []*structs.Allocation{stoppedAllocDiff},
+			Job:   job,
+		},
+		EvalID: eval.ID,
+		NodePreemptions: []*structs.Allocation{preemptedAllocDiff},
+	}
+	assert := assert.New(t)
+	planModifyIndex := uint64(1000)
+	err := state.UpsertPlanResults(planModifyIndex, &res)
+	assert.Nil(err)
+
+	ws := memdb.NewWatchSet()
+	out, err := state.AllocByID(ws, alloc.ID)
+	assert.Nil(err)
+	assert.Equal(alloc, out)
+
+	updatedStoppedAlloc, err := state.AllocByID(ws, stoppedAlloc.ID)
+	assert.Nil(err)
+	assert.Equal(stoppedAllocDiff.DesiredDescription, updatedStoppedAlloc.DesiredDescription)
+	assert.Equal(structs.AllocDesiredStatusStop, updatedStoppedAlloc.DesiredStatus)
+	assert.Equal(stoppedAllocDiff.ClientStatus, updatedStoppedAlloc.ClientStatus)
+	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
+	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
+
+	updatedPreemptedAlloc, err := state.AllocByID(ws, preemptedAlloc.ID)
+	assert.Nil(err)
+	assert.Equal(structs.AllocDesiredStatusEvict, updatedPreemptedAlloc.DesiredStatus)
+	assert.Equal(preemptedAllocDiff.PreemptedByAllocation, updatedPreemptedAlloc.PreemptedByAllocation)
+	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
+	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
+
+	index, err := state.Index("allocs")
+	assert.Nil(err)
+	assert.EqualValues(planModifyIndex, index)
+
+	if watchFired(ws) {
+		t.Fatalf("bad")
+	}
+
+	evalOut, err := state.EvalByID(ws, eval.ID)
+	assert.Nil(err)
+	assert.NotNil(evalOut)
+	assert.EqualValues(planModifyIndex, evalOut.ModifyIndex)
 }
 
 // This test checks that the deployment is created and allocations count towards
@@ -271,11 +360,9 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 	require.NoError(err)
 
 	minimalPreemptedAlloc := &structs.Allocation{
-		ID:                 preemptedAlloc.ID,
-		Namespace:          preemptedAlloc.Namespace,
-		DesiredStatus:      structs.AllocDesiredStatusEvict,
-		ModifyTime:         time.Now().Unix(),
-		DesiredDescription: fmt.Sprintf("Preempted by allocation %v", alloc.ID),
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: alloc.ID,
+		ModifyTime:            time.Now().Unix(),
 	}
 
 	// Create eval for preempted job
@@ -316,7 +403,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 	preempted, err := state.AllocByID(ws, preemptedAlloc.ID)
 	require.NoError(err)
 	require.Equal(preempted.DesiredStatus, structs.AllocDesiredStatusEvict)
-	require.Equal(preempted.DesiredDescription, fmt.Sprintf("Preempted by allocation %v", alloc.ID))
+	require.Equal(preempted.DesiredDescription, fmt.Sprintf("Preempted by alloc ID %v", alloc.ID))
 
 	// Verify eval for preempted job
 	preemptedJobEval, err := state.EvalByID(ws, eval2.ID)
