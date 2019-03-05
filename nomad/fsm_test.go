@@ -56,7 +56,7 @@ func testFSM(t *testing.T) *nomadFSM {
 		Logger:     logger,
 		Region:     "global",
 	}
-	fsm, err := NewFSM(fsmConfig)
+	fsm, err := NewFSM(fsmConfig, TestServer(t, nil))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

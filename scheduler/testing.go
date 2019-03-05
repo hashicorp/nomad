@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/mitchellh/go-testing-interface"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -53,26 +53,30 @@ type Harness struct {
 
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
+
+	allowPlanOptimization bool
 }
 
 // NewHarness is used to make a new testing harness
-func NewHarness(t testing.T) *Harness {
+func NewHarness(t testing.T, allowPlanOptimization bool) *Harness {
 	state := state.TestStateStore(t)
 	h := &Harness{
-		t:         t,
-		State:     state,
-		nextIndex: 1,
+		t:                     t,
+		State:                 state,
+		nextIndex:             1,
+		allowPlanOptimization: allowPlanOptimization,
 	}
 	return h
 }
 
 // NewHarnessWithState creates a new harness with the given state for testing
 // purposes.
-func NewHarnessWithState(t testing.T, state *state.StateStore) *Harness {
+func NewHarnessWithState(t testing.T, state *state.StateStore, allowPlanOptimization bool) *Harness {
 	return &Harness{
-		t:         t,
-		State:     state,
-		nextIndex: 1,
+		t:                     t,
+		State:                 state,
+		nextIndex:             1,
+		allowPlanOptimization: allowPlanOptimization,
 	}
 }
 
@@ -101,22 +105,17 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	result.AllocIndex = index
 
 	// Flatten evicts and allocs
-	var allocs []*structs.Allocation
+	now := time.Now().UTC().UnixNano()
+	allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
 	for _, updateList := range plan.NodeUpdate {
-		allocs = append(allocs, updateList...)
-	}
-	for _, allocList := range plan.NodeAllocation {
-		allocs = append(allocs, allocList...)
+		allocsStopped = append(allocsStopped, updateList...)
 	}
 
-	// Set the time the alloc was applied for the first time. This can be used
-	// to approximate the scheduling time.
-	now := time.Now().UTC().UnixNano()
-	for _, alloc := range allocs {
-		if alloc.CreateTime == 0 {
-			alloc.CreateTime = now
-		}
+	allocsUpdated := make([]*structs.Allocation, 0, len(result.NodeAllocation))
+	for _, allocList := range plan.NodeAllocation {
+		allocsUpdated = append(allocsUpdated, allocList...)
 	}
+	updateCreateTimestamp(allocsUpdated, now)
 
 	// Set modify time for preempted allocs and flatten them
 	var preemptedAllocs []*structs.Allocation
@@ -130,8 +129,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   plan.Job,
-			Alloc: allocs,
+			Job: plan.Job,
 		},
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
@@ -139,9 +137,31 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		NodePreemptions:   preemptedAllocs,
 	}
 
+	if h.allowPlanOptimization {
+		req.AllocsStopped = allocsStopped
+		req.AllocsUpdated = allocsUpdated
+	} else {
+		// Deprecated: Handles unoptimized log format
+		var allocs []*structs.Allocation
+		allocs = append(allocs, allocsStopped...)
+		allocs = append(allocs, allocsUpdated...)
+		updateCreateTimestamp(allocs, now)
+		req.Alloc = allocs
+	}
+
 	// Apply the full plan
 	err := h.State.UpsertPlanResults(index, &req)
 	return result, nil, err
+}
+
+func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {
+	// Set the time the alloc was applied for the first time. This can be used
+	// to approximate the scheduling time.
+	for _, alloc := range allocations {
+		if alloc.CreateTime == 0 {
+			alloc.CreateTime = now
+		}
+	}
 }
 
 func (h *Harness) UpdateEval(eval *structs.Evaluation) error {
@@ -214,15 +234,15 @@ func (h *Harness) Snapshot() State {
 
 // Scheduler is used to return a new scheduler from
 // a snapshot of current state using the harness for planning.
-func (h *Harness) Scheduler(factory Factory) Scheduler {
+func (h *Harness) Scheduler(factory Factory, allowPlanOptimization bool) Scheduler {
 	logger := testlog.HCLogger(h.t)
-	return factory(logger, h.Snapshot(), h, false)
+	return factory(logger, h.Snapshot(), h, allowPlanOptimization)
 }
 
 // Process is used to process an evaluation given a factory
 // function to create the scheduler
 func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
-	sched := h.Scheduler(factory)
+	sched := h.Scheduler(factory, h.allowPlanOptimization)
 	return sched.Process(eval)
 }
 

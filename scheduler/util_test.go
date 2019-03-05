@@ -621,7 +621,7 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 }
 
 func TestSetStatus(t *testing.T) {
-	h := NewHarness(t)
+	h := NewHarness(t, true)
 	logger := testlog.HCLogger(t)
 	eval := mock.Eval()
 	status := "a"
@@ -640,7 +640,7 @@ func TestSetStatus(t *testing.T) {
 	}
 
 	// Test next evals
-	h = NewHarness(t)
+	h = NewHarness(t, true)
 	next := mock.Eval()
 	if err := setStatus(logger, h, eval, next, nil, nil, status, desc, nil, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
@@ -656,7 +656,7 @@ func TestSetStatus(t *testing.T) {
 	}
 
 	// Test blocked evals
-	h = NewHarness(t)
+	h = NewHarness(t, true)
 	blocked := mock.Eval()
 	if err := setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
@@ -672,7 +672,7 @@ func TestSetStatus(t *testing.T) {
 	}
 
 	// Test metrics
-	h = NewHarness(t)
+	h = NewHarness(t, true)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
 	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil, ""); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)
@@ -688,7 +688,7 @@ func TestSetStatus(t *testing.T) {
 	}
 
 	// Test queued allocations
-	h = NewHarness(t)
+	h = NewHarness(t, true)
 	queuedAllocs := map[string]int{"web": 1}
 
 	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, ""); err != nil {
@@ -704,7 +704,7 @@ func TestSetStatus(t *testing.T) {
 		t.Fatalf("setStatus() didn't set failed task group metrics correctly: %v", newEval)
 	}
 
-	h = NewHarness(t)
+	h = NewHarness(t, true)
 	dID := uuid.Generate()
 	if err := setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID); err != nil {
 		t.Fatalf("setStatus() failed: %v", err)

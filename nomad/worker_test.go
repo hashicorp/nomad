@@ -8,20 +8,22 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 type NoopScheduler struct {
-	state   scheduler.State
-	planner scheduler.Planner
-	eval    *structs.Evaluation
-	err     error
+	state                 scheduler.State
+	planner               scheduler.Planner
+	eval                  *structs.Evaluation
+	allowPlanOptimization bool
+	err                   error
 }
 
 func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
@@ -38,8 +40,9 @@ func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
 func init() {
 	scheduler.BuiltinSchedulers["noop"] = func(logger log.Logger, s scheduler.State, p scheduler.Planner, allowPlanOptimization bool) scheduler.Scheduler {
 		n := &NoopScheduler{
-			state:   s,
-			planner: p,
+			state:                 s,
+			planner:               p,
+			allowPlanOptimization: allowPlanOptimization,
 		}
 		return n
 	}
@@ -388,6 +391,57 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	if len(result.NodeAllocation) != 1 {
 		t.Fatalf("Bad: %#v", result)
 	}
+}
+
+func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
+	t.Parallel()
+	s1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer s1.Shutdown()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Register node
+	node := mock.Node()
+	testRegisterNode(t, s1, node)
+
+	job := mock.Job()
+	eval1 := mock.Eval()
+	eval1.JobID = job.ID
+	s1.fsm.State().UpsertJob(0, job)
+	s1.fsm.State().UpsertEvals(0, []*structs.Evaluation{eval1})
+
+	stoppedAlloc := mock.Alloc()
+	preemptedAlloc := mock.Alloc()
+	s1.fsm.State().UpsertAllocs(5, []*structs.Allocation{stoppedAlloc, preemptedAlloc})
+
+	// Create an allocation plan
+	plan := &structs.Plan{
+		Job:             job,
+		EvalID:          eval1.ID,
+		NodeUpdate:      make(map[string][]*structs.Allocation),
+		NodePreemptions: make(map[string][]*structs.Allocation),
+		NormalizeAllocs: true,
+	}
+	desiredDescription := "desired desc"
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDescription, structs.AllocClientStatusLost)
+	preemptingAllocID := uuid.Generate()
+	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
+
+	// Attempt to submit a plan
+	w := &Worker{srv: s1, logger: s1.logger}
+	w.SubmitPlan(plan)
+
+	assert.Equal(t, &structs.Allocation{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+	}, plan.NodePreemptions[preemptedAlloc.NodeID][0])
+	assert.Equal(t, &structs.Allocation{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: desiredDescription,
+		ClientStatus:       structs.AllocClientStatusLost,
+	}, plan.NodeUpdate[stoppedAlloc.NodeID][0])
 }
 
 func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
