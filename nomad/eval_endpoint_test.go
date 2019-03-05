@@ -291,7 +291,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex_Snapshot(t *testing.T) {
 // TestEvalEndpoint_Dequeue_WaitIndex_Eval asserts that an eval's wait index
 // will be its own modify index if its modify index is greater than all of the
 // indexes in the state store. This can happen if Dequeue receives an eval that
-// has not yet been applied from the raft log to the local node's state store.
+// has not yet been applied from the Raft log to the local node's state store.
 func TestEvalEndpoint_Dequeue_WaitIndex_Eval(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
