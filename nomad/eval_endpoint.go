@@ -144,7 +144,7 @@ func (e *Eval) getWaitIndex(namespace, job string, evalModifyIndex uint64) (uint
 		return 0, err
 	}
 
-	// Since dequeueing evals is concurrent with applying raft messages to
+	// Since dequeueing evals is concurrent with applying Raft messages to
 	// the state store, initialize to the currently dequeued eval's index
 	// in case it isn't in the snapshot used by EvalsByJob yet.
 	max := evalModifyIndex
