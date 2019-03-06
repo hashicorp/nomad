@@ -36,7 +36,7 @@ environment with Consul installed. You can use this [repo][repo] to easily
 provision a sandbox environment. This guide will assume a cluster with one
 server node and three client nodes.
 
--> **Please Note:** This guide is for demo purposes and is only using a single
+~> **Please Note:** This guide is for demo purposes and is only using a single
 server node. In a production cluster, 3 or 5 server nodes are recommended.
 
 ## Steps
@@ -187,12 +187,230 @@ Global Storage Pool
 	Total Capacity	:  150 GiB
 ```
 
-### Step 6: Deploy a MySQL Database
+### Step 6: Create the `mysql.nomad` Job File
 
+We are now ready to deploy a MySQL database that can use Portworx for storage.
+Create a file called `mysql.nomad` and provide it the following contents:
 
+```
+job "mysql-server" {
+  datacenters = ["dc1"]
+  type        = "service"
 
-## Next Steps
+  group "mysql-server" {
+    count = 1
 
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "25s"
+      mode     = "delay"
+    }
+
+    task "mysql-server" {
+      driver = "docker"
+
+      env = {
+        "MYSQL_ROOT_PASSWORD" = "password"
+      }
+
+      config {
+        image = "hashicorp/mysql-portworx-demo:latest"
+
+        port_map {
+          db = 3306
+        }
+
+        volumes = [
+          "name=mysql,size=10,repl=3/:/var/lib/mysql",
+        ]
+
+        volume_driver = "pxd"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 1024
+
+        network {
+          port "db" {
+            static = 3306
+          }
+        }
+      }
+
+      service {
+        name = "mysql-server"
+        port = "db"
+
+        check {
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+* Please note from the job file that we are using the `pxd` volume driver that
+  has been configured from the previous steps.
+
+* We have configured a replication factor of 3 which ensures our data is
+  available on all 3 client nodes.
+
+* The service name is `mysql-server` which we will use later to connect to the
+  database.
+
+### Step 6: Deploy the MySQL Database
+
+Register the job file you created in the previous step with the following
+command:
+
+```
+$ nomad run mysql.nomad 
+==> Monitoring evaluation "aa478d82"
+    Evaluation triggered by job "mysql-server"
+    Allocation "6c3b3703" created: node "be8aad4e", group "mysql-server"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "aa478d82" finished with status "complete"
+```
+
+Check the status of the allocation and ensure the task is running:
+
+```
+$ nomad status mysql-server
+ID            = mysql-server
+...
+Summary
+Task Group    Queued  Starting  Running  Failed  Complete  Lost
+mysql-server  0       0         1        0       0         0
+```
+
+### Step 7: Connect to MySQL 
+
+Using the mysql client (installed in [Step
+2](#step-2-install-the-mysql-client)), connect to the database and access the
+information:
+
+```
+mysql -h mysql-server.service.consul -u web -p -D itemcollection
+```
+The password for this demo database is simply `password`.
+
+~> **Please Note:** This guide is for demo purposes and does not follow best
+practices for securing database passwords. See [Keeping Passwords
+Secure][password-security] for more information.
+
+Consul is installed alongside Nomad in this cluster so we were able to
+connect using the `mysql-server` service name we registered with our task in
+our job file.
+
+### Step 8: Add Data to MySQL
+
+Once you are connected to the database, verify the table `items` exists:
+
+```
+mysql> show tables;
++--------------------------+
+| Tables_in_itemcollection |
++--------------------------+
+| items                    |
++--------------------------+
+1 row in set (0.00 sec)
+```
+
+Display the contents of this table with the following command:
+
+```
+mysql> select * from items;
++----+----------+
+| id | name     |
++----+----------+
+|  1 | bike     |
+|  2 | baseball |
+|  3 | chair    |
++----+----------+
+3 rows in set (0.00 sec)
+```
+
+Now add some data to this table (after we terminate our database in Nomad and
+bring it back up, this data should still be intact):
+
+```
+mysql> INSERT INTO items (name) VALUES ('glove');
+```
+
+Run the `INSERT INTO` command as many times as you like with different values.
+
+```
+mysql> INSERT INTO items (name) VALUES ('hat');
+mysql> INSERT INTO items (name) VALUES ('keyboard');
+```
+Once you you are done, type `exit` and return back to the Nomad client command
+line:
+
+```
+mysql> exit
+Bye
+```
+
+### Step 9: Stop and Purge the Database Job
+
+Run the following command to stop and purge the MySQL job from the cluster:
+
+```
+$ nomad stop -purge mysql-server
+==> Monitoring evaluation "6b784149"
+    Evaluation triggered by job "mysql-server"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "6b784149" finished with status "complete"
+```
+
+Verify no jobs are running in the cluster:
+
+```
+$ nomad status
+No running jobs
+```
+You can optionally stop the nomad service on whichever node you are on and move
+to another node to simulate a node failure.
+
+### Step 10: Re-deploy the Database
+
+Using the `mysql.nomad` job file from [Step
+6](#step-6-create-the-mysql-nomad-job-file), re-deploy the database to the Nomad
+cluster.
+
+```
+==> Monitoring evaluation "61b4f648"
+    Evaluation triggered by job "mysql-server"
+    Allocation "8e1324d2" created: node "be8aad4e", group "mysql-server"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "61b4f648" finished with status "complete"
+```
+
+### Step 11: Verify Data
+
+Once you re-connect to MySQL, you should be able to see that the information you
+added prior to destroying the database is still present:
+
+```
+mysql> select * from items;
++----+----------+
+| id | name     |
++----+----------+
+|  1 | bike     |
+|  2 | baseball |
+|  3 | chair    |
+|  4 | glove    |
+|  5 | hat      |
+|  6 | keyboard |
++----+----------+
+6 rows in set (0.00 sec)
+```
+
+[password-security]: https://dev.mysql.com/doc/refman/8.0/en/password-security.html
 [portworx-nomad]: https://docs.portworx.com/install-with-other/nomad
 [px-oci]: https://docs.portworx.com/install-with-other/docker/standalone/#why-oci
 [repo]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
