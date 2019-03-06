@@ -9,7 +9,9 @@ description: |-
 
 # Stateful Workloads with Portworx
 
-...
+Portworx integrates with Nomad and can manage storage for stateful workloads
+running inside your Nomad cluster. This guide walks you through deploying an HA
+MySQL workload.
 
 ## Reference Material
 
