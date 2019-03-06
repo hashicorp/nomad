@@ -1,13 +1,13 @@
 ---
 layout: "guides"
-page_title: "Persistent Storage with Portworx"
-sidebar_current: "guides-persistent-storage"
+page_title: "Stateful Workloads with Portworx"
+sidebar_current: "guides-stateful-workloads"
 description: |-
   There are multiple approaches to deploying stateful applications in Nomad.
   This guide uses Portworx deploy a MySQL database.
 ---
 
-# Persistent Storage with Portworx
+# Stateful Workloads with Portworx
 
 ...
 
@@ -26,8 +26,8 @@ will be replicated on 3 different client nodes.
 
 ## Solution
 
-Configure Portworx on each client node in order to create a storage pool that
-the MySQL task can use for storage and replication.
+Configure Portworx on each Nomad client node in order to create a storage pool
+that the MySQL task can use for storage and replication.
 
 ## Prerequisites
 
