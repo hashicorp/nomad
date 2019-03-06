@@ -56,6 +56,33 @@ func TestConfig_ParseJSON(t *testing.T) {
 				Devices: []DockerDevice{},
 			},
 		},
+		{
+			name:  "nil values for 'volumes' field are safe",
+			input: `{"Config": {"image": "bash:3", "volumes": null}}`,
+			expected: TaskConfig{
+				Image:   "bash:3",
+				Mounts:  []DockerMount{},
+				Devices: []DockerDevice{},
+			},
+		},
+		{
+			name:  "nil values for 'args' field are safe",
+			input: `{"Config": {"image": "bash:3", "args": null}}`,
+			expected: TaskConfig{
+				Image:   "bash:3",
+				Mounts:  []DockerMount{},
+				Devices: []DockerDevice{},
+			},
+		},
+		{
+			name:  "nil values for string fields are safe",
+			input: `{"Config": {"image": "bash:3", "command": null}}`,
+			expected: TaskConfig{
+				Image:   "bash:3",
+				Mounts:  []DockerMount{},
+				Devices: []DockerDevice{},
+			},
+		},
 	}
 
 	for _, c := range cases {
