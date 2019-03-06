@@ -126,9 +126,8 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil {
-		readfs := aclObj.AllowNsOp(req.QueryOptions.Namespace, acl.NamespaceCapabilityReadFS)
-		logs := aclObj.AllowNsOp(req.QueryOptions.Namespace, acl.NamespaceCapabilityReadLogs)
-		if !readfs && !logs {
+		exec := aclObj.AllowNsOp(req.QueryOptions.Namespace, acl.NamespaceCapabilityAllocExec)
+		if !exec {
 			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 			return
 		}
