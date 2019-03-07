@@ -2,17 +2,17 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
-    <div class="columns">
+    <div class="toolbar">
       {{#if nodes.length}}
-        <div class="column is-one-third">
+        <div class="toolbar-item">
           {{search-box
             searchTerm=(mut searchTerm)
             onChange=(action resetPagination)
             placeholder="Search clients..."}}
         </div>
       {{/if}}
-      <div class="column is-centered">
-        <div class="button-bar is-pulled-right">
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
           {{multi-select-dropdown
             data-test-class-facet
             label="Class"
