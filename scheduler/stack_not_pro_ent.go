@@ -1,4 +1,5 @@
-// +build pro ent
+// +build !pro
+// +build !ent
 
 package scheduler
 
@@ -50,6 +51,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group.
+
 	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
@@ -62,10 +64,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 
 	s.spread = NewSpreadIterator(ctx, s.nodeAffinity)
 
-	// Add the preemption options scoring iterator
-	preemptionScorer := NewPreemptionScoringIterator(ctx, s.spread)
-
-	s.scoreNorm = NewScoreNormalizationIterator(ctx, preemptionScorer)
+	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.spread)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	s.limit = NewLimitIterator(ctx, s.scoreNorm, 2, skipScoreThreshold, maxSkip)
