@@ -2,7 +2,11 @@
 
 package scheduler
 
-import "math"
+import (
+	"math"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 const rate = 0.0048
 const origin = 2048.0
@@ -40,6 +44,20 @@ func (iter *PreemptionScoringIterator) Next() *RankedNode {
 		iter.ctx.Metrics().ScoreNode(option.Node, "preemption-score", preemptionScore)
 	}
 	return option
+}
+
+// netAggregatePriority is the sum of distinct priorities of jobs in the input slice of allocations
+func netAggregatePriority(allocs []*structs.Allocation) int {
+	priorities := map[int]struct{}{}
+	netPriority := 0
+	for _, alloc := range allocs {
+		_, ok := priorities[alloc.Job.Priority]
+		if !ok {
+			priorities[alloc.Job.Priority] = struct{}{}
+			netPriority += alloc.Job.Priority
+		}
+	}
+	return netPriority
 }
 
 // preemptionScore is calculated using a logistic function

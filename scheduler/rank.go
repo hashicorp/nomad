@@ -636,17 +636,3 @@ func (iter *ScoreNormalizationIterator) Next() *RankedNode {
 	iter.ctx.Metrics().ScoreNode(option.Node, "normalized-score", option.FinalScore)
 	return option
 }
-
-// netAggregatePriority is the sum of distinct priorities of jobs in the input slice of allocations
-func netAggregatePriority(allocs []*structs.Allocation) int {
-	priorities := map[int]struct{}{}
-	netPriority := 0
-	for _, alloc := range allocs {
-		_, ok := priorities[alloc.Job.Priority]
-		if !ok {
-			priorities[alloc.Job.Priority] = struct{}{}
-			netPriority += alloc.Job.Priority
-		}
-	}
-	return netPriority
-}
