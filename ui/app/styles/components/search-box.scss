@@ -1,8 +1,13 @@
 .search-box {
   width: 100%;
-  max-width: 300px;
+  max-width: 400px;
+  min-width: 200px;
 
   position: relative;
+
+  @include mobile {
+    min-width: 150px;
+  }
 
   .prefix-icon,
   .suffix-icon {
