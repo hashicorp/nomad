@@ -73,6 +73,8 @@
 .dropdown-trigger-label {
   margin-left: 8px;
   margin-right: 8px;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .ember-power-select-selected-item,
@@ -125,6 +127,7 @@
     label {
       display: block;
       padding: 3px 8px;
+      min-width: 100px;
       cursor: pointer;
     }
 
@@ -139,6 +142,7 @@
       border-left: 2px solid $blue;
       label {
         padding-left: 6px;
+        min-width: 98px;
       }
     }
   }
