@@ -31,7 +31,7 @@ General Options:
 
   ` + generalOptionsUsage() + `
 
-Logs Specific Options:
+Exec Specific Options:
 
   -task <task-name>
     Sets the task to exec command in
@@ -46,7 +46,7 @@ Logs Specific Options:
 }
 
 func (l *AllocExecCommand) Synopsis() string {
-	return "Streams the logs of a task."
+	return "Execute commands in task"
 }
 
 func (c *AllocExecCommand) AutocompleteFlags() complete.Flags {
