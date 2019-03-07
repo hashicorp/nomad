@@ -247,6 +247,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"exec": func() (cli.Command, error) {
+			return &AllocExecCommand{
+				Meta: meta,
+			}, nil
+		},
 		"executor": func() (cli.Command, error) {
 			return &ExecutorPluginCommand{
 				Meta: meta,
