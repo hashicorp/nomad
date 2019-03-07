@@ -2,9 +2,9 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
-    <div class="columns">
-      {{#if filteredJobs.length}}
-        <div class="column is-one-third">
+    <div class="toolbar">
+      {{#if visibleJobs.length}}
+        <div class="toolbar-item">
           {{search-box
             data-test-jobs-search
             searchTerm=(mut searchTerm)
@@ -12,8 +12,13 @@
             placeholder="Search jobs..."}}
         </div>
       {{/if}}
-      <div class="column is-centered">
-        <div class="button-bar is-pulled-right">
+      {{#if (media "isMobile")}}
+        <div class="toolbar-item is-right-aligned">
+          {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+        </div>
+      {{/if}}
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
           {{multi-select-dropdown
             data-test-type-facet
             label="Type"
@@ -40,9 +45,11 @@
             onSelect=(action setFacetQueryParam "qpPrefix")}}
         </div>
       </div>
-      <div class="column is-minimum is-centered">
-        {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
-      </div>
+      {{#if (not (media "isMobile"))}}
+        <div class="toolbar-item is-right-aligned">
+          {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+        </div>
+      {{/if}}
     </div>
     {{#list-pagination
       source=sortedJobs
