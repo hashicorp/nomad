@@ -209,7 +209,7 @@ Volume successfully created: 693373920899724151
 * We have configured a replication factor of 3 which ensures our data is
   available on all 3 client nodes.
 
-You run `pxctl volume inspect mysql` to verify the status of the volume:
+Run `pxctl volume inspect mysql` to verify the status of the volume:
 
 ```
 $ pxctl volume inspect mysql
