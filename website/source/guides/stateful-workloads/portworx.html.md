@@ -189,7 +189,45 @@ Global Storage Pool
 	Total Capacity	:  150 GiB
 ```
 
-### Step 6: Create the `mysql.nomad` Job File
+### Step 6: Create a Portworx Volume
+
+Run the following command to create a Portworx volume that our job will be able
+to use:
+
+```
+$ pxctl volume create -s 10 -r 3 mysql
+```
+You should see output similar to what is shown below:
+
+```
+Volume successfully created: 693373920899724151
+```
+
+* Please note from the options provided that the name of the volume we created
+  is `mysql` and the size is 10 GB.
+
+* We have configured a replication factor of 3 which ensures our data is
+  available on all 3 client nodes.
+
+You run `pxctl volume inspect mysql` to verify the status of the volume:
+
+```
+$ pxctl volume inspect mysql
+Volume	:  693373920899724151
+	Name            	 :  mysql
+	Size            	 :  10 GiB
+	Format          	 :  ext4
+	HA              	 :  3
+...
+	Replica sets on nodes:
+		Set 0
+		  Node 		 : 172.31.58.210 (Pool 0)
+		  Node 		 : 172.31.51.110 (Pool 0)
+		  Node 		 : 172.31.48.98 (Pool 0)
+	Replication Status	 :  Up
+```
+
+### Step 7: Create the `mysql.nomad` Job File
 
 We are now ready to deploy a MySQL database that can use Portworx for storage.
 Create a file called `mysql.nomad` and provide it the following contents:
@@ -224,7 +262,7 @@ job "mysql-server" {
         }
 
         volumes = [
-          "name=mysql,size=10,repl=3/:/var/lib/mysql",
+          "mysql:/var/lib/mysql"
         ]
 
         volume_driver = "pxd"
@@ -255,16 +293,14 @@ job "mysql-server" {
   }
 }
 ```
+
 * Please note from the job file that we are using the `pxd` volume driver that
   has been configured from the previous steps.
-
-* We have configured a replication factor of 3 which ensures our data is
-  available on all 3 client nodes.
 
 * The service name is `mysql-server` which we will use later to connect to the
   database.
 
-### Step 6: Deploy the MySQL Database
+### Step 8: Deploy the MySQL Database
 
 Register the job file you created in the previous step with the following
 command:
@@ -289,7 +325,7 @@ Task Group    Queued  Starting  Running  Failed  Complete  Lost
 mysql-server  0       0         1        0       0         0
 ```
 
-### Step 7: Connect to MySQL 
+### Step 9: Connect to MySQL 
 
 Using the mysql client (installed in [Step
 2](#step-2-install-the-mysql-client)), connect to the database and access the
@@ -308,7 +344,7 @@ Consul is installed alongside Nomad in this cluster so we were able to
 connect using the `mysql-server` service name we registered with our task in
 our job file.
 
-### Step 8: Add Data to MySQL
+### Step 10: Add Data to MySQL
 
 Once you are connected to the database, verify the table `items` exists:
 
@@ -357,7 +393,7 @@ mysql> exit
 Bye
 ```
 
-### Step 9: Stop and Purge the Database Job
+### Step 11: Stop and Purge the Database Job
 
 Run the following command to stop and purge the MySQL job from the cluster:
 
@@ -378,7 +414,7 @@ No running jobs
 You can optionally stop the nomad service on whichever node you are on and move
 to another node to simulate a node failure.
 
-### Step 10: Re-deploy the Database
+### Step 12: Re-deploy the Database
 
 Using the `mysql.nomad` job file from [Step
 6](#step-6-create-the-mysql-nomad-job-file), re-deploy the database to the Nomad
@@ -392,7 +428,7 @@ cluster.
 ==> Evaluation "61b4f648" finished with status "complete"
 ```
 
-### Step 11: Verify Data
+### Step 13: Verify Data
 
 Once you re-connect to MySQL, you should be able to see that the information you
 added prior to destroying the database is still present:
