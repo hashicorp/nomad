@@ -284,8 +284,7 @@ func (w *Worker) invokeScheduler(eval *structs.Evaluation, token string) error {
 	if eval.Type == structs.JobTypeCore {
 		sched = NewCoreScheduler(w.srv, snap)
 	} else {
-		allowPlanOptimization := ServersMeetMinimumVersion(w.srv.Members(), MinVersionPlanDenormalization, true)
-		sched, err = scheduler.NewScheduler(eval.Type, w.logger, snap, w, allowPlanOptimization)
+		sched, err = scheduler.NewScheduler(eval.Type, w.logger, snap, w)
 		if err != nil {
 			return fmt.Errorf("failed to instantiate scheduler: %v", err)
 		}
@@ -312,7 +311,10 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 	plan.EvalToken = w.evalToken
 
 	// Normalize stopped and preempted allocs before RPC
-	plan.NormalizeAllocations()
+	normalizePlan := ServersMeetMinimumVersion(w.srv.Members(), MinVersionPlanNormalization, true)
+	if normalizePlan {
+		plan.NormalizeAllocations()
+	}
 
 	// Setup the request
 	req := structs.PlanRequest{

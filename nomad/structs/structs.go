@@ -8247,7 +8247,7 @@ func (e *Evaluation) ShouldBlock() bool {
 
 // MakePlan is used to make a plan from the given evaluation
 // for a given Job
-func (e *Evaluation) MakePlan(j *Job, allowPlanOptimization bool) *Plan {
+func (e *Evaluation) MakePlan(j *Job) *Plan {
 	p := &Plan{
 		EvalID:          e.ID,
 		Priority:        e.Priority,
@@ -8255,7 +8255,6 @@ func (e *Evaluation) MakePlan(j *Job, allowPlanOptimization bool) *Plan {
 		NodeUpdate:      make(map[string][]*Allocation),
 		NodeAllocation:  make(map[string][]*Allocation),
 		NodePreemptions: make(map[string][]*Allocation),
-		NormalizeAllocs: allowPlanOptimization,
 	}
 	if j != nil {
 		p.AllAtOnce = j.AllAtOnce
@@ -8377,9 +8376,6 @@ type Plan struct {
 	// lower priority jobs that are preempted. Preempted allocations are marked
 	// as evicted.
 	NodePreemptions map[string][]*Allocation
-
-	// Indicates whether allocs are normalized in the Plan
-	NormalizeAllocs bool `codec:"-"`
 }
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
@@ -8473,23 +8469,21 @@ func (p *Plan) IsNoOp() bool {
 }
 
 func (p *Plan) NormalizeAllocations() {
-	if p.NormalizeAllocs {
-		for _, allocs := range p.NodeUpdate {
-			for i, alloc := range allocs {
-				allocs[i] = &Allocation{
-					ID:                 alloc.ID,
-					DesiredDescription: alloc.DesiredDescription,
-					ClientStatus:       alloc.ClientStatus,
-				}
+	for _, allocs := range p.NodeUpdate {
+		for i, alloc := range allocs {
+			allocs[i] = &Allocation{
+				ID:                 alloc.ID,
+				DesiredDescription: alloc.DesiredDescription,
+				ClientStatus:       alloc.ClientStatus,
 			}
 		}
+	}
 
-		for _, allocs := range p.NodePreemptions {
-			for i, alloc := range allocs {
-				allocs[i] = &Allocation{
-					ID:                    alloc.ID,
-					PreemptedByAllocation: alloc.PreemptedByAllocation,
-				}
+	for _, allocs := range p.NodePreemptions {
+		for i, alloc := range allocs {
+			allocs[i] = &Allocation{
+				ID:                    alloc.ID,
+				PreemptedByAllocation: alloc.PreemptedByAllocation,
 			}
 		}
 	}

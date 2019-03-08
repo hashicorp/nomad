@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -265,13 +265,13 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	stoppedAlloc := mock.Alloc()
 	stoppedAllocDiff := &structs.Allocation{
-		ID: stoppedAlloc.ID,
+		ID:                 stoppedAlloc.ID,
 		DesiredDescription: "Desired Description",
-		ClientStatus: structs.AllocClientStatusLost,
+		ClientStatus:       structs.AllocClientStatusLost,
 	}
 	preemptedAlloc := mock.Alloc()
 	preemptedAllocDiff := &structs.Allocation{
-		ID: preemptedAlloc.ID,
+		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: alloc.ID,
 	}
 	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
@@ -356,7 +356,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	assert.NotNil(updatedPreemptedAlloc)
 	assert.True(updatedPreemptedAlloc.ModifyTime > timestampBeforeCommit)
 	assert.Equal(updatedPreemptedAlloc.DesiredDescription,
-		"Preempted by alloc ID " + preemptedAllocDiff.PreemptedByAllocation)
+		"Preempted by alloc ID "+preemptedAllocDiff.PreemptedByAllocation)
 	assert.Equal(updatedPreemptedAlloc.DesiredStatus, structs.AllocDesiredStatusEvict)
 
 	// Lookup the new deployment

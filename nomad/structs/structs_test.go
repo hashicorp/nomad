@@ -2842,13 +2842,12 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 	}
 }
 
-func TestPlan_NormalizeAllocationsWhenNormalizeAllocsIsTrue(t *testing.T) {
+func TestPlan_NormalizeAllocations(t *testing.T) {
 	t.Parallel()
 	plan := &Plan{
-		NodeUpdate: make(map[string][]*Allocation),
+		NodeUpdate:      make(map[string][]*Allocation),
 		NodePreemptions: make(map[string][]*Allocation),
 	}
-	plan.NormalizeAllocs = true
 	stoppedAlloc := MockAlloc()
 	desiredDesc := "Desired desc"
 	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
@@ -2869,45 +2868,6 @@ func TestPlan_NormalizeAllocationsWhenNormalizeAllocsIsTrue(t *testing.T) {
 	expectedPreemptedAlloc := &Allocation{
 		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: preemptingAllocID,
-	}
-	assert.Equal(t, expectedPreemptedAlloc, actualPreemptedAlloc)
-}
-
-func TestPlan_NormalizeAllocationsWhenNormalizeAllocsIsFalse(t *testing.T) {
-	t.Parallel()
-	plan := &Plan{
-		NodeUpdate: make(map[string][]*Allocation),
-		NodePreemptions: make(map[string][]*Allocation),
-	}
-	plan.NormalizeAllocs = false
-	stoppedAlloc := MockAlloc()
-	desiredDesc := "Desired desc"
-	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
-	preemptedAlloc := MockAlloc()
-	preemptingAllocID := uuid.Generate()
-	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
-
-	plan.NormalizeAllocations()
-
-	actualStoppedAlloc := plan.NodeUpdate[stoppedAlloc.NodeID][0]
-	expectedStoppedAlloc := new(Allocation)
-	*expectedStoppedAlloc = *stoppedAlloc
-	expectedStoppedAlloc.DesiredDescription = desiredDesc
-	expectedStoppedAlloc.DesiredStatus = AllocDesiredStatusStop
-	expectedStoppedAlloc.ClientStatus = AllocClientStatusLost
-	expectedStoppedAlloc.Job = nil
-	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
-	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
-	expectedPreemptedAlloc := &Allocation{
-		ID:                    preemptedAlloc.ID,
-		PreemptedByAllocation: preemptingAllocID,
-		JobID:                 preemptedAlloc.JobID,
-		Namespace:             preemptedAlloc.Namespace,
-		DesiredStatus:         AllocDesiredStatusEvict,
-		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
-		AllocatedResources:    preemptedAlloc.AllocatedResources,
-		TaskResources:         preemptedAlloc.TaskResources,
-		SharedResources:       preemptedAlloc.SharedResources,
 	}
 	assert.Equal(t, expectedPreemptedAlloc, actualPreemptedAlloc)
 }
@@ -2956,17 +2916,6 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 		SharedResources:       alloc.SharedResources,
 	}
 	assert.Equal(t, expectedAlloc, appendedAlloc)
-}
-
-func TestPlan_MsgPackTags(t *testing.T) {
-	t.Parallel()
-	planType := reflect.TypeOf(Plan{})
-
-	msgPackTags, _ := planType.FieldByName("_struct")
-	normalizeTag, _ := planType.FieldByName("NormalizeAllocs")
-
-	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
-	assert.Equal(t, normalizeTag.Tag, reflect.StructTag(`codec:"-"`))
 }
 
 func TestAllocation_MsgPackTags(t *testing.T) {
