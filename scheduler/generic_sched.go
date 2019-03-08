@@ -5,8 +5,8 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -77,10 +77,6 @@ type GenericScheduler struct {
 	planner Planner
 	batch   bool
 
-	// Temporary flag introduced till the code for sending/committing full allocs in the Plan can
-	// be safely removed
-	allowPlanOptimization bool
-
 	eval       *structs.Evaluation
 	job        *structs.Job
 	plan       *structs.Plan
@@ -98,25 +94,23 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, state State, planner Planner, allowPlanOptimization bool) Scheduler {
+func NewServiceScheduler(logger log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:                logger.Named("service_sched"),
-		state:                 state,
-		planner:               planner,
-		batch:                 false,
-		allowPlanOptimization: allowPlanOptimization,
+		logger:  logger.Named("service_sched"),
+		state:   state,
+		planner: planner,
+		batch:   false,
 	}
 	return s
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, state State, planner Planner, allowPlanOptimization bool) Scheduler {
+func NewBatchScheduler(logger log.Logger, state State, planner Planner) Scheduler {
 	s := &GenericScheduler{
-		logger:                logger.Named("batch_sched"),
-		state:                 state,
-		planner:               planner,
-		batch:                 true,
-		allowPlanOptimization: allowPlanOptimization,
+		logger:  logger.Named("batch_sched"),
+		state:   state,
+		planner: planner,
+		batch:   true,
 	}
 	return s
 }
@@ -229,7 +223,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.followUpEvals = nil
 
 	// Create a plan
-	s.plan = s.eval.MakePlan(s.job, s.allowPlanOptimization)
+	s.plan = s.eval.MakePlan(s.job)
 
 	if !s.batch {
 		// Get any existing deployment

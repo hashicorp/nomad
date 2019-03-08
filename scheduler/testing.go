@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mitchellh/go-testing-interface"
+	testing "github.com/mitchellh/go-testing-interface"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -54,29 +54,27 @@ type Harness struct {
 	nextIndex     uint64
 	nextIndexLock sync.Mutex
 
-	allowPlanOptimization bool
+	optimizePlan bool
 }
 
 // NewHarness is used to make a new testing harness
-func NewHarness(t testing.T, allowPlanOptimization bool) *Harness {
+func NewHarness(t testing.T) *Harness {
 	state := state.TestStateStore(t)
 	h := &Harness{
-		t:                     t,
-		State:                 state,
-		nextIndex:             1,
-		allowPlanOptimization: allowPlanOptimization,
+		t:         t,
+		State:     state,
+		nextIndex: 1,
 	}
 	return h
 }
 
 // NewHarnessWithState creates a new harness with the given state for testing
 // purposes.
-func NewHarnessWithState(t testing.T, state *state.StateStore, allowPlanOptimization bool) *Harness {
+func NewHarnessWithState(t testing.T, state *state.StateStore) *Harness {
 	return &Harness{
-		t:                     t,
-		State:                 state,
-		nextIndex:             1,
-		allowPlanOptimization: allowPlanOptimization,
+		t:         t,
+		State:     state,
+		nextIndex: 1,
 	}
 }
 
@@ -137,7 +135,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		NodePreemptions:   preemptedAllocs,
 	}
 
-	if h.allowPlanOptimization {
+	if h.optimizePlan {
 		req.AllocsStopped = allocsStopped
 		req.AllocsUpdated = allocsUpdated
 	} else {
@@ -152,6 +150,12 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	// Apply the full plan
 	err := h.State.UpsertPlanResults(index, &req)
 	return result, nil, err
+}
+
+// OptimizePlan is a function used only for Harness to help set the optimzePlan field,
+// since Harness doesn't have access to a Server object
+func (h *Harness) OptimizePlan(optimize bool) {
+	h.optimizePlan = optimize
 }
 
 func updateCreateTimestamp(allocations []*structs.Allocation, now int64) {
@@ -234,15 +238,15 @@ func (h *Harness) Snapshot() State {
 
 // Scheduler is used to return a new scheduler from
 // a snapshot of current state using the harness for planning.
-func (h *Harness) Scheduler(factory Factory, allowPlanOptimization bool) Scheduler {
+func (h *Harness) Scheduler(factory Factory) Scheduler {
 	logger := testlog.HCLogger(h.t)
-	return factory(logger, h.Snapshot(), h, allowPlanOptimization)
+	return factory(logger, h.Snapshot(), h)
 }
 
 // Process is used to process an evaluation given a factory
 // function to create the scheduler
 func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
-	sched := h.Scheduler(factory, h.allowPlanOptimization)
+	sched := h.Scheduler(factory)
 	return sched.Process(eval)
 }
 

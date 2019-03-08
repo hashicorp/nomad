@@ -86,9 +86,6 @@ type nomadFSM struct {
 	// new state store). Everything internal here is synchronized by the
 	// Raft side, so doesn't need to lock this.
 	stateLock sync.RWMutex
-
-	// Reference to the server the FSM is running on
-	server *Server
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -124,7 +121,7 @@ type FSMConfig struct {
 }
 
 // NewFSMPath is used to construct a new FSM with a blank state
-func NewFSM(config *FSMConfig, server *Server) (*nomadFSM, error) {
+func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{
 		Logger: config.Logger,
@@ -145,7 +142,6 @@ func NewFSM(config *FSMConfig, server *Server) (*nomadFSM, error) {
 		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
 		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
 		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
-		server:              server,
 	}
 
 	// Register all the log applier functions
@@ -1427,8 +1423,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		}
 		snap.UpsertEvals(100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
-		allowPlanOptimization := ServersMeetMinimumVersion(n.server.Members(), MinVersionPlanNormalization, true)
-		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner, allowPlanOptimization)
+		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
 		if err != nil {
 			return err
 		}

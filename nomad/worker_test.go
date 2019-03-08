@@ -19,11 +19,10 @@ import (
 )
 
 type NoopScheduler struct {
-	state                 scheduler.State
-	planner               scheduler.Planner
-	eval                  *structs.Evaluation
-	allowPlanOptimization bool
-	err                   error
+	state   scheduler.State
+	planner scheduler.Planner
+	eval    *structs.Evaluation
+	err     error
 }
 
 func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
@@ -38,11 +37,10 @@ func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
 }
 
 func init() {
-	scheduler.BuiltinSchedulers["noop"] = func(logger log.Logger, s scheduler.State, p scheduler.Planner, allowPlanOptimization bool) scheduler.Scheduler {
+	scheduler.BuiltinSchedulers["noop"] = func(logger log.Logger, s scheduler.State, p scheduler.Planner) scheduler.Scheduler {
 		n := &NoopScheduler{
-			state:                 s,
-			planner:               p,
-			allowPlanOptimization: allowPlanOptimization,
+			state:   s,
+			planner: p,
 		}
 		return n
 	}
@@ -398,6 +396,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
+		c.Build = "0.9.1"
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -422,7 +421,6 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 		EvalID:          eval1.ID,
 		NodeUpdate:      make(map[string][]*structs.Allocation),
 		NodePreemptions: make(map[string][]*structs.Allocation),
-		NormalizeAllocs: true,
 	}
 	desiredDescription := "desired desc"
 	plan.AppendStoppedAlloc(stoppedAlloc, desiredDescription, structs.AllocClientStatusLost)

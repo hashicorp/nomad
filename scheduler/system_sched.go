@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -22,10 +22,6 @@ type SystemScheduler struct {
 	logger  log.Logger
 	state   State
 	planner Planner
-
-	// Temporary flag introduced till the code for sending/committing full allocs in the Plan can
-	// be safely removed
-	allowPlanOptimization bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
@@ -45,12 +41,11 @@ type SystemScheduler struct {
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, state State, planner Planner, allowPlanOptimization bool) Scheduler {
+func NewSystemScheduler(logger log.Logger, state State, planner Planner) Scheduler {
 	return &SystemScheduler{
-		logger:                logger.Named("system_sched"),
-		state:                 state,
-		planner:               planner,
-		allowPlanOptimization: allowPlanOptimization,
+		logger:  logger.Named("system_sched"),
+		state:   state,
+		planner: planner,
 	}
 }
 
@@ -115,7 +110,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	}
 
 	// Create a plan
-	s.plan = s.eval.MakePlan(s.job, s.allowPlanOptimization)
+	s.plan = s.eval.MakePlan(s.job)
 
 	// Reset the failed allocations
 	s.failedTGAllocs = nil

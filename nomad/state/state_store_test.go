@@ -153,14 +153,14 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	stoppedAlloc := mock.Alloc()
 	stoppedAlloc.Job = job
 	stoppedAllocDiff := &structs.Allocation{
-		ID: stoppedAlloc.ID,
+		ID:                 stoppedAlloc.ID,
 		DesiredDescription: "desired desc",
-		ClientStatus: structs.AllocClientStatusLost,
+		ClientStatus:       structs.AllocClientStatusLost,
 	}
 	preemptedAlloc := mock.Alloc()
 	preemptedAlloc.Job = job
 	preemptedAllocDiff := &structs.Allocation{
-		ID: preemptedAlloc.ID,
+		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: alloc.ID,
 	}
 
@@ -185,9 +185,9 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 		AllocUpdateRequest: structs.AllocUpdateRequest{
 			AllocsUpdated: []*structs.Allocation{alloc},
 			AllocsStopped: []*structs.Allocation{stoppedAllocDiff},
-			Job:   job,
+			Job:           job,
 		},
-		EvalID: eval.ID,
+		EvalID:          eval.ID,
 		NodePreemptions: []*structs.Allocation{preemptedAllocDiff},
 	}
 	assert := assert.New(t)

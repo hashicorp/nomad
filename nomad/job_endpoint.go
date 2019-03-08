@@ -1213,8 +1213,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Create the scheduler and run it
-	allowPlanOptimization := ServersMeetMinimumVersion(j.srv.Members(), MinVersionPlanNormalization, true)
-	sched, err := scheduler.NewScheduler(eval.Type, j.logger, snap, planner, allowPlanOptimization)
+	sched, err := scheduler.NewScheduler(eval.Type, j.logger, snap, planner)
 	if err != nil {
 		return err
 	}
