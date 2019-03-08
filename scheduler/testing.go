@@ -141,7 +141,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		req.AllocsStopped = allocsStopped
 		req.AllocsUpdated = allocsUpdated
 	} else {
-		// Deprecated: Handles unoptimized log format
+		// COMPAT 0.11: Handles unoptimized log format
 		var allocs []*structs.Allocation
 		allocs = append(allocs, allocsStopped...)
 		allocs = append(allocs, allocsUpdated...)

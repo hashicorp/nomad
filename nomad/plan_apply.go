@@ -163,7 +163,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
 	now := time.Now().UTC().UnixNano()
 
-	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanDenormalization, true) {
+	if ServersMeetMinimumVersion(p.Members(), MinVersionPlanNormalization, true) {
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node
@@ -172,12 +172,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		for _, updateList := range result.NodeUpdate {
 			for _, stoppedAlloc := range updateList {
-				req.AllocsStopped = append(req.AllocsStopped, &structs.Allocation{
-					ID:                 stoppedAlloc.ID,
-					DesiredDescription: stoppedAlloc.DesiredDescription,
-					ClientStatus:       stoppedAlloc.ClientStatus,
-					ModifyTime:         now,
-				})
+				req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, now))
 			}
 		}
 
@@ -191,18 +186,14 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		for _, preemptions := range result.NodePreemptions {
 			for _, preemptedAlloc := range preemptions {
-				req.NodePreemptions = append(req.NodePreemptions, &structs.Allocation{
-					ID:                    preemptedAlloc.ID,
-					PreemptedByAllocation: preemptedAlloc.PreemptedByAllocation,
-					ModifyTime:            now,
-				})
+				req.NodePreemptions = append(req.NodePreemptions, normalizePreemptedAlloc(preemptedAlloc, now))
 
 				// Gather jobids to create follow up evals
 				appendNamespacedJobID(preemptedJobIDs, preemptedAlloc)
 			}
 		}
 	} else {
-		// Deprecated: This code path is deprecated and will only be used to support
+		// COMPAT 0.11: This branch is deprecated and will only be used to support
 		// application of older log entries. Expected to be removed in a future version.
 
 		// Determine the minimum number of updates, could be more if there
@@ -270,6 +261,23 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	return future, nil
 }
 
+func normalizePreemptedAlloc(preemptedAlloc *structs.Allocation, now int64) *structs.Allocation {
+	return &structs.Allocation{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: preemptedAlloc.PreemptedByAllocation,
+		ModifyTime:            now,
+	}
+}
+
+func normalizeStoppedAlloc(stoppedAlloc *structs.Allocation, now int64) *structs.Allocation {
+	return &structs.Allocation{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: stoppedAlloc.DesiredDescription,
+		ClientStatus:       stoppedAlloc.ClientStatus,
+		ModifyTime:         now,
+	}
+}
+
 func appendNamespacedJobID(jobIDs map[structs.NamespacedID]struct{}, alloc *structs.Allocation) {
 	id := structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID}
 	if _, ok := jobIDs[id]; !ok {
@@ -318,11 +326,13 @@ func (p *planner) asyncPlanWait(waitCh chan struct{}, future raft.ApplyFuture,
 func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger log.Logger) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
-	err := snap.DenormalizeAllocationsMap(plan.NodeUpdate, plan.Job)
+	// Denormalize without the job
+	err := snap.DenormalizeAllocationsMap(plan.NodeUpdate, nil)
 	if err != nil {
 		return nil, err
 	}
-	err = snap.DenormalizeAllocationsMap(plan.NodePreemptions, plan.Job)
+	// Denormalize without the job
+	err = snap.DenormalizeAllocationsMap(plan.NodePreemptions, nil)
 	if err != nil {
 		return nil, err
 	}

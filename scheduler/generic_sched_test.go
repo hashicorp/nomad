@@ -554,7 +554,7 @@ func TestServiceSched_EvenSpread(t *testing.T) {
 func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	for _, allowPlanOptimization := range []bool{true, false} {
 		t.Run(IsPlanOptimizedStr(allowPlanOptimization), func(t *testing.T) {
-			h := NewHarness(t, allowPlanOptimization)
+			h := NewHarness(t)
 
 			// Create some nodes
 			for i := 0; i < 10; i++ {
