@@ -58,6 +58,7 @@ func New() *Framework {
 		Tags:     map[string]struct{}{},
 	}
 	for _, tag := range strings.Split(*fTags, ",") {
+		fmt.Println("got tag ", tag)
 		env.Tags[tag] = struct{}{}
 	}
 	return &Framework{
