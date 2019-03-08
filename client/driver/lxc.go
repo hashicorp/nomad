@@ -95,6 +95,7 @@ type LxcExecuteDriverConfig struct {
 	LxcCommonDriverConfig
 	BaseRootFsPath string   `mapstructure:"base_rootfs_path"`
 	BaseConfigPath string   `mapstructure:"base_config_path"`
+	NetworkMode    string   `mapstructure:"network_mode"` // The network mode of the container - host or bridge
 	CmdArgs        []string `mapstructure:"cmd_args"`
 }
 
@@ -196,6 +197,11 @@ func (d *LxcDriver) Validate(config map[string]interface{}) error {
 				Type:     fields.TypeArray,
 				Required: false,
 				Default:  []string{},
+			},
+			"network_mode": {
+				Type:     fields.TypeString,
+				Required: false,
+				Default:  "bridge",
 			},
 		},
 	}
@@ -498,6 +504,23 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 	if err := c.SetConfigItem("lxc.execute.cmd", strings.Join(parsedArgs, " ")); err != nil {
 		return nil, fmt.Errorf("unable to set final parsed command to \"%s\"", parsedArgs), removeLVCleanup
 	}
+
+	// if networkmode is host, clear the start-host and stop hooks (which we assume are just being used for CNI setup)
+	// we assume if the network mode is not host, it has been configured elsewhere (yes, including 'bridge')
+	if executeConfig.NetworkMode == "host" {
+		for _, item := range []string{"lxc.hook.stop", "lxc.hook.start-host"} {
+			if err := c.ClearConfigItem(item); err != nil {
+				return nil, fmt.Errorf("Unable to clear hook config '%s': %v", item, err), removeLVCleanup
+			}
+		}
+		// set net.1.type to "none" assuming that net.0 is loopback:
+		if err := c.SetConfigItem("lxc.net.1.type", "none"); err != nil {
+			return nil, fmt.Errorf("Unable to set net.1.type=none: %v", err), removeLVCleanup
+		}
+	}
+
+	// Write out final config file for debugging and use with lxc-attach:
+	// Do not edit config after this.
 
 	savedConfigFile := filepath.Join(ctx.TaskDir.Dir, fmt.Sprintf("%v-lxc.config", task.Name))
 	for _, fp := range []string{finalConfigFilePath, savedConfigFile} {
