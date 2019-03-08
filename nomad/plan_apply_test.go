@@ -63,7 +63,7 @@ func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
 	}
 }
 
-// Deprecated: Tests the older unoptimized code path for applyPlan
+// COMPAT 0.11: Tests the older unoptimized code path for applyPlan
 func TestPlanApply_applyPlan(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, nil)
