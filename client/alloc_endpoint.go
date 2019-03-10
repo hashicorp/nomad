@@ -220,9 +220,10 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 
 	// process input
 	go func() {
+		frame := &sframer.StreamFrame{}
 		for {
-			frame := sframer.StreamFrame{}
-			err := decoder.Decode(&frame)
+			frame.Clear()
+			err := decoder.Decode(frame)
 			if err == io.EOF {
 				a.c.logger.Warn("connection closed")
 				cancel()
@@ -271,7 +272,7 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 		bytes := make([]byte, 1024)
 
 		for {
-			n, err := outReader.Read(bytes)
+			n, err := reader.Read(bytes)
 			if err == io.EOF || err == io.ErrClosedPipe {
 				return
 			} else if err != nil {
