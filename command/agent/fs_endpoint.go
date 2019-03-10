@@ -325,13 +325,15 @@ func (s *HTTPServer) myCopy(encoder *codec.Encoder, reader io.Reader) {
 
 	decoder := json.NewDecoder(reader)
 
-	var sf framer.StreamFrame
+	sf := &framer.StreamFrame{}
 	for {
-		err := decoder.Decode(&sf)
+		sf.Clear()
+		err := decoder.Decode(sf)
 		if err != nil {
 			fmt.Printf("giving up")
 			return
 		}
+
 		err = encoder.Encode(sf)
 		if err != nil {
 			fmt.Printf("error encoding %#v", err)
