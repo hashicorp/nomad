@@ -219,7 +219,6 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 				a.c.logger.Warn("received unexpected error", "error", err)
 				break
 			}
-			a.c.logger.Warn("received input", "input", fmt.Sprintf("%#v", frame), "error", err)
 			switch {
 			case frame.File == "stdin":
 				inWriter.Write(frame.Data)
@@ -227,7 +226,7 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 				t := drivers.TerminalSize{}
 				err := json.Unmarshal(frame.Data, &t)
 				if err != nil {
-					a.c.logger.Warn("failed to deserialize termina size", "error", err, "value", string(frame.Data))
+					a.c.logger.Warn("failed to deserialize terminal size", "error", err, "value", string(frame.Data))
 					continue
 				}
 				a.c.logger.Warn("resized terminal", "value", string(frame.Data))
