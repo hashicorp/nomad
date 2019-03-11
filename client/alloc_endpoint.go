@@ -238,42 +238,8 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 		}
 	}()
 
-	sendFrame := func(frame *sframer.StreamFrame) {
-		buf := new(bytes.Buffer)
-		frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
-		if err := frameCodec.Encode(frame); err != nil {
-			panic(err)
-		}
-		frameCodec.Reset(buf)
-
-		var resp cstructs.StreamErrWrapper
-		resp.Payload = buf.Bytes()
-		buf.Reset()
-
-		encoder.Encode(resp)
-		encoder.Reset(conn)
-	}
-
-	forwardOutput := func(reader io.Reader, source string) {
-		bytes := make([]byte, 1024)
-
-		for {
-			n, err := reader.Read(bytes)
-			if err == io.EOF || err == io.ErrClosedPipe {
-				return
-			} else if err != nil {
-				a.c.logger.Warn("received error reading output", "source", source, "error", err)
-			}
-
-			sendFrame(&sframer.StreamFrame{
-				Data: bytes[:n],
-				File: source,
-			})
-		}
-	}
-
-	go forwardOutput(outReader, "stdout")
-	go forwardOutput(errReader, "stderr")
+	go a.forwardOutput(encoder, outReader, "stdout")
+	go a.forwardOutput(encoder, errReader, "stderr")
 
 	h := ar.GetTaskExecHandler(req.Task)
 	r, err := h(ctx, drivers.ExecOptions{
@@ -282,6 +248,16 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 	}, inReader, outWriter, errWriter, resizeCh)
 
 	a.c.logger.Debug("taskExec Handler finished", "result", r, "error", err)
+
+	sendFrame := func(frame *sframer.StreamFrame) {
+		buf := new(bytes.Buffer)
+		frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
+		frameCodec.MustEncode(frame)
+
+		encoder.Encode(cstructs.StreamErrWrapper{
+			Payload: buf.Bytes(),
+		})
+	}
 
 	if err != nil {
 		sendFrame(&sframer.StreamFrame{
@@ -299,4 +275,35 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 	a.c.logger.Info("exec exited", "result", r, "err", err)
 
 	return
+}
+
+func (a *Allocations) forwardOutput(encoder *codec.Encoder,
+	reader io.Reader, source string) error {
+
+	buf := new(bytes.Buffer)
+	frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
+	frame := &sframer.StreamFrame{
+		File: source,
+	}
+
+	bytes := make([]byte, 1024)
+
+	for {
+		n, err := reader.Read(bytes)
+		if err == io.EOF || err == io.ErrClosedPipe {
+			return nil
+		} else if err != nil {
+			a.c.logger.Warn("failed to read exec output", "source", source, "error", err)
+		}
+
+		frame.Data = bytes[:n]
+		frameCodec.MustEncode(frame)
+
+		encoder.Encode(cstructs.StreamErrWrapper{
+			Payload: buf.Bytes(),
+		})
+
+		buf.Reset()
+		frameCodec.Reset(buf)
+	}
 }
