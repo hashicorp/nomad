@@ -1239,7 +1239,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 				return
 			case s := <-resizeCh:
 				d.logger.Info("delect resize", "size", s)
-				client.ResizeExecTTY(exec.ID, int(s.Height), int(s.Width))
+				client.ResizeExecTTY(exec.ID, s.Height, s.Width)
 			}
 		}
 	}()
