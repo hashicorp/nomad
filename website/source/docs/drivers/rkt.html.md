@@ -163,8 +163,10 @@ For more information, please refer to [rkt Networking](https://coreos.com/rkt/do
 
 ## Client Requirements
 
-The `rkt` driver requires rkt to be installed and in your system's `$PATH`.
-The `trust_prefix` must be accessible by the node running Nomad. This can be an
+The `rkt` driver requires the following:
+* The Nomad client agent to be running as the root user.
+* rkt to be installed and in your system's `$PATH`.
+* The `trust_prefix` must be accessible by the node running Nomad. This can be an
 internal source, private to your cluster, but it must be reachable by the client
 over HTTP.
 
