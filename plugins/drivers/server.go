@@ -281,6 +281,10 @@ func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRe
 func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStreamingServer) error {
 	// first received message should always be message
 	msg, err := server.Recv()
+	if err != nil {
+		return fmt.Errorf("failed to receive message: %v", err)
+	}
+
 	if msg.Setup != nil {
 		return errors.New("first message should always be setup")
 	}
@@ -291,13 +295,12 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 	resize := make(chan TerminalSize, 2)
 
 	// go routines for managing output
-	go func() {
+	forwardOutput := func(reader io.Reader, typ proto.ExecTaskStreamingResponse_Output_OutputType) {
 		bytes := make([]byte, 1024)
-		typ := proto.ExecTaskStreamingResponse_Output_STDOUT
 
 		for {
 
-			n, err := outReader.Read(bytes)
+			n, err := reader.Read(bytes)
 			if err != nil {
 				return
 			}
@@ -308,44 +311,31 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 					Value: bytes[:n],
 				},
 			})
-		}
-	}()
-	go func() {
-		bytes := make([]byte, 1024)
-		typ := proto.ExecTaskStreamingResponse_Output_STDERR
 
-		for {
-
-			n, err := errReader.Read(bytes)
-			if err != nil {
-				return
-			}
-
-			server.Send(&proto.ExecTaskStreamingResponse{
-				Output: &proto.ExecTaskStreamingResponse_Output{
-					Type:  typ,
-					Value: bytes[:n],
-				},
-			})
-		}
-	}()
-
-	for {
-		msg, err = server.Recv()
-		if err != nil {
-			return err
-		}
-
-		switch {
-		case msg.Resize != nil:
-			resize <- TerminalSize{
-				Height: int(msg.Resize.Height),
-				Width:  int(msg.Resize.Width),
-			}
-		case msg.Input != nil:
-			inWriter.Write(msg.Input.Value)
 		}
 	}
+
+	go forwardOutput(outReader, proto.ExecTaskStreamingResponse_Output_STDOUT)
+	go forwardOutput(errReader, proto.ExecTaskStreamingResponse_Output_STDERR)
+
+	go func() {
+		for {
+			msg, err = server.Recv()
+			if err != nil {
+				return
+			}
+
+			switch {
+			case msg.Resize != nil:
+				resize <- TerminalSize{
+					Height: int(msg.Resize.Height),
+					Width:  int(msg.Resize.Width),
+				}
+			case msg.Input != nil:
+				inWriter.Write(msg.Input.Value)
+			}
+		}
+	}()
 
 	result, err := b.impl.ExecTaskStreaming(server.Context(),
 		msg.Setup.TaskId, ExecOptions{
