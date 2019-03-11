@@ -12,7 +12,7 @@ job "hello" {
     count = 3
 
     task "hello" {
-      driver = "exec"
+      driver = "raw_exec"
 
       config {
         command = "local/hello"
