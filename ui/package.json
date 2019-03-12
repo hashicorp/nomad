@@ -11,17 +11,12 @@
     "build": "./node_modules/ember-cli/bin/ember build -prod",
     "start": "./node_modules/ember-cli/bin/ember server",
     "test": "./node_modules/ember-cli/bin/ember test",
+    "lint:js": "eslint .",
     "precommit": "lint-staged"
   },
   "lint-staged": {
-    "{app,tests,config,lib,mirage}/**/*.js": [
-      "prettier --write",
-      "git add"
-    ],
-    "app/styles/**/*.*": [
-      "prettier --write",
-      "git add"
-    ]
+    "{app,tests,config,lib,mirage}/**/*.js": ["prettier --write", "git add"],
+    "app/styles/**/*.*": ["prettier --write", "git add"]
   },
   "devDependencies": {
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
@@ -92,10 +87,7 @@
   },
   "private": true,
   "ember-addon": {
-    "paths": [
-      "lib/bulma",
-      "lib/calendar"
-    ]
+    "paths": ["lib/bulma", "lib/calendar"]
   },
   "dependencies": {
     "lru_map": "^0.3.3"
