@@ -666,7 +666,7 @@ func (b *BlockedEvals) Stats() *BlockedStats {
 }
 
 // EmitStats is used to export metrics about the blocked eval tracker while enabled
-func (b *BlockedEvals) EmitStats(period time.Duration, stopCh chan struct{}) {
+func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-time.After(period):
