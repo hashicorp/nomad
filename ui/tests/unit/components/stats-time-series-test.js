@@ -3,7 +3,9 @@ import moment from 'moment';
 import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
 
-moduleForComponent('stats-time-series', 'Unit | Component | stats-time-series');
+moduleForComponent('stats-time-series', 'Unit | Component | stats-time-series', {
+  unit: true,
+});
 
 const ts = (offset, resolution = 'm') =>
   moment()
