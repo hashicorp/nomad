@@ -19,6 +19,7 @@ func init() {
 		factory, _ := libcontainer.New("")
 		if err := factory.StartInitialization(); err != nil {
 			hclog.L().Error("failed to initialize libcontainer-shim", "error", err)
+			os.Exit(1)
 		}
 		panic("--this line should have never been executed, congratulations--")
 	}
