@@ -1,7 +1,9 @@
 import { test, moduleForComponent } from 'ember-qunit';
 import d3Format from 'd3-format';
 
-moduleForComponent('line-chart', 'Unit | Component | line-chart');
+moduleForComponent('line-chart', 'Unit | Component | line-chart', {
+  unit: true,
+});
 
 const data = [
   { foo: 1, bar: 100 },
