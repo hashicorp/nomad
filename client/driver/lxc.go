@@ -508,13 +508,16 @@ func (d *LxcDriver) executeContainer(ctx *ExecContext, c *lxc.Container, task *s
 	// if networkmode is host, clear the start-host and stop hooks (which we assume are just being used for CNI setup)
 	// we assume if the network mode is not host, it has been configured elsewhere (yes, including 'bridge')
 	if executeConfig.NetworkMode == "host" {
-		for _, item := range []string{"lxc.hook.stop", "lxc.hook.start-host"} {
+		keysToClear := []string{"lxc.hook.stop", "lxc.hook.start-host", "lxc.net.0.type", "lxc.net.0.flags", "lxc.net.0.ipv4.address"}
+		d.logger.Printf("[INFO] network_mode=host, so clearing all of %v and setting lxc.net.0.type=none.", keysToClear)
+
+		for _, item := range keysToClear {
 			if err := c.ClearConfigItem(item); err != nil {
 				return nil, fmt.Errorf("Unable to clear hook config '%s': %v", item, err), removeLVCleanup
 			}
 		}
-		// set net.1.type to "none" assuming that net.0 is loopback:
-		if err := c.SetConfigItem("lxc.net.1.type", "none"); err != nil {
+
+		if err := c.SetConfigItem("lxc.net.0.type", "none"); err != nil {
 			return nil, fmt.Errorf("Unable to set net.1.type=none: %v", err), removeLVCleanup
 		}
 	}
