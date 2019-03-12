@@ -1,7 +1,6 @@
 package allocrunner
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -117,7 +116,7 @@ func (ar *allocRunner) prerun() error {
 			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
 		}
 
-		if err := pre.Prerun(context.TODO()); err != nil {
+		if err := pre.Prerun(); err != nil {
 			return fmt.Errorf("pre-run hook %q failed: %v", name, err)
 		}
 

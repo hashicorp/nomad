@@ -88,6 +88,8 @@ type TaskPrestartHook interface {
 
 	// Prestart is called before the task is started including after every
 	// restart. Prestart is not called if the allocation is terminal.
+	//
+	// The context is cancelled if the task is killed.
 	Prestart(context.Context, *TaskPrestartRequest, *TaskPrestartResponse) error
 }
 
@@ -116,6 +118,8 @@ type TaskPoststartHook interface {
 
 	// Poststart is called after the task has started. Poststart is not
 	// called if the allocation is terminal.
+	//
+	// The context is cancelled if the task is killed.
 	Poststart(context.Context, *TaskPoststartRequest, *TaskPoststartResponse) error
 }
 
@@ -139,6 +143,8 @@ type TaskExitedHook interface {
 
 	// Exited is called after a task exits and may or may not be restarted.
 	// Prestart may or may not have been called.
+	//
+	// The context is cancelled if the task is killed.
 	Exited(context.Context, *TaskExitedRequest, *TaskExitedResponse) error
 }
 
@@ -156,6 +162,13 @@ type TaskUpdateResponse struct{}
 
 type TaskUpdateHook interface {
 	TaskHook
+
+	// Update is called when the servers have updated the Allocation for
+	// this task. Updates are concurrent with all other task hooks and
+	// therefore hooks that implement this interface must be completely
+	// safe for concurrent access.
+	//
+	// The context is cancelled if the task is killed.
 	Update(context.Context, *TaskUpdateRequest, *TaskUpdateResponse) error
 }
 
@@ -176,6 +189,7 @@ type TaskStopHook interface {
 	// Therefore it may be called even when prestart and the other hooks
 	// have not.
 	//
-	// Stop hooks must be idempotent.
+	// Stop hooks must be idempotent. The context is cancelled if the task
+	// is killed.
 	Stop(context.Context, *TaskStopRequest, *TaskStopResponse) error
 }
