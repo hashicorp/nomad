@@ -11,6 +11,9 @@ __BACKWARDS INCOMPATIBILITIES:__
    to parse IOPS in jobs to allow job authors time to remove iops from their
    jobs.
  * core: Allow the != constraint to match against keys that do not exist [[GH-4875](https://github.com/hashicorp/nomad/pull/4875)]
+ * client: Task config validation is more strict in 0.9. For example unknown
+   parameters in stanzas under the task config were ignored in previous
+   versions but in 0.9 this will cause a task failure.
  * client: Task config interpolation requires names to be valid identifiers
    (`node.region` or `NOMAD_DC`). Interpolating other variables requires a new
    indexing syntax: `env[".invalid.identifier."]`. [[GH-4843](https://github.com/hashicorp/nomad/issues/4843)]
