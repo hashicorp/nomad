@@ -10,6 +10,7 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -84,19 +85,22 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 	defer hook.Stop(context.Background(), nil, nil)
 
 	require.False(t, resp.Done)
-	origHookData := resp.HookData[logmonReattachKey]
+	origHookData := resp.State[logmonReattachKey]
 	require.NotEmpty(t, origHookData)
 
 	// Running prestart again should effectively noop as it reattaches to
 	// the running logmon.
-	req.HookData = map[string]string{
+	req.PreviousState = map[string]string{
 		logmonReattachKey: origHookData,
 	}
 	require.NoError(t, hook.Prestart(context.Background(), &req, &resp))
 	require.False(t, resp.Done)
-	origHookData = resp.HookData[logmonReattachKey]
-	require.Equal(t, origHookData, req.HookData[logmonReattachKey])
+	origHookData = resp.State[logmonReattachKey]
+	require.Equal(t, origHookData, req.PreviousState[logmonReattachKey])
 
 	// Running stop should shutdown logmon
-	require.NoError(t, hook.Stop(context.Background(), nil, nil))
+	stopReq := interfaces.TaskStopRequest{
+		ExistingState: helper.CopyMapStringString(resp.State),
+	}
+	require.NoError(t, hook.Stop(context.Background(), &stopReq, nil))
 }

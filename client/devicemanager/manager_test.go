@@ -119,11 +119,12 @@ func baseTestConfig(t *testing.T) (
 	mc := &loader.MockCatalog{}
 
 	// Create the config
+	logger := testlog.HCLogger(t)
 	config = &Config{
-		Logger:        testlog.HCLogger(t),
+		Logger:        logger,
 		PluginConfig:  &base.AgentConfig{},
 		StatsInterval: 100 * time.Millisecond,
-		State:         state.NewMemDB(),
+		State:         state.NewMemDB(logger),
 		Updater:       updateFn,
 		Loader:        mc,
 	}
