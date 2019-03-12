@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"time"
@@ -99,7 +100,15 @@ func (p *planner) planApply() {
 		// Snapshot the state so that we have a consistent view of the world
 		// if no snapshot is available
 		if waitCh == nil || snap == nil {
-			snap, err = p.fsm.State().Snapshot()
+			// Wait up to 5s for raft to catch up. Timing out
+			// causes the eval to be nacked and retried on another
+			// server, so timing out too quickly could cause
+			// greater scheduling latency than if we just waited
+			// longer here.
+			const indexTimeout = 5 * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+			snap, err = p.fsm.State().SnapshotAfter(ctx, p.raft.LastIndex())
+			cancel()
 			if err != nil {
 				p.logger.Error("failed to snapshot state", "error", err)
 				pending.respond(nil, err)
