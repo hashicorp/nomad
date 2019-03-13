@@ -82,7 +82,8 @@ func firstValidAuth(repo string, backends []authBackend) (*docker.AuthConfigurat
 // authFromTaskConfig generates an authBackend for any auth given in the task-configuration
 func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 	return func(string) (*docker.AuthConfiguration, error) {
-		if len(driverConfig.Auth.Email) == 0 {
+		// If all auth fields are empty, return
+		if len(driverConfig.Auth.Username) == 0 && len(driverConfig.Auth.Password) == 0 && len(driverConfig.Auth.Email) == 0 && len(driverConfig.Auth.ServerAddr) == 0 {
 			return nil, nil
 		}
 		return &docker.AuthConfiguration{
