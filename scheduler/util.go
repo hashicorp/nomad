@@ -829,7 +829,12 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
 			},
 		}
-		newAlloc.Metrics = ctx.Metrics()
+		// Use metrics from existing alloc for in place upgrade
+		// This is because if the inplace upgrade succeeded, any scoring metadata from
+		// when it first went through the scheduler should still be preserved. Using scoring
+		// metadata from the context would incorrectly replace it with metadata only from a single node that the
+		// allocation is already on.
+		newAlloc.Metrics = existing.Metrics.Copy()
 		return false, false, newAlloc
 	}
 }
