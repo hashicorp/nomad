@@ -175,6 +175,97 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 	}
 }
 
+func TestAllocations_Signal(t *testing.T) {
+	t.Parallel()
+
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	a := mock.Alloc()
+	require.Nil(t, client.addAlloc(a, ""))
+
+	// Try with bad alloc
+	req := &nstructs.AllocSignalRequest{}
+	var resp nstructs.GenericResponse
+	err := client.ClientRPC("Allocations.Signal", &req, &resp)
+	require.NotNil(t, err)
+	require.True(t, nstructs.IsErrUnknownAllocation(err))
+
+	// Try with good alloc
+	req.AllocID = a.ID
+
+	var resp2 struct{}
+	err = client.ClientRPC("Allocations.Signal", &req, &resp2)
+
+	require.Equal(t, err.Error(), "1 error(s) occurred:\n\n* Failed to signal task: web, err: Task not running")
+}
+
+func TestAllocations_Signal_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	server, addr, root := testACLServer(t, nil)
+	defer server.Shutdown()
+
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.ACLEnabled = true
+	})
+	defer cleanup()
+
+	// Try request without a token and expect failure
+	{
+		req := &nstructs.AllocSignalRequest{}
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Signal", &req, &resp)
+		require.NotNil(err)
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	// Try request with an invalid token and expect failure
+	{
+		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
+		req := &nstructs.AllocSignalRequest{}
+		req.AuthToken = token.SecretID
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Signal", &req, &resp)
+
+		require.NotNil(err)
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	// Try request with a valid token
+	{
+		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "test-valid",
+			mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityAllocLifecycle}))
+		req := &nstructs.AllocSignalRequest{}
+		req.AuthToken = token.SecretID
+		req.Namespace = nstructs.DefaultNamespace
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Signal", &req, &resp)
+		require.True(nstructs.IsErrUnknownAllocation(err))
+	}
+
+	// Try request with a management token
+	{
+		req := &nstructs.AllocSignalRequest{}
+		req.AuthToken = root.SecretID
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Signal", &req, &resp)
+		require.True(nstructs.IsErrUnknownAllocation(err))
+	}
+}
+
+func TestAllocations_Signal_Subtask(t *testing.T) {
+	t.Parallel()
+}
+
+func TestAllocations_Signal_EntireAlloc(t *testing.T) {
+	t.Parallel()
+}
+
 func TestAllocations_Stats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

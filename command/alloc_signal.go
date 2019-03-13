@@ -11,7 +11,7 @@ type AllocSignalCommand struct {
 
 func (a *AllocSignalCommand) Help() string {
 	helpText := `
-Usage: nomad alloc signal [options] <allocation> <task>
+Usage: nomad alloc signal [options] <signal> <allocation> <task>
 
   signal an existing allocation. This command is used to signal a specific alloc
   and its subtasks. If no task is provided then all of the allocations subtasks
@@ -23,6 +23,9 @@ General Options:
 
 Signal Specific Options:
 
+  -s
+    Specify the signal that the selected tasks should recieve.
+
   -verbose
     Show full information.
 `
@@ -33,10 +36,12 @@ func (c *AllocSignalCommand) Name() string { return "alloc signal" }
 
 func (c *AllocSignalCommand) Run(args []string) int {
 	var verbose bool
+	var signal string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&signal, "s", "SIGKILL", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -44,8 +49,8 @@ func (c *AllocSignalCommand) Run(args []string) int {
 
 	// Check that we got exactly one alloc
 	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error("This command takes one argument: <alloc-id>")
+	if len(args) < 1 || len(args) > 2 {
+		c.Ui.Error("This command takes up to two arguments: <alloc-id> <task>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -65,6 +70,11 @@ func (c *AllocSignalCommand) Run(args []string) int {
 	}
 
 	allocID = sanitizeUUIDPrefix(allocID)
+
+	var taskName string
+	if len(args) == 2 {
+		taskName = args[1]
+	}
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -98,32 +108,11 @@ func (c *AllocSignalCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Placeholder - List root dir until we implement RPCs for stopping.
-
-	files, _, err := client.AllocFS().List(alloc, "/", nil)
+	err = client.Allocations().Signal(alloc, nil, taskName, "sighup")
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error listing alloc dir: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error signalling allocation: %s", err))
 		return 1
 	}
-
-	// Display the file information in a tabular format
-	out := make([]string, len(files)+1)
-	out[0] = "Mode|Size|Modified Time|Name"
-	for i, file := range files {
-		fn := file.Name
-		if file.IsDir {
-			fn = fmt.Sprintf("%s/", fn)
-		}
-		var size string
-		size = fmt.Sprintf("%d", file.Size)
-		out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
-			file.FileMode,
-			size,
-			formatTime(file.ModTime),
-			fn,
-		)
-	}
-	c.Ui.Output(formatList(out))
 
 	return 0
 }

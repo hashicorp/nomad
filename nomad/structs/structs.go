@@ -705,6 +705,14 @@ type AllocSpecificRequest struct {
 	QueryOptions
 }
 
+// AllocSignalRequest is used to signal a specific allocation
+type AllocSignalRequest struct {
+	AllocID string
+	Task    string
+	Signal  string
+	QueryOptions
+}
+
 // AllocsGetRequest is used to query a set of allocations
 type AllocsGetRequest struct {
 	AllocIDs []string

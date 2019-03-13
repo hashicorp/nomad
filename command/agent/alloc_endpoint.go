@@ -100,6 +100,8 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 		return s.allocSnapshot(allocID, resp, req)
 	case "gc":
 		return s.allocGC(allocID, resp, req)
+	case "signal":
+		return s.allocSignal(allocID, resp, req)
 	}
 
 	return nil, CodedError(404, resourceNotFoundErr)
@@ -159,6 +161,45 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 		rpcErr = s.agent.Client().RPC("ClientAllocations.GarbageCollect", &args, &reply)
 	} else if useServerRPC {
 		rpcErr = s.agent.Server().RPC("ClientAllocations.GarbageCollect", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return nil, rpcErr
+}
+
+func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	// Build the request and parse the ACL token
+	args := structs.AllocSignalRequest{}
+	err := decodeBody(req, &args)
+	if err != nil {
+		return nil, CodedError(400, fmt.Sprintf("Failed to decode body: %v", err))
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+	args.AllocID = allocID
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply structs.GenericResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.Signal", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.Signal", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.Signal", &args, &reply)
 	} else {
 		rpcErr = CodedError(400, "No local Node and node_id not provided")
 	}

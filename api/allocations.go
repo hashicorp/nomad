@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
@@ -76,6 +78,23 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 
 	var resp struct{}
 	_, err = nodeClient.query("/v1/client/allocation/"+alloc.ID+"/gc", &resp, nil)
+	return err
+}
+
+func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
+	if err != nil {
+		return err
+	}
+
+	req := structs.AllocSignalRequest{
+		AllocID: alloc.ID,
+		Signal:  signal,
+		Task:    task,
+	}
+
+	var resp struct{}
+	_, err = nodeClient.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
 	return err
 }
 

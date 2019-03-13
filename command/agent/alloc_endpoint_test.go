@@ -728,7 +728,6 @@ func TestHTTP_AllocAllGC(t *testing.T) {
 			s.client = c
 		}
 	})
-
 }
 
 func TestHTTP_AllocAllGC_ACL(t *testing.T) {
@@ -775,6 +774,169 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 			setToken(req, s.RootToken)
 			_, err := s.Server.ClientGCRequest(respW, req)
 			require.Nil(err)
+			require.Equal(http.StatusOK, respW.Code)
+		}
+	})
+}
+
+func TestHTTP_AllocSignal(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+
+		// Directly manipulate the state
+		state := s.Agent.server.State()
+		alloc1 := mock.Alloc()
+		alloc1.NodeID = s.client.NodeID()
+		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+
+		err := state.UpsertAllocs(1000,
+			[]*structs.Allocation{alloc1})
+		require.NoError(err)
+
+		testutil.WaitForResult(func() (bool, error) {
+			n, err := s.server.State().AllocByID(nil, alloc1.ID)
+			if err != nil {
+				return false, err
+			}
+			return n != nil, nil
+		}, func(err error) {
+			require.NoError(err, "should have allocation")
+		})
+
+		testutil.WaitForResult(func() (bool, error) {
+			n, err := s.server.State().NodeByID(nil, s.client.NodeID())
+			if err != nil {
+				return false, err
+			}
+			return n != nil, nil
+		}, func(err error) {
+			require.NoError(err, "should have client")
+		})
+
+		requestURI := fmt.Sprintf("/v1/client/allocation/%s/signal", alloc1.ID)
+
+		// Local node, local resp
+		{
+			req, err := http.NewRequest("POST", requestURI, strings.NewReader("{}"))
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.Contains(err.Error(), "Task not running")
+		}
+
+		// client data from server
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				require.NoError(err, "should have client")
+			})
+
+			req, err := http.NewRequest("POST", fmt.Sprintf("%s?node_id=%s", requestURI, c.NodeID()), strings.NewReader("{}"))
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.Contains(err.Error(), "Task not running")
+
+			s.client = c
+		}
+	})
+}
+
+func TestHTTP_AllocSignal_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Directly manipulate the state
+		alloc1 := mock.Alloc()
+		alloc1.NodeID = s.client.NodeID()
+		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
+
+		err := state.UpsertAllocs(1000,
+			[]*structs.Allocation{alloc1})
+		require.NoError(err)
+
+		testutil.WaitForResult(func() (bool, error) {
+			n, err := s.server.State().AllocByID(nil, alloc1.ID)
+			if err != nil {
+				return false, err
+			}
+			return n != nil, nil
+		}, func(err error) {
+			require.NoError(err, "should have allocation")
+		})
+
+		testutil.WaitForResult(func() (bool, error) {
+			n, err := s.server.State().NodeByID(nil, s.client.NodeID())
+			if err != nil {
+				return false, err
+			}
+			return n != nil, nil
+		}, func(err error) {
+			require.NoError(err, "should have client")
+		})
+
+		requestURI := fmt.Sprintf("/v1/client/allocation/%s/signal", alloc1.ID)
+
+		// Try request without a token and expect failure
+		{
+			req, err := http.NewRequest("POST", requestURI, strings.NewReader("{}\n"))
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.Error(err)
+			require.Equal(structs.ErrPermissionDenied.Error(), err.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			req, err := http.NewRequest("POST", requestURI, strings.NewReader("{}\n"))
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.Error(err)
+			require.Equal(structs.ErrPermissionDenied.Error(), err.Error())
+		}
+
+		// Try request with a valid token
+		{
+			req, err := http.NewRequest("POST", requestURI, strings.NewReader("{}\n"))
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityAllocLifecycle}))
+			setToken(req, token)
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.Contains(err.Error(), "Task not running")
+			require.Equal(http.StatusOK, respW.Code)
+		}
+
+		// Try request with a management token
+		{
+			req, err := http.NewRequest("POST", requestURI, strings.NewReader("{}\n"))
+			require.NoError(err)
+
+			respW := httptest.NewRecorder()
+			setToken(req, s.RootToken)
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.Contains(err.Error(), "Task not running")
 			require.Equal(http.StatusOK, respW.Code)
 		}
 	})
