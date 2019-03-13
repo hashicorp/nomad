@@ -1,12 +1,14 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import ServerDetail from 'nomad-ui/tests/pages/servers/detail';
 
 let agent;
 
 module('Acceptance | server detail', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.createList('agent', 3);

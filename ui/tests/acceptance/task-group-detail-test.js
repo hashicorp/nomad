@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -15,6 +16,7 @@ const sum = (total, n) => total + n;
 
 module('Acceptance | task group detail', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.create('agent');

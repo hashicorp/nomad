@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Evaluations from 'nomad-ui/tests/pages/jobs/job/evaluations';
 
 let job;
@@ -8,6 +9,7 @@ let evaluations;
 
 module('Acceptance | job evaluations', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     job = server.create('job', { noFailedPlacements: true, createAllocations: false });

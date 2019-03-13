@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Versions from 'nomad-ui/tests/pages/jobs/job/versions';
 import moment from 'moment';
 
@@ -9,6 +10,7 @@ let versions;
 
 module('Acceptance | job versions', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     job = server.create('job', { createAllocations: false });

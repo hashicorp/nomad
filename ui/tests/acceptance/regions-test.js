@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import PageLayout from 'nomad-ui/tests/pages/layout';
@@ -8,6 +9,7 @@ import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 
 module('Acceptance | regions (only one)', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.create('agent');

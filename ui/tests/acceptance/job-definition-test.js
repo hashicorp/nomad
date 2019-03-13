@@ -1,12 +1,14 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Definition from 'nomad-ui/tests/pages/jobs/job/definition';
 
 let job;
 
 module('Acceptance | job definition', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.create('node');

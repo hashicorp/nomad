@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
 
@@ -20,6 +21,7 @@ const agentSort = leader => (a, b) => {
 
 module('Acceptance | servers list', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   test('/servers should list all servers', function(assert) {
     server.createList('node', 1);
