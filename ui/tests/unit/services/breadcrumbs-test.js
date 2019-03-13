@@ -3,7 +3,6 @@ import Route from '@ember/routing/route';
 import Controller from '@ember/controller';
 import { get } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { getOwner } from '@ember/application';
 import RSVP from 'rsvp';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
@@ -20,9 +19,7 @@ module('Unit | Service | Breadcrumbs', function(hooks) {
 
   hooks.beforeEach(function() {
     this.subject = function() {
-      return this.owner
-        .factoryFor('service:breadcrumbs')
-        .create();
+      return this.owner.factoryFor('service:breadcrumbs').create();
     };
   });
 

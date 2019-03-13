@@ -1,5 +1,4 @@
 import { currentURL } from '@ember/test-helpers';
-import { currentURL } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
@@ -38,7 +37,11 @@ module('Acceptance | task detail', function(hooks) {
     const shortId = allocation.id.split('-')[0];
 
     assert.equal(Task.breadcrumbFor('jobs.index').text, 'Jobs', 'Jobs is the first breadcrumb');
-    assert.equal(Task.breadcrumbFor('jobs.job.index').text, job.name, 'Job is the second breadcrumb');
+    assert.equal(
+      Task.breadcrumbFor('jobs.job.index').text,
+      job.name,
+      'Job is the second breadcrumb'
+    );
     assert.equal(
       Task.breadcrumbFor('jobs.job.task-group').text,
       taskGroup,

@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import hbs from 'htmlbars-inline-precompile';
 import { find, click } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';

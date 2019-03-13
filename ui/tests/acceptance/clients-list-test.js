@@ -1,5 +1,4 @@
 import { currentURL } from '@ember/test-helpers';
-import { currentURL } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
@@ -155,7 +154,8 @@ module('Acceptance | clients list', function(hooks) {
     },
     filter: (node, selection) => {
       if (selection.includes('draining') && !node.drain) return false;
-      if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible') return false;
+      if (selection.includes('ineligible') && node.schedulingEligibility === 'eligible')
+        return false;
       return true;
     },
   });

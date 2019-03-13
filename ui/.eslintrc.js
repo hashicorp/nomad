@@ -30,19 +30,20 @@ module.exports = {
     // node files
     {
       files: [
+        '.eslintrc.js',
         'ember-cli-build.js',
         'testem.js',
         'config/**/*.js',
-        'lib/*/index.js'
+        'lib/*/index.js',
       ],
       parserOptions: {
         sourceType: 'script',
-        ecmaVersion: 2015
+        ecmaVersion: 2015,
       },
       env: {
         browser: false,
-        node: true
-      }
-    }
-  ]
+        node: true,
+      },
+    },
+  ],
 };

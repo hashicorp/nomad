@@ -1,5 +1,4 @@
 import { currentURL } from '@ember/test-helpers';
-import { currentURL } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
