@@ -7,9 +7,7 @@ moduleForModel('task-group', 'Unit | Model | task-group', {
   needs: ['model:task', 'model:task-group-summary'],
 });
 
-test("should expose reserved resource stats as aggregates of each task's reserved resources", function(
-  assert
-) {
+test("should expose reserved resource stats as aggregates of each task's reserved resources", function(assert) {
   const taskGroup = this.subject({
     name: 'group-example',
     tasks: [

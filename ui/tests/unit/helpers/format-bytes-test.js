@@ -25,9 +25,7 @@ test('formats 1024 * 1024 <= x < 1024 * 1024 * 1024 as MiB', function(assert) {
   assert.equal(formatBytes([128974848]), '123 MiB');
 });
 
-test('formats x > 1024 * 1024 * 1024 as MiB, since it is the highest allowed unit', function(
-  assert
-) {
+test('formats x > 1024 * 1024 * 1024 as MiB, since it is the highest allowed unit', function(assert) {
   assert.equal(formatBytes([1024 * 1024 * 1024]), '1024 MiB');
   assert.equal(formatBytes([1024 * 1024 * 1024 * 4]), '4096 MiB');
 });
