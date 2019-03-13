@@ -1668,15 +1668,16 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
 	}
-	testutil.DockerCompatible(t)
 
 	cases := []struct {
 		Auth       DockerAuth
 		AuthConfig *docker.AuthConfiguration
+		Desc       string
 	}{
 		{
 			Auth:       DockerAuth{},
 			AuthConfig: nil,
+			Desc:       "Empty Config",
 		},
 		{
 			Auth: DockerAuth{
@@ -1691,6 +1692,7 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 				Email:         "foo@bar.com",
 				ServerAddress: "www.foobar.com",
 			},
+			Desc: "All fields set",
 		},
 		{
 			Auth: DockerAuth{
@@ -1703,13 +1705,16 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 				Password:      "bar",
 				ServerAddress: "www.foobar.com",
 			},
+			Desc: "Email not set",
 		},
 	}
 
 	for _, c := range cases {
-		act, err := authFromTaskConfig(&TaskConfig{Auth: c.Auth})("test")
-		require.NoError(t, err)
-		require.Exactly(t, c.AuthConfig, act)
+		t.Run(c.Desc, func(t *testing.T) {
+			act, err := authFromTaskConfig(&TaskConfig{Auth: c.Auth})("test")
+			require.NoError(t, err)
+			require.Exactly(t, c.AuthConfig, act)
+		})
 	}
 }
 
