@@ -1,3 +1,4 @@
+import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import Versions from 'nomad-ui/tests/pages/jobs/job/versions';

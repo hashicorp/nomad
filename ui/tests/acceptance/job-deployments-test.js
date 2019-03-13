@@ -1,3 +1,4 @@
+import { currentURL } from '@ember/test-helpers';
 import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';

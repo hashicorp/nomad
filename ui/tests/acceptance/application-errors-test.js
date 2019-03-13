@@ -1,3 +1,4 @@
+import { currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';

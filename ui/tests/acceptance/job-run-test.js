@@ -1,3 +1,4 @@
+import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { currentURL } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
