@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import moment from 'moment';
 
@@ -9,6 +10,7 @@ let task;
 
 module('Acceptance | task detail', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.create('agent');

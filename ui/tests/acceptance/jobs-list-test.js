@@ -1,10 +1,12 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 module('Acceptance | jobs list', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     // Required for placing allocations (a result of creating jobs)

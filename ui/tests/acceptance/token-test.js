@@ -1,6 +1,7 @@
 import { find } from 'ember-native-dom-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
@@ -13,6 +14,7 @@ let clientToken;
 
 module('Acceptance | tokens', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.create('agent');
@@ -85,10 +87,7 @@ module('Acceptance | tokens', function(hooks) {
 
     Tokens.secret(bogusSecret).submit();
 
-    assert.ok(
-      window.localStorage.nomadTokenSecret == null,
-      'Token secret is discarded on failure'
-    );
+    assert.ok(window.localStorage.nomadTokenSecret == null, 'Token secret is discarded on failure');
     assert.ok(Tokens.errorMessage, 'Token error message is shown');
     assert.notOk(Tokens.successMessage, 'Token success message is not shown');
     assert.equal(Tokens.policies.length, 0, 'No token policies are shown');
@@ -156,7 +155,9 @@ module('Acceptance | tokens', function(hooks) {
   function getHeader({ requestHeaders }, name) {
     // Headers are case-insensitive, but object property look up is not
     return (
-      requestHeaders[name] || requestHeaders[name.toLowerCase()] || requestHeaders[name.toUpperCase()]
+      requestHeaders[name] ||
+      requestHeaders[name.toLowerCase()] ||
+      requestHeaders[name.toUpperCase()]
     );
   }
 });

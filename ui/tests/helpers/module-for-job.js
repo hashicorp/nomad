@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 
 export default function moduleForJob(title, context, jobFactory, additionalTests) {
@@ -8,6 +9,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
 
   module(title, function(hooks) {
     setupApplicationTest(hooks);
+    setupMirage(hooks);
     hooks.before(function() {
       if (context !== 'allocations' && context !== 'children') {
         throw new Error(

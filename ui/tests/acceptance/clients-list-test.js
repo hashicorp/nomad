@@ -1,6 +1,7 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
 function minimumSetup() {
@@ -10,6 +11,7 @@ function minimumSetup() {
 
 module('Acceptance | clients list', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   test('/clients should list one page of clients', function(assert) {
     // Make sure to make more nodes than 1 page to assert that pagination is working

@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import moment from 'moment';
 import Deployments from 'nomad-ui/tests/pages/jobs/job/deployments';
 
@@ -14,6 +15,7 @@ let sortedDeployments;
 
 module('Acceptance | job deployments', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.create('node');
