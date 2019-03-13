@@ -1,9 +1,9 @@
 import { run } from '@ember/runloop';
-import { test } from 'ember-qunit';
-import wait from 'ember-test-helpers/wait';
+import { test } from 'qunit';
 import NodeModel from 'nomad-ui/models/node';
 import moduleForSerializer from '../../helpers/module-for-serializer';
 import pushPayloadToStore from '../../utils/push-payload-to-store';
+import { settled } from '@ember/test-helpers';
 
 moduleForSerializer('node', 'Unit | Serializer | Node', {
   needs: [
@@ -61,7 +61,7 @@ test('local store is culled to reflect the state of findAll requests', function(
   });
   pushPayloadToStore(this.store, newPayload, NodeModel.modelName);
 
-  return wait().then(() => {
+  return settled().then(() => {
     assert.equal(
       newPayload.data.length,
       newFindAllResponse.length,

@@ -2,10 +2,10 @@ import EmberObject from '@ember/object';
 import { getOwner } from '@ember/application';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
-import { test } from 'ember-qunit';
-import wait from 'ember-test-helpers/wait';
+import { test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import moduleForAdapter from '../../helpers/module-for-adapter';
+import { settled } from '@ember/test-helpers';
 
 moduleForAdapter('job', 'Unit | Adapter | Job', {
   needs: [
@@ -67,7 +67,7 @@ test('The job endpoint is the only required endpoint for fetching a job', functi
   const jobNamespace = 'default';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -87,7 +87,7 @@ test('When a namespace is set in localStorage but a job in the default namespace
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
   this.system.get('namespaces');
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -106,7 +106,7 @@ test('When a namespace is in localStorage and the requested job is in the defaul
   const jobNamespace = 'default';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -123,7 +123,7 @@ test('When the job has a namespace other than default, it is in the URL', functi
   const jobNamespace = 'some-namespace';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -138,7 +138,7 @@ test('When there is no token set in the token service, no x-nomad-token header i
   const { pretender } = this.server;
   const jobId = JSON.stringify(['job-1', 'default']);
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.notOk(
@@ -153,7 +153,7 @@ test('When a token is set in the token service, then x-nomad-token header is set
   const jobId = JSON.stringify(['job-1', 'default']);
   const secret = 'here is the secret';
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().set('token.secret', secret);
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
@@ -182,7 +182,7 @@ test('findAll can be watched', function(assert) {
     'Second request is a blocking request for jobs'
   );
 
-  return wait().then(() => {
+  return settled().then(() => {
     request();
     assert.equal(
       pretender.handledRequests[1].url,
@@ -190,7 +190,7 @@ test('findAll can be watched', function(assert) {
       'Third request is a blocking request with an incremented index param'
     );
 
-    return wait();
+    return settled();
   });
 });
 
@@ -211,7 +211,7 @@ test('findRecord can be watched', function(assert) {
     'Second request is a blocking request for job-1'
   );
 
-  return wait().then(() => {
+  return settled().then(() => {
     request();
     assert.equal(
       pretender.handledRequests[1].url,
@@ -219,7 +219,7 @@ test('findRecord can be watched', function(assert) {
       'Third request is a blocking request with an incremented index param'
     );
 
-    return wait();
+    return settled();
   });
 });
 
@@ -229,7 +229,7 @@ test('relationships can be reloaded', function(assert) {
   const mockModel = makeMockModel(plainId);
 
   this.subject().reloadRelationship(mockModel, 'summary');
-  return wait().then(() => {
+  return settled().then(() => {
     assert.equal(
       pretender.handledRequests[0].url,
       `/v1/job/${plainId}/summary`,
@@ -250,7 +250,7 @@ test('relationship reloads can be watched', function(assert) {
     'First request is a blocking request for job-1 summary relationship'
   );
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().reloadRelationship(mockModel, 'summary', true);
     assert.equal(
       pretender.handledRequests[1].url,
@@ -279,7 +279,7 @@ test('findAll can be canceled', function(assert) {
     this.subject().cancelFindAll('job');
   });
 
-  return wait().then(() => {
+  return settled().then(() => {
     assert.ok(xhr.aborted, 'Request was aborted');
   });
 });
@@ -303,7 +303,7 @@ test('findRecord can be canceled', function(assert) {
     this.subject().cancelFindRecord('job', jobId);
   });
 
-  return wait().then(() => {
+  return settled().then(() => {
     assert.ok(xhr.aborted, 'Request was aborted');
   });
 });
@@ -324,7 +324,7 @@ test('relationship reloads can be canceled', function(assert) {
     this.subject().cancelReloadRelationship(mockModel, 'summary');
   });
 
-  return wait().then(() => {
+  return settled().then(() => {
     assert.ok(xhr.aborted, 'Request was aborted');
   });
 });
@@ -359,7 +359,7 @@ test('requests can be canceled even if multiple requests for the same URL were m
     this.subject().cancelFindRecord('job', jobId);
   });
 
-  return wait().then(() => {
+  return settled().then(() => {
     assert.ok(xhr.aborted, 'Request was aborted');
   });
 });
@@ -388,7 +388,7 @@ test('canceling a find record request will never cancel a request with the same 
     this.subject().cancelFindRecord('job', jobId);
   });
 
-  return wait().then(() => {
+  return settled().then(() => {
     assert.ok(getXHR.aborted, 'Get request was aborted');
     assert.notOk(deleteXHR.aborted, 'Delete request was aborted');
   });
@@ -400,7 +400,7 @@ test('when there is no region set, requests are made without the region query pa
   const jobNamespace = 'default';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
 
@@ -421,7 +421,7 @@ test('when there is a region set, requests are made with the region query param'
   const jobNamespace = 'default';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
 
@@ -441,7 +441,7 @@ test('when the region is set to the default region, requests are made without th
   const jobNamespace = 'default';
   const jobId = JSON.stringify([jobName, jobNamespace]);
 
-  return wait().then(() => {
+  return settled().then(() => {
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
 
