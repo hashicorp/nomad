@@ -1,5 +1,4 @@
 import { currentURL } from '@ember/test-helpers';
-import { currentURL } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -171,8 +170,16 @@ module('Acceptance | jobs list', function(hooks) {
     paramName: 'status',
     expectedOptions: ['Pending', 'Running', 'Dead'],
     beforeEach() {
-      server.createList('job', 2, { status: 'pending', createAllocations: false, childrenCount: 0 });
-      server.createList('job', 2, { status: 'running', createAllocations: false, childrenCount: 0 });
+      server.createList('job', 2, {
+        status: 'pending',
+        createAllocations: false,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        status: 'running',
+        createAllocations: false,
+        childrenCount: 0,
+      });
       server.createList('job', 2, { status: 'dead', createAllocations: false, childrenCount: 0 });
       JobsList.visit();
     },

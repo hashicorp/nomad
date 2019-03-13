@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import { run } from '@ember/runloop';
 import hbs from 'htmlbars-inline-precompile';

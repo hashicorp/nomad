@@ -1,5 +1,4 @@
 import { currentURL } from '@ember/test-helpers';
-import { currentURL } from 'ember-native-dom-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import Definition from 'nomad-ui/tests/pages/jobs/job/definition';

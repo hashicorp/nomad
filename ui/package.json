@@ -11,7 +11,8 @@
     "build": "./node_modules/ember-cli/bin/ember build -prod",
     "start": "./node_modules/ember-cli/bin/ember server",
     "test": "./node_modules/ember-cli/bin/ember test",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "lint:js": "eslint ."
   },
   "lint-staged": {
     "'{app,tests,config,lib,mirage}/**/*.js'": ["prettier --write", "git add"],

@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
@@ -183,7 +182,10 @@ module('Integration | Component | job-editor', function(hooks) {
       .then(() => {
         const requests = this.server.pretender.handledRequests.mapBy('url');
         assert.notOk(requests.includes('/v1/jobs/parse'), 'JSON job spec is not parsed');
-        assert.ok(requests.includes(`/v1/job/${newJobName}/plan`), 'JSON job spec is still planned');
+        assert.ok(
+          requests.includes(`/v1/job/${newJobName}/plan`),
+          'JSON job spec is still planned'
+        );
       });
   });
 

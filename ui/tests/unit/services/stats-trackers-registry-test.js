@@ -1,5 +1,4 @@
 import EmberObject from '@ember/object';
-import { getOwner } from '@ember/application';
 import Service from '@ember/service';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
@@ -14,9 +13,7 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
 
   hooks.beforeEach(function() {
     this.subject = function() {
-      return this.owner
-        .factoryFor('service:stats-trackers-registry')
-        .create();
+      return this.owner.factoryFor('service:stats-trackers-registry').create();
     };
   });
 
@@ -95,7 +92,11 @@ module('Unit | Service | Stats Trackers Registry', function(hooks) {
 
     assert.notEqual(node1, node2, 'Two different resources');
     assert.equal(node1.get('id'), node2.get('id'), 'With the same IDs');
-    assert.equal(node1.constructor.modelName, node2.constructor.modelName, 'And the same className');
+    assert.equal(
+      node1.constructor.modelName,
+      node2.constructor.modelName,
+      'And the same className'
+    );
 
     assert.equal(registry.getTracker(node1), registry.getTracker(node2), 'Return the same tracker');
     assert.equal(registry.get('registryRef').size, 1, 'Only one tracker in the registry');

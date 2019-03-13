@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
 import { click, findAll, find } from 'ember-native-dom-helpers';

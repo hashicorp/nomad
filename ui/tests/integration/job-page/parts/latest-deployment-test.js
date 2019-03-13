@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -46,7 +45,11 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
   });
 
   test('the latest deployment section shows up for the currently running deployment', function(assert) {
-    this.server.create('job', { type: 'service', createAllocations: false, activeDeployment: true });
+    this.server.create('job', {
+      type: 'service',
+      createAllocations: false,
+      activeDeployment: true,
+    });
 
     this.store.findAll('job');
 
@@ -188,7 +191,8 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
         })
         .then(() => {
           const task = job.get('runningDeployment.taskGroupSummaries.firstObject');
-          const findForTaskGroup = selector => find(`[data-test-deployment-task-group-${selector}]`);
+          const findForTaskGroup = selector =>
+            find(`[data-test-deployment-task-group-${selector}]`);
           assert.equal(findForTaskGroup('name').textContent.trim(), task.get('name'));
           assert.equal(
             findForTaskGroup('progress-deadline').textContent.trim(),

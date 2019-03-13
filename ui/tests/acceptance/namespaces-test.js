@@ -83,7 +83,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
 
     JobsList.visit();
 
-    const requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
+    let requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
     assert.equal(requests.length, 1, 'First request to jobs');
     assert.equal(
       requests[0].queryParams.namespace,
@@ -94,7 +94,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     // TODO: handle this with Page Objects
     selectChoose('[data-test-namespace-switcher]', namespace.name);
 
-    const requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
+    requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
     assert.equal(requests.length, 2, 'Second request to jobs');
     assert.equal(
       requests[1].queryParams.namespace,

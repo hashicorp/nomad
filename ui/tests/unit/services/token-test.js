@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import Service from '@ember/service';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
@@ -9,9 +8,7 @@ module('Unit | Service | Token', function(hooks) {
 
   hooks.beforeEach(function() {
     this.subject = function() {
-      return this.owner
-        .factoryFor('service:token')
-        .create();
+      return this.owner.factoryFor('service:token').create();
     };
   });
 

@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import { run } from '@ember/runloop';
 import hbs from 'htmlbars-inline-precompile';
 import { findAll, find } from 'ember-native-dom-helpers';
@@ -82,7 +81,10 @@ module('Integration | Component | job-page/parts/placement-failures', function(h
       `);
 
       return settled().then(() => {
-        assert.notOk(find('[data-test-placement-failures]'), 'Placement failures section not found');
+        assert.notOk(
+          find('[data-test-placement-failures]'),
+          'Placement failures section not found'
+        );
       });
     });
   });

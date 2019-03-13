@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';

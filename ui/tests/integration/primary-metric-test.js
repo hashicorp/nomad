@@ -1,6 +1,5 @@
 import EmberObject, { computed } from '@ember/object';
 import Service from '@ember/service';
-import { getOwner } from '@ember/application';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';

@@ -1,4 +1,3 @@
-import { getOwner } from '@ember/application';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
@@ -43,27 +42,29 @@ module('Unit | Model | job', function(hooks) {
       });
     });
 
-    const job = run(() => this.owner.lookup('service:store').createRecord('job', {
-      summary,
-      name: 'example',
-      taskGroups: [
-        {
-          name: 'one',
-          count: 0,
-          tasks: [],
-        },
-        {
-          name: 'two',
-          count: 0,
-          tasks: [],
-        },
-        {
-          name: 'three',
-          count: 0,
-          tasks: [],
-        },
-      ],
-    }));
+    const job = run(() =>
+      this.owner.lookup('service:store').createRecord('job', {
+        summary,
+        name: 'example',
+        taskGroups: [
+          {
+            name: 'one',
+            count: 0,
+            tasks: [],
+          },
+          {
+            name: 'two',
+            count: 0,
+            tasks: [],
+          },
+          {
+            name: 'three',
+            count: 0,
+            tasks: [],
+          },
+        ],
+      })
+    );
 
     assert.equal(
       job.get('totalAllocs'),
