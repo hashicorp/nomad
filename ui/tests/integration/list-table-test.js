@@ -90,7 +90,4 @@ test('component exposes a tbody contextual component', function(assert) {
 // Ember doesn't support query params (or controllers or routes) in integration tests,
 // so sorting links can only be tested in acceptance tests.
 // Leaving this test here for posterity.
-skip(
-  'sort-by creates links using the appropriate links given sort property and sort descending',
-  function() {}
-);
+skip('sort-by creates links using the appropriate links given sort property and sort descending', function() {});
