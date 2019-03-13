@@ -1664,6 +1664,55 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	cases := []struct {
+		Auth       DockerAuth
+		AuthConfig *docker.AuthConfiguration
+	}{
+		{
+			Auth:       DockerAuth{},
+			AuthConfig: nil,
+		},
+		{
+			Auth: DockerAuth{
+				Username:   "foo",
+				Password:   "bar",
+				Email:      "foo@bar.com",
+				ServerAddr: "www.foobar.com",
+			},
+			AuthConfig: &docker.AuthConfiguration{
+				Username:      "foo",
+				Password:      "bar",
+				Email:         "foo@bar.com",
+				ServerAddress: "www.foobar.com",
+			},
+		},
+		{
+			Auth: DockerAuth{
+				Username:   "foo",
+				Password:   "bar",
+				ServerAddr: "www.foobar.com",
+			},
+			AuthConfig: &docker.AuthConfiguration{
+				Username:      "foo",
+				Password:      "bar",
+				ServerAddress: "www.foobar.com",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		act, err := authFromTaskConfig(&TaskConfig{Auth: c.Auth})("test")
+		require.NoError(t, err)
+		require.Exactly(t, c.AuthConfig, act)
+	}
+}
+
 func TestDockerDriver_OOMKilled(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
