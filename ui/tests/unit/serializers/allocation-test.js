@@ -1,4 +1,4 @@
-import { test } from 'ember-qunit';
+import { test } from 'qunit';
 import AllocationModel from 'nomad-ui/models/allocation';
 import moduleForSerializer from '../../helpers/module-for-serializer';
 

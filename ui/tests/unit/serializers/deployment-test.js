@@ -1,4 +1,4 @@
-import { test } from 'ember-qunit';
+import { test } from 'qunit';
 import DeploymentModel from 'nomad-ui/models/deployment';
 import moduleForSerializer from '../../helpers/module-for-serializer';
 

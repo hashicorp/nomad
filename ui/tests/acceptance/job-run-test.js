@@ -1,7 +1,7 @@
 import { assign } from '@ember/polyfills';
 import { currentURL } from 'ember-native-dom-helpers';
-import { test } from 'qunit';
-import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 
 const newJobName = 'new-job';
@@ -35,60 +35,46 @@ const jsonJob = overrides => {
   );
 };
 
-moduleForAcceptance('Acceptance | job run', {
-  beforeEach() {
+module('Acceptance | job run', function(hooks) {
+  setupApplicationTest(hooks);
+
+  hooks.beforeEach(function() {
     // Required for placing allocations (a result of creating jobs)
     server.create('node');
-  },
-});
+  });
 
-test('visiting /jobs/run', function(assert) {
-  JobRun.visit();
+  test('visiting /jobs/run', function(assert) {
+    JobRun.visit();
 
-  andThen(() => {
     assert.equal(currentURL(), '/jobs/run');
   });
-});
 
-test('when submitting a job, the site redirects to the new job overview page', function(assert) {
-  const spec = jsonJob();
+  test('when submitting a job, the site redirects to the new job overview page', function(assert) {
+    const spec = jsonJob();
 
-  JobRun.visit();
+    JobRun.visit();
 
-  andThen(() => {
     JobRun.editor.editor.fillIn(spec);
     JobRun.editor.plan();
-  });
-
-  andThen(() => {
     JobRun.editor.run();
-  });
-  andThen(() => {
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}`,
       `Redirected to the job overview page for ${newJobName}`
     );
   });
-});
 
-test('when submitting a job to a different namespace, the redirect to the job overview page takes namespace into account', function(assert) {
-  const newNamespace = 'second-namespace';
+  test('when submitting a job to a different namespace, the redirect to the job overview page takes namespace into account', function(assert) {
+    const newNamespace = 'second-namespace';
 
-  server.create('namespace', { id: newNamespace });
-  const spec = jsonJob({ Namespace: newNamespace });
+    server.create('namespace', { id: newNamespace });
+    const spec = jsonJob({ Namespace: newNamespace });
 
-  JobRun.visit();
+    JobRun.visit();
 
-  andThen(() => {
     JobRun.editor.editor.fillIn(spec);
     JobRun.editor.plan();
-  });
-
-  andThen(() => {
     JobRun.editor.run();
-  });
-  andThen(() => {
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}?namespace=${newNamespace}`,

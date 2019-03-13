@@ -1,7 +1,7 @@
 import { resolve } from 'rsvp';
-import wait from 'ember-test-helpers/wait';
-import { test } from 'ember-qunit';
+import { test } from 'qunit';
 import sinon from 'sinon';
+import { settled } from '@ember/test-helpers';
 
 const MockResponse = json => ({
   ok: true,
@@ -31,14 +31,14 @@ export default function statsTrackerFrameMissing({
 
     tracker.get('poll').perform();
 
-    return wait()
+    return settled()
       .then(() => {
         assert.deepEqual(tracker.get('cpu'), [compiledCPU], 'One frame of cpu');
         assert.deepEqual(tracker.get('memory'), [compiledMemory], 'One frame of memory');
 
         shouldFail = true;
         tracker.get('poll').perform();
-        return wait();
+        return settled();
       })
       .then(() => {
         assert.deepEqual(tracker.get('cpu'), [compiledCPU], 'Still one frame of cpu');
@@ -47,7 +47,7 @@ export default function statsTrackerFrameMissing({
 
         shouldFail = false;
         tracker.get('poll').perform();
-        return wait();
+        return settled();
       })
       .then(() => {
         assert.deepEqual(tracker.get('cpu'), [compiledCPU, compiledCPU], 'Still one frame of cpu');
@@ -74,20 +74,20 @@ export default function statsTrackerFrameMissing({
     });
 
     tracker.get('poll').perform();
-    return wait()
+    return settled()
       .then(() => {
         assert.equal(tracker.get('frameMisses'), 1, 'Tick misses');
         assert.notOk(tracker.pause.called, 'Pause not called yet');
 
         tracker.get('poll').perform();
-        return wait();
+        return settled();
       })
       .then(() => {
         assert.equal(tracker.get('frameMisses'), 2, 'Tick misses');
         assert.notOk(tracker.pause.called, 'Pause still not called yet');
 
         tracker.get('poll').perform();
-        return wait();
+        return settled();
       })
       .then(() => {
         assert.equal(tracker.get('frameMisses'), 0, 'Misses reset');

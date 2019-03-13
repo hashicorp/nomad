@@ -1,5 +1,6 @@
 import { getOwner } from '@ember/application';
-import { moduleForModel } from 'ember-qunit';
+import { module } from 'qunit';
+import { setupTest } from 'ember-qunit';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 
 export default function(modelName, description, options = { needs: [] }) {

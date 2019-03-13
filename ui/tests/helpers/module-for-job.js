@@ -1,5 +1,5 @@
-import { test } from 'qunit';
-import moduleForAcceptance from 'nomad-ui/tests/helpers/module-for-acceptance';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 
 export default function moduleForJob(title, context, jobFactory, additionalTests) {

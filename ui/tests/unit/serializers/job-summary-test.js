@@ -1,4 +1,4 @@
-import { test } from 'ember-qunit';
+import { test } from 'qunit';
 import JobSummaryModel from 'nomad-ui/models/job-summary';
 import moduleForSerializer from '../../helpers/module-for-serializer';
 

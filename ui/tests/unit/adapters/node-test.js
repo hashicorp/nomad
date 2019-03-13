@@ -1,8 +1,8 @@
 import { run } from '@ember/runloop';
-import { test } from 'ember-qunit';
-import wait from 'ember-test-helpers/wait';
+import { test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import moduleForAdapter from '../../helpers/module-for-adapter';
+import { settled } from '@ember/test-helpers';
 
 moduleForAdapter('node', 'Unit | Adapter | Node', {
   needs: [
@@ -59,7 +59,7 @@ test('findHasMany removes old related models from the store', function(assert) {
     });
   });
 
-  return wait().then(() => {
+  return settled().then(() => {
     server.db.allocations.remove('node-1-1');
 
     run(() => {
@@ -95,7 +95,7 @@ test('findHasMany does not remove old unrelated models from the store', function
     this.store.findRecord('node', 'node-2').then(model => findHasMany(model, 'allocations'));
   });
 
-  return wait().then(() => {
+  return settled().then(() => {
     assert.deepEqual(
       this.store
         .peekAll('allocation')

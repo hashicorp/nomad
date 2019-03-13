@@ -1,4 +1,4 @@
-import { test } from 'ember-qunit';
+import { test } from 'qunit';
 import JobPlanModel from 'nomad-ui/models/job-plan';
 import moduleForSerializer from '../../helpers/module-for-serializer';
 
