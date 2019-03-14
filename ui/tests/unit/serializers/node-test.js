@@ -12,7 +12,7 @@ module('Unit | Serializer | Node', function(hooks) {
     this.subject = () => this.store.serializerFor('node');
   });
 
-  test('local store is culled to reflect the state of findAll requests', function(assert) {
+  test('local store is culled to reflect the state of findAll requests', async function(assert) {
     const findAllResponse = [
       makeNode('1', 'One', '127.0.0.1:4646'),
       makeNode('2', 'Two', '127.0.0.2:4646'),
@@ -53,24 +53,23 @@ module('Unit | Serializer | Node', function(hooks) {
     });
     pushPayloadToStore(this.store, newPayload, NodeModel.modelName);
 
-    return settled().then(() => {
-      assert.equal(
-        newPayload.data.length,
-        newFindAllResponse.length,
-        'Each new record is returned in the response'
-      );
+    await settled();
+    assert.equal(
+      newPayload.data.length,
+      newFindAllResponse.length,
+      'Each new record is returned in the response'
+    );
 
-      assert.equal(
-        this.store
-          .peekAll('node')
-          .filterBy('id')
-          .get('length'),
-        newFindAllResponse.length,
-        'The node length in the store reflects the new response'
-      );
+    assert.equal(
+      this.store
+        .peekAll('node')
+        .filterBy('id')
+        .get('length'),
+      newFindAllResponse.length,
+      'The node length in the store reflects the new response'
+    );
 
-      assert.notOk(this.store.peekAll('node').findBy('id', '1'), 'Record One is no longer found');
-    });
+    assert.notOk(this.store.peekAll('node').findBy('id', '1'), 'Record One is no longer found');
   });
 
   function makeNode(id, name, ip) {
@@ -167,7 +166,7 @@ module('Unit | Serializer | Node', function(hooks) {
   ];
 
   normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, function(assert) {
+    test(`normalization: ${testCase.name}`, async function(assert) {
       assert.deepEqual(this.subject().normalize(NodeModel, testCase.in), testCase.out);
     });
   });

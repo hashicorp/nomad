@@ -40,23 +40,19 @@ module('Acceptance | tokens', function(hooks) {
   // TODO: unskip once store.unloadAll reliably waits for in-flight requests to settle
   skip('the X-Nomad-Token header gets sent with requests once it is set', async function(assert) {
     const { secretId } = managementToken;
-    let requestPosition = 0;
 
     await JobDetail.visit({ id: job.id });
     await ClientDetail.visit({ id: node.id });
 
-    andThen(() => {
-      assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
+    assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
 
-      server.pretender.handledRequests.forEach(req => {
-        assert.notOk(getHeader(req, 'X-Nomad-Token'), `No token for ${req.url}`);
-      });
-
-      requestPosition = server.pretender.handledRequests.length;
+    server.pretender.handledRequests.forEach(req => {
+      assert.notOk(getHeader(req, 'X-Nomad-Token'), `No token for ${req.url}`);
     });
 
-    await Tokens.visit();
+    const requestPosition = server.pretender.handledRequests.length;
 
+    await Tokens.visit();
     await Tokens.secret(secretId).submit();
 
     await JobDetail.visit({ id: job.id });

@@ -26,86 +26,64 @@ module('Unit | Adapter | Node', function(hooks) {
     this.server.shutdown();
   });
 
-  test('findHasMany removes old related models from the store', function(assert) {
-    let node;
-    run(() => {
-      // Fetch the model
-      this.store.findRecord('node', 'node-1').then(model => {
-        node = model;
+  test('findHasMany removes old related models from the store', async function(assert) {
+    // Fetch the model and related allocations
+    let node = await run(() => this.store.findRecord('node', 'node-1'));
+    let allocations = await run(() => findHasMany(node, 'allocations'));
+    assert.equal(
+      allocations.get('length'),
+      this.server.db.allocations.where({ nodeId: node.get('id') }).length,
+      'Allocations returned from the findHasMany matches the db state'
+    );
 
-        // Fetch the related allocations
-        return findHasMany(model, 'allocations').then(allocations => {
-          assert.equal(
-            allocations.get('length'),
-            this.server.db.allocations.where({ nodeId: node.get('id') }).length,
-            'Allocations returned from the findHasMany matches the db state'
-          );
-        });
-      });
-    });
+    await settled();
+    server.db.allocations.remove('node-1-1');
 
-    return settled().then(() => {
-      server.db.allocations.remove('node-1-1');
-
-      run(() => {
-        // Reload the related allocations now that one was removed server-side
-        return findHasMany(node, 'allocations').then(allocations => {
-          const dbAllocations = this.server.db.allocations.where({ nodeId: node.get('id') });
-          assert.equal(
-            allocations.get('length'),
-            dbAllocations.length,
-            'Allocations returned from the findHasMany matches the db state'
-          );
-          assert.equal(
-            this.store.peekAll('allocation').get('length'),
-            dbAllocations.length,
-            'Server-side deleted allocation was removed from the store'
-          );
-        });
-      });
-    });
+    allocations = await run(() => findHasMany(node, 'allocations'));
+    const dbAllocations = this.server.db.allocations.where({ nodeId: node.get('id') });
+    assert.equal(
+      allocations.get('length'),
+      dbAllocations.length,
+      'Allocations returned from the findHasMany matches the db state'
+    );
+    assert.equal(
+      this.store.peekAll('allocation').get('length'),
+      dbAllocations.length,
+      'Server-side deleted allocation was removed from the store'
+    );
   });
 
-  test('findHasMany does not remove old unrelated models from the store', function(assert) {
-    let node;
+  test('findHasMany does not remove old unrelated models from the store', async function(assert) {
+    // Fetch the first node and related allocations
+    const node = await run(() => this.store.findRecord('node', 'node-1'));
+    await run(() => findHasMany(node, 'allocations'));
 
-    run(() => {
-      // Fetch the first node and related allocations
-      this.store.findRecord('node', 'node-1').then(model => {
-        node = model;
-        return findHasMany(model, 'allocations');
-      });
+    // Also fetch the second node and related allocations;
+    const node2 = await run(() => this.store.findRecord('node', 'node-2'));
+    await run(() => findHasMany(node2, 'allocations'));
 
-      // Also fetch the second node and related allocations;
-      this.store.findRecord('node', 'node-2').then(model => findHasMany(model, 'allocations'));
-    });
+    await settled();
+    assert.deepEqual(
+      this.store
+        .peekAll('allocation')
+        .mapBy('id')
+        .sort(),
+      ['node-1-1', 'node-1-2', 'node-2-1', 'node-2-2'],
+      'All allocations for the first and second node are in the store'
+    );
 
-    return settled().then(() => {
-      assert.deepEqual(
-        this.store
-          .peekAll('allocation')
-          .mapBy('id')
-          .sort(),
-        ['node-1-1', 'node-1-2', 'node-2-1', 'node-2-2'],
-        'All allocations for the first and second node are in the store'
-      );
+    server.db.allocations.remove('node-1-1');
 
-      server.db.allocations.remove('node-1-1');
-
-      run(() => {
-        // Reload the related allocations now that one was removed server-side
-        return findHasMany(node, 'allocations').then(() => {
-          assert.deepEqual(
-            this.store
-              .peekAll('allocation')
-              .mapBy('id')
-              .sort(),
-            ['node-1-2', 'node-2-1', 'node-2-2'],
-            'The deleted allocation is removed from the store and the allocations associated with the other node are untouched'
-          );
-        });
-      });
-    });
+    // Reload the related allocations now that one was removed server-side
+    await run(() => findHasMany(node, 'allocations'));
+    assert.deepEqual(
+      this.store
+        .peekAll('allocation')
+        .mapBy('id')
+        .sort(),
+      ['node-1-2', 'node-2-1', 'node-2-2'],
+      'The deleted allocation is removed from the store and the allocations associated with the other node are untouched'
+    );
   });
 });
 

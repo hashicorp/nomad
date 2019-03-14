@@ -67,14 +67,14 @@ module('Unit | Util | Log', function(hooks) {
     },
   });
 
-  test('logStreamer is created on init', function(assert) {
+  test('logStreamer is created on init', async function(assert) {
     const log = Log.create(makeMocks(''));
 
     assert.ok(log.get('logStreamer'), 'logStreamer property is defined');
     assert.ok(initSpy.calledOnce, 'logStreamer init was called');
   });
 
-  test('gotoHead builds the correct URL', function(assert) {
+  test('gotoHead builds the correct URL', async function(assert) {
     const mocks = makeMocks('');
     const expectedUrl = `${mocks.url}?a=param&another=one&offset=0&origin=start&plain=true`;
     const log = Log.create(mocks);
@@ -85,7 +85,7 @@ module('Unit | Util | Log', function(hooks) {
     });
   });
 
-  test('When gotoHead returns too large of a log, the log is truncated', function(assert) {
+  test('When gotoHead returns too large of a log, the log is truncated', async function(assert) {
     const longLog = Array(50001)
       .fill('a')
       .join('');
@@ -99,17 +99,16 @@ module('Unit | Util | Log', function(hooks) {
       log.get('gotoHead').perform();
     });
 
-    return settled().then(() => {
-      assert.ok(log.get('output').endsWith(truncationMessage), 'Truncation message is shown');
-      assert.equal(
-        log.get('output').length,
-        50000 + truncationMessage.length,
-        'Output is truncated the appropriate amount'
-      );
-    });
+    await settled();
+    assert.ok(log.get('output').endsWith(truncationMessage), 'Truncation message is shown');
+    assert.equal(
+      log.get('output').length,
+      50000 + truncationMessage.length,
+      'Output is truncated the appropriate amount'
+    );
   });
 
-  test('gotoTail builds the correct URL', function(assert) {
+  test('gotoTail builds the correct URL', async function(assert) {
     const mocks = makeMocks('');
     const expectedUrl = `${mocks.url}?a=param&another=one&offset=50000&origin=end&plain=true`;
     const log = Log.create(mocks);
@@ -120,7 +119,7 @@ module('Unit | Util | Log', function(hooks) {
     });
   });
 
-  test('startStreaming starts the log streamer', function(assert) {
+  test('startStreaming starts the log streamer', async function(assert) {
     const log = Log.create(makeMocks(''));
 
     log.startStreaming();
@@ -128,7 +127,7 @@ module('Unit | Util | Log', function(hooks) {
     assert.equal(log.get('logPointer'), 'tail', 'Streaming points the log to the tail');
   });
 
-  test('When the log streamer calls `write`, the output is appended', function(assert) {
+  test('When the log streamer calls `write`, the output is appended', async function(assert) {
     const log = Log.create(makeMocks(''));
     const chunk1 = 'Hello';
     const chunk2 = ' World';
@@ -147,7 +146,7 @@ module('Unit | Util | Log', function(hooks) {
     assert.equal(log.get('output'), chunk1 + chunk2 + chunk3, 'Third chunk written');
   });
 
-  test('stop stops the log streamer', function(assert) {
+  test('stop stops the log streamer', async function(assert) {
     const log = Log.create(makeMocks(''));
 
     log.stop();
