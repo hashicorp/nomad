@@ -402,11 +402,42 @@ func (d *Driver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.E
 	return ch, nil
 }
 
+// handleFailedExecutor is called when we receive an unrecoverable error from
+// an executor process.
+//
+// Here we attempt to clean up the orphaned subprocesses before returning the
+// error to the Nomad client to avoid orphaning the process and running duplicate
+// tasks.
+func (d *Driver) handleFailedExecutor(handle *taskHandle) error {
+	// If the pid is unset (0), or is kernel task (1), then we shouldn't try to
+	// look it up and terminate it. This case should never happen, but exists
+	// for extra defensiveness.
+	if handle.pid < 2 {
+		return nil
+	}
+
+	ps, err := os.FindProcess(handle.pid)
+	if err != nil {
+		return fmt.Errorf("Could not find child process (%d): %v", handle.pid, err)
+	}
+
+	err = ps.Kill()
+	if err != nil {
+		return fmt.Errorf("Failed to terminate child process (%d): %v", handle.pid, err)
+	}
+
+	return nil
+}
+
 func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *drivers.ExitResult) {
 	defer close(ch)
 	var result *drivers.ExitResult
 	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
+		cErr := d.handleFailedExecutor(handle)
+		if cErr != nil {
+			d.logger.Error("Failed to cleanup subprocess", "error", err)
+		}
 		result = &drivers.ExitResult{
 			Err: fmt.Errorf("executor: error waiting on process: %v", err),
 		}
