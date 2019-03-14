@@ -63,7 +63,7 @@
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-moment": "^7.5.0",
     "ember-native-dom-helpers": "^0.5.4",
-    "ember-power-select": "^1.10.4",
+    "ember-power-select": "^2.2.3",
     "ember-resolver": "^4.5.0",
     "ember-responsive": "^3.0.0",
     "ember-sinon": "^1.0.1",
