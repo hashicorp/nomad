@@ -49,9 +49,10 @@ Vagrant.configure(2) do |config|
 	config.vm.define "freebsd", autostart: false, primary: false do |vmCfg|
 		vmCfg.vm.box = FREEBSD_BASE_BOX
 		vmCfg.vm.hostname = "freebsd"
+		vmCfg.ssh.shell = "sh"
 		vmCfg = configureProviders vmCfg,
 			cpus: suggestedCPUCores()
-
+		vmCfg.vm.network "private_network", type: "dhcp"
 		vmCfg.vm.synced_folder '.',
 			'/opt/gopath/src/github.com/hashicorp/nomad',
 			type: "nfs",
