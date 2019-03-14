@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+. ~/.nvm/nvm.sh
+
+set -e
+set -x
+
+cp -r /tmp/nomad-git /opt/gopath/src/github.com/hashicorp/nomad/.git
+
+cd /opt/gopath/src/github.com/hashicorp/nomad
+git checkout .
+
+make -f ./scripts/release/Makefile.linux \
+  "NOMAD_VERSION=${NOMAD_VERSION}" \
+  "PRERELEASE_TARGET=${PRERELEASE_TARGET}" \
+  "RELEASE_TARGET=${RELEASE_TARGET}" \
+  update_version build_releases
+
+cp -r /opt/gopath/src/github.com/hashicorp/nomad \
+    /tmp/artifacts/repo
