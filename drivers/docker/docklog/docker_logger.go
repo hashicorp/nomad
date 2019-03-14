@@ -112,12 +112,12 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 			} else if err == nil {
 				backoff = 0.0
 			} else if isLoggingTerminalError(err) {
-				d.logger.Error("Log streaming ended with terminal error", "error", err)
+				d.logger.Error("log streaming ended with terminal error", "error", err)
 				return
 			} else if err != nil {
-				d.logger.Error("Log streaming ended with error", "error", err)
-
 				backoff = nextBackoff(backoff)
+				d.logger.Error("log streaming ended with error", "error", err, "retry_in", backoff)
+
 				time.Sleep(time.Duration(backoff) * time.Second)
 			}
 
