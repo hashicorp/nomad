@@ -9,7 +9,7 @@ module('Unit | Serializer | Job', function(hooks) {
     this.subject = () => this.store.serializerFor('job');
   });
 
-  test('`default` is used as the namespace in the job ID when there is no namespace in the payload', function(assert) {
+  test('`default` is used as the namespace in the job ID when there is no namespace in the payload', async function(assert) {
     const original = {
       ID: 'example',
       Name: 'example',
@@ -19,7 +19,7 @@ module('Unit | Serializer | Job', function(hooks) {
     assert.equal(data.id, JSON.stringify([data.attributes.name, 'default']));
   });
 
-  test('The ID of the record is a composite of both the name and the namespace', function(assert) {
+  test('The ID of the record is a composite of both the name and the namespace', async function(assert) {
     const original = {
       ID: 'example',
       Name: 'example',

@@ -95,7 +95,7 @@ module('Unit | Serializer | JobSummary', function(hooks) {
   ];
 
   normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, function(assert) {
+    test(`normalization: ${testCase.name}`, async function(assert) {
       assert.deepEqual(this.subject().normalize(JobSummaryModel, testCase.in), testCase.out);
     });
   });

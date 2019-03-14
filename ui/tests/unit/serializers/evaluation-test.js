@@ -95,7 +95,7 @@ module('Unit | Serializer | Evaluation', function(hooks) {
   ];
 
   normalizationTestCases.forEach(testCase => {
-    test(`normalization: ${testCase.name}`, function(assert) {
+    test(`normalization: ${testCase.name}`, async function(assert) {
       assert.deepEqual(this.subject().normalize(EvaluationModel, testCase.in), testCase.out);
     });
   });
