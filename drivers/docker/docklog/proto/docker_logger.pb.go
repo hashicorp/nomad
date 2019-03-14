@@ -40,7 +40,7 @@ func (m *StartRequest) Reset()         { *m = StartRequest{} }
 func (m *StartRequest) String() string { return proto.CompactTextString(m) }
 func (*StartRequest) ProtoMessage()    {}
 func (*StartRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_docker_logger_0aa5a411831bd10e, []int{0}
+	return fileDescriptor_docker_logger_550e35425edc00c0, []int{0}
 }
 func (m *StartRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartRequest.Unmarshal(m, b)
@@ -119,7 +119,7 @@ func (m *StartResponse) Reset()         { *m = StartResponse{} }
 func (m *StartResponse) String() string { return proto.CompactTextString(m) }
 func (*StartResponse) ProtoMessage()    {}
 func (*StartResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_docker_logger_0aa5a411831bd10e, []int{1}
+	return fileDescriptor_docker_logger_550e35425edc00c0, []int{1}
 }
 func (m *StartResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StartResponse.Unmarshal(m, b)
@@ -149,7 +149,7 @@ func (m *StopRequest) Reset()         { *m = StopRequest{} }
 func (m *StopRequest) String() string { return proto.CompactTextString(m) }
 func (*StopRequest) ProtoMessage()    {}
 func (*StopRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_docker_logger_0aa5a411831bd10e, []int{2}
+	return fileDescriptor_docker_logger_550e35425edc00c0, []int{2}
 }
 func (m *StopRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopRequest.Unmarshal(m, b)
@@ -179,7 +179,7 @@ func (m *StopResponse) Reset()         { *m = StopResponse{} }
 func (m *StopResponse) String() string { return proto.CompactTextString(m) }
 func (*StopResponse) ProtoMessage()    {}
 func (*StopResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_docker_logger_0aa5a411831bd10e, []int{3}
+	return fileDescriptor_docker_logger_550e35425edc00c0, []int{3}
 }
 func (m *StopResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StopResponse.Unmarshal(m, b)
@@ -312,10 +312,10 @@ var _DockerLogger_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("drivers/docker/docklog/proto/docker_logger.proto", fileDescriptor_docker_logger_0aa5a411831bd10e)
+	proto.RegisterFile("drivers/docker/docklog/proto/docker_logger.proto", fileDescriptor_docker_logger_550e35425edc00c0)
 }
 
-var fileDescriptor_docker_logger_0aa5a411831bd10e = []byte{
+var fileDescriptor_docker_logger_550e35425edc00c0 = []byte{
 	// 328 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x50, 0xb1, 0x4e, 0xeb, 0x40,
 	0x10, 0x7c, 0xce, 0x8b, 0x9d, 0x70, 0x49, 0x40, 0x3a, 0x09, 0x61, 0xd2, 0x00, 0xae, 0x28, 0x90,
