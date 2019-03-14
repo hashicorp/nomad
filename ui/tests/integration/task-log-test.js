@@ -68,6 +68,8 @@ module('Integration | Component | task log', function(hooks) {
   });
 
   test('Basic appearance', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
+
     this.setProperties(commonProps);
     await render(hbs`{{task-log allocation=allocation task=task}}`);
 
@@ -79,7 +81,10 @@ module('Integration | Component | task log', function(hooks) {
 
     assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'), 'Body is full-bleed and dark');
 
-    assert.ok(find('pre.cli-window'), 'Cli is preformatted and using the cli-window component class');
+    assert.ok(
+      find('pre.cli-window'),
+      'Cli is preformatted and using the cli-window component class'
+    );
   });
 
   test('Streaming starts on creation', async function(assert) {
@@ -94,50 +99,53 @@ module('Integration | Component | task log', function(hooks) {
       'Log requests were made'
     );
 
-    return settled().then(() => {
-      assert.equal(
-        find('[data-test-log-cli]').textContent,
-        streamFrames[0],
-        'First chunk of streaming log is shown'
-      );
-    });
+    await settled();
+    assert.equal(
+      find('[data-test-log-cli]').textContent,
+      streamFrames[0],
+      'First chunk of streaming log is shown'
+    );
   });
 
   test('Clicking Head loads the log head', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
+
     this.setProperties(commonProps);
     await render(hbs`{{task-log allocation=allocation task=task}}`);
 
     click('[data-test-log-action="head"]');
 
-    return settled().then(() => {
-      assert.ok(
-        this.server.handledRequests.find(
-          ({ queryParams: qp }) => qp.origin === 'start' && qp.plain === 'true' && qp.offset === '0'
-        ),
-        'Log head request was made'
-      );
-      assert.equal(find('[data-test-log-cli]').textContent, logHead[0], 'Head of the log is shown');
-    });
+    await settled();
+    assert.ok(
+      this.server.handledRequests.find(
+        ({ queryParams: qp }) => qp.origin === 'start' && qp.plain === 'true' && qp.offset === '0'
+      ),
+      'Log head request was made'
+    );
+    assert.equal(find('[data-test-log-cli]').textContent, logHead[0], 'Head of the log is shown');
   });
 
   test('Clicking Tail loads the log tail', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
+
     this.setProperties(commonProps);
     await render(hbs`{{task-log allocation=allocation task=task}}`);
 
     click('[data-test-log-action="tail"]');
 
-    return settled().then(() => {
-      assert.ok(
-        this.server.handledRequests.find(
-          ({ queryParams: qp }) => qp.origin === 'end' && qp.plain === 'true'
-        ),
-        'Log tail request was made'
-      );
-      assert.equal(find('[data-test-log-cli]').textContent, logTail[0], 'Tail of the log is shown');
-    });
+    await settled();
+    assert.ok(
+      this.server.handledRequests.find(
+        ({ queryParams: qp }) => qp.origin === 'end' && qp.plain === 'true'
+      ),
+      'Log tail request was made'
+    );
+    assert.equal(find('[data-test-log-cli]').textContent, logTail[0], 'Tail of the log is shown');
   });
 
   test('Clicking toggleStream starts and stops the log stream', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
+
     const { interval } = commonProps;
     this.setProperties(commonProps);
     await render(hbs`{{task-log allocation=allocation task=task interval=interval}}`);
@@ -146,42 +154,41 @@ module('Integration | Component | task log', function(hooks) {
       click('[data-test-log-action="toggle-stream"]');
     }, interval);
 
-    return settled().then(() => {
-      assert.equal(find('[data-test-log-cli]').textContent, streamFrames[0], 'First frame loaded');
+    await settled();
+    assert.equal(find('[data-test-log-cli]').textContent, streamFrames[0], 'First frame loaded');
 
-      run.later(() => {
-        assert.equal(
-          find('[data-test-log-cli]').textContent,
-          streamFrames[0],
-          'Still only first frame'
-        );
-        click('[data-test-log-action="toggle-stream"]');
-        run.later(run, run.cancelTimers, interval * 2);
-      }, interval * 2);
+    run.later(() => {
+      assert.equal(
+        find('[data-test-log-cli]').textContent,
+        streamFrames[0],
+        'Still only first frame'
+      );
+      click('[data-test-log-action="toggle-stream"]');
+      run.later(run, run.cancelTimers, interval * 2);
+    }, interval * 2);
 
-      return settled().then(() => {
-        assert.equal(
-          find('[data-test-log-cli]').textContent,
-          streamFrames[0] + streamFrames[0] + streamFrames[1],
-          'Now includes second frame'
-        );
-      });
-    });
+    await settled();
+    assert.equal(
+      find('[data-test-log-cli]').textContent,
+      streamFrames[0] + streamFrames[0] + streamFrames[1],
+      'Now includes second frame'
+    );
   });
 
   test('Clicking stderr switches the log to standard error', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
+
     this.setProperties(commonProps);
     await render(hbs`{{task-log allocation=allocation task=task}}`);
 
     click('[data-test-log-action="stderr"]');
     run.later(run, run.cancelTimers, commonProps.interval);
 
-    return settled().then(() => {
-      assert.ok(
-        this.server.handledRequests.filter(req => req.queryParams.type === 'stderr').length,
-        'stderr log requests were made'
-      );
-    });
+    await settled();
+    assert.ok(
+      this.server.handledRequests.filter(req => req.queryParams.type === 'stderr').length,
+      'stderr log requests were made'
+    );
   });
 
   test('When the client is inaccessible, task-log falls back to requesting logs through the server', async function(assert) {
@@ -207,13 +214,12 @@ module('Integration | Component | task log', function(hooks) {
       'Log request was initially made directly to the client'
     );
 
-    return settled().then(() => {
-      const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
-      assert.ok(
-        this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
-        'Log request was later made to the server'
-      );
-    });
+    await settled();
+    const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
+    assert.ok(
+      this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
+      'Log request was later made to the server'
+    );
   });
 
   test('When both the client and the server are inaccessible, an error message is shown', async function(assert) {
@@ -238,18 +244,17 @@ module('Integration | Component | task log', function(hooks) {
       clientTimeout=clientTimeout
       serverTimeout=serverTimeout}}`);
 
-    return settled().then(() => {
-      const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
-      assert.ok(
-        this.server.handledRequests.filter(req => clientUrlRegex.test(req.url)).length,
-        'Log request was initially made directly to the client'
-      );
-      const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
-      assert.ok(
-        this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
-        'Log request was later made to the server'
-      );
-      assert.ok(find('[data-test-connection-error]'), 'An error message is shown');
-    });
+    await settled();
+    const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
+    assert.ok(
+      this.server.handledRequests.filter(req => clientUrlRegex.test(req.url)).length,
+      'Log request was initially made directly to the client'
+    );
+    const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
+    assert.ok(
+      this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
+      'Log request was later made to the server'
+    );
+    assert.ok(find('[data-test-connection-error]'), 'An error message is shown');
   });
 });
