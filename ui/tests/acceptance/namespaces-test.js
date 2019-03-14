@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { selectChoose } from 'ember-power-select/test-support';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 module('Acceptance | namespaces (disabled)', function(hooks) {
@@ -13,14 +14,13 @@ module('Acceptance | namespaces (disabled)', function(hooks) {
     server.createList('job', 5);
   });
 
-  test('the namespace switcher is not in the gutter menu', function(assert) {
-    JobsList.visit();
-
+  test('the namespace switcher is not in the gutter menu', async function(assert) {
+    await JobsList.visit();
     assert.notOk(JobsList.namespaceSwitcher.isPresent, 'No namespace switcher found');
   });
 
-  test('the jobs request is made with no query params', function(assert) {
-    JobsList.visit();
+  test('the jobs request is made with no query params', async function(assert) {
+    await JobsList.visit();
 
     const request = server.pretender.handledRequests.findBy('url', '/v1/jobs');
     assert.equal(request.queryParams.namespace, undefined, 'No namespace query param');
@@ -29,6 +29,7 @@ module('Acceptance | namespaces (disabled)', function(hooks) {
 
 module('Acceptance | namespaces (enabled)', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
   hooks.beforeEach(function() {
     server.createList('namespace', 3);
@@ -37,13 +38,13 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     server.createList('job', 5);
   });
 
-  test('the namespace switcher lists all namespaces', function(assert) {
+  test('the namespace switcher lists all namespaces', async function(assert) {
     const namespaces = server.db.namespaces;
 
-    JobsList.visit();
+    await JobsList.visit();
 
     assert.ok(JobsList.namespaceSwitcher.isPresent, 'Namespace switcher found');
-    JobsList.namespaceSwitcher.open();
+    await JobsList.namespaceSwitcher.open();
     // TODO this selector should be scoped to only the namespace switcher options,
     // but ember-wormhole makes that difficult.
     assert.equal(
@@ -67,12 +68,12 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     });
   });
 
-  test('changing the namespace sets the namespace in localStorage', function(assert) {
+  test('changing the namespace sets the namespace in localStorage', async function(assert) {
     const namespace = server.db.namespaces[1];
 
-    JobsList.visit();
+    await JobsList.visit();
+    await selectChoose('[data-test-namespace-switcher]', namespace.name);
 
-    selectChoose('[data-test-namespace-switcher]', namespace.name);
     assert.equal(
       window.localStorage.nomadActiveNamespace,
       namespace.id,
@@ -80,10 +81,10 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     );
   });
 
-  test('changing the namespace refreshes the jobs list when on the jobs page', function(assert) {
+  test('changing the namespace refreshes the jobs list when on the jobs page', async function(assert) {
     const namespace = server.db.namespaces[1];
 
-    JobsList.visit();
+    await JobsList.visit();
 
     let requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
     assert.equal(requests.length, 1, 'First request to jobs');
@@ -94,7 +95,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     );
 
     // TODO: handle this with Page Objects
-    selectChoose('[data-test-namespace-switcher]', namespace.name);
+    await selectChoose('[data-test-namespace-switcher]', namespace.name);
 
     requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
     assert.equal(requests.length, 2, 'Second request to jobs');

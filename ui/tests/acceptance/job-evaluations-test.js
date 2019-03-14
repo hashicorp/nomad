@@ -11,14 +11,14 @@ module('Acceptance | job evaluations', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     job = server.create('job', { noFailedPlacements: true, createAllocations: false });
     evaluations = server.db.evaluations.where({ jobId: job.id });
 
-    Evaluations.visit({ id: job.id });
+    await Evaluations.visit({ id: job.id });
   });
 
-  test('lists all evaluations for the job', function(assert) {
+  test('lists all evaluations for the job', async function(assert) {
     assert.equal(Evaluations.evaluations.length, evaluations.length, 'All evaluations are listed');
 
     const sortedEvaluations = evaluations.sortBy('modifyIndex').reverse();
@@ -29,8 +29,8 @@ module('Acceptance | job evaluations', function(hooks) {
     });
   });
 
-  test('evaluations table is sortable', function(assert) {
-    Evaluations.sortBy('priority');
+  test('evaluations table is sortable', async function(assert) {
+    await Evaluations.sortBy('priority');
 
     assert.equal(
       currentURL(),
@@ -48,8 +48,8 @@ module('Acceptance | job evaluations', function(hooks) {
     });
   });
 
-  test('when the job for the evaluations is not found, an error message is shown, but the URL persists', function(assert) {
-    Evaluations.visit({ id: 'not-a-real-job' });
+  test('when the job for the evaluations is not found, an error message is shown, but the URL persists', async function(assert) {
+    await Evaluations.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,

@@ -17,6 +17,9 @@ module('Acceptance | tokens', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function() {
+    localStorage.clear();
+    sessionStorage.clear();
+
     server.create('agent');
     node = server.create('node');
     job = server.create('job');
@@ -24,25 +27,23 @@ module('Acceptance | tokens', function(hooks) {
     clientToken = server.create('token');
   });
 
-  test('the token form sets the token in local storage', function(assert) {
+  test('the token form sets the token in local storage', async function(assert) {
     const { secretId } = managementToken;
 
-    Tokens.visit();
-
+    await Tokens.visit();
     assert.ok(window.localStorage.nomadTokenSecret == null, 'No token secret set');
 
-    Tokens.secret(secretId).submit();
-
+    await Tokens.secret(secretId).submit();
     assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
   });
 
   // TODO: unskip once store.unloadAll reliably waits for in-flight requests to settle
-  skip('the X-Nomad-Token header gets sent with requests once it is set', function(assert) {
+  skip('the X-Nomad-Token header gets sent with requests once it is set', async function(assert) {
     const { secretId } = managementToken;
     let requestPosition = 0;
 
-    JobDetail.visit({ id: job.id });
-    ClientDetail.visit({ id: node.id });
+    await JobDetail.visit({ id: job.id });
+    await ClientDetail.visit({ id: node.id });
 
     andThen(() => {
       assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
@@ -54,27 +55,23 @@ module('Acceptance | tokens', function(hooks) {
       requestPosition = server.pretender.handledRequests.length;
     });
 
-    Tokens.visit();
+    await Tokens.visit();
 
-    andThen(() => {
-      Tokens.secret(secretId).submit();
-    });
+    await Tokens.secret(secretId).submit();
 
-    JobDetail.visit({ id: job.id });
-    ClientDetail.visit({ id: node.id });
+    await JobDetail.visit({ id: job.id });
+    await ClientDetail.visit({ id: node.id });
 
-    andThen(() => {
-      const newRequests = server.pretender.handledRequests.slice(requestPosition);
-      assert.ok(newRequests.length > 1, 'New requests have been made');
+    const newRequests = server.pretender.handledRequests.slice(requestPosition);
+    assert.ok(newRequests.length > 1, 'New requests have been made');
 
-      // Cross-origin requests can't have a token
-      newRequests.forEach(req => {
-        assert.equal(getHeader(req, 'X-Nomad-Token'), secretId, `Token set for ${req.url}`);
-      });
+    // Cross-origin requests can't have a token
+    newRequests.forEach(req => {
+      assert.equal(getHeader(req, 'X-Nomad-Token'), secretId, `Token set for ${req.url}`);
     });
   });
 
-  test('an error message is shown when authenticating a token fails', function(assert) {
+  test('an error message is shown when authenticating a token fails', async function(assert) {
     const { secretId } = managementToken;
     const bogusSecret = 'this-is-not-the-secret';
     assert.notEqual(
@@ -83,9 +80,8 @@ module('Acceptance | tokens', function(hooks) {
       'bogus secret is not somehow coincidentally equal to the real secret'
     );
 
-    Tokens.visit();
-
-    Tokens.secret(bogusSecret).submit();
+    await Tokens.visit();
+    await Tokens.secret(bogusSecret).submit();
 
     assert.ok(window.localStorage.nomadTokenSecret == null, 'Token secret is discarded on failure');
     assert.ok(Tokens.errorMessage, 'Token error message is shown');
@@ -93,12 +89,11 @@ module('Acceptance | tokens', function(hooks) {
     assert.equal(Tokens.policies.length, 0, 'No token policies are shown');
   });
 
-  test('a success message and a special management token message are shown when authenticating succeeds', function(assert) {
+  test('a success message and a special management token message are shown when authenticating succeeds', async function(assert) {
     const { secretId } = managementToken;
 
-    Tokens.visit();
-
-    Tokens.secret(secretId).submit();
+    await Tokens.visit();
+    await Tokens.secret(secretId).submit();
 
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
@@ -106,14 +101,13 @@ module('Acceptance | tokens', function(hooks) {
     assert.equal(Tokens.policies.length, 0, 'No token policies are shown');
   });
 
-  test('a success message and associated policies are shown when authenticating succeeds', function(assert) {
+  test('a success message and associated policies are shown when authenticating succeeds', async function(assert) {
     const { secretId } = clientToken;
     const policy = clientToken.policies.models[0];
     policy.update('description', 'Make sure there is a description');
 
-    Tokens.visit();
-
-    Tokens.secret(secretId).submit();
+    await Tokens.visit();
+    await Tokens.secret(secretId).submit();
 
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
@@ -131,22 +125,20 @@ module('Acceptance | tokens', function(hooks) {
     assert.equal(policyElement.rules, policy.rules, 'Policy Rules');
   });
 
-  test('setting a token clears the store', function(assert) {
+  test('setting a token clears the store', async function(assert) {
     const { secretId } = clientToken;
 
-    Jobs.visit();
-
+    await Jobs.visit();
     assert.ok(find('.job-row'), 'Jobs found');
 
-    Tokens.visit();
-
-    Tokens.secret(secretId).submit();
+    await Tokens.visit();
+    await Tokens.secret(secretId).submit();
 
     server.pretender.get('/v1/jobs', function() {
       return [200, {}, '[]'];
     });
 
-    Jobs.visit();
+    await Jobs.visit();
 
     // If jobs are lingering in the store, they would show up
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');

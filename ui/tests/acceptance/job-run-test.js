@@ -3,6 +3,7 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 
 const newJobName = 'new-job';
@@ -39,26 +40,27 @@ const jsonJob = overrides => {
 module('Acceptance | job run', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupCodeMirror(hooks);
 
   hooks.beforeEach(function() {
     // Required for placing allocations (a result of creating jobs)
     server.create('node');
   });
 
-  test('visiting /jobs/run', function(assert) {
-    JobRun.visit();
+  test('visiting /jobs/run', async function(assert) {
+    await JobRun.visit();
 
     assert.equal(currentURL(), '/jobs/run');
   });
 
-  test('when submitting a job, the site redirects to the new job overview page', function(assert) {
+  test('when submitting a job, the site redirects to the new job overview page', async function(assert) {
     const spec = jsonJob();
 
-    JobRun.visit();
+    await JobRun.visit();
 
-    JobRun.editor.editor.fillIn(spec);
-    JobRun.editor.plan();
-    JobRun.editor.run();
+    await JobRun.editor.editor.fillIn(spec);
+    await JobRun.editor.plan();
+    await JobRun.editor.run();
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}`,
@@ -66,17 +68,17 @@ module('Acceptance | job run', function(hooks) {
     );
   });
 
-  test('when submitting a job to a different namespace, the redirect to the job overview page takes namespace into account', function(assert) {
+  test('when submitting a job to a different namespace, the redirect to the job overview page takes namespace into account', async function(assert) {
     const newNamespace = 'second-namespace';
 
     server.create('namespace', { id: newNamespace });
     const spec = jsonJob({ Namespace: newNamespace });
 
-    JobRun.visit();
+    await JobRun.visit();
 
-    JobRun.editor.editor.fillIn(spec);
-    JobRun.editor.plan();
-    JobRun.editor.run();
+    await JobRun.editor.editor.fillIn(spec);
+    await JobRun.editor.plan();
+    await JobRun.editor.run();
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}?namespace=${newNamespace}`,
