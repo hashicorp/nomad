@@ -179,6 +179,10 @@ check: ## Lint the source code
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/source/
 
+	@echo "==> Check proto files are in-sync..."
+	@$(MAKE) proto
+	@if (git status | grep -q .pb.go); then echo the following proto files are out of sync; git status |grep .pb.go; exit 1; fi
+
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
