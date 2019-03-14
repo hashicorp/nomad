@@ -12,17 +12,17 @@ module('Acceptance | task detail', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
-    Task.visit({ id: allocation.id, name: task.name });
+    await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('/allocation/:id/:task_name should name the task and list high-level task information', function(assert) {
+  test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {
     assert.ok(Task.title.includes(task.name), 'Task name');
     assert.ok(Task.state.includes(task.state), 'Task state');
 
@@ -32,7 +32,7 @@ module('Acceptance | task detail', function(hooks) {
     );
   });
 
-  test('breadcrumbs match jobs / job / task group / allocation / task', function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
@@ -60,20 +60,23 @@ module('Acceptance | task detail', function(hooks) {
       'Task name is the fifth breadcrumb'
     );
 
-    Task.breadcrumbFor('jobs.index').visit();
+    await Task.breadcrumbFor('jobs.index').visit();
     assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
-    Task.visit({ id: allocation.id, name: task.name });
-    Task.breadcrumbFor('jobs.job.index').visit();
+
+    await Task.visit({ id: allocation.id, name: task.name });
+    await Task.breadcrumbFor('jobs.job.index').visit();
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Job breadcrumb links correctly');
-    Task.visit({ id: allocation.id, name: task.name });
-    Task.breadcrumbFor('jobs.job.task-group').visit();
+
+    await Task.visit({ id: allocation.id, name: task.name });
+    await Task.breadcrumbFor('jobs.job.task-group').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/${taskGroup}`,
       'Task Group breadcrumb links correctly'
     );
-    Task.visit({ id: allocation.id, name: task.name });
-    Task.breadcrumbFor('allocations.allocation').visit();
+
+    await Task.visit({ id: allocation.id, name: task.name });
+    await Task.breadcrumbFor('allocations.allocation').visit();
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
@@ -81,13 +84,13 @@ module('Acceptance | task detail', function(hooks) {
     );
   });
 
-  test('/allocation/:id/:task_name should include resource utilization graphs', function(assert) {
+  test('/allocation/:id/:task_name should include resource utilization graphs', async function(assert) {
     assert.equal(Task.resourceCharts.length, 2, 'Two resource utilization graphs');
     assert.equal(Task.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
     assert.equal(Task.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 
-  test('the addresses table lists all reserved and dynamic ports', function(assert) {
+  test('the addresses table lists all reserved and dynamic ports', async function(assert) {
     const taskResources = allocation.taskResourcesIds
       .map(id => server.db.taskResources.find(id))
       .find(resources => resources.name === task.name);
@@ -98,7 +101,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.addresses.length, addresses.length, 'All addresses are listed');
   });
 
-  test('each address row shows the label and value of the address', function(assert) {
+  test('each address row shows the label and value of the address', async function(assert) {
     const taskResources = allocation.taskResourcesIds
       .map(id => server.db.taskResources.find(id))
       .findBy('name', task.name);
@@ -117,13 +120,13 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(addressRow.address, `${networkAddress}:${address.Value}`, 'Value');
   });
 
-  test('the events table lists all recent events', function(assert) {
+  test('the events table lists all recent events', async function(assert) {
     const events = server.db.taskEvents.where({ taskStateId: task.id });
 
     assert.equal(Task.events.length, events.length, `Lists ${events.length} events`);
   });
 
-  test('each recent event should list the time, type, and description of the event', function(assert) {
+  test('each recent event should list the time, type, and description of the event', async function(assert) {
     const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
     const recentEvent = Task.events.objectAt(Task.events.length - 1);
 
@@ -136,8 +139,8 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(recentEvent.message, event.displayMessage, 'Event message');
   });
 
-  test('when the allocation is not found, the application errors', function(assert) {
-    Task.visit({ id: 'not-a-real-allocation', name: task.name });
+  test('when the allocation is not found, the application errors', async function(assert) {
+    await Task.visit({ id: 'not-a-real-allocation', name: task.name });
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
@@ -153,8 +156,8 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('when the allocation is found but the task is not, the application errors', function(assert) {
-    Task.visit({ id: allocation.id, name: 'not-a-real-task-name' });
+  test('when the allocation is found but the task is not, the application errors', async function(assert) {
+    await Task.visit({ id: allocation.id, name: 'not-a-real-task-name' });
 
     assert.ok(
       server.pretender.handledRequests
@@ -175,26 +178,28 @@ module('Acceptance | task detail', function(hooks) {
 
 module('Acceptance | task detail (no addresses)', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     server.create('agent');
     server.create('node');
     server.create('job');
     allocation = server.create('allocation', 'withoutTaskWithPorts', { clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
-    Task.visit({ id: allocation.id, name: task.name });
+    await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('when the task has no addresses, the addresses table is not shown', function(assert) {
+  test('when the task has no addresses, the addresses table is not shown', async function(assert) {
     assert.notOk(Task.hasAddresses, 'No addresses table');
   });
 });
 
 module('Acceptance | task detail (different namespace)', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     server.create('agent');
     server.create('node');
     server.create('namespace');
@@ -203,35 +208,38 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
-    Task.visit({ id: allocation.id, name: task.name });
+    await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('breadcrumbs match jobs / job / task group / allocation / task', function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
-    Task.breadcrumbFor('jobs.index').visit();
+    await Task.breadcrumbFor('jobs.index').visit();
     assert.equal(
       currentURL(),
       '/jobs?namespace=other-namespace',
       'Jobs breadcrumb links correctly'
     );
-    Task.visit({ id: allocation.id, name: task.name });
-    Task.breadcrumbFor('jobs.job.index').visit();
+
+    await Task.visit({ id: allocation.id, name: task.name });
+    await Task.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}?namespace=other-namespace`,
       'Job breadcrumb links correctly'
     );
-    Task.visit({ id: allocation.id, name: task.name });
-    Task.breadcrumbFor('jobs.job.task-group').visit();
+
+    await Task.visit({ id: allocation.id, name: task.name });
+    await Task.breadcrumbFor('jobs.job.task-group').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/${taskGroup}?namespace=other-namespace`,
       'Task Group breadcrumb links correctly'
     );
-    Task.visit({ id: allocation.id, name: task.name });
-    Task.breadcrumbFor('allocations.allocation').visit();
+
+    await Task.visit({ id: allocation.id, name: task.name });
+    await Task.breadcrumbFor('allocations.allocation').visit();
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
@@ -242,8 +250,9 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
 
 module('Acceptance | task detail (not running)', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     server.create('agent');
     server.create('node');
     server.create('namespace');
@@ -252,10 +261,10 @@ module('Acceptance | task detail (not running)', function(hooks) {
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'complete' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
-    Task.visit({ id: allocation.id, name: task.name });
+    await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', function(assert) {
+  test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function(assert) {
     assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
     assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
   });

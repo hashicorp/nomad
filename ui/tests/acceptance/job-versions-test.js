@@ -12,18 +12,18 @@ module('Acceptance | job versions', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     job = server.create('job', { createAllocations: false });
     versions = server.db.jobVersions.where({ jobId: job.id });
 
-    Versions.visit({ id: job.id });
+    await Versions.visit({ id: job.id });
   });
 
-  test('/jobs/:id/versions should list all job versions', function(assert) {
+  test('/jobs/:id/versions should list all job versions', async function(assert) {
     assert.ok(Versions.versions.length, versions.length, 'Each version gets a row in the timeline');
   });
 
-  test('each version mentions the version number, the stability, and the submitted time', function(assert) {
+  test('each version mentions the version number, the stability, and the submitted time', async function(assert) {
     const version = versions.sortBy('submitTime').reverse()[0];
     const formattedSubmitTime = moment(version.submitTime / 1000000).format(
       "MMM DD, 'YY HH:mm:ss ZZ"
@@ -35,8 +35,8 @@ module('Acceptance | job versions', function(hooks) {
     assert.equal(versionRow.submitTime, formattedSubmitTime, 'Submit time');
   });
 
-  test('when the job for the versions is not found, an error message is shown, but the URL persists', function(assert) {
-    Versions.visit({ id: 'not-a-real-job' });
+  test('when the job for the versions is not found, an error message is shown, but the URL persists', async function(assert) {
+    await Versions.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,

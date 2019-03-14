@@ -27,11 +27,11 @@ module('Acceptance | job allocations', function(hooks) {
     job = server.create('job', { noFailedPlacements: true, createAllocations: false });
   });
 
-  test('lists all allocations for the job', function(assert) {
+  test('lists all allocations for the job', async function(assert) {
     server.createList('allocation', Allocations.pageSize - 1);
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-    Allocations.visit({ id: job.id });
+    await Allocations.visit({ id: job.id });
 
     assert.equal(
       Allocations.allocations.length,
@@ -47,13 +47,12 @@ module('Acceptance | job allocations', function(hooks) {
     });
   });
 
-  test('allocations table is sortable', function(assert) {
+  test('allocations table is sortable', async function(assert) {
     server.createList('allocation', Allocations.pageSize - 1);
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
-    Allocations.visit({ id: job.id });
-
-    Allocations.sortBy('taskGroupName');
+    await Allocations.visit({ id: job.id });
+    await Allocations.sortBy('taskGroupName');
 
     assert.equal(
       currentURL(),
@@ -71,24 +70,25 @@ module('Acceptance | job allocations', function(hooks) {
     });
   });
 
-  test('allocations table is searchable', function(assert) {
+  test('allocations table is searchable', async function(assert) {
     makeSearchAllocations(server);
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
-    Allocations.visit({ id: job.id });
 
-    Allocations.search('ffffff');
+    await Allocations.visit({ id: job.id });
+    await Allocations.search('ffffff');
 
     assert.equal(Allocations.allocations.length, 5, 'List is filtered by search term');
   });
 
-  test('when a search yields no results, the search box remains', function(assert) {
+  test('when a search yields no results, the search box remains', async function(assert) {
     makeSearchAllocations(server);
 
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
-    Allocations.visit({ id: job.id });
 
-    Allocations.search('^nothing will ever match this long regex$');
+    await Allocations.visit({ id: job.id });
+    await Allocations.search('^nothing will ever match this long regex$');
+
     assert.equal(
       Allocations.emptyState.headline,
       'No Matches',
@@ -98,8 +98,8 @@ module('Acceptance | job allocations', function(hooks) {
     assert.ok(Allocations.hasSearchBox, 'Search box is still shown');
   });
 
-  test('when the job for the allocations is not found, an error message is shown, but the URL persists', function(assert) {
-    Allocations.visit({ id: 'not-a-real-job' });
+  test('when the job for the allocations is not found, an error message is shown, but the URL persists', async function(assert) {
+    await Allocations.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,

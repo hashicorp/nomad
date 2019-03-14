@@ -18,7 +18,7 @@ module('Acceptance | task group detail', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     server.create('agent');
     server.create('node', 'forceIPv4');
 
@@ -61,10 +61,10 @@ module('Acceptance | task group detail', function(hooks) {
       previousAllocation: allocations[0].id,
     });
 
-    TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
   });
 
-  test('/jobs/:id/:task-group should list high-level metrics for the allocation', function(assert) {
+  test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
     const totalCPU = tasks.mapBy('Resources.CPU').reduce(sum, 0);
     const totalMemory = tasks.mapBy('Resources.MemoryMB').reduce(sum, 0);
     const totalDisk = taskGroup.ephemeralDisk.SizeMB;
@@ -87,7 +87,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', function(assert) {
+  test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {
     assert.equal(TaskGroup.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
     assert.equal(
       TaskGroup.breadcrumbFor('jobs.job.index').text,
@@ -101,13 +101,13 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('/jobs/:id/:task-group first breadcrumb should link to jobs', function(assert) {
-    TaskGroup.breadcrumbFor('jobs.index').visit();
+  test('/jobs/:id/:task-group first breadcrumb should link to jobs', async function(assert) {
+    await TaskGroup.breadcrumbFor('jobs.index').visit();
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 
-  test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', function(assert) {
-    TaskGroup.breadcrumbFor('jobs.job.index').visit();
+  test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function(assert) {
+    await TaskGroup.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}`,
@@ -115,15 +115,15 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('/jobs/:id/:task-group should list one page of allocations for the task group', function(assert) {
+  test('/jobs/:id/:task-group should list one page of allocations for the task group', async function(assert) {
     server.createList('allocation', TaskGroup.pageSize, {
       jobId: job.id,
       taskGroup: taskGroup.name,
       clientStatus: 'running',
     });
 
-    JobsList.visit();
-    TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await JobsList.visit();
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(
       server.db.allocations.where({ jobId: job.id }).length > TaskGroup.pageSize,
@@ -137,7 +137,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('each allocation should show basic information about the allocation', function(assert) {
+  test('each allocation should show basic information about the allocation', async function(assert) {
     const allocation = allocations.sortBy('modifyIndex').reverse()[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
 
@@ -160,12 +160,12 @@ module('Acceptance | task group detail', function(hooks) {
       'Node ID'
     );
 
-    allocationRow.visitClient();
+    await allocationRow.visitClient();
 
     assert.equal(currentURL(), `/clients/${allocation.nodeId}`, 'Node links to node page');
   });
 
-  test('each allocation should show stats about the allocation', function(assert) {
+  test('each allocation should show stats about the allocation', async function(assert) {
     const allocation = allocations.sortBy('name')[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
 
@@ -200,8 +200,8 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('when the allocation search has no matches, there is an empty message', function(assert) {
-    TaskGroup.search('zzzzzz');
+  test('when the allocation search has no matches, there is an empty message', async function(assert) {
+    await TaskGroup.search('zzzzzz');
 
     assert.ok(TaskGroup.isEmpty, 'Empty state is shown');
     assert.equal(
@@ -211,7 +211,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('when the allocation has reschedule events, the allocation row is denoted with an icon', function(assert) {
+  test('when the allocation has reschedule events, the allocation row is denoted with an icon', async function(assert) {
     const rescheduleRow = TaskGroup.allocationFor(allocations[0].id);
     const normalRow = TaskGroup.allocationFor(allocations[1].id);
 
@@ -219,8 +219,8 @@ module('Acceptance | task group detail', function(hooks) {
     assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
   });
 
-  test('when the job for the task group is not found, an error message is shown, but the URL persists', function(assert) {
-    TaskGroup.visit({ id: 'not-a-real-job', name: 'not-a-real-task-group' });
+  test('when the job for the task group is not found, an error message is shown, but the URL persists', async function(assert) {
+    await TaskGroup.visit({ id: 'not-a-real-job', name: 'not-a-real-task-group' });
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,
@@ -232,8 +232,8 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('when the task group is not found on the job, an error message is shown, but the URL persists', function(assert) {
-    TaskGroup.visit({ id: job.id, name: 'not-a-real-task-group' });
+  test('when the task group is not found on the job, an error message is shown, but the URL persists', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: 'not-a-real-task-group' });
 
     assert.ok(
       server.pretender.handledRequests

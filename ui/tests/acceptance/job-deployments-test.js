@@ -33,8 +33,8 @@ module('Acceptance | job deployments', function(hooks) {
     });
   });
 
-  test('/jobs/:id/deployments should list all job deployments', function(assert) {
-    Deployments.visit({ id: job.id });
+  test('/jobs/:id/deployments should list all job deployments', async function(assert) {
+    await Deployments.visit({ id: job.id });
 
     assert.ok(
       Deployments.deployments.length,
@@ -43,8 +43,8 @@ module('Acceptance | job deployments', function(hooks) {
     );
   });
 
-  test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', function(assert) {
-    Deployments.visit({ id: job.id });
+  test('each deployment mentions the deployment shortId, status, version, and time since it was submitted', async function(assert) {
+    await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
     const version = server.db.jobVersions.findBy({
@@ -66,7 +66,7 @@ module('Acceptance | job deployments', function(hooks) {
     );
   });
 
-  test('when the deployment is running and needs promotion, the deployment item says so', function(assert) {
+  test('when the deployment is running and needs promotion, the deployment item says so', async function(assert) {
     // Ensure the deployment needs deployment
     const deployment = sortedDeployments.models[0];
     const taskGroupSummary = deployment.deploymentTaskGroupSummaryIds.map(id =>
@@ -84,26 +84,24 @@ module('Acceptance | job deployments', function(hooks) {
 
     taskGroupSummary.save();
 
-    Deployments.visit({ id: job.id });
+    await Deployments.visit({ id: job.id });
 
     const deploymentRow = Deployments.deployments.objectAt(0);
     assert.ok(deploymentRow.promotionIsRequired, 'Requires Promotion badge found');
   });
 
-  test('each deployment item can be opened to show details', function(assert) {
-    Deployments.visit({ id: job.id });
+  test('each deployment item can be opened to show details', async function(assert) {
+    await Deployments.visit({ id: job.id });
 
     const deploymentRow = Deployments.deployments.objectAt(0);
-
     assert.notOk(deploymentRow.hasDetails, 'No deployment body');
 
-    deploymentRow.toggle();
-
+    await deploymentRow.toggle();
     assert.ok(deploymentRow.hasDetails, 'Deployment body found');
   });
 
-  test('when open, a deployment shows the deployment metrics', function(assert) {
-    Deployments.visit({ id: job.id });
+  test('when open, a deployment shows the deployment metrics', async function(assert) {
+    await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
@@ -111,7 +109,7 @@ module('Acceptance | job deployments', function(hooks) {
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
-    deploymentRow.toggle();
+    await deploymentRow.toggle();
 
     assert.equal(
       deploymentRow.metricFor('canaries').text,
@@ -153,8 +151,8 @@ module('Acceptance | job deployments', function(hooks) {
     );
   });
 
-  test('when open, a deployment shows a list of all task groups and their respective stats', function(assert) {
-    Deployments.visit({ id: job.id });
+  test('when open, a deployment shows a list of all task groups and their respective stats', async function(assert) {
+    await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
@@ -162,7 +160,7 @@ module('Acceptance | job deployments', function(hooks) {
       server.db.deploymentTaskGroupSummaries.find(id)
     );
 
-    deploymentRow.toggle();
+    await deploymentRow.toggle();
 
     assert.ok(deploymentRow.hasTaskGroups, 'Task groups found');
 
@@ -197,8 +195,8 @@ module('Acceptance | job deployments', function(hooks) {
     );
   });
 
-  test('when open, a deployment shows a list of all allocations for the deployment', function(assert) {
-    Deployments.visit({ id: job.id });
+  test('when open, a deployment shows a list of all allocations for the deployment', async function(assert) {
+    await Deployments.visit({ id: job.id });
 
     const deployment = sortedDeployments.models[0];
     const deploymentRow = Deployments.deployments.objectAt(0);
@@ -206,11 +204,9 @@ module('Acceptance | job deployments', function(hooks) {
     // TODO: Make this less brittle. This logic is copied from the mirage config,
     // since there is no reference to allocations on the deployment model.
     const allocations = server.db.allocations.where({ jobId: deployment.jobId }).slice(0, 3);
-
-    deploymentRow.toggle();
+    await deploymentRow.toggle();
 
     assert.ok(deploymentRow.hasAllocations, 'Allocations found');
-
     assert.equal(deploymentRow.allocations.length, allocations.length, 'One row per allocation');
 
     const allocation = allocations[0];
@@ -219,8 +215,8 @@ module('Acceptance | job deployments', function(hooks) {
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'Allocation is as expected');
   });
 
-  test('when the job for the deployments is not found, an error message is shown, but the URL persists', function(assert) {
-    Deployments.visit({ id: 'not-a-real-job' });
+  test('when the job for the deployments is not found, an error message is shown, but the URL persists', async function(assert) {
+    await Deployments.visit({ id: 'not-a-real-job' });
 
     assert.equal(
       server.pretender.handledRequests.findBy('status', 404).url,

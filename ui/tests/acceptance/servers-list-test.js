@@ -23,14 +23,14 @@ module('Acceptance | servers list', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('/servers should list all servers', function(assert) {
+  test('/servers should list all servers', async function(assert) {
     server.createList('node', 1);
     server.createList('agent', 10);
 
     const leader = findLeader(server.schema);
     const sortedAgents = server.db.agents.sort(agentSort(leader)).reverse();
 
-    ServersList.visit();
+    await ServersList.visit();
 
     assert.equal(ServersList.servers.length, ServersList.pageSize, 'List is stopped at pageSize');
 
@@ -39,11 +39,11 @@ module('Acceptance | servers list', function(hooks) {
     });
   });
 
-  test('each server should show high-level info of the server', function(assert) {
+  test('each server should show high-level info of the server', async function(assert) {
     minimumSetup();
     const agent = server.db.agents[0];
 
-    ServersList.visit();
+    await ServersList.visit();
 
     const agentRow = ServersList.servers.objectAt(0);
 
@@ -55,27 +55,24 @@ module('Acceptance | servers list', function(hooks) {
     assert.equal(agentRow.datacenter, agent.tags.dc, 'Datacenter');
   });
 
-  test('each server should link to the server detail page', function(assert) {
+  test('each server should link to the server detail page', async function(assert) {
     minimumSetup();
     const agent = server.db.agents[0];
 
-    ServersList.visit();
-
-    ServersList.servers.objectAt(0).clickRow();
+    await ServersList.visit();
+    await ServersList.servers.objectAt(0).clickRow();
 
     assert.equal(currentURL(), `/servers/${agent.name}`, 'Now at the server detail page');
   });
 
-  test('when accessing servers is forbidden, show a message with a link to the tokens page', function(assert) {
+  test('when accessing servers is forbidden, show a message with a link to the tokens page', async function(assert) {
     server.create('agent');
     server.pretender.get('/v1/agent/members', () => [403, {}, null]);
 
-    ServersList.visit();
-
+    await ServersList.visit();
     assert.equal(ServersList.error.title, 'Not Authorized');
 
-    ServersList.error.seekHelp();
-
+    await ServersList.error.seekHelp();
     assert.equal(currentURL(), '/settings/tokens');
   });
 });

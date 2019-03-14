@@ -1,6 +1,8 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
+import { selectChoose } from 'ember-power-select/test-support';
+import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -34,34 +36,33 @@ moduleForJob(
   'allocations',
   () => server.create('job', { type: 'service' }),
   {
-    'the subnav links to deployment': (job, assert) => {
-      JobDetail.tabFor('deployments').visit();
-      andThen(() => {
-        assert.equal(currentURL(), `/jobs/${job.id}/deployments`);
-      });
+    'the subnav links to deployment': async (job, assert) => {
+      await JobDetail.tabFor('deployments').visit();
+      assert.equal(currentURL(), `/jobs/${job.id}/deployments`);
+    },
+    'when the job is not found, an error message is shown, but the URL persists': async (
+      job,
+      assert
+    ) => {
+      await JobDetail.visit({ id: 'not-a-real-job' });
+
+      assert.equal(
+        server.pretender.handledRequests.findBy('status', 404).url,
+        '/v1/job/not-a-real-job',
+        'A request to the nonexistent job is made'
+      );
+      assert.equal(currentURL(), '/jobs/not-a-real-job', 'The URL persists');
+      assert.ok(JobDetail.error.isPresent, 'Error message is shown');
+      assert.equal(JobDetail.error.title, 'Not Found', 'Error message is for 404');
     },
   }
 );
 
-let job;
-
-test('when the job is not found, an error message is shown, but the URL persists', function(assert) {
-  JobDetail.visit({ id: 'not-a-real-job' });
-
-  andThen(() => {
-    assert.equal(
-      server.pretender.handledRequests.findBy('status', 404).url,
-      '/v1/job/not-a-real-job',
-      'A request to the nonexistent job is made'
-    );
-    assert.equal(currentURL(), '/jobs/not-a-real-job', 'The URL persists');
-    assert.ok(JobDetail.error.isPresent, 'Error message is shown');
-    assert.equal(JobDetail.error.title, 'Not Found', 'Error message is for 404');
-  });
-});
-
 module('Acceptance | job detail (with namespaces)', function(hooks) {
   setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  let job;
 
   hooks.beforeEach(function() {
     server.createList('namespace', 2);
@@ -70,22 +71,22 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
   });
 
-  test('when there are namespaces, the job detail page states the namespace for the job', function(assert) {
+  test('when there are namespaces, the job detail page states the namespace for the job', async function(assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
-    JobDetail.visit({ id: job.id, namespace: namespace.name });
+    await JobDetail.visit({ id: job.id, namespace: namespace.name });
 
     assert.ok(JobDetail.statFor('namespace').text, 'Namespace included in stats');
   });
 
-  test('when switching namespaces, the app redirects to /jobs with the new namespace', function(assert) {
+  test('when switching namespaces, the app redirects to /jobs with the new namespace', async function(assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
     const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
     const label = otherNamespace === 'default' ? 'Default Namespace' : otherNamespace;
 
-    JobDetail.visit({ id: job.id, namespace: namespace.name });
+    await JobDetail.visit({ id: job.id, namespace: namespace.name });
 
     // TODO: Migrate to Page Objects
-    selectChoose('[data-test-namespace-switcher]', label);
+    await selectChoose('[data-test-namespace-switcher]', label);
     assert.equal(currentURL().split('?')[0], '/jobs', 'Navigated to /jobs');
 
     const jobs = server.db.jobs
