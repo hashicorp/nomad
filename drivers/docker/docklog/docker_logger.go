@@ -192,6 +192,13 @@ func isLoggingTerminalError(err error) bool {
 		return false
 	}
 
+	if apiErr, ok := err.(*docker.Error); ok {
+		switch apiErr.Status {
+		case 501:
+			return true
+		}
+	}
+
 	terminals := []string{
 		"configured logging driver does not support reading",
 	}

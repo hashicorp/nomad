@@ -2,6 +2,7 @@ package docklog
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"runtime"
 	"testing"
@@ -230,5 +231,35 @@ func TestNextBackoff(t *testing.T) {
 			require.True(t, next >= c.min, "next backoff is smaller than expected")
 			require.True(t, next <= c.max, "next backoff is larger than expected")
 		})
+	}
+}
+
+func TestIsLoggingTerminalError(t *testing.T) {
+	terminalErrs := []error{
+		errors.New("docker returned: configured logging driver does not support reading"),
+		&docker.Error{
+			Status:  501,
+			Message: "configured logging driver does not support reading",
+		},
+		&docker.Error{
+			Status:  501,
+			Message: "not implemented",
+		},
+	}
+
+	for _, err := range terminalErrs {
+		require.Truef(t, isLoggingTerminalError(err), "error should be terminal: %v", err)
+	}
+
+	nonTerminalErrs := []error{
+		errors.New("not expected"),
+		&docker.Error{
+			Status:  503,
+			Message: "Service Unavailable",
+		},
+	}
+
+	for _, err := range nonTerminalErrs {
+		require.Falsef(t, isLoggingTerminalError(err), "error should be terminal: %v", err)
 	}
 }
