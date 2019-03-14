@@ -23,7 +23,7 @@ export default function statsTrackerFrameMissing({
 
     let shouldFail = false;
     const fetch = () => {
-      return resolve(shouldFail ? { ok: false } : new MockResponse(frame));
+      return resolve(shouldFail ? { ok: false } : MockResponse(frame));
     };
 
     const resource = ResourceConstructor();
