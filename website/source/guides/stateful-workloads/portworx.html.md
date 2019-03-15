@@ -51,7 +51,7 @@ server node. In a production cluster, 3 or 5 server nodes are recommended.
   (`/dev/xvdd`) with a capacity of 50 GB.
 
 * Ensure your root volume's size is at least 20 GB. If you are using the
-  environment provided in this guide, simply add the following line to your
+  environment provided in this guide, add the following line to your
   `terraform.tfvars` file:
 
   ```
