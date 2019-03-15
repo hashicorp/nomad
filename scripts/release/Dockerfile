@@ -18,19 +18,21 @@ RUN useradd --create-home vagrant \
     && echo 'vagrant      ALL = (ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # install priv packages
-ADD ./scripts/vagrant-linux-priv-config.sh /tmp/scripts/vagrant-linux-priv-config.sh
+COPY ./scripts/vagrant-linux-priv-config.sh /tmp/scripts/vagrant-linux-priv-config.sh
 RUN /tmp/scripts/vagrant-linux-priv-config.sh
 
-ADD ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
+COPY ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
 RUN /tmp/scripts/vagrant-linux-priv-go.sh
 
-ADD ./scripts/vagrant-linux-priv-protoc.sh /tmp/scripts/vagrant-linux-priv-protoc.sh
+COPY ./scripts/vagrant-linux-priv-protoc.sh /tmp/scripts/vagrant-linux-priv-protoc.sh
 RUN /tmp/scripts/vagrant-linux-priv-protoc.sh
 
 USER vagrant
 
-ADD ./scripts/vagrant-linux-unpriv-ui.sh /tmp/scripts/vagrant-linux-unpriv-ui.sh
+COPY ./scripts/vagrant-linux-unpriv-ui.sh /tmp/scripts/vagrant-linux-unpriv-ui.sh
 RUN /tmp/scripts/vagrant-linux-unpriv-ui.sh
+
+COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
 
 # Update PATH with GO bin, yarn, and node
 ENV GOPATH="/opt/gopath" \
@@ -40,5 +42,3 @@ RUN mkdir -p /opt/gopath/src/github.com/hashicorp/nomad
 RUN mkdir -p /home/vagrant/bin \
     && git config --global user.email "nomad@hashicorp.com" \
     && git config --global user.name "Nomad Release Bot"
-
-COPY --chown=vagrant:vagrant ./scripts/release/docker-build-all /home/vagrant/bin/docker-build-all
