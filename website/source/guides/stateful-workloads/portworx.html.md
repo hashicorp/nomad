@@ -334,7 +334,7 @@ information:
 ```
 mysql -h mysql-server.service.consul -u web -p -D itemcollection
 ```
-The password for this demo database is simply `password`.
+The password for this demo database is `password`.
 
 ~> **Please Note:** This guide is for demo purposes and does not follow best
 practices for securing database passwords. See [Keeping Passwords
