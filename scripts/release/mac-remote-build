@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+set -e
+
+REPO="$1"
+RELEASE_TARGET="${2:-release}"
+
+if [[ -z "${REPO}" ]]
+then
+    echo "repo path is required"
+    exit 1
+fi
+
+TMP_WORKSPACE="/tmp/nomad-workspace/$(date +%s)"
+REPO_REMOTE_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
+
+echo "Using temp workspace: ${TMP_WORKSPACE}"
+echo
+
+echo '=======>>>> Transfering repository'
+ssh sharedmac-bot mkdir -p "${REPO_REMOTE_PATH}"
+rsync -az \
+      --exclude '/pkg' \
+      --exclude '/ui/tmp' \
+      --exclude '/ui/node_modules' \
+      "${REPO}/" \
+      "sharedmac-bot:${REPO_REMOTE_PATH}"
+
+echo '=======>>>> Compiling Mac Binaries'
+cat <<'EOF' | ssh sharedmac-bot /bin/bash -s "${TMP_WORKSPACE}"
+
+set -ex
+
+TMP_WORKSPACE="$1"
+
+mkdir -p "${TMP_WORKSPACE}/tmp"
+
+install_go() {
+  local go_version="1.11.5"
+  local download=
+
+  download="https://storage.googleapis.com/golang/go${go_version}.darwin-amd64.tar.gz"
+  curl -sSL --fail -o "${TMP_WORKSPACE}/tmp/go.tar.gz" ${download}
+
+  tar -C "${TMP_WORKSPACE}" -xf "${TMP_WORKSPACE}/tmp/go.tar.gz"
+}
+
+install_deps() {
+  go get -u github.com/a8m/tree/cmd/tree
+}
+
+compile() {
+  cd "${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
+  make release
+}
+
+install_go
+
+export GOPATH="${TMP_WORKSPACE}/gopath"
+export PATH="${TMP_WORKSPACE}/go/bin:${GOPATH}/bin:$PATH"
+
+install_deps
+compile
+
+EOF
+
+echo '=======>>>> Retreiving mac compiled binaries'
+rsync -avz --ignore-existing sharedmac-bot:"${REPO_REMOTE_PATH}/pkg/" "${REPO}/pkg"
+
+ssh sharedmac-bot rm -rf "${TMP_WORKSPACE}"
