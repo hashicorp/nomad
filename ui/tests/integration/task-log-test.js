@@ -1,6 +1,7 @@
 import { run } from '@ember/runloop';
-import { test, moduleForComponent } from 'ember-qunit';
-import wait from 'ember-test-helpers/wait';
+import { module, test } from 'qunit';
+import { setupRenderingTest } from 'ember-qunit';
+import { render, settled } from '@ember/test-helpers';
 import { find, click } from 'ember-native-dom-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
@@ -26,9 +27,10 @@ const logTail = ['TAIL'];
 const streamFrames = ['one\n', 'two\n', 'three\n', 'four\n', 'five\n'];
 let streamPointer = 0;
 
-moduleForComponent('task-log', 'Integration | Component | task log', {
-  integration: true,
-  beforeEach() {
+module('Integration | Component | task log', function(hooks) {
+  setupRenderingTest(hooks);
+
+  hooks.beforeEach(function() {
     const handler = ({ queryParams }) => {
       const { origin, offset, plain, follow } = queryParams;
 
@@ -58,56 +60,62 @@ moduleForComponent('task-log', 'Integration | Component | task log', {
       this.get('/v1/client/fs/logs/:allocation_id', handler);
       this.get('/v1/regions', () => [200, {}, '[]']);
     });
-  },
-  afterEach() {
+  });
+
+  hooks.afterEach(function() {
     this.server.shutdown();
     streamPointer = 0;
-  },
-});
+  });
 
-test('Basic appearance', function(assert) {
-  this.setProperties(commonProps);
-  this.render(hbs`{{task-log allocation=allocation task=task}}`);
+  test('Basic appearance', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
 
-  assert.ok(find('[data-test-log-action="stdout"]'), 'Stdout button');
-  assert.ok(find('[data-test-log-action="stderr"]'), 'Stderr button');
-  assert.ok(find('[data-test-log-action="head"]'), 'Head button');
-  assert.ok(find('[data-test-log-action="tail"]'), 'Tail button');
-  assert.ok(find('[data-test-log-action="toggle-stream"]'), 'Stream toggle button');
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'), 'Body is full-bleed and dark');
+    assert.ok(find('[data-test-log-action="stdout"]'), 'Stdout button');
+    assert.ok(find('[data-test-log-action="stderr"]'), 'Stderr button');
+    assert.ok(find('[data-test-log-action="head"]'), 'Head button');
+    assert.ok(find('[data-test-log-action="tail"]'), 'Tail button');
+    assert.ok(find('[data-test-log-action="toggle-stream"]'), 'Stream toggle button');
 
-  assert.ok(find('pre.cli-window'), 'Cli is preformatted and using the cli-window component class');
-});
+    assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'), 'Body is full-bleed and dark');
 
-test('Streaming starts on creation', function(assert) {
-  run.later(run, run.cancelTimers, commonProps.interval);
+    assert.ok(
+      find('pre.cli-window'),
+      'Cli is preformatted and using the cli-window component class'
+    );
+  });
 
-  this.setProperties(commonProps);
-  this.render(hbs`{{task-log allocation=allocation task=task}}`);
+  test('Streaming starts on creation', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
 
-  const logUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
-  assert.ok(
-    this.server.handledRequests.filter(req => logUrlRegex.test(req.url)).length,
-    'Log requests were made'
-  );
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  return wait().then(() => {
+    const logUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
+    assert.ok(
+      this.server.handledRequests.filter(req => logUrlRegex.test(req.url)).length,
+      'Log requests were made'
+    );
+
+    await settled();
     assert.equal(
       find('[data-test-log-cli]').textContent,
       streamFrames[0],
       'First chunk of streaming log is shown'
     );
   });
-});
 
-test('Clicking Head loads the log head', function(assert) {
-  this.setProperties(commonProps);
-  this.render(hbs`{{task-log allocation=allocation task=task}}`);
+  test('Clicking Head loads the log head', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
 
-  click('[data-test-log-action="head"]');
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  return wait().then(() => {
+    click('[data-test-log-action="head"]');
+
+    await settled();
     assert.ok(
       this.server.handledRequests.find(
         ({ queryParams: qp }) => qp.origin === 'start' && qp.plain === 'true' && qp.offset === '0'
@@ -116,15 +124,16 @@ test('Clicking Head loads the log head', function(assert) {
     );
     assert.equal(find('[data-test-log-cli]').textContent, logHead[0], 'Head of the log is shown');
   });
-});
 
-test('Clicking Tail loads the log tail', function(assert) {
-  this.setProperties(commonProps);
-  this.render(hbs`{{task-log allocation=allocation task=task}}`);
+  test('Clicking Tail loads the log tail', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
 
-  click('[data-test-log-action="tail"]');
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  return wait().then(() => {
+    click('[data-test-log-action="tail"]');
+
+    await settled();
     assert.ok(
       this.server.handledRequests.find(
         ({ queryParams: qp }) => qp.origin === 'end' && qp.plain === 'true'
@@ -133,18 +142,19 @@ test('Clicking Tail loads the log tail', function(assert) {
     );
     assert.equal(find('[data-test-log-cli]').textContent, logTail[0], 'Tail of the log is shown');
   });
-});
 
-test('Clicking toggleStream starts and stops the log stream', function(assert) {
-  const { interval } = commonProps;
-  this.setProperties(commonProps);
-  this.render(hbs`{{task-log allocation=allocation task=task interval=interval}}`);
+  test('Clicking toggleStream starts and stops the log stream', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
 
-  run.later(() => {
-    click('[data-test-log-action="toggle-stream"]');
-  }, interval);
+    const { interval } = commonProps;
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task interval=interval}}`);
 
-  return wait().then(() => {
+    run.later(() => {
+      click('[data-test-log-action="toggle-stream"]');
+    }, interval);
+
+    await settled();
     assert.equal(find('[data-test-log-cli]').textContent, streamFrames[0], 'First frame loaded');
 
     run.later(() => {
@@ -157,90 +167,84 @@ test('Clicking toggleStream starts and stops the log stream', function(assert) {
       run.later(run, run.cancelTimers, interval * 2);
     }, interval * 2);
 
-    return wait().then(() => {
-      assert.equal(
-        find('[data-test-log-cli]').textContent,
-        streamFrames[0] + streamFrames[0] + streamFrames[1],
-        'Now includes second frame'
-      );
-    });
+    await settled();
+    assert.equal(
+      find('[data-test-log-cli]').textContent,
+      streamFrames[0] + streamFrames[0] + streamFrames[1],
+      'Now includes second frame'
+    );
   });
-});
 
-test('Clicking stderr switches the log to standard error', function(assert) {
-  this.setProperties(commonProps);
-  this.render(hbs`{{task-log allocation=allocation task=task}}`);
+  test('Clicking stderr switches the log to standard error', async function(assert) {
+    run.later(run, run.cancelTimers, commonProps.interval);
 
-  click('[data-test-log-action="stderr"]');
-  run.later(run, run.cancelTimers, commonProps.interval);
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task}}`);
 
-  return wait().then(() => {
+    click('[data-test-log-action="stderr"]');
+    run.later(run, run.cancelTimers, commonProps.interval);
+
+    await settled();
     assert.ok(
       this.server.handledRequests.filter(req => req.queryParams.type === 'stderr').length,
       'stderr log requests were made'
     );
   });
-});
 
-test('When the client is inaccessible, task-log falls back to requesting logs through the server', function(assert) {
-  run.later(run, run.cancelTimers, allowedConnectionTime * 2);
+  test('When the client is inaccessible, task-log falls back to requesting logs through the server', async function(assert) {
+    run.later(run, run.cancelTimers, allowedConnectionTime * 2);
 
-  // override client response to timeout
-  this.server.get(
-    `http://${HOST}/v1/client/fs/logs/:allocation_id`,
-    () => [400, {}, ''],
-    allowedConnectionTime * 2
-  );
+    // override client response to timeout
+    this.server.get(
+      `http://${HOST}/v1/client/fs/logs/:allocation_id`,
+      () => [400, {}, ''],
+      allowedConnectionTime * 2
+    );
 
-  this.setProperties(commonProps);
-  this.render(
-    hbs`{{task-log
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log
       allocation=allocation
       task=task
       clientTimeout=clientTimeout
-      serverTimeout=serverTimeout}}`
-  );
+      serverTimeout=serverTimeout}}`);
 
-  const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
-  assert.ok(
-    this.server.handledRequests.filter(req => clientUrlRegex.test(req.url)).length,
-    'Log request was initially made directly to the client'
-  );
+    const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
+    assert.ok(
+      this.server.handledRequests.filter(req => clientUrlRegex.test(req.url)).length,
+      'Log request was initially made directly to the client'
+    );
 
-  return wait().then(() => {
+    await settled();
     const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
     assert.ok(
       this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
       'Log request was later made to the server'
     );
   });
-});
 
-test('When both the client and the server are inaccessible, an error message is shown', function(assert) {
-  run.later(run, run.cancelTimers, allowedConnectionTime * 5);
+  test('When both the client and the server are inaccessible, an error message is shown', async function(assert) {
+    run.later(run, run.cancelTimers, allowedConnectionTime * 5);
 
-  // override client and server responses to timeout
-  this.server.get(
-    `http://${HOST}/v1/client/fs/logs/:allocation_id`,
-    () => [400, {}, ''],
-    allowedConnectionTime * 2
-  );
-  this.server.get(
-    '/v1/client/fs/logs/:allocation_id',
-    () => [400, {}, ''],
-    allowedConnectionTime * 2
-  );
+    // override client and server responses to timeout
+    this.server.get(
+      `http://${HOST}/v1/client/fs/logs/:allocation_id`,
+      () => [400, {}, ''],
+      allowedConnectionTime * 2
+    );
+    this.server.get(
+      '/v1/client/fs/logs/:allocation_id',
+      () => [400, {}, ''],
+      allowedConnectionTime * 2
+    );
 
-  this.setProperties(commonProps);
-  this.render(
-    hbs`{{task-log
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log
       allocation=allocation
       task=task
       clientTimeout=clientTimeout
-      serverTimeout=serverTimeout}}`
-  );
+      serverTimeout=serverTimeout}}`);
 
-  return wait().then(() => {
+    await settled();
     const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
     assert.ok(
       this.server.handledRequests.filter(req => clientUrlRegex.test(req.url)).length,
