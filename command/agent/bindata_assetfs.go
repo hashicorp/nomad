@@ -16,8 +16,6 @@
 // ui/dist/robots.txt
 // DO NOT EDIT!
 
-// +build ui
-
 package agent
 
 import (

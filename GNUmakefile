@@ -225,19 +225,18 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 	@rm -f $(PROJECT_ROOT)/bin/nomad
 	@rm -f $(GOPATH)/bin/nomad
 	@$(MAKE) --no-print-directory \
-		$(DEV_TARGET) \
-		GO_TAGS="$(NOMAD_UI_TAG)"
+		$(DEV_TARGET)
 	@mkdir -p $(PROJECT_ROOT)/bin
 	@mkdir -p $(GOPATH)/bin
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(GOPATH)/bin
 
 .PHONY: prerelease
-prerelease: GO_TAGS=ui release
+prerelease: GO_TAGS=release
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
-release: GO_TAGS=ui release
+release: GO_TAGS=release
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
 	@echo "==> Results:"
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
@@ -307,8 +306,10 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 .PHONY: static-assets
 static-assets: ## Compile the static routes to serve alongside the API
 	@echo "--> Generating static assets"
-	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
-	@mv bindata_assetfs.go command/agent
+	@go-bindata-assetfs -modtime 1480000000 \
+		-pkg agent -prefix ui \
+		-o ./command/agent/bindata_assetfs.go \
+		./ui/dist/...
 
 .PHONY: test-website
 test-website: ## Run Website Link Checks
@@ -332,7 +333,7 @@ ember-dist: ## Build the static UI assets from source
 
 .PHONY: dev-ui
 dev-ui: ember-dist static-assets
-	@$(MAKE) NOMAD_UI_TAG="ui" dev ## Build a dev binary with the UI baked in
+	@$(MAKE) dev
 
 HELP_FORMAT="    \033[36m%-25s\033[0m %s\n"
 .PHONY: help
