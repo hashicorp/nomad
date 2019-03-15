@@ -160,7 +160,6 @@ check: ## Lint the source code
 		--deadline 10m \
 		--vendor \
 		--exclude='.*\.generated\.go' \
-		--exclude='.*bindata_assetfs\.go' \
 		--skip="ui/" \
 		--sort="path" \
 		--aggregate \
@@ -307,8 +306,11 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 .PHONY: static-assets
 static-assets: ## Compile the static routes to serve alongside the API
 	@echo "--> Generating static assets"
-	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
-	@mv bindata_assetfs.go command/agent
+	@go-bindata-assetfs \
+		-modtime 1480000000 \
+		-pkg agent -prefix ui -tags ui \
+		-o command/agent/assertfs_bindata.generated.go \
+		./ui/dist/...
 
 .PHONY: test-website
 test-website: ## Run Website Link Checks
