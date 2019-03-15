@@ -11,7 +11,7 @@ then
     exit 1
 fi
 
-TMP_WORKSPACE="/tmp/nomad-workspace/$(date +%s)"
+TMP_WORKSPACE="/tmp/nomad-workspace/$(date +%Y-%m-%d-%s)"
 REPO_REMOTE_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
 
 echo "Using temp workspace: ${TMP_WORKSPACE}"
@@ -20,10 +20,7 @@ echo
 echo '=======>>>> Transfering repository'
 ssh sharedmac-bot mkdir -p "${REPO_REMOTE_PATH}"
 rsync -az \
-      --exclude '/pkg' \
-      --exclude '/ui/tmp' \
-      --exclude '/ui/node_modules' \
-      "${REPO}/" \
+      "${REPO}/.git" \
       "sharedmac-bot:${REPO_REMOTE_PATH}"
 
 echo '=======>>>> Compiling Mac Binaries'
@@ -32,6 +29,8 @@ cat <<'EOF' | ssh sharedmac-bot /bin/bash -s "${TMP_WORKSPACE}"
 set -ex
 
 TMP_WORKSPACE="$1"
+REPO_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
+
 
 mkdir -p "${TMP_WORKSPACE}/tmp"
 
@@ -45,12 +44,15 @@ install_go() {
   tar -C "${TMP_WORKSPACE}" -xf "${TMP_WORKSPACE}/tmp/go.tar.gz"
 }
 
-install_deps() {
+install_release_deps() {
   go get -u github.com/a8m/tree/cmd/tree
 }
 
 compile() {
-  cd "${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
+  cd "${REPO_PATH}"
+  git checkout .
+  git status
+  git log -1
   make release
 }
 
@@ -59,7 +61,7 @@ install_go
 export GOPATH="${TMP_WORKSPACE}/gopath"
 export PATH="${TMP_WORKSPACE}/go/bin:${GOPATH}/bin:$PATH"
 
-install_deps
+install_release_deps
 compile
 
 EOF
