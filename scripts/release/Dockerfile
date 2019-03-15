@@ -41,4 +41,4 @@ RUN mkdir -p /home/vagrant/bin \
     && git config --global user.email "nomad@hashicorp.com" \
     && git config --global user.name "Nomad Release Bot"
 
-COPY --chown=vagrant:vagrant ./scripts/release/docker-build-all /home/vagrant/bin/docker-build-all
+COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
