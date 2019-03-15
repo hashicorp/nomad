@@ -3,7 +3,7 @@
 #
 
 LINUX_BASE_BOX = "bento/ubuntu-16.04"
-FREEBSD_BASE_BOX = "jen20/FreeBSD-11.1-RELEASE"
+FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.2-STABLE"
 
 Vagrant.configure(2) do |config|
 	# Compilation and development boxes
