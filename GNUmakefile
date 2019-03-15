@@ -186,7 +186,7 @@ check: ## Lint the source code
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
-	@shellcheck ./scripts/*
+	@find scripts -type f -name '*.sh' | xargs shellcheck
 
 .PHONY: generate-all
 generate-all: generate-structs proto
@@ -234,7 +234,7 @@ dev: vendorfmt changelogfmt ## Build for the current development platform
 
 .PHONY: prerelease
 prerelease: GO_TAGS=ui release
-prerelease: check generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
+prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
 release: GO_TAGS=ui release
