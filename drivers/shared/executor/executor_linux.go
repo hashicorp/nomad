@@ -339,10 +339,21 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		case <-time.After(grace):
 			// Force kill all container processes after grace period,
 			// hence `true` argument.
-			return l.container.Signal(os.Kill, true)
+			if err := l.container.Signal(os.Kill, true); err != nil {
+				return err
+			}
 		}
 	} else {
-		return l.container.Signal(os.Kill, true)
+		if err := l.container.Signal(os.Kill, true); err != nil {
+			return err
+		}
+	}
+
+	select {
+	case <-l.userProcExited:
+		return nil
+	case <-time.After(time.Second * 15):
+		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
 }
 

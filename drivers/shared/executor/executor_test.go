@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
+	ps "github.com/mitchellh/go-ps"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -232,6 +233,36 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExecutor_Shutdown_Exit(t *testing.T) {
+	require := require.New(t)
+	t.Parallel()
+	execCmd, allocDir := testExecutorCommand(t)
+	execCmd.Cmd = "/bin/sleep"
+	execCmd.Args = []string{"100"}
+	cfg := &ExecutorConfig{
+		LogFile: "/dev/null",
+	}
+	executor, pluginClient, err := CreateExecutor(testlog.HCLogger(t), nil, cfg)
+	require.NoError(err)
+
+	proc, err := executor.Launch(execCmd)
+	require.NoError(err)
+	require.NotZero(proc.Pid)
+
+	executor.Shutdown("", 0)
+	pluginClient.Kill()
+	tu.WaitForResult(func() (bool, error) {
+		p, err := ps.FindProcess(proc.Pid)
+		if err != nil {
+			return false, err
+		}
+		return p == nil, fmt.Errorf("process found: %d", proc.Pid)
+	}, func(err error) {
+		require.NoError(err)
+	})
+	require.NoError(allocDir.Destroy())
 }
 
 func TestUniversalExecutor_MakeExecutable(t *testing.T) {
