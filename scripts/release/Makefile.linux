@@ -22,8 +22,11 @@ build_releases:
 
 	@echo "======>> committing generated files"
 	git add -A .
-	git commit --author 'Nomad Release bot <nomad@hashicorp.com>' \
-		--message "Generate files for $(NOMAD_VERSION) release"
+	if ! git diff-index --quiet HEAD --; \
+	then \
+		git commit --author 'Nomad Release bot <nomad@hashicorp.com>' \
+			--message "Generate files for $(NOMAD_VERSION) release"; \
+	fi
 
 	@echo "======>> building release artifacts"
 	$(MAKE) $(RELEASE_TARGET)
