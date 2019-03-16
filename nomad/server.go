@@ -1341,8 +1341,8 @@ func (s *Server) Join(addrs []string) (int, error) {
 }
 
 // LocalMember is used to return the local node
-func (c *Server) LocalMember() serf.Member {
-	return c.serf.LocalMember()
+func (s *Server) LocalMember() serf.Member {
+	return s.serf.LocalMember()
 }
 
 // Members is used to return the members of the serf cluster
