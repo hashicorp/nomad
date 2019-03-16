@@ -28,6 +28,10 @@ type logmonHook struct {
 	logmon             logmon.LogMon
 	logmonPluginClient *plugin.Client
 
+	// exited is used to mark if the task has exited, letting the pre-start hook
+	// know to restart logmon
+	exited bool
+
 	config *logmonHookConfig
 
 	logger hclog.Logger
@@ -94,21 +98,29 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	var reattachConfig *plugin.ReattachConfig
+	var err error
 
-	reattachConfig, err := reattachConfigFromHookData(req.PreviousState)
-	if err != nil {
-		h.logger.Error("failed to load reattach config", "error", err)
-		return err
+	// If the task was restarted then the logmon process is still running and just
+	// needs the start RPC called again to open the fifo
+	if !h.exited || h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
+		reattachConfig, err = reattachConfigFromHookData(req.PreviousState)
+		if err != nil {
+			h.logger.Error("failed to load reattach config", "error", err)
+			return err
+		}
+
+		// Launch or reattach logmon instance for the task.
+		if err := h.launchLogMon(reattachConfig); err != nil {
+			// Retry errors launching logmon as logmon may have crashed and
+			// subsequent attempts will start a new one.
+			h.logger.Error("failed to launch logmon process", "error", err)
+			return structs.NewRecoverableError(err, true)
+		}
+
 	}
 
-	// Launch or reattach logmon instance for the task.
-	if err := h.launchLogMon(reattachConfig); err != nil {
-		// Retry errors launching logmon as logmon may have crashed and
-		// subsequent attempts will start a new one.
-		h.logger.Error("failed to launch logmon process", "error", err)
-		return structs.NewRecoverableError(err, true)
-	}
-
+	h.exited = false
 	// Only tell logmon to start when we are not reattaching to a running instance
 	if reattachConfig == nil {
 		err := h.logmon.Start(&logmon.LogConfig{
@@ -132,6 +144,11 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		return err
 	}
 	resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
+	return nil
+}
+
+func (h *logmonHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
+	h.exited = true
 	return nil
 }
 

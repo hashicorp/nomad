@@ -59,6 +59,12 @@ type logmonImpl struct {
 }
 
 func (l *logmonImpl) Start(cfg *LogConfig) error {
+	// Start can be called multiple times, and should restart the task logger
+	// in such cases
+	if l.tl != nil {
+		l.tl.Close()
+	}
+
 	tl, err := NewTaskLogger(cfg, l.logger)
 	if err != nil {
 		return err
