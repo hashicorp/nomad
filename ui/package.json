@@ -26,9 +26,9 @@
     ]
   },
   "devDependencies": {
+    "@babel/plugin-proposal-object-rest-spread": "^7.3.4",
     "@ember/jquery": "^0.5.2",
     "@ember/optional-features": "^0.6.3",
-    "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "broccoli-asset-rev": "^2.7.0",
     "bulma": "0.6.1",
     "core-js": "^2.4.1",
@@ -40,14 +40,14 @@
     "d3-shape": "^1.2.0",
     "d3-time-format": "^2.1.0",
     "d3-transition": "^1.1.0",
-    "ember-ajax": "^3.1.0",
-    "ember-auto-import": "^1.0.1",
+    "ember-ajax": "^4.0.1",
+    "ember-auto-import": "^1.2.21",
     "ember-cli": "~3.4.4",
-    "ember-cli-babel": "^6.16.0",
+    "ember-cli-babel": "^7.1.2",
     "ember-cli-dependency-checker": "^3.0.0",
     "ember-cli-deprecation-workflow": "^1.0.1",
     "ember-cli-eslint": "^4.2.3",
-    "ember-cli-funnel": "^0.6.0",
+    "ember-cli-funnel": "^0.6.1",
     "ember-cli-htmlbars": "^3.0.0",
     "ember-cli-htmlbars-inline-precompile": "^1.0.3",
     "ember-cli-inject-live-reload": "^1.8.2",
@@ -66,8 +66,8 @@
     "ember-data-model-fragments": "3.3.0",
     "ember-export-application-global": "^2.0.0",
     "ember-fetch": "^3.4.3",
-    "ember-freestyle": "~0.6.2",
-    "ember-inline-svg": "^0.1.11",
+    "ember-freestyle": "~0.10.0",
+    "ember-inline-svg": "^0.2.1",
     "ember-load-initializers": "^1.1.0",
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-moment": "^7.5.0",
@@ -77,7 +77,7 @@
     "ember-responsive": "^3.0.0",
     "ember-sinon": "^1.0.1",
     "ember-source": "~3.4.0",
-    "ember-test-selectors": "^0.3.8",
+    "ember-test-selectors": "^2.1.0",
     "ember-truth-helpers": "^2.0.0",
     "ember-welcome-page": "^3.2.0",
     "eslint": "^4.13.1",
@@ -98,8 +98,7 @@
   "private": true,
   "ember-addon": {
     "paths": [
-      "lib/bulma",
-      "lib/calendar"
+      "lib/bulma"
     ]
   },
   "dependencies": {
