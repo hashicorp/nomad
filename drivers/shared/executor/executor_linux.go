@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -78,7 +79,9 @@ type LibcontainerExecutor struct {
 	container      libcontainer.Container
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
-	exitState      *ProcessState
+
+	exitState     *ProcessState
+	exitStateLock sync.Mutex
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
@@ -248,6 +251,8 @@ func (l *LibcontainerExecutor) Wait(ctx context.Context) (*ProcessState, error) 
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-l.userProcExited:
+		l.exitStateLock.Lock()
+		defer l.exitStateLock.Unlock()
 		return l.exitState, nil
 	}
 }
@@ -263,7 +268,10 @@ func (l *LibcontainerExecutor) wait() {
 			ps = exitErr.ProcessState
 		} else {
 			l.logger.Error("failed to call wait on user process", "error", err)
+			l.exitStateLock.Lock()
 			l.exitState = &ProcessState{Pid: 0, ExitCode: 1, Time: time.Now()}
+			l.exitStateLock.Unlock()
+
 			return
 		}
 	}
@@ -281,12 +289,14 @@ func (l *LibcontainerExecutor) wait() {
 		}
 	}
 
+	l.exitStateLock.Lock()
 	l.exitState = &ProcessState{
 		Pid:      ps.Pid(),
 		ExitCode: exitCode,
 		Signal:   signal,
 		Time:     time.Now(),
 	}
+	l.exitStateLock.Unlock()
 }
 
 // Shutdown stops all processes started and cleans up any resources
