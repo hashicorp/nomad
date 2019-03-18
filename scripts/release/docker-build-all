@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-. ~/.nvm/nvm.sh
-
 set -e
 set -x
 
