@@ -101,7 +101,7 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	var reattachConfig *plugin.ReattachConfig
 	var err error
 
-	// If the task was restarted then the logmon process is still running and just
+	// If the task was restarted and the logmon process is still running logmon
 	// needs the start RPC called again to open the fifo
 	if !h.exited || h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
 		reattachConfig, err = reattachConfigFromHookData(req.PreviousState)

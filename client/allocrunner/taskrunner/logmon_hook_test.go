@@ -19,6 +19,7 @@ import (
 
 // Statically assert the logmon hook implements the expected interfaces
 var _ interfaces.TaskPrestartHook = (*logmonHook)(nil)
+var _ interfaces.TaskExitedHook = (*logmonHook)(nil)
 var _ interfaces.TaskStopHook = (*logmonHook)(nil)
 
 // TestTaskRunner_LogmonHook_LoadReattach unit tests loading logmon reattach
