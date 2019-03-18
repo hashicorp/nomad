@@ -58,7 +58,9 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 		},
 	}
 
-	setupRootfs(t, td.Dir)
+	if runtime.GOOS == "linux" {
+		setupRootfs(t, td.Dir)
+	}
 	configureTLogging(cmd)
 	return cmd, allocDir
 }
@@ -87,7 +89,7 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
-			_, err := executor.Launch(execCmd)
+			_, _, err := executor.Launch(execCmd)
 			require.Error(err)
 		})
 	}
@@ -105,7 +107,7 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
-			ps, err := executor.Launch(execCmd)
+			ps, _, err := executor.Launch(execCmd)
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 			ps, _ = executor.Wait(context.Background())
@@ -128,7 +130,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
-			ps, err := executor.Launch(execCmd)
+			ps, _, err := executor.Launch(execCmd)
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 
@@ -165,7 +167,7 @@ func TestExecutor_WaitExitSignal(pt *testing.T) {
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
-			ps, err := executor.Launch(execCmd)
+			ps, _, err := executor.Launch(execCmd)
 			require.NoError(err)
 
 			go func() {
@@ -216,13 +218,14 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			executor := factory(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
-			ps, err := executor.Launch(execCmd)
+			ps, _, err := executor.Launch(execCmd)
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
-			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
+			time.Sleep(2 * time.Second * time.Duration(tu.TestMultiplier()))
+
 			outWriter, _ := execCmd.GetWriters()
 			output := outWriter.(*bufferCloser).String()
 			expected := ""
@@ -335,4 +338,82 @@ func setupRootfsBinary(t *testing.T, rootfs, path string) {
 
 	err = os.Link(src, dst)
 	require.NoError(t, err)
+}
+
+// TestExecutor_Cleanup_Running asserts that CleanupExecutor can kill
+// a running task
+func TestExecutor_Cleanup_Running(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			execCmd, allocDir := testExecutorCommand(t)
+			execCmd.Cmd = "/bin/sleep"
+			execCmd.Args = []string{"100"}
+			defer allocDir.Destroy()
+			executor := factory(testlog.HCLogger(t))
+			defer executor.Shutdown("", 0)
+
+			ps, cleanupHandle, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			t.Logf("clean up handle is: %v", string(cleanupHandle))
+			t.Logf("process is %v", ps)
+
+			killed := make(chan *ProcessState, 1)
+			go func() {
+				defer close(killed)
+
+				proc, err := executor.Wait(context.Background())
+				if err == nil {
+					killed <- proc
+					return
+				}
+				t.Logf("original executor wait failed: %v", err)
+			}()
+
+			err = CleanupExecutor(testlog.HCLogger(t), cleanupHandle)
+			require.NoError(err)
+
+			select {
+			case proc, ok := <-killed:
+				require.True(ok, "original executor failed to wait")
+				require.Equal(int(syscall.SIGKILL), proc.Signal)
+			case <-time.After(4 * time.Second * time.Duration(tu.TestMultiplier())):
+				require.Fail("timed out waiting to be killed")
+			}
+		})
+	}
+}
+
+// TestExecutor_Cleanup_Dead asserts that CleanupExecutor detects
+// if task died
+func TestExecutor_Cleanup_Dead(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			execCmd, allocDir := testExecutorCommand(t)
+			execCmd.Cmd = "/bin/sleep"
+			execCmd.Args = []string{"100"}
+			defer allocDir.Destroy()
+
+			executor := factory(testlog.HCLogger(t))
+			ps, cleanupHandle, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			time.Sleep(2 * time.Second * time.Duration(tu.TestMultiplier()))
+			require.NoError(executor.Shutdown("SIGKILL", 100*time.Millisecond))
+			time.Sleep(2 * time.Second * time.Duration(tu.TestMultiplier()))
+
+			// wait until process is actually killed
+			_, err = executor.Wait(context.Background())
+			require.NoError(err)
+
+			err = CleanupExecutor(testlog.HCLogger(t), cleanupHandle)
+			require.Error(err)
+		})
+	}
 }

@@ -26,7 +26,7 @@ type grpcExecutorClient struct {
 	doneCtx context.Context
 }
 
-func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
+func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, []byte, error) {
 	ctx := context.Background()
 	req := &proto.LaunchRequest{
 		Cmd:                cmd.Cmd,
@@ -44,14 +44,14 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 	}
 	resp, err := c.client.Launch(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ps, err := processStateFromProto(resp.Process)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return ps, nil
+	return ps, resp.CleanupHandle, nil
 }
 
 func (c *grpcExecutorClient) Wait(ctx context.Context) (*ProcessState, error) {

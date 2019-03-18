@@ -76,7 +76,7 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 	}
 
 	configureBasicCgroups(cfg)
-	e.resConCtx.groups = cfg.Cgroups
+	e.resConCtx.Cgroup = cfg.Cgroups
 	return cgroups.EnterPid(cfg.Cgroups.Paths, pid)
 }
 

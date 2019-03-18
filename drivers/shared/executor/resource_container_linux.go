@@ -10,7 +10,7 @@ import (
 // resourceContainerContext is a platform-specific struct for managing a
 // resource container.  In the case of Linux, this is used to control Cgroups.
 type resourceContainerContext struct {
-	groups *cgroupConfig.Cgroup
+	Cgroup *cgroupConfig.Cgroup
 	cgLock sync.Mutex
 }
 
@@ -18,7 +18,7 @@ type resourceContainerContext struct {
 func (rc *resourceContainerContext) executorCleanup() error {
 	rc.cgLock.Lock()
 	defer rc.cgLock.Unlock()
-	if err := DestroyCgroup(rc.groups, os.Getpid()); err != nil {
+	if err := DestroyCgroup(rc.Cgroup, os.Getpid()); err != nil {
 		return err
 	}
 	return nil
