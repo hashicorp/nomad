@@ -121,6 +121,8 @@ type TaskState struct {
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
+
+	ExecCleanupHandle []byte
 }
 
 // NewExecDriver returns a new DrivePlugin implementation
@@ -289,17 +291,23 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
+
+		if cErr := executor.CleanupExecutor(d.logger, taskState.ExecCleanupHandle); cErr != nil {
+			d.logger.Error("failed to clean up executor after failed attachment", "error", cErr)
+		}
+
 		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
 	h := &taskHandle{
-		exec:         exec,
-		pid:          taskState.Pid,
-		pluginClient: pluginClient,
-		taskConfig:   taskState.TaskConfig,
-		procState:    drivers.TaskStateRunning,
-		startedAt:    taskState.StartedAt,
-		exitResult:   &drivers.ExitResult{},
+		exec:              exec,
+		execCleanupHandle: taskState.ExecCleanupHandle,
+		pid:               taskState.Pid,
+		pluginClient:      pluginClient,
+		taskConfig:        taskState.TaskConfig,
+		procState:         drivers.TaskStateRunning,
+		startedAt:         taskState.StartedAt,
+		exitResult:        &drivers.ExitResult{},
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
@@ -355,27 +363,29 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Devices:        cfg.Devices,
 	}
 
-	ps, err := exec.Launch(execCmd)
+	ps, execCleanupHandle, err := exec.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, nil, fmt.Errorf("failed to launch command with executor: %v", err)
 	}
 
 	h := &taskHandle{
-		exec:         exec,
-		pid:          ps.Pid,
-		pluginClient: pluginClient,
-		taskConfig:   cfg,
-		procState:    drivers.TaskStateRunning,
-		startedAt:    time.Now().Round(time.Millisecond),
-		logger:       d.logger,
+		exec:              exec,
+		execCleanupHandle: execCleanupHandle,
+		pid:               ps.Pid,
+		pluginClient:      pluginClient,
+		taskConfig:        cfg,
+		procState:         drivers.TaskStateRunning,
+		startedAt:         time.Now().Round(time.Millisecond),
+		logger:            d.logger,
 	}
 
 	driverState := TaskState{
-		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
-		Pid:            ps.Pid,
-		TaskConfig:     cfg,
-		StartedAt:      h.startedAt,
+		ReattachConfig:    pstructs.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		Pid:               ps.Pid,
+		TaskConfig:        cfg,
+		StartedAt:         h.startedAt,
+		ExecCleanupHandle: execCleanupHandle,
 	}
 
 	if err := handle.SetDriverState(&driverState); err != nil {
