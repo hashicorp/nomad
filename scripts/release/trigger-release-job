@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+set -e
+set -o pipefail
+
 if [ "$#" -ne 3 ]
 then
     echo "Usage: $0 VERSION OSS_REVISION ENTERPRISE_REVISION"
@@ -21,11 +24,11 @@ readonly script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 &&
 readonly project_url=https://circleci.hashicorp.engineering/api/v1.1/project/github/hashicorp/nomad-enterprise/tree/master
 
 
-curl \
+curl --fail --silent --show-error \
     --user "19571c47999651ad1150b5f8dd3658e0b760c349:" \
-    --form build_parameters[CIRCLE_JOB]=build \
+    --form "build_parameters[CIRCLE_JOB]=build" \
     --form "build_parameters[NOMAD_OSS_REVISION]=${nomad_oss_revision}" \
     --form "build_parameters[NOMAD_ENTERPRISE_REVISION]=${nomad_enterprise_revision}" \
     --form "build_parameters[NOMAD_VERSION]=${nomad_version}" \
     --form "config=@${script_dir}/circleci-release.yaml" \
-    ${project_url}
+    ${project_url} | grep "build_url"
