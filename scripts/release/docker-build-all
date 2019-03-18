@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-set -e
-set -x
+set -o errexit
+set -o xtrace
 
 cp -r /tmp/nomad-git /opt/gopath/src/github.com/hashicorp/nomad/.git
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -o errexit
 
 REPO="$1"
 RELEASE_TARGET="${2:-release}"
@@ -26,7 +26,8 @@ rsync -az \
 echo '=======>>>> Compiling Mac Binaries'
 cat <<'EOF' | ssh sharedmac-bot /bin/bash -s "${TMP_WORKSPACE}"
 
-set -ex
+set -o errexit
+set -o xtrace
 
 TMP_WORKSPACE="$1"
 REPO_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
