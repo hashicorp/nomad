@@ -91,7 +91,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	executor := libcontainerFactory(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
-	ps, err := executor.Launch(execCmd)
+	ps, _, err := executor.Launch(execCmd)
 	require.NoError(err)
 	require.NotZero(ps.Pid)
 
@@ -170,7 +170,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd.Args = []string{"-c", "while true; do /bin/echo X; /bin/sleep 1; done"}
 	execCmd.ResourceLimits = true
 
-	ps, err := executor.Launch(execCmd)
+	ps, _, err := executor.Launch(execCmd)
 
 	require.NoError(err)
 	require.NotZero(ps.Pid)

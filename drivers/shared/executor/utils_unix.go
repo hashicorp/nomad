@@ -3,6 +3,7 @@
 package executor
 
 import (
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -15,4 +16,9 @@ func isolateCommand(cmd *exec.Cmd) {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	cmd.SysProcAttr.Setsid = true
+}
+
+func isProcessRunning(process *os.Process) bool {
+	err := process.Signal(syscall.Signal(0))
+	return err == nil
 }

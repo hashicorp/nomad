@@ -62,6 +62,8 @@ func init() {
 		}
 		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
 	}
+
+	executorCleanupFns["libcontainer"] = destroyLibcontainerExecutor
 }
 
 // LibcontainerExecutor implements an Executor with the runc/libcontainer api
@@ -100,12 +102,12 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
-func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
+func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, []byte, error) {
 	l.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 	// Find the nomad executable to launch the executor process with
 	bin, err := discover.NomadExecutable()
 	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
+		return nil, nil, fmt.Errorf("unable to find the nomad binary: %v", err)
 	}
 
 	if command.Resources == nil {
@@ -119,10 +121,10 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// Move to the root cgroup until process is started
 	subsystems, err := cgroups.GetAllSubsystems()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := JoinRootCgroup(subsystems); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// create a new factory which will store the container state in the allocDir
@@ -132,29 +134,29 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		libcontainer.InitArgs(bin, "libcontainer-shim"),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create factory: %v", err)
+		return nil, nil, fmt.Errorf("failed to create factory: %v", err)
 	}
 
 	// A container groups processes under the same isolation enforcement
 	containerCfg, err := newLibcontainerConfig(command)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
+		return nil, nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
 
 	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
+		return nil, nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
 	}
 	l.container = container
 
 	// Look up the binary path and make it executable
 	absPath, err := lookupBin(command.TaskDir, command.Cmd)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := makeExecutable(absPath); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	path := absPath
@@ -162,18 +164,18 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// Determine the path to run as it may have to be relative to the chroot.
 	rel, err := filepath.Rel(command.TaskDir, path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
+		return nil, nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
 	}
 	path = rel
 
 	combined := append([]string{path}, command.Args...)
 	stdout, err := command.Stdout()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	stderr, err := command.Stderr()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// the task process will be started by the container
@@ -197,13 +199,13 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// Starts the task
 	if err := container.Run(process); err != nil {
 		container.Destroy()
-		return nil, err
+		return nil, nil, err
 	}
 
 	pid, err := process.Pid()
 	if err != nil {
 		container.Destroy()
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Join process cgroups
@@ -221,11 +223,13 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	go l.pidCollector.collectPids(l.userProcExited, l.getAllPids)
 	go l.wait()
 
-	return &ProcessState{
+	procState := &ProcessState{
 		Pid:      pid,
 		ExitCode: -1,
 		Time:     time.Now(),
-	}, nil
+	}
+
+	return procState, l.cleanupHandle(pid), nil
 }
 
 func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
@@ -762,4 +766,57 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	}
 
 	return r
+}
+
+func (l *LibcontainerExecutor) cleanupHandle(pid int) []byte {
+	cleanupHandle := cleanupHandle{
+		Version:      "1",
+		ExecutorType: "libcontainer",
+		Pid:          pid,
+		StartTime:    processStartTime(pid),
+		LibcontainerData: libcontainerData{
+			Root:        path.Join(l.command.TaskDir, "../alloc/container"),
+			ContainerId: l.container.ID(),
+		},
+	}
+
+	return cleanupHandle.serialize()
+}
+
+func destroyLibcontainerExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle) error {
+	logger.Info("destroying process",
+		"pid", cleanupHandle.Pid,
+		"executor", "libcontainer")
+
+	// Find the nomad executable to launch the executor process with
+	bin, err := discover.NomadExecutable()
+	if err != nil {
+		return fmt.Errorf("unable to find the nomad binary: %v", err)
+	}
+
+	e := NewExecutorWithIsolation(logger).(*LibcontainerExecutor)
+	root := cleanupHandle.LibcontainerData.Root
+	containerId := cleanupHandle.LibcontainerData.ContainerId
+
+	factory, err := libcontainer.New(
+		root,
+		libcontainer.Cgroupfs,
+		libcontainer.InitArgs(bin, "libcontainer-shim"),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create factory: %v", err)
+	}
+
+	container, err := factory.Load(containerId)
+	if err != nil {
+		return fmt.Errorf("failed to load container: %v", err)
+	}
+	e.container = container
+
+	_, err = container.Status()
+	if err != nil {
+		return fmt.Errorf("failed to get container status: %v", err)
+	}
+
+	return e.Shutdown("SIGKILL", 100*time.Millisecond)
 }

@@ -19,7 +19,7 @@ type grpcExecutorServer struct {
 }
 
 func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchRequest) (*proto.LaunchResponse, error) {
-	ps, err := s.impl.Launch(&ExecCommand{
+	ps, handle, err := s.impl.Launch(&ExecCommand{
 		Cmd:                req.Cmd,
 		Args:               req.Args,
 		Resources:          drivers.ResourcesFromProto(req.Resources),
@@ -44,7 +44,8 @@ func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchReques
 	}
 
 	return &proto.LaunchResponse{
-		Process: process,
+		Process:       process,
+		CleanupHandle: handle,
 	}, nil
 }
 

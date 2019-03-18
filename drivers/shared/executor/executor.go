@@ -42,11 +42,17 @@ var (
 	ExecutorBasicMeasuredCpuStats = []string{"System Mode", "User Mode", "Percent"}
 )
 
+var executorCleanupFns = map[string]cleanupHandleFn{}
+
+func init() {
+	executorCleanupFns["universal"] = destroyUniversalExecutor
+}
+
 // Executor is the interface which allows a driver to launch and supervise
 // a process
 type Executor interface {
 	// Launch a user process configured by the given ExecCommand
-	Launch(launchCmd *ExecCommand) (*ProcessState, error)
+	Launch(launchCmd *ExecCommand) (procState *ProcessState, cleanupHandle []byte, err error)
 
 	// Wait blocks until the process exits or an error occures
 	Wait(ctx context.Context) (*ProcessState, error)
@@ -252,7 +258,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
-func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
+func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, []byte, error) {
 	e.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	e.commandCfg = command
@@ -261,7 +267,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	if command.User != "" {
 		e.logger.Debug("running command as user", "user", command.User)
 		if err := e.runAs(command.User); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -270,21 +276,21 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Setup cgroups on linux
 	if err := e.configureResourceContainer(os.Getpid()); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	stdout, err := e.commandCfg.Stdout()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	stderr, err := e.commandCfg.Stderr()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	e.childCmd.Stdout = stdout
@@ -293,11 +299,11 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// Look up the binary path and make it executable
 	absPath, err := lookupBin(command.TaskDir, command.Cmd)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := makeExecutable(absPath); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	path := absPath
@@ -309,12 +315,19 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 
 	// Start the process
 	if err := e.childCmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
+		return nil, nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
 	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
-	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
+
+	procState := &ProcessState{
+		Pid:      e.childCmd.Process.Pid,
+		ExitCode: -1,
+		Time:     time.Now(),
+	}
+
+	return procState, e.cleanupHandle(), nil
 }
 
 // Exec a command inside a container for exec and java drivers.
@@ -434,6 +447,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 
 	// If the executor did not launch a process, return.
 	if e.commandCfg == nil {
+		e.logger.Warn("commandCfg was nil")
 		return nil
 	}
 
@@ -475,6 +489,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 			proc.Kill()
 		}
 	} else {
+		e.logger.Warn("killing now", "pid", proc.Pid)
 		proc.Kill()
 	}
 
@@ -601,4 +616,61 @@ func makeExecutable(binPath string) error {
 		}
 	}
 	return nil
+}
+
+func (e *UniversalExecutor) cleanupHandle() []byte {
+	cleanupHandle := cleanupHandle{
+		Version:      "1",
+		ExecutorType: "universal",
+		Pid:          e.childCmd.Process.Pid,
+		StartTime:    processStartTime(e.childCmd.Process.Pid),
+		UniversalData: universalData{
+			CommandConfig: e.commandCfg,
+			Cgroups:       e.resConCtx,
+		},
+	}
+
+	return cleanupHandle.serialize()
+}
+
+func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle) error {
+
+	logger.Info("destroying executor",
+		"pid", cleanupHandle.Pid,
+		"executor", "universal")
+
+	pid := cleanupHandle.Pid
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("failed to find exec process: %v", err)
+	}
+
+	// On Unix, FindProcess always returns a value even if process is dead
+	if !isProcessRunning(proc) {
+		logger.Warn("attempted to destroy process but is already dead",
+			"pid", pid)
+		return fmt.Errorf("failed to find exec process: %v", pid)
+	}
+
+	if cleanupHandle.StartTime != processStartTime(pid) {
+		logger.Warn("attempted to destroy process but pid was recycled",
+			"pid", pid,
+			"original_start_time", cleanupHandle.StartTime,
+			"observed_start_time", processStartTime(pid))
+
+		return fmt.Errorf("exec PID has mismatched start time, maybe recycled PID.  Expected %v but found %v",
+			cleanupHandle.StartTime, processStartTime(pid))
+	}
+
+	e := NewExecutor(logger).(*UniversalExecutor)
+	e.commandCfg = cleanupHandle.UniversalData.CommandConfig
+	e.resConCtx = cleanupHandle.UniversalData.Cgroups
+
+	// fake
+	cmd := exec.Command("echo", "fake process")
+	cmd.Process = proc
+	e.childCmd.Process = proc
+
+	logger.Info("cleaning up now", "pid", pid)
+	return e.Shutdown("SIGKILL", 0)
 }

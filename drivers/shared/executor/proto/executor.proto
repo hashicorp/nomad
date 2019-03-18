@@ -33,6 +33,7 @@ message LaunchRequest {
 
 message LaunchResponse {
     ProcessState process = 1;
+    bytes cleanupHandle = 2;
 }
 
 message WaitRequest {}
