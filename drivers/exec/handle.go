@@ -66,9 +66,7 @@ func (h *taskHandle) run() {
 	defer h.stateLock.Unlock()
 
 	if err != nil {
-		h.logger.Warn("failed to wait for process",
-			"pid", h.pid,
-			"error", err)
+		h.logger.Warn("failed to wait for process", "pid", h.pid, "error", err)
 		if cErr := executor.CleanupExecutor(h.logger, h.execCleanupHandle); cErr != nil {
 			h.logger.Warn("failed to clean up executor resources", "error", cErr)
 		}
