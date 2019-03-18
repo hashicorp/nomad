@@ -367,3 +367,71 @@ func setupRootfsBinary(t *testing.T, rootfs, path string) {
 	err = os.Link(src, dst)
 	require.NoError(t, err)
 }
+
+func TestExecutor_Start_Kill_Immediately_NoGrace(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			execCmd, allocDir := testExecutorCommand(t)
+			execCmd.Cmd = "/bin/sleep"
+			execCmd.Args = []string{"100"}
+			defer allocDir.Destroy()
+			executor := factory(testlog.HCLogger(t))
+			defer executor.Shutdown("", 0)
+
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			waitCh := make(chan interface{})
+			go func() {
+				defer close(waitCh)
+				executor.Wait(context.Background())
+			}()
+
+			require.NoError(executor.Shutdown("SIGKILL", 0))
+
+			select {
+			case <-waitCh:
+				// all good!
+			case <-time.After(4 * time.Second * time.Duration(tu.TestMultiplier())):
+				require.Fail("process did not terminate despite SIGKILL")
+			}
+		})
+	}
+}
+
+func TestExecutor_Start_Kill_Immediately_WithGrace(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			execCmd, allocDir := testExecutorCommand(t)
+			execCmd.Cmd = "/bin/sleep"
+			execCmd.Args = []string{"100"}
+			defer allocDir.Destroy()
+			executor := factory(testlog.HCLogger(t))
+			defer executor.Shutdown("", 0)
+
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			waitCh := make(chan interface{})
+			go func() {
+				defer close(waitCh)
+				executor.Wait(context.Background())
+			}()
+
+			require.NoError(executor.Shutdown("SIGKILL", 100*time.Millisecond))
+
+			select {
+			case <-waitCh:
+				// all good!
+			case <-time.After(4 * time.Second * time.Duration(tu.TestMultiplier())):
+				require.Fail("process did not terminate despite SIGKILL")
+			}
+		})
+	}
+}
