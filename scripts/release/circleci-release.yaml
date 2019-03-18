@@ -1,0 +1,282 @@
+version: 2.0
+jobs:
+  build:
+    machine:
+      image: default
+
+    steps:
+    - run:
+        name: setup
+        command: |
+          if [[ -z "${NOMAD_OSS_REVISION}" ]]
+          then
+            echo 'NOMAD_OSS_REVISION is not set'
+            exit 1
+          fi
+
+          if [[ -z "${NOMAD_VERSION}" ]]
+          then
+            echo 'NOMAD_VERSION is not set'
+            exit 1
+          fi
+
+          if [[ -z "${NOMAD_ENTERPRISE_REVISION}" ]]
+          then
+            echo 'NOMAD_ENTERPRISE_REVISION is not set'
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          cat <<'EOF' >> ~/.ssh/config
+          Host sharedmac-bot
+            Hostname 207.254.52.171
+            User hashicorp-bot
+          EOF
+
+          git config --global user.email "nomad@hashicorp.com"
+          git config --global user.name "Nomad Release Bot"
+
+    - run:
+        name: inspect information
+        command: |
+          echo "RELEASE VERSION     : ${NOMAD_VERSION}"
+          echo "OSS REVISION        : ${NOMAD_OSS_REVISION}"
+          echo "ENTERPRISE REVISION : ${NOMAD_ENTERPRISE_REVISION}"
+
+    ############## OSS Code
+    - run:
+        name: "oss: checkout code"
+        command: |
+          git clone git@github.com:hashicorp/nomad.git ~/nomad-oss
+          cd ~/nomad-oss
+          git reset --hard "${NOMAD_OSS_REVISION}"
+
+    - run:
+        name: build docker builder image
+        path: ~/nomad-oss
+        command: |
+          docker build \
+            -f ./scripts/release/Dockerfile \
+            -t nomad-builder:latest \
+            .
+
+    - run:
+        name: "oss: build Linux"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          PRERELEASE_TARGET: prerelease
+          RELEASE_TARGET: release
+        path: ~/nomad-oss
+        command: &build_linux |
+          mkdir -p "${ARTIFACTS_PATH}"
+          chmod 777 "${ARTIFACTS_PATH}"
+
+          docker run --rm \
+            -v $(pwd)/.git:/tmp/nomad-git:ro \
+            -v ${ARTIFACTS_PATH}:/tmp/artifacts:rw \
+            -e "PRERELEASE_TARGET=${PRERELEASE_TARGET}" \
+            -e "RELEASE_TARGET=${RELEASE_TARGET}" \
+            -e "NOMAD_VERSION=${NOMAD_VERSION}" \
+            nomad-builder:latest \
+            /tmp/scripts/docker-build-all
+
+          sudo chown -R $(whoami):$(whoami) "${ARTIFACTS_PATH}"
+
+    - run:
+        name: "oss: inspect changes"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+        command: &inspect_changes |
+          set -x
+          cd ${ARTIFACTS_PATH}/repo
+          git status
+          git log -2
+          git show --name-only
+          ./pkg/linux_amd64/nomad --version
+
+    - run:
+        name: "oss: build macOS"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          RELEASE_TARGET: release
+        command: &build_mac |
+          "${ARTIFACTS_PATH}/repo/scripts/release/mac-remote-build" \
+            "${ARTIFACTS_PATH}/repo" "${RELEASE_TARGET}"
+
+    - run:
+        name: "oss: compress release"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+        command: &compress_repo |
+          tar -cz \
+            --exclude '*/ui/tmp' \
+            --exclude '*/ui/dist' \
+            --exclude '*/ui/node_modules' \
+            -f ${ARTIFACTS_PATH}.tar.gz \
+            ${ARTIFACTS_PATH}
+
+    - run:
+        name: "oss: inspect checksum"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+        command: &inspect_checksum |
+          cd ${ARTIFACTS_PATH}/repo
+          find pkg -type f | sort | xargs sha256sum
+          sha256sum ${ARTIFACTS_PATH}.tar.gz
+
+    - run:
+        name: "oss: upload repo to S3"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          ARTIFACT_NAME: nomad-oss-artifacts
+        command: &upload_s3_repo |
+          destination="s3://nomad-team-test-binary/release-prep/${NOMAD_VERSION}/circleci-${CIRCLE_BUILD_NUM}/${ARTIFACT_NAME}"
+
+          echo "Uploading artifacts to ${destination}"
+
+          echo "Uploading repo tarball to artifacts to ${destination}/repo.tar.gz"
+          aws --region us-east-1 s3 cp \
+            "${ARTIFACTS_PATH}.tar.gz" \
+            "${destination}/repo.tar.gz"
+
+          echo "Uploading zipped binaries"
+          aws --region us-east-1 s3 sync \
+            --exclude="*/nomad" \
+            --exclude="*/nomad.exe" \
+            "${ARTIFACTS_PATH}/repo/pkg/" \
+            "${destination}/pkg/"
+
+    - store_artifacts:
+        name: "oss: marking repo as artifact"
+        path: /tmp/artifacts/nomad-oss-artifacts.tar.gz
+        
+    - store_artifacts:
+        name: "oss: marking binaries as artifact"
+        path: /tmp/artifacts/nomad-oss-artifacts/repo/pkg
+
+    ############## Enterprise Code
+    - run:
+        name: "ent: checkout code"
+        command: |
+          git clone git@github.com:hashicorp/nomad-enterprise.git ~/nomad-ent
+          cd ~/nomad-ent
+          git reset --hard "${NOMAD_ENTERPRISE_REVISION}"
+
+          # merge OSS
+          OSS_HEAD=$(git -C /tmp/artifacts/nomad-oss-artifacts/repo rev-parse HEAD)
+          git remote add oss /tmp/artifacts/nomad-oss-artifacts/repo
+          git fetch oss
+          if ! git merge ${OSS_HEAD}
+          then
+            git status
+            git checkout --theirs version/version.go
+            git checkout --theirs command/agent/bindata_assetfs.go
+            git add version/version.go command/agent/bindata_assetfs.go
+            git commit -m "merge latest OSS master ${OSS_HEAD}"
+          fi
+
+    - run:
+        name: "ent: build Linux"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          PRERELEASE_TARGET: prerelease
+          RELEASE_TARGET: release
+        path: ~/nomad-ent
+        command: *build_linux 
+
+    - run:
+        name: "ent: inspect changes"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+        command: *inspect_changes
+
+    - run:
+        name: "ent: build macOS"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          RELEASE_TARGET: release
+        command: *build_mac
+
+    - run:
+        name: "ent: compress release"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+        command: *compress_repo
+
+    - run:
+        name: "ent: inspect checksum"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+        command: *inspect_checksum
+
+    - run:
+        name: "ent: upload repo to S3"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          ARTIFACT_NAME: nomad-ent-artifacts
+        command: *upload_s3_repo
+
+    - store_artifacts:
+        name: "ent: marking repo as artifact"
+        path: /tmp/artifacts/nomad-ent-artifacts.tar.gz
+        
+    - store_artifacts:
+        name: "ent: marking binaries as artifact"
+        path: /tmp/artifacts/nomad-ent-artifacts/repo/pkg
+
+    ############## Pro Code
+    - run:
+        name: "pro: checkout code"
+        command: |
+          git clone /tmp/artifacts/nomad-ent-artifacts/repo/.git ~/nomad-pro
+          cd ~/nomad-pro
+          git remote set-url origin git@github.com:hashicorp/nomad-enterprise.git
+
+    - run:
+        name: "pro: build Linux"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          PRERELEASE_TARGET: help # prerelease is a NOOP
+          RELEASE_TARGET: prorelease
+        path: ~/nomad-pro
+        command: *build_linux 
+
+    - run:
+        name: "pro: inspect changes"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+        command: *inspect_changes
+
+    - run:
+        name: "pro: build macOS"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          RELEASE_TARGET: prorelease
+        command: *build_mac
+
+    - run:
+        name: "pro: compress release"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+        command: *compress_repo
+
+    - run:
+        name: "pro: inspect checksum"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+        command: *inspect_checksum
+
+    - run:
+        name: "pro: upload repo to S3"
+        environment:
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          ARTIFACT_NAME: nomad-pro-artifacts
+        command: *upload_s3_repo
+
+    - store_artifacts:
+        name: "pro: marking repo as artifact"
+        path: /tmp/artifacts/nomad-pro-artifacts.tar.gz
+        
+    - store_artifacts:
+        name: "pro: marking binaries as artifact"
+        path: /tmp/artifacts/nomad-pro-artifacts/repo/pkg
