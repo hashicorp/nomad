@@ -711,7 +711,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		StdoutPath: cfg.StdoutPath,
 		StderrPath: cfg.StderrPath,
 	}
-	ps, err := execImpl.Launch(execCmd)
+	ps, _, err := execImpl.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, nil, err
