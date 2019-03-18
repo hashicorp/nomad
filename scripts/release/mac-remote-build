@@ -14,17 +14,19 @@ fi
 TMP_WORKSPACE="/tmp/nomad-workspace/$(date +%Y-%m-%d-%s)"
 REPO_REMOTE_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
 
+readonly remote_macos_host=${REMOTE_MACOS_HOST:-sharedmac-bot}
+
 echo "Using temp workspace: ${TMP_WORKSPACE}"
 echo
 
 echo '=======>>>> Transfering repository'
-ssh sharedmac-bot mkdir -p "${REPO_REMOTE_PATH}"
+ssh ${remote_macos_host} mkdir -p "${REPO_REMOTE_PATH}"
 rsync -az \
       "${REPO}/.git" \
-      "sharedmac-bot:${REPO_REMOTE_PATH}"
+      "${remote_macos_host}:${REPO_REMOTE_PATH}"
 
 echo '=======>>>> Compiling Mac Binaries'
-cat <<'EOF' | ssh sharedmac-bot /bin/bash -s "${TMP_WORKSPACE}"
+cat <<'EOF' | ssh ${remote_macos_host} /bin/bash -s "${TMP_WORKSPACE}"
 
 set -o errexit
 set -o xtrace
@@ -68,6 +70,6 @@ compile
 EOF
 
 echo '=======>>>> Retreiving mac compiled binaries'
-rsync -avz --ignore-existing sharedmac-bot:"${REPO_REMOTE_PATH}/pkg/" "${REPO}/pkg"
+rsync -avz --ignore-existing ${remote_macos_host}:"${REPO_REMOTE_PATH}/pkg/" "${REPO}/pkg"
 
-ssh sharedmac-bot rm -rf "${TMP_WORKSPACE}"
+ssh ${remote_macos_host} rm -rf "${TMP_WORKSPACE}"
