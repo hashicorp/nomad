@@ -9,20 +9,25 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.3.1
+CONSULVERSION=1.4.3
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=0.11.4
+VAULTVERSION=1.0.3
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.8.6
+NOMADVERSION=0.8.7
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
+
+CONSULTEMPLATEVERSION=0.20.0
+CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTEMPLATEVERSION}/consul-template_${CONSULTEMPLATEVERSION}_linux_amd64.zip
+CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
+CONSULTEMPLATEDIR=/opt/consul-template
 
 HADOOP_VERSION=2.7.6
 
@@ -84,6 +89,21 @@ sudo mkdir -p $NOMADCONFIGDIR
 sudo chmod 755 $NOMADCONFIGDIR
 sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
+
+# Consul Template 
+
+curl -L $CONSULTEMPLATEDOWNLOAD > consul-template.zip
+
+## Install
+sudo unzip consul-template.zip -d /usr/local/bin
+sudo chmod 0755 /usr/local/bin/consul-template
+sudo chown root:root /usr/local/bin/consul-template
+
+## Configure
+sudo mkdir -p $CONSULTEMPLATECONFIGDIR
+sudo chmod 755 $CONSULTEMPLATECONFIGDIR
+sudo mkdir -p $CONSULTEMPLATEDIR
+sudo chmod 755 $CONSULTEMPLATEDIR
 
 # Docker
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')

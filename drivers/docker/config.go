@@ -256,6 +256,7 @@ var (
 		"load":               hclspec.NewAttr("load", "string", false),
 		"logging": hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"type":   hclspec.NewAttr("type", "string", false),
+			"driver": hclspec.NewAttr("driver", "string", false),
 			"config": hclspec.NewAttr("config", "list(map(string))", false),
 		})),
 		"mac_address": hclspec.NewAttr("mac_address", "string", false),
@@ -397,6 +398,7 @@ func (d DockerDevice) toDockerDevice() (docker.Device, error) {
 
 type DockerLogging struct {
 	Type   string             `codec:"type"`
+	Driver string             `codec:"driver"`
 	Config hclutils.MapStrStr `codec:"config"`
 }
 

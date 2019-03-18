@@ -37,16 +37,16 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		return nil
 	}
 
-	// Initialize HookData to store download progress
-	resp.HookData = make(map[string]string, len(req.Task.Artifacts))
+	// Initialize hook state to store download progress
+	resp.State = make(map[string]string, len(req.Task.Artifacts))
 
 	h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 
 	for _, artifact := range req.Task.Artifacts {
 		aid := artifact.Hash()
-		if req.HookData[aid] != "" {
+		if req.PreviousState[aid] != "" {
 			h.logger.Trace("skipping already downloaded artifact", "artifact", artifact.GetterSource)
-			resp.HookData[aid] = req.HookData[aid]
+			resp.State[aid] = req.PreviousState[aid]
 			continue
 		}
 
@@ -65,7 +65,7 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		// Mark artifact as downloaded to avoid re-downloading due to
 		// retries caused by subsequent artifacts failing. Any
 		// non-empty value works.
-		resp.HookData[aid] = "1"
+		resp.State[aid] = "1"
 	}
 
 	resp.Done = true

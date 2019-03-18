@@ -176,7 +176,6 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 }
 
 func TestAllocations_Stats(t *testing.T) {
-	t.Skip("missing exec driver plugin implementation")
 	t.Parallel()
 	require := require.New(t)
 	client, cleanup := TestClient(t, nil)

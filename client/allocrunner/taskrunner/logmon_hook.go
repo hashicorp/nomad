@@ -95,7 +95,7 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
-	reattachConfig, err := reattachConfigFromHookData(req.HookData)
+	reattachConfig, err := reattachConfigFromHookData(req.PreviousState)
 	if err != nil {
 		h.logger.Error("failed to load reattach config", "error", err)
 		return err
@@ -131,11 +131,20 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	resp.HookData = map[string]string{logmonReattachKey: string(jsonCfg)}
+	resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
 	return nil
 }
 
-func (h *logmonHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
+func (h *logmonHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, _ *interfaces.TaskStopResponse) error {
+
+	// It's possible that Stop was called without calling Prestart on agent
+	// restarts. Attempt to reattach to an existing logmon.
+	if h.logmon == nil || h.logmonPluginClient == nil {
+		if err := h.reattach(req); err != nil {
+			h.logger.Trace("error reattaching to logmon when stopping", "error", err)
+		}
+	}
+
 	if h.logmon != nil {
 		h.logmon.Stop()
 	}
@@ -144,4 +153,19 @@ func (h *logmonHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfa
 	}
 
 	return nil
+}
+
+// reattach to a running logmon if possible. Will not start a new logmon.
+func (h *logmonHook) reattach(req *interfaces.TaskStopRequest) error {
+	reattachConfig, err := reattachConfigFromHookData(req.ExistingState)
+	if err != nil {
+		return err
+	}
+
+	// Give up if there's no reattach config
+	if reattachConfig == nil {
+		return nil
+	}
+
+	return h.launchLogMon(reattachConfig)
 }

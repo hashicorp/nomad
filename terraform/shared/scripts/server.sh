@@ -7,6 +7,7 @@ CONFIGDIR=/ops/shared/config
 CONSULCONFIGDIR=/etc/consul.d
 VAULTCONFIGDIR=/etc/vault.d
 NOMADCONFIGDIR=/etc/nomad.d
+CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 HADOOP_VERSION=hadoop-2.7.6
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
@@ -58,6 +59,10 @@ sudo cp $CONFIGDIR/nomad.service /etc/systemd/system/nomad.service
 sudo systemctl start nomad.service
 sleep 10
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
+
+# Consul Template
+sudo cp $CONFIGDIR/consul-template.hcl $CONSULTEMPLATECONFIGDIR/consul-template.hcl
+sudo cp $CONFIGDIR/consul-template.service /etc/systemd/system/consul-template.service
 
 # Add hostname to /etc/hosts
 

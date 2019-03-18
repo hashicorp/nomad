@@ -56,6 +56,33 @@ func TestConfig_ParseJSON(t *testing.T) {
 				Devices: []DockerDevice{},
 			},
 		},
+		{
+			name:  "nil values for 'volumes' field are safe",
+			input: `{"Config": {"image": "bash:3", "volumes": null}}`,
+			expected: TaskConfig{
+				Image:   "bash:3",
+				Mounts:  []DockerMount{},
+				Devices: []DockerDevice{},
+			},
+		},
+		{
+			name:  "nil values for 'args' field are safe",
+			input: `{"Config": {"image": "bash:3", "args": null}}`,
+			expected: TaskConfig{
+				Image:   "bash:3",
+				Mounts:  []DockerMount{},
+				Devices: []DockerDevice{},
+			},
+		},
+		{
+			name:  "nil values for string fields are safe",
+			input: `{"Config": {"image": "bash:3", "command": null}}`,
+			expected: TaskConfig{
+				Image:   "bash:3",
+				Mounts:  []DockerMount{},
+				Devices: []DockerDevice{},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -181,7 +208,8 @@ config {
   }
   load = "/tmp/image.tar.gz"
   logging {
-    type = "json-file"
+    driver = "json-file-driver"
+    type   = "json-file"
     config {
       "max-file" = "3"
       "max-size" = "10m"
@@ -308,7 +336,8 @@ config {
 		},
 		LoadImage: "/tmp/image.tar.gz",
 		Logging: DockerLogging{
-			Type: "json-file",
+			Driver: "json-file-driver",
+			Type:   "json-file",
 			Config: map[string]string{
 				"max-file": "3",
 				"max-size": "10m",

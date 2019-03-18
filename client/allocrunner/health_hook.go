@@ -142,7 +142,7 @@ func (h *allocHealthWatcherHook) init() error {
 	return nil
 }
 
-func (h *allocHealthWatcherHook) Prerun(context.Context) error {
+func (h *allocHealthWatcherHook) Prerun() error {
 	h.hookLock.Lock()
 	defer h.hookLock.Unlock()
 

@@ -26,7 +26,7 @@ func (h *upstreamAllocsHook) Name() string {
 	return "await_previous_allocations"
 }
 
-func (h *upstreamAllocsHook) Prerun(ctx context.Context) error {
+func (h *upstreamAllocsHook) Prerun() error {
 	// Wait for a previous alloc - if any - to terminate
-	return h.allocWatcher.Wait(ctx)
+	return h.allocWatcher.Wait(context.Background())
 }
