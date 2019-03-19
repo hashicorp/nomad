@@ -478,6 +478,14 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		proc.Kill()
 	}
 
+	// Wait for process to exit
+	select {
+	case <-e.processExited:
+	case <-time.After(time.Second * 15):
+		e.logger.Warn("process did not exit after 15 seconds")
+		merr.Errors = append(merr.Errors, fmt.Errorf("process did not exit after 15 seconds"))
+	}
+
 	// Prefer killing the process via the resource container.
 	if !(e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup) {
 		if err := e.cleanupChildProcesses(proc); err != nil && err.Error() != finishedErr {
