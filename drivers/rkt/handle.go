@@ -14,12 +14,13 @@ import (
 )
 
 type taskHandle struct {
-	exec         executor.Executor
-	env          *taskenv.TaskEnv
-	uuid         string
-	pid          int
-	pluginClient *plugin.Client
-	logger       hclog.Logger
+	exec              executor.Executor
+	execCleanupHandle []byte
+	env               *taskenv.TaskEnv
+	uuid              string
+	pid               int
+	pluginClient      *plugin.Client
+	logger            hclog.Logger
 
 	// stateLock syncs access to all fields below
 	stateLock sync.RWMutex
@@ -66,6 +67,10 @@ func (h *taskHandle) run() {
 	defer h.stateLock.Unlock()
 
 	if err != nil {
+		if cErr := executor.CleanupExecutor(h.logger, h.execCleanupHandle); cErr != nil {
+			h.logger.Warn("failed to clean up executor resources", "error", cErr)
+		}
+
 		h.exitResult.Err = err
 		h.procState = drivers.TaskStateUnknown
 		h.completedAt = time.Now()

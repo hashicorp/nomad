@@ -166,6 +166,8 @@ type TaskState struct {
 	Pid            int
 	StartedAt      time.Time
 	UUID           string
+
+	ExecCleanupHandle []byte
 }
 
 // Driver is a driver for running images via Rkt We attempt to chose sane
@@ -385,6 +387,11 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
+
+		if cErr := executor.CleanupExecutor(d.logger, taskState.ExecCleanupHandle); cErr != nil {
+			d.logger.Error("failed to clean up executor after failed attachment", "error", cErr)
+		}
+
 		return fmt.Errorf("failed to reattach to executor: %v", err)
 	}
 
@@ -396,15 +403,16 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	rktEnv := eb.SetHostEnvvars(filter).Build()
 
 	h := &taskHandle{
-		exec:         execImpl,
-		env:          rktEnv,
-		pid:          taskState.Pid,
-		uuid:         taskState.UUID,
-		pluginClient: pluginClient,
-		taskConfig:   taskState.TaskConfig,
-		procState:    drivers.TaskStateRunning,
-		startedAt:    taskState.StartedAt,
-		exitResult:   &drivers.ExitResult{},
+		exec:              execImpl,
+		execCleanupHandle: taskState.ExecCleanupHandle,
+		env:               rktEnv,
+		pid:               taskState.Pid,
+		uuid:              taskState.UUID,
+		pluginClient:      pluginClient,
+		taskConfig:        taskState.TaskConfig,
+		procState:         drivers.TaskStateRunning,
+		startedAt:         taskState.StartedAt,
+		exitResult:        &drivers.ExitResult{},
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
@@ -711,7 +719,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		StdoutPath: cfg.StdoutPath,
 		StderrPath: cfg.StderrPath,
 	}
-	ps, _, err := execImpl.Launch(execCmd)
+	ps, execCleanupHandle, err := execImpl.Launch(execCmd)
 	if err != nil {
 		pluginClient.Kill()
 		return nil, nil, err
@@ -719,23 +727,25 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	d.logger.Debug("started taskConfig", "aci", img, "uuid", uuid, "task_name", cfg.Name, "args", runArgs)
 	h := &taskHandle{
-		exec:         execImpl,
-		env:          rktEnv,
-		pid:          ps.Pid,
-		uuid:         uuid,
-		pluginClient: pluginClient,
-		taskConfig:   cfg,
-		procState:    drivers.TaskStateRunning,
-		startedAt:    time.Now().Round(time.Millisecond),
-		logger:       d.logger,
+		exec:              execImpl,
+		execCleanupHandle: execCleanupHandle,
+		env:               rktEnv,
+		pid:               ps.Pid,
+		uuid:              uuid,
+		pluginClient:      pluginClient,
+		taskConfig:        cfg,
+		procState:         drivers.TaskStateRunning,
+		startedAt:         time.Now().Round(time.Millisecond),
+		logger:            d.logger,
 	}
 
 	rktDriverState := TaskState{
-		ReattachConfig: pstructs.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
-		Pid:            ps.Pid,
-		TaskConfig:     cfg,
-		StartedAt:      h.startedAt,
-		UUID:           uuid,
+		ReattachConfig:    pstructs.ReattachConfigFromGoPlugin(pluginClient.ReattachConfig()),
+		Pid:               ps.Pid,
+		TaskConfig:        cfg,
+		StartedAt:         h.startedAt,
+		UUID:              uuid,
+		ExecCleanupHandle: execCleanupHandle,
 	}
 
 	if err := handle.SetDriverState(&rktDriverState); err != nil {

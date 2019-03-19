@@ -290,7 +290,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	exec, pluginClient, err := executor.ReattachToExecutor(plugRC,
 		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
 	if err != nil {
-		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
+		d.logger.Error("failed to reattach to executor, maybe died", "error", err, "task_id", handle.Config.ID)
 
 		if cErr := executor.CleanupExecutor(d.logger, taskState.ExecCleanupHandle); cErr != nil {
 			d.logger.Error("failed to clean up executor after failed attachment", "error", cErr)
