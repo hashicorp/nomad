@@ -649,16 +649,9 @@ func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle)
 		"executor", "universal")
 
 	pid := cleanupHandle.Pid
-	proc, err := os.FindProcess(pid)
+	proc, err := findLiveProcess(pid)
 	if err != nil {
 		return fmt.Errorf("failed to find exec process: %v", err)
-	}
-
-	// On Unix, FindProcess always returns a value even if process is dead
-	if !isProcessRunning(proc) {
-		logger.Warn("attempted to destroy process but is already dead",
-			"pid", pid)
-		return fmt.Errorf("failed to find exec process: %v", pid)
 	}
 
 	st, err := processStartTime(int32(pid))

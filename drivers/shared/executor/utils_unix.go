@@ -18,7 +18,14 @@ func isolateCommand(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Setsid = true
 }
 
-func isProcessRunning(process *os.Process) bool {
-	err := process.Signal(syscall.Signal(0))
-	return err == nil
+// findLiveProcess looks up a given pid and attempts to validate its liveness.
+func findLiveProcess(pid int) (*os.Process, error) {
+	ps, err := os.FindProcess(pid)
+	if err != nil {
+		return nil, err
+	}
+
+	// On Unix platforms FindProcess succeeds on dead processes
+	err = ps.Signal(syscall.Signal(0))
+	return ps, err
 }
