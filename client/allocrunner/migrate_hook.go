@@ -30,7 +30,9 @@ func (h *diskMigrationHook) Name() string {
 	return "migrate_disk"
 }
 
-func (h *diskMigrationHook) Prerun(ctx context.Context) error {
+func (h *diskMigrationHook) Prerun() error {
+	ctx := context.TODO()
+
 	// Wait for a previous alloc - if any - to terminate
 	if err := h.allocWatcher.Wait(ctx); err != nil {
 		return err

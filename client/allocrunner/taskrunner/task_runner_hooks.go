@@ -151,13 +151,7 @@ func (tr *TaskRunner) prestart() error {
 			TaskResources: tr.taskResources,
 		}
 
-		var origHookState *state.HookState
-		tr.stateLock.RLock()
-		if tr.localState.Hooks != nil {
-			origHookState = tr.localState.Hooks[name]
-		}
-		tr.stateLock.RUnlock()
-
+		origHookState := tr.hookState(name)
 		if origHookState != nil {
 			if origHookState.PrestartDone {
 				tr.logger.Trace("skipping done prestart hook", "name", pre.Name())
@@ -173,7 +167,7 @@ func (tr *TaskRunner) prestart() error {
 			}
 
 			// Give the hook it's old data
-			req.HookData = origHookState.Data
+			req.PreviousState = origHookState.Data
 		}
 
 		req.VaultToken = tr.getVaultToken()
@@ -195,7 +189,7 @@ func (tr *TaskRunner) prestart() error {
 		// Store the hook state
 		{
 			hookState := &state.HookState{
-				Data:         resp.HookData,
+				Data:         resp.State,
 				PrestartDone: resp.Done,
 				Env:          resp.Env,
 			}
@@ -361,13 +355,21 @@ func (tr *TaskRunner) stop() error {
 		}
 
 		req := interfaces.TaskStopRequest{}
+
+		origHookState := tr.hookState(name)
+		if origHookState != nil {
+			// Give the hook data provided by prestart
+			req.ExistingState = origHookState.Data
+		}
+
 		var resp interfaces.TaskStopResponse
 		if err := post.Stop(tr.killCtx, &req, &resp); err != nil {
 			tr.emitHookError(err, name)
 			merr.Errors = append(merr.Errors, fmt.Errorf("stop hook %q failed: %v", name, err))
 		}
 
-		// No need to persist as TaskStopResponse is currently empty
+		// Stop hooks cannot alter state and must be idempotent, so
+		// unlike prestart there's no state to persist here.
 
 		if tr.logger.IsTrace() {
 			end := time.Now()

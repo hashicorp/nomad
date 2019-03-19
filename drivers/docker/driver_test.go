@@ -930,6 +930,52 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	require.EqualValues(t, opt, c.HostConfig.StorageOpt)
 }
 
+func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		loggingConfig  DockerLogging
+		expectedDriver string
+	}{
+		{
+			"simple type",
+			DockerLogging{Type: "fluentd"},
+			"fluentd",
+		},
+		{
+			"simple driver",
+			DockerLogging{Driver: "fluentd"},
+			"fluentd",
+		},
+		{
+			"type takes precedence",
+			DockerLogging{
+				Type:   "json-file",
+				Driver: "fluentd",
+			},
+			"json-file",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			task, cfg, _ := dockerTask(t)
+
+			cfg.Logging = c.loggingConfig
+			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			dh := dockerDriverHarness(t, nil)
+			driver := dh.Impl().(*Driver)
+
+			cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+			require.NoError(t, err)
+
+			require.Equal(t, c.expectedDriver, cc.HostConfig.LogConfig.Type)
+		})
+	}
+}
+
 func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
@@ -1615,6 +1661,60 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 		act, err := authFromDockerConfig(path)(c.Repo)
 		require.NoError(t, err)
 		require.Exactly(t, c.AuthConfig, act)
+	}
+}
+
+func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+
+	cases := []struct {
+		Auth       DockerAuth
+		AuthConfig *docker.AuthConfiguration
+		Desc       string
+	}{
+		{
+			Auth:       DockerAuth{},
+			AuthConfig: nil,
+			Desc:       "Empty Config",
+		},
+		{
+			Auth: DockerAuth{
+				Username:   "foo",
+				Password:   "bar",
+				Email:      "foo@bar.com",
+				ServerAddr: "www.foobar.com",
+			},
+			AuthConfig: &docker.AuthConfiguration{
+				Username:      "foo",
+				Password:      "bar",
+				Email:         "foo@bar.com",
+				ServerAddress: "www.foobar.com",
+			},
+			Desc: "All fields set",
+		},
+		{
+			Auth: DockerAuth{
+				Username:   "foo",
+				Password:   "bar",
+				ServerAddr: "www.foobar.com",
+			},
+			AuthConfig: &docker.AuthConfiguration{
+				Username:      "foo",
+				Password:      "bar",
+				ServerAddress: "www.foobar.com",
+			},
+			Desc: "Email not set",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Desc, func(t *testing.T) {
+			act, err := authFromTaskConfig(&TaskConfig{Auth: c.Auth})("test")
+			require.NoError(t, err)
+			require.Exactly(t, c.AuthConfig, act)
+		})
 	}
 }
 

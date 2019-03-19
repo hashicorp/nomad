@@ -88,8 +88,8 @@ plugin "raw_exec" {
 }
 ```
 
-Prior to Nomad 0.9, the client configuration would look like this (this syntax
-will soon be deprecated):
+Nomad versions before v0.9 use the following client configuration. This configuration is
+also supported in Nomad v0.9.0, but is deprecated in favor of the plugin stanza:
 
 ```
 client {

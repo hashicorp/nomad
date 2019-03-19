@@ -3,6 +3,8 @@ package docklog
 import (
 	"fmt"
 	"io"
+	"math/rand"
+	"strings"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -44,7 +46,10 @@ type StartOpts struct {
 
 // NewDockerLogger returns an implementation of the DockerLogger interface
 func NewDockerLogger(logger hclog.Logger) DockerLogger {
-	return &dockerLogger{logger: logger}
+	return &dockerLogger{
+		logger: logger,
+		doneCh: make(chan interface{}),
+	}
 }
 
 // dockerLogger implements the DockerLogger interface
@@ -54,6 +59,8 @@ type dockerLogger struct {
 	stdout    io.WriteCloser
 	stderr    io.WriteCloser
 	cancelCtx context.CancelFunc
+
+	doneCh chan interface{}
 }
 
 // Start log monitoring
@@ -81,7 +88,10 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 	d.cancelCtx = cancel
 
 	go func() {
+		defer close(d.doneCh)
+
 		sinceTime := time.Unix(opts.StartTime, 0)
+		backoff := 0.0
 
 		for {
 			logOpts := docker.LogsOptions{
@@ -99,8 +109,16 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 			if ctx.Err() != nil {
 				// If context is terminated then we can safely break the loop
 				return
+			} else if err == nil {
+				backoff = 0.0
+			} else if isLoggingTerminalError(err) {
+				d.logger.Error("log streaming ended with terminal error", "error", err)
+				return
 			} else if err != nil {
-				d.logger.Error("Log streaming ended with error", "error", err)
+				backoff = nextBackoff(backoff)
+				d.logger.Error("log streaming ended with error", "error", err, "retry_in", backoff)
+
+				time.Sleep(time.Duration(backoff) * time.Second)
 			}
 
 			sinceTime = time.Now()
@@ -167,4 +185,45 @@ func (d *dockerLogger) getDockerClient(opts *StartOpts) (*docker.Client, error) 
 	}
 
 	return newClient, merr.ErrorOrNil()
+}
+
+func isLoggingTerminalError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if apiErr, ok := err.(*docker.Error); ok {
+		switch apiErr.Status {
+		case 501:
+			return true
+		}
+	}
+
+	terminals := []string{
+		"configured logging driver does not support reading",
+	}
+
+	for _, c := range terminals {
+		if strings.Contains(err.Error(), c) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// nextBackoff returns the next backoff period in seconds given current backoff
+func nextBackoff(backoff float64) float64 {
+	if backoff < 0.5 {
+		backoff = 0.5
+	}
+
+	backoff = backoff * 1.15 * (1.0 + rand.Float64())
+	if backoff > 120 {
+		backoff = 120
+	} else if backoff < 0.5 {
+		backoff = 0.5
+	}
+
+	return backoff
 }

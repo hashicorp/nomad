@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -117,7 +118,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	require.NotNil(t, err)
 	require.True(t, structs.IsRecoverable(err))
-	require.Len(t, resp.HookData, 1)
+	require.Len(t, resp.State, 1)
 	require.False(t, resp.Done)
 	require.Len(t, me.events, 1)
 	require.Equal(t, structs.TaskDownloadingArtifacts, me.events[0].Type)
@@ -129,8 +130,8 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	file2 := filepath.Join(srcdir, "bar.txt")
 	require.NoError(t, ioutil.WriteFile(file2, []byte{'1'}, 0644))
 
-	// Mock TaskRunner by copying HookData from resp to req and reset resp.
-	req.HookData = resp.HookData
+	// Mock TaskRunner by copying state from resp to req and reset resp.
+	req.PreviousState = helper.CopyMapStringString(resp.State)
 
 	resp = interfaces.TaskPrestartResponse{}
 
@@ -139,7 +140,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, resp.Done)
-	require.Len(t, resp.HookData, 2)
+	require.Len(t, resp.State, 2)
 
 	// Assert both files downloaded properly
 	files, err := filepath.Glob(filepath.Join(destdir, "*.txt"))
@@ -150,10 +151,10 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	// Stop the test server entirely and assert that re-running works
 	ts.Close()
-	req.HookData = resp.HookData
+	req.PreviousState = helper.CopyMapStringString(resp.State)
 	resp = interfaces.TaskPrestartResponse{}
 	err = artifactHook.Prestart(context.Background(), req, &resp)
 	require.NoError(t, err)
 	require.True(t, resp.Done)
-	require.Len(t, resp.HookData, 2)
+	require.Len(t, resp.State, 2)
 }

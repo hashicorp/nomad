@@ -391,10 +391,9 @@ func (tr *TaskRunner) Run() {
 	go tr.handleUpdates()
 
 MAIN:
-	for {
+	for !tr.Alloc().TerminalStatus() {
 		select {
 		case <-tr.killCtx.Done():
-			tr.handleKill()
 			break MAIN
 		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
@@ -411,7 +410,6 @@ MAIN:
 
 		select {
 		case <-tr.killCtx.Done():
-			tr.handleKill()
 			break MAIN
 		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
@@ -483,11 +481,26 @@ MAIN:
 		case <-time.After(restartDelay):
 		case <-tr.killCtx.Done():
 			tr.logger.Trace("task killed between restarts", "delay", restartDelay)
-			tr.handleKill()
 			break MAIN
 		case <-tr.shutdownCtx.Done():
 			// TaskRunner was told to exit immediately
+			tr.logger.Trace("gracefully shutting down during restart delay")
 			return
+		}
+	}
+
+	// Ensure handle is cleaned up. Restore could have recovered a task
+	// that should be terminal, so if the handle still exists we should
+	// kill it here.
+	if tr.getDriverHandle() != nil {
+		if result = tr.handleKill(); result != nil {
+			tr.emitExitResultEvent(result)
+		}
+
+		tr.clearDriverHandle()
+
+		if err := tr.exited(); err != nil {
+			tr.logger.Error("exited hooks failed while cleaning up terminal task", "error", err)
 		}
 	}
 
@@ -535,6 +548,14 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWai
 		return true
 	}
 
+	// Emit Terminated event
+	tr.emitExitResultEvent(result)
+
+	return false
+}
+
+// emitExitResultEvent emits a TaskTerminated event for an ExitResult.
+func (tr *TaskRunner) emitExitResultEvent(result *drivers.ExitResult) {
 	event := structs.NewTaskEvent(structs.TaskTerminated).
 		SetExitCode(result.ExitCode).
 		SetSignal(result.Signal).
@@ -546,8 +567,6 @@ func (tr *TaskRunner) handleTaskExitResult(result *drivers.ExitResult) (retryWai
 	if result.OOMKilled && !tr.clientConfig.DisableTaggedMetrics {
 		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
 	}
-
-	return false
 }
 
 // handleUpdates runs update hooks when triggerUpdateCh is ticked and exits
@@ -709,8 +728,8 @@ func (tr *TaskRunner) initDriver() error {
 }
 
 // handleKill is used to handle the a request to kill a task. It will return
-//// the handle exit result if one is available and store any error in the task
-//// runner killErr value.
+// the handle exit result if one is available and store any error in the task
+// runner killErr value.
 func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// Run the pre killing hooks
 	tr.preKill()
@@ -1039,9 +1058,9 @@ func (tr *TaskRunner) WaitCh() <-chan struct{} {
 }
 
 // Update the running allocation with a new version received from the server.
-// Calls Update hooks asynchronously with Run().
+// Calls Update hooks asynchronously with Run.
 //
-// This method is safe for calling concurrently with Run() and does not modify
+// This method is safe for calling concurrently with Run and does not modify
 // the passed in allocation.
 func (tr *TaskRunner) Update(update *structs.Allocation) {
 	task := update.LookupTask(tr.taskName)

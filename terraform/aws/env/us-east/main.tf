@@ -15,6 +15,11 @@ variable "instance_type" {
   default     = "t2.medium"
 }
 
+variable "root_block_device_size" {
+  description = "The volume size of the root block device."
+  default     = 8
+}
+
 variable "key_name" {}
 
 variable "server_count" {
@@ -50,15 +55,16 @@ provider "aws" {
 module "hashistack" {
   source = "../../modules/hashistack"
 
-  name          = "${var.name}"
-  region        = "${var.region}"
-  ami           = "${var.ami}"
-  instance_type = "${var.instance_type}"
-  key_name      = "${var.key_name}"
-  server_count  = "${var.server_count}"
-  client_count  = "${var.client_count}"
-  retry_join    = "${var.retry_join}"
-  nomad_binary  = "${var.nomad_binary}"
+  name                   = "${var.name}"
+  region                 = "${var.region}"
+  ami                    = "${var.ami}"
+  instance_type          = "${var.instance_type}"
+  key_name               = "${var.key_name}"
+  server_count           = "${var.server_count}"
+  client_count           = "${var.client_count}"
+  retry_join             = "${var.retry_join}"
+  nomad_binary           = "${var.nomad_binary}"
+  root_block_device_size = "${var.root_block_device_size}"
 }
 
 output "IP_Addresses" {
