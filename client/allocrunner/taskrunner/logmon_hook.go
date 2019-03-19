@@ -28,10 +28,6 @@ type logmonHook struct {
 	logmon             logmon.LogMon
 	logmonPluginClient *plugin.Client
 
-	// exited is used to mark if the task has exited, letting the pre-start hook
-	// know to restart logmon
-	exited bool
-
 	config *logmonHookConfig
 
 	logger hclog.Logger
@@ -98,13 +94,10 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	var reattachConfig *plugin.ReattachConfig
-	var err error
 
-	// If the task was restarted and the logmon process is still running logmon
-	// needs the start RPC called again to open the fifo
-	if !h.exited || h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
-		reattachConfig, err = reattachConfigFromHookData(req.PreviousState)
+	// Create a logmon client by reattaching or launching a new instance
+	if h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
+		reattachConfig, err := reattachConfigFromHookData(req.PreviousState)
 		if err != nil {
 			h.logger.Error("failed to load reattach config", "error", err)
 			return err
@@ -120,22 +113,18 @@ func (h *logmonHook) Prestart(ctx context.Context,
 
 	}
 
-	h.exited = false
-	// Only tell logmon to start when we are not reattaching to a running instance
-	if reattachConfig == nil {
-		err := h.logmon.Start(&logmon.LogConfig{
-			LogDir:        h.config.logDir,
-			StdoutLogFile: fmt.Sprintf("%s.stdout", req.Task.Name),
-			StderrLogFile: fmt.Sprintf("%s.stderr", req.Task.Name),
-			StdoutFifo:    h.config.stdoutFifo,
-			StderrFifo:    h.config.stderrFifo,
-			MaxFiles:      req.Task.LogConfig.MaxFiles,
-			MaxFileSizeMB: req.Task.LogConfig.MaxFileSizeMB,
-		})
-		if err != nil {
-			h.logger.Error("failed to start logmon", "error", err)
-			return err
-		}
+	err := h.logmon.Start(&logmon.LogConfig{
+		LogDir:        h.config.logDir,
+		StdoutLogFile: fmt.Sprintf("%s.stdout", req.Task.Name),
+		StderrLogFile: fmt.Sprintf("%s.stderr", req.Task.Name),
+		StdoutFifo:    h.config.stdoutFifo,
+		StderrFifo:    h.config.stderrFifo,
+		MaxFiles:      req.Task.LogConfig.MaxFiles,
+		MaxFileSizeMB: req.Task.LogConfig.MaxFileSizeMB,
+	})
+	if err != nil {
+		h.logger.Error("failed to start logmon", "error", err)
+		return err
 	}
 
 	rCfg := pstructs.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
@@ -144,11 +133,6 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		return err
 	}
 	resp.State = map[string]string{logmonReattachKey: string(jsonCfg)}
-	return nil
-}
-
-func (h *logmonHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
-	h.exited = true
 	return nil
 }
 

@@ -56,15 +56,30 @@ func NewLogMon(logger hclog.Logger) LogMon {
 type logmonImpl struct {
 	logger hclog.Logger
 	tl     *TaskLogger
+	lock   sync.Mutex
 }
 
 func (l *logmonImpl) Start(cfg *LogConfig) error {
-	// Start can be called multiple times, and should restart the task logger
-	// in such cases
-	if l.tl != nil {
-		l.tl.Close()
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	// first time Start has been called
+	if l.tl == nil {
+		return l.start(cfg)
 	}
 
+	// stdout and stderr have been closed, this happens during task restarts
+	// restart the TaskLogger
+	if !l.tl.IsRunning() {
+		l.tl.Close()
+		return l.start(cfg)
+	}
+
+	// if the TaskLogger has been created and is currently running, noop
+	return nil
+}
+
+func (l *logmonImpl) start(cfg *LogConfig) error {
 	tl, err := NewTaskLogger(cfg, l.logger)
 	if err != nil {
 		return err
@@ -74,6 +89,8 @@ func (l *logmonImpl) Start(cfg *LogConfig) error {
 }
 
 func (l *logmonImpl) Stop() error {
+	l.lock.Lock()
+	defer l.lock.Unlock()
 	if l.tl != nil {
 		l.tl.Close()
 	}
@@ -88,6 +105,18 @@ type TaskLogger struct {
 
 	// rotator for stderr
 	lre *logRotatorWrapper
+}
+
+// IsRunning will return true as long as one rotator wrapper is still running
+func (tl *TaskLogger) IsRunning() bool {
+	if tl.lro != nil && tl.lro.isRunning() {
+		return true
+	}
+	if tl.lre != nil && tl.lre.isRunning() {
+		return true
+	}
+
+	return false
 }
 
 func (tl *TaskLogger) Close() {
@@ -152,6 +181,16 @@ type logRotatorWrapper struct {
 	rotatorWriter     *logging.FileRotator
 	hasFinishedCopied chan struct{}
 	logger            hclog.Logger
+}
+
+// isRunning will return true until the reader is closed
+func (l *logRotatorWrapper) isRunning() bool {
+	select {
+	case <-l.hasFinishedCopied:
+		return false
+	default:
+		return true
+	}
 }
 
 // newLogRotatorWrapper takes a rotator and returns a wrapper that has the
