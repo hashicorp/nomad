@@ -228,15 +228,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, []by
 
 	cleanupHandle, err := l.cleanupHandle(pid)
 	if err != nil {
-		// cleanupHandle fails when we cannot lookup the pid, or lookup the
-		// start time of the process.
-		// This happens if:
-		//   - The process died
-		//   - The underlying platform errors while retrieving the process info
-		//   - The process was started before unix epoch or int64 overflows
-		// We allow the process to keep running, and log the error here, because
-		// this behaviour is improving failure modes, but not critical to operating
-		// a nomad cluster.
+		// err here is not a critical error, we can proceed but with risk
+		// of leaking child processes if executor dies
 		l.logger.Error("error building cleanup handle", "executor_pid", os.Getpid(), "app_pid", pid, "error", err)
 	}
 
@@ -772,6 +765,18 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	return r
 }
 
+// cleanupHandle returns a handle to be used to clean up executors children and resources
+// when executor process fails.
+//
+// cleanupHandle fails when we cannot lookup the pid, or lookup the
+// start time of the process.
+// This happens if:
+//   - The process died
+//   - The underlying platform errors while retrieving the process info
+//   - The process was started before unix epoch or int64 overflows
+// We allow the process to keep running, and log the error here, because
+// this behaviour is improving failure modes, but not critical to operating
+// a nomad cluster.
 func (l *LibcontainerExecutor) cleanupHandle(pid int) ([]byte, error) {
 	startTime, err := processStartTime(pid)
 	if err != nil {
@@ -792,10 +797,6 @@ func (l *LibcontainerExecutor) cleanupHandle(pid int) ([]byte, error) {
 }
 
 func destroyLibcontainerExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle) error {
-	logger.Info("destroying process",
-		"pid", cleanupHandle.Pid,
-		"executor", "libcontainer")
-
 	// Find the nomad executable to launch the executor process with
 	bin, err := discover.NomadExecutable()
 	if err != nil {

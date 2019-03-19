@@ -45,27 +45,32 @@ func (b *cleanupHandle) serialize() []byte {
 func processStartTime(pid int32) (uint64, error) {
 	ps, err := process.NewProcess(pid)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to find process: %v", err)
+		return 0, fmt.Errorf("failed to find process: %v", err)
 	}
 
 	st, err := ps.CreateTime()
 	if err != nil {
-		return 0, fmt.Errorf("Failed to find process start time: %v", err)
+		return 0, fmt.Errorf("failed to find process start time: %v", err)
 	}
 
 	if st < 0 {
-		return 0, fmt.Errorf("Process started before unix epoch, or overflowed int64")
+		return 0, fmt.Errorf("process started before unix epoch, or overflowed int64: %v", st)
 	}
 
 	return uint64(st), nil
 }
 
 func CleanupExecutor(logger hclog.Logger, cleanupHandleData []byte) error {
+	if len(cleanupHandleData) == 0 {
+		return fmt.Errorf("empty clean up handler")
+	}
 	var cl cleanupHandle
 	err := json.Unmarshal(cleanupHandleData, &cl)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal cleanup handle data: %v", err)
 	}
+
+	logger.Info("cleaning up executor and killing children processes", "task_pid", cl.Pid, "task_start_time", cl.StartTime)
 
 	if cfn, ok := executorCleanupFns[cl.ExecutorType]; ok {
 		return cfn(logger, &cl)

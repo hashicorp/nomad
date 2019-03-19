@@ -326,16 +326,10 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, []byte,
 
 	cleanupHandle, err := e.cleanupHandle()
 	if err != nil {
-		// cleanupHandle fails when we cannot lookup the pid, or lookup the
-		// start time of the process.
-		// This happens if:
-		//   - We are not on a unix system and the process died
-		//   - The underlying platform errors while retrieving the process info
-		//   - The process was started before unix epoch or int64 overflows
-		// We allow the process to keep running, and log the error here, because
-		// this behaviour is improving failure modes, but not critical to operating
-		// a nomad cluster.
-		e.logger.Error("error building cleanup handle", "executor_pid", os.Getpid(), "app_pid", e.childCmd.Process.Pid, "error", err)
+		// err is not a critical error, we can proceed but with risk
+		// of leaking child processes if executor dies
+		e.logger.Error("failed to build executor cleanup handle", "executor_pid", os.Getpid(),
+			"app_pid", e.childCmd.Process.Pid, "error", err)
 	}
 
 	return procState, cleanupHandle, nil
@@ -623,6 +617,18 @@ func makeExecutable(binPath string) error {
 	return nil
 }
 
+// cleanupHandle returns a handle to be used to clean up executors children and resources
+// when executor process fails.
+//
+// cleanupHandle fails when we cannot lookup the pid, or lookup the
+// start time of the process.
+// This happens if:
+//   - We are not on a unix system and the process died
+//   - The underlying platform errors while retrieving the process info
+//   - The process was started before unix epoch or int64 overflows
+// We allow the process to keep running, and log the error here, because
+// this behaviour is improving failure modes, but not critical to operating
+// a nomad cluster.
 func (e *UniversalExecutor) cleanupHandle() ([]byte, error) {
 	startTime, err := processStartTime(int32(e.childCmd.Process.Pid))
 	if err != nil {
@@ -643,11 +649,6 @@ func (e *UniversalExecutor) cleanupHandle() ([]byte, error) {
 }
 
 func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle) error {
-
-	logger.Info("destroying executor",
-		"pid", cleanupHandle.Pid,
-		"executor", "universal")
-
 	pid := cleanupHandle.Pid
 	proc, err := findLiveProcess(pid)
 	if err != nil {
@@ -673,11 +674,10 @@ func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle)
 	e.commandCfg = cleanupHandle.UniversalData.CommandConfig
 	e.resConCtx = cleanupHandle.UniversalData.Cgroups
 
-	// fake
+	// fake process to prep for shutdown
 	cmd := exec.Command("echo", "fake process")
 	cmd.Process = proc
 	e.childCmd.Process = proc
 
-	logger.Info("cleaning up now", "pid", pid)
 	return e.Shutdown("SIGKILL", 0)
 }
