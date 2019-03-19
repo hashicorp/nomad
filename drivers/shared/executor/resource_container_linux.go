@@ -23,3 +23,9 @@ func (rc *resourceContainerContext) executorCleanup() error {
 	}
 	return nil
 }
+
+func (rc *resourceContainerContext) setCgroupFrom(other *resourceContainerContext) {
+	if other != nil {
+		rc.Cgroup = other.Cgroup
+	}
+}

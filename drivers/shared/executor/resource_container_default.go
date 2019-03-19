@@ -10,3 +10,5 @@ type resourceContainerContext struct {
 func (rc *resourceContainerContext) executorCleanup() error {
 	return nil
 }
+
+func (rc *resourceContainerContext) setCgroupFrom(other *resourceContainerContext) {}

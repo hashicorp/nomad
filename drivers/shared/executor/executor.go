@@ -643,10 +643,10 @@ func (e *UniversalExecutor) cleanupHandle() ([]byte, error) {
 		Version:      "1",
 		ExecutorType: "universal",
 		Pid:          e.childCmd.Process.Pid,
-		StartTime:    uint64(startTime),
+		StartTime:    startTime,
 		UniversalData: universalData{
 			CommandConfig: e.commandCfg,
-			Cgroups:       e.resConCtx,
+			Cgroups:       &e.resConCtx,
 		},
 	}
 
@@ -677,7 +677,7 @@ func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle)
 
 	e := NewExecutor(logger).(*UniversalExecutor)
 	e.commandCfg = cleanupHandle.UniversalData.CommandConfig
-	e.resConCtx = cleanupHandle.UniversalData.Cgroups
+	e.resConCtx.setCgroupFrom(cleanupHandle.UniversalData.Cgroups)
 
 	return e.shutdown("SIGKILL", 0, pid)
 }

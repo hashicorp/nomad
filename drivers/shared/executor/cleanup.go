@@ -13,7 +13,7 @@ type cleanupHandleFn func(hclog.Logger, *cleanupHandle) error
 // cleanupHandle represents state required to recreate the executor handle
 type universalData struct {
 	CommandConfig *ExecCommand
-	Cgroups       resourceContainerContext
+	Cgroups       *resourceContainerContext
 }
 
 type libcontainerData struct {
