@@ -635,7 +635,7 @@ func makeExecutable(binPath string) error {
 // this behaviour is improving failure modes, but not critical to operating
 // a nomad cluster.
 func (e *UniversalExecutor) cleanupHandle() ([]byte, error) {
-	startTime, err := processStartTime(int32(e.childCmd.Process.Pid))
+	startTime, err := processStartTime(e.childCmd.Process.Pid)
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +660,7 @@ func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle)
 		return fmt.Errorf("failed to find a running exec process (%d): %v", pid, err)
 	}
 
-	st, err := processStartTime(int32(pid))
+	st, err := processStartTime(pid)
 	if err != nil {
 		logger.Error("attempted to destroy process but could not determine start time", "pid", pid, "error", err)
 	}

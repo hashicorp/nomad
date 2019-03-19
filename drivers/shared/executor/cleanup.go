@@ -43,8 +43,8 @@ func (b *cleanupHandle) serialize() []byte {
 
 // processStartTime attempts to determine the create time of a given process,
 // in milliseconds since epoch.
-func processStartTime(pid int32) (uint64, error) {
-	ps, err := process.NewProcess(pid)
+func processStartTime(pid int) (uint64, error) {
+	ps, err := process.NewProcess(int32(pid))
 	if err != nil {
 		return 0, fmt.Errorf("failed to find process: %v", err)
 	}

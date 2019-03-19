@@ -793,7 +793,7 @@ func (l *LibcontainerExecutor) cleanupHandle(pid int) ([]byte, error) {
 		},
 	}
 
-	return cleanupHandle.serialize()
+	return cleanupHandle.serialize(), nil
 }
 
 func destroyLibcontainerExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle) error {
