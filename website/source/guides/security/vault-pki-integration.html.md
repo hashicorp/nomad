@@ -400,6 +400,55 @@ $ ls /opt/nomad/certs/
 agent.crt  agent.key  ca.crt
 ```
 
+### Step 11: Configure Nomad to Use TLS
+
+Add the following [tls stanza][nomad-tls-stanza] to your Nomad agent
+configuration file (located at `/etc/nomad.d/nomad.hcl` in this example):
+
+```
+tls {
+  http = true
+  rpc  = true
+
+  ca_file   = "/opt/nomad/certs/ca.crt"
+  cert_file = "/opt/nomad/certs/agent.crt"
+  key_file  = "/opt/nomad/certs/agent.key"
+
+  verify_server_hostname = true
+  verify_https_client    = true
+}
+```
+Send a SIGHUP signal to Nomad to reload the TLS configuration:
+
+```shell
+$ pkill -SIGHUP nomad
+```
+
+If you run `nomad status`, you will now receive the following error:
+
+```
+Error querying jobs: Get http://172.31.52.215:4646/v1/jobs: net/http: HTTP/1.x transport connection broken: malformed HTTP response "\x15\x03\x01\x00\x02\x02"
+```
+
+This is because the Nomad CLI defaults to communicating via HTTP instead of
+HTTPS. We can configure the local Nomad client to connect using TLS and specify
+our custom key and certificates by setting the following environments variables:
+
+```shell
+export NOMAD_ADDR=https://localhost:4646
+export NOMAD_CACERT="/opt/nomad/certs/ca.crt"
+export NOMAD_CLIENT_CERT="/opt/nomad/certs/agent.crt"
+export NOMAD_CLIENT_KEY="/opt/nomad/certs/agent.key"
+```
+After these environment variables are correctly configured, the CLI will respond
+as expected:
+
+```shell
+$ nomad status
+No running jobs
+```
+
+
 [capability]: https://www.vaultproject.io/docs/concepts/policies.html#capabilities
 [config-parameters]: https://www.vaultproject.io/api/secret/pki/index.html#parameters-8
 [consul-template]: https://www.consul.io/docs/guides/consul-template.html
@@ -407,6 +456,7 @@ agent.crt  agent.key  ca.crt
 [ct-download]: https://releases.hashicorp.com/consul-template/
 [ct-template-stanza]: https://github.com/hashicorp/consul-template#configuration-file-format
 [login]: https://www.vaultproject.io/docs/commands/login.html
+[nomad-tls-stanza]: https://www.nomadproject.io/docs/configuration/tls.html
 [policies]: https://www.vaultproject.io/docs/concepts/policies.html#policies
 [pki-engine]: https://www.vaultproject.io/docs/secrets/pki/index.html
 [repo]: https://github.com/hashicorp/nomad/tree/master/terraform
