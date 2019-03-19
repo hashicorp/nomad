@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/opencontainers/runc/libcontainer/system"
+	"github.com/shirou/gopsutil/process"
 )
 
 type cleanupHandleFn func(hclog.Logger, *cleanupHandle) error
@@ -41,13 +41,23 @@ func (b *cleanupHandle) serialize() []byte {
 	return bytes
 }
 
-func processStartTime(pid int) uint64 {
-	stat, err := system.Stat(pid)
+// processStartTime attempts to determine the create time of a given process.
+func processStartTime(pid int32) (uint64, error) {
+	ps, err := process.NewProcess(pid)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("Failed to find process: %v", err)
 	}
 
-	return stat.StartTime
+	st, err := ps.CreateTime()
+	if err != nil {
+		return 0, fmt.Errorf("Failed to find process start time: %v", err)
+	}
+
+	if st < 0 {
+		return 0, fmt.Errorf("Process started before unix epoch, or overflowed int64")
+	}
+
+	return uint64(st), nil
 }
 
 func CleanupExecutor(logger hclog.Logger, cleanupHandleData []byte) error {

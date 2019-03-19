@@ -226,7 +226,21 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, []by
 		Time:     time.Now(),
 	}
 
-	return procState, l.cleanupHandle(pid), nil
+	cleanupHandle, err := l.cleanupHandle(pid)
+	if err != nil {
+		// cleanupHandle fails when we cannot lookup the pid, or lookup the
+		// start time of the process.
+		// This happens if:
+		//   - The process died
+		//   - The underlying platform errors while retrieving the process info
+		//   - The process was started before unix epoch or int64 overflows
+		// We allow the process to keep running, and log the error here, because
+		// this behaviour is improving failure modes, but not critical to operating
+		// a nomad cluster.
+		l.logger.Error("error building cleanup handle", "executor_pid", os.Getpid(), "app_pid", pid, "error", err)
+	}
+
+	return procState, cleanupHandle, nil
 }
 
 func (l *LibcontainerExecutor) getAllPids() (map[int]*nomadPid, error) {
@@ -758,12 +772,16 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	return r
 }
 
-func (l *LibcontainerExecutor) cleanupHandle(pid int) []byte {
+func (l *LibcontainerExecutor) cleanupHandle(pid int) ([]byte, error) {
+	startTime, err := processStartTime(pid)
+	if err != nil {
+		return nil, err
+	}
 	cleanupHandle := cleanupHandle{
 		Version:      "1",
 		ExecutorType: "libcontainer",
 		Pid:          pid,
-		StartTime:    processStartTime(pid),
+		StartTime:    startTime,
 		LibcontainerData: libcontainerData{
 			Root:        path.Join(l.command.TaskDir, "../alloc/container"),
 			ContainerId: l.container.ID(),

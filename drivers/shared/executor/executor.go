@@ -324,7 +324,21 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, []byte,
 		Time:     time.Now(),
 	}
 
-	return procState, e.cleanupHandle(), nil
+	cleanupHandle, err := e.cleanupHandle()
+	if err != nil {
+		// cleanupHandle fails when we cannot lookup the pid, or lookup the
+		// start time of the process.
+		// This happens if:
+		//   - We are not on a unix system and the process died
+		//   - The underlying platform errors while retrieving the process info
+		//   - The process was started before unix epoch or int64 overflows
+		// We allow the process to keep running, and log the error here, because
+		// this behaviour is improving failure modes, but not critical to operating
+		// a nomad cluster.
+		e.logger.Error("error building cleanup handle", "executor_pid", os.Getpid(), "app_pid", e.childCmd.Process.Pid, "error", err)
+	}
+
+	return procState, cleanupHandle, nil
 }
 
 // Exec a command inside a container for exec and java drivers.
@@ -609,19 +623,23 @@ func makeExecutable(binPath string) error {
 	return nil
 }
 
-func (e *UniversalExecutor) cleanupHandle() []byte {
+func (e *UniversalExecutor) cleanupHandle() ([]byte, error) {
+	startTime, err := processStartTime(int32(e.childCmd.Process.Pid))
+	if err != nil {
+		return nil, err
+	}
 	cleanupHandle := cleanupHandle{
 		Version:      "1",
 		ExecutorType: "universal",
 		Pid:          e.childCmd.Process.Pid,
-		StartTime:    processStartTime(e.childCmd.Process.Pid),
+		StartTime:    uint64(startTime),
 		UniversalData: universalData{
 			CommandConfig: e.commandCfg,
 			Cgroups:       e.resConCtx,
 		},
 	}
 
-	return cleanupHandle.serialize()
+	return cleanupHandle.serialize(), nil
 }
 
 func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle) error {
@@ -643,14 +661,19 @@ func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle)
 		return fmt.Errorf("failed to find exec process: %v", pid)
 	}
 
-	if cleanupHandle.StartTime != processStartTime(pid) {
+	st, err := processStartTime(int32(pid))
+	if err != nil {
+		logger.Error("attempted to destroy process but could not determine start time", "pid", pid, "error", err)
+	}
+
+	if cleanupHandle.StartTime != st {
 		logger.Warn("attempted to destroy process but pid was recycled",
 			"pid", pid,
 			"original_start_time", cleanupHandle.StartTime,
-			"observed_start_time", processStartTime(pid))
+			"observed_start_time", st)
 
 		return fmt.Errorf("exec PID has mismatched start time, maybe recycled PID.  Expected %v but found %v",
-			cleanupHandle.StartTime, processStartTime(pid))
+			cleanupHandle.StartTime, st)
 	}
 
 	e := NewExecutor(logger).(*UniversalExecutor)
