@@ -74,6 +74,8 @@ var supportedCipherSignatures = map[string]signatureAlgorithm{
 
 // defaultTLSCiphers are the TLS Ciphers that are supported by default
 var defaultTLSCiphers = []string{
+	// Modern Compatibility recommended configuration in
+	// https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility
 	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
 	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
 	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
@@ -84,6 +86,11 @@ var defaultTLSCiphers = []string{
 	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
 	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
 	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+
+	// Few Intermediate Compatibility ones to support AWS ELB, that don't support forward secrecy.
+	// note: golang tls library doesn't support all intermediate cipher suites.
+	"TLS_RSA_WITH_AES_128_GCM_SHA256",
+	"TLS_RSA_WITH_AES_256_GCM_SHA384",
 }
 
 // RegionSpecificWrapper is used to invoke a static Region and turns a
