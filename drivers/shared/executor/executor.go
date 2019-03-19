@@ -442,6 +442,17 @@ var (
 // user process
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	e.logger.Debug("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
+
+	// If there is no process we can't shutdown
+	if e.childCmd.Process == nil {
+		e.logger.Warn("failed to shutdown", "error", "no process found")
+		return fmt.Errorf("executor failed to shutdown error: no process found")
+	}
+
+	return e.shutdown(signal, grace, e.childCmd.Process.Pid)
+}
+
+func (e *UniversalExecutor) shutdown(signal string, grace time.Duration, pid int) error {
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.
@@ -450,13 +461,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		return nil
 	}
 
-	// If there is no process we can't shutdown
-	if e.childCmd.Process == nil {
-		e.logger.Warn("failed to shutdown", "error", "no process found")
-		return fmt.Errorf("executor failed to shutdown error: no process found")
-	}
-
-	proc, err := os.FindProcess(e.childCmd.Process.Pid)
+	proc, err := os.FindProcess(pid)
 	if err != nil {
 		err = fmt.Errorf("executor failed to find process: %v", err)
 		e.logger.Warn("failed to shutdown", "error", err)
@@ -650,9 +655,9 @@ func (e *UniversalExecutor) cleanupHandle() ([]byte, error) {
 
 func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle) error {
 	pid := cleanupHandle.Pid
-	proc, err := findLiveProcess(pid)
+	_, err := findLiveProcess(pid)
 	if err != nil {
-		return fmt.Errorf("failed to find exec process: %v", err)
+		return fmt.Errorf("failed to find a running exec process (%d): %v", pid, err)
 	}
 
 	st, err := processStartTime(int32(pid))
@@ -674,10 +679,5 @@ func destroyUniversalExecutor(logger hclog.Logger, cleanupHandle *cleanupHandle)
 	e.commandCfg = cleanupHandle.UniversalData.CommandConfig
 	e.resConCtx = cleanupHandle.UniversalData.Cgroups
 
-	// fake process to prep for shutdown
-	cmd := exec.Command("echo", "fake process")
-	cmd.Process = proc
-	e.childCmd.Process = proc
-
-	return e.Shutdown("SIGKILL", 0)
+	return e.shutdown("SIGKILL", 0, pid)
 }

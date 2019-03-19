@@ -41,7 +41,8 @@ func (b *cleanupHandle) serialize() []byte {
 	return bytes
 }
 
-// processStartTime attempts to determine the create time of a given process.
+// processStartTime attempts to determine the create time of a given process,
+// in milliseconds since epoch.
 func processStartTime(pid int32) (uint64, error) {
 	ps, err := process.NewProcess(pid)
 	if err != nil {
