@@ -45,6 +45,15 @@ func untar(input io.Reader, dst, src string, dir bool) error {
 			path = filepath.Join(path, hdr.Name)
 		}
 
+		if hdr.Typeflag == tar.TypeSymlink {
+			// If the type is a symlink we re-write it and
+			// continue instead of attempting to copy the contents
+			if err := os.Symlink(hdr.Linkname, path); err != nil {
+				return fmt.Errorf("failed writing symbolic link: %s", err)
+			}
+			continue
+		}
+
 		if hdr.FileInfo().IsDir() {
 			if !dir {
 				return fmt.Errorf("expected a single file: %s", src)
