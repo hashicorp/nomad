@@ -22,6 +22,8 @@ build_releases:
 
 	@echo "======>> committing generated files"
 	git add -A .
+# skip comitting files if there are no generated files
+# if prerelease process was a no-op
 	if ! git diff-index --quiet HEAD --; \
 	then \
 		git commit --author 'Nomad Release bot <nomad@hashicorp.com>' \
