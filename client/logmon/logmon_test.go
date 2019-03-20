@@ -1,17 +1,16 @@
 package logmon
 
 import (
-	"bytes"
 	"crypto/rand"
-	"io"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,17 +45,28 @@ func TestLogmon_Start_rotate(t *testing.T) {
 	_, err = rand.Read(bytes1MB)
 	require.NoError(err)
 
-	io.Copy(stdout, bytes.NewBuffer(bytes1MB))
-
-	time.Sleep(200 * time.Millisecond)
-	_, err = os.Stat(filepath.Join(dir, "stdout.0"))
-	require.NoError(err)
-	_, err = os.Stat(filepath.Join(dir, "stdout.1"))
+	_, err = stdout.Write(bytes1MB)
 	require.NoError(err)
 
+	testutil.WaitForResult(func() (bool, error) {
+		_, err = os.Stat(filepath.Join(dir, "stdout.0"))
+		return err == nil, err
+	}, func(err error) {
+		require.NoError(err)
+	})
+	testutil.WaitForResult(func() (bool, error) {
+		_, err = os.Stat(filepath.Join(dir, "stdout.1"))
+		return err == nil, err
+	}, func(err error) {
+		require.NoError(err)
+	})
+	_, err = os.Stat(filepath.Join(dir, "stdout.2"))
+	require.Error(err)
+	require.NoError(lm.Stop())
 	require.NoError(lm.Stop())
 }
 
+// asserts that calling Start twice restarts the log rotator
 func TestLogmon_Start_restart(t *testing.T) {
 	require := require.New(t)
 	dir, err := ioutil.TempDir("", "nomadtest")
@@ -88,11 +98,18 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require.NoError(err)
 
 	// Write a string and assert it was written to the file
-	io.Copy(stdout, bytes.NewBufferString("test\n"))
-	time.Sleep(200 * time.Millisecond)
-	raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+	_, err = stdout.Write([]byte("test\n"))
 	require.NoError(err)
-	require.Equal("test\n", string(raw))
+
+	testutil.WaitForResult(func() (bool, error) {
+		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		if err != nil {
+			return false, err
+		}
+		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
+	}, func(err error) {
+		require.NoError(err)
+	})
 	require.True(impl.tl.IsRunning())
 
 	// Close stdout and assert that logmon no longer writes to the file
@@ -104,17 +121,29 @@ func TestLogmon_Start_restart(t *testing.T) {
 	stderr, err = fifo.Open(stderrFifoPath)
 	require.NoError(err)
 	require.False(impl.tl.IsRunning())
-	io.Copy(stdout, bytes.NewBufferString("te"))
-	time.Sleep(200 * time.Millisecond)
-	raw, err = ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+	_, err = stdout.Write([]byte("te"))
 	require.NoError(err)
-	require.Equal("test\n", string(raw))
+	testutil.WaitForResult(func() (bool, error) {
+		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		if err != nil {
+			return false, err
+		}
+		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
+	}, func(err error) {
+		require.NoError(err)
+	})
 
 	// Start logmon again and assert that it appended to the file
 	require.NoError(lm.Start(cfg))
-	io.Copy(stdout, bytes.NewBufferString("st\n"))
-	time.Sleep(200 * time.Millisecond)
-	raw, err = ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+	_, err = stdout.Write([]byte("st\n"))
 	require.NoError(err)
-	require.Equal("test\ntest\n", string(raw))
+	testutil.WaitForResult(func() (bool, error) {
+		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		if err != nil {
+			return false, err
+		}
+		return "test\ntest\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
+	}, func(err error) {
+		require.NoError(err)
+	})
 }
