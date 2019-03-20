@@ -37,14 +37,12 @@ These setup steps should be completed on all Nomad hosts:
 
 Precompiled Nomad binaries are available for download at [https://releases.hashicorp.com/nomad/](https://releases.hashicorp.com/nomad/) and Nomad Enterprise binaries are available for download by following the instructions made available to HashiCorp Enterprise customers.
 
-You should perform checksum verification of the zip packages using the SHA256SUMS and SHA256SUMS.sig files available for the specific release version. HashiCorp provides [a guide on checksum verification](https://www.hashicorp.com/security.html) for precompiled binaries.
-
 ```text
-NOMAD_VERSION="0.8.4"
+export NOMAD_VERSION="0.8.7"
 curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip
-curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS
-curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS.sig
 ```
+
+You may perform checksum verification of the zip packages using the SHA256SUMS and SHA256SUMS.sig files available for the specific release version. HashiCorp provides [a guide on checksum verification](https://www.hashicorp.com/security.html) for precompiled binaries.
 
 ## Install Nomad
 
@@ -54,7 +52,7 @@ Unzip the downloaded package and move the `nomad` binary to `/usr/local/bin/`. C
 unzip nomad_${NOMAD_VERSION}_linux_amd64.zip
 sudo chown root:root nomad
 sudo mv nomad /usr/local/bin/
-nomad --version
+nomad version
 ```
 
 The `nomad` command features opt-in autocompletion for flags, subcommands, and arguments (where supported). Enable autocompletion.
@@ -64,19 +62,17 @@ nomad -autocomplete-install
 complete -C /usr/local/bin/nomad nomad
 ```
 
-Create a unique, non-privileged system user to run Nomad and create its data directory.
+Create a data directory for Nomad.
 
 ```text
-sudo useradd --system --home /etc/nomad.d --shell /bin/false nomad
 sudo mkdir --parents /opt/nomad
-sudo chown --recursive nomad:nomad /opt/nomad
 ```
 
 ## Configure systemd
 
 Systemd uses [documented sane defaults](https://www.freedesktop.org/software/systemd/man/systemd.directives.html) so only non-default values must be set in the configuration file.
 
-Create a Nomad service file at /etc/systemd/system/nomad.service.
+Create a Nomad service file at `/etc/systemd/system/nomad.service`.
 
 ```text
 sudo touch /etc/systemd/system/nomad.service
@@ -86,23 +82,23 @@ Add this configuration to the Nomad service file:
 
 ```text
 [Unit]
-Description="HashiCorp Nomad - An application and service scheduler"
-Documentation=https://www.nomad.io/docs/
-Requires=network-online.target
+Description=Nomad
+Documentation=https://nomadproject.io/docs/
+Wants=network-online.target
 After=network-online.target
-ConditionFileNotEmpty=/etc/nomad.d/nomad.hcl
 
 [Service]
-User=nomad
-Group=nomad
-ExecStart=/usr/local/bin/nomad agent -config=/etc/nomad.d/
-ExecReload=/bin/kill --signal HUP $MAINPID
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
 KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=infinity
+LimitNPROC=infinity
 Restart=on-failure
 RestartSec=2
 StartLimitBurst=3
 StartLimitIntervalSec=10
-LimitNOFILE=65536
+TasksMax=infinity
 
 [Install]
 WantedBy=multi-user.target
@@ -112,20 +108,19 @@ The following parameters are set for the `[Unit]` stanza:
 
 - [`Description`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Description=) - Free-form string describing the nomad service
 - [`Documentation`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Documentation=) - Link to the nomad documentation
-- [`Requires`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Requires=) - Configure a requirement dependency on the network service
-- [`After`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Before=) - Configure an ordering dependency on the network service being started before the nomad service
-- [`ConditionFileNotEmpty`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#ConditionArchitecture=) - Check for a non-zero sized configuration file before nomad is started
+- [`Wants`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Wants=) - Configure a dependency on the network service
+- [`After`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#After=) - Configure an ordering dependency on the network service being started before the nomad service
 
 The following parameters are set for the `[Service]` stanza:
 
-- [`User`, `Group`](https://www.freedesktop.org/software/systemd/man/systemd.exec.html#User=) - Run nomad as the nomad user
-- [`ExecStart`](https://www.freedesktop.org/software/systemd/man/systemd.service.html#ExecStart=) - Start nomad with the `agent` argument and path to the configuration file
-- [`ExecReload`](https://www.freedesktop.org/software/systemd/man/systemd.service.html#ExecReload=) - Send nomad a SIGHUP signal to trigger a configuration reload in nomad
+- [`ExecReload`](https://www.freedesktop.org/software/systemd/man/systemd.service.html#ExecReload=) - Send Nomad a `SIGHUP` signal to trigger a configuration reload
+- [`ExecStart`](https://www.freedesktop.org/software/systemd/man/systemd.service.html#ExecStart=) - Start Nomad with the `agent` argument and path to a directory of configuration files
 - [`KillMode`](https://www.freedesktop.org/software/systemd/man/systemd.kill.html#KillMode=) - Treat nomad as a single process
-- [`Restart`](https://www.freedesktop.org/software/systemd/man/systemd.service.html#Restart=) - Restart nomad unless it returned a clean exit code
+- [`LimitNOFILE`, `LimitNPROC`](https://www.freedesktop.org/software/systemd/man/systemd.exec.html#Process%20Properties) - Disable limits for file descriptors and processes
 - [`RestartSec`](https://www.freedesktop.org/software/systemd/man/systemd.service.html#RestartSec=) - Restart nomad after 2 seconds of it being considered 'failed'
+- [`Restart`](https://www.freedesktop.org/software/systemd/man/systemd.service.html#Restart=) - Restart nomad unless it returned a clean exit code
 - [`StartLimitBurst`, `StartLimitIntervalSec`](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#StartLimitIntervalSec=interval) - Configure unit start rate limiting
-- [`LimitNOFILE`](https://www.freedesktop.org/software/systemd/man/systemd.exec.html#Process%20Properties) - Set an increased Limit for File Descriptors
+- [`TasksMax`](https://www.freedesktop.org/software/systemd/man/systemd.resource-control.html#TasksMax=N) - Disable task limits (only available in systemd >= 226)
 
 The following parameters are set for the `[Install]` stanza:
 
@@ -147,9 +142,8 @@ Create a configuration file at `/etc/nomad.d/nomad.hcl`:
 
 ```text
 sudo mkdir --parents /etc/nomad.d
+sudo chmod 700 /etc/nomad.d
 sudo touch /etc/nomad.d/nomad.hcl
-sudo chown --recursive nomad:nomad /etc/nomad.d
-sudo chmod 640 /etc/nomad.d/nomad.hcl
 ```
 
 Add this configuration to the `nomad.hcl` configuration file:
@@ -169,10 +163,7 @@ data_dir = "/opt/nomad"
 Create a configuration file at `/etc/nomad.d/server.hcl`:
 
 ```text
-sudo mkdir --parents /etc/nomad.d
 sudo touch /etc/nomad.d/server.hcl
-sudo chown --recursive nomad:nomad /etc/nomad.d
-sudo chmod 640 /etc/nomad.d/server.hcl
 ```
 
 Add this configuration to the `server.hcl` configuration file:
@@ -187,17 +178,14 @@ server {
 ```
 
 - [`server`](/docs/configuration/server.html#enabled) - Specifies if this agent should run in server mode. All other server options depend on this value being set.
-- [`bootstrap-expect`](/docs/configuration/server.html#bootstrap_expect) - This flag provides the number of expected servers in the datacenter. Either this value should not be provided or the value must agree with other servers in the cluster.
+- [`bootstrap_expect`](/docs/configuration/server.html#bootstrap_expect) - The number of expected servers in the cluster. Either this value should not be provided or the value must agree with other servers in the cluster.
 
 ### Client configuration
 
 Create a configuration file at `/etc/nomad.d/client.hcl`:
 
 ```text
-sudo mkdir --parents /etc/nomad.d
 sudo touch /etc/nomad.d/client.hcl
-sudo chown --recursive nomad:nomad /etc/nomad.d
-sudo chmod 640 /etc/nomad.d/client.hcl
 ```
 
 Add this configuration to the `client.hcl` configuration file:
