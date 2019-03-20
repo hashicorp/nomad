@@ -37,14 +37,12 @@ These setup steps should be completed on all Nomad hosts:
 
 Precompiled Nomad binaries are available for download at [https://releases.hashicorp.com/nomad/](https://releases.hashicorp.com/nomad/) and Nomad Enterprise binaries are available for download by following the instructions made available to HashiCorp Enterprise customers.
 
-You should perform checksum verification of the zip packages using the SHA256SUMS and SHA256SUMS.sig files available for the specific release version. HashiCorp provides [a guide on checksum verification](https://www.hashicorp.com/security.html) for precompiled binaries.
-
 ```text
 export NOMAD_VERSION="0.8.7"
 curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip
-curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS
-curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_SHA256SUMS.sig
 ```
+
+You may perform checksum verification of the zip packages using the SHA256SUMS and SHA256SUMS.sig files available for the specific release version. HashiCorp provides [a guide on checksum verification](https://www.hashicorp.com/security.html) for precompiled binaries.
 
 ## Install Nomad
 
