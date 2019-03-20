@@ -202,7 +202,7 @@ of 86400 seconds (24 hours).
 
 ```
 $ vault write pki_int/roles/nomad-cluster allowed_domains=global.nomad \
-    allow_subdomains=true max_ttl=86400s generate_lease=true
+    allow_subdomains=true max_ttl=86400s require_cn=false generate_lease=true
 ```
 You should see the following output if the command you issues was successful:
 
@@ -258,6 +258,8 @@ identity_policies    []
 policies             ["default" "tls-policy"]
 ```
 
+Make a note of this token as you will need it in the upcoming steps.
+
 ### Step 9: Configure Consul Template on All Nodes
 
 If you are using the AWS environment provided in this guide, you already have
@@ -275,6 +277,10 @@ provided templates (the actual templates will be provided in the next step):
 * Node certificate
 * Node private key
 * CA public certificate
+
+We will also specify the template stanza to create certs and keys for the Nomad
+CLI (which defaults to HTTP but will need to use HTTPS once once TLS is enabled
+in our cluster).
 
 Your `consul-template.hcl` configuration file should look similar to the
 following (you will need to do this on each node in the cluster):
@@ -310,6 +316,16 @@ template {
   destination = "/opt/nomad/certs/ca.crt"
   command     = "pkill -SIGHUP nomad"
 }
+
+template {
+  source      = "/opt/nomad/templates/cli.crt.tpl"
+  destination = "/opt/nomad/certs/cli.crt"
+}
+
+template {
+  source      = "/opt/nomad/templates/cli.key.tpl"
+  destination = "/opt/nomad/certs/cli.key"
+}
 ```
 You may change the `source` and `destination` options in your
 configuration to a location you prefer. This environment assumes you have
@@ -317,9 +333,10 @@ created a `templates` and `certs` directory in `/opt/nomad`.
 
 !> Note: we have hard coded the token we created into the Consul Template
 configuration file. Although we can avoid this by assigning it to the
-environment variable `VAULT_TOKEN`, this approach is still a security concern.
-We need to securely introduce this token to Consul Template. To learn how to
-accomplish this, see [Secure Introduction][secure-introduction].
+environment variable `VAULT_TOKEN`, this method can still pose a security
+concern. The recommended approach is to securely introduce this token to Consul
+Template. To learn how to accomplish this, see [Secure
+Introduction][secure-introduction].
 
 ### Step 10: Create Templates
 
@@ -381,6 +398,24 @@ word `client`:
 {{ end }}
 ```
 
+**For Nomad CLI**:
+
+*cli.crt.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "ttl=24h" }}
+{{ .Data.certificate }}
+{{ end }}
+```
+
+*cli.key.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "ttl=24h" }}
+{{ .Data.private_key }}
+{{ end }}
+```
+
 ### Step 10: Start the Consul Template Service
 
 Once you have written the individual templates to the `source` locations you
@@ -437,9 +472,10 @@ our custom key and certificates by setting the following environments variables:
 ```shell
 export NOMAD_ADDR=https://localhost:4646
 export NOMAD_CACERT="/opt/nomad/certs/ca.crt"
-export NOMAD_CLIENT_CERT="/opt/nomad/certs/agent.crt"
-export NOMAD_CLIENT_KEY="/opt/nomad/certs/agent.key"
+export NOMAD_CLIENT_CERT="/opt/nomad/certs/cli.crt"
+export NOMAD_CLIENT_KEY="/opt/nomad/certs/cli.key"
 ```
+
 After these environment variables are correctly configured, the CLI will respond
 as expected:
 
