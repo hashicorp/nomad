@@ -180,7 +180,7 @@ server {
 ```
 
 - [`server`](/docs/configuration/server.html#enabled) - Specifies if this agent should run in server mode. All other server options depend on this value being set.
-- [`bootstrap_expect`](/docs/configuration/server.html#bootstrap_expect) - The number of expected servers in the datacenter. Either this value should not be provided or the value must agree with other servers in the cluster.
+- [`bootstrap_expect`](/docs/configuration/server.html#bootstrap_expect) - The number of expected servers in the cluster. Either this value should not be provided or the value must agree with other servers in the cluster.
 
 ### Client configuration
 
