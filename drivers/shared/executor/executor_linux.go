@@ -783,8 +783,8 @@ func (l *LibcontainerExecutor) cleanupHandle(pid int) ([]byte, error) {
 		return nil, err
 	}
 	cleanupHandle := cleanupHandle{
-		Version:      "1",
-		ExecutorType: "libcontainer",
+		Version:      cleanupStructVersion,
+		ExecutorType: executorTypeLibcontainer,
 		Pid:          pid,
 		StartTime:    startTime,
 		LibcontainerData: libcontainerData{

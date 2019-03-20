@@ -25,7 +25,7 @@ import (
 )
 
 func init() {
-	executorFactories["LibcontainerExecutor"] = libcontainerFactory
+	executorFactories[executorTypeLibcontainer] = libcontainerFactory
 }
 
 func libcontainerFactory(l hclog.Logger) Executor {

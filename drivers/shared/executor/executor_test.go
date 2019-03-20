@@ -30,7 +30,7 @@ var universalFactory = func(l hclog.Logger) Executor {
 }
 
 func init() {
-	executorFactories["UniversalExecutor"] = universalFactory
+	executorFactories[executorTypeUniversal] = universalFactory
 }
 
 // testExecutorContext returns an ExecutorContext and AllocDir.

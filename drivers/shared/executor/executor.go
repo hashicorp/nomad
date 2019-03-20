@@ -33,6 +33,9 @@ const (
 	// ExecutorVersionPre0_9 is the version of executor use prior to the release
 	// of 0.9.x
 	ExecutorVersionPre0_9 = "1.1.0"
+
+	executorTypeUniversal    = "universal"
+	executorTypeLibcontainer = "libcontainer"
 )
 
 var (
@@ -640,8 +643,8 @@ func (e *UniversalExecutor) cleanupHandle() ([]byte, error) {
 		return nil, err
 	}
 	cleanupHandle := cleanupHandle{
-		Version:      "1",
-		ExecutorType: "universal",
+		Version:      cleanupStructVersion,
+		ExecutorType: executorTypeUniversal,
 		Pid:          e.childCmd.Process.Pid,
 		StartTime:    startTime,
 		UniversalData: universalData{

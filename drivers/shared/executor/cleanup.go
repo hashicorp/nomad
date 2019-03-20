@@ -8,6 +8,10 @@ import (
 	"github.com/shirou/gopsutil/process"
 )
 
+// cleanupHandleVersion indicator to version of cleanupHandle struct, meant for footure proofing
+// should we need to change struct
+const cleanupStructVersion = "1"
+
 type cleanupHandleFn func(hclog.Logger, *cleanupHandle) error
 
 // cleanupHandle represents state required to recreate the executor handle
@@ -22,10 +26,17 @@ type libcontainerData struct {
 }
 
 type cleanupHandle struct {
-	Version      string
+	// Version is the version of the struct for future proofing
+	Version string
+
+	// ExecutorType is the type of executor used (e.g. universal vs libcontainer)
 	ExecutorType string
-	Pid          int
-	StartTime    uint64
+
+	// Pid is the pid of the init task process in executor
+	Pid int
+
+	// StartTime is the start time of init task process, meant to as a heauristic to detect PID recycling
+	StartTime uint64
 
 	UniversalData    universalData
 	LibcontainerData libcontainerData
@@ -65,6 +76,7 @@ func CleanupExecutor(logger hclog.Logger, cleanupHandleData []byte) error {
 	if len(cleanupHandleData) == 0 {
 		return fmt.Errorf("empty clean up handler")
 	}
+
 	var cl cleanupHandle
 	err := json.Unmarshal(cleanupHandleData, &cl)
 	if err != nil {
