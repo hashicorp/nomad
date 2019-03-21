@@ -120,7 +120,6 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require.NoError(err)
 	stderr, err = fifo.Open(stderrFifoPath)
 	require.NoError(err)
-	require.False(impl.tl.IsRunning())
 	_, err = stdout.Write([]byte("te"))
 	require.NoError(err)
 	testutil.WaitForResult(func() (bool, error) {
@@ -132,6 +131,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
+	require.False(impl.tl.IsRunning())
 
 	// Start logmon again and assert that it appended to the file
 	require.NoError(lm.Start(cfg))
