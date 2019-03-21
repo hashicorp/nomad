@@ -116,12 +116,20 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require.NoError(stdout.Close())
 	require.NoError(stderr.Close())
 
+	testutil.WaitForResult(func() (bool, error) {
+		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
+	}, func(err error) {
+		require.NoError(err)
+	})
+
 	stdout, err = fifo.Open(stdoutFifoPath)
 	require.NoError(err)
 	stderr, err = fifo.Open(stderrFifoPath)
 	require.NoError(err)
+
 	_, err = stdout.Write([]byte("te"))
 	require.NoError(err)
+
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
@@ -131,10 +139,15 @@ func TestLogmon_Start_restart(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
-	require.False(impl.tl.IsRunning())
 
 	// Start logmon again and assert that it appended to the file
 	require.NoError(lm.Start(cfg))
+
+	stdout, err = fifo.Open(stdoutFifoPath)
+	require.NoError(err)
+	stderr, err = fifo.Open(stderrFifoPath)
+	require.NoError(err)
+
 	_, err = stdout.Write([]byte("st\n"))
 	require.NoError(err)
 	testutil.WaitForResult(func() (bool, error) {
@@ -142,7 +155,9 @@ func TestLogmon_Start_restart(t *testing.T) {
 		if err != nil {
 			return false, err
 		}
-		return "test\ntest\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
+
+		expected := "test\ntest\n" == string(raw)
+		return expected, fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
 		require.NoError(err)
 	})
