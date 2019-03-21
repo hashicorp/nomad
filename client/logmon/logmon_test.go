@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/lib/fifo"
@@ -129,10 +128,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require.NoError(err)
 
 	_, err = stdout.Write([]byte("te"))
-	if err != nil && !strings.Contains(err.Error(), "broken pipe") {
-		// quit unexpected
-		require.NoError(err)
-	}
+	require.NoError(err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
