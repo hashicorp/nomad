@@ -58,9 +58,9 @@ the [Encryption Overview Guide](/guides/security/encryption.html).
   cluster is being upgraded to TLS, and removed after the migration is
   complete. This allows the agent to accept both TLS and plaintext traffic.
 
-- `tls_cipher_suites` `(array<string>: [])` - Specifies the TLS cipher suites
-  that will be used by the agent. Known insecure ciphers are disabled (3DES and
-  RC4). By default, an agent is configured to use
+- `tls_cipher_suites` `string: "")` - Specifies the TLS cipher suites that will
+  be used by the agent as a comma-separated string. Known insecure ciphers are
+  disabled (3DES and RC4). By default, an agent is configured to use
   TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
   TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
   TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,

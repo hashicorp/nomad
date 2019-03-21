@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 )
@@ -60,13 +61,19 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile str
 	require.Nil(err)
 	job.ID = helper.StringToPtr(jobID)
 
+	g := NewGomegaWithT(t)
+
 	// Register job
 	jobs := nomadClient.Jobs()
-	resp, _, err := jobs.Register(job, nil)
-	require.Nil(err)
-	require.NotEmpty(resp.EvalID)
-
-	g := NewGomegaWithT(t)
+	testutil.WaitForResult(func() (bool, error) {
+		resp, _, err := jobs.Register(job, nil)
+		if err != nil {
+			return false, err
+		}
+		return resp.EvalID != "", fmt.Errorf("expected EvalID:%s", pretty.Sprint(resp))
+	}, func(err error) {
+		require.NoError(err)
+	})
 
 	// Wrap in retry to wait until placement
 	g.Eventually(func() []*api.AllocationListStub {

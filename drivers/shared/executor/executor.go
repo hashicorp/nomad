@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -213,8 +212,6 @@ type UniversalExecutor struct {
 	commandCfg *ExecCommand
 
 	exitState     *ProcessState
-	exitStateLock sync.Mutex
-
 	processExited chan interface{}
 
 	// resConCtx is used to track and cleanup additional resources created by
@@ -367,8 +364,6 @@ func (e *UniversalExecutor) Wait(ctx context.Context) (*ProcessState, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-e.processExited:
-		e.exitStateLock.Lock()
-		defer e.exitStateLock.Unlock()
 		return e.exitState, nil
 	}
 }
@@ -383,9 +378,7 @@ func (e *UniversalExecutor) wait() {
 	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
 	if err == nil {
-		e.exitStateLock.Lock()
 		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
-		e.exitStateLock.Unlock()
 		return
 	}
 
@@ -411,9 +404,7 @@ func (e *UniversalExecutor) wait() {
 		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
 	}
 
-	e.exitStateLock.Lock()
 	e.exitState = &ProcessState{Pid: pid, ExitCode: exitCode, Signal: signal, Time: time.Now()}
-	e.exitStateLock.Unlock()
 }
 
 var (
@@ -476,6 +467,14 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		}
 	} else {
 		proc.Kill()
+	}
+
+	// Wait for process to exit
+	select {
+	case <-e.processExited:
+	case <-time.After(time.Second * 15):
+		e.logger.Warn("process did not exit after 15 seconds")
+		merr.Errors = append(merr.Errors, fmt.Errorf("process did not exit after 15 seconds"))
 	}
 
 	// Prefer killing the process via the resource container.

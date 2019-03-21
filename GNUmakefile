@@ -186,7 +186,7 @@ check: ## Lint the source code
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
-	@shellcheck ./scripts/*
+	@find scripts -type f -name '*.sh' | xargs shellcheck
 
 .PHONY: generate-all
 generate-all: generate-structs proto

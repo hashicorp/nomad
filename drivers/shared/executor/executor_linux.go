@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -79,9 +78,7 @@ type LibcontainerExecutor struct {
 	container      libcontainer.Container
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
-
-	exitState     *ProcessState
-	exitStateLock sync.Mutex
+	exitState      *ProcessState
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
@@ -251,8 +248,6 @@ func (l *LibcontainerExecutor) Wait(ctx context.Context) (*ProcessState, error) 
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-l.userProcExited:
-		l.exitStateLock.Lock()
-		defer l.exitStateLock.Unlock()
 		return l.exitState, nil
 	}
 }
@@ -268,10 +263,7 @@ func (l *LibcontainerExecutor) wait() {
 			ps = exitErr.ProcessState
 		} else {
 			l.logger.Error("failed to call wait on user process", "error", err)
-			l.exitStateLock.Lock()
 			l.exitState = &ProcessState{Pid: 0, ExitCode: 1, Time: time.Now()}
-			l.exitStateLock.Unlock()
-
 			return
 		}
 	}
@@ -289,14 +281,12 @@ func (l *LibcontainerExecutor) wait() {
 		}
 	}
 
-	l.exitStateLock.Lock()
 	l.exitState = &ProcessState{
 		Pid:      ps.Pid(),
 		ExitCode: exitCode,
 		Signal:   signal,
 		Time:     time.Now(),
 	}
-	l.exitStateLock.Unlock()
 }
 
 // Shutdown stops all processes started and cleans up any resources
@@ -349,10 +339,21 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		case <-time.After(grace):
 			// Force kill all container processes after grace period,
 			// hence `true` argument.
-			return l.container.Signal(os.Kill, true)
+			if err := l.container.Signal(os.Kill, true); err != nil {
+				return err
+			}
 		}
 	} else {
-		return l.container.Signal(os.Kill, true)
+		if err := l.container.Signal(os.Kill, true); err != nil {
+			return err
+		}
+	}
+
+	select {
+	case <-l.userProcExited:
+		return nil
+	case <-time.After(time.Second * 15):
+		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
 }
 
