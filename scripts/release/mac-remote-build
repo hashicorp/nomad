@@ -43,12 +43,13 @@ rsync -az \
       "${remote_macos_host}:${REPO_REMOTE_PATH}"
 
 echo '=======>>>> Compiling Mac Binaries'
-cat <<'EOF' | ssh ${remote_macos_host} /bin/bash -s "${TMP_WORKSPACE}"
+cat <<'EOF' | ssh ${remote_macos_host} /bin/bash -s "${TMP_WORKSPACE}" "${RELEASE_TARGET}"
 
 set -o errexit
 set -o xtrace
 
 TMP_WORKSPACE="$1"
+RELEASE_TARGET="$2"
 REPO_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
 
 
@@ -73,7 +74,7 @@ compile() {
   git checkout .
   git status
   git log -1
-  make release
+  make ${RELEASE_TARGET}
 }
 
 install_go
