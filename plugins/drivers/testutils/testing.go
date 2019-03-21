@@ -32,7 +32,6 @@ type DriverHarness struct {
 	client *plugin.GRPCClient
 	server *plugin.GRPCServer
 	t      testing.T
-	lm     logmon.LogMon
 	logger hclog.Logger
 	impl   drivers.DriverPlugin
 }
@@ -68,12 +67,6 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 		impl:         d,
 	}
 
-	raw, err = client.Dispense("logmon")
-	if err != nil {
-		t.Fatalf("err dispensing plugin: %v", err)
-	}
-
-	h.lm = raw.(logmon.LogMon)
 	return h
 }
 
@@ -129,6 +122,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 
 	//logmon
 	if enableLogs {
+		lm := logmon.NewLogMon(h.logger.Named("logmon"))
 		if runtime.GOOS == "windows" {
 			id := uuid.Generate()[:8]
 			t.StdoutPath = fmt.Sprintf("//./pipe/%s-%s.stdout", t.Name, id)
@@ -137,7 +131,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 			t.StdoutPath = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stdout.fifo", t.Name))
 			t.StderrPath = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", t.Name))
 		}
-		err = h.lm.Start(&logmon.LogConfig{
+		err = lm.Start(&logmon.LogConfig{
 			LogDir:        taskDir.LogDir,
 			StdoutLogFile: fmt.Sprintf("%s.stdout", t.Name),
 			StderrLogFile: fmt.Sprintf("%s.stderr", t.Name),
@@ -149,16 +143,13 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 		require.NoError(h.t, err)
 
 		return func() {
-			h.lm.Stop()
+			lm.Stop()
 			h.client.Close()
 			allocDir.Destroy()
 		}
 	}
 
 	return func() {
-		if h.lm != nil {
-			h.lm.Stop()
-		}
 		h.client.Close()
 		allocDir.Destroy()
 	}
