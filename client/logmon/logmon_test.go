@@ -140,9 +140,6 @@ func TestLogmon_Start_restart(t *testing.T) {
 		require.NoError(err)
 	})
 
-	require.NoError(stdout.Close())
-	require.NoError(stderr.Close())
-
 	// Start logmon again and assert that it appended to the file
 	require.NoError(lm.Start(cfg))
 
@@ -159,8 +156,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 			return false, err
 		}
 
-		// we may lose data between restarts
-		expected := "test\ntest\n" == string(raw) || "test\nst\n" == string(raw)
+		expected := "test\ntest\n" == string(raw)
 		return expected, fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
 		require.NoError(err)
