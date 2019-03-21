@@ -25,7 +25,7 @@ readonly project_url=https://circleci.hashicorp.engineering/api/v1.1/project/git
 
 
 curl --fail --silent --show-error \
-    --user "19571c47999651ad1150b5f8dd3658e0b760c349:" \
+    --user "${CIRCLE_API_TOKEN}:" \
     --form "build_parameters[CIRCLE_JOB]=build" \
     --form "build_parameters[NOMAD_OSS_REVISION]=${nomad_oss_revision}" \
     --form "build_parameters[NOMAD_ENTERPRISE_REVISION]=${nomad_enterprise_revision}" \
