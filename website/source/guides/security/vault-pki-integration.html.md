@@ -125,13 +125,13 @@ again. Future Vault requests will automatically use this token.
 
 ### Step 4: Generate the Root CA
 
-Enable the pki secrets engine at the pki path:
+Enable the [PKI secrets engine][pki-engine] at the pki path:
 
 ```shell
 $ vault secrets enable pki
 ```
 
-Tune the pki secrets engine to issue certificates with a maximum time-to-live
+Tune the PKI secrets engine to issue certificates with a maximum time-to-live
 (TTL) of 87600 hours:
 
 ```shell
@@ -140,7 +140,8 @@ $ vault secrets tune -max-lease-ttl=87600h pki
 * Please note: we are using a common and recommended pattern which is to have
   one mount act as the root CA and to use this CA only to sign intermediate CA
   CSRs from other PKI secrets engines (which we will create in the next few
-  steps).
+  steps). For tighter security, you can store your CA outside of Vault and use
+  the PKI engine only as an intermediate CA.
 
 Generate the root certificate and save the certificate as `CA_cert.crt`:
 
@@ -151,14 +152,14 @@ $ vault write -field=certificate pki/root/generate/internal \
 
 ### Step 4: Generate the Intermediate CA and CSR
 
-Enable the pki secrets engine at the pki_int path:
+Enable the PKI secrets engine at the pki_int path:
 
 ```shell
 $ vault secrets enable -path=pki_int pki
 ```
 
-Tune the pki_int secrets engine to issue certificates with a maximum
-time-to-live (TTL) of 43800 hours:
+Tune the PKI secrets engine at the `pki_int` path to issue certificates with a
+maximum time-to-live (TTL) of 43800 hours:
 
 ```shell
 $ vault secrets tune -max-lease-ttl=43800h pki_int
@@ -271,7 +272,7 @@ Provide the token you created in [Step
 8](#step-8-generate-a-token-based-on-tls-policy) to the Consul Template
 configuration file located at `/etc/consul-template.d/consul-template.hcl`. You
 will also need to specify the [template stanza][ct-template-stanza] so you can
-render each of the following on the node at the specified location from the
+render each of the following on your nodes at the specified location from the
 provided templates (the actual templates will be provided in the next step):
 
 * Node certificate
@@ -283,7 +284,7 @@ CLI (which defaults to HTTP but will need to use HTTPS once once TLS is enabled
 in our cluster).
 
 Your `consul-template.hcl` configuration file should look similar to the
-following (you will need to do this on each node in the cluster):
+following (you will need to provide this to each node in the cluster):
 
 ```
 vault {
@@ -398,7 +399,7 @@ word `client`:
 {{ end }}
 ```
 
-**For Nomad CLI**:
+**For Nomad CLI (provide this on all nodes)**:
 
 *cli.crt.tpl*:
 
@@ -432,7 +433,7 @@ by listing them out:
 
 ```
 $ ls /opt/nomad/certs/
-agent.crt  agent.key  ca.crt
+agent.crt  agent.key  ca.crt  cli.crt  cli.key
 ```
 
 ### Step 11: Configure Nomad to Use TLS
@@ -484,6 +485,52 @@ $ nomad status
 No running jobs
 ```
 
+## Encrypt Server Gossip
+
+At this point all of Nomad's RPC and HTTP communication is secured with mTLS.
+However, Nomad servers also communicate with a gossip protocol, Serf, that does
+not use TLS:
+
+* HTTP - Used to communicate between CLI and Nomad agents. Secured by mTLS.
+* RPC - Used to communicate between Nomad agents. Secured by mTLS.
+* Serf - Used to communicate between Nomad servers. Secured by a shared key.
+
+Nomad server's gossip protocol use a shared key instead of TLS for encryption.
+This encryption key must be added to every server's configuration using the
+[`encrypt`](/docs/configuration/server.html#encrypt) parameter or with the
+[`-encrypt` command line option](/docs/commands/agent.html).
+
+The Nomad CLI includes a `operator keygen` command for generating a new secure
+gossip encryption key:
+
+```shell
+$ nomad operator keygen
+cg8StVXbQJ0gPvMd9o7yrg==
+```
+
+Alternatively, you can use any method that base64 encodes 16 random bytes:
+
+```shell
+$ openssl rand -base64 16
+raZjciP8vikXng2S5X0m9w==
+$ dd if=/dev/urandom bs=16 count=1 status=none | base64
+LsuYyj93KVfT3pAJPMMCgA==
+```
+
+Put the same generated key into every server's configuration file or command
+line arguments:
+
+```hcl
+server {
+  enabled = true
+
+  # Self-elect, should be 3 or 5 for production
+  bootstrap_expect = 1
+
+  # Encrypt gossip communication
+  encrypt = "cg8StVXbQJ0gPvMd9o7yrg=="
+}
+```
 
 [capability]: https://www.vaultproject.io/docs/concepts/policies.html#capabilities
 [config-parameters]: https://www.vaultproject.io/api/secret/pki/index.html#parameters-8
