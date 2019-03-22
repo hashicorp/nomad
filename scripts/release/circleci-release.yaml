@@ -112,6 +112,7 @@ jobs:
           artifacts_dir="$(dirname ${ARTIFACTS_PATH})"
 
           tar -cz \
+            --exclude '*/.git/hooks' \
             --exclude '*/ui/tmp' \
             --exclude '*/ui/dist' \
             --exclude '*/ui/node_modules' \
@@ -295,6 +296,7 @@ jobs:
           echo "Uploading artifacts to ${destination}"
 
           tar -cz \
+            --exclude '*/.git/hooks' \
             --exclude '*/ui/tmp' \
             --exclude '*/ui/dist' \
             --exclude '*/ui/node_modules' \
