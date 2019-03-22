@@ -108,12 +108,18 @@ jobs:
         environment:
           ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
         command: &compress_repo |
+          project="$(basename ${ARTIFACTS_PATH})"
+          artifacts_dir="$(dirname ${ARTIFACTS_PATH})"
+
           tar -cz \
             --exclude '*/ui/tmp' \
             --exclude '*/ui/dist' \
             --exclude '*/ui/node_modules' \
-            -f ${ARTIFACTS_PATH}.tar.gz \
-            ${ARTIFACTS_PATH}
+            --exclude '*/pkg/*/nomad' \
+            --exclude '*/pkg/*/nomad.exe' \
+            -f "${artifacts_dir}/${project}.tar.gz" \
+            -C "${artifacts_dir}" \
+            "${project}"
 
     - run:
         name: "oss: inspect checksum"
