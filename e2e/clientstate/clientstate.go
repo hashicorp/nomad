@@ -42,6 +42,10 @@ type ClientStateTC struct {
 }
 
 func (tc *ClientStateTC) BeforeAll(f *framework.F) {
+	if os.Getenv("NOMAD_TEST_STATE") == "" {
+		f.T().Skip("Skipping very slow state corruption test unless NOMAD_TEST_STATE=1")
+	}
+
 	bin, err := discover.NomadExecutable()
 	f.NoError(err)
 	tc.bin = bin
@@ -77,10 +81,6 @@ func getPID(client *api.Client, alloc *api.Allocation, path string) (int, error)
 // TestClientState_Kill force kills Nomad agents and restarts them in a tight
 // loop to assert Nomad is crash safe.
 func (tc *ClientStateTC) TestClientState_Kill(f *framework.F) {
-	if os.Getenv("NOMAD_TEST_STATE") == "" {
-		f.T().Skip("Skipping very slow state corruption test unless NOMAD_TEST_STATE=1")
-	}
-
 	t := f.T()
 	t.Parallel()
 
