@@ -16,7 +16,7 @@ Vagrant.configure(2) do |config|
 		vmCfg = configureLinuxProvisioners(vmCfg)
 
 		vmCfg.vm.synced_folder '.',
-			'/opt/gopath/src/github.com/hashicorp/nomad'
+			'/opt/gopath/src/github.com/anuvu/nomad'
 
 		vmCfg.vm.provision "shell",
 			privileged: false,

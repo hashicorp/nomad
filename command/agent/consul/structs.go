@@ -8,7 +8,8 @@ import (
 
 type TaskServices struct {
 	AllocID string
-
+	// Index of the task
+	AllocIndex int
 	// Name of the task
 	Name string
 
@@ -35,6 +36,7 @@ type TaskServices struct {
 func NewTaskServices(alloc *structs.Allocation, task *structs.Task, restarter TaskRestarter, exec driver.ScriptExecutor, net *cstructs.DriverNetwork) *TaskServices {
 	ts := TaskServices{
 		AllocID:       alloc.ID,
+		AllocIndex:    int(alloc.Index()),
 		Name:          task.Name,
 		Restarter:     restarter,
 		Services:      task.Services,

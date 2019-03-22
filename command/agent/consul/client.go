@@ -650,6 +650,8 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, t
 		tags = make([]string, len(service.Tags))
 		copy(tags, service.Tags)
 	}
+	newtag := task.Name + strconv.Itoa(task.AllocIndex)
+	tags = append(tags, newtag)
 
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
