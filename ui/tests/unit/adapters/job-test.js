@@ -9,7 +9,7 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 module('Unit | Adapter | Job', function(hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('job');
 
@@ -31,9 +31,9 @@ module('Unit | Adapter | Job', function(hooks) {
     // Namespace, default region, and all regions are requests that all
     // job requests depend on. Fetching them ahead of time means testing
     // job adapter behavior in isolation.
-    this.system.get('namespaces');
+    await this.system.get('namespaces');
     this.system.get('shouldIncludeRegion');
-    this.system.get('defaultRegion');
+    await this.system.get('defaultRegion');
 
     // Reset the handledRequests array to avoid accounting for this
     // namespaces request everywhere.
@@ -383,6 +383,10 @@ module('Unit | Adapter | Job', function(hooks) {
     const region = 'region-2';
     window.localStorage.nomadActiveRegion = region;
 
+    // Regions are fetched in the before hook, so manually dirty the activeRegion
+    // instead of repeating what is in the beforeEach here.
+    this.system.notifyPropertyChange('activeRegion');
+
     const { pretender } = this.server;
     const jobName = 'job-1';
     const jobNamespace = 'default';
@@ -401,6 +405,10 @@ module('Unit | Adapter | Job', function(hooks) {
 
   test('when the region is set to the default region, requests are made without the region query param', async function(assert) {
     window.localStorage.nomadActiveRegion = 'region-1';
+
+    // Regions are fetched in the before hook, so manually dirty the activeRegion
+    // instead of repeating what is in the beforeEach here.
+    this.system.notifyPropertyChange('activeRegion');
 
     const { pretender } = this.server;
     const jobName = 'job-1';

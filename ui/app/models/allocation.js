@@ -86,7 +86,7 @@ export default Model.extend({
   hasStoppedRescheduling: computed(
     'nextAllocation',
     'clientStatus',
-    'followUpEvaluation',
+    'followUpEvaluation.content',
     function() {
       return (
         !this.get('nextAllocation.content') &&
