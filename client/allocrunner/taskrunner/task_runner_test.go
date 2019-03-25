@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
@@ -177,8 +178,9 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	assert.Equal(t, 1, started)
 }
 
-// TestTaskRunner_TaskEnv asserts driver configurations are interpolated.
-func TestTaskRunner_TaskEnv(t *testing.T) {
+// TestTaskRunner_TaskEnv_Interpolated asserts driver configurations are
+// interpolated.
+func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -204,6 +206,7 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	select {
 	case <-tr.WaitCh():
 	case <-time.After(3 * time.Second):
+		require.Fail("timeout waiting for task to exit")
 	}
 
 	// Get the mock driver plugin
@@ -216,6 +219,152 @@ func TestTaskRunner_TaskEnv(t *testing.T) {
 	require.NotNil(driverCfg)
 	require.NotNil(mockCfg)
 	assert.Equal(t, "global bar somebody", mockCfg.StdoutString)
+}
+
+// TestTaskRunner_TaskEnv_Chroot asserts chroot drivers use chroot paths and
+// not host paths.
+func TestTaskRunner_TaskEnv_Chroot(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "exec"
+	task.Config = map[string]interface{}{
+		"command": "bash",
+		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +
+			"echo $NOMAD_TASK_DIR; " +
+			"echo $NOMAD_SECRETS_DIR; " +
+			"echo $PATH; ",
+		},
+	}
+
+	// Expect chroot paths and host $PATH
+	exp := fmt.Sprintf(`/alloc
+/local
+/secrets
+%s
+`, os.Getenv("PATH"))
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Remove /sbin and /usr from chroot
+	conf.ClientConfig.ChrootEnv = map[string]string{
+		"/bin":            "/bin",
+		"/etc":            "/etc",
+		"/lib":            "/lib",
+		"/lib32":          "/lib32",
+		"/lib64":          "/lib64",
+		"/run/resolvconf": "/run/resolvconf",
+	}
+
+	tr, err := NewTaskRunner(conf)
+	require.NoError(err)
+	go tr.Run()
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for task to exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(15 * time.Second):
+		require.Fail("timeout waiting for task to exit")
+	}
+
+	// Read stdout
+	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
+	stdout, err := ioutil.ReadFile(p)
+	require.NoError(err)
+	require.Equalf(exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
+}
+
+// TestTaskRunner_TaskEnv_Image asserts image drivers use chroot paths and
+// not host paths. Host env vars should also be excluded.
+func TestTaskRunner_TaskEnv_Image(t *testing.T) {
+	ctestutil.DockerCompatible(t)
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "docker"
+	task.Config = map[string]interface{}{
+		"image":        "redis:3.2-alpine",
+		"network_mode": "none",
+		"command":      "sh",
+		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +
+			"echo $NOMAD_TASK_DIR; " +
+			"echo $NOMAD_SECRETS_DIR; " +
+			"echo $PATH",
+		},
+	}
+
+	// Expect chroot paths and image specific PATH
+	exp := `/alloc
+/local
+/secrets
+/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+`
+
+	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	defer cleanup()
+
+	// Wait for task to exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(15 * time.Second):
+		require.Fail("timeout waiting for task to exit")
+	}
+
+	// Read stdout
+	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
+	stdout, err := ioutil.ReadFile(p)
+	require.NoError(err)
+	require.Equalf(exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
+}
+
+// TestTaskRunner_TaskEnv_None asserts raw_exec uses host paths and env vars.
+func TestTaskRunner_TaskEnv_None(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "sh",
+		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +
+			"echo $NOMAD_TASK_DIR; " +
+			"echo $NOMAD_SECRETS_DIR; " +
+			"echo $PATH",
+		},
+	}
+
+	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	defer cleanup()
+
+	// Expect host paths
+	root := filepath.Join(conf.ClientConfig.AllocDir, alloc.ID)
+	taskDir := filepath.Join(root, task.Name)
+	exp := fmt.Sprintf(`%s/alloc
+%s/local
+%s/secrets
+%s
+`, root, taskDir, taskDir, os.Getenv("PATH"))
+
+	// Wait for task to exit
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(15 * time.Second):
+		require.Fail("timeout waiting for task to exit")
+	}
+
+	// Read stdout
+	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
+	stdout, err := ioutil.ReadFile(p)
+	require.NoError(err)
+	require.Equalf(exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
 }
 
 // Test that devices get sent to the driver
