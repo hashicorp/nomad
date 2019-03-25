@@ -560,6 +560,12 @@ type JobRevertRequest struct {
 	// version before reverting.
 	EnforcePriorVersion *uint64
 
+	// VaultToken is the Vault token that proves the submitter of the job revert
+	// has access to any Vault policies specified in the targeted job version. This
+	// field is only used to transfer the token and is not stored after the Job
+	// revert.
+	VaultToken string
+
 	WriteRequest
 }
 
