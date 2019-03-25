@@ -28,7 +28,7 @@ Stop Specific Options:
 
   -kill-timeout <duration>
     The period of time that the allocation should be allowed to perform a
-    graceful shutdown (default 5s). After this time, the process will recieve a
+    graceful shutdown (default 5s). After this time, the process will receive a
     SIGKILL and be forcefully terminated. If set to '0s', then the allocation
     will be immediately terminated.
 

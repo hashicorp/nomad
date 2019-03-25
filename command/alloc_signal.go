@@ -15,7 +15,7 @@ Usage: nomad alloc signal [options] <signal> <allocation> <task>
 
   signal an existing allocation. This command is used to signal a specific alloc
   and its subtasks. If no task is provided then all of the allocations subtasks
-  will recieve the signal.
+  will receive the signal.
 
 General Options:
 
@@ -24,7 +24,7 @@ General Options:
 Signal Specific Options:
 
   -s
-    Specify the signal that the selected tasks should recieve.
+    Specify the signal that the selected tasks should receive.
 
   -verbose
     Show full information.

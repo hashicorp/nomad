@@ -941,7 +941,7 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 func (ar *allocRunner) Signal(taskName, signal string) error {
 	// TODO(dani): Add new task event
 	event := structs.NewTaskEvent(structs.TaskDriverMessage).
-		SetDriverMessage(fmt.Sprintf("Recieved signal: %s from user", signal))
+		SetDriverMessage(fmt.Sprintf("Received signal: %s from user", signal))
 
 	if taskName != "" {
 		tr, ok := ar.tasks[taskName]
