@@ -150,7 +150,7 @@ $ vault write -field=certificate pki/root/generate/internal \
     common_name="global.nomad" ttl=87600h > CA_cert.crt
 ```
 
-### Step 4: Generate the Intermediate CA and CSR
+### Step 5: Generate the Intermediate CA and CSR
 
 Enable the PKI secrets engine at the pki_int path:
 
@@ -172,7 +172,7 @@ $ vault write -format=json pki_int/intermediate/generate/internal \
     ttl="43800h" | jq -r '.data.csr' > pki_intermediate.csr
 ```
 
-### Step 5: Sign the CSR and Configure Intermediate CA Certificate
+### Step 6: Sign the CSR and Configure Intermediate CA Certificate
 
 Sign the intermediate CA CSR with the root certificate and save the generated
 certificate as `intermediate.cert.pem`:
@@ -190,7 +190,7 @@ back into Vault:
 vault write pki_int/intermediate/set-signed certificate=@intermediate.cert.pem
 ```
 
-### Step 6: Create a Role
+### Step 7: Create a Role
 
 A role is a logical name that maps to a policy used to generate credentials. In
 our example, it will allow you to use [configuration
@@ -211,7 +211,7 @@ You should see the following output if the command you issues was successful:
 Success! Data written to: pki_int/roles/nomad-cluster
 ```
 
-### Step 7: Create a Policy to Access the Role Endpoint
+### Step 8: Create a Policy to Access the Role Endpoint
 
 Recall from [Step 1](#step-1-initialize-vault-server) that we generated a root
 token that we used to log in to Vault. Although we could use that token in our
@@ -237,7 +237,7 @@ $ vault policy write tls-policy tls-policy.hcl
 Success! Uploaded policy: tls-policy
 ```
 
-### Step 8: Generate a Token based on `tls-policy`
+### Step 9: Generate a Token based on `tls-policy`
 
 Create a token based on `tls-policy` with the following command:
 
@@ -261,7 +261,7 @@ policies             ["default" "tls-policy"]
 
 Make a note of this token as you will need it in the upcoming steps.
 
-### Step 9: Configure Consul Template on All Nodes
+### Step 10: Configure Consul Template on All Nodes
 
 If you are using the AWS environment provided in this guide, you already have
 [Consul Template][consul-template-github] installed on all nodes. If you are
@@ -339,7 +339,7 @@ concern. The recommended approach is to securely introduce this token to Consul
 Template. To learn how to accomplish this, see [Secure
 Introduction][secure-introduction].
 
-### Step 10: Create Templates
+### Step 11: Create Templates
 
 The following are the templates used by the configuration file we specified in
 the previous step:
@@ -417,7 +417,7 @@ word `client`:
 {{ end }}
 ```
 
-### Step 10: Start the Consul Template Service
+### Step 12: Start the Consul Template Service
 
 Once you have written the individual templates to the `source` locations you
 specified in each of the template stanzas in [Step
@@ -436,7 +436,7 @@ $ ls /opt/nomad/certs/
 agent.crt  agent.key  ca.crt  cli.crt  cli.key
 ```
 
-### Step 11: Configure Nomad to Use TLS
+### Step 13: Configure Nomad to Use TLS
 
 Add the following [tls stanza][nomad-tls-stanza] to your Nomad agent
 configuration file (located at `/etc/nomad.d/nomad.hcl` in this example):
