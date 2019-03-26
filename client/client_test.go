@@ -1243,6 +1243,61 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 
 }
 
+func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
+	t.Parallel()
+
+	// Client without network configured updates to match fingerprint
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{
+				{Device: "any-interface"},
+			},
+		},
+		Resources: &structs.Resources{
+			CPU:      80,
+			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+		},
+	})
+	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
+	assert.Equal(t, 80, client.config.Node.Resources.CPU)
+	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
+
+	// Client with network configured keeps the config setting on update
+	dev := "lo0"
+	name := "TestClient_UpdateNodeFromFingerprintKeepsConfig2"
+	client, cleanup = TestClient(t, func(c *config.Config) {
+		c.NetworkInterface = dev
+		// Node is already a mock.Node, with a hardwired "eth0" device
+		c.Node.Name = name
+		c.Node.NodeResources.Networks[0].Device = dev
+		c.Node.Resources.Networks = c.Node.NodeResources.Networks
+	})
+	// REVIEW: are both defers going to run? should I just use different names?
+	defer cleanup()
+	assert.Equal(t, dev, client.config.NetworkInterface)
+	assert.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{
+				{Device: "any-interface"},
+			},
+		},
+		Resources: &structs.Resources{
+			CPU:      80,
+			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+		},
+	})
+	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+	assert.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
+	assert.Equal(t, 80, client.config.Node.Resources.CPU)
+	assert.Equal(t, dev, client.config.Node.Resources.Networks[0].Device)
+}
+
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	c := &Client{logger: logger}
