@@ -14,11 +14,9 @@ description: |-
 You can use [Consul Template][consul-template] in your Nomad cluster to
 integrate with Vault's [PKI Secrets Engine][pki-engine] to generate and renew
 dynamic X.509 certificates. By using this method, you enable each node to have a
-unique certificate, eliminating sharing and the accompanying pain of revocation
-and rollover. You can also keep certificate TTLs relatively short which makes
-situations where you have to revoke certificates less likely. This in turn
-allows you to safely and securely scale your cluster while using mutual TLS
-(mTLS).
+unique certificate with a relatively short ttl. This feature, along with
+automatic certificate rotation, allows you to safely and securely scale your
+cluster while using mutual TLS (mTLS).
 
 ## Reference Material
 
