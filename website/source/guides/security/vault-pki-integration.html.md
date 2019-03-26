@@ -30,10 +30,10 @@ cluster while using mutual TLS (mTLS).
 
 ## Challenge
 
-Secure your Nomad cluster with mTLS. Configure a root and intermediate CA in
-Vault and ensure (with the help of Consul Template) that you are periodically
-renewing your X.509 certificates on all nodes to maintain a healthy cluster
-state.
+Secure your existing Nomad cluster with mTLS. Configure a root and intermediate
+CA in Vault and ensure (with the help of Consul Template) that you are
+periodically renewing your X.509 certificates on all nodes to maintain a healthy
+cluster state.
 
 ## Solution
 
