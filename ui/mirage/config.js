@@ -4,8 +4,7 @@ import { HOSTS } from './common';
 import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
-
-const { copy } = Ember;
+import { copy } from 'ember-copy';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
