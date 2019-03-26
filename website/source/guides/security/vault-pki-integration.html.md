@@ -354,6 +354,8 @@ template {
   command     = "pkill -SIGHUP nomad"
 }
 
+# The following template stanzas are for the CLI certs
+
 template {
   source      = "/opt/nomad/templates/cli.crt.tpl"
   destination = "/opt/nomad/certs/cli.crt"
