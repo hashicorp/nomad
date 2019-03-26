@@ -1,4 +1,3 @@
-import Ember from 'ember';
 import { alias } from '@ember/object/computed';
 import { assert } from '@ember/debug';
 import Evented from '@ember/object/evented';
@@ -11,7 +10,8 @@ import PollLogger from 'nomad-ui/utils/classes/poll-logger';
 
 const MAX_OUTPUT_LENGTH = 50000;
 
-export const fetchFailure = url => () => Ember.Logger.warn(`LOG FETCH: Couldn't connect to ${url}`);
+// eslint-disable-next-line
+export const fetchFailure = url => () => console.warn(`LOG FETCH: Couldn't connect to ${url}`);
 
 const Log = EmberObject.extend(Evented, {
   // Parameters
