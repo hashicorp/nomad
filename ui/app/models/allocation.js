@@ -36,7 +36,7 @@ export default Model.extend({
   clientStatus: attr('string'),
   desiredStatus: attr('string'),
   statusIndex: computed('clientStatus', function() {
-    return STATUS_ORDER[this.get('clientStatus')] || 100;
+    return STATUS_ORDER[this.clientStatus] || 100;
   }),
 
   isRunning: equal('clientStatus', 'running'),
@@ -57,12 +57,12 @@ export default Model.extend({
       lost: 'is-light',
     };
 
-    return classMap[this.get('clientStatus')] || 'is-dark';
+    return classMap[this.clientStatus] || 'is-dark';
   }),
 
   taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
-    return taskGroups && taskGroups.findBy('name', this.get('taskGroupName'));
+    return taskGroups && taskGroups.findBy('name', this.taskGroupName);
   }),
 
   unhealthyDrivers: computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]', function() {
@@ -80,7 +80,7 @@ export default Model.extend({
   rescheduleEvents: fragmentArray('reschedule-event'),
 
   hasRescheduleEvents: computed('rescheduleEvents.length', 'nextAllocation', function() {
-    return this.get('rescheduleEvents.length') > 0 || this.get('nextAllocation');
+    return this.get('rescheduleEvents.length') > 0 || this.nextAllocation;
   }),
 
   hasStoppedRescheduling: computed(
@@ -88,11 +88,9 @@ export default Model.extend({
     'clientStatus',
     'followUpEvaluation.content',
     function() {
-      return (
-        !this.get('nextAllocation.content') &&
-        !this.get('followUpEvaluation.content') &&
-        this.get('clientStatus') === 'failed'
-      );
+      return !this.get('nextAllocation.content') &&
+      !this.get('followUpEvaluation.content') &&
+      this.clientStatus === 'failed';
     }
   ),
 });

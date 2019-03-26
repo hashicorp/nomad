@@ -11,11 +11,11 @@ export default DistributionBar.extend({
   data: computed(
     'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs}',
     function() {
-      if (!this.get('allocationContainer')) {
+      if (!this.allocationContainer) {
         return [];
       }
 
-      const allocs = this.get('allocationContainer').getProperties(
+      const allocs = this.allocationContainer.getProperties(
         'queuedAllocs',
         'completeAllocs',
         'failedAllocs',

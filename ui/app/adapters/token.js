@@ -8,7 +8,7 @@ export default ApplicationAdapter.extend({
 
   findSelf() {
     return this.ajax(`${this.buildURL()}/token/self`, 'GET').then(token => {
-      const store = this.get('store');
+      const store = this.store;
       store.pushPayload('token', {
         tokens: [token],
       });

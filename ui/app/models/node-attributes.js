@@ -9,7 +9,7 @@ export default Fragment.extend({
   attributes: attr(),
 
   attributesStructured: computed('attributes', function() {
-    const original = this.get('attributes');
+    const original = this.attributes;
 
     if (!original) {
       return;
@@ -30,6 +30,6 @@ export default Fragment.extend({
     //
     // ex: nodeAttrs.get('driver.docker')
     // [ "1", { version: "17.05.0-ce", volumes: { enabled: "1" } } ]
-    return get(this.get('attributesStructured'), key);
+    return get(this.attributesStructured, key);
   },
 });

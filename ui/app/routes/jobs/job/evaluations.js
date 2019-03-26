@@ -11,7 +11,7 @@ export default Route.extend(WithWatchers, {
 
   startWatchers(controller, model) {
     if (model) {
-      controller.set('watchEvaluations', this.get('watchEvaluations').perform(model));
+      controller.set('watchEvaluations', this.watchEvaluations.perform(model));
     }
   },
 

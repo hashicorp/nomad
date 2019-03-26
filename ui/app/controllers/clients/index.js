@@ -43,11 +43,11 @@ export default Controller.extend(Sortable, Searchable, {
   selectionFlags: selection('qpFlags'),
 
   optionsClass: computed('nodes.[]', function() {
-    const classes = Array.from(new Set(this.get('nodes').mapBy('nodeClass'))).compact();
+    const classes = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
 
     // Remove any invalid node classes from the query param/selection
     scheduleOnce('actions', () => {
-      this.set('qpClass', serialize(intersection(classes, this.get('selectionClass'))));
+      this.set('qpClass', serialize(intersection(classes, this.selectionClass)));
     });
 
     return classes.sort().map(dc => ({ key: dc, label: dc }));
@@ -60,13 +60,13 @@ export default Controller.extend(Sortable, Searchable, {
   ]),
 
   optionsDatacenter: computed('nodes.[]', function() {
-    const datacenters = Array.from(new Set(this.get('nodes').mapBy('datacenter'))).compact();
+    const datacenters = Array.from(new Set(this.nodes.mapBy('datacenter'))).compact();
 
     // Remove any invalid datacenters from the query param/selection
     scheduleOnce('actions', () => {
       this.set(
         'qpDatacenter',
-        serialize(intersection(datacenters, this.get('selectionDatacenter')))
+        serialize(intersection(datacenters, this.selectionDatacenter))
       );
     });
 
@@ -90,17 +90,12 @@ export default Controller.extend(Sortable, Searchable, {
         selectionStatus: statuses,
         selectionDatacenter: datacenters,
         selectionFlags: flags,
-      } = this.getProperties(
-        'selectionClass',
-        'selectionStatus',
-        'selectionDatacenter',
-        'selectionFlags'
-      );
+      } = this;
 
       const onlyIneligible = flags.includes('ineligible');
       const onlyDraining = flags.includes('draining');
 
-      return this.get('nodes').filter(node => {
+      return this.nodes.filter(node => {
         if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
         if (statuses.length && !statuses.includes(node.get('status'))) return false;
         if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;

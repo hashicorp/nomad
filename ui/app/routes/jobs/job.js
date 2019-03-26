@@ -18,7 +18,7 @@ export default Route.extend({
     const namespace = transition.queryParams.namespace || this.get('system.activeNamespace.id');
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
-    return this.get('store')
+    return this.store
       .findRecord('job', fullId, { reload: true })
       .then(job => {
         return RSVP.all([job.get('allocations'), job.get('evaluations')]).then(() => job);

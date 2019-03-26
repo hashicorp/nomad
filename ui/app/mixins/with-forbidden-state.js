@@ -2,7 +2,7 @@ import Mixin from '@ember/object/mixin';
 
 export default Mixin.create({
   setupController(controller) {
-    if (this.get('isForbidden')) {
+    if (this.isForbidden) {
       this.set('isForbidden', undefined);
       controller.set('isForbidden', true);
     }

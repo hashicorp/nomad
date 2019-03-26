@@ -16,10 +16,10 @@ export default Component.extend({
   classNameBindings: ['isActive:is-active', 'sortDescending:desc:asc'],
 
   isActive: computed('currentProp', 'prop', function() {
-    return this.get('currentProp') === this.get('prop');
+    return this.currentProp === this.prop;
   }),
 
   shouldSortDescending: computed('sortDescending', 'isActive', function() {
-    return !this.get('isActive') || !this.get('sortDescending');
+    return !this.isActive || !this.sortDescending;
   }),
 });
