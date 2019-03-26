@@ -125,7 +125,7 @@ again. Future Vault requests will automatically use this token.
 
 ### Step 4: Generate the Root CA
 
-Enable the [PKI secrets engine][pki-engine] at the pki path:
+Enable the [PKI secrets engine][pki-engine] at the `pki` path:
 
 ```shell
 $ vault secrets enable pki
@@ -152,7 +152,7 @@ $ vault write -field=certificate pki/root/generate/internal \
 
 ### Step 5: Generate the Intermediate CA and CSR
 
-Enable the PKI secrets engine at the pki_int path:
+Enable the PKI secrets engine at the `pki_int` path:
 
 ```shell
 $ vault secrets enable -path=pki_int pki
