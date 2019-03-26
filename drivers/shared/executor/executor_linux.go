@@ -613,15 +613,12 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 
-	// If resources are not limited then manually create cgroups needed
-	if !command.ResourceLimits {
-		return configureBasicCgroups(cfg)
-	}
-
 	id := uuid.Generate()
 	cfg.Cgroups.Path = filepath.Join(defaultCgroupParent, id)
 
-	if command.Resources == nil || command.Resources.NomadResources == nil {
+	// skip resource constraints if no resource limits are specified
+	// but allow libcontainer to create necessary cgroups but without constraints
+	if !command.ResourceLimits || command.Resources == nil || command.Resources.NomadResources == nil {
 		return nil
 	}
 
