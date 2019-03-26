@@ -48,7 +48,7 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 	return nil
 }
 
-func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.GenericResponse) error {
+func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.AllocSignalResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "signal"}, time.Now())
 
 	// Check submit job permissions
@@ -58,7 +58,9 @@ func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.
 		return nstructs.ErrPermissionDenied
 	}
 
-	return a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
+	var err error
+	reply.SignalledTasks, err = a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
+	return err
 }
 
 // Stats is used to collect allocation statistics

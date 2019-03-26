@@ -81,10 +81,11 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 	return err
 }
 
-func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
+func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) (
+	*structs.AllocSignalResponse, error) {
 	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req := structs.AllocSignalRequest{
@@ -93,9 +94,9 @@ func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal st
 		Task:    task,
 	}
 
-	var resp struct{}
+	var resp structs.AllocSignalResponse
 	_, err = nodeClient.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
-	return err
+	return &resp, err
 }
 
 // Allocation is used for serialization of allocations.

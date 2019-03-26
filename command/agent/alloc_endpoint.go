@@ -175,7 +175,7 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 }
 
 func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "POST" {
+	if !(req.Method == "POST" || req.Method == "PUT") {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -192,7 +192,7 @@ func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *
 	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
 
 	// Make the RPC
-	var reply structs.GenericResponse
+	var reply structs.AllocSignalResponse
 	var rpcErr error
 	if useLocalClient {
 		rpcErr = s.agent.Client().ClientRPC("Allocations.Signal", &args, &reply)
@@ -210,7 +210,7 @@ func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *
 		}
 	}
 
-	return nil, rpcErr
+	return reply, rpcErr
 }
 
 func (s *HTTPServer) allocSnapshot(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {

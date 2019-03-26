@@ -108,10 +108,15 @@ func (c *AllocSignalCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = client.Allocations().Signal(alloc, nil, taskName, "sighup")
+	resp, err := client.Allocations().Signal(alloc, nil, taskName, "sighup")
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error signalling allocation: %s", err))
 		return 1
+	}
+
+	// TODO: Pretty print a table
+	for k, v := range resp.SignalledTasks {
+		c.Ui.Output(fmt.Sprintf("%s: %s", k, v))
 	}
 
 	return 0

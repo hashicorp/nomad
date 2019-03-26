@@ -1116,6 +1116,11 @@ type AllocsGetResponse struct {
 	QueryMeta
 }
 
+type AllocSignalResponse struct {
+	SignalledTasks map[string]string
+	QueryMeta
+}
+
 // JobAllocationsResponse is used to return the allocations for a job
 type JobAllocationsResponse struct {
 	Allocations []*AllocListStub
@@ -6123,6 +6128,11 @@ func (e *TaskEvent) SetExitCode(c int) *TaskEvent {
 func (e *TaskEvent) SetSignal(s int) *TaskEvent {
 	e.Signal = s
 	e.Details["signal"] = fmt.Sprintf("%d", s)
+	return e
+}
+
+func (e *TaskEvent) SetSignalText(s string) *TaskEvent {
+	e.Details["signal"] = s
 	return e
 }
 
