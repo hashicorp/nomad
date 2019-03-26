@@ -25,11 +25,11 @@ export default Component.extend({
   stats: computed('task', 'task.isRunning', function() {
     if (!this.get('task.isRunning')) return;
 
-    return this.get('statsTrackersRegistry').getTracker(this.get('task.allocation'));
+    return this.statsTrackersRegistry.getTracker(this.get('task.allocation'));
   }),
 
   taskStats: computed('task.name', 'stats.tasks.[]', function() {
-    if (!this.get('stats')) return;
+    if (!this.stats) return;
 
     return this.get('stats.tasks').findBy('task', this.get('task.name'));
   }),
@@ -40,12 +40,12 @@ export default Component.extend({
   onClick() {},
 
   click(event) {
-    lazyClick([this.get('onClick'), event]);
+    lazyClick([this.onClick, event]);
   },
 
   fetchStats: task(function*() {
     do {
-      if (this.get('stats')) {
+      if (this.stats) {
         try {
           yield this.get('stats.poll').perform();
           this.set('statsError', false);
@@ -55,16 +55,16 @@ export default Component.extend({
       }
 
       yield timeout(500);
-    } while (this.get('enablePolling'));
+    } while (this.enablePolling);
   }).drop(),
 
   didReceiveAttrs() {
     const allocation = this.get('task.allocation');
 
     if (allocation) {
-      this.get('fetchStats').perform();
+      this.fetchStats.perform();
     } else {
-      this.get('fetchStats').cancelAll();
+      this.fetchStats.cancelAll();
     }
   },
 });

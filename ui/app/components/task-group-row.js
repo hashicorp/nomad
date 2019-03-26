@@ -11,6 +11,6 @@ export default Component.extend({
   onClick() {},
 
   click(event) {
-    lazyClick([this.get('onClick'), event]);
+    lazyClick([this.onClick, event]);
   },
 });

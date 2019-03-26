@@ -10,7 +10,7 @@ export default Service.extend({
   store: service(),
 
   leader: computed('activeRegion', function() {
-    const token = this.get('token');
+    const token = this.token;
 
     return PromiseObject.create({
       promise: token
@@ -26,7 +26,7 @@ export default Service.extend({
   }),
 
   defaultRegion: computed(function() {
-    const token = this.get('token');
+    const token = this.token;
     return PromiseObject.create({
       promise: token
         .authorizedRawRequest(`/${namespace}/agent/members`)
@@ -38,7 +38,7 @@ export default Service.extend({
   }),
 
   regions: computed(function() {
-    const token = this.get('token');
+    const token = this.token;
 
     return PromiseArray.create({
       promise: token.authorizedRawRequest(`/${namespace}/regions`).then(jsonWithDefault([])),
@@ -47,7 +47,7 @@ export default Service.extend({
 
   activeRegion: computed('regions.[]', {
     get() {
-      const regions = this.get('regions');
+      const regions = this.regions;
       const region = window.localStorage.nomadActiveRegion;
 
       if (regions.includes(region)) {
@@ -78,30 +78,28 @@ export default Service.extend({
     'defaultRegion.region',
     'shouldShowRegions',
     function() {
-      return (
-        this.get('shouldShowRegions') &&
-        this.get('activeRegion') !== this.get('defaultRegion.region')
-      );
+      return this.shouldShowRegions &&
+      this.activeRegion !== this.get('defaultRegion.region');
     }
   ),
 
   namespaces: computed('activeRegion', function() {
     return PromiseArray.create({
-      promise: this.get('store')
+      promise: this.store
         .findAll('namespace')
         .then(namespaces => namespaces.compact()),
     });
   }),
 
   shouldShowNamespaces: computed('namespaces.[]', function() {
-    const namespaces = this.get('namespaces').toArray();
+    const namespaces = this.namespaces.toArray();
     return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
   }),
 
   activeNamespace: computed('namespaces.[]', {
     get() {
       const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
-      const namespace = this.get('namespaces').findBy('id', namespaceId);
+      const namespace = this.namespaces.findBy('id', namespaceId);
 
       if (namespace) {
         return namespace;
@@ -110,14 +108,14 @@ export default Service.extend({
       // If the namespace in localStorage is no longer in the cluster, it needs to
       // be cleared from localStorage
       window.localStorage.removeItem('nomadActiveNamespace');
-      return this.get('namespaces').findBy('id', 'default');
+      return this.namespaces.findBy('id', 'default');
     },
     set(key, value) {
       if (value == null) {
         window.localStorage.removeItem('nomadActiveNamespace');
       } else if (typeof value === 'string') {
         window.localStorage.nomadActiveNamespace = value;
-        return this.get('namespaces').findBy('id', value);
+        return this.namespaces.findBy('id', value);
       } else {
         window.localStorage.nomadActiveNamespace = value.get('name');
         return value;

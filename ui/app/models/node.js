@@ -31,15 +31,15 @@ export default Model.extend({
   isEligible: equal('schedulingEligibility', 'eligible'),
 
   address: computed('httpAddr', function() {
-    return ipParts(this.get('httpAddr')).address;
+    return ipParts(this.httpAddr).address;
   }),
 
   port: computed('httpAddr', function() {
-    return ipParts(this.get('httpAddr')).port;
+    return ipParts(this.httpAddr).port;
   }),
 
   isPartial: computed('httpAddr', function() {
-    return this.get('httpAddr') == null;
+    return this.httpAddr == null;
   }),
 
   allocations: hasMany('allocations', { inverse: 'node' }),
@@ -48,20 +48,20 @@ export default Model.extend({
   events: fragmentArray('node-event'),
 
   detectedDrivers: computed('drivers.@each.detected', function() {
-    return this.get('drivers').filterBy('detected');
+    return this.drivers.filterBy('detected');
   }),
 
   unhealthyDrivers: computed('detectedDrivers.@each.healthy', function() {
-    return this.get('detectedDrivers').filterBy('healthy', false);
+    return this.detectedDrivers.filterBy('healthy', false);
   }),
 
   unhealthyDriverNames: computed('unhealthyDrivers.@each.name', function() {
-    return this.get('unhealthyDrivers').mapBy('name');
+    return this.unhealthyDrivers.mapBy('name');
   }),
 
   // A status attribute that includes states not included in node status.
   // Useful for coloring and sorting nodes
   compositeStatus: computed('status', 'isEligible', function() {
-    return this.get('isEligible') ? this.get('status') : 'ineligible';
+    return this.isEligible ? this.status : 'ineligible';
   }),
 });

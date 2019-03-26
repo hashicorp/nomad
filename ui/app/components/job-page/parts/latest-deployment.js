@@ -18,7 +18,7 @@ export default Component.extend({
       if (!message || message === 'Forbidden') {
         message = 'Your ACL token does not grant permission to promote deployments.';
       }
-      this.get('handleError')({
+      this.handleError({
         title: 'Could Not Promote Deployment',
         description: message,
       });

@@ -37,7 +37,7 @@ const Log = EmberObject.extend(Evented, {
   // The top or bottom of the log, depending on whether
   // the logPointer is pointed at head or tail
   output: computed('logPointer', 'head', 'tail', function() {
-    return this.get('logPointer') === 'head' ? this.get('head') : this.get('tail');
+    return this.logPointer === 'head' ? this.head : this.tail;
   }),
 
   init() {
@@ -45,7 +45,7 @@ const Log = EmberObject.extend(Evented, {
 
     const args = this.getProperties('url', 'params', 'logFetch');
     args.write = chunk => {
-      let newTail = this.get('tail') + chunk;
+      let newTail = this.tail + chunk;
       if (newTail.length > MAX_OUTPUT_LENGTH) {
         newTail = newTail.substr(newTail.length - MAX_OUTPUT_LENGTH);
       }
@@ -66,15 +66,15 @@ const Log = EmberObject.extend(Evented, {
   },
 
   gotoHead: task(function*() {
-    const logFetch = this.get('logFetch');
+    const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(this.get('params'), {
+      assign(this.params, {
         plain: true,
         origin: 'start',
         offset: 0,
       })
     );
-    const url = `${this.get('url')}?${queryParams}`;
+    const url = `${this.url}?${queryParams}`;
 
     this.stop();
     let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
@@ -88,15 +88,15 @@ const Log = EmberObject.extend(Evented, {
   }),
 
   gotoTail: task(function*() {
-    const logFetch = this.get('logFetch');
+    const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
-      assign(this.get('params'), {
+      assign(this.params, {
         plain: true,
         origin: 'end',
         offset: MAX_OUTPUT_LENGTH,
       })
     );
-    const url = `${this.get('url')}?${queryParams}`;
+    const url = `${this.url}?${queryParams}`;
 
     this.stop();
     let text = yield logFetch(url).then(res => res.text(), fetchFailure(url));
@@ -107,11 +107,11 @@ const Log = EmberObject.extend(Evented, {
 
   startStreaming() {
     this.set('logPointer', 'tail');
-    return this.get('logStreamer').start();
+    return this.logStreamer.start();
   },
 
   stop() {
-    this.get('logStreamer').stop();
+    this.logStreamer.stop();
   },
 });
 
