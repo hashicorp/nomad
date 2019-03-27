@@ -15,7 +15,7 @@ export function watchRecord(modelName) {
     while (isEnabled && !Ember.testing) {
       try {
         yield RSVP.all([
-          this.get('store').findRecord(modelName, id, {
+          this.store.findRecord(modelName, id, {
             reload: true,
             adapterOptions: { watch: true },
           }),
@@ -25,7 +25,7 @@ export function watchRecord(modelName) {
         yield e;
         break;
       } finally {
-        this.get('store')
+        this.store
           .adapterFor(modelName)
           .cancelFindRecord(modelName, id);
       }
@@ -38,7 +38,7 @@ export function watchRelationship(relationshipName) {
     while (isEnabled && !Ember.testing) {
       try {
         yield RSVP.all([
-          this.get('store')
+          this.store
             .adapterFor(model.constructor.modelName)
             .reloadRelationship(model, relationshipName, true),
           wait(throttle),
@@ -47,7 +47,7 @@ export function watchRelationship(relationshipName) {
         yield e;
         break;
       } finally {
-        this.get('store')
+        this.store
           .adapterFor(model.constructor.modelName)
           .cancelReloadRelationship(model, relationshipName);
       }
@@ -60,14 +60,14 @@ export function watchAll(modelName) {
     while (isEnabled && !Ember.testing) {
       try {
         yield RSVP.all([
-          this.get('store').findAll(modelName, { reload: true, adapterOptions: { watch: true } }),
+          this.store.findAll(modelName, { reload: true, adapterOptions: { watch: true } }),
           wait(throttle),
         ]);
       } catch (e) {
         yield e;
         break;
       } finally {
-        this.get('store')
+        this.store
           .adapterFor(modelName)
           .cancelFindAll(modelName);
       }

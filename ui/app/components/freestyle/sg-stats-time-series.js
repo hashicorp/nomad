@@ -10,14 +10,14 @@ export default Component.extend({
     this.set(
       'timer',
       setInterval(() => {
-        const metricsHigh = this.get('metricsHigh');
+        const metricsHigh = this.metricsHigh;
         const prev = metricsHigh.length ? metricsHigh[metricsHigh.length - 1].value : 0.9;
         this.appendTSValue(
           metricsHigh,
           Math.min(Math.max(prev + Math.random() * 0.05 - 0.025, 0.5), 1)
         );
 
-        const metricsLow = this.get('metricsLow');
+        const metricsLow = this.metricsLow;
         const prev2 = metricsLow.length ? metricsLow[metricsLow.length - 1].value : 0.1;
         this.appendTSValue(
           metricsLow,
@@ -39,7 +39,7 @@ export default Component.extend({
   },
 
   willDestroy() {
-    clearInterval(this.get('timer'));
+    clearInterval(this.timer);
   },
 
   metricsHigh: computed(() => {

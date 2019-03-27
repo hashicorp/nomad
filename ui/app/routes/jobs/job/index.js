@@ -9,13 +9,13 @@ export default Route.extend(WithWatchers, {
       return;
     }
     controller.set('watchers', {
-      model: this.get('watch').perform(model),
-      summary: this.get('watchSummary').perform(model.get('summary')),
-      allocations: this.get('watchAllocations').perform(model),
-      evaluations: this.get('watchEvaluations').perform(model),
+      model: this.watch.perform(model),
+      summary: this.watchSummary.perform(model.get('summary')),
+      allocations: this.watchAllocations.perform(model),
+      evaluations: this.watchEvaluations.perform(model),
       latestDeployment:
-        model.get('supportsDeployments') && this.get('watchLatestDeployment').perform(model),
-      list: model.get('hasChildren') && this.get('watchAll').perform(),
+        model.get('supportsDeployments') && this.watchLatestDeployment.perform(model),
+      list: model.get('hasChildren') && this.watchAll.perform(),
     });
   },
 

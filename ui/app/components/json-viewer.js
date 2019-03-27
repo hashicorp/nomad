@@ -6,6 +6,6 @@ export default Component.extend({
 
   json: null,
   jsonStr: computed('json', function() {
-    return JSON.stringify(this.get('json'), null, 2);
+    return JSON.stringify(this.json, null, 2);
   }),
 });

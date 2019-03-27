@@ -15,13 +15,13 @@ export default Fragment.extend({
   tasks: fragmentArray('task'),
 
   drivers: computed('tasks.@each.driver', function() {
-    return this.get('tasks')
+    return this.tasks
       .mapBy('driver')
       .uniq();
   }),
 
   allocations: computed('job.allocations.@each.taskGroup', function() {
-    return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.get('name'));
+    return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.name);
   }),
 
   reservedCPU: sumAggregation('tasks', 'reservedCPU'),
@@ -32,7 +32,7 @@ export default Fragment.extend({
 
   placementFailures: computed('job.latestFailureEvaluation.failedTGAllocs.[]', function() {
     const placementFailures = this.get('job.latestFailureEvaluation.failedTGAllocs');
-    return placementFailures && placementFailures.findBy('name', this.get('name'));
+    return placementFailures && placementFailures.findBy('name', this.name);
   }),
 
   queuedOrStartingAllocs: computed('summary.{queuedAllocs,startingAllocs}', function() {
@@ -40,6 +40,6 @@ export default Fragment.extend({
   }),
 
   summary: computed('job.taskGroupSummaries.[]', function() {
-    return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.get('name'));
+    return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.name);
   }),
 });

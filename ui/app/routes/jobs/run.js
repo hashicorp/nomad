@@ -13,14 +13,14 @@ export default Route.extend({
   ],
 
   model() {
-    return this.get('store').createRecord('job', {
+    return this.store.createRecord('job', {
       namespace: this.get('system.activeNamespace'),
     });
   },
 
   resetController(controller, isExiting) {
     if (isExiting) {
-      controller.get('model').deleteRecord();
+      controller.model.deleteRecord();
     }
   },
 });

@@ -20,6 +20,7 @@ module('Unit | Adapter | Node', function(hooks) {
     this.server.create('allocation', { id: 'node-1-2', nodeId: 'node-1' });
     this.server.create('allocation', { id: 'node-2-1', nodeId: 'node-2' });
     this.server.create('allocation', { id: 'node-2-2', nodeId: 'node-2' });
+    this.server.logging = true;
   });
 
   hooks.afterEach(function() {
@@ -91,5 +92,5 @@ module('Unit | Adapter | Node', function(hooks) {
 // findHasMany method as well normalizing the response and pushing it to the store
 function findHasMany(model, relationshipName) {
   const relationship = model.relationshipFor(relationshipName);
-  return model.hasMany(relationship.key).hasManyRelationship.fetchLink();
+  return model.hasMany(relationship.key).reload();
 }

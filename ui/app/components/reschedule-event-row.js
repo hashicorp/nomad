@@ -11,7 +11,7 @@ export default Component.extend({
 
   // An allocation can also be provided directly
   allocation: computed('allocationId', function() {
-    return this.get('store').findRecord('allocation', this.get('allocationId'));
+    return this.store.findRecord('allocation', this.allocationId);
   }),
 
   time: null,

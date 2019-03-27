@@ -1,7 +1,8 @@
-import { copy } from '@ember/object/internals';
+import { copy } from 'ember-copy';
 import { get } from '@ember/object';
 import { makeArray } from '@ember/array';
 import JSONSerializer from 'ember-data/serializers/json';
+import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
 
 export default JSONSerializer.extend({
@@ -12,11 +13,10 @@ export default JSONSerializer.extend({
   },
 
   keyForRelationship(attr, relationshipType) {
-    const key = `${attr
-      .singularize()
+    const key = `${singularize(attr)
       .camelize()
       .capitalize()}ID`;
-    return relationshipType === 'hasMany' ? key.pluralize() : key;
+    return relationshipType === 'hasMany' ? pluralize(key) : key;
   },
 
   // Modeled after the pushPayload for ember-data/serializers/rest
@@ -68,6 +68,6 @@ export default JSONSerializer.extend({
   },
 
   modelNameFromPayloadKey(key) {
-    return key.dasherize().singularize();
+    return singularize(key.dasherize());
   },
 });

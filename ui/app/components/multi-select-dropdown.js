@@ -27,8 +27,8 @@ export default Component.extend({
   },
 
   didReceiveAttrs() {
-    const dropdown = this.get('dropdown');
-    if (this.get('isOpen') && dropdown) {
+    const dropdown = this.dropdown;
+    if (this.isOpen && dropdown) {
       run.scheduleOnce('afterRender', () => {
         dropdown.actions.reposition();
       });
@@ -37,22 +37,22 @@ export default Component.extend({
 
   actions: {
     toggle({ key }) {
-      const newSelection = this.get('selection').slice();
+      const newSelection = this.selection.slice();
       if (newSelection.includes(key)) {
         newSelection.removeObject(key);
       } else {
         newSelection.addObject(key);
       }
-      this.get('onSelect')(newSelection);
+      this.onSelect(newSelection);
     },
 
     openOnArrowDown(dropdown, e) {
       this.capture(dropdown);
 
-      if (!this.get('isOpen') && e.keyCode === ARROW_DOWN) {
+      if (!this.isOpen && e.keyCode === ARROW_DOWN) {
         dropdown.actions.open(e);
         e.preventDefault();
-      } else if (this.get('isOpen') && (e.keyCode === TAB || e.keyCode === ARROW_DOWN)) {
+      } else if (this.isOpen && (e.keyCode === TAB || e.keyCode === ARROW_DOWN)) {
         const optionsId = this.element.querySelector('.dropdown-trigger').getAttribute('aria-owns');
         const firstElement = document.querySelector(`#${optionsId} .dropdown-option`);
 
@@ -66,7 +66,7 @@ export default Component.extend({
     traverseList(option, e) {
       if (e.keyCode === ESC) {
         // Close the dropdown
-        const dropdown = this.get('dropdown');
+        const dropdown = this.dropdown;
         if (dropdown) {
           dropdown.actions.close(e);
           // Return focus to the trigger so tab works as expected

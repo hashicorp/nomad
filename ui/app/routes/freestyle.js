@@ -6,7 +6,7 @@ export default Route.extend({
   emberFreestyle: service(),
 
   beforeModel() {
-    let emberFreestyle = this.get('emberFreestyle');
+    let emberFreestyle = this.emberFreestyle;
 
     return emberFreestyle.ensureHljs().then(() => {
       return RSVP.all([

@@ -12,12 +12,12 @@ export default Component.extend({
 
   stopJob: task(function*() {
     try {
-      const job = this.get('job');
+      const job = this.job;
       yield job.stop();
       // Eagerly update the job status to avoid flickering
       this.job.set('status', 'dead');
     } catch (err) {
-      this.get('handleError')({
+      this.handleError({
         title: 'Could Not Stop Job',
         description: 'Your ACL token does not grant permission to stop jobs.',
       });
@@ -25,7 +25,7 @@ export default Component.extend({
   }),
 
   startJob: task(function*() {
-    const job = this.get('job');
+    const job = this.job;
     const definition = yield job.fetchRawDefinition();
 
     delete definition.Stop;
@@ -42,7 +42,7 @@ export default Component.extend({
         message = 'Your ACL token does not grant permission to stop jobs.';
       }
 
-      this.get('handleError')({
+      this.handleError({
         title: 'Could Not Start Job',
         description: message,
       });

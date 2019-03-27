@@ -110,7 +110,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
       });
   });
 
-  test('when the allocation has failed and there is no follow up evaluation, a warning is shown', function(assert) {
+  test('when the allocation has failed and there is no follow up evaluation, a warning is shown', async function(assert) {
     const attempts = 2;
 
     this.server.create('allocation', 'rescheduled', {
@@ -127,27 +127,22 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
       }).id,
     });
 
-    this.store.findAll('allocation');
-    let allocation;
+    await this.store.findAll('allocation');
+    await settled();
 
-    return settled()
-      .then(async () => {
-        allocation = this.store
-          .peekAll('allocation')
-          .find(alloc => !alloc.get('nextAllocation.content'));
+    let allocation = this.store
+      .peekAll('allocation')
+      .find(alloc => !alloc.get('nextAllocation.content'));
+    this.set('allocation', allocation);
 
-        this.set('allocation', allocation);
-        await render(commonTemplate);
+    await render(commonTemplate);
+    await settled();
 
-        return settled();
-      })
-      .then(() => {
-        assert.ok(
-          find('[data-test-attempt-notice]'),
-          'Reschedule notice is shown since the follow up eval says so'
-        );
-        assert.notOk(find('[data-test-stop-warning]'), 'Stop warning is not shown');
-      });
+    assert.ok(
+      find('[data-test-attempt-notice]'),
+      'Reschedule notice is shown since the follow up eval says so'
+    );
+    assert.notOk(find('[data-test-stop-warning]'), 'Stop warning is not shown');
   });
 
   test('when the allocation has a next allocation already, it is shown in the timeline', function(assert) {

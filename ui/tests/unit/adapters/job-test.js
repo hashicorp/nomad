@@ -9,7 +9,7 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 module('Unit | Adapter | Job', function(hooks) {
   setupTest(hooks);
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(async function() {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('job');
 
@@ -17,27 +17,30 @@ module('Unit | Adapter | Job', function(hooks) {
     window.localStorage.clear();
 
     this.server = startMirage();
-    this.server.create('namespace');
-    this.server.create('namespace', { id: 'some-namespace' });
-    this.server.create('node');
-    this.server.create('job', { id: 'job-1', namespaceId: 'default' });
-    this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
 
-    this.server.create('region', { id: 'region-1' });
-    this.server.create('region', { id: 'region-2' });
+    this.initializeUI = async () => {
+      this.server.create('namespace');
+      this.server.create('namespace', { id: 'some-namespace' });
+      this.server.create('node');
+      this.server.create('job', { id: 'job-1', namespaceId: 'default' });
+      this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
 
-    this.system = this.owner.lookup('service:system');
+      this.server.create('region', { id: 'region-1' });
+      this.server.create('region', { id: 'region-2' });
 
-    // Namespace, default region, and all regions are requests that all
-    // job requests depend on. Fetching them ahead of time means testing
-    // job adapter behavior in isolation.
-    this.system.get('namespaces');
-    this.system.get('shouldIncludeRegion');
-    this.system.get('defaultRegion');
+      this.system = this.owner.lookup('service:system');
 
-    // Reset the handledRequests array to avoid accounting for this
-    // namespaces request everywhere.
-    this.server.pretender.handledRequests.length = 0;
+      // Namespace, default region, and all regions are requests that all
+      // job requests depend on. Fetching them ahead of time means testing
+      // job adapter behavior in isolation.
+      await this.system.get('namespaces');
+      this.system.get('shouldIncludeRegion');
+      await this.system.get('defaultRegion');
+
+      // Reset the handledRequests array to avoid accounting for this
+      // namespaces request everywhere.
+      this.server.pretender.handledRequests.length = 0;
+    };
   });
 
   hooks.afterEach(function() {
@@ -45,12 +48,13 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('The job endpoint is the only required endpoint for fetching a job', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobName = 'job-1';
     const jobNamespace = 'default';
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
-    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -63,13 +67,13 @@ module('Unit | Adapter | Job', function(hooks) {
   test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', async function(assert) {
     window.localStorage.nomadActiveNamespace = 'some-namespace';
 
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobName = 'job-1';
     const jobNamespace = 'default';
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
-    this.system.get('namespaces');
-    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -82,12 +86,13 @@ module('Unit | Adapter | Job', function(hooks) {
   test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', async function(assert) {
     window.localStorage.nomadActiveNamespace = 'red-herring';
 
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobName = 'job-1';
     const jobNamespace = 'default';
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
-    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -98,12 +103,13 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When the job has a namespace other than default, it is in the URL', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobName = 'job-2';
     const jobNamespace = 'some-namespace';
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
-    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.deepEqual(
@@ -114,10 +120,11 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When there is no token set in the token service, no x-nomad-token header is set', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
 
-    await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
     assert.notOk(
@@ -127,11 +134,12 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When a token is set in the token service, then x-nomad-token header is set', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
     const secret = 'here is the secret';
 
-    await settled();
     this.subject().set('token.secret', secret);
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
@@ -144,6 +152,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('findAll can be watched', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
 
     const request = () =>
@@ -171,6 +181,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('findRecord can be watched', async function(assert) {
+    await this.initializeUI();
+
     const jobId = JSON.stringify(['job-1', 'default']);
     const { pretender } = this.server;
 
@@ -199,6 +211,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('relationships can be reloaded', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const plainId = 'job-1';
     const mockModel = makeMockModel(plainId);
@@ -213,6 +227,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('relationship reloads can be watched', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const plainId = 'job-1';
     const mockModel = makeMockModel(plainId);
@@ -234,6 +250,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('findAll can be canceled', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     pretender.get('/v1/jobs', () => [200, {}, '[]'], true);
 
@@ -257,6 +275,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('findRecord can be canceled', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
 
@@ -280,6 +300,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('relationship reloads can be canceled', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const plainId = 'job-1';
     const mockModel = makeMockModel(plainId);
@@ -300,6 +322,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('requests can be canceled even if multiple requests for the same URL were made', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
 
@@ -334,6 +358,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('canceling a find record request will never cancel a request with the same url but different method', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
 
@@ -363,6 +389,8 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('when there is no region set, requests are made without the region query param', async function(assert) {
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobName = 'job-1';
     const jobNamespace = 'default';
@@ -383,6 +411,8 @@ module('Unit | Adapter | Job', function(hooks) {
     const region = 'region-2';
     window.localStorage.nomadActiveRegion = region;
 
+    await this.initializeUI();
+
     const { pretender } = this.server;
     const jobName = 'job-1';
     const jobNamespace = 'default';
@@ -401,6 +431,8 @@ module('Unit | Adapter | Job', function(hooks) {
 
   test('when the region is set to the default region, requests are made without the region query param', async function(assert) {
     window.localStorage.nomadActiveRegion = 'region-1';
+
+    await this.initializeUI();
 
     const { pretender } = this.server;
     const jobName = 'job-1';

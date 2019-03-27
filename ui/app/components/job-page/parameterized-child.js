@@ -7,7 +7,7 @@ export default PeriodicChildJobPage.extend({
   payloadJSON: computed('payload', function() {
     let json;
     try {
-      json = JSON.parse(this.get('payload'));
+      json = JSON.parse(this.payload);
     } catch (e) {
       // Swallow error and fall back to plain text rendering
     }
