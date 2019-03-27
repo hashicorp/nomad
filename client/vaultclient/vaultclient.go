@@ -194,27 +194,35 @@ func (c *vaultClient) isTracked(id string) bool {
 	return ok
 }
 
+// isRunning returns true if the client is running.
+func (c *vaultClient) isRunning() bool {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.running
+}
+
 // Starts the renewal loop of vault client
 func (c *vaultClient) Start() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if !c.config.IsEnabled() || c.running {
 		return
 	}
 
-	c.lock.Lock()
 	c.running = true
-	c.lock.Unlock()
 
 	go c.run()
 }
 
 // Stops the renewal loop of vault client
 func (c *vaultClient) Stop() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if !c.config.IsEnabled() || !c.running {
 		return
 	}
-
-	c.lock.Lock()
-	defer c.lock.Unlock()
 
 	c.running = false
 	close(c.stopCh)
@@ -235,7 +243,7 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	if !c.config.IsEnabled() {
 		return nil, fmt.Errorf("vault client not enabled")
 	}
-	if !c.running {
+	if !c.isRunning() {
 		return nil, fmt.Errorf("vault client is not running")
 	}
 
@@ -505,7 +513,7 @@ func (c *vaultClient) run() {
 	}
 
 	var renewalCh <-chan time.Time
-	for c.config.IsEnabled() && c.running {
+	for c.config.IsEnabled() && c.isRunning() {
 		// Fetches the candidate for next renewal
 		renewalReq, renewalTime := c.nextRenewal()
 		if renewalTime.IsZero() {
