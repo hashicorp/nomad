@@ -318,25 +318,27 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	return s.fsStreamImpl(resp, req, "FileSystem.Logs", fsReq, fsReq.AllocID)
 }
 
-func (s *HTTPServer) myCopy(encoder *codec.Encoder, reader io.Reader) {
+func (s *HTTPServer) forwardBody(encoder *codec.Encoder, reader io.Reader, errCh chan<- HTTPCodedError) {
 	if reader == nil {
 		return
 	}
 
 	decoder := json.NewDecoder(reader)
 
+	// reuse frame to avoid gc memory pressure
 	sf := &framer.StreamFrame{}
+
 	for {
 		sf.Clear()
 		err := decoder.Decode(sf)
 		if err != nil {
-			fmt.Printf("giving up")
+			errCh <- CodedError(500, err.Error())
 			return
 		}
 
 		err = encoder.Encode(sf)
 		if err != nil {
-			fmt.Printf("error encoding %#v", err)
+			errCh <- CodedError(500, err.Error())
 		}
 	}
 }
@@ -389,7 +391,7 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			return
 		}
 
-		go s.myCopy(encoder, req.Body)
+		go s.forwardBody(encoder, req.Body, errCh)
 
 		for {
 			select {
