@@ -376,35 +376,54 @@ func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	defer e.commandCfg.Close()
 	pid := e.childCmd.Process.Pid
-	err := e.childCmd.Wait()
-	if err == nil {
+
+	ps, err := e.childCmd.Process.Wait()
+	if err != nil {
+		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
+		e.exitState = &ProcessState{Pid: pid, ExitCode: -1, Time: time.Now()}
+		return
+	}
+
+	if ps.Success() {
 		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
 		return
 	}
 
-	exitCode := 1
-	var signal int
-	if exitErr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-			exitCode = status.ExitStatus()
-			if status.Signaled() {
-				// bash(1) uses the lower 7 bits of a uint8
-				// to indicate normal program failure (see
-				// <sysexits.h>). If a process terminates due
-				// to a signal, encode the signal number to
-				// indicate which signal caused the process
-				// to terminate.  Mirror this exit code
-				// encoding scheme.
-				const exitSignalBase = 128
-				signal = int(status.Signal())
-				exitCode = exitSignalBase + signal
-			}
-		}
+	exitCode := ps.ExitCode()
+	signal := 1
+
+	// bash(1) uses the lower 7 bits of a uint8
+	// to indicate normal program failure (see
+	// <sysexits.h>). If a process terminates due
+	// to a signal, encode the signal number to
+	// indicate which signal caused the process
+	// to terminate.  Mirror this exit code
+	// encoding scheme.
+	const exitSignalBase = 128
+
+	status, ok := ps.Sys().(syscall.WaitStatus)
+	if !ok {
+		// not expected
+	} else if status.Exited() {
+		exitCode = status.ExitStatus()
+	} else if status.Signaled() {
+
+		signal = int(status.Signal())
+		exitCode = exitSignalBase + signal
+	} else if status.Stopped() {
+		signal = int(status.StopSignal())
+		exitCode = exitSignalBase + signal
 	} else {
-		e.logger.Warn("unexpected Cmd.Wait() error type", "error", err)
+		e.logger.Warn("unexpected process termination", "state", ps, "wait_status", status)
+		exitCode = -2
 	}
 
-	e.exitState = &ProcessState{Pid: pid, ExitCode: exitCode, Signal: signal, Time: time.Now()}
+	e.exitState = &ProcessState{
+		Pid:      pid,
+		ExitCode: exitCode,
+		Signal:   signal,
+		Time:     time.Now(),
+	}
 }
 
 var (
