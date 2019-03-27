@@ -259,7 +259,97 @@ policies             ["default" "tls-policy"]
 
 Make a note of this token as you will need it in the upcoming steps.
 
-### Step 10: Configure Consul Template on All Nodes
+### Step 10: Create and Populate the Templates Directory
+
+We need to create templates that Consul Template can use to render the actual
+certificates and keys on the nodes in our cluster. In this guide, we will place
+these templates in `/opt/nomad/templates`. 
+
+Create a directory called `templates` in `/opt/nomad`:
+
+```shell
+$ sudo mkdir /opt/nomad/templates
+```
+
+Below are the templates that the Consul Template configuration will use. We will
+provide different templates to the nodes depending on whether they are server
+nodes or client nodes. All of the nodes will get the CLI templates (since we
+want to use the CLI on any of the nodes).
+
+**For Nomad Servers**:
+
+*agent.crt.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "common_name=server.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
+{{ .Data.certificate }}
+{{ end }}
+```
+
+*agent.key.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "common_name=server.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
+{{ .Data.private_key }}
+{{ end }}
+```
+
+*ca.crt.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "common_name=server.global.nomad" "ttl=24h"}}
+{{ .Data.issuing_ca }}
+{{ end }}
+```
+
+**For Nomad Clients**:
+
+Replace the word `server` in the `common_name` option in each template with the
+word `client`.
+
+*agent.crt.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "common_name=client.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
+{{ .Data.certificate }}
+{{ end }}
+```
+
+*agent.key.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "common_name=client.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
+{{ .Data.private_key }}
+{{ end }}
+```
+
+*ca.crt.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "common_name=client.global.nomad" "ttl=24h"}}
+{{ .Data.issuing_ca }}
+{{ end }}
+```
+
+**For Nomad CLI (provide this on all nodes)**:
+
+*cli.crt.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "ttl=24h" }}
+{{ .Data.certificate }}
+{{ end }}
+```
+
+*cli.key.tpl*:
+
+```
+{{ with secret "pki_int/issue/nomad-cluster" "ttl=24h" }}
+{{ .Data.private_key }}
+{{ end }}
+```
+
+### Step 11: Configure Consul Template on All Nodes
 
 If you are using the AWS environment provided in this guide, you already have
 [Consul Template][consul-template-github] installed on all nodes. If you are
@@ -271,15 +361,15 @@ Provide the token you created in [Step
 configuration file located at `/etc/consul-template.d/consul-template.hcl`. You
 will also need to specify the [template stanza][ct-template-stanza] so you can
 render each of the following on your nodes at the specified location from the
-provided templates (the actual templates will be provided in the next step):
+templates you created in the previous step:
 
 * Node certificate
 * Node private key
 * CA public certificate
 
-We will also specify the template stanza to create certs and keys for the Nomad
-CLI (which defaults to HTTP but will need to use HTTPS once once TLS is enabled
-in our cluster).
+We will also specify the template stanza to create certs and keys from the
+templates we previously created for the Nomad CLI (which defaults to HTTP but
+will need to use HTTPS once once TLS is enabled in our cluster).
 
 Your `consul-template.hcl` configuration file should look similar to the
 following (you will need to provide this to each node in the cluster):
@@ -325,142 +415,69 @@ syslog {
 
 # This block defines the configuration for a template. Unlike other blocks,
 # this block may be specified multiple times to configure multiple templates.
-# It is also possible to configure templates via the CLI directly.
 template {
   # This is the source file on disk to use as the input template. This is often
-  # called the "Consul Template template". This option is required if not using
-  # the `contents` option.
+  # called the "Consul Template template". 
   source      = "/opt/nomad/templates/agent.crt.tpl"
 
   # This is the destination path on disk where the source template will render.
   # If the parent directories do not exist, Consul Template will attempt to
   # create them, unless create_dest_dirs is false.
-  destination = "/opt/nomad/certs/agent.crt"
+  destination = "/opt/nomad/agent-certs/agent.crt"
+
+  # This is the permission to render the file. If this option is left
+  # unspecified, Consul Template will attempt to match the permissions of the
+  # file that already exists at the destination path. If no file exists at that
+  # path, the permissions are 0644.
+  perms       = 0700
 
   # This is the optional command to run when the template is rendered. The
   # command will only run if the resulting template changes. 
-  command     = "pkill -SIGHUP nomad"
+  command     = "systemctl reload nomad"
 }
 
 template {
   source      = "/opt/nomad/templates/agent.key.tpl"
-  destination = "/opt/nomad/certs/agent.key"
-  command     = "pkill -SIGHUP nomad"
+  destination = "/opt/nomad/agent-certs/agent.key"
+  perms       = 0700
+  command     = "systemctl reload nomad"
 }
 
 template {
   source      = "/opt/nomad/templates/ca.crt.tpl"
-  destination = "/opt/nomad/certs/ca.crt"
-  command     = "pkill -SIGHUP nomad"
+  destination = "/opt/nomad/agent-certs/ca.crt"
+  command     = "systemctl reload nomad"
 }
 
 # The following template stanzas are for the CLI certs
 
 template {
   source      = "/opt/nomad/templates/cli.crt.tpl"
-  destination = "/opt/nomad/certs/cli.crt"
+  destination = "/opt/nomad/cli-certs/cli.crt"
 }
 
 template {
   source      = "/opt/nomad/templates/cli.key.tpl"
-  destination = "/opt/nomad/certs/cli.key"
+  destination = "/opt/nomad/cli-certs/cli.key"
 }
 ```
-You may change the `source` and `destination` options in your
-configuration to a location you prefer. This environment assumes you have
-created a `templates` and `certs` directory in `/opt/nomad`.
 
-!> Note: we have hard coded the token we created into the Consul Template
+!> Note: we have hard-coded the token we created into the Consul Template
 configuration file. Although we can avoid this by assigning it to the
 environment variable `VAULT_TOKEN`, this method can still pose a security
 concern. The recommended approach is to securely introduce this token to Consul
 Template. To learn how to accomplish this, see [Secure
 Introduction][secure-introduction].
 
-### Step 11: Create Templates
+* Please also note we have applied file permissions `0700` to the `agent.crt`
+  and `agent.key` since only the root user should be able to read those files.
+  Any other user using the Nomad CLI will be able to read the CLI certs and key
+  that we have created for them along with intermediate CA cert.
 
-The following are the templates used by the configuration file we specified in
-the previous step:
-
-**For Nomad Servers**:
-
-*agent.crt.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "common_name=server.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
-{{ .Data.certificate }}
-{{ end }}
-```
-
-*agent.key.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "common_name=server.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
-{{ .Data.private_key }}
-{{ end }}
-```
-
-*ca.crt.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "common_name=server.global.nomad" "ttl=24h"}}
-{{ .Data.issuing_ca }}
-{{ end }}
-```
-
-**For Nomad Clients**:
-
-Replace the word `server` in the `common_name` option in each template with the
-word `client`:
-
-*agent.crt.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "common_name=client.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
-{{ .Data.certificate }}
-{{ end }}
-```
-
-*agent.key.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "common_name=client.global.nomad" "ttl=24h" "alt_names=localhost" "ip_sans=127.0.0.1"}}
-{{ .Data.private_key }}
-{{ end }}
-```
-
-*ca.crt.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "common_name=client.global.nomad" "ttl=24h"}}
-{{ .Data.issuing_ca }}
-{{ end }}
-```
-
-**For Nomad CLI (provide this on all nodes)**:
-
-*cli.crt.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "ttl=24h" }}
-{{ .Data.certificate }}
-{{ end }}
-```
-
-*cli.key.tpl*:
-
-```
-{{ with secret "pki_int/issue/nomad-cluster" "ttl=24h" }}
-{{ .Data.private_key }}
-{{ end }}
-```
 
 ### Step 12: Start the Consul Template Service
 
-Once you have written the individual templates to the `source` locations you
-specified in each of the template stanzas in [Step
-9](#step-9-configure-consul-template-on-all-nodes), you may start the Consul
-Template service on each node:
+Start the Consul Template service on each node:
 
 ```shell
 $ sudo systemctl start consul-template
@@ -470,32 +487,37 @@ the `destination` directory you specified in your Consul Template configuration
 by listing them out:
 
 ```
-$ ls /opt/nomad/certs/
-agent.crt  agent.key  ca.crt  cli.crt  cli.key
+$ ls /opt/nomad/agent-certs/ /opt/nomad/cli-certs/
+/opt/nomad/agent-certs/:
+agent.crt  agent.key  ca.crt
+
+/opt/nomad/cli-certs/:
+cli.crt  cli.key
 ```
 
 ### Step 13: Configure Nomad to Use TLS
 
-Add the following [tls stanza][nomad-tls-stanza] to your Nomad agent
-configuration file (located at `/etc/nomad.d/nomad.hcl` in this example):
+Add the following [tls stanza][nomad-tls-stanza] to the configuration of all
+Nomad agents (servers and clients) in the cluster (configuration file located at
+`/etc/nomad.d/nomad.hcl` in this example):
 
 ```
 tls {
   http = true
   rpc  = true
 
-  ca_file   = "/opt/nomad/certs/ca.crt"
-  cert_file = "/opt/nomad/certs/agent.crt"
-  key_file  = "/opt/nomad/certs/agent.key"
+  ca_file   = "/opt/nomad/agent-certs/ca.crt"
+  cert_file = "/opt/nomad/agent-certs/agent.crt"
+  key_file  = "/opt/nomad/agent-certs/agent.key"
 
   verify_server_hostname = true
   verify_https_client    = true
 }
 ```
-Send a SIGHUP signal to Nomad to reload the TLS configuration:
+Reload Nomad's configuration:
 
 ```shell
-$ pkill -SIGHUP nomad
+$ systemctl reload nomad
 ```
 
 If you run `nomad status`, you will now receive the following error:
@@ -510,9 +532,9 @@ our custom key and certificates by setting the following environments variables:
 
 ```shell
 export NOMAD_ADDR=https://localhost:4646
-export NOMAD_CACERT="/opt/nomad/certs/ca.crt"
-export NOMAD_CLIENT_CERT="/opt/nomad/certs/cli.crt"
-export NOMAD_CLIENT_KEY="/opt/nomad/certs/cli.key"
+export NOMAD_CACERT="/opt/nomad/agent-certs/ca.crt"
+export NOMAD_CLIENT_CERT="/opt/nomad/cli-certs/cli.crt"
+export NOMAD_CLIENT_KEY="/opt/nomad/cli-certs/cli.key"
 ```
 
 After these environment variables are correctly configured, the CLI will respond
@@ -569,6 +591,10 @@ server {
   encrypt = "cg8StVXbQJ0gPvMd9o7yrg=="
 }
 ```
+
+Unlike with TLS, reloading Nomad will not be enough to initiate encryption of
+gossip traffic. At this point, you may restart each Nomad server with `systemctl
+restart nomad`.
 
 [capability]: https://www.vaultproject.io/docs/concepts/policies.html#capabilities
 [config-parameters]: https://www.vaultproject.io/api/secret/pki/index.html#parameters-8
