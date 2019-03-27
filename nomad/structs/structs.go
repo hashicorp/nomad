@@ -1763,6 +1763,7 @@ func (r *Resources) Validate() error {
 }
 
 // Merge merges this resource with another resource.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
 		r.CPU = other.CPU
@@ -1782,6 +1783,7 @@ func (r *Resources) Merge(other *Resources) {
 }
 
 // Equals deeply equates the value of this resource with another
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Equals(o *Resources) bool {
 	if r == nil && o == nil {
 		return true
@@ -1806,6 +1808,7 @@ func (r *Resources) Equals(o *Resources) bool {
 	return false
 }
 
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
@@ -1824,6 +1827,7 @@ func (r *Resources) Canonicalize() {
 // MeetsMinResources returns an error if the resources specified are less than
 // the minimum allowed.
 // This is based on the minimums defined in the Resources type
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
 	minResources := MinResources()
@@ -1872,6 +1876,7 @@ func (r *Resources) Copy() *Resources {
 }
 
 // NetIndex finds the matching net index using device name
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) NetIndex(n *NetworkResource) int {
 	return r.Networks.NetIndex(n)
 }
@@ -1879,6 +1884,7 @@ func (r *Resources) NetIndex(n *NetworkResource) int {
 // Superset checks if one set of resources is a superset
 // of another. This ignores network resources, and the NetworkIndex
 // should be used for that.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.CPU < other.CPU {
 		return false, "cpu"
@@ -1894,6 +1900,7 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 
 // Add adds the resources of the delta to this, potentially
 // returning an error if not possible.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Add(delta *Resources) error {
 	if delta == nil {
 		return nil
@@ -1914,6 +1921,7 @@ func (r *Resources) Add(delta *Resources) error {
 	return nil
 }
 
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
