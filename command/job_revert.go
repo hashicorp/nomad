@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api/contexts"
@@ -32,6 +33,10 @@ Revert Options:
 
   -verbose
     Display full information.
+
+  -vault-token 
+   The Vault token used to verify that the caller has access to the Vault 
+   policies i the targeted version of the job.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -67,11 +72,13 @@ func (c *JobRevertCommand) Name() string { return "job revert" }
 
 func (c *JobRevertCommand) Run(args []string) int {
 	var detach, verbose bool
+	var vaultToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&vaultToken, "vault-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -96,6 +103,12 @@ func (c *JobRevertCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// Parse the Vault token
+	if vaultToken == "" {
+		// Check the environment variable
+		vaultToken = os.Getenv("VAULT_TOKEN")
 	}
 
 	jobID := args[0]
@@ -125,7 +138,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single job
-	resp, _, err := client.Jobs().Revert(jobs[0].ID, revertVersion, nil, nil)
+	resp, _, err := client.Jobs().Revert(jobs[0].ID, revertVersion, nil, nil, vaultToken)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1
