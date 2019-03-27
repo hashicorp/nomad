@@ -1208,14 +1208,12 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	}
 
 	// COMPAT(0.10): Remove in 0.10
-	if response.Resources != nil && !resourcesAreEqual(c.config.Node.Resources, response.Resources) {
+	if updateResources(c.config, response.Resources) {
 		nodeHasChanged = true
-		c.config.Node.Resources.Merge(response.Resources)
 	}
 
-	if response.NodeResources != nil && !c.config.Node.NodeResources.Equals(response.NodeResources) {
+	if updateNodeResources(c.config, response.NodeResources) {
 		nodeHasChanged = true
-		c.config.Node.NodeResources.Merge(response.NodeResources)
 	}
 
 	if nodeHasChanged {
@@ -1225,31 +1223,39 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	return c.configCopy.Node
 }
 
-// resourcesAreEqual is a temporary function to compare whether resources are
-// equal. We can use this until we change fingerprinters to set pointers on a
-// return type.
-func resourcesAreEqual(first, second *structs.Resources) bool {
-	if first.CPU != second.CPU {
+// updateNodeResources modifies the client NodeResources, returns whether it did so
+func updateNodeResources(c *config.Config, up *structs.NodeResources) bool {
+	if up == nil {
 		return false
 	}
-	if first.MemoryMB != second.MemoryMB {
+	if c.NetworkInterface != "" || c.NetworkSpeed != 0 {
+		// - if a network is configured, keep it
+		// - the update may contain a change to an automatically
+		//   assigned interface (eg, via the AWS plugin)
+		// - the update should reflect the active
+		//   fingerprinted network
+		up.Networks = c.Node.NodeResources.Networks
+	}
+	if c.Node.NodeResources.Equals(up) {
 		return false
 	}
-	if first.DiskMB != second.DiskMB {
+	c.Node.NodeResources.Merge(up)
+	return true
+}
+
+// COMPAT(0.10): Remove in 0.10
+// updateResources is updateNodeResources for the Resources type
+func updateResources(c *config.Config, up *structs.Resources) bool {
+	if up == nil {
 		return false
 	}
-	if len(first.Networks) != len(second.Networks) {
+	if c.NetworkInterface != "" || c.NetworkSpeed != 0 {
+		up.Networks = c.Node.Resources.Networks
+	}
+	if c.Node.Resources.Equals(up) {
 		return false
 	}
-	for i, e := range first.Networks {
-		if len(second.Networks) < i {
-			return false
-		}
-		f := second.Networks[i]
-		if !e.Equals(f) {
-			return false
-		}
-	}
+	c.Node.Resources.Merge(up)
 	return true
 }
 
