@@ -1715,7 +1715,7 @@ type Resources struct {
 	DiskMB   int
 	IOPS     int // COMPAT(0.10): Only being used to issue warnings
 	Networks Networks
-	Devices  []*RequestedDevice
+	Devices  ResourceDevices
 }
 
 const (
@@ -1790,7 +1790,6 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
-// Equals deeply equates the value of this resource with another
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) Equals(o *Resources) bool {
 	if r == nil && o == nil {
@@ -1802,18 +1801,37 @@ func (r *Resources) Equals(o *Resources) bool {
 	if r.CPU == o.CPU &&
 		r.MemoryMB == o.MemoryMB &&
 		r.DiskMB == o.DiskMB &&
-		r.IOPS == o.IOPS {
-		for i, n := range r.Networks {
-			if !n.Equals(o.Networks[i]) {
-				return false
-			}
-		}
-		if !DevicesEquals(r.Devices, o.Devices) {
-			return false
-		}
+		r.IOPS == o.IOPS &&
+		r.Networks.Equals(o.Networks) &&
+		r.Devices.Equals(&o.Devices) {
 		return true
 	}
 	return false
+}
+
+// Equals ResourceDevices as set on Name
+// COMPAT(0.10): Remove in 0.10
+func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
+	if d == nil && o == nil {
+		return true
+	}
+	if d == nil || o == nil {
+		return false
+	}
+	if len(*d) != len(*o) {
+		return false
+	}
+	m := make(map[string]*RequestedDevice, len(*d))
+	for _, e := range *d {
+		m[e.Name] = e
+	}
+	for _, oe := range *o {
+		de, ok := m[oe.Name]
+		if !ok || !de.Equals(oe) {
+			return false
+		}
+	}
+	return true
 }
 
 // COMPAT(0.10): Remove in 0.10
@@ -2062,6 +2080,10 @@ func (n *NetworkResource) PortLabels() map[string]int {
 
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
+
+// COMPAT(0.10): Remove in 0.10
+// ResourceDevices are part of Resources
+type ResourceDevices []*RequestedDevice
 
 // Port assignment and IP for the given label or empty values.
 func (ns Networks) Port(label string) (string, int) {
