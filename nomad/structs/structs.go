@@ -1781,6 +1781,31 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
+// Equals deeply equates the value of this resource with another
+func (r *Resources) Equals(o *Resources) bool {
+	if r == nil && o == nil {
+		return true
+	}
+	if r == nil || o == nil {
+		return false
+	}
+	if r.CPU == o.CPU &&
+		r.MemoryMB == o.MemoryMB &&
+		r.DiskMB == o.DiskMB &&
+		r.IOPS == o.IOPS {
+		for i, n := range r.Networks {
+			if !n.Equals(o.Networks[i]) {
+				return false
+			}
+		}
+		if !DevicesEquals(r.Devices, o.Devices) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 func (r *Resources) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
