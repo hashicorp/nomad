@@ -1,0 +1,57 @@
+version: 2.0
+jobs:
+  build:
+    docker: # run the steps with Docker
+    # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
+    - image: circleci/golang:1.11 #
+    # directory where steps are run
+    working_directory: /go/src/github.com/hashicorp/
+
+    steps:
+    - run:
+        name: "setup terraform"
+        command: |
+          export PATH="$PATH:$(realpath ~/bin)"
+
+          TERRAFORM_VERSION=${TERRAFORM_VERSION:-"0.11.13"}
+          TERRAFORM_OS=${TERRAFORM_OS:-"linux"}
+          TERRAFORM_ARCH=${TERRAFORM_ARCH:-"amd64"}
+
+          if ! command -v "terraform" > /dev/null; then
+              echo "--> Installing Terraform ${TERRAFORM_VERSION}"
+              TERRAFORM_URL="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_${TERRAFORM_OS}_${TERRAFORM_ARCH}.zip"
+              curl \
+                  -L --silent --show-error --fail -o /tmp/terraform.zip \
+                  "${TERRAFORM_URL}"
+              test -d ~/bin && rm -rf ~/bin
+              unzip -qq -d ~/bin /tmp/terraform.zip
+          fi
+          terraform -v
+          which terraform
+          # TODO figure out why splitting this into another step failed to find terraform
+          pwd
+          git clone https://github.com/hashicorp/nomad.git
+          cd /go/src/github.com/hashicorp/nomad/e2e/terraform
+          # Setup TF
+          terraform init
+
+          # Create resources
+          terraform apply -var="nomad_sha=${NOMAD_SHA}" --auto-approve
+          # TODO adding a sleep here caused the job to hang forever
+
+    - run:
+        name: "Run metrics e2e nomad jobs"
+        command: |
+          # Terraform is in here
+          export PATH="$PATH:$(realpath ~/bin)"
+
+          # Need terraform state
+          cd nomad/e2e/terraform;
+          NOMAD_IP="$(terraform output -json servers | jq -r '.value[0]')"
+
+          # Back to root of project
+          cd ../metrics;
+
+          export NOMAD_ADDR="http://$NOMAD_IP:4646"
+          export CONSUL_HTTP_ADDR="http://$NOMAD_IP:8500"
+          go test -metrics -v
