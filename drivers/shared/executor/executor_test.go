@@ -153,6 +153,43 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 	}
 }
 
+func TestExecutor_Start_Wait_Children(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			execCmd, allocDir := testExecutorCommand(t)
+			execCmd.Cmd = "/bin/sh"
+			execCmd.Args = []string{"-c", "(sleep 30 > /dev/null & ) ; exec sleep 1"}
+
+			defer allocDir.Destroy()
+			executor := factory(testlog.HCLogger(t))
+			defer executor.Shutdown("SIGKILL", 0)
+
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			ch := make(chan error)
+
+			go func() {
+				ps, err = executor.Wait(context.Background())
+				t.Logf("Processe completed with %#v error: %#v", ps, err)
+				ch <- err
+			}()
+
+			timeout := 7 * time.Second
+			select {
+			case <-ch:
+				require.NoError(err)
+				//good
+			case <-time.After(timeout):
+				require.Fail(fmt.Sprintf("process is running after timeout: %v", timeout))
+			}
+		})
+	}
+}
+
 func TestExecutor_WaitExitSignal(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
