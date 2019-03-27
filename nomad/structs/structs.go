@@ -1802,7 +1802,7 @@ func (r *Resources) Equals(o *Resources) bool {
 		r.MemoryMB == o.MemoryMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
-		r.Networks.Equals(o.Networks) &&
+		r.Networks.Equals(&o.Networks) &&
 		r.Devices.Equals(&o.Devices) {
 		return true
 	}
@@ -2304,14 +2304,8 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	if !n.Disk.Equals(&o.Disk) {
 		return false
 	}
-
-	if len(n.Networks) != len(o.Networks) {
+	if !n.Networks.Equals(&o.Networks) {
 		return false
-	}
-	for i, n := range n.Networks {
-		if !n.Equals(o.Networks[i]) {
-			return false
-		}
 	}
 
 	// Check the devices
@@ -2322,7 +2316,28 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	return true
 }
 
-// DevicesEquals returns true if the two device arrays are equal
+func (n *Networks) Equals(o *Networks) bool {
+	if n == nil && o == nil {
+		return true
+	}
+	if n == nil || o == nil {
+		return false
+	}
+	if len(*n) != len(*o) {
+		return false
+	}
+	oa := *o
+	// REVIEW: should this be set equality?
+	// in current code len is always 1 or 0
+	for i, e := range *n {
+		if !e.Equals(oa[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// DevicesEquals returns true if the two device arrays are set equal
 func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 	if len(d1) != len(d2) {
 		return false
