@@ -257,15 +257,9 @@ func (l *LibcontainerExecutor) wait() {
 
 	ps, err := l.userProc.Wait()
 	if err != nil {
-		// If the process has exited before we called wait an error is returned
-		// the process state is embedded in the error
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			ps = exitErr.ProcessState
-		} else {
-			l.logger.Error("failed to call wait on user process", "error", err)
-			l.exitState = &ProcessState{Pid: 0, ExitCode: 1, Time: time.Now()}
-			return
-		}
+		l.logger.Error("failed to call wait on user process", "error", err)
+		l.exitState = &ProcessState{Pid: 0, ExitCode: 1, Time: time.Now()}
+		return
 	}
 
 	l.command.Close()
