@@ -321,13 +321,14 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 // enforceVersion is set, the job is only reverted if the current version is at
 // the passed version.
 func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
-	q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	q *WriteOptions, vaultToken string) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var resp JobRegisterResponse
 	req := &JobRevertRequest{
 		JobID:               jobID,
 		JobVersion:          version,
 		EnforcePriorVersion: enforcePriorVersion,
+		VaultToken:          vaultToken,
 	}
 	wm, err := j.client.write("/v1/job/"+jobID+"/revert", req, &resp, q)
 	if err != nil {
@@ -929,6 +930,12 @@ type JobRevertRequest struct {
 	// EnforcePriorVersion if set will enforce that the job is at the given
 	// version before reverting.
 	EnforcePriorVersion *uint64
+
+	// VaultToken is the Vault token that proves the submitter of the job revert
+	// has access to any Vault policies specified in the targeted job version. This
+	// field is only used to transfer the token and is not stored after the Job
+	// revert.
+	VaultToken string `json:",omitempty"`
 
 	WriteRequest
 }
