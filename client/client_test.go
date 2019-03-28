@@ -1243,19 +1243,20 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 
 }
 
+// TestClient_UpdateNodeFromFingerprintKeepsConfig asserts manually configured
+// network interfaces take precedence over fingerprinted ones.
 func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	t.Parallel()
 
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
+	// capture the platform fingerprinted device name for the next test
 	dev := client.config.Node.NodeResources.Networks[0].Device
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{CpuShares: 123},
-			Networks: []*structs.NetworkResource{
-				{Device: "any-interface"},
-			},
+			Cpu:      structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
 		},
 		Resources: &structs.Resources{
 			CPU:      80,
@@ -1276,14 +1277,11 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 		c.Node.NodeResources.Networks[0].Device = dev
 		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
-	// REVIEW: are both defers going to run? should I just use different names?
 	defer cleanup()
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{CpuShares: 123},
-			Networks: []*structs.NetworkResource{
-				{Device: "any-interface"},
-			},
+			Cpu:      structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
 		},
 		Resources: &structs.Resources{
 			CPU:      80,
