@@ -27,9 +27,6 @@ jobs:
               unzip -qq -d ~/bin /tmp/terraform.zip
           fi
           terraform -v
-          which terraform
-          # TODO figure out why splitting this into another step failed to find terraform
-          pwd
           git clone https://github.com/hashicorp/nomad.git
           cd /go/src/github.com/hashicorp/nomad/e2e/terraform
           # Setup TF
