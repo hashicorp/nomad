@@ -31,12 +31,12 @@ Revert Options:
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
-  -verbose
-    Display full information.
-
   -vault-token 
    The Vault token used to verify that the caller has access to the Vault 
    policies i the targeted version of the job.
+
+  -verbose
+    Display full information.
 `
 	return strings.TrimSpace(helpText)
 }
