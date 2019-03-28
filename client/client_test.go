@@ -1249,6 +1249,7 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
+	dev := client.config.Node.NodeResources.Networks[0].Device
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{CpuShares: 123},
@@ -1267,19 +1268,16 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
 
 	// Client with network configured keeps the config setting on update
-	dev := "lo0"
 	name := "TestClient_UpdateNodeFromFingerprintKeepsConfig2"
 	client, cleanup = TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
-		// Node is already a mock.Node, with a hardwired "eth0" device
 		c.Node.Name = name
+		// Node is already a mock.Node, with a device
 		c.Node.NodeResources.Networks[0].Device = dev
 		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	// REVIEW: are both defers going to run? should I just use different names?
 	defer cleanup()
-	assert.Equal(t, dev, client.config.NetworkInterface)
-	assert.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{CpuShares: 123},
