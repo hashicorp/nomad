@@ -2,9 +2,30 @@ package apitests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 )
+
+// boolToPtr returns the pointer to a boolean
+func boolToPtr(b bool) *bool {
+	return &b
+}
+
+// intToPtr returns the pointer to an int
+func intToPtr(i int) *int {
+	return &i
+}
+
+// timeToPtr returns the pointer to a time stamp
+func timeToPtr(t time.Duration) *time.Duration {
+	return &t
+}
+
+// stringToPtr returns the pointer to a string
+func stringToPtr(str string) *string {
+	return &str
+}
 
 func assertQueryMeta(t *testing.T, qm *api.QueryMeta) {
 	t.Helper()
