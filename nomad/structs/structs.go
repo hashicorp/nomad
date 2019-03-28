@@ -2134,31 +2134,36 @@ type RequestedDevice struct {
 }
 
 func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
-	if r.Name == o.Name &&
-		r.Count == o.Count {
-
-		// r.Constraints == o.Constraints, order sensitive
-		if len(r.Constraints) != len(o.Constraints) {
-			return false
-		}
-		for i, c := range r.Constraints {
-			if !c.Equal(o.Constraints[i]) {
-				return false
-			}
-		}
-
-		// r.Affinities == o.Affinities, order sensitive
-		if len(r.Affinities) != len(o.Affinities) {
-			return false
-		}
-		for i, a := range r.Affinities {
-			if !a.Equal(o.Affinities[i]) {
-				return false
-			}
-		}
+	if r == o {
 		return true
 	}
-	return false
+	if r == nil || o == nil {
+		return false
+	}
+	if !(r.Name == o.Name && r.Count == o.Count) {
+		return false
+	}
+
+	// r.Constraints == o.Constraints, order sensitive
+	if len(r.Constraints) != len(o.Constraints) {
+		return false
+	}
+	for i, c := range r.Constraints {
+		if !c.Equal(o.Constraints[i]) {
+			return false
+		}
+	}
+
+	// r.Affinities == o.Affinities, order sensitive
+	if len(r.Affinities) != len(o.Affinities) {
+		return false
+	}
+	for i, a := range r.Affinities {
+		if !a.Equal(o.Affinities[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
