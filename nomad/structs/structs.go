@@ -2356,12 +2356,11 @@ func (n *Networks) Equals(o *Networks) bool {
 	if len(*n) != len(*o) {
 		return false
 	}
-	oa := *o
-	// REVIEW: should this be set equality?
-	// in current code len is always 1 or 0
-	for i, e := range *n {
-		if !e.Equals(oa[i]) {
-			return false
+	for _, ne := range *n {
+		for _, oe := range *o {
+			if !ne.Equals(oe) {
+				return false
+			}
 		}
 	}
 	return true
