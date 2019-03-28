@@ -1114,6 +1114,8 @@ func TestJobEndpoint_Revert_Vault_NoToken(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_Revert_Vault_Policies asserts that job revert uses the
+// revert request's Vault token when authorizing policies.
 func TestJobEndpoint_Revert_Vault_Policies(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
