@@ -1784,25 +1784,26 @@ func (r *Resources) Merge(other *Resources) {
 
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) Equals(o *Resources) bool {
-	if r == nil && o == nil {
+	if r == o {
 		return true
 	}
 	if r == nil || o == nil {
 		return false
 	}
-	if r.CPU == o.CPU &&
+	return r.CPU == o.CPU &&
 		r.MemoryMB == o.MemoryMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
 		r.Networks.Equals(&o.Networks) &&
-		r.Devices.Equals(&o.Devices) {
-		return true
-	}
-	return false
+		r.Devices.Equals(&o.Devices)
 }
 
-// Equals ResourceDevices as set on Name
 // COMPAT(0.10): Remove in 0.10
+// ResourceDevices are part of Resources
+type ResourceDevices []*RequestedDevice
+
+// COMPAT(0.10): Remove in 0.10
+// Equals ResourceDevices as set on Name
 func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	if d == nil && o == nil {
 		return true
@@ -2073,10 +2074,6 @@ func (n *NetworkResource) PortLabels() map[string]int {
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
-// COMPAT(0.10): Remove in 0.10
-// ResourceDevices are part of Resources
-type ResourceDevices []*RequestedDevice
-
 // Port assignment and IP for the given label or empty values.
 func (ns Networks) Port(label string) (string, int) {
 	for _, n := range ns {
@@ -2337,7 +2334,7 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 }
 
 func (n *Networks) Equals(o *Networks) bool {
-	if n == nil && o == nil {
+	if n == o {
 		return true
 	}
 	if n == nil || o == nil {
