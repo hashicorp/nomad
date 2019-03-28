@@ -12,7 +12,7 @@ The `job revert` command is used to revert a job to a prior version of the
 job. The available versions to revert to can be found using [`job
 history`](/docs/commands/job/history.html) command.
 
-The revert command will use a vault token with the following preference:
+The revert command will use a Vault token with the following preference:
 first the `-vault-token` flag, then the `$VAULT_TOKEN` environment variable.
 Because the vault token used to [run](/docs/commands/job/run.html) the targeted
 job version was not persisted, it must be provided to revert if the targeted
