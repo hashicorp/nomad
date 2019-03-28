@@ -563,13 +563,11 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	// Merge with default reschedule policy
-	if *job.Type == "service" {
-		defaultMigrateStrategy := &MigrateStrategy{}
-		defaultMigrateStrategy.Canonicalize()
-		if g.Migrate != nil {
-			defaultMigrateStrategy.Merge(g.Migrate)
-		}
-		g.Migrate = defaultMigrateStrategy
+	if g.Migrate == nil && *job.Type == "service" {
+		g.Migrate = &MigrateStrategy{}
+	}
+	if g.Migrate != nil {
+		g.Migrate.Canonicalize()
 	}
 
 	var defaultRestartPolicy *RestartPolicy
