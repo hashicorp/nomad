@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/api/testutil"
 	"github.com/stretchr/testify/assert"
 )
 

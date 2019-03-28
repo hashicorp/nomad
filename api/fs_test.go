@@ -10,7 +10,7 @@ import (
 	"time"
 
 	units "github.com/docker/go-units"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/api/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

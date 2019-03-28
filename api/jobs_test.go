@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/api/testutil"
 	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,43 +42,6 @@ func TestJobs_Register(t *testing.T) {
 	if len(resp) != 1 || resp[0].ID != *job.ID {
 		t.Fatalf("bad: %#v", resp[0])
 	}
-}
-
-func TestJobs_Parse(t *testing.T) {
-	t.Parallel()
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-
-	jobs := c.Jobs()
-
-	checkJob := func(job *Job, expectedRegion string) {
-		if job == nil {
-			t.Fatal("job should not be nil")
-		}
-
-		region := job.Region
-
-		if region == nil {
-			if expectedRegion != "" {
-				t.Fatalf("expected job region to be '%s' but was unset", expectedRegion)
-			}
-		} else {
-			if expectedRegion != *region {
-				t.Fatalf("expected job region '%s', but got '%s'", expectedRegion, *region)
-			}
-		}
-	}
-	job, err := jobs.ParseHCL(mock.HCL(), true)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	checkJob(job, "global")
-
-	job, err = jobs.ParseHCL(mock.HCL(), false)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	checkJob(job, "")
 }
 
 func TestJobs_Validate(t *testing.T) {
@@ -1434,43 +1395,4 @@ func TestJobs_AddSpread(t *testing.T) {
 	if !reflect.DeepEqual(job.Spreads, expect) {
 		t.Fatalf("expect: %#v, got: %#v", expect, job.Spreads)
 	}
-}
-
-func TestJobs_Summary_WithACL(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	c, s, root := makeACLClient(t, nil, nil)
-	defer s.Stop()
-	jobs := c.Jobs()
-
-	invalidToken := mock.ACLToken()
-
-	// Registering with an invalid  token should fail
-	c.SetSecretID(invalidToken.SecretID)
-	job := testJob()
-	_, _, err := jobs.Register(job, nil)
-	assert.NotNil(err)
-
-	// Register with token should succeed
-	c.SetSecretID(root.SecretID)
-	resp2, wm, err := jobs.Register(job, nil)
-	assert.Nil(err)
-	assert.NotNil(resp2)
-	assert.NotEqual("", resp2.EvalID)
-	assertWriteMeta(t, wm)
-
-	// Query the job summary with an invalid token should fail
-	c.SetSecretID(invalidToken.SecretID)
-	result, _, err := jobs.Summary(*job.ID, nil)
-	assert.NotNil(err)
-
-	// Query the job summary with a valid token should succeed
-	c.SetSecretID(root.SecretID)
-	result, qm, err := jobs.Summary(*job.ID, nil)
-	assert.Nil(err)
-	assertQueryMeta(t, qm)
-
-	// Check that the result is what we expect
-	assert.Equal(*job.ID, result.JobID)
 }
