@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -18,9 +18,9 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/drivers/shared/procio"
 	"github.com/hashicorp/nomad/plugins/drivers"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
@@ -40,6 +40,12 @@ var (
 	ExecutorBasicMeasuredMemStats = []string{"RSS", "Swap"}
 	ExecutorBasicMeasuredCpuStats = []string{"System Mode", "User Mode", "Percent"}
 )
+
+// procioGetter is only used for testing and allows tests to access process
+// io without needing to perform type assertion on the executor implementation
+type procioGetter interface {
+	getProcIO() *procio.ProcessIO
+}
 
 // Executor is the interface which allows a driver to launch and supervise
 // a process
@@ -93,11 +99,9 @@ type ExecCommand struct {
 
 	// StdoutPath is the path the process stdout should be written to
 	StdoutPath string
-	stdout     io.WriteCloser
 
 	// StderrPath is the path the process stderr should be written to
 	StderrPath string
-	stderr     io.WriteCloser
 
 	// Env is the list of KEY=val pairs of environment variables to be set
 	Env []string
@@ -122,68 +126,15 @@ type ExecCommand struct {
 
 	// Devices are the the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
+
+	procIOType procio.IOType
 }
 
-// SetWriters sets the writer for the process stdout and stderr. This should
-// not be used if writing to a file path such as a fifo file. SetStdoutWriter
-// is mainly used for unit testing purposes.
-func (c *ExecCommand) SetWriters(out io.WriteCloser, err io.WriteCloser) {
-	c.stdout = out
-	c.stderr = err
-}
-
-// GetWriters returns the unexported io.WriteCloser for the stdout and stderr
-// handles. This is mainly used for unit testing purposes.
-func (c *ExecCommand) GetWriters() (stdout io.WriteCloser, stderr io.WriteCloser) {
-	return c.stdout, c.stderr
-}
-
-type nopCloser struct {
-	io.Writer
-}
-
-func (nopCloser) Close() error { return nil }
-
-// Stdout returns a writer for the configured file descriptor
-func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
-	if c.stdout == nil {
-		if c.StdoutPath != "" {
-			f, err := fifo.Open(c.StdoutPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create stdout: %v", err)
-			}
-			c.stdout = f
-		} else {
-			c.stdout = nopCloser{ioutil.Discard}
-		}
-	}
-	return c.stdout, nil
-}
-
-// Stderr returns a writer for the configured file descriptor
-func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
-	if c.stderr == nil {
-		if c.StderrPath != "" {
-			f, err := fifo.Open(c.StderrPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create stderr: %v", err)
-			}
-			c.stderr = f
-		} else {
-			c.stderr = nopCloser{ioutil.Discard}
-		}
-	}
-	return c.stderr, nil
-}
-
-func (c *ExecCommand) Close() {
-	stdout, err := c.Stdout()
-	if err == nil {
-		stdout.Close()
-	}
-	stderr, err := c.Stderr()
-	if err == nil {
-		stderr.Close()
+func (cmd *ExecCommand) stdio() procio.Stdio {
+	return procio.Stdio{
+		IOType: cmd.procIOType,
+		Stdout: cmd.StdoutPath,
+		Stderr: cmd.StderrPath,
 	}
 }
 
@@ -214,6 +165,9 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
+	pio  *procio.ProcessIO
+	iowg sync.WaitGroup
+
 	// resConCtx is used to track and cleanup additional resources created by
 	// the executor. Currently this is only used for cgroups.
 	resConCtx resourceContainerContext
@@ -224,6 +178,10 @@ type UniversalExecutor struct {
 	pidCollector   *pidCollector
 
 	logger hclog.Logger
+}
+
+func (e *UniversalExecutor) getProcIO() *procio.ProcessIO {
+	return e.pio
 }
 
 // NewExecutor returns an Executor
@@ -275,17 +233,16 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, err
 	}
 
-	stdout, err := e.commandCfg.Stdout()
-	if err != nil {
-		return nil, err
-	}
-	stderr, err := e.commandCfg.Stderr()
+	pio, err := procio.NewProcessIO(e.commandCfg.stdio(),
+		func(out, err io.WriteCloser) {
+			e.childCmd.Stdout = out
+			e.childCmd.Stderr = err
+		})
 	if err != nil {
 		return nil, err
 	}
 
-	e.childCmd.Stdout = stdout
-	e.childCmd.Stderr = stderr
+	e.pio = pio
 
 	// Look up the binary path and make it executable
 	absPath, err := lookupBin(command.TaskDir, command.Cmd)
@@ -308,6 +265,8 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	if err := e.childCmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
+
+	e.pio.Copy(&e.iowg)
 
 	go e.pidCollector.collectPids(e.processExited, getAllPids)
 	go e.wait()
@@ -374,7 +333,7 @@ func (e *UniversalExecutor) UpdateResources(resources *drivers.Resources) error 
 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
-	defer e.commandCfg.Close()
+	defer e.pio.Close()
 	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
 	if err == nil {
@@ -490,6 +449,8 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 			merr.Errors = append(merr.Errors, err)
 		}
 	}
+
+	e.iowg.Wait()
 
 	if err := merr.ErrorOrNil(); err != nil {
 		e.logger.Warn("failed to shutdown", "error", err)

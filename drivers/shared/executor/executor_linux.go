@@ -5,11 +5,13 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/drivers/shared/procio"
 	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -70,6 +73,9 @@ type LibcontainerExecutor struct {
 
 	logger hclog.Logger
 
+	pio  *procio.ProcessIO
+	iowg sync.WaitGroup
+
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
@@ -79,6 +85,10 @@ type LibcontainerExecutor struct {
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
 	exitState      *ProcessState
+}
+
+func (e *LibcontainerExecutor) getProcIO() *procio.ProcessIO {
+	return e.pio
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
@@ -164,23 +174,24 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	path = rel
 
 	combined := append([]string{path}, command.Args...)
-	stdout, err := command.Stdout()
-	if err != nil {
-		return nil, err
+
+	// the task process will be started by the container
+	process := &libcontainer.Process{
+		Args: combined,
+		Env:  command.Env,
+		Init: true,
 	}
-	stderr, err := command.Stderr()
+
+	pio, err := procio.NewProcessIO(command.stdio(),
+		func(out, err io.WriteCloser) {
+			process.Stdout = out
+			process.Stderr = err
+		})
 	if err != nil {
 		return nil, err
 	}
 
-	// the task process will be started by the container
-	process := &libcontainer.Process{
-		Args:   combined,
-		Env:    command.Env,
-		Stdout: stdout,
-		Stderr: stderr,
-		Init:   true,
-	}
+	l.pio = pio
 
 	if command.User != "" {
 		process.User = command.User
@@ -268,7 +279,7 @@ func (l *LibcontainerExecutor) wait() {
 		}
 	}
 
-	l.command.Close()
+	l.pio.Close()
 
 	exitCode := 1
 	var signal int
@@ -355,6 +366,9 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 	case <-time.After(time.Second * 15):
 		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
+
+	l.iowg.Wait()
+	return nil
 }
 
 // UpdateResources updates the resource isolation with new values to be enforced

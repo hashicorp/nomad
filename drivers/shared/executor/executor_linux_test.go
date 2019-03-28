@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/procio"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -71,7 +72,6 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
 		},
 	}
-	configureTLogging(cmd)
 
 	return cmd, allocDir
 }
@@ -84,6 +84,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	execCmd, allocDir := testExecutorCommandWithChroot(t)
 	execCmd.Cmd = "/bin/ls"
 	execCmd.Args = []string{"-F", "/", "/etc/"}
+	execCmd.procIOType = procio.IOTypeBuffer
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
@@ -143,8 +144,8 @@ ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
 	tu.WaitForResult(func() (bool, error) {
-		outWriter, _ := execCmd.GetWriters()
-		output := outWriter.(*bufferCloser).String()
+		out, _ := executor.(procioGetter).getProcIO().IO().(*procio.BufferIO).Buffers()
+		output := out.String()
 		act := strings.TrimSpace(string(output))
 		if act != expected {
 			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
@@ -169,6 +170,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd.Cmd = "/bin/bash"
 	execCmd.Args = []string{"-c", "while true; do /bin/echo X; /bin/sleep 1; done"}
 	execCmd.ResourceLimits = true
+	execCmd.procIOType = procio.IOTypeBuffer
 
 	ps, err := executor.Launch(execCmd)
 
@@ -190,11 +192,11 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 		require.Fail("timeout waiting for exec to shutdown")
 	}
 
-	outWriter, _ := execCmd.GetWriters()
-	output := outWriter.(*bufferCloser).String()
+	out, _ := executor.(procioGetter).getProcIO().IO().(*procio.BufferIO).Buffers()
+	output := out.String()
 	require.NotZero(len(output))
 	time.Sleep(2 * time.Second)
-	output1 := outWriter.(*bufferCloser).String()
+	output1 := out.String()
 	require.Equal(len(output), len(output1))
 }
 

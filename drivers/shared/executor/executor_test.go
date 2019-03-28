@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +15,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/drivers/shared/procio"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -60,19 +60,8 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 	}
 
 	setupRootfs(t, td.Dir)
-	configureTLogging(cmd)
+	//	configureTLogging(cmd)
 	return cmd, allocDir
-}
-
-type bufferCloser struct {
-	bytes.Buffer
-}
-
-func (_ *bufferCloser) Close() error { return nil }
-
-func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
-	cmd.SetWriters(&stdout, &stderr)
-	return
 }
 
 func TestExecutor_Start_Invalid(pt *testing.T) {
@@ -124,6 +113,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 			execCmd, allocDir := testExecutorCommand(t)
 			execCmd.Cmd = "/bin/echo"
 			execCmd.Args = []string{"hello world"}
+			execCmd.procIOType = procio.IOTypeBuffer
 
 			defer allocDir.Destroy()
 			executor := factory(testlog.HCLogger(t))
@@ -139,8 +129,8 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 
 			expected := "hello world"
 			tu.WaitForResult(func() (bool, error) {
-				outWriter, _ := execCmd.GetWriters()
-				output := outWriter.(*bufferCloser).String()
+				out, _ := executor.(*LibcontainerExecutor).pio.IO().(*procio.BufferIO).Buffers()
+				output := out.String()
 				act := strings.TrimSpace(string(output))
 				if expected != act {
 					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
@@ -261,8 +251,8 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
-			outWriter, _ := execCmd.GetWriters()
-			output := outWriter.(*bufferCloser).String()
+			outWriter, _ := executor.(procioGetter).getProcIO().IO().(*procio.BufferIO).Buffers()
+			output := outWriter.String()
 			expected := ""
 			act := strings.TrimSpace(string(output))
 			if act != expected {
