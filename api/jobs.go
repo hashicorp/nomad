@@ -933,7 +933,7 @@ type JobRevertRequest struct {
 
 	// VaultToken is the Vault token that proves the submitter of the job revert
 	// has access to any Vault policies specified in the targeted job version. This
-	// field is only used to transfer the token and is not stored after the Job
+	// field is only used to authorize the revert and is not stored after the Job
 	// revert.
 	VaultToken string `json:",omitempty"`
 
