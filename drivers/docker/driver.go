@@ -925,7 +925,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	config.Env = task.EnvList()
 
-	containerName := strings.Replace(task.ID, "/", "_", -1)
+	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	logger.Debug("setting container name", "container_name", containerName)
 
 	var networkingConfig *docker.NetworkingConfig
