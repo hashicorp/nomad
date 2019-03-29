@@ -389,7 +389,7 @@ func (e *UniversalExecutor) wait() {
 		return
 	}
 
-	exitCode := ps.ExitCode()
+	exitCode := -1
 	signal := 1
 
 	// bash(1) uses the lower 7 bits of a uint8
