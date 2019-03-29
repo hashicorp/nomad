@@ -1268,7 +1268,8 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	assert.Equal(t, 80, client.config.Node.Resources.CPU)
 	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
 
-	// Client with network configured keeps the config setting on update
+	// Client with network interface configured keeps the config
+	// setting on update
 	name := "TestClient_UpdateNodeFromFingerprintKeepsConfig2"
 	client, cleanup = TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
@@ -1280,8 +1281,11 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	defer cleanup()
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu:      structs.NodeCpuResources{CpuShares: 123},
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{
+				{Device: "any-interface", MBits: 20},
+				{Device: dev, MBits: 20},
+			},
 		},
 		Resources: &structs.Resources{
 			CPU:      80,
@@ -1289,9 +1293,29 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 		},
 	})
 	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+	// only the configured device is kept
+	assert.Equal(t, 1, len(client.config.Node.NodeResources.Networks))
 	assert.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
+	// network speed updates to the configured network are kept
+	assert.Equal(t, 20, client.config.Node.NodeResources.Networks[0].MBits)
 	assert.Equal(t, 80, client.config.Node.Resources.CPU)
 	assert.Equal(t, dev, client.config.Node.Resources.Networks[0].Device)
+
+	// Network speed is applied to all NetworkResources
+	client.config.NetworkInterface = ""
+	client.config.NetworkSpeed = 100
+	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		NodeResources: &structs.NodeResources{
+			Cpu:      structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{{Device: "any-interface", MBits: 20}},
+		},
+		Resources: &structs.Resources{
+			CPU:      80,
+			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+		},
+	})
+	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
+	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[0].MBits)
 }
 
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
