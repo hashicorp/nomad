@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall" // only for Signal
+	"time"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -578,8 +579,31 @@ func cmdWait(c *exec.Cmd) (*os.ProcessState, error) {
 		return state, err
 	}
 
+	// wait for output to be copied with a grace period
+	waitOnCmdOutput(c, 5*time.Second)
+
 	if !state.Success() {
 		return state, &exec.ExitError{ProcessState: state}
 	}
 	return state, nil
+}
+
+func waitOnCmdOutput(c *exec.Cmd, timeout time.Duration) error {
+	_, isStdoutFile := c.Stdout.(*os.File)
+	_, isStderrFile := c.Stderr.(*os.File)
+	if isStdoutFile && isStderrFile {
+		return nil
+	}
+
+	ch := make(chan error)
+	go func() {
+		ch <- c.Wait()
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(timeout):
+		return fmt.Errorf("cmd timedout while copying output")
+	}
 }
