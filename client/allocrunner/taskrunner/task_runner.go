@@ -1132,6 +1132,13 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 
 //TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
+	alloc := tr.Alloc()
+	var allocatedMem float32
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		// Convert to bytes to match other memory metrics
+		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
+	}
+
 	if !tr.clientConfig.DisableTaggedMetrics {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
 			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
@@ -1147,16 +1154,23 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 			float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
 			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+		if allocatedMem > 0 {
+			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
+				allocatedMem, tr.baseLabels)
+		}
 	}
 
 	if tr.clientConfig.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
+		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
+		if allocatedMem > 0 {
+			metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "allocated"}, allocatedMem)
+		}
 	}
 }
 
