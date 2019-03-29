@@ -1208,12 +1208,26 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	}
 
 	// COMPAT(0.10): Remove in 0.10
-	if updateResources(c.config, response.Resources) {
-		nodeHasChanged = true
+	if response.Resources != nil {
+		response.Resources.Networks = updateNetworks(
+			c.config.Node.Resources.Networks,
+			response.Resources.Networks,
+			c.config)
+		if !c.config.Node.Resources.Equals(response.Resources) {
+			c.config.Node.Resources.Merge(response.Resources)
+			nodeHasChanged = true
+		}
 	}
 
-	if updateNodeResources(c.config, response.NodeResources) {
-		nodeHasChanged = true
+	if response.NodeResources != nil {
+		response.NodeResources.Networks = updateNetworks(
+			c.config.Node.NodeResources.Networks,
+			response.NodeResources.Networks,
+			c.config)
+		if !c.config.Node.NodeResources.Equals(response.NodeResources) {
+			c.config.Node.NodeResources.Merge(response.NodeResources)
+			nodeHasChanged = true
+		}
 	}
 
 	if nodeHasChanged {
@@ -1223,40 +1237,27 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	return c.configCopy.Node
 }
 
-// updateNodeResources modifies the client NodeResources, returns whether it did so
-func updateNodeResources(c *config.Config, up *structs.NodeResources) bool {
-	if up == nil {
-		return false
+// updateNetworks preserves manually configured network options, but
+// applies fingerprint updates
+func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) structs.Networks {
+	if c.NetworkInterface == "" {
+		ns = up
+	} else {
+		// if a network is configured, use only that network
+		// use the fingerprinted data
+		for _, n := range up {
+			if c.NetworkInterface == n.Device {
+				ns = []*structs.NetworkResource{n}
+			}
+		}
+		// if not matched, ns has the old data
 	}
-	if c.NetworkInterface != "" || c.NetworkSpeed != 0 {
-		// - if a network is configured, keep it
-		// - the update may contain a change to an automatically
-		//   assigned interface (eg, via the AWS plugin)
-		// - the update should reflect the active
-		//   fingerprinted network
-		up.Networks = c.Node.NodeResources.Networks
+	if c.NetworkSpeed != 0 {
+		for _, n := range ns {
+			n.MBits = c.NetworkSpeed
+		}
 	}
-	if c.Node.NodeResources.Equals(up) {
-		return false
-	}
-	c.Node.NodeResources.Merge(up)
-	return true
-}
-
-// COMPAT(0.10): Remove in 0.10
-// updateResources is updateNodeResources for the Resources type
-func updateResources(c *config.Config, up *structs.Resources) bool {
-	if up == nil {
-		return false
-	}
-	if c.NetworkInterface != "" || c.NetworkSpeed != 0 {
-		up.Networks = c.Node.Resources.Networks
-	}
-	if c.Node.Resources.Equals(up) {
-		return false
-	}
-	c.Node.Resources.Merge(up)
-	return true
+	return ns
 }
 
 // retryIntv calculates a retry interval value given the base
