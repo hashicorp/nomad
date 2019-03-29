@@ -7,7 +7,7 @@ import (
 
 	"time"
 
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/go-uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -146,12 +146,20 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 	}
 	job.Canonicalize()
 
+	uuidGen := func() string {
+		ret, err := uuid.GenerateUUID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ret
+	}
+
 	alloc := &Allocation{
-		ID:        uuid.Generate(),
+		ID:        uuidGen(),
 		Namespace: DefaultNamespace,
-		EvalID:    uuid.Generate(),
+		EvalID:    uuidGen(),
 		Name:      "foo-bar[1]",
-		NodeID:    uuid.Generate(),
+		NodeID:    uuidGen(),
 		TaskGroup: *job.TaskGroups[0].Name,
 		JobID:     *job.ID,
 		Job:       job,

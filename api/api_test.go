@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/go-uuid"
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -316,16 +316,24 @@ func TestQueryString(t *testing.T) {
 func TestClient_NodeClient(t *testing.T) {
 	http := "testdomain:4646"
 	tlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
+		uu, err := uuid.GenerateUUID()
+		if err != nil {
+			t.Fatal(err)
+		}
 		return &Node{
-			ID:         uuid.Generate(),
+			ID:         uu,
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: true,
 		}, nil, nil
 	}
 	noTlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
+		uu, err := uuid.GenerateUUID()
+		if err != nil {
+			t.Fatal(err)
+		}
 		return &Node{
-			ID:         uuid.Generate(),
+			ID:         uu,
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: false,
