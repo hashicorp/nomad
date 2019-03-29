@@ -1803,7 +1803,7 @@ func (r *Resources) Equals(o *Resources) bool {
 type ResourceDevices []*RequestedDevice
 
 // COMPAT(0.10): Remove in 0.10
-// Equals ResourceDevices as set on Name
+// Equals ResourceDevices as set keyed by Name
 func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	if d == nil && o == nil {
 		return true
@@ -2137,6 +2137,7 @@ func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
 	}
 
 	// r.Constraints == o.Constraints, order sensitive
+	// REVIEW: should this be a set comparison?
 	if len(r.Constraints) != len(o.Constraints) {
 		return false
 	}
@@ -2338,6 +2339,7 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	return true
 }
 
+// Equals equates Networks as a set
 func (n *Networks) Equals(o *Networks) bool {
 	if n == o {
 		return true
