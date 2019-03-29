@@ -26,12 +26,6 @@ General Options:
 
 Stop Specific Options:
 
-  -kill-timeout <duration>
-    The period of time that the allocation should be allowed to perform a
-    graceful shutdown (default 5s). After this time, the process will receive a
-    SIGKILL and be forcefully terminated. If set to '0s', then the allocation
-    will be immediately terminated.
-
   -detach
     Return immediately instead of entering monitor mode. After the
     stop command is submitted, a new evaluation ID is printed to the
@@ -114,34 +108,19 @@ func (c *AllocStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Placeholder - List root dir until we implement RPCs for stopping.
-
-	files, _, err := client.AllocFS().List(alloc, "/", nil)
+	resp, err := client.Allocations().Stop(alloc, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error listing alloc dir: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error stopping allocation: %s", err))
 		return 1
 	}
 
-	// Display the file information in a tabular format
-	out := make([]string, len(files)+1)
-	out[0] = "Mode|Size|Modified Time|Name"
-	for i, file := range files {
-		fn := file.Name
-		if file.IsDir {
-			fn = fmt.Sprintf("%s/", fn)
-		}
-		var size string
-		size = fmt.Sprintf("%d", file.Size)
-		out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
-			file.FileMode,
-			size,
-			formatTime(file.ModTime),
-			fn,
-		)
+	if detach {
+		c.Ui.Output(resp.EvalID)
+		return 0
 	}
-	c.Ui.Output(formatList(out))
 
-	return 0
+	mon := newMonitor(c.Ui, client, length)
+	return mon.monitor(resp.EvalID, false)
 }
 
 func (a *AllocStopCommand) Synopsis() string {

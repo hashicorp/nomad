@@ -81,6 +81,17 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 	return err
 }
 
+func (a *Allocations) Stop(alloc *Allocation, q *QueryOptions) (*structs.AllocStopResponse, error) {
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp structs.AllocStopResponse
+	_, err = nodeClient.putQuery("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, q)
+	return &resp, err
+}
+
 func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) (
 	*structs.AllocSignalResponse, error) {
 	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
