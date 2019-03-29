@@ -853,8 +853,10 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 
 	sig := os.Interrupt
 	if s, ok := signals.SignalLookup[signal]; ok {
-		d.logger.Warn("signal to send to task unknown, using SIGINT", "signal", signal, "task_id", handle.taskConfig.ID, "task_name", handle.taskConfig.Name)
 		sig = s
+	} else {
+		d.logger.Warn("unknown signal to send to task, using SIGINT instead", "signal", signal, "task_id", handle.taskConfig.ID, "task_name", handle.taskConfig.Name)
+
 	}
 	return handle.exec.Signal(sig)
 }

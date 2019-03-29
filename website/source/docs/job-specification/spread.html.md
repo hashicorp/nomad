@@ -41,11 +41,11 @@ job "docs" {
   group "example" {
     # Spread allocations over each rack based on desired percentage
       spread {
-        attribute = "${node.datacenter}"
-        target "us-east1" {
+        attribute = "${meta.rack}"
+        target "r1" {
           percent = 60
         }
-        target "us-west1" {
+        target "r2" {
           percent = 40
         }
       }
@@ -105,9 +105,9 @@ spread {
 ### Spread With Target Percentages
 
 This example shows a spread stanza that specifies one target percentage. If we
-have three datacenters `us-east1`, `us-east2` and `us-west1`, and a task group
-of `count = 10` Nomad will attempt to place place 5 of the allocations in "us-east1",
-and then spread the rest among the other two datacenters.
+have three datacenters `us-east1`, `us-east2`, and `us-west1`, and a task group
+of `count = 10`, Nomad will attempt to place place 5 of the allocations in "us-east1",
+and will spread the remaining among the other two datacenters.
 
 ```hcl
 spread {
@@ -144,7 +144,7 @@ spread {
 
 This example shows spread stanzas with multiple attributes. Consider a Nomad cluster
 where there are two datacenters `us-east1` and `us-west1`, and each datacenter has nodes
-with `${meta.rack}` being `r1` or `r2`. For the following spread stanza used on a job with `count=12`, Nomad
+with `${meta.rack}` being `r1` or `r2`. With the following spread stanza used on a job with `count=12`, Nomad
 will attempt to place 6 allocations in each datacenter. Within a datacenter, Nomad will
 attempt to place 3 allocations in nodes on rack `r1`, and 3 allocations in nodes on rack `r2`.
 

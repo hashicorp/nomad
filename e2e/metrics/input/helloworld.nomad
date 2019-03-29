@@ -35,7 +35,7 @@ job "hello" {
 
       service {
         name = "hello"
-        tags = ["urlprefix-/"]
+        tags = ["urlprefix-hello/"]
         port = "web"
         check {
           name     = "alive"

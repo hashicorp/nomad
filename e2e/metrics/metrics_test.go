@@ -27,9 +27,10 @@ func WaitForCluster(t *testing.T, nomadClient *api.Client) {
 // TestMetrics runs fabio/prometheus and waits for those to succeed
 // After that a series of jobs added to the input directory are executed
 // Unlike other e2e tests this test does not clean up after itself.
+// This test is meant for AWS environments and will not work locally
 func TestMetrics(t *testing.T) {
 	if !*metrics {
-		t.Skip("skipping test in non-integration mode.")
+		t.Skip("skipping test in non-metrics mode.")
 	}
 	require := require.New(t)
 	// Build Nomad api client
@@ -63,7 +64,16 @@ func TestMetrics(t *testing.T) {
 		allocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, file, jobId)
 		require.NotEmpty(allocs)
 	}
-	clientAddr := nomadClient.Address()
-	clientIP := clientAddr[0:strings.LastIndex(clientAddr, ":")]
-	fmt.Printf("Prometheus Metrics available at %s:9999\n", clientIP)
+
+	// Get a client node IP address
+	nodesAPI := nomadClient.Nodes()
+	nodes, _, err := nodesAPI.List(nil)
+	require.Nil(err)
+	for _, node := range nodes {
+		nodeDetails, _, err := nodesAPI.Info(node.ID, nil)
+		require.Nil(err)
+		clientPublicIP := nodeDetails.Attributes["unique.platform.aws.public-ipv4"]
+		fmt.Printf("Prometheus Metrics available at http://%s:9999\n", clientPublicIP)
+	}
+
 }

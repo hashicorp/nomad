@@ -15,7 +15,7 @@ RELEASE_TARGET = release
 
 build_releases:
 	@echo "======>> installing dependencies"
-	$(MAKE) bootstrap
+	$(MAKE) deps
 
 	@echo "======>> pre-releasing"
 	$(MAKE) $(PRERELEASE_TARGET)
