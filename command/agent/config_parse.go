@@ -1015,9 +1015,8 @@ func parsePlugins(result *[]*config.PluginConfig, list *ast.ObjectList) error {
 		listVal := list.Items[i]
 
 		// Deal with json->hcl AST parsing incorrectness when directly nested
-		// items show up as additional keys. This currently only affects plugin
-		// configuration because args is not necessary. All other fields in the config
-		// have multiple keys and parse from json into the AST correctly.
+		// items show up as additional keys.
+		// TODO(preetha): Add additional tests and fix other places that have the same issue
 		unwrapLegacyHCLObjectKeysFromJSON(listVal, 1)
 		if err := helper.CheckHCLKeys(listVal.Val, valid); err != nil {
 			return fmt.Errorf("invalid keys in plugin config %d: %v", i+1, err)

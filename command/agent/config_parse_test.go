@@ -657,7 +657,7 @@ func TestConfig_Parse(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.File, func(t *testing.T) {
 			require := require.New(t)
-			path, err := filepath.Abs(filepath.Join("./config-test-fixtures", tc.File))
+			path, err := filepath.Abs(filepath.Join("./testdata", tc.File))
 			if err != nil {
 				t.Fatalf("file: %s\n\n%s", tc.File, err)
 			}
