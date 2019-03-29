@@ -2126,11 +2126,11 @@ type RequestedDevice struct {
 
 	// Constraints are a set of constraints to apply when selecting the device
 	// to use.
-	Constraints []*Constraint
+	Constraints Constraints
 
 	// Affinities are a set of affinites to apply when selecting the device
 	// to use.
-	Affinities []*Affinity
+	Affinities Affinities
 }
 
 func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
@@ -2140,30 +2140,10 @@ func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
 	if r == nil || o == nil {
 		return false
 	}
-	if !(r.Name == o.Name && r.Count == o.Count) {
-		return false
-	}
-
-	// r.Constraints == o.Constraints, order sensitive
-	if len(r.Constraints) != len(o.Constraints) {
-		return false
-	}
-	for i, c := range r.Constraints {
-		if !c.Equal(o.Constraints[i]) {
-			return false
-		}
-	}
-
-	// r.Affinities == o.Affinities, order sensitive
-	if len(r.Affinities) != len(o.Affinities) {
-		return false
-	}
-	for i, a := range r.Affinities {
-		if !a.Equal(o.Affinities[i]) {
-			return false
-		}
-	}
-	return true
+	return r.Name == o.Name &&
+		r.Count == o.Count &&
+		r.Constraints.Equals(&o.Constraints) &&
+		r.Affinities.Equals(&o.Affinities)
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -6515,10 +6495,11 @@ type Constraint struct {
 }
 
 // Equal checks if two constraints are equal
-func (c *Constraint) Equal(o *Constraint) bool {
-	return c.LTarget == o.LTarget &&
-		c.RTarget == o.RTarget &&
-		c.Operand == o.Operand
+func (c *Constraint) Equals(o *Constraint) bool {
+	return c == o ||
+		c.LTarget == o.LTarget &&
+			c.RTarget == o.RTarget &&
+			c.Operand == o.Operand
 }
 
 func (c *Constraint) Copy() *Constraint {
@@ -6594,6 +6575,29 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+type Constraints []*Constraint
+
+// Equals compares Constraints as a set
+func (xs *Constraints) Equals(ys *Constraints) bool {
+	if xs == ys {
+		return true
+	}
+	if xs == nil || ys == nil {
+		return false
+	}
+	if len(*xs) != len(*ys) {
+		return false
+	}
+	for _, x := range *xs {
+		for _, y := range *ys {
+			if !x.Equals(y) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Affinity is used to score placement options based on a weight
 type Affinity struct {
 	LTarget string // Left-hand target
@@ -6604,11 +6608,12 @@ type Affinity struct {
 }
 
 // Equal checks if two affinities are equal
-func (a *Affinity) Equal(o *Affinity) bool {
-	return a.LTarget == o.LTarget &&
-		a.RTarget == o.RTarget &&
-		a.Operand == o.Operand &&
-		a.Weight == o.Weight
+func (a *Affinity) Equals(o *Affinity) bool {
+	return a == o ||
+		a.LTarget == o.LTarget &&
+			a.RTarget == o.RTarget &&
+			a.Operand == o.Operand &&
+			a.Weight == o.Weight
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -6687,6 +6692,29 @@ type Spread struct {
 
 	// Memoized string representation
 	str string
+}
+
+type Affinities []*Affinity
+
+// Equals compares Affinities as a set
+func (xs *Affinities) Equals(ys *Affinities) bool {
+	if xs == ys {
+		return true
+	}
+	if xs == nil || ys == nil {
+		return false
+	}
+	if len(*xs) != len(*ys) {
+		return false
+	}
+	for _, x := range *xs {
+		for _, y := range *ys {
+			if !x.Equals(y) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (s *Spread) Copy() *Spread {
