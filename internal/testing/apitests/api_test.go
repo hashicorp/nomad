@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/testutil"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 type configCallback func(c *api.Config)

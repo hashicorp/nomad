@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/testutil"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 

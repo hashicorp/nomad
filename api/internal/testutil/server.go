@@ -22,8 +22,8 @@ import (
 	"os/exec"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/nomad/api/testutil/discover"
-	"github.com/hashicorp/nomad/api/testutil/freeport"
+	"github.com/hashicorp/nomad/api/internal/testutil/discover"
+	"github.com/hashicorp/nomad/api/internal/testutil/freeport"
 	testing "github.com/mitchellh/go-testing-interface"
 )
 
