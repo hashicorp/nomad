@@ -589,12 +589,6 @@ func cmdWait(c *exec.Cmd) (*os.ProcessState, error) {
 }
 
 func waitOnCmdOutput(c *exec.Cmd, timeout time.Duration) error {
-	_, isStdoutFile := c.Stdout.(*os.File)
-	_, isStderrFile := c.Stderr.(*os.File)
-	if isStdoutFile && isStderrFile {
-		return nil
-	}
-
 	ch := make(chan error)
 	go func() {
 		ch <- c.Wait()
