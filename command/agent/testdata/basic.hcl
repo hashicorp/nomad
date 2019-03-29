@@ -1,3 +1,4 @@
+# This file was used to generate basic.json from https://www.hcl2json.com/
 region = "foobar"
 datacenter = "dc2"
 name = "my-web"
