@@ -189,10 +189,7 @@ func (p *setnsProcess) terminate() error {
 }
 
 func (p *setnsProcess) wait() (*os.ProcessState, error) {
-	err := p.cmd.Wait()
-
-	// Return actual ProcessState even on Wait error
-	return p.cmd.ProcessState, err
+	return cmdWait(p.cmd)
 }
 
 func (p *setnsProcess) pid() int {
@@ -241,6 +238,7 @@ func (p *initProcess) getChildPid() (int, error) {
 
 func (p *initProcess) waitForChildExit(childPid int) error {
 	status, err := p.cmd.Process.Wait()
+	// TODO: not sure why we'd wait on child on process wait failure
 	if err != nil {
 		p.cmd.Wait()
 		return err
@@ -439,15 +437,15 @@ func (p *initProcess) start() error {
 }
 
 func (p *initProcess) wait() (*os.ProcessState, error) {
-	err := p.cmd.Wait()
+	ps, err := cmdWait(p.cmd)
 	if err != nil {
-		return p.cmd.ProcessState, err
+		return ps, err
 	}
 	// we should kill all processes in cgroup when init is died if we use host PID namespace
 	if p.sharePidns {
 		signalAllProcesses(p.manager, unix.SIGKILL)
 	}
-	return p.cmd.ProcessState, nil
+	return ps, nil
 }
 
 func (p *initProcess) terminate() error {
@@ -566,4 +564,22 @@ func (p *Process) InitializeIO(rootuid, rootgid int) (i *IO, err error) {
 		}
 	}
 	return i, nil
+}
+
+// cmdWait acts like cmd.Wait() but without waiting on
+// output copying to finish
+func cmdWait(c *exec.Cmd) (*os.ProcessState, error) {
+	if c.Process == nil {
+		return nil, fmt.Errorf("exec: not started")
+	}
+
+	state, err := c.Process.Wait()
+	if err != nil {
+		return state, err
+	}
+
+	if !state.Success() {
+		return state, &exec.ExitError{ProcessState: state}
+	}
+	return state, nil
 }

@@ -376,7 +376,7 @@ func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
 	defer e.commandCfg.Close()
 	pid := e.childCmd.Process.Pid
-	err := e.childCmd.Wait()
+	_, err := cmdWait(&e.childCmd)
 	if err == nil {
 		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
 		return
@@ -600,4 +600,22 @@ func makeExecutable(binPath string) error {
 		}
 	}
 	return nil
+}
+
+// cmdWait acts like cmd.Wait() but without waiting on
+// output copying to finish
+func cmdWait(c *exec.Cmd) (*os.ProcessState, error) {
+	if c.Process == nil {
+		return nil, fmt.Errorf("exec: not started")
+	}
+
+	state, err := c.Process.Wait()
+	if err != nil {
+		return state, err
+	}
+
+	if !state.Success() {
+		return state, &exec.ExitError{ProcessState: state}
+	}
+	return state, nil
 }
