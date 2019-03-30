@@ -441,6 +441,11 @@ func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_THROTTLED_TIME)
 		case "Percent":
 			cpu.Percent = ru.CpuStats.Percent
+
+			// total ticks is derived from percent, and should always be set together
+			// even if "Total Ticks" is not marked as an explicit measured field
+			cpu.TotalTicks = ru.CpuStats.TotalTicks
+
 			cpu.MeasuredFields = append(cpu.MeasuredFields, proto.CPUUsage_PERCENT)
 		}
 	}
