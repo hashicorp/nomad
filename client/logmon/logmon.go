@@ -177,10 +177,12 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 // data will be copied from the reader to the rotator.
 type logRotatorWrapper struct {
 	fifoPath          string
-	processOutReader  io.ReadCloser
 	rotatorWriter     *logging.FileRotator
 	hasFinishedCopied chan struct{}
 	logger            hclog.Logger
+
+	processOutReader io.ReadCloser
+	opened           chan struct{}
 }
 
 // isRunning will return true until the reader is closed
@@ -197,29 +199,38 @@ func (l *logRotatorWrapper) isRunning() bool {
 // processOutWriter to attach to the stdout or stderr of a process.
 func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
 	logger.Info("opening fifo", "path", path)
-	f, err := fifo.New(path)
+	fifoOpenFn, err := fifo.New(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
 	}
 
 	wrap := &logRotatorWrapper{
 		fifoPath:          path,
-		processOutReader:  f,
 		rotatorWriter:     rotator,
 		hasFinishedCopied: make(chan struct{}),
+		opened:            make(chan struct{}),
 		logger:            logger,
 	}
-	wrap.start()
+	wrap.start(fifoOpenFn)
 	return wrap, nil
 }
 
 // start starts a goroutine that copies from the pipe into the rotator. This is
 // called by the constructor and not the user of the wrapper.
-func (l *logRotatorWrapper) start() {
+func (l *logRotatorWrapper) start(readerOpenFn func() (io.ReadCloser, error)) {
 	go func() {
 		defer close(l.hasFinishedCopied)
-		_, err := io.Copy(l.rotatorWriter, l.processOutReader)
+
+		reader, err := readerOpenFn()
 		if err != nil {
+			return
+		}
+		l.processOutReader = reader
+		close(l.opened)
+
+		_, err = io.Copy(l.rotatorWriter, reader)
+		if err != nil {
+			l.logger.Error("copying got an error", "error", err)
 			// Close reader to propagate io error across pipe.
 			// Note that this may block until the process exits on
 			// Windows due to
@@ -227,7 +238,7 @@ func (l *logRotatorWrapper) start() {
 			// or similar issues. Since this is already running in
 			// a goroutine its safe to block until the process is
 			// force-killed.
-			l.processOutReader.Close()
+			reader.Close()
 		}
 	}()
 	return
@@ -249,6 +260,7 @@ func (l *logRotatorWrapper) Close() {
 	closeDone := make(chan struct{})
 	go func() {
 		defer close(closeDone)
+		<-l.opened
 		err := l.processOutReader.Close()
 		if err != nil && !strings.Contains(err.Error(), "file already closed") {
 			l.logger.Warn("error closing read-side of process output pipe", "err", err)
