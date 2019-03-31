@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestFIFO tests basic behavior, and that reader closes when writer closes
 func TestFIFO(t *testing.T) {
 	require := require.New(t)
 	var path string
@@ -29,8 +30,10 @@ func TestFIFO(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	reader, err := New(path)
+	readerOpenFn, err := New(path)
 	require.NoError(err)
+
+	var reader io.ReadCloser
 
 	toWrite := [][]byte{
 		[]byte("abc\n"),
@@ -45,7 +48,12 @@ func TestFIFO(t *testing.T) {
 	wait.Add(1)
 	go func() {
 		defer wait.Done()
-		io.Copy(&readBuf, reader)
+
+		reader, err = readerOpenFn()
+		require.NoError(err)
+
+		_, err = io.Copy(&readBuf, reader)
+		require.NoError(err)
 	}()
 
 	writer, err := Open(path)
@@ -57,9 +65,9 @@ func TestFIFO(t *testing.T) {
 	}
 	require.NoError(writer.Close())
 	time.Sleep(500 * time.Millisecond)
-	require.NoError(reader.Close())
 
 	wait.Wait()
+	require.NoError(reader.Close())
 
 	expected := "abc\ndef\nnomad\n"
 	require.Equal(expected, readBuf.String())
@@ -67,6 +75,7 @@ func TestFIFO(t *testing.T) {
 	require.NoError(Remove(path))
 }
 
+// TestWriteClose asserts that when writer closes, subsequent Write() fails
 func TestWriteClose(t *testing.T) {
 	require := require.New(t)
 	var path string
@@ -81,15 +90,21 @@ func TestWriteClose(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	reader, err := New(path)
+	readerOpenFn, err := New(path)
 	require.NoError(err)
+	var reader io.ReadCloser
 
 	var readBuf bytes.Buffer
 	var wait sync.WaitGroup
 	wait.Add(1)
 	go func() {
 		defer wait.Done()
-		io.Copy(&readBuf, reader)
+
+		reader, err = readerOpenFn()
+		require.NoError(err)
+
+		_, err = io.Copy(&readBuf, reader)
+		require.NoError(err)
 	}()
 
 	writer, err := Open(path)
