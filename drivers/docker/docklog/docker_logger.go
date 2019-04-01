@@ -71,14 +71,14 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 	}
 
 	if d.stdout == nil {
-		stdout, err := fifo.Open(opts.Stdout)
+		stdout, err := fifo.OpenWriter(opts.Stdout)
 		if err != nil {
 			return fmt.Errorf("failed to open fifo for path %s: %v", opts.Stdout, err)
 		}
 		d.stdout = stdout
 	}
 	if d.stderr == nil {
-		stderr, err := fifo.Open(opts.Stderr)
+		stderr, err := fifo.OpenWriter(opts.Stderr)
 		if err != nil {
 			return fmt.Errorf("failed to open fifo for path %s: %v", opts.Stdout, err)
 		}

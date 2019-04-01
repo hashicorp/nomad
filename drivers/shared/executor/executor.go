@@ -148,7 +148,7 @@ func (nopCloser) Close() error { return nil }
 func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 	if c.stdout == nil {
 		if c.StdoutPath != "" {
-			f, err := fifo.Open(c.StdoutPath)
+			f, err := fifo.OpenWriter(c.StdoutPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create stdout: %v", err)
 			}
@@ -164,7 +164,7 @@ func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 	if c.stderr == nil {
 		if c.StderrPath != "" {
-			f, err := fifo.Open(c.StderrPath)
+			f, err := fifo.OpenWriter(c.StderrPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create stderr: %v", err)
 			}
@@ -177,13 +177,11 @@ func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 }
 
 func (c *ExecCommand) Close() {
-	stdout, err := c.Stdout()
-	if err == nil {
-		stdout.Close()
+	if c.stdout != nil {
+		c.stdout.Close()
 	}
-	stderr, err := c.Stderr()
-	if err == nil {
-		stderr.Close()
+	if c.stderr != nil {
+		c.stderr.Close()
 	}
 }
 
