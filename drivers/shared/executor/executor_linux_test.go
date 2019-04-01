@@ -39,7 +39,7 @@ var libcontainerFactory = executorFactory{
 // chroot. Use testExecutorContext if you don't need a chroot.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 	chrootEnv := map[string]string{
 		"/etc/ld.so.cache":  "/etc/ld.so.cache",
 		"/etc/ld.so.conf":   "/etc/ld.so.conf",
@@ -74,9 +74,13 @@ func testExecutorCommandWithChroot(t *testing.T) (*ExecCommand, *allocdir.AllocD
 			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
 		},
 	}
-	configureTLogging(cmd)
 
-	return cmd, allocDir
+	testCmd := &testExecCmd{
+		command:  cmd,
+		allocDir: allocDir,
+	}
+	configureTLogging(t, testCmd)
+	return testCmd
 }
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
@@ -84,7 +88,8 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
-	execCmd, allocDir := testExecutorCommandWithChroot(t)
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "/bin/ls"
 	execCmd.Args = []string{"-F", "/", "/etc/"}
 	defer allocDir.Destroy()
@@ -146,8 +151,7 @@ ld.so.cache
 ld.so.conf
 ld.so.conf.d/`
 	tu.WaitForResult(func() (bool, error) {
-		outWriter, _ := execCmd.GetWriters()
-		output := outWriter.(*bufferCloser).String()
+		output := testExecCmd.stdout.String()
 		act := strings.TrimSpace(string(output))
 		if act != expected {
 			return false, fmt.Errorf("Command output incorrectly: want %v; got %v", expected, act)
@@ -161,7 +165,8 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	testutil.ExecCompatible(t)
 	require := require.New(t)
 
-	execCmd, allocDir := testExecutorCommandWithChroot(t)
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	defer allocDir.Destroy()
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
@@ -193,11 +198,10 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 		require.Fail("timeout waiting for exec to shutdown")
 	}
 
-	outWriter, _ := execCmd.GetWriters()
-	output := outWriter.(*bufferCloser).String()
+	output := testExecCmd.stdout.String()
 	require.NotZero(len(output))
 	time.Sleep(2 * time.Second)
-	output1 := outWriter.(*bufferCloser).String()
+	output1 := testExecCmd.stdout.String()
 	require.Equal(len(output), len(output1))
 }
 

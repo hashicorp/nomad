@@ -125,13 +125,13 @@ func (h *taskHandle) run() {
 }
 
 func (h *taskHandle) handleLogging(errCh chan<- error) {
-	stdout, err := fifo.Open(h.taskConfig.StdoutPath)
+	stdout, err := fifo.OpenWriter(h.taskConfig.StdoutPath)
 	if err != nil {
 		h.logger.Error("failed to write to stdout", "error", err)
 		errCh <- err
 		return
 	}
-	stderr, err := fifo.Open(h.taskConfig.StderrPath)
+	stderr, err := fifo.OpenWriter(h.taskConfig.StderrPath)
 	if err != nil {
 		h.logger.Error("failed to write to stderr", "error", err)
 		errCh <- err

@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -42,10 +44,19 @@ func init() {
 	executorFactories["UniversalExecutor"] = universalFactory
 }
 
+type testExecCmd struct {
+	command  *ExecCommand
+	allocDir *allocdir.AllocDir
+
+	stdout         *bytes.Buffer
+	stderr         *bytes.Buffer
+	outputCopyDone *sync.WaitGroup
+}
+
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommand(t *testing.T) *testExecCmd {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
@@ -78,18 +89,43 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 		},
 	}
 
-	configureTLogging(cmd)
-	return cmd, allocDir
+	testCmd := &testExecCmd{
+		command:  cmd,
+		allocDir: allocDir,
+	}
+	configureTLogging(t, testCmd)
+	return testCmd
 }
 
-type bufferCloser struct {
-	bytes.Buffer
-}
+// configureTLogging configures a test command executor with buffer as Std{out|err}
+// but using os.Pipe so it mimics non-test case where cmd is set with files as Std{out|err}
+// the buffers can be used to read command output
+func configureTLogging(t *testing.T, testcmd *testExecCmd) {
+	var stdout, stderr bytes.Buffer
+	var copyDone sync.WaitGroup
 
-func (_ *bufferCloser) Close() error { return nil }
+	stdoutPr, stdoutPw, err := os.Pipe()
+	require.NoError(t, err)
 
-func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
-	cmd.SetWriters(&stdout, &stderr)
+	stderrPr, stderrPw, err := os.Pipe()
+	require.NoError(t, err)
+
+	copyDone.Add(2)
+	go func() {
+		defer copyDone.Done()
+		io.Copy(&stdout, stdoutPr)
+	}()
+	go func() {
+		defer copyDone.Done()
+		io.Copy(&stderr, stderrPr)
+	}()
+
+	testcmd.stdout = &stdout
+	testcmd.stderr = &stderr
+	testcmd.outputCopyDone = &copyDone
+
+	testcmd.command.stdout = stdoutPw
+	testcmd.command.stderr = stderrPw
 	return
 }
 
@@ -99,7 +135,8 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = invalid
 			execCmd.Args = []string{"1"}
 			factory.configureExecCmd(t, execCmd)
@@ -118,7 +155,8 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/date"
 			execCmd.Args = []string{"fail"}
 			factory.configureExecCmd(t, execCmd)
@@ -141,7 +179,8 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/echo"
 			execCmd.Args = []string{"hello world"}
 			factory.configureExecCmd(t, execCmd)
@@ -160,9 +199,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 
 			expected := "hello world"
 			tu.WaitForResult(func() (bool, error) {
-				outWriter, _ := execCmd.GetWriters()
-				output := outWriter.(*bufferCloser).String()
-				act := strings.TrimSpace(string(output))
+				act := strings.TrimSpace(string(testExecCmd.stdout.String()))
 				if expected != act {
 					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
 				}
@@ -174,12 +211,52 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 	}
 }
 
+func TestExecutor_Start_Wait_Children(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			execCmd.Cmd = "/bin/sh"
+			execCmd.Args = []string{"-c", "(sleep 30 > /dev/null & ) ; exec sleep 1"}
+			factory.configureExecCmd(t, execCmd)
+
+			defer allocDir.Destroy()
+			executor := factory.new(testlog.HCLogger(t))
+			defer executor.Shutdown("SIGKILL", 0)
+
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			ch := make(chan error)
+
+			go func() {
+				ps, err = executor.Wait(context.Background())
+				t.Logf("Processe completed with %#v error: %#v", ps, err)
+				ch <- err
+			}()
+
+			timeout := 7 * time.Second
+			select {
+			case <-ch:
+				require.NoError(err)
+				//good
+			case <-time.After(timeout):
+				require.Fail(fmt.Sprintf("process is running after timeout: %v", timeout))
+			}
+		})
+	}
+}
+
 func TestExecutor_WaitExitSignal(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10000"}
 			execCmd.ResourceLimits = true
@@ -233,7 +310,8 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10"}
 			factory.configureExecCmd(t, execCmd)
@@ -249,8 +327,7 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
-			outWriter, _ := execCmd.GetWriters()
-			output := outWriter.(*bufferCloser).String()
+			output := testExecCmd.stdout.String()
 			expected := ""
 			act := strings.TrimSpace(string(output))
 			if act != expected {
@@ -263,7 +340,8 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 func TestExecutor_Shutdown_Exit(t *testing.T) {
 	require := require.New(t)
 	t.Parallel()
-	execCmd, allocDir := testExecutorCommand(t)
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "/bin/sleep"
 	execCmd.Args = []string{"100"}
 	cfg := &ExecutorConfig{
@@ -400,7 +478,8 @@ func TestExecutor_Start_Kill_Immediately_NoGrace(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"100"}
 			factory.configureExecCmd(t, execCmd)
@@ -435,7 +514,8 @@ func TestExecutor_Start_Kill_Immediately_WithGrace(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"100"}
 			factory.configureExecCmd(t, execCmd)

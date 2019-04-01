@@ -37,7 +37,7 @@ func TestLogmon_Start_rotate(t *testing.T) {
 	lm := NewLogMon(testlog.HCLogger(t))
 	require.NoError(lm.Start(cfg))
 
-	stdout, err := fifo.Open(stdoutFifoPath)
+	stdout, err := fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
 
 	// Write enough bytes such that the log is rotated
@@ -92,9 +92,9 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require.True(ok)
 	require.NoError(lm.Start(cfg))
 
-	stdout, err := fifo.Open(stdoutFifoPath)
+	stdout, err := fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
-	stderr, err := fifo.Open(stderrFifoPath)
+	stderr, err := fifo.OpenWriter(stderrFifoPath)
 	require.NoError(err)
 
 	// Write a string and assert it was written to the file
@@ -122,9 +122,9 @@ func TestLogmon_Start_restart(t *testing.T) {
 		require.NoError(err)
 	})
 
-	stdout, err = fifo.Open(stdoutFifoPath)
+	stdout, err = fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
-	stderr, err = fifo.Open(stderrFifoPath)
+	stderr, err = fifo.OpenWriter(stderrFifoPath)
 	require.NoError(err)
 
 	_, err = stdout.Write([]byte("te"))
@@ -143,9 +143,9 @@ func TestLogmon_Start_restart(t *testing.T) {
 	// Start logmon again and assert that it appended to the file
 	require.NoError(lm.Start(cfg))
 
-	stdout, err = fifo.Open(stdoutFifoPath)
+	stdout, err = fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
-	stderr, err = fifo.Open(stderrFifoPath)
+	stderr, err = fifo.OpenWriter(stderrFifoPath)
 	require.NoError(err)
 
 	_, err = stdout.Write([]byte("st\n"))

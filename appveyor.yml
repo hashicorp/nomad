@@ -41,6 +41,7 @@ test_script:
   - cmd:
       gotestsum --junitfile results.xml
            github.com/hashicorp/nomad/drivers/docker
+           github.com/hashicorp/nomad/client/lib/fifo
 # on_finish:
 #   - ps: |
 #       Push-AppveyorArtifact (Resolve-Path .\results.xml)
