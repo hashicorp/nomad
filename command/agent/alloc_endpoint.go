@@ -42,7 +42,29 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 }
 
 func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	allocID := strings.TrimPrefix(req.URL.Path, "/v1/allocation/")
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/allocation/")
+
+	// tokenize the suffix of the path to get the alloc id and find the action
+	// invoked on the alloc id
+	tokens := strings.Split(reqSuffix, "/")
+	if len(tokens) > 2 || len(tokens) < 1 {
+		return nil, CodedError(404, resourceNotFoundErr)
+	}
+	allocID := tokens[0]
+
+	if len(tokens) == 1 {
+		return s.allocGet(allocID, resp, req)
+	}
+
+	switch tokens[1] {
+	case "stop":
+		return s.allocStop(allocID, resp, req)
+	}
+
+	return nil, CodedError(404, resourceNotFoundErr)
+}
+
+func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -79,8 +101,22 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 	return alloc, nil
 }
 
-func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if !(req.Method == "POST" || req.Method == "PUT") {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
 
+	sr := &structs.AllocStopRequest{
+		AllocID: allocID,
+	}
+	s.parseWriteRequest(req, &sr.WriteRequest)
+
+	var out structs.AllocStopResponse
+	err := s.agent.RPC("Alloc.Stop", &sr, &out)
+	return &out, err
+}
+
+func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/client/allocation/")
 
 	// tokenize the suffix of the path to get the alloc id and find the action

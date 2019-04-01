@@ -700,6 +700,21 @@ type AllocUpdateDesiredTransitionRequest struct {
 	WriteRequest
 }
 
+// AllocStopRequest is used to stop and reschedule a running Allocation.
+type AllocStopRequest struct {
+	AllocID string
+
+	WriteRequest
+}
+
+// AllocStopResponse is the response to an `AllocStopRequest`
+type AllocStopResponse struct {
+	// EvalID is the id of the follow up evalution for the rescheduled alloc.
+	EvalID string
+
+	WriteMeta
+}
+
 // AllocListRequest is used to request a list of allocations
 type AllocListRequest struct {
 	QueryOptions
@@ -7974,6 +7989,7 @@ const (
 	EvalTriggerPeriodicJob       = "periodic-job"
 	EvalTriggerNodeDrain         = "node-drain"
 	EvalTriggerNodeUpdate        = "node-update"
+	EvalTriggerAllocStop         = "alloc-stop"
 	EvalTriggerScheduled         = "scheduled"
 	EvalTriggerRollingUpdate     = "rolling-update"
 	EvalTriggerDeploymentWatcher = "deployment-watcher"
