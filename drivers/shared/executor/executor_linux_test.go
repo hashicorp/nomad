@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
@@ -28,8 +27,12 @@ func init() {
 	executorFactories["LibcontainerExecutor"] = libcontainerFactory
 }
 
-func libcontainerFactory(l hclog.Logger) Executor {
-	return NewExecutorWithIsolation(l)
+var libcontainerFactory = executorFactory{
+	new: NewExecutorWithIsolation,
+	configureExecCmd: func(t *testing.T, cmd *ExecCommand) {
+		cmd.ResourceLimits = true
+		setupRootfs(t, cmd.TaskDir)
+	},
 }
 
 // testExecutorContextWithChroot returns an ExecutorContext and AllocDir with
@@ -88,7 +91,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 
 	execCmd.ResourceLimits = true
 
-	executor := libcontainerFactory(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -161,7 +164,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd, allocDir := testExecutorCommandWithChroot(t)
 	defer allocDir.Destroy()
 
-	executor := libcontainerFactory(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("", 0)
 
 	// Need to run a command which will produce continuous output but not
