@@ -177,13 +177,11 @@ func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 }
 
 func (c *ExecCommand) Close() {
-	stdout, err := c.Stdout()
-	if err == nil {
-		stdout.Close()
+	if c.stdout != nil {
+		c.stdout.Close()
 	}
-	stderr, err := c.Stderr()
-	if err == nil {
-		stderr.Close()
+	if c.stderr != nil {
+		c.stderr.Close()
 	}
 }
 
