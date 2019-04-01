@@ -97,6 +97,9 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 	return testCmd
 }
 
+// configureTLogging configures a test command executor with buffer as Std{out|err}
+// but using os.Pipe so it mimics non-test case where cmd is set with files as Std{out|err}
+// the buffers can be used to read command output
 func configureTLogging(t *testing.T, testcmd *testExecCmd) {
 	var stdout, stderr bytes.Buffer
 	var copyDone sync.WaitGroup
