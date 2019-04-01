@@ -223,6 +223,7 @@ func (l *logRotatorWrapper) start(readerOpenFn func() (io.ReadCloser, error)) {
 
 		reader, err := readerOpenFn()
 		if err != nil {
+			l.logger.Warn("failed to open log fifo", "error", err)
 			return
 		}
 		l.processOutReader = reader
@@ -230,7 +231,7 @@ func (l *logRotatorWrapper) start(readerOpenFn func() (io.ReadCloser, error)) {
 
 		_, err = io.Copy(l.rotatorWriter, reader)
 		if err != nil {
-			l.logger.Error("copying got an error", "error", err)
+			l.logger.Warn("failed to read from log fifo", "error", err)
 			// Close reader to propagate io error across pipe.
 			// Note that this may block until the process exits on
 			// Windows due to
