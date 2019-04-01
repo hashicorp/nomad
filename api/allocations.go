@@ -98,6 +98,21 @@ func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal st
 	return err
 }
 
+func (a *Allocations) Stop(alloc *Allocation, q *QueryOptions) (*AllocStopResponse, error) {
+	var resp AllocStopResponse
+	_, err := a.client.putQuery("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, q)
+	return &resp, err
+}
+
+// AllocStopResponse is the response to an `AllocStopRequest`
+type AllocStopResponse struct {
+	// EvalID is the id of the follow up evalution for the rescheduled alloc.
+	EvalID string
+
+	WriteMeta
+>>>>>>> 35a2c90b0... allocs: Add nomad alloc stop
+}
+
 // Allocation is used for serialization of allocations.
 type Allocation struct {
 	ID                    string
