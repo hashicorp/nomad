@@ -1,4 +1,4 @@
-package api
+package apitests
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/testutil/retry"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
 	defer s.Stop()
 
 	operator := c.Operator()
-	var config *AutopilotConfiguration
+	var config *api.AutopilotConfiguration
 	retry.Run(t, func(r *retry.R) {
 		var err error
 		config, _, err = operator.AutopilotGetConfiguration(nil)
@@ -26,7 +27,7 @@ func TestAPI_OperatorAutopilotGetSetConfiguration(t *testing.T) {
 	require.True(config.CleanupDeadServers)
 
 	// Change a config setting
-	newConf := &AutopilotConfiguration{CleanupDeadServers: false}
+	newConf := &api.AutopilotConfiguration{CleanupDeadServers: false}
 	_, err := operator.AutopilotSetConfiguration(newConf, nil)
 	require.Nil(err)
 
@@ -42,7 +43,7 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 	defer s.Stop()
 
 	operator := c.Operator()
-	var config *AutopilotConfiguration
+	var config *api.AutopilotConfiguration
 	retry.Run(t, func(r *retry.R) {
 		var err error
 		config, _, err = operator.AutopilotGetConfiguration(nil)
@@ -52,7 +53,7 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 
 	// Pass an invalid ModifyIndex
 	{
-		newConf := &AutopilotConfiguration{
+		newConf := &api.AutopilotConfiguration{
 			CleanupDeadServers: false,
 			ModifyIndex:        config.ModifyIndex - 1,
 		}
@@ -63,7 +64,7 @@ func TestAPI_OperatorAutopilotCASConfiguration(t *testing.T) {
 
 	// Pass a valid ModifyIndex
 	{
-		newConf := &AutopilotConfiguration{
+		newConf := &api.AutopilotConfiguration{
 			CleanupDeadServers: false,
 			ModifyIndex:        config.ModifyIndex,
 		}

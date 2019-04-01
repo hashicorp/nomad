@@ -1,9 +1,10 @@
-package api
+package apitests
 
 import (
 	"encoding/json"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +16,7 @@ import (
 // such dependency without affecting api clients.
 
 func TestDefaultResourcesAreInSync(t *testing.T) {
-	apiR := DefaultResources()
+	apiR := api.DefaultResources()
 	structsR := structs.DefaultResources()
 
 	require.EqualValues(t, *structsR, toStructsResource(t, apiR))
@@ -27,7 +28,7 @@ func TestDefaultResourcesAreInSync(t *testing.T) {
 }
 
 func TestMinResourcesAreInSync(t *testing.T) {
-	apiR := MinResources()
+	apiR := api.MinResources()
 	structsR := structs.MinResources()
 
 	require.EqualValues(t, *structsR, toStructsResource(t, apiR))
@@ -50,7 +51,7 @@ func TestNewDefaultRescheulePolicyInSync(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.typ, func(t *testing.T) {
-			apiP := NewDefaultReschedulePolicy(c.typ)
+			apiP := api.NewDefaultReschedulePolicy(c.typ)
 
 			var found structs.ReschedulePolicy
 			toStructs(t, &found, apiP)
@@ -72,8 +73,8 @@ func TestNewDefaultRestartPolicyInSync(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.typ, func(t *testing.T) {
-			job := Job{Type: &c.typ}
-			var tg TaskGroup
+			job := api.Job{Type: &c.typ}
+			var tg api.TaskGroup
 			tg.Canonicalize(&job)
 
 			apiP := tg.RestartPolicy
@@ -86,7 +87,7 @@ func TestNewDefaultRestartPolicyInSync(t *testing.T) {
 	}
 }
 
-func toStructsResource(t *testing.T, in *Resources) structs.Resources {
+func toStructsResource(t *testing.T, in *api.Resources) structs.Resources {
 	var out structs.Resources
 	toStructs(t, &out, in)
 	return out

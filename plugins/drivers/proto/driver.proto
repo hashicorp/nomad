@@ -569,6 +569,7 @@ message MemoryUsage {
     uint64 kernel_usage = 4;
     uint64 kernel_max_usage = 5;
     uint64 usage = 7;
+    uint64 swap = 8;
 
     enum Fields {
         RSS = 0;
@@ -577,6 +578,7 @@ message MemoryUsage {
         KERNEL_USAGE = 3;
         KERNEL_MAX_USAGE = 4;
         USAGE = 5;
+        SWAP = 6;
     }
     // MeasuredFields indicates which fields were actually sampled
     repeated Fields measured_fields = 6;
