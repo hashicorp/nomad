@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,10 +51,13 @@ func TestFIFO(t *testing.T) {
 		defer wait.Done()
 
 		reader, err = readerOpenFn()
-		require.NoError(err)
+		assert.NoError(t, err)
+		if err != nil {
+			return
+		}
 
 		_, err = io.Copy(&readBuf, reader)
-		require.NoError(err)
+		assert.NoError(t, err)
 	}()
 
 	writer, err := Open(path)
@@ -101,10 +105,13 @@ func TestWriteClose(t *testing.T) {
 		defer wait.Done()
 
 		reader, err = readerOpenFn()
-		require.NoError(err)
+		assert.NoError(t, err)
+		if err != nil {
+			return
+		}
 
 		_, err = io.Copy(&readBuf, reader)
-		require.NoError(err)
+		assert.NoError(t, err)
 	}()
 
 	writer, err := Open(path)
