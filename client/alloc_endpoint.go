@@ -61,6 +61,19 @@ func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.
 	return a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
 }
 
+// Restart is used to trigger a restart of an allocation or a subtask on a client.
+func (a *Allocations) Restart(args *nstructs.AllocRestartRequest, reply *nstructs.GenericResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "restart"}, time.Now())
+
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	return a.c.RestartAllocation(args.AllocID, args.TaskName)
+}
+
 // Stats is used to collect allocation statistics
 func (a *Allocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.AllocStatsResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "stats"}, time.Now())

@@ -82,11 +82,6 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 }
 
 func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
-	if err != nil {
-		return err
-	}
-
 	req := structs.AllocSignalRequest{
 		AllocID: alloc.ID,
 		Signal:  signal,
@@ -94,7 +89,7 @@ func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal st
 	}
 
 	var resp structs.GenericResponse
-	_, err = nodeClient.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
+	_, err := a.client.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
 	return err
 }
 
@@ -110,7 +105,17 @@ type AllocStopResponse struct {
 	EvalID string
 
 	WriteMeta
->>>>>>> 35a2c90b0... allocs: Add nomad alloc stop
+}
+
+func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOptions) error {
+	// TODO(dani): We can't depend on nomad/structs here any more, and I don't want
+	//             to duplicate a single use definition. When we move all of Nomad
+	//             to modules, we should fix this.
+	req := map[string]string{"TaskName": taskName}
+
+	var resp struct{}
+	_, err := a.client.putQuery("/v1/client/allocation/"+alloc.ID+"/restart", req, &resp, q)
+	return err
 }
 
 // Allocation is used for serialization of allocations.

@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/acl"
@@ -12,6 +13,102 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAllocations_Restart(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	client, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	a := mock.Alloc()
+	a.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	a.Job.TaskGroups[0].RestartPolicy = &nstructs.RestartPolicy{
+		Attempts: 0,
+		Mode:     nstructs.RestartPolicyModeFail,
+	}
+	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10ms",
+	}
+	require.Nil(client.addAlloc(a, ""))
+
+	// Try with bad alloc
+	req := &nstructs.AllocRestartRequest{}
+	var resp nstructs.GenericResponse
+	err := client.ClientRPC("Allocations.Restart", &req, &resp)
+	require.Error(err)
+
+	// Try with good alloc
+	req.AllocID = a.ID
+
+	testutil.WaitForResult(func() (bool, error) {
+		var resp2 nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Restart", &req, &resp2)
+		if err != nil && strings.Contains(err.Error(), "not running") {
+			return false, err
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+func TestAllocations_Restart_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	server, addr, root := testACLServer(t, nil)
+	defer server.Shutdown()
+
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{addr}
+		c.ACLEnabled = true
+	})
+	defer cleanup()
+
+	// Try request without a token and expect failure
+	{
+		req := &nstructs.AllocRestartRequest{}
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Restart", &req, &resp)
+		require.NotNil(err)
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	// Try request with an invalid token and expect failure
+	{
+		token := mock.CreatePolicyAndToken(t, server.State(), 1005, "invalid", mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{}))
+		req := &nstructs.AllocRestartRequest{}
+		req.AuthToken = token.SecretID
+
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Restart", &req, &resp)
+
+		require.NotNil(err)
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
+	}
+
+	// Try request with a valid token
+	{
+		policyHCL := mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityAllocLifecycle})
+		token := mock.CreatePolicyAndToken(t, server.State(), 1007, "valid", policyHCL)
+		require.NotNil(token)
+		req := &nstructs.AllocRestartRequest{}
+		req.AuthToken = token.SecretID
+		req.Namespace = nstructs.DefaultNamespace
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Restart", &req, &resp)
+		require.True(nstructs.IsErrUnknownAllocation(err), "Expected unknown alloc, found: %v", err)
+	}
+
+	// Try request with a management token
+	{
+		req := &nstructs.AllocRestartRequest{}
+		req.AuthToken = root.SecretID
+		var resp nstructs.GenericResponse
+		err := client.ClientRPC("Allocations.Restart", &req, &resp)
+		require.True(nstructs.IsErrUnknownAllocation(err), "Expected unknown alloc, found: %v", err)
+	}
+}
 
 func TestAllocations_GarbageCollectAll(t *testing.T) {
 	t.Parallel()

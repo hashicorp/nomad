@@ -961,3 +961,25 @@ func (ar *allocRunner) Signal(taskName, signal string) error {
 
 	return err.ErrorOrNil()
 }
+
+func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent) error {
+	tr, ok := ar.tasks[taskName]
+	if !ok {
+		return fmt.Errorf("Could not find task runner for task: %s", taskName)
+	}
+
+	return tr.Restart(context.TODO(), taskEvent, false)
+}
+
+func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
+	var err *multierror.Error
+
+	for tn := range ar.tasks {
+		rerr := ar.RestartTask(tn, taskEvent.Copy())
+		if rerr != nil {
+			err = multierror.Append(err, rerr)
+		}
+	}
+
+	return err.ErrorOrNil()
+}

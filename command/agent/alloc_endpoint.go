@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -132,8 +133,9 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 		if s.agent.client == nil {
 			return nil, clientNotRunning
 		}
-
 		return s.allocSnapshot(allocID, resp, req)
+	case "restart":
+		return s.allocRestart(allocID, resp, req)
 	case "gc":
 		return s.allocGC(allocID, resp, req)
 	case "signal":
@@ -176,6 +178,51 @@ func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request
 	}
 
 	return nil, rpcErr
+}
+
+func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Build the request and parse the ACL token
+	args := structs.AllocRestartRequest{
+		AllocID:  allocID,
+		TaskName: "",
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Explicitly parse the body separately to disallow overriding AllocID in req Body.
+	var reqBody struct {
+		TaskName string
+	}
+	err := json.NewDecoder(req.Body).Decode(&reqBody)
+	if err != nil {
+		return nil, err
+	}
+	if reqBody.TaskName != "" {
+		args.TaskName = reqBody.TaskName
+	}
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply structs.GenericResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.Restart", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.Restart", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.Restart", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return reply, rpcErr
 }
 
 func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {

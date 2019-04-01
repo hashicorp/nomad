@@ -287,6 +287,75 @@ func TestHTTP_AllocStop(t *testing.T) {
 	})
 }
 
+// TODO(dani): Add ACL Test
+
+func TestHTTP_AllocRestart(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Local node, local resp
+		{
+			// Make the HTTP request
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+		}
+
+		// Local node, server resp
+		{
+			srv := s.server
+			s.server = nil
+
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+
+			s.server = srv
+		}
+
+		// no client, server resp
+		{
+			c := s.client
+			s.client = nil
+
+			testutil.WaitForResult(func() (bool, error) {
+				n, err := s.server.State().NodeByID(nil, c.NodeID())
+				if err != nil {
+					return false, err
+				}
+				return n != nil, nil
+			}, func(err error) {
+				t.Fatalf("should have client: %v", err)
+			})
+
+			buf := encodeReq(map[string]string{})
+			req, err := http.NewRequest("GET", fmt.Sprintf("/v1/client/allocation/%s/restart", uuid.Generate()), buf)
+			require.Nil(err)
+
+			respW := httptest.NewRecorder()
+			_, err = s.Server.ClientAllocRequest(respW, req)
+			require.NotNil(err)
+			require.True(structs.IsErrUnknownAllocation(err))
+
+			s.client = c
+		}
+	})
+}
+
 func TestHTTP_AllocStats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
