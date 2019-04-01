@@ -8,6 +8,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
@@ -935,4 +936,30 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 		}
 	}
 	return nil
+}
+
+// RestartTask signalls the task runner for the  provided task to restart.
+func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent) error {
+	tr, ok := ar.tasks[taskName]
+	if !ok {
+		return fmt.Errorf("Could not find task runner for task: %s", taskName)
+	}
+
+	return tr.Restart(context.TODO(), taskEvent, false)
+}
+
+// RestartAll signalls all task runners in the allocation to restart and passes
+// a copy of the task event to each restart event.
+// Returns any errors in a concatenated form.
+func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
+	var err *multierror.Error
+
+	for tn := range ar.tasks {
+		rerr := ar.RestartTask(tn, taskEvent.Copy())
+		if rerr != nil {
+			err = multierror.Append(err, rerr)
+		}
+	}
+
+	return err.ErrorOrNil()
 }

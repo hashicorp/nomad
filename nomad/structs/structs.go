@@ -717,6 +717,14 @@ type AllocsGetRequest struct {
 	QueryOptions
 }
 
+// AllocRestartRequest is used to restart a specific allocations tasks.
+type AllocRestartRequest struct {
+	AllocID  string
+	TaskName string
+
+	QueryOptions
+}
+
 // PeriodicForceRequest is used to force a specific periodic job.
 type PeriodicForceRequest struct {
 	JobID string
