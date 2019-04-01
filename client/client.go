@@ -1256,6 +1256,7 @@ func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) 
 		}
 		// if not matched, ns has the old data
 	}
+
 	if c.NetworkSpeed != 0 {
 		for _, n := range ns {
 			n.MBits = c.NetworkSpeed
