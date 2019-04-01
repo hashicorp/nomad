@@ -6,23 +6,39 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLogmon_Start_rotate(t *testing.T) {
 	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(err)
 	defer os.RemoveAll(dir)
+
 	stdoutLog := "stdout"
-	stdoutFifoPath := filepath.Join(dir, "stdout.fifo")
 	stderrLog := "stderr"
-	stderrFifoPath := filepath.Join(dir, "stderr.fifo")
+
+	var stdoutFifoPath, stderrFifoPath string
+
+	if runtime.GOOS == "windows" {
+		uuid := uuid.Generate()[:8]
+		stdoutFifoPath = fmt.Sprintf("//./pipe/%s.stdout.pipe", uuid)
+		stderrFifoPath = fmt.Sprintf("//./pipe/%s.stderr.pipe", uuid)
+
+		defer os.Remove(stdoutFifoPath)
+		defer os.Remove(stderrFifoPath)
+	} else {
+		stdoutFifoPath = filepath.Join(dir, "stdout.fifo")
+		stderrFifoPath = filepath.Join(dir, "stderr.fifo")
+	}
 
 	cfg := &LogConfig{
 		LogDir:        dir,
@@ -69,13 +85,27 @@ func TestLogmon_Start_rotate(t *testing.T) {
 // asserts that calling Start twice restarts the log rotator
 func TestLogmon_Start_restart(t *testing.T) {
 	require := require.New(t)
+
 	dir, err := ioutil.TempDir("", "nomadtest")
 	require.NoError(err)
 	defer os.RemoveAll(dir)
+
 	stdoutLog := "stdout"
-	stdoutFifoPath := filepath.Join(dir, "stdout.fifo")
 	stderrLog := "stderr"
-	stderrFifoPath := filepath.Join(dir, "stderr.fifo")
+
+	var stdoutFifoPath, stderrFifoPath string
+
+	if runtime.GOOS == "windows" {
+		uuid := uuid.Generate()[:8]
+		stdoutFifoPath = fmt.Sprintf("//./pipe/%s.stdout.pipe", uuid)
+		stderrFifoPath = fmt.Sprintf("//./pipe/%s.stderr.pipe", uuid)
+
+		defer os.Remove(stdoutFifoPath)
+		defer os.Remove(stderrFifoPath)
+	} else {
+		stdoutFifoPath = filepath.Join(dir, "stdout.fifo")
+		stderrFifoPath = filepath.Join(dir, "stderr.fifo")
+	}
 
 	cfg := &LogConfig{
 		LogDir:        dir,
@@ -122,24 +152,6 @@ func TestLogmon_Start_restart(t *testing.T) {
 		require.NoError(err)
 	})
 
-	stdout, err = fifo.Open(stdoutFifoPath)
-	require.NoError(err)
-	stderr, err = fifo.Open(stderrFifoPath)
-	require.NoError(err)
-
-	_, err = stdout.Write([]byte("te"))
-	require.NoError(err)
-
-	testutil.WaitForResult(func() (bool, error) {
-		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
-		if err != nil {
-			return false, err
-		}
-		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
-	}, func(err error) {
-		require.NoError(err)
-	})
-
 	// Start logmon again and assert that it appended to the file
 	require.NoError(lm.Start(cfg))
 
@@ -148,7 +160,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	stderr, err = fifo.Open(stderrFifoPath)
 	require.NoError(err)
 
-	_, err = stdout.Write([]byte("st\n"))
+	_, err = stdout.Write([]byte("second test\n"))
 	require.NoError(err)
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
@@ -156,7 +168,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 			return false, err
 		}
 
-		expected := "test\ntest\n" == string(raw)
+		expected := "test\nsecond test\n" == string(raw)
 		return expected, fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
 		require.NoError(err)

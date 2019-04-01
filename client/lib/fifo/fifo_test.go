@@ -2,6 +2,7 @@ package fifo
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,7 +21,10 @@ func TestFIFO(t *testing.T) {
 	var path string
 
 	if runtime.GOOS == "windows" {
-		path = "//./pipe/fifo"
+		id := uuid.Generate()[:8]
+		path = fmt.Sprintf("//./pipe/%s.fifo", id)
+
+		defer os.Remove(path)
 	} else {
 		dir, err := ioutil.TempDir("", "")
 		require.NoError(err)
