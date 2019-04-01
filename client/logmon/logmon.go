@@ -182,7 +182,7 @@ type logRotatorWrapper struct {
 	logger            hclog.Logger
 
 	processOutReader io.ReadCloser
-	opened           chan struct{}
+	openCompleted    chan struct{}
 }
 
 // isRunning will return true until the reader is closed
@@ -208,7 +208,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.Fil
 		fifoPath:          path,
 		rotatorWriter:     rotator,
 		hasFinishedCopied: make(chan struct{}),
-		opened:            make(chan struct{}),
+		openCompleted:     make(chan struct{}),
 		logger:            logger,
 	}
 	wrap.start(fifoOpenFn)
@@ -223,11 +223,12 @@ func (l *logRotatorWrapper) start(readerOpenFn func() (io.ReadCloser, error)) {
 
 		reader, err := readerOpenFn()
 		if err != nil {
+			close(l.openCompleted)
 			l.logger.Warn("failed to open log fifo", "error", err)
 			return
 		}
 		l.processOutReader = reader
-		close(l.opened)
+		close(l.openCompleted)
 
 		_, err = io.Copy(l.rotatorWriter, reader)
 		if err != nil {
@@ -261,10 +262,17 @@ func (l *logRotatorWrapper) Close() {
 	closeDone := make(chan struct{})
 	go func() {
 		defer close(closeDone)
-		<-l.opened
-		err := l.processOutReader.Close()
-		if err != nil && !strings.Contains(err.Error(), "file already closed") {
-			l.logger.Warn("error closing read-side of process output pipe", "err", err)
+
+		// we must wait until reader is opened before we can close it, and cannot inteerrupt an in-flight open request
+		// The Close function uses processOutputCloseTolerance to protect against long running open called
+		// and then request will be interrupted and file will be closed on process shutdown
+		<-l.openCompleted
+
+		if l.processOutReader != nil {
+			err := l.processOutReader.Close()
+			if err != nil && !strings.Contains(err.Error(), "file already closed") {
+				l.logger.Warn("error closing read-side of process output pipe", "err", err)
+			}
 		}
 
 	}()
