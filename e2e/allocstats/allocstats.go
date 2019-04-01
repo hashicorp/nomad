@@ -53,10 +53,7 @@ func (tc *BasicAllocStatsTest) TestResourceStats(f *framework.F) {
 	allocID := allocs[0].ID
 	e2eutil.WaitForAllocRunning(f.T(), nomadClient, allocID)
 
-	// Get client for node the alloc is running on
-	nodeClient, err := nomadClient.GetNodeClient(allocs[0].NodeID, nil)
-	require.Nil(err)
-	allocsClient := nodeClient.Allocations()
+	allocsClient := nomadClient.Allocations()
 
 	// Verify allocation resource stats
 	// This job file should result in non zero CPU and Memory stats
