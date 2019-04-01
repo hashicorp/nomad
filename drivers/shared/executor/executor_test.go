@@ -393,6 +393,8 @@ func setupRootfsBinary(t *testing.T, rootfs, path string) {
 	require.NoError(t, err)
 }
 
+// TestExecutor_Start_Kill_Immediately_NoGrace asserts that executors shutdown
+// immediately when sent a kill signal with no grace period.
 func TestExecutor_Start_Kill_Immediately_NoGrace(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
