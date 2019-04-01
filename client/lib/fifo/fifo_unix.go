@@ -10,12 +10,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// New creates a fifo at the given path, and returns an open function for reading.
+// CreateAndRead creates a fifo at the given path, and returns an open function for reading.
 // The fifo must not exist already, or that it's already a fifo file
 //
 // It returns a reader open function that may block until a writer opens
 // so it's advised to run it in a goroutine different from reader goroutine
-func New(path string) (func() (io.ReadCloser, error), error) {
+func CreateAndRead(path string) (func() (io.ReadCloser, error), error) {
 	// create first
 	if err := mkfifo(path, 0600); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("error creating fifo %v: %v", path, err)
@@ -28,8 +28,8 @@ func New(path string) (func() (io.ReadCloser, error), error) {
 	return openFn, nil
 }
 
-// Open opens a fifo file for reading, assuming it already exists, returns io.WriteCloser
-func Open(path string) (io.WriteCloser, error) {
+// OpenWriter opens a fifo file for writer, assuming it already exists, returns io.WriteCloser
+func OpenWriter(path string) (io.WriteCloser, error) {
 	return os.OpenFile(path, unix.O_WRONLY, os.ModeNamedPipe)
 }
 

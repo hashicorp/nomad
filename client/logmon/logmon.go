@@ -199,7 +199,7 @@ func (l *logRotatorWrapper) isRunning() bool {
 // processOutWriter to attach to the stdout or stderr of a process.
 func newLogRotatorWrapper(path string, logger hclog.Logger, rotator *logging.FileRotator) (*logRotatorWrapper, error) {
 	logger.Info("opening fifo", "path", path)
-	fifoOpenFn, err := fifo.New(path)
+	fifoOpenFn, err := fifo.CreateAndRead(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
 	}

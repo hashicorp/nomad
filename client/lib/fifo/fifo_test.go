@@ -31,7 +31,7 @@ func TestFIFO(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	readerOpenFn, err := New(path)
+	readerOpenFn, err := CreateAndRead(path)
 	require.NoError(err)
 
 	var reader io.ReadCloser
@@ -60,7 +60,7 @@ func TestFIFO(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	writer, err := Open(path)
+	writer, err := OpenWriter(path)
 	require.NoError(err)
 	for _, b := range toWrite {
 		n, err := writer.Write(b)
@@ -94,7 +94,7 @@ func TestWriteClose(t *testing.T) {
 		path = filepath.Join(dir, "fifo")
 	}
 
-	readerOpenFn, err := New(path)
+	readerOpenFn, err := CreateAndRead(path)
 	require.NoError(err)
 	var reader io.ReadCloser
 
@@ -114,7 +114,7 @@ func TestWriteClose(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	writer, err := Open(path)
+	writer, err := OpenWriter(path)
 	require.NoError(err)
 
 	var count int
