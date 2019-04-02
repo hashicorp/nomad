@@ -13,9 +13,8 @@ import (
 func TestDriver_DockerStatsCollector(t *testing.T) {
 	require := require.New(t)
 	src := make(chan *docker.Stats)
-	defer close(src)
 	dst := make(chan *drivers.TaskResourceUsage)
-	defer close(dst)
+
 	stats := &docker.Stats{}
 	stats.CPUStats.ThrottlingData.Periods = 10
 	stats.CPUStats.ThrottlingData.ThrottledPeriods = 10
