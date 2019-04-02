@@ -161,7 +161,13 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
 	}
-	path = rel
+
+	// Turn relative-to-chroot path into absolute path to avoid
+	// libcontainer trying to resolve the binary using $PATH.
+	// Do *not* use filepath.Join as it will translate ".."s returned by
+	// filepath.Rel. Prepending "/" will cause the path to be rooted in the
+	// chroot which is the desired behavior.
+	path = "/" + rel
 
 	combined := append([]string{path}, command.Args...)
 	stdout, err := command.Stdout()
