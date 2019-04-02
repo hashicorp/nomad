@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
@@ -138,4 +140,10 @@ func processStateFromProto(pb *proto.ProcessState) (*ProcessState, error) {
 		Signal:   int(pb.Signal),
 		Time:     timestamp,
 	}, nil
+}
+
+// insideBase returns true if path is inside the basedir
+func insideBase(basedir, path string) bool {
+	rel, err := filepath.Rel(basedir, path)
+	return err == nil && !strings.HasPrefix(rel, "..")
 }
