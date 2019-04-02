@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/client/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -22,6 +24,55 @@ const (
 	statsCollectorBackoffLimit = 2 * time.Minute
 )
 
+// usageSender wraps a TaskResourceUsage chan such that it supports concurrent
+// sending and closing.
+type usageSender struct {
+	closed bool
+	destCh chan<- *structs.TaskResourceUsage
+	mu     sync.Mutex
+}
+
+// newDestChPair returns a destCh that supports concurrent sending and closing,
+// and the receiver end of the chan.
+func newDestChPair() (*usageSender, <-chan *structs.TaskResourceUsage) {
+	destCh := make(chan *cstructs.TaskResourceUsage, 1)
+	return &usageSender{
+		destCh: destCh,
+	}, destCh
+
+}
+
+// send resource usage to the receiver unless the chan is already full or
+// closed.
+func (u *usageSender) send(tru *cstructs.TaskResourceUsage) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.closed {
+		return
+	}
+
+	select {
+	case u.destCh <- tru:
+	default:
+		// Backpressure caused missed interval
+	}
+}
+
+// close resource usage. Any further sends will be dropped.
+func (u *usageSender) close() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.closed {
+		// already closed
+		return
+	}
+
+	u.closed = true
+	close(u.destCh)
+}
+
 // Stats starts collecting stats from the docker daemon and sends them on the
 // returned channel.
 func (h *taskHandle) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
@@ -30,14 +81,16 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration) (<-chan 
 		return nil, nstructs.NewRecoverableError(fmt.Errorf("container stopped"), false)
 	default:
 	}
-	ch := make(chan *cstructs.TaskResourceUsage, 1)
-	go h.collectStats(ctx, ch, interval)
-	return ch, nil
+
+	destCh, recvCh := newDestChPair()
+	go h.collectStats(ctx, destCh, interval)
+	return recvCh, nil
 }
 
 // collectStats starts collecting resource usage stats of a docker container
-func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskResourceUsage, interval time.Duration) {
-	defer close(ch)
+func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration) {
+	defer destCh.close()
+
 	// backoff and retry used if the docker stats API returns an error
 	var backoff time.Duration
 	var retry int
@@ -56,7 +109,7 @@ func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskRes
 		// receive stats from docker and emit nomad stats
 		// statsCh will always be closed by docker client.
 		statsCh := make(chan *docker.Stats)
-		go dockerStatsCollector(ch, statsCh, interval)
+		go dockerStatsCollector(destCh, statsCh, interval)
 
 		statsOpts := docker.StatsOptions{
 			ID:      h.containerID,
@@ -86,7 +139,7 @@ func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskRes
 	}
 }
 
-func dockerStatsCollector(destCh chan *cstructs.TaskResourceUsage, statsCh <-chan *docker.Stats, interval time.Duration) {
+func dockerStatsCollector(destCh *usageSender, statsCh <-chan *docker.Stats, interval time.Duration) {
 	var resourceUsage *cstructs.TaskResourceUsage
 
 	// hasSentInitialStats is used so as to emit the first stats received from
@@ -103,13 +156,12 @@ func dockerStatsCollector(destCh chan *cstructs.TaskResourceUsage, statsCh <-cha
 			if resourceUsage == nil {
 				continue
 			}
+
 			// sending to destCh could block, drop this interval if it does
-			select {
-			case destCh <- resourceUsage:
-			default:
-				// Backpressure caused missed interval
-			}
+			destCh.send(resourceUsage)
+
 			timer.Reset(interval)
+
 		case s, ok := <-statsCh:
 			// if statsCh is closed stop collection
 			if !ok {
