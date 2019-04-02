@@ -162,15 +162,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
 	}
 
-	// filepath.Rel will only return leading dots if the path escapes the
-	// TaskDir
-	if strings.HasPrefix(rel, "..") {
-		return nil, fmt.Errorf("command path %q escapes task dir %q", path, command.TaskDir)
-	}
-
 	// Turn relative-to-chroot path into absolute path to avoid
 	// libcontainer trying to resolve the binary using $PATH
-	path = filepath.Join("/", rel)
+	path = "/" + rel
 
 	combined := append([]string{path}, command.Args...)
 	stdout, err := command.Stdout()

@@ -1085,7 +1085,7 @@ func TestTaskRunner_Download_ChrootExec(t *testing.T) {
 	// Wait for task to run and exit
 	select {
 	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*30) * time.Second):
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
 		require.Fail(t, "timed out waiting for task runner to exit")
 	}
 
