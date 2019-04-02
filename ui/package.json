@@ -16,20 +16,14 @@
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "lint-staged": {
-    "'{app,tests,config,lib,mirage}/**/*.js'": [
-      "prettier --write",
-      "git add"
-    ],
-    "'app/styles/**/*.*'": [
-      "prettier --write",
-      "git add"
-    ]
+    "'{app,tests,config,lib,mirage}/**/*.js'": ["prettier --write", "git add"],
+    "'app/styles/**/*.*'": ["prettier --write", "git add"]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-object-rest-spread": "^7.3.4",
-    "@ember/jquery": "^0.5.2",
-    "@ember/optional-features": "^0.6.3",
-    "broccoli-asset-rev": "^2.7.0",
+    "@babel/plugin-proposal-object-rest-spread": "^7.4.3",
+    "@ember/jquery": "^0.6.0",
+    "@ember/optional-features": "^0.7.0",
+    "broccoli-asset-rev": "^3.0.0",
     "bulma": "0.6.1",
     "core-js": "^2.4.1",
     "d3-array": "^1.2.0",
@@ -81,7 +75,6 @@
     "ember-source": "~3.4.0",
     "ember-test-selectors": "^2.1.0",
     "ember-truth-helpers": "^2.0.0",
-    "ember-welcome-page": "^3.2.0",
     "eslint": "^4.13.1",
     "flat": "^4.0.0",
     "fuse.js": "~3.2.0",
@@ -99,9 +92,7 @@
   },
   "private": true,
   "ember-addon": {
-    "paths": [
-      "lib/bulma"
-    ]
+    "paths": ["lib/bulma"]
   },
   "dependencies": {
     "lru_map": "^0.3.3"
