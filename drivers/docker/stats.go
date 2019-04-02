@@ -30,14 +30,21 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration) (<-chan 
 		return nil, nstructs.NewRecoverableError(fmt.Errorf("container stopped"), false)
 	default:
 	}
-	ch := make(chan *cstructs.TaskResourceUsage, 1)
-	go h.collectStats(ctx, ch, interval)
-	return ch, nil
+
+	destCh := make(chan *cstructs.TaskResourceUsage, 1)
+
+	dockerStatsCh := make(chan *docker.Stats)
+
+	go h.fetchStats(ctx, dockerStatsCh)
+	go dockerStatsCollector(destCh, dockerStatsCh, interval)
+
+	return destCh, nil
 }
 
 // collectStats starts collecting resource usage stats of a docker container
-func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskResourceUsage, interval time.Duration) {
-	defer close(ch)
+func (h *taskHandle) fetchStats(ctx context.Context, dockerStatsCh chan *docker.Stats) {
+	defer close(dockerStatsCh)
+
 	// backoff and retry used if the docker stats API returns an error
 	var backoff time.Duration
 	var retry int
@@ -52,41 +59,39 @@ func (h *taskHandle) collectStats(ctx context.Context, ch chan *cstructs.TaskRes
 				return
 			}
 		}
-		// make a channel for docker stats structs and start a collector to
-		// receive stats from docker and emit nomad stats
-		// statsCh will always be closed by docker client.
-		statsCh := make(chan *docker.Stats)
-		go dockerStatsCollector(ch, statsCh, interval)
 
 		statsOpts := docker.StatsOptions{
 			ID:      h.containerID,
 			Context: ctx,
 			Done:    h.doneCh,
-			Stats:   statsCh,
+			Stats:   dockerStatsCh,
 			Stream:  true,
 		}
 
 		// Stats blocks until an error has occurred, or doneCh has been closed
-		if err := h.client.Stats(statsOpts); err != nil && err != io.ErrClosedPipe {
-			// An error occurred during stats collection, retry with backoff
-			h.logger.Debug("error collecting stats from container", "error", err)
-
-			// Calculate the new backoff
-			backoff = (1 << (2 * uint64(retry))) * statsCollectorBackoffBaseline
-			if backoff > statsCollectorBackoffLimit {
-				backoff = statsCollectorBackoffLimit
-			}
-			// Increment retry counter
-			retry++
-			continue
+		err := h.client.Stats(statsOpts)
+		if err == nil || err != io.ErrClosedPipe {
+			// Stats finished either because context was canceled, doneCh was closed
+			// or the container stopped. Stop stats collections.
+			return
 		}
-		// Stats finished either because context was canceled, doneCh was closed
-		// or the container stopped. Stop stats collections.
-		return
+
+		// An error occurred during stats collection, retry with backoff
+		h.logger.Debug("error collecting stats from container", "error", err)
+
+		// Calculate the new backoff
+		backoff = (1 << (2 * uint64(retry))) * statsCollectorBackoffBaseline
+		if backoff > statsCollectorBackoffLimit {
+			backoff = statsCollectorBackoffLimit
+		}
+		// Increment retry counter
+		retry++
 	}
 }
 
 func dockerStatsCollector(destCh chan *cstructs.TaskResourceUsage, statsCh <-chan *docker.Stats, interval time.Duration) {
+	defer close(destCh)
+
 	var resourceUsage *cstructs.TaskResourceUsage
 
 	// hasSentInitialStats is used so as to emit the first stats received from
