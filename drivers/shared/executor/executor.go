@@ -549,12 +549,6 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 // the following locations, in-order: task/local/, task/, based on host $PATH.
 // The return path is absolute.
 func lookupBin(taskDir string, bin string) (string, error) {
-	// Check the binary path first
-	// This handles the case where the job spec sends a fully interpolated path to the binary
-	if _, err := os.Stat(bin); err == nil {
-		return bin, nil
-	}
-
 	// Check in the local directory
 	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
 	if _, err := os.Stat(local); err == nil {
