@@ -262,10 +262,6 @@ prodev: vendorfmt changelogfmt ## Build for the current development platform
 prerelease: GO_TAGS=ui release ent
 prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
-.PHONY: proprerelease
-proprerelease: GO_TAGS=ui release pro
-proprerelease: check progenerate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
-
 .PHONY: release
 release: GO_TAGS=ui release ent
 release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release packages which can be built on this platform.
