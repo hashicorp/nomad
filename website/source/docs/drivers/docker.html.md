@@ -88,9 +88,10 @@ The `docker` driver supports the following configuration in the job spec.  Only
 * `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
 
-* `force_pull` - (Optional) `true` or `false` (default). Always pull latest image
+* `force_pull` - (Optional) `true` or `false` (default). Always pull most recent image
   instead of using existing local image. Should be set to `true` if repository tags
-  are mutable.
+  are mutable.  If image's tag is `latest` or omitted, the image will always be pulled
+  regardless of this setting.
 
 * `hostname` - (Optional) The hostname to assign to the container. When
   launching more than one of a task (using `count`) with this option set, every
