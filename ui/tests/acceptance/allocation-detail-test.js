@@ -74,7 +74,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('each task row should list high-level information for the task', async function(assert) {
     const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
-    const taskResources = allocation.taskResourcesIds
+    const taskResources = allocation.taskResourceIds
       .map(id => server.db.taskResources.find(id))
       .sortBy('name')[0];
     const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
