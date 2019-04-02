@@ -163,6 +163,11 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 		"User-Agent": []string{"hashicorp/nomad"},
 	})
 
+	// SetHeaders above will replace all headers, make this call second
+	if config.Namespace != "" {
+		client.SetNamespace(config.Namespace)
+	}
+
 	c.client = client
 
 	return c, nil

@@ -252,6 +252,10 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 			return nil, err
 		}
 
+		if c.Namespace != "" {
+			v.client.SetNamespace(c.Namespace)
+		}
+
 		// Launch the required goroutines
 		v.tomb.Go(wrapNilError(v.establishConnection))
 		v.tomb.Go(wrapNilError(v.revokeDaemon))
