@@ -16,8 +16,14 @@
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "lint-staged": {
-    "'{app,tests,config,lib,mirage}/**/*.js'": ["prettier --write", "git add"],
-    "'app/styles/**/*.*'": ["prettier --write", "git add"]
+    "'{app,tests,config,lib,mirage}/**/*.js'": [
+      "prettier --write",
+      "git add"
+    ],
+    "'app/styles/**/*.*'": [
+      "prettier --write",
+      "git add"
+    ]
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "^7.3.4",
@@ -93,7 +99,9 @@
   },
   "private": true,
   "ember-addon": {
-    "paths": ["lib/bulma"]
+    "paths": [
+      "lib/bulma"
+    ]
   },
   "dependencies": {
     "lru_map": "^0.3.3"
