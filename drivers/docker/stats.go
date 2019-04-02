@@ -25,7 +25,7 @@ const (
 )
 
 // usageSender wraps a TaskResourceUsage chan such that it supports concurrent
-// sending and closing.
+// sending and closing, and backpressures by dropping events if necessary.
 type usageSender struct {
 	closed bool
 	destCh chan<- *structs.TaskResourceUsage
