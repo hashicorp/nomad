@@ -108,9 +108,9 @@ export default Factory.extend({
   }),
 
   afterCreate(node, server) {
-    // Each node has a corresponding client stats resource that's queried via node IP.
+    // Each node has a corresponding client stat resource that's queried via node IP.
     // Create that record, even though it's not a relationship.
-    server.create('client-stats', {
+    server.create('client-stat', {
       id: node.httpAddr,
     });
 
@@ -122,7 +122,7 @@ export default Factory.extend({
       eventIds: events.mapBy('id'),
     });
 
-    server.create('client-stats', {
+    server.create('client-stat', {
       id: node.id,
     });
   },

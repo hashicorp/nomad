@@ -46,11 +46,10 @@ export default function() {
       const json = this.serialize(jobs.all());
       const namespace = queryParams.namespace || 'default';
       return json
-        .filter(
-          job =>
-            namespace === 'default'
-              ? !job.NamespaceID || job.NamespaceID === namespace
-              : job.NamespaceID === namespace
+        .filter(job =>
+          namespace === 'default'
+            ? !job.NamespaceID || job.NamespaceID === namespace
+            : job.NamespaceID === namespace
         )
         .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
     })
