@@ -73,6 +73,10 @@ vault {
 
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Vault communication. If this is set then you need to also set `cert_file`.
+  
+- `namespace` `(string: "")` - Specifies the [Vault namespace](https://www.vaultproject.io/docs/enterprise/namespaces/index.html) 
+  used by the Vault integration. If non-empty, this namespace will be used on 
+  all Vault API calls.
 
 - `tls_server_name` `(string: "")` - Specifies an optional string used to set
   the SNI host when connecting to Vault via TLS.

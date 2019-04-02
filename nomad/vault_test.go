@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
+	vaultconsts "github.com/hashicorp/vault/helper/consts"
 )
 
 const (
@@ -173,6 +174,30 @@ func TestVaultClient_BadConfig(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "address must be set") {
 		t.Fatalf("Expected address unset error: %v", err)
 	}
+}
+
+// TestVaultClient_NamespaceSupport tests that the Vault namespace config, if present, will result in the
+// namespace header being set on the created Vault client.
+func TestVaultClient_NamespaceSupport(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	tr := true
+	testNs := "test-namespace"
+	conf := &config.VaultConfig{
+		Addr:      "https://vault.service.consul:8200",
+		Enabled:   &tr,
+		Token:     "testvaulttoken",
+		Namespace: testNs,
+	}
+	logger := testlog.HCLogger(t)
+
+	// Should be no error since Vault is not enabled
+	c, err := NewVaultClient(conf, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+
+	require.Equal(testNs, c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
 }
 
 // started separately.
