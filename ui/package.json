@@ -15,6 +15,11 @@
     "start": "./node_modules/ember-cli/bin/ember server",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
   "lint-staged": {
     "'{app,tests,config,lib,mirage}/**/*.js'": ["prettier --write", "git add"],
     "'app/styles/**/*.*'": ["prettier --write", "git add"]
@@ -77,10 +82,10 @@
     "ember-truth-helpers": "^2.0.0",
     "eslint": "^5.16.0",
     "flat": "^4.0.0",
-    "fuse.js": "~3.2.0",
-    "husky": "^0.14.3",
+    "fuse.js": "^3.4.4",
+    "husky": "^1.3.1",
     "ivy-codemirror": "^2.1.0",
-    "lint-staged": "^6.0.0",
+    "lint-staged": "^8.1.5",
     "loader.js": "^4.7.0",
     "lodash.intersection": "^4.4.0",
     "prettier": "^1.4.4",
