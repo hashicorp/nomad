@@ -11,8 +11,20 @@ Output from `nomad version`
 
 ### Reproduction steps
 
-### Nomad Server logs (if appropriate)
+### Job file (if appropriate)
 
 ### Nomad Client logs (if appropriate)
+If possible please post relevant logs in the issue.
 
-### Job file (if appropriate)
+Logs and other artifacts may also be sent to: nomad-oss-debug@hashicorp.com
+
+Please link to your Github issue in the email and reference it in the subject
+line:
+
+> To: nomad-oss-debug@hashicorp.com
+>
+> Subject: GH-1234: Errors garbage collecting allocs
+
+Emails sent to that address are readable by all HashiCorp employees but are *not* publicly visible.
+
+### Nomad Server logs (if appropriate)
