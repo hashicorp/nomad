@@ -709,7 +709,7 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	}
 
 	if l := len(taskGroup.HostVolumes); l != 0 {
-		tg.HostVolumes = make([]*structs.HostVolume, l)
+		tg.HostVolumes = make(map[string]*structs.HostVolume, l)
 		for i, vol := range taskGroup.HostVolumes {
 			tg.HostVolumes[i] = &structs.HostVolume{
 				Name:     vol.Name,

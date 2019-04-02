@@ -502,7 +502,7 @@ type TaskGroup struct {
 	Affinities       []*Affinity
 	Tasks            []*Task
 	Spreads          []*Spread
-	HostVolumes      []*HostVolume
+	HostVolumes      map[string]*HostVolume
 	RestartPolicy    *RestartPolicy
 	ReschedulePolicy *ReschedulePolicy
 	EphemeralDisk    *EphemeralDisk

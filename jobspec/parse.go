@@ -696,7 +696,9 @@ func parseAffinities(result *[]*api.Affinity, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseHostVolumes(result *[]*api.HostVolume, list *ast.ObjectList) error {
+func parseHostVolumes(result *map[string]*api.HostVolume, list *ast.ObjectList) error {
+	parsed := make(map[string]*api.HostVolume, len(list.Items))
+
 	for _, o := range list.Items {
 		n := o.Keys[0].Token.Value().(string)
 
@@ -721,8 +723,10 @@ func parseHostVolumes(result *[]*api.HostVolume, list *ast.ObjectList) error {
 
 		v.Name = n
 
-		*result = append(*result, &v)
+		parsed[n] = &v
 	}
+
+	*result = parsed
 
 	return nil
 }

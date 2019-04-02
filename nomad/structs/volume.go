@@ -16,13 +16,13 @@ func (v *HostVolume) Copy() *HostVolume {
 	return nv
 }
 
-func CopySliceVolumes(s []*HostVolume) []*HostVolume {
+func CopyMapStringVolume(s map[string]*HostVolume) map[string]*HostVolume {
 	l := len(s)
 	if l == 0 {
 		return nil
 	}
 
-	c := make([]*HostVolume, l)
+	c := make(map[string]*HostVolume, l)
 	for i, v := range s {
 		c[i] = v.Copy()
 	}

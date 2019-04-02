@@ -4414,7 +4414,7 @@ type TaskGroup struct {
 	Count int
 
 	// HostVolumes are the collection of storage volumes that the task group requests
-	HostVolumes []*HostVolume
+	HostVolumes map[string]*HostVolume
 
 	// Update is used to control the update strategy for this task group
 	Update *UpdateStrategy
@@ -4460,7 +4460,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	*ntg = *tg
 	ntg.Update = ntg.Update.Copy()
 	ntg.Constraints = CopySliceConstraints(ntg.Constraints)
-	ntg.HostVolumes = CopySliceVolumes(ntg.HostVolumes)
+	ntg.HostVolumes = CopyMapStringVolume(ntg.HostVolumes)
 	ntg.RestartPolicy = ntg.RestartPolicy.Copy()
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)

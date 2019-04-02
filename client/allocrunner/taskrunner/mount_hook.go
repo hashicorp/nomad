@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -35,18 +36,20 @@ func (h *mountHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 		volumesByName[v.Name] = v
 	}
 
-	h.logger.Info("Mount Configuration:", "volumes", volumesByName, "requested", req.Task.VolumeMounts[0])
-
 	mounts := h.runner.hookResources.getMounts()
 
-	for _, mount := range req.Task.VolumeMounts {
-		v := volumesByName[mount.VolumeName]
-		dmount := &drivers.MountConfig{
-			HostPath: v.Path,
-			TaskPath: mount.MountPath,
-			Readonly: v.ReadOnly || mount.ReadOnly,
+	for _, s := range req.Task.VolumeMounts {
+		v, ok := volumesByName[s.VolumeName]
+		if !ok {
+			return fmt.Errorf("Could not find host volume declaration named %s", s.VolumeName)
 		}
-		mounts = append(mounts, dmount)
+
+		dm := &drivers.MountConfig{
+			HostPath: v.Path,
+			TaskPath: s.MountPath,
+			Readonly: v.ReadOnly || s.ReadOnly,
+		}
+		mounts = append(mounts, dm)
 	}
 
 	h.runner.hookResources.setMounts(mounts)
