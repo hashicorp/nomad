@@ -32,9 +32,9 @@ type usageSender struct {
 	mu     sync.Mutex
 }
 
-// newDestChPair returns a destCh that supports concurrent sending and closing,
-// and the receiver end of the chan.
-func newDestChPair() (*usageSender, <-chan *structs.TaskResourceUsage) {
+// newStatsChanPipe returns a chan wrapped in a struct that supports concurrent
+// sending and closing, and the receiver end of the chan.
+func newStatsChanPipe() (*usageSender, <-chan *structs.TaskResourceUsage) {
 	destCh := make(chan *cstructs.TaskResourceUsage, 1)
 	return &usageSender{
 		destCh: destCh,
@@ -82,7 +82,7 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration) (<-chan 
 	default:
 	}
 
-	destCh, recvCh := newDestChPair()
+	destCh, recvCh := newStatsChanPipe()
 	go h.collectStats(ctx, destCh, interval)
 	return recvCh, nil
 }

@@ -17,7 +17,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 	require := require.New(t)
 	src := make(chan *docker.Stats)
 	defer close(src)
-	dst, recvCh := newDestChPair()
+	dst, recvCh := newStatsChanPipe()
 	defer dst.close()
 	stats := &docker.Stats{}
 	stats.CPUStats.ThrottlingData.Periods = 10
@@ -72,7 +72,7 @@ func TestDriver_DockerUsageSender(t *testing.T) {
 	// sample payload
 	res := &cstructs.TaskResourceUsage{}
 
-	destCh, recvCh := newDestChPair()
+	destCh, recvCh := newStatsChanPipe()
 
 	// Sending should never fail
 	destCh.send(res)
