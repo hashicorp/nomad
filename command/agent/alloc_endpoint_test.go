@@ -405,6 +405,7 @@ func TestHTTP_AllocStop(t *testing.T) {
 
 		require.NoError(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
 
+		// Test that the happy path works
 		{
 			// Make the HTTP request
 			req, err := http.NewRequest("POST", "/v1/allocation/"+alloc.ID+"/stop", nil)
@@ -420,6 +421,7 @@ func TestHTTP_AllocStop(t *testing.T) {
 			require.NotEmpty(a.Index, "missing index")
 		}
 
+		// Test that we 404 when the allocid is invalid
 		{
 			// Make the HTTP request
 			req, err := http.NewRequest("POST", "/v1/allocation/"+alloc.ID+"/stop", nil)
