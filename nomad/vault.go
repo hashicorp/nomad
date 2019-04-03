@@ -10,12 +10,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	vapi "github.com/hashicorp/vault/api"
+	vaultconsts "github.com/hashicorp/vault/helper/consts"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -253,6 +254,7 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 		}
 
 		if c.Namespace != "" {
+			logger.Debug("Setting Vault namespace", "namespace", c.Namespace)
 			v.client.SetNamespace(c.Namespace)
 		}
 
@@ -412,6 +414,22 @@ func (v *vaultClient) buildClient() error {
 	return nil
 }
 
+// getVaultInitStatus is used to get the init status. It first clears the namespace header, to work around an
+// issue in Vault, then restores it.
+func (v *vaultClient) getVaultInitStatus() (bool, error) {
+	v.l.Lock()
+	defer v.l.Unlock()
+
+	// workaround for Vault behavior where namespace header causes /v1/sys/init (and other) endpoints to fail
+	if ns := v.client.Headers().Get(vaultconsts.NamespaceHeaderName); ns != "" {
+		v.client.SetNamespace("")
+		defer func() {
+			v.client.SetNamespace(ns)
+		}()
+	}
+	return v.client.Sys().InitStatus()
+}
+
 // establishConnection is used to make first contact with Vault. This should be
 // called in a go-routine since the connection is retried until the Vault Client
 // is stopped or the connection is successfully made at which point the renew
@@ -429,7 +447,7 @@ OUTER:
 		case <-retryTimer.C:
 			// Ensure the API is reachable
 			if !initStatus {
-				if _, err := v.client.Sys().InitStatus(); err != nil {
+				if _, err := v.getVaultInitStatus(); err != nil {
 					v.logger.Warn("failed to contact Vault API", "retry", v.config.ConnectionRetryIntv, "error", err)
 					retryTimer.Reset(v.config.ConnectionRetryIntv)
 					continue OUTER

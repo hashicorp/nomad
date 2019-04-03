@@ -110,6 +110,9 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.Token != "" {
 		result.Token = b.Token
 	}
+	if b.Namespace != "" {
+		result.Namespace = b.Namespace
+	}
 	if b.Role != "" {
 		result.Role = b.Role
 	}
