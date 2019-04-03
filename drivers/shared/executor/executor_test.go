@@ -544,3 +544,62 @@ func TestExecutor_Start_Kill_Immediately_WithGrace(pt *testing.T) {
 		})
 	}
 }
+
+// TestExecutor_Start_NonExecutableBinaries asserts that executor marks binary as executable
+// before starting
+func TestExecutor_Start_NonExecutableBinaries(pt *testing.T) {
+	pt.Parallel()
+
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+
+			tmpDir, err := ioutil.TempDir("", "nomad-executor-tests")
+			require.NoError(err)
+			defer os.RemoveAll(tmpDir)
+
+			nonExecutablePath := filepath.Join(tmpDir, "nonexecutablefile")
+			ioutil.WriteFile(nonExecutablePath,
+				[]byte("#!/bin/sh\necho hello world"),
+				0600)
+
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			execCmd.Cmd = nonExecutablePath
+			factory.configureExecCmd(t, execCmd)
+
+			executor := factory.new(testlog.HCLogger(t))
+			defer executor.Shutdown("", 0)
+
+			// need to configure path in chroot with that file if using isolation executor
+			if _, ok := executor.(*UniversalExecutor); !ok {
+				taskName := filepath.Base(testExecCmd.command.TaskDir)
+				err := allocDir.NewTaskDir(taskName).Build(true, map[string]string{
+					tmpDir: tmpDir,
+				})
+				require.NoError(err)
+			}
+
+			defer allocDir.Destroy()
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			ps, err = executor.Wait(context.Background())
+			require.NoError(err)
+			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
+
+			expected := "hello world"
+			tu.WaitForResult(func() (bool, error) {
+				act := strings.TrimSpace(string(testExecCmd.stdout.String()))
+				if expected != act {
+					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
+				}
+				return true, nil
+			}, func(err error) {
+				require.NoError(err)
+			})
+		})
+	}
+
+}
