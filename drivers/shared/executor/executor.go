@@ -561,6 +561,14 @@ func lookupBin(taskDir string, bin string) (string, error) {
 		return root, nil
 	}
 
+	// when checking host paths, check with Stat first if path is absolute
+	// as exec.LookPath only considers files already marked as executable
+	// and only consider this for absolute paths to avoid depending on
+	// current directory of nomad which may cause unexpected behavior
+	if _, err := os.Stat(bin); err == nil && filepath.IsAbs(bin) {
+		return bin, nil
+	}
+
 	// Check the $PATH
 	if host, err := exec.LookPath(bin); err == nil {
 		return host, nil
