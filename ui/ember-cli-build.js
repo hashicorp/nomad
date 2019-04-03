@@ -12,6 +12,9 @@ module.exports = function(defaults) {
     },
     svg: {
       paths: ['public/images/icons'],
+      optimize: {
+        plugins: [{ removeViewBox: false }],
+      },
     },
     codemirror: {
       modes: ['javascript'],
