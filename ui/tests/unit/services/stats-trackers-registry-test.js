@@ -1,6 +1,7 @@
 import EmberObject from '@ember/object';
 import { getOwner } from '@ember/application';
 import Service from '@ember/service';
+import { run } from '@ember/runloop';
 import wait from 'ember-test-helpers/wait';
 import { moduleFor, test } from 'ember-qunit';
 import Pretender from 'pretender';
@@ -102,6 +103,52 @@ test('Has a max size', function(assert) {
   // Kind of a silly assertion, but the exact limit is arbitrary. Whether it's 10 or 1000
   // isn't important as long as there is one.
   assert.ok(ref.limit < Infinity, `A limit (${ref.limit}) is set`);
+});
+
+test('Registry re-attaches deleted resources to cached trackers', function(assert) {
+  const registry = this.subject();
+  const id = 'some-id';
+
+  const node1 = mockNode.create({ id });
+  let tracker = registry.getTracker(node1);
+
+  assert.ok(tracker.get('node'), 'The tracker has a node');
+
+  tracker.set('node', null);
+  assert.notOk(tracker.get('node'), 'The tracker does not have a node');
+
+  tracker = registry.getTracker(node1);
+  assert.equal(
+    tracker.get('node'),
+    node1,
+    'The node was re-attached to the tracker after calling getTracker again'
+  );
+});
+
+test('Registry re-attaches destroyed resources to cached trackers', function(assert) {
+  const registry = this.subject();
+  const id = 'some-id';
+
+  const node1 = mockNode.create({ id });
+  let tracker = registry.getTracker(node1);
+
+  assert.ok(tracker.get('node'), 'The tracker has a node');
+
+  run(() => {
+    node1.destroy();
+  });
+
+  return wait().then(() => {
+    assert.ok(tracker.get('node').isDestroyed, 'The tracker node is destroyed');
+
+    const node2 = mockNode.create({ id });
+    tracker = registry.getTracker(node2);
+    assert.equal(
+      tracker.get('node'),
+      node2,
+      'Since node1 was destroyed but it matches the tracker of node2, node2 is attached to the tracker'
+    );
+  });
 });
 
 test('Removes least recently used when something needs to be removed', function(assert) {

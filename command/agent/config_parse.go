@@ -1014,6 +1014,10 @@ func parsePlugins(result *[]*config.PluginConfig, list *ast.ObjectList) error {
 		// Get the current plugin object
 		listVal := list.Items[i]
 
+		// Deal with json->hcl AST parsing incorrectness when directly nested
+		// items show up as additional keys.
+		// TODO(preetha): Add additional tests and fix other places that have the same issue
+		unwrapLegacyHCLObjectKeysFromJSON(listVal, 1)
 		if err := helper.CheckHCLKeys(listVal.Val, valid); err != nil {
 			return fmt.Errorf("invalid keys in plugin config %d: %v", i+1, err)
 		}
@@ -1033,4 +1037,43 @@ func parsePlugins(result *[]*config.PluginConfig, list *ast.ObjectList) error {
 
 	*result = plugins
 	return nil
+}
+
+// unwrapLegacyHCLObjectKeysFromJSON cleans up an edge case that can occur when
+// parsing JSON as input: if we're parsing JSON then directly nested
+// items will show up as additional "keys".
+//
+// For objects that expect a fixed number of keys, this breaks the
+// decoding process. This function unwraps the object into what it would've
+// looked like if it came directly from HCL by specifying the number of keys
+// you expect.
+//
+// Example:
+//
+// { "foo": { "baz": {} } }
+//
+// Will show up with Keys being: []string{"foo", "baz"}
+// when we really just want the first two. This function will fix this.
+func unwrapLegacyHCLObjectKeysFromJSON(item *ast.ObjectItem, depth int) {
+	if len(item.Keys) > depth && item.Keys[0].Token.JSON {
+		for len(item.Keys) > depth {
+			// Pop off the last key
+			n := len(item.Keys)
+			key := item.Keys[n-1]
+			item.Keys[n-1] = nil
+			item.Keys = item.Keys[:n-1]
+
+			// Wrap our value in a list
+			item.Val = &ast.ObjectType{
+				List: &ast.ObjectList{
+					Items: []*ast.ObjectItem{
+						{
+							Keys: []*ast.ObjectKey{key},
+							Val:  item.Val,
+						},
+					},
+				},
+			}
+		}
+	}
 }

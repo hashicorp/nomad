@@ -260,11 +260,7 @@ prodev: vendorfmt changelogfmt ## Build for the current development platform
 
 .PHONY: prerelease
 prerelease: GO_TAGS=ui release ent
-prerelease: check generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
-
-.PHONY: proprerelease
-proprerelease: GO_TAGS=ui release pro
-proprerelease: check progenerate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
+prerelease: generate-all ember-dist static-assets ## Generate all the static assets for a Nomad release
 
 .PHONY: release
 release: GO_TAGS=ui release ent

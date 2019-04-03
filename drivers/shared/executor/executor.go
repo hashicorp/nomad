@@ -148,7 +148,7 @@ func (nopCloser) Close() error { return nil }
 func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 	if c.stdout == nil {
 		if c.StdoutPath != "" {
-			f, err := fifo.Open(c.StdoutPath)
+			f, err := fifo.OpenWriter(c.StdoutPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create stdout: %v", err)
 			}
@@ -164,7 +164,7 @@ func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 	if c.stderr == nil {
 		if c.StderrPath != "" {
-			f, err := fifo.Open(c.StderrPath)
+			f, err := fifo.OpenWriter(c.StderrPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create stderr: %v", err)
 			}
@@ -177,13 +177,11 @@ func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 }
 
 func (c *ExecCommand) Close() {
-	stdout, err := c.Stdout()
-	if err == nil {
-		stdout.Close()
+	if c.stdout != nil {
+		c.stdout.Close()
 	}
-	stderr, err := c.Stderr()
-	if err == nil {
-		stderr.Close()
+	if c.stderr != nil {
+		c.stderr.Close()
 	}
 }
 
@@ -551,12 +549,6 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 // the following locations, in-order: task/local/, task/, based on host $PATH.
 // The return path is absolute.
 func lookupBin(taskDir string, bin string) (string, error) {
-	// Check the binary path first
-	// This handles the case where the job spec sends a fully interpolated path to the binary
-	if _, err := os.Stat(bin); err == nil {
-		return bin, nil
-	}
-
 	// Check in the local directory
 	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
 	if _, err := os.Stat(local); err == nil {
@@ -567,6 +559,14 @@ func lookupBin(taskDir string, bin string) (string, error) {
 	root := filepath.Join(taskDir, bin)
 	if _, err := os.Stat(root); err == nil {
 		return root, nil
+	}
+
+	// when checking host paths, check with Stat first if path is absolute
+	// as exec.LookPath only considers files already marked as executable
+	// and only consider this for absolute paths to avoid depending on
+	// current directory of nomad which may cause unexpected behavior
+	if _, err := os.Stat(bin); err == nil && filepath.IsAbs(bin) {
+		return bin, nil
 	}
 
 	// Check the $PATH

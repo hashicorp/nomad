@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
 	ps "github.com/mitchellh/go-ps"
@@ -25,19 +28,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var executorFactories = map[string]func(hclog.Logger) Executor{}
-var universalFactory = func(l hclog.Logger) Executor {
-	return NewExecutor(l)
+var executorFactories = map[string]executorFactory{}
+
+type executorFactory struct {
+	new              func(hclog.Logger) Executor
+	configureExecCmd func(*testing.T, *ExecCommand)
+}
+
+var universalFactory = executorFactory{
+	new:              NewExecutor,
+	configureExecCmd: func(*testing.T, *ExecCommand) {},
 }
 
 func init() {
 	executorFactories["UniversalExecutor"] = universalFactory
 }
 
+type testExecCmd struct {
+	command  *ExecCommand
+	allocDir *allocdir.AllocDir
+
+	stdout         *bytes.Buffer
+	stderr         *bytes.Buffer
+	outputCopyDone *sync.WaitGroup
+}
+
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
-func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
+func testExecutorCommand(t *testing.T) *testExecCmd {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
@@ -55,23 +74,58 @@ func testExecutorCommand(t *testing.T) (*ExecCommand, *allocdir.AllocDir) {
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
 		Resources: &drivers.Resources{
-			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
+			NomadResources: &structs.AllocatedTaskResources{
+				Cpu: structs.AllocatedCpuResources{
+					CpuShares: 500,
+				},
+				Memory: structs.AllocatedMemoryResources{
+					MemoryMB: 256,
+				},
+			},
+			LinuxResources: &drivers.LinuxResources{
+				CPUShares:        500,
+				MemoryLimitBytes: 256 * 1024 * 1024,
+			},
 		},
 	}
 
-	setupRootfs(t, td.Dir)
-	configureTLogging(cmd)
-	return cmd, allocDir
+	testCmd := &testExecCmd{
+		command:  cmd,
+		allocDir: allocDir,
+	}
+	configureTLogging(t, testCmd)
+	return testCmd
 }
 
-type bufferCloser struct {
-	bytes.Buffer
-}
+// configureTLogging configures a test command executor with buffer as Std{out|err}
+// but using os.Pipe so it mimics non-test case where cmd is set with files as Std{out|err}
+// the buffers can be used to read command output
+func configureTLogging(t *testing.T, testcmd *testExecCmd) {
+	var stdout, stderr bytes.Buffer
+	var copyDone sync.WaitGroup
 
-func (_ *bufferCloser) Close() error { return nil }
+	stdoutPr, stdoutPw, err := os.Pipe()
+	require.NoError(t, err)
 
-func configureTLogging(cmd *ExecCommand) (stdout bufferCloser, stderr bufferCloser) {
-	cmd.SetWriters(&stdout, &stderr)
+	stderrPr, stderrPw, err := os.Pipe()
+	require.NoError(t, err)
+
+	copyDone.Add(2)
+	go func() {
+		defer copyDone.Done()
+		io.Copy(&stdout, stdoutPr)
+	}()
+	go func() {
+		defer copyDone.Done()
+		io.Copy(&stderr, stderrPr)
+	}()
+
+	testcmd.stdout = &stdout
+	testcmd.stderr = &stderr
+	testcmd.outputCopyDone = &copyDone
+
+	testcmd.command.stdout = stdoutPw
+	testcmd.command.stderr = stderrPw
 	return
 }
 
@@ -81,11 +135,13 @@ func TestExecutor_Start_Invalid(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = invalid
 			execCmd.Args = []string{"1"}
+			factory.configureExecCmd(t, execCmd)
 			defer allocDir.Destroy()
-			executor := factory(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
 			_, err := executor.Launch(execCmd)
@@ -99,11 +155,13 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/date"
 			execCmd.Args = []string{"fail"}
+			factory.configureExecCmd(t, execCmd)
 			defer allocDir.Destroy()
-			executor := factory(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -121,12 +179,14 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/echo"
 			execCmd.Args = []string{"hello world"}
+			factory.configureExecCmd(t, execCmd)
 
 			defer allocDir.Destroy()
-			executor := factory(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -139,9 +199,7 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 
 			expected := "hello world"
 			tu.WaitForResult(func() (bool, error) {
-				outWriter, _ := execCmd.GetWriters()
-				output := outWriter.(*bufferCloser).String()
-				act := strings.TrimSpace(string(output))
+				act := strings.TrimSpace(string(testExecCmd.stdout.String()))
 				if expected != act {
 					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
 				}
@@ -153,17 +211,59 @@ func TestExecutor_Start_Wait(pt *testing.T) {
 	}
 }
 
+func TestExecutor_Start_Wait_Children(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			execCmd.Cmd = "/bin/sh"
+			execCmd.Args = []string{"-c", "(sleep 30 > /dev/null & ) ; exec sleep 1"}
+			factory.configureExecCmd(t, execCmd)
+
+			defer allocDir.Destroy()
+			executor := factory.new(testlog.HCLogger(t))
+			defer executor.Shutdown("SIGKILL", 0)
+
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			ch := make(chan error)
+
+			go func() {
+				ps, err = executor.Wait(context.Background())
+				t.Logf("Processe completed with %#v error: %#v", ps, err)
+				ch <- err
+			}()
+
+			timeout := 7 * time.Second
+			select {
+			case <-ch:
+				require.NoError(err)
+				//good
+			case <-time.After(timeout):
+				require.Fail(fmt.Sprintf("process is running after timeout: %v", timeout))
+			}
+		})
+	}
+}
+
 func TestExecutor_WaitExitSignal(pt *testing.T) {
 	pt.Parallel()
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10000"}
 			execCmd.ResourceLimits = true
+			factory.configureExecCmd(t, execCmd)
+
 			defer allocDir.Destroy()
-			executor := factory(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -210,11 +310,14 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 	for name, factory := range executorFactories {
 		pt.Run(name, func(t *testing.T) {
 			require := require.New(t)
-			execCmd, allocDir := testExecutorCommand(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 			execCmd.Cmd = "/bin/sleep"
 			execCmd.Args = []string{"10"}
+			factory.configureExecCmd(t, execCmd)
+
 			defer allocDir.Destroy()
-			executor := factory(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t))
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -224,8 +327,7 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
 			time.Sleep(time.Duration(tu.TestMultiplier()*2) * time.Second)
-			outWriter, _ := execCmd.GetWriters()
-			output := outWriter.(*bufferCloser).String()
+			output := testExecCmd.stdout.String()
 			expected := ""
 			act := strings.TrimSpace(string(output))
 			if act != expected {
@@ -238,7 +340,8 @@ func TestExecutor_Start_Kill(pt *testing.T) {
 func TestExecutor_Shutdown_Exit(t *testing.T) {
 	require := require.New(t)
 	t.Parallel()
-	execCmd, allocDir := testExecutorCommand(t)
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "/bin/sleep"
 	execCmd.Args = []string{"100"}
 	cfg := &ExecutorConfig{
@@ -366,4 +469,137 @@ func setupRootfsBinary(t *testing.T, rootfs, path string) {
 
 	err = os.Link(src, dst)
 	require.NoError(t, err)
+}
+
+// TestExecutor_Start_Kill_Immediately_NoGrace asserts that executors shutdown
+// immediately when sent a kill signal with no grace period.
+func TestExecutor_Start_Kill_Immediately_NoGrace(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			execCmd.Cmd = "/bin/sleep"
+			execCmd.Args = []string{"100"}
+			factory.configureExecCmd(t, execCmd)
+			defer allocDir.Destroy()
+			executor := factory.new(testlog.HCLogger(t))
+			defer executor.Shutdown("", 0)
+
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			waitCh := make(chan interface{})
+			go func() {
+				defer close(waitCh)
+				executor.Wait(context.Background())
+			}()
+
+			require.NoError(executor.Shutdown("SIGKILL", 0))
+
+			select {
+			case <-waitCh:
+				// all good!
+			case <-time.After(4 * time.Second * time.Duration(tu.TestMultiplier())):
+				require.Fail("process did not terminate despite SIGKILL")
+			}
+		})
+	}
+}
+
+func TestExecutor_Start_Kill_Immediately_WithGrace(pt *testing.T) {
+	pt.Parallel()
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			execCmd.Cmd = "/bin/sleep"
+			execCmd.Args = []string{"100"}
+			factory.configureExecCmd(t, execCmd)
+			defer allocDir.Destroy()
+			executor := factory.new(testlog.HCLogger(t))
+			defer executor.Shutdown("", 0)
+
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			waitCh := make(chan interface{})
+			go func() {
+				defer close(waitCh)
+				executor.Wait(context.Background())
+			}()
+
+			require.NoError(executor.Shutdown("SIGKILL", 100*time.Millisecond))
+
+			select {
+			case <-waitCh:
+				// all good!
+			case <-time.After(4 * time.Second * time.Duration(tu.TestMultiplier())):
+				require.Fail("process did not terminate despite SIGKILL")
+			}
+		})
+	}
+}
+
+// TestExecutor_Start_NonExecutableBinaries asserts that executor marks binary as executable
+// before starting
+func TestExecutor_Start_NonExecutableBinaries(pt *testing.T) {
+	pt.Parallel()
+
+	for name, factory := range executorFactories {
+		pt.Run(name, func(t *testing.T) {
+			require := require.New(t)
+
+			tmpDir, err := ioutil.TempDir("", "nomad-executor-tests")
+			require.NoError(err)
+			defer os.RemoveAll(tmpDir)
+
+			nonExecutablePath := filepath.Join(tmpDir, "nonexecutablefile")
+			ioutil.WriteFile(nonExecutablePath,
+				[]byte("#!/bin/sh\necho hello world"),
+				0600)
+
+			testExecCmd := testExecutorCommand(t)
+			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+			execCmd.Cmd = nonExecutablePath
+			factory.configureExecCmd(t, execCmd)
+
+			executor := factory.new(testlog.HCLogger(t))
+			defer executor.Shutdown("", 0)
+
+			// need to configure path in chroot with that file if using isolation executor
+			if _, ok := executor.(*UniversalExecutor); !ok {
+				taskName := filepath.Base(testExecCmd.command.TaskDir)
+				err := allocDir.NewTaskDir(taskName).Build(true, map[string]string{
+					tmpDir: tmpDir,
+				})
+				require.NoError(err)
+			}
+
+			defer allocDir.Destroy()
+			ps, err := executor.Launch(execCmd)
+			require.NoError(err)
+			require.NotZero(ps.Pid)
+
+			ps, err = executor.Wait(context.Background())
+			require.NoError(err)
+			require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
+
+			expected := "hello world"
+			tu.WaitForResult(func() (bool, error) {
+				act := strings.TrimSpace(string(testExecCmd.stdout.String()))
+				if expected != act {
+					return false, fmt.Errorf("expected: '%s' actual: '%s'", expected, act)
+				}
+				return true, nil
+			}, func(err error) {
+				require.NoError(err)
+			})
+		})
+	}
+
 }
