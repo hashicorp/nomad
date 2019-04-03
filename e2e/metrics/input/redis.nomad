@@ -18,10 +18,6 @@ job "redis" {
       interval = "10m"
       unlimited = false
     }
-    spread {
-      attribute = "${node.datacenter}"
-      weight = 100
-    }
     task "redis" {
       driver = "docker"
 

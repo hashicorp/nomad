@@ -19,7 +19,7 @@ job "memstress" {
         image = "progrium/stress"
         args = [
           "-m", "2",
-          "-t", "60"
+          "-t", "120"
         ]
 
       }

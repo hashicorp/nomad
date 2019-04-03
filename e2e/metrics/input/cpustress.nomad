@@ -19,7 +19,7 @@ job "cpustress" {
         image = "progrium/stress"
         args = [
           "-c", "4",
-          "-t", "300"
+          "-t", "600"
         ]
 
       }
