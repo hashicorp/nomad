@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -130,6 +131,20 @@ func TestAllocRestartCommand_Run(t *testing.T) {
 		}
 	}
 	require.NotEmpty(allocId1, "unable to find allocation")
+
+	// Wait for alloc to be running
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, _, err := client.Allocations().Info(allocId1, nil)
+		if err != nil {
+			return false, err
+		}
+		if alloc.ClientStatus == api.AllocClientStatusRunning {
+			return true, nil
+		}
+		return false, fmt.Errorf("alloc is not running, is: %s", alloc.ClientStatus)
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
 
 	require.Equal(cmd.Run([]string{"-address=" + url, allocId1}), 0, "expected successful exit code")
 
