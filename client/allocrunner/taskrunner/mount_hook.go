@@ -31,15 +31,11 @@ func (*mountHook) Name() string {
 
 func (h *mountHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	volumes := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).HostVolumes
-	volumesByName := make(map[string]*structs.HostVolume, len(volumes))
-	for _, v := range volumes {
-		volumesByName[v.Name] = v
-	}
 
 	mounts := h.runner.hookResources.getMounts()
 
 	for _, s := range req.Task.VolumeMounts {
-		v, ok := volumesByName[s.VolumeName]
+		v, ok := volumes[s.VolumeName]
 		if !ok {
 			return fmt.Errorf("Could not find host volume declaration named %s", s.VolumeName)
 		}
