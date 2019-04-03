@@ -8,6 +8,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
@@ -935,4 +936,28 @@ func (ar *allocRunner) GetTaskEventHandler(taskName string) drivermanager.EventH
 		}
 	}
 	return nil
+}
+
+func (ar *allocRunner) Signal(taskName, signal string) error {
+	event := structs.NewTaskEvent(structs.TaskSignaling).SetSignalText(signal)
+
+	if taskName != "" {
+		tr, ok := ar.tasks[taskName]
+		if !ok {
+			return fmt.Errorf("Task not found")
+		}
+
+		return tr.Signal(event, signal)
+	}
+
+	var err *multierror.Error
+
+	for tn, tr := range ar.tasks {
+		rerr := tr.Signal(event.Copy(), signal)
+		if rerr != nil {
+			err = multierror.Append(err, fmt.Errorf("Failed to signal task: %s, err: %v", tn, rerr))
+		}
+	}
+
+	return err.ErrorOrNil()
 }

@@ -48,6 +48,19 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 	return nil
 }
 
+func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.GenericResponse) error {
+	defer metrics.MeasureSince([]string{"client", "allocations", "signal"}, time.Now())
+
+	// Check submit job permissions
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
+		return nstructs.ErrPermissionDenied
+	}
+
+	return a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
+}
+
 // Stats is used to collect allocation statistics
 func (a *Allocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.AllocStatsResponse) error {
 	defer metrics.MeasureSince([]string{"client", "allocations", "stats"}, time.Now())

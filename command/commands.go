@@ -140,6 +140,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"alloc signal": func() (cli.Command, error) {
+			return &AllocSignalCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc fs": func() (cli.Command, error) {
 			return &AllocFSCommand{
 				Meta: meta,

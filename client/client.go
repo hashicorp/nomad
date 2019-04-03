@@ -123,6 +123,7 @@ type AllocRunner interface {
 	WaitCh() <-chan struct{}
 	DestroyCh() <-chan struct{}
 	ShutdownCh() <-chan struct{}
+	Signal(taskName, signal string) error
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
 }
 
@@ -689,6 +690,18 @@ func (c *Client) Stats() map[string]map[string]string {
 		"runtime": hstats.RuntimeStats(),
 	}
 	return stats
+}
+
+// SignalAllocation sends a signal to the tasks within an allocation.
+// If the provided task is empty, then every allocation will be signalled.
+// If a task is provided, then only an exactly matching task will be signalled.
+func (c *Client) SignalAllocation(allocID, task, signal string) error {
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return err
+	}
+
+	return ar.Signal(task, signal)
 }
 
 // CollectAllocation garbage collects a single allocation on a node. Returns
