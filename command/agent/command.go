@@ -163,6 +163,7 @@ func (c *Command) readConfig() *Config {
 	}), "vault-allow-unauthenticated", "")
 	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
 	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
+	flags.StringVar(&cmdConfig.Vault.Namespace, "vault-namespace", "", "")
 	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
 	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
