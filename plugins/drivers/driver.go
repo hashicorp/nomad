@@ -55,17 +55,25 @@ type DriverPlugin interface {
 	SignalTask(taskID string, signal string) error
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
 
-	ExecTaskStreaming(ctx context.Context, taskID string, execOptions ExecOptions,
-		in io.Reader, out, err io.Writer,
-		resizeCh <-chan TerminalSize) (*ExitResult, error)
+	ExecTaskStreaming(ctx context.Context, taskID string, execOptions ExecOptions) (*ExitResult, error)
 }
 
 type ExecOptions struct {
+	taskID string
+
 	// Command is command to run
 	Command []string
 
 	// Tty indicates whether pseudo-terminal is to be allocated
 	Tty bool
+
+	// streams
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
+
+	// terminal size channel
+	ResizeCh <-chan TerminalSize
 }
 
 // InternalDriverPlugin is an interface that exposes functions that are only
