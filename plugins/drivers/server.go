@@ -341,8 +341,13 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 		msg.Setup.TaskId, ExecOptions{
 			Command: msg.Setup.Command,
 			Tty:     msg.Setup.Tty,
-		},
-		inReader, outWriter, errWriter, resize)
+
+			Stdin:  inReader,
+			Stdout: outWriter,
+			Stderr: errWriter,
+
+			ResizeCh: resize,
+		})
 
 	if err != nil {
 		return err

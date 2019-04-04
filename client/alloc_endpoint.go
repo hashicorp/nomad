@@ -258,7 +258,13 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 	r, err := h(ctx, drivers.ExecOptions{
 		Command: req.Cmd,
 		Tty:     req.Tty,
-	}, inReader, outWriter, errWriter, resizeCh)
+
+		Stdin:  inReader,
+		Stdout: outWriter,
+		Stderr: errWriter,
+
+		ResizeCh: resizeCh,
+	})
 
 	a.c.logger.Debug("taskExec Handler finished", "result", r, "error", err)
 
