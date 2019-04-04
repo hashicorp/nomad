@@ -395,10 +395,9 @@ func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.
 	return result, nil
 }
 
-func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID string, execOptions ExecOptions,
-	stdin io.Reader, stdout, stderr io.Writer, resizeCh <-chan TerminalSize) (*ExitResult, error) {
+func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID string, opts ExecOptions) (*ExitResult, error) {
 
-	d.logger.Info("exec streaming called", "resizeCh", resizeCh)
+	d.logger.Info("exec streaming called", "resizeCh", opts.ResizeCh)
 	stream, err := d.client.ExecTaskStreaming(ctx)
 	if err != nil {
 		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
@@ -407,8 +406,8 @@ func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID strin
 	err = stream.Send(&proto.ExecTaskStreamingRequest{
 		Setup: &proto.ExecTaskStreamingRequest_Setup{
 			TaskId:  taskID,
-			Command: execOptions.Command,
-			Tty:     execOptions.Tty,
+			Command: opts.Command,
+			Tty:     opts.Tty,
 		},
 	})
 	if err != nil {
@@ -420,7 +419,7 @@ func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID strin
 		case <-ctx.Done():
 			d.logger.Info("done in loop of terminal")
 			return
-		case newSize := <-resizeCh:
+		case newSize := <-opts.ResizeCh:
 			fmt.Println("received new size", "size", newSize)
 			d.logger.Info("received new size", "size", newSize)
 			stream.Send(&proto.ExecTaskStreamingRequest{
@@ -436,7 +435,7 @@ func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID strin
 		bytes := make([]byte, 1024)
 
 		for {
-			n, err := stdin.Read(bytes)
+			n, err := opts.Stdin.Read(bytes)
 			if err != nil {
 				return
 			}
@@ -464,9 +463,9 @@ func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID strin
 		case out.Output != nil:
 			switch out.Output.Type {
 			case proto.ExecTaskStreamingResponse_Output_STDOUT:
-				stdout.Write(out.Output.Value)
+				opts.Stdout.Write(out.Output.Value)
 			case proto.ExecTaskStreamingResponse_Output_STDERR:
-				stderr.Write(out.Output.Value)
+				opts.Stderr.Write(out.Output.Value)
 			}
 		case out.Result != nil:
 			return exitResultFromProto(out.Result), nil
