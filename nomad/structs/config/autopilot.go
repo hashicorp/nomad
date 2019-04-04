@@ -9,32 +9,37 @@ import (
 type AutopilotConfig struct {
 	// CleanupDeadServers controls whether to remove dead servers when a new
 	// server is added to the Raft peers.
-	CleanupDeadServers *bool `mapstructure:"cleanup_dead_servers"`
+	CleanupDeadServers *bool `hcl:"cleanup_dead_servers"`
 
 	// ServerStabilizationTime is the minimum amount of time a server must be
 	// in a stable, healthy state before it can be added to the cluster. Only
 	// applicable with Raft protocol version 3 or higher.
-	ServerStabilizationTime time.Duration `mapstructure:"server_stabilization_time"`
+	ServerStabilizationTime    time.Duration
+	ServerStabilizationTimeHCL string `hcl:"server_stabilization_time"`
 
 	// LastContactThreshold is the limit on the amount of time a server can go
 	// without leader contact before being considered unhealthy.
-	LastContactThreshold time.Duration `mapstructure:"last_contact_threshold"`
+	LastContactThreshold    time.Duration
+	LastContactThresholdHCL string `hcl:"last_contact_threshold"`
 
 	// MaxTrailingLogs is the amount of entries in the Raft Log that a server can
 	// be behind before being considered unhealthy.
-	MaxTrailingLogs int `mapstructure:"max_trailing_logs"`
+	MaxTrailingLogs int `hcl:"max_trailing_logs"`
 
 	// (Enterprise-only) EnableRedundancyZones specifies whether to enable redundancy zones.
-	EnableRedundancyZones *bool `mapstructure:"enable_redundancy_zones"`
+	EnableRedundancyZones *bool `hcl:"enable_redundancy_zones"`
 
 	// (Enterprise-only) DisableUpgradeMigration will disable Autopilot's upgrade migration
 	// strategy of waiting until enough newer-versioned servers have been added to the
 	// cluster before promoting them to voters.
-	DisableUpgradeMigration *bool `mapstructure:"disable_upgrade_migration"`
+	DisableUpgradeMigration *bool `hcl:"disable_upgrade_migration"`
 
 	// (Enterprise-only) EnableCustomUpgrades specifies whether to enable using custom
 	// upgrade versions when performing migrations.
-	EnableCustomUpgrades *bool `mapstructure:"enable_custom_upgrades"`
+	EnableCustomUpgrades *bool `hcl:"enable_custom_upgrades"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys"`
 }
 
 // DefaultAutopilotConfig() returns the canonical defaults for the Nomad

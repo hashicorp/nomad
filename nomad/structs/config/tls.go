@@ -14,10 +14,10 @@ import (
 type TLSConfig struct {
 
 	// EnableHTTP enabled TLS for http traffic to the Nomad server and clients
-	EnableHTTP bool `mapstructure:"http"`
+	EnableHTTP bool `hcl:"http"`
 
 	// EnableRPC enables TLS for RPC and Raft traffic to the Nomad servers
-	EnableRPC bool `mapstructure:"rpc"`
+	EnableRPC bool `hcl:"rpc"`
 
 	// VerifyServerHostname is used to enable hostname verification of servers. This
 	// ensures that the certificate presented is valid for server.<region>.nomad
@@ -25,15 +25,15 @@ type TLSConfig struct {
 	// intercepting request traffic as well as being added as a raft peer. This should be
 	// enabled by default with VerifyOutgoing, but for legacy reasons we cannot break
 	// existing clients.
-	VerifyServerHostname bool `mapstructure:"verify_server_hostname"`
+	VerifyServerHostname bool `hcl:"verify_server_hostname"`
 
 	// CAFile is a path to a certificate authority file. This is used with VerifyIncoming
 	// or VerifyOutgoing to verify the TLS connection.
-	CAFile string `mapstructure:"ca_file"`
+	CAFile string `hcl:"ca_file"`
 
 	// CertFile is used to provide a TLS certificate that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
-	CertFile string `mapstructure:"cert_file"`
+	CertFile string `hcl:"cert_file"`
 
 	// KeyLoader is a helper to dynamically reload TLS configuration
 	KeyLoader *KeyLoader
@@ -42,15 +42,15 @@ type TLSConfig struct {
 
 	// KeyFile is used to provide a TLS key that is used for serving TLS connections.
 	// Must be provided to serve TLS connections.
-	KeyFile string `mapstructure:"key_file"`
+	KeyFile string `hcl:"key_file"`
 
 	// RPCUpgradeMode should be enabled when a cluster is being upgraded
 	// to TLS. Allows servers to accept both plaintext and TLS connections and
 	// should only be a temporary state.
-	RPCUpgradeMode bool `mapstructure:"rpc_upgrade_mode"`
+	RPCUpgradeMode bool `hcl:"rpc_upgrade_mode"`
 
 	// Verify connections to the HTTPS API
-	VerifyHTTPSClient bool `mapstructure:"verify_https_client"`
+	VerifyHTTPSClient bool `hcl:"verify_https_client"`
 
 	// Checksum is a MD5 hash of the certificate CA File, Certificate file, and
 	// key file.
@@ -58,17 +58,17 @@ type TLSConfig struct {
 
 	// TLSCipherSuites are operator-defined ciphers to be used in Nomad TLS
 	// connections
-	TLSCipherSuites string `mapstructure:"tls_cipher_suites"`
+	TLSCipherSuites string `hcl:"tls_cipher_suites"`
 
 	// TLSMinVersion is used to set the minimum TLS version used for TLS
 	// connections. Should be either "tls10", "tls11", or "tls12".
-	TLSMinVersion string `mapstructure:"tls_min_version"`
+	TLSMinVersion string `hcl:"tls_min_version"`
 
 	// TLSPreferServerCipherSuites controls whether the server selects the
 	// client's most preferred ciphersuite, or the server's most preferred
 	// ciphersuite. If true then the server's preference, as expressed in
 	// the order of elements in CipherSuites, is used.
-	TLSPreferServerCipherSuites bool `mapstructure:"tls_prefer_server_cipher_suites"`
+	TLSPreferServerCipherSuites bool `hcl:"tls_prefer_server_cipher_suites"`
 }
 
 type KeyLoader struct {

@@ -7,6 +7,8 @@ type PluginConfig struct {
 	Name   string                 `hcl:",key"`
 	Args   []string               `hcl:"args"`
 	Config map[string]interface{} `hcl:"config"`
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys"`
 }
 
 func (p *PluginConfig) Merge(o *PluginConfig) *PluginConfig {
