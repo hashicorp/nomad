@@ -63,7 +63,7 @@ jobs:
     - run:
         name: "oss: build Linux"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-OSS-artifacts
           PRERELEASE_TARGET: prerelease
           RELEASE_TARGET: release
         path: ~/nomad-oss
@@ -85,7 +85,7 @@ jobs:
     - run:
         name: "oss: inspect changes"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-OSS-artifacts
         command: &inspect_changes |
           set -x
           cd ${ARTIFACTS_PATH}/repo
@@ -97,7 +97,7 @@ jobs:
     - run:
         name: "oss: build macOS"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-OSS-artifacts
           RELEASE_TARGET: release
         command: &build_mac |
           "${ARTIFACTS_PATH}/repo/scripts/release/mac-remote-build" \
@@ -106,7 +106,7 @@ jobs:
     - run:
         name: "oss: compress release"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-OSS-artifacts
         command: &compress_repo |
           project="$(basename ${ARTIFACTS_PATH})"
           artifacts_dir="$(dirname ${ARTIFACTS_PATH})"
@@ -125,7 +125,7 @@ jobs:
     - run:
         name: "oss: inspect checksum"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-OSS-artifacts
         command: &inspect_checksum |
           cd ${ARTIFACTS_PATH}/repo
           find pkg -type f | sort | xargs sha256sum
@@ -134,8 +134,8 @@ jobs:
     - run:
         name: "oss: upload repo to S3"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-oss-artifacts
-          ARTIFACT_NAME: nomad-oss-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-OSS-artifacts
+          ARTIFACT_NAME: nomad-OSS-artifacts
         command: &upload_s3_repo |
           destination="s3://nomad-team-test-binary/release-prep/${NOMAD_VERSION}/circleci-${CIRCLE_BUILD_NUM}/${ARTIFACT_NAME}"
 
@@ -155,11 +155,11 @@ jobs:
 
     - store_artifacts:
         name: "oss: marking repo as artifact"
-        path: /tmp/artifacts/nomad-oss-artifacts.tar.gz
+        path: /tmp/artifacts/nomad-OSS-artifacts.tar.gz
         
     - store_artifacts:
         name: "oss: marking binaries as artifact"
-        path: /tmp/artifacts/nomad-oss-artifacts/repo/pkg
+        path: /tmp/artifacts/nomad-OSS-artifacts/repo/pkg
 
     ############## Enterprise Code
     - run:
@@ -170,8 +170,8 @@ jobs:
           git reset --hard "${NOMAD_ENTERPRISE_REVISION}"
 
           # merge OSS
-          OSS_HEAD=$(git -C /tmp/artifacts/nomad-oss-artifacts/repo rev-parse HEAD)
-          git remote add oss /tmp/artifacts/nomad-oss-artifacts/repo
+          OSS_HEAD=$(git -C /tmp/artifacts/nomad-OSS-artifacts/repo rev-parse HEAD)
+          git remote add oss /tmp/artifacts/nomad-OSS-artifacts/repo
           git fetch oss
           if ! git merge ${OSS_HEAD}
           then
