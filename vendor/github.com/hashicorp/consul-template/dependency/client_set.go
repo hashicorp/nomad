@@ -62,6 +62,7 @@ type CreateConsulClientInput struct {
 // CreateVaultClientInput is used as input to the CreateVaultClient function.
 type CreateVaultClientInput struct {
 	Address     string
+	Namespace   string
 	Token       string
 	UnwrapToken bool
 	SSLEnabled  bool
@@ -263,6 +264,11 @@ func (c *ClientSet) CreateVaultClient(i *CreateVaultClientInput) error {
 	client, err := vaultapi.NewClient(vaultConfig)
 	if err != nil {
 		return fmt.Errorf("client set: vault: %s", err)
+	}
+
+	// Set the namespace if given.
+	if i.Namespace != "" {
+		client.SetNamespace(i.Namespace)
 	}
 
 	// Set the token if given

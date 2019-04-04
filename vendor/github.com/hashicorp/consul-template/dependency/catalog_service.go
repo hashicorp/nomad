@@ -34,6 +34,7 @@ type CatalogService struct {
 	ServiceName     string
 	ServiceAddress  string
 	ServiceTags     ServiceTags
+	ServiceMeta     map[string]string
 	ServicePort     int
 }
 
@@ -109,6 +110,7 @@ func (d *CatalogServiceQuery) Fetch(clients *ClientSet, opts *QueryOptions) (int
 			ServiceName:     s.ServiceName,
 			ServiceAddress:  s.ServiceAddress,
 			ServiceTags:     ServiceTags(deepCopyAndSortTags(s.ServiceTags)),
+			ServiceMeta:     s.ServiceMeta,
 			ServicePort:     s.ServicePort,
 		})
 	}
