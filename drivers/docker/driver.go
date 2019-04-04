@@ -3,7 +3,6 @@ package docker
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -1203,9 +1202,7 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 	return h.Exec(ctx, cmd[0], cmd[1:])
 }
 
-func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts drivers.ExecOptions,
-	stdin io.Reader, stdout, stderr io.Writer, resizeCh <-chan drivers.TerminalSize) (*drivers.ExitResult, error) {
-
+func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts drivers.ExecOptions) (*drivers.ExitResult, error) {
 	d.logger.Info("exectaskstreaming is called")
 
 	h, ok := d.tasks.Get(taskID)
@@ -1213,7 +1210,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	if len(execOpts.Command) == 0 {
+	if len(opts.Command) == 0 {
 		return nil, fmt.Errorf("cmd is required but was empty")
 	}
 
@@ -1221,8 +1218,8 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          execOpts.Tty,
-		Cmd:          execOpts.Command,
+		Tty:          opts.Tty,
+		Cmd:          opts.Command,
 		Container:    h.containerID,
 		Context:      ctx,
 	}
@@ -1237,7 +1234,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 			case <-ctx.Done():
 				d.logger.Info("delect resize ctx is done")
 				return
-			case s := <-resizeCh:
+			case s := <-opts.ResizeCh:
 				d.logger.Info("delect resize", "size", s)
 				client.ResizeExecTTY(exec.ID, s.Height, s.Width)
 			}
@@ -1246,11 +1243,11 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 
 	startOpts := docker.StartExecOptions{
 		Detach:       false,
-		Tty:          execOpts.Tty,
-		RawTerminal:  execOpts.Tty,
-		InputStream:  stdin,
-		OutputStream: stdout,
-		ErrorStream:  stderr,
+		Tty:          opts.Tty,
+		RawTerminal:  opts.Tty,
+		InputStream:  opts.Stdin,
+		OutputStream: opts.Stdout,
+		ErrorStream:  opts.Stderr,
 		Context:      ctx,
 	}
 	if err := client.StartExec(exec.ID, startOpts); err != nil {
