@@ -3,7 +3,6 @@ package testutils
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
@@ -195,8 +194,7 @@ type MockDriver struct {
 	TaskEventsF        func(context.Context) (<-chan *drivers.TaskEvent, error)
 	SignalTaskF        func(string, string) error
 	ExecTaskF          func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
-	ExecTaskStreamingF func(context.Context, string, drivers.ExecOptions,
-		io.Reader, io.Writer, io.Writer, <-chan drivers.TerminalSize) (*drivers.ExitResult, error)
+	ExecTaskStreamingF func(context.Context, string, drivers.ExecOptions) (*drivers.ExitResult, error)
 }
 
 func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskConfigSchemaF() }
@@ -233,10 +231,8 @@ func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration
 	return d.ExecTaskF(taskID, cmd, timeout)
 }
 
-func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts drivers.ExecOptions,
-	stdin io.Reader, stdout, stderr io.Writer, resizeCh <-chan drivers.TerminalSize) (*drivers.ExitResult, error) {
-	return d.ExecTaskStreamingF(ctx, taskID, execOpts,
-		stdin, stdout, stderr, resizeCh)
+func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts drivers.ExecOptions) (*drivers.ExitResult, error) {
+	return d.ExecTaskStreamingF(ctx, taskID, execOpts)
 }
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
