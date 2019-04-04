@@ -331,6 +331,10 @@ func (s *HTTPServer) forwardBody(encoder *codec.Encoder, reader io.Reader, errCh
 	for {
 		sf.Clear()
 		err := decoder.Decode(sf)
+		if err == io.EOF {
+			return
+		}
+
 		if err != nil {
 			errCh <- CodedError(500, err.Error())
 			return
