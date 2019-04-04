@@ -80,6 +80,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityDispatchJob,
 							NamespaceCapabilityReadLogs,
 							NamespaceCapabilityReadFS,
+							NamespaceCapabilityAllocExec,
 							NamespaceCapabilityAllocLifecycle,
 						},
 					},
