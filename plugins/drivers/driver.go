@@ -59,8 +59,6 @@ type DriverPlugin interface {
 }
 
 type ExecOptions struct {
-	taskID string
-
 	// Command is command to run
 	Command []string
 
