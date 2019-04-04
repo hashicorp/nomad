@@ -1339,13 +1339,13 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 		Enabled:       helper.BoolToPtr(true),
 		Addr:          "https://localhost/",
 		TLSServerName: "notlocalhost",
-		Namespace: testNS,
+		Namespace:     testNS,
 	}
 
 	alloc := mock.Alloc()
 	config := &TaskTemplateManagerConfig{
-		ClientConfig:   c,
-		VaultToken:     "token",
+		ClientConfig: c,
+		VaultToken:   "token",
 
 		// Make a template that will render immediately
 		Templates: []*structs.Template{
