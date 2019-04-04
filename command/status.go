@@ -11,6 +11,9 @@ import (
 
 type StatusCommand struct {
 	Meta
+
+	// Placeholder bool to allow passing of verbose flags to subcommands.
+	verbose bool
 }
 
 func (s *StatusCommand) Help() string {
@@ -23,7 +26,13 @@ Usage: nomad status [options] <identifier>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
+
+Status Options:
+
+  -verbose
+    Display full information.
+`
 
 	return strings.TrimSpace(helpText)
 }
@@ -33,7 +42,10 @@ func (c *StatusCommand) Synopsis() string {
 }
 
 func (c *StatusCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
@@ -65,6 +77,7 @@ func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *StatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
