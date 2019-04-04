@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -39,8 +40,11 @@ Exec Specific Options:
   -job <job-id>
     Use a random allocation from the specified job ID.
 
-  -T
-    Disables pseudo-terminal
+  -i, --stdin=true
+    Pass stdin to the container, defaults to true
+
+  -t, --tty=true
+    Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session
   `
 	return strings.TrimSpace(helpText)
 }
@@ -52,9 +56,11 @@ func (l *AllocExecCommand) Synopsis() string {
 func (c *AllocExecCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"--task": complete.PredictAnything,
-			"-job":   complete.PredictAnything,
-			"-T":     complete.PredictNothing,
+			"--task":  complete.PredictAnything,
+			"-job":    complete.PredictAnything,
+			"-t":      complete.PredictNothing,
+			"--tty":   complete.PredictNothing,
+			"--stdin": complete.PredictNothing,
 		})
 }
 
@@ -76,19 +82,40 @@ func (l *AllocExecCommand) AutocompleteArgs() complete.Predictor {
 func (l *AllocExecCommand) Name() string { return "alloc exec" }
 
 func (l *AllocExecCommand) Run(args []string) int {
-	var job, notty bool
+	var job bool
+	var stdinShortOpt, stdinLongOpt, ttyShortOpt, ttyLongOpt bool
 	var task string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.BoolVar(&job, "job", false, "")
-	flags.BoolVar(&notty, "T", false, "")
 	flags.StringVar(&task, "task", "", "")
+
+	flags.BoolVar(&stdinShortOpt, "i", true, "")
+	flags.BoolVar(&stdinLongOpt, "stdin", true, "")
+
+	stdinTty := isStdinTty()
+	flags.BoolVar(&ttyShortOpt, "t", stdinTty, "")
+	flags.BoolVar(&ttyLongOpt, "tty", stdinTty, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
 	args = flags.Args()
+
+	// try to infer stdin value if one option doesn't match defaults
+	stdinOpt := stdinShortOpt && stdinLongOpt
+
+	ttyOpt := stdinTty
+	if ttyLongOpt != stdinTty || ttyShortOpt != stdinTty {
+		ttyOpt = !stdinTty
+	}
+
+	if !stdinOpt {
+		// if stdin is disabled, disable tty
+		// TODO: detect if user passed incompatible settings and report
+		ttyOpt = false
+	}
 
 	if numArgs := len(args); numArgs < 1 {
 		if job {
@@ -179,13 +206,23 @@ func (l *AllocExecCommand) Run(args []string) int {
 		}
 	}
 
-	code, err := l.execImpl(client, alloc, task, !notty, command, os.Stdout, os.Stderr, os.Stdin)
+	var stdin io.Reader = os.Stdin
+	if !stdinOpt {
+		stdin = bytes.NewReader(nil)
+	}
+
+	code, err := l.execImpl(client, alloc, task, ttyOpt, command, os.Stdout, os.Stderr, stdin)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
 	}
 
 	return code
+}
+
+func isStdinTty() bool {
+	_, isTerminal := term.GetFdInfo(os.Stdin)
+	return isTerminal
 }
 
 func setRawTerminal(stream interface{}) (cleanup func(), err error) {
@@ -249,6 +286,10 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 	sizeCh := make(chan api.TerminalSize, 1)
 
 	if tty {
+		if inReader == nil {
+			return -1, fmt.Errorf("stdin is null")
+		}
+
 		inCleanup, err := setRawTerminal(inReader)
 		if err != nil {
 			return -1, err
