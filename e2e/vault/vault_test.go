@@ -12,8 +12,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/go-version"
 
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
@@ -254,8 +257,32 @@ func testVaultCompatibility(t *testing.T, vault string) {
 func setupVault(t *testing.T, client *vapi.Client) string {
 	// Write the policy
 	sys := client.Sys()
-	if err := sys.PutPolicy("nomad-server", policy); err != nil {
-		t.Fatalf("failed to create policy: %v", err)
+
+	// pre-0.9.0 vault servers do not work with our new vault client for the policy endpoint
+	// perform this using a raw HTTP request
+	newApi, err := version.NewVersion("0.9.0")
+	if err != nil {
+		t.Fatalf("failed to parse comparison version: %v", err)
+	}
+	testVersion, err := version.NewVersion(strings.TrimPrefix(t.Name(), "TestVaultCompatibility/"))
+	if err != nil {
+		t.Fatalf("failed to parse test version from '%v': %v", t.Name(), err)
+	}
+	if testVersion.LessThan(newApi) {
+		body := map[string]string{
+			"rules": policy,
+		}
+		request := client.NewRequest("PUT", fmt.Sprintf("/v1/sys/policy/%s", "nomad-server"))
+		if err := request.SetJSONBody(body); err != nil {
+			t.Fatalf("failed to set JSON body on legacy policy creation: %v", err)
+		}
+		if _, err := client.RawRequest(request); err != nil {
+			t.Fatalf("failed to create legacy policy: %v", err)
+		}
+	} else {
+		if err := sys.PutPolicy("nomad-server", policy); err != nil {
+			t.Fatalf("failed to create policy: %v", err)
+		}
 	}
 
 	// Build the role
