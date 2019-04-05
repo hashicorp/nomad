@@ -301,6 +301,14 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 		for {
 
 			n, err := reader.Read(bytes)
+			if err == io.EOF || err == io.ErrClosedPipe {
+				server.Send(&proto.ExecTaskStreamingResponse{
+					Output: &proto.ExecTaskStreamingResponse_Output{
+						Type:  typ,
+						Close: true,
+					},
+				})
+			}
 			if err != nil {
 				return
 			}
@@ -331,6 +339,8 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 					Height: int(msg.Resize.Height),
 					Width:  int(msg.Resize.Width),
 				}
+			case msg.Input != nil && msg.Input.Close:
+				inWriter.Close()
 			case msg.Input != nil:
 				inWriter.Write(msg.Input.Value)
 			}

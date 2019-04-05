@@ -66,9 +66,9 @@ type ExecOptions struct {
 	Tty bool
 
 	// streams
-	Stdin  io.Reader
-	Stdout io.Writer
-	Stderr io.Writer
+	Stdin  io.ReadCloser
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
 
 	// terminal size channel
 	ResizeCh <-chan TerminalSize

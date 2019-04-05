@@ -436,6 +436,14 @@ func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID strin
 
 		for {
 			n, err := opts.Stdin.Read(bytes)
+			if err == io.EOF || err == io.ErrClosedPipe {
+				_ = stream.Send(&proto.ExecTaskStreamingRequest{
+					Input: &proto.ExecTaskStreamingRequest_Input{
+						Close: true,
+					},
+				})
+			}
+
 			if err != nil {
 				return
 			}
@@ -463,9 +471,17 @@ func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID strin
 		case out.Output != nil:
 			switch out.Output.Type {
 			case proto.ExecTaskStreamingResponse_Output_STDOUT:
-				opts.Stdout.Write(out.Output.Value)
+				if out.Output.Close {
+					opts.Stdout.Close()
+				} else {
+					opts.Stdout.Write(out.Output.Value)
+				}
 			case proto.ExecTaskStreamingResponse_Output_STDERR:
-				opts.Stderr.Write(out.Output.Value)
+				if out.Output.Close {
+					opts.Stderr.Close()
+				} else {
+					opts.Stderr.Write(out.Output.Value)
+				}
 			}
 		case out.Result != nil:
 			return exitResultFromProto(out.Result), nil
