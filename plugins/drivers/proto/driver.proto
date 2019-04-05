@@ -296,6 +296,7 @@ message ExecTaskStreamingRequest {
     }
     message Input {
         bytes value = 1;
+        bool close = 2;
     }
 
     Setup setup = 1;
@@ -312,6 +313,7 @@ message ExecTaskStreamingResponse {
 
         OutputType type = 1;
         bytes value = 2;
+        bool close = 3;
     }
 
     Output output = 1;
