@@ -1346,7 +1346,7 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
-		EnvBuilder: taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
 
 	ctmplMapping, err := parseTemplateConfigs(config)
