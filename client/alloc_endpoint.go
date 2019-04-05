@@ -211,7 +211,6 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 			frame.Clear()
 			err := decoder.Decode(frame)
 			if err == io.EOF || err == io.ErrClosedPipe {
-				a.c.logger.Warn("connection closed")
 				cancel()
 				break
 			}
@@ -234,8 +233,6 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 					a.c.logger.Warn("failed to deserialize terminal size", "error", err, "value", string(frame.Data))
 					continue
 				}
-				a.c.logger.Warn("resized terminal", "value", string(frame.Data))
-
 				resizeCh <- t
 
 			}
@@ -256,8 +253,6 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 
 		ResizeCh: resizeCh,
 	})
-
-	a.c.logger.Debug("taskExec Handler finished", "result", r, "error", err)
 
 	sendFrame := func(frame *sframer.StreamFrame) {
 		buf := new(bytes.Buffer)
@@ -281,8 +276,6 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 		Data:      []byte(strconv.Itoa(r.ExitCode)),
 		FileEvent: "exit-code",
 	})
-
-	a.c.logger.Info("exec exited", "result", r, "err", err)
 
 	return
 }
