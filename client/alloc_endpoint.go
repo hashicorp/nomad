@@ -220,9 +220,14 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 				break
 			}
 			switch {
+			// stdin events
+			case frame.File == "stdin" && frame.FileEvent == "close":
+				inWriter.Close()
 			case frame.File == "stdin":
 				inWriter.Write(frame.Data)
-			case frame.FileEvent == "resize":
+
+			// tty events
+			case frame.File == "tty" && frame.FileEvent == "resize":
 				t := drivers.TerminalSize{}
 				err := json.Unmarshal(frame.Data, &t)
 				if err != nil {
@@ -296,6 +301,15 @@ func (a *Allocations) forwardOutput(encoder *codec.Encoder,
 	for {
 		n, err := reader.Read(bytes)
 		if err == io.EOF || err == io.ErrClosedPipe {
+			frame := &sframer.StreamFrame{
+				File:      source,
+				FileEvent: "close",
+			}
+			frameCodec.MustEncode(frame)
+			encoder.Encode(cstructs.StreamErrWrapper{
+				Payload: buf.Bytes(),
+			})
+
 			return nil
 		} else if err != nil {
 			a.c.logger.Warn("failed to read exec output", "source", source, "error", err)
