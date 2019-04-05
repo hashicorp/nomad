@@ -210,7 +210,7 @@ func (a *Allocations) Exec(conn io.ReadWriteCloser) {
 		for {
 			frame.Clear()
 			err := decoder.Decode(frame)
-			if err == io.EOF {
+			if err == io.EOF || err == io.ErrClosedPipe {
 				a.c.logger.Warn("connection closed")
 				cancel()
 				break
