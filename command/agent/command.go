@@ -261,6 +261,13 @@ func (c *Command) readConfig() *Config {
 		}
 	}
 
+	// Check to see if we should read the Vault namespace from the environment
+	if config.Vault.Namespace == "" {
+		if ns, ok := os.LookupEnv("VAULT_NAMESPACE"); ok {
+			config.Vault.Namespace = ns
+		}
+	}
+
 	// Default the plugin directory to be under that of the data directory if it
 	// isn't explicitly specified.
 	if config.PluginDir == "" && config.DataDir != "" {
