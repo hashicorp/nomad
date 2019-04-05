@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -187,20 +186,20 @@ func TestVaultCompatibility(t *testing.T) {
 	for version, vaultBin := range vaultBinaries {
 		vbin := vaultBin
 		t.Run(version, func(t *testing.T) {
-			testVaultCompatibility(t, vbin)
+			testVaultCompatibility(t, vbin, version)
 		})
 	}
 }
 
 // testVaultCompatibility tests compatibility with the given vault binary
-func testVaultCompatibility(t *testing.T, vault string) {
+func testVaultCompatibility(t *testing.T, vault string, version string) {
 	require := require.New(t)
 
 	// Create a Vault server
 	v := testutil.NewTestVaultFromPath(t, vault)
 	defer v.Stop()
 
-	token := setupVault(t, v.Client)
+	token := setupVault(t, v.Client, version)
 
 	// Create a Nomad agent using the created vault
 	nomad := agent.NewTestAgent(t, t.Name(), func(c *agent.Config) {
@@ -254,17 +253,14 @@ func testVaultCompatibility(t *testing.T, vault string) {
 
 // setupVault takes the Vault client and creates the required policies and
 // roles. It returns the token that should be used by Nomad
-func setupVault(t *testing.T, client *vapi.Client) string {
+func setupVault(t *testing.T, client *vapi.Client, vaultVersion string) string {
 	// Write the policy
 	sys := client.Sys()
 
 	// pre-0.9.0 vault servers do not work with our new vault client for the policy endpoint
 	// perform this using a raw HTTP request
-	newApi, err := version.NewVersion("0.9.0")
-	if err != nil {
-		t.Fatalf("failed to parse comparison version: %v", err)
-	}
-	testVersion, err := version.NewVersion(strings.TrimPrefix(t.Name(), "TestVaultCompatibility/"))
+	newApi, _ := version.NewVersion("0.9.0")
+	testVersion, err := version.NewVersion(vaultVersion)
 	if err != nil {
 		t.Fatalf("failed to parse test version from '%v': %v", t.Name(), err)
 	}
