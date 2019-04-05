@@ -176,9 +176,9 @@ func TestVaultClient_BadConfig(t *testing.T) {
 	}
 }
 
-// TestVaultClient_NamespaceSupport tests that the Vault namespace config, if present, will result in the
+// TestVaultClient_WithNamespaceSupport tests that the Vault namespace config, if present, will result in the
 // namespace header being set on the created Vault client.
-func TestVaultClient_NamespaceSupport(t *testing.T) {
+func TestVaultClient_WithNamespaceSupport(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	tr := true
@@ -198,6 +198,33 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 	}
 
 	require.Equal(testNs, c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
+	require.Equal("", c.clientSys.Headers().Get(vaultconsts.NamespaceHeaderName))
+	require.NotEqual(c.clientSys, c.client)
+}
+
+// TestVaultClient_WithoutNamespaceSupport tests that the Vault namespace config, if present, will result in the
+// namespace header being set on the created Vault client.
+func TestVaultClient_WithoutNamespaceSupport(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	tr := true
+	conf := &config.VaultConfig{
+		Addr:      "https://vault.service.consul:8200",
+		Enabled:   &tr,
+		Token:     "testvaulttoken",
+		Namespace: "",
+	}
+	logger := testlog.HCLogger(t)
+
+	// Should be no error since Vault is not enabled
+	c, err := NewVaultClient(conf, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+
+	require.Equal("", c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
+	require.Equal("", c.clientSys.Headers().Get(vaultconsts.NamespaceHeaderName))
+	require.Equal(c.clientSys, c.client)
 }
 
 // started separately.
