@@ -125,7 +125,7 @@ func (a *Allocations) Exec(alloc *Allocation, task string, tty bool, command []s
 			frame := StreamFrame{
 				Data:      sj,
 				FileEvent: "resize",
-				File:      "resize",
+				File:      "tty",
 			}
 
 			enc.Encode(frame)
@@ -137,6 +137,15 @@ func (a *Allocations) Exec(alloc *Allocation, task string, tty bool, command []s
 
 		for {
 			n, err := input.Read(bytes)
+			if err == io.EOF {
+				frame := StreamFrame{
+					FileEvent: "close",
+					File:      "stdin",
+				}
+				enc.Encode(frame)
+				return
+			}
+
 			if err != nil {
 				errCh <- err
 				return
