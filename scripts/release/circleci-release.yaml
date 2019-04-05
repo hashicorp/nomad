@@ -289,6 +289,12 @@ jobs:
         path: /tmp/artifacts/nomad-pro-artifacts/repo/pkg
 
     - run:
+        name: "list all binary versions"
+        command: |
+          cd /tmp/artifacts
+          for nomad in */repo/pkg/$(go env GOOS)_$(go env GOARCH)/nomad; do echo "${nomad}:  $(${nomad} --version)"; done | sort -k2
+
+    - run:
         name: "upload uber tarball to S3"
         command: |
           destination="s3://nomad-team-test-binary/release-prep/${NOMAD_VERSION}/circleci-${CIRCLE_BUILD_NUM}/uber-repo.tar.gz"
