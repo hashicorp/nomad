@@ -281,7 +281,7 @@ func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), e
 }
 
 func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
-	command []string, outWriter, errWriter io.Writer, inReader io.Reader) (int, error) {
+	command []string, outWriter, errWriter io.WriteCloser, inReader io.Reader) (int, error) {
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
@@ -333,6 +333,13 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 			}
 
 			switch frame.FileEvent {
+			case "":
+				w := outWriter
+				if frame.File == "stderr" {
+					w = errWriter
+				}
+
+				w.Write(frame.Data)
 			case "exit-error":
 				return -1, errors.New(string(frame.Data))
 			case "exit-code":
@@ -342,14 +349,15 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 				}
 
 				return code, nil
+			case "close":
+				// don't close stderr as we capture errors
+				if frame.File == "stdout" {
+					outWriter.Close()
+				}
+			default:
+				// unpexected file event, TODO: log it?!
 			}
 
-			w := outWriter
-			if frame.File == "stderr" {
-				w = errWriter
-			}
-
-			w.Write(frame.Data)
 		}
 	}
 }
