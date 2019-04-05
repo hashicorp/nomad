@@ -165,6 +165,7 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 
 	// SetHeaders above will replace all headers, make this call second
 	if config.Namespace != "" {
+		logger.Debug("configuring Vault namespace", "namespace", config.Namespace)
 		client.SetNamespace(config.Namespace)
 	}
 

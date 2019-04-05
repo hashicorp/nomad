@@ -254,7 +254,7 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 		}
 
 		if c.Namespace != "" {
-			logger.Debug("Setting Vault namespace", "namespace", c.Namespace)
+			logger.Debug("configuring Vault namespace", "namespace", c.Namespace)
 			v.client.SetNamespace(c.Namespace)
 		}
 
