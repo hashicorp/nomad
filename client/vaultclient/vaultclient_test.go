@@ -108,10 +108,7 @@ func TestVaultClient_NamespaceSupport(t *testing.T) {
 	conf.VaultConfig.Token = "testvaulttoken"
 	conf.VaultConfig.Namespace = testNs
 	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
-	if err != nil {
-		t.Fatalf("failed to build vault client: %v", err)
-	}
-
+	require.NoError(err)
 	require.Equal(testNs, c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
 }
 
