@@ -15,11 +15,9 @@ import (
 	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
-	vapi "github.com/hashicorp/vault/api"
-	vaultconsts "github.com/hashicorp/vault/helper/consts"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	vapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/mapstructure"
 
 	"golang.org/x/sync/errgroup"
@@ -174,8 +172,17 @@ type vaultClient struct {
 	// limiter is used to rate limit requests to Vault
 	limiter *rate.Limiter
 
-	// client is the Vault API client
+	// client is the Vault API client used for Namespace-relative integrations
+	// with the Vault API (anything except `/v1/sys`). If this server is not
+	// configured to reference a Vault namespace, this will point to the same
+	// client as clientSys
 	client *vapi.Client
+
+	// clientSys is the Vault API client used for non-Namespace-relative integrations
+	// with the Vault API (anything involving `/v1/sys`). This client is never configured
+	// with a Vault namespace, because these endpoints may return errors if a namespace
+	// header is provided
+	clientSys *vapi.Client
 
 	// auth is the Vault token auth API client
 	auth *vapi.TokenAuth
@@ -253,11 +260,6 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 			return nil, err
 		}
 
-		if c.Namespace != "" {
-			logger.Debug("configuring Vault namespace", "namespace", c.Namespace)
-			v.client.SetNamespace(c.Namespace)
-		}
-
 		// Launch the required goroutines
 		v.tomb.Go(wrapNilError(v.establishConnection))
 		v.tomb.Go(wrapNilError(v.revokeDaemon))
@@ -311,6 +313,7 @@ func (v *vaultClient) flush() {
 	defer v.l.Unlock()
 
 	v.client = nil
+	v.clientSys = nil
 	v.auth = nil
 	v.connEstablished = false
 	v.connEstablishedErr = nil
@@ -406,28 +409,26 @@ func (v *vaultClient) buildClient() error {
 		return err
 	}
 
-	// Set the token and store the client
+	// Store the client, create/assign the /sys client
+	v.client = client
+	if v.config.Namespace != "" {
+		v.logger.Debug("configuring Vault namespace", "namespace", v.config.Namespace)
+		v.clientSys, err = vapi.NewClient(apiConf)
+		if err != nil {
+			v.logger.Error("failed to create Vault sys client and not retrying", "error", err)
+			return err
+		}
+		client.SetNamespace(v.config.Namespace)
+	} else {
+		v.clientSys = client
+	}
+
+	// Set the token
 	v.token = v.config.Token
 	client.SetToken(v.token)
-	v.client = client
 	v.auth = client.Auth().Token()
+
 	return nil
-}
-
-// getVaultInitStatus is used to get the init status. It first clears the namespace header, to work around an
-// issue in Vault, then restores it.
-func (v *vaultClient) getVaultInitStatus() (bool, error) {
-	v.l.Lock()
-	defer v.l.Unlock()
-
-	// workaround for Vault behavior where namespace header causes /v1/sys/init (and other) endpoints to fail
-	if ns := v.client.Headers().Get(vaultconsts.NamespaceHeaderName); ns != "" {
-		v.client.SetNamespace("")
-		defer func() {
-			v.client.SetNamespace(ns)
-		}()
-	}
-	return v.client.Sys().InitStatus()
 }
 
 // establishConnection is used to make first contact with Vault. This should be
@@ -447,7 +448,7 @@ OUTER:
 		case <-retryTimer.C:
 			// Ensure the API is reachable
 			if !initStatus {
-				if _, err := v.getVaultInitStatus(); err != nil {
+				if _, err := v.clientSys.Sys().InitStatus(); err != nil {
 					v.logger.Warn("failed to contact Vault API", "retry", v.config.ConnectionRetryIntv, "error", err)
 					retryTimer.Reset(v.config.ConnectionRetryIntv)
 					continue OUTER
