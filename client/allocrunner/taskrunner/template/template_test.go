@@ -1346,22 +1346,6 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
-
-		// Make a template that will render immediately
-		Templates: []*structs.Template{
-			{
-				EmbeddedTmpl: "bar",
-				DestPath:     "foo",
-				ChangeMode:   structs.TemplateChangeModeNoop,
-				VaultGrace:   10 * time.Second,
-			},
-			{
-				EmbeddedTmpl: "baz",
-				DestPath:     "bam",
-				ChangeMode:   structs.TemplateChangeModeNoop,
-				VaultGrace:   100 * time.Second,
-			},
-		},
 		EnvBuilder: taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
 	}
 
