@@ -1203,8 +1203,6 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 }
 
 func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts drivers.ExecOptions) (*drivers.ExitResult, error) {
-	d.logger.Info("exectaskstreaming is called")
-
 	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -1232,10 +1230,8 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts driv
 		for {
 			select {
 			case <-ctx.Done():
-				d.logger.Info("delect resize ctx is done")
 				return
 			case s := <-opts.ResizeCh:
-				d.logger.Info("delect resize", "size", s)
 				client.ResizeExecTTY(exec.ID, s.Height, s.Width)
 			}
 		}
