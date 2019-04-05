@@ -185,7 +185,7 @@ jobs:
     - run:
         name: "ent: build Linux"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ENT-artifacts
           PRERELEASE_TARGET: prerelease
           RELEASE_TARGET: release
         path: ~/nomad-ent
@@ -194,55 +194,55 @@ jobs:
     - run:
         name: "ent: inspect changes"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ENT-artifacts
         command: *inspect_changes
 
     - run:
         name: "ent: build macOS"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ENT-artifacts
           RELEASE_TARGET: release
         command: *build_mac
 
     - run:
         name: "ent: compress release"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ENT-artifacts
         command: *compress_repo
 
     - run:
         name: "ent: inspect checksum"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ENT-artifacts
         command: *inspect_checksum
 
     - run:
         name: "ent: upload repo to S3"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-ent-artifacts
-          ARTIFACT_NAME: nomad-ent-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-ENT-artifacts
+          ARTIFACT_NAME: nomad-ENT-artifacts
         command: *upload_s3_repo
 
     - store_artifacts:
         name: "ent: marking repo as artifact"
-        path: /tmp/artifacts/nomad-ent-artifacts.tar.gz
+        path: /tmp/artifacts/nomad-ENT-artifacts.tar.gz
         
     - store_artifacts:
         name: "ent: marking binaries as artifact"
-        path: /tmp/artifacts/nomad-ent-artifacts/repo/pkg
+        path: /tmp/artifacts/nomad-ENT-artifacts/repo/pkg
 
     ############## Pro Code
     - run:
         name: "pro: checkout code"
         command: |
-          git clone /tmp/artifacts/nomad-ent-artifacts/repo/.git ~/nomad-pro
+          git clone /tmp/artifacts/nomad-ENT-artifacts/repo/.git ~/nomad-pro
           cd ~/nomad-pro
           git remote set-url origin git@github.com:hashicorp/nomad-enterprise.git
 
     - run:
         name: "pro: build Linux"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-PRO-artifacts
           PRERELEASE_TARGET: help # prerelease is a NOOP
           RELEASE_TARGET: prorelease
         path: ~/nomad-pro
@@ -251,42 +251,42 @@ jobs:
     - run:
         name: "pro: inspect changes"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-PRO-artifacts
         command: *inspect_changes
 
     - run:
         name: "pro: build macOS"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-PRO-artifacts
           RELEASE_TARGET: prorelease
         command: *build_mac
 
     - run:
         name: "pro: compress release"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-PRO-artifacts
         command: *compress_repo
 
     - run:
         name: "pro: inspect checksum"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-PRO-artifacts
         command: *inspect_checksum
 
     - run:
         name: "pro: upload repo to S3"
         environment:
-          ARTIFACTS_PATH: /tmp/artifacts/nomad-pro-artifacts
-          ARTIFACT_NAME: nomad-pro-artifacts
+          ARTIFACTS_PATH: /tmp/artifacts/nomad-PRO-artifacts
+          ARTIFACT_NAME: nomad-PRO-artifacts
         command: *upload_s3_repo
 
     - store_artifacts:
         name: "pro: marking repo as artifact"
-        path: /tmp/artifacts/nomad-pro-artifacts.tar.gz
+        path: /tmp/artifacts/nomad-PRO-artifacts.tar.gz
         
     - store_artifacts:
         name: "pro: marking binaries as artifact"
-        path: /tmp/artifacts/nomad-pro-artifacts/repo/pkg
+        path: /tmp/artifacts/nomad-PRO-artifacts/repo/pkg
 
     - run:
         name: "list all binary versions"
