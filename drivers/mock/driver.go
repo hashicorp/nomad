@@ -72,17 +72,29 @@ var (
 		"start_block_for":         hclspec.NewAttr("start_block_for", "string", false),
 		"kill_after":              hclspec.NewAttr("kill_after", "string", false),
 		"plugin_exit_after":       hclspec.NewAttr("plugin_exit_after", "string", false),
-		"run_for":                 hclspec.NewAttr("run_for", "string", false),
-		"exit_code":               hclspec.NewAttr("exit_code", "number", false),
-		"exit_signal":             hclspec.NewAttr("exit_signal", "number", false),
-		"exit_err_msg":            hclspec.NewAttr("exit_err_msg", "string", false),
-		"signal_error":            hclspec.NewAttr("signal_error", "string", false),
 		"driver_ip":               hclspec.NewAttr("driver_ip", "string", false),
 		"driver_advertise":        hclspec.NewAttr("driver_advertise", "bool", false),
 		"driver_port_map":         hclspec.NewAttr("driver_port_map", "string", false),
-		"stdout_string":           hclspec.NewAttr("stdout_string", "string", false),
-		"stdout_repeat":           hclspec.NewAttr("stdout_repeat", "number", false),
-		"stdout_repeat_duration":  hclspec.NewAttr("stdout_repeat_duration", "string", false),
+
+		"run_for":                hclspec.NewAttr("run_for", "string", false),
+		"exit_code":              hclspec.NewAttr("exit_code", "number", false),
+		"exit_signal":            hclspec.NewAttr("exit_signal", "number", false),
+		"exit_err_msg":           hclspec.NewAttr("exit_err_msg", "string", false),
+		"signal_error":           hclspec.NewAttr("signal_error", "string", false),
+		"stdout_string":          hclspec.NewAttr("stdout_string", "string", false),
+		"stdout_repeat":          hclspec.NewAttr("stdout_repeat", "number", false),
+		"stdout_repeat_duration": hclspec.NewAttr("stdout_repeat_duration", "string", false),
+
+		"exec_command": hclspec.NewBlock("exec_command", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"run_for":                hclspec.NewAttr("run_for", "string", false),
+			"exit_code":              hclspec.NewAttr("exit_code", "number", false),
+			"exit_signal":            hclspec.NewAttr("exit_signal", "number", false),
+			"exit_err_msg":           hclspec.NewAttr("exit_err_msg", "string", false),
+			"signal_error":           hclspec.NewAttr("signal_error", "string", false),
+			"stdout_string":          hclspec.NewAttr("stdout_string", "string", false),
+			"stdout_repeat":          hclspec.NewAttr("stdout_repeat", "number", false),
+			"stdout_repeat_duration": hclspec.NewAttr("stdout_repeat_duration", "string", false),
+		})),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -156,8 +168,44 @@ type Config struct {
 	ShutdownPeriodicDuration time.Duration `codec:"shutdown_periodic_duration"`
 }
 
+type Command struct {
+	// RunFor is the duration for which the fake task runs for. After this
+	// period the MockDriver responds to the task running indicating that the
+	// task has terminated
+	RunFor         string `codec:"run_for"`
+	runForDuration time.Duration
+
+	// ExitCode is the exit code with which the MockDriver indicates the task
+	// has exited
+	ExitCode int `codec:"exit_code"`
+
+	// ExitSignal is the signal with which the MockDriver indicates the task has
+	// been killed
+	ExitSignal int `codec:"exit_signal"`
+
+	// ExitErrMsg is the error message that the task returns while exiting
+	ExitErrMsg string `codec:"exit_err_msg"`
+
+	// SignalErr is the error message that the task returns if signalled
+	SignalErr string `codec:"signal_error"`
+
+	// StdoutString is the string that should be sent to stdout
+	StdoutString string `codec:"stdout_string"`
+
+	// StdoutRepeat is the number of times the output should be sent.
+	StdoutRepeat int `codec:"stdout_repeat"`
+
+	// StdoutRepeatDur is the duration between repeated outputs.
+	StdoutRepeatDur      string `codec:"stdout_repeat_duration"`
+	stdoutRepeatDuration time.Duration
+}
+
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
+	Command
+
+	ExecCommand *Command `codec:"exec"`
+
 	// PluginExitAfter is the duration after which the mock driver indicates the
 	// plugin has exited via the WaitTask call.
 	PluginExitAfter         string `codec:"plugin_exit_after"`
@@ -179,26 +227,6 @@ type TaskConfig struct {
 	KillAfter         string `codec:"kill_after"`
 	killAfterDuration time.Duration
 
-	// RunFor is the duration for which the fake task runs for. After this
-	// period the MockDriver responds to the task running indicating that the
-	// task has terminated
-	RunFor         string `codec:"run_for"`
-	runForDuration time.Duration
-
-	// ExitCode is the exit code with which the MockDriver indicates the task
-	// has exited
-	ExitCode int `codec:"exit_code"`
-
-	// ExitSignal is the signal with which the MockDriver indicates the task has
-	// been killed
-	ExitSignal int `codec:"exit_signal"`
-
-	// ExitErrMsg is the error message that the task returns while exiting
-	ExitErrMsg string `codec:"exit_err_msg"`
-
-	// SignalErr is the error message that the task returns if signalled
-	SignalErr string `codec:"signal_error"`
-
 	// DriverIP will be returned as the DriverNetwork.IP from Start()
 	DriverIP string `codec:"driver_ip"`
 
@@ -209,16 +237,6 @@ type TaskConfig struct {
 	// DriverPortMap will parse a label:number pair and return it in
 	// DriverNetwork.PortMap from Start().
 	DriverPortMap string `codec:"driver_port_map"`
-
-	// StdoutString is the string that should be sent to stdout
-	StdoutString string `codec:"stdout_string"`
-
-	// StdoutRepeat is the number of times the output should be sent.
-	StdoutRepeat int `codec:"stdout_repeat"`
-
-	// StdoutRepeatDur is the duration between repeated outputs.
-	StdoutRepeatDur      string `codec:"stdout_repeat_duration"`
-	stdoutRepeatDuration time.Duration
 }
 
 type MockTaskState struct {
@@ -329,6 +347,19 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func (c *Command) parseDurations() error {
+	var err error
+	if c.runForDuration, err = parseDuration(c.RunFor); err != nil {
+		return fmt.Errorf("run_for %v not a valid duration: %v", c.RunFor, err)
+	}
+
+	if c.stdoutRepeatDuration, err = parseDuration(c.StdoutRepeatDur); err != nil {
+		return fmt.Errorf("stdout_repeat_duration %v not a valid duration: %v", c.stdoutRepeatDuration, err)
+	}
+
+	return nil
+}
+
 func parseDriverConfig(cfg *drivers.TaskConfig) (*TaskConfig, error) {
 	var driverConfig TaskConfig
 	if err := cfg.DecodeDriverConfig(&driverConfig); err != nil {
@@ -340,16 +371,18 @@ func parseDriverConfig(cfg *drivers.TaskConfig) (*TaskConfig, error) {
 		return nil, fmt.Errorf("start_block_for %v not a valid duration: %v", driverConfig.StartBlockFor, err)
 	}
 
-	if driverConfig.runForDuration, err = parseDuration(driverConfig.RunFor); err != nil {
-		return nil, fmt.Errorf("run_for %v not a valid duration: %v", driverConfig.RunFor, err)
-	}
-
 	if driverConfig.pluginExitAfterDuration, err = parseDuration(driverConfig.PluginExitAfter); err != nil {
 		return nil, fmt.Errorf("plugin_exit_after %v not a valid duration: %v", driverConfig.PluginExitAfter, err)
 	}
 
-	if driverConfig.stdoutRepeatDuration, err = parseDuration(driverConfig.StdoutRepeatDur); err != nil {
-		return nil, fmt.Errorf("stdout_repeat_duration %v not a valid duration: %v", driverConfig.stdoutRepeatDuration, err)
+	if err = driverConfig.parseDurations(); err != nil {
+		return nil, err
+	}
+
+	if driverConfig.ExecCommand != nil {
+		if err = driverConfig.ExecCommand.parseDurations(); err != nil {
+			return nil, err
+		}
 	}
 
 	return &driverConfig, nil
@@ -359,25 +392,14 @@ func newTaskHandle(cfg *drivers.TaskConfig, driverConfig *TaskConfig, logger hcl
 	killCtx, killCancel := context.WithCancel(context.Background())
 	h := &taskHandle{
 		taskConfig:      cfg,
-		runFor:          driverConfig.runForDuration,
+		command:         driverConfig.Command,
 		pluginExitAfter: driverConfig.pluginExitAfterDuration,
 		killAfter:       driverConfig.killAfterDuration,
-		exitCode:        driverConfig.ExitCode,
-		exitSignal:      driverConfig.ExitSignal,
-		stdoutString:    driverConfig.StdoutString,
-		stdoutRepeat:    driverConfig.StdoutRepeat,
-		stdoutRepeatDur: driverConfig.stdoutRepeatDuration,
 		logger:          logger.With("task_name", cfg.Name),
-		waitCh:          make(chan struct{}),
+		waitCh:          make(chan interface{}),
 		killCh:          killCtx.Done(),
 		kill:            killCancel,
 		startedAt:       time.Now(),
-	}
-	if driverConfig.ExitErrMsg != "" {
-		h.exitErr = errors.New(driverConfig.ExitErrMsg)
-	}
-	if driverConfig.SignalErr != "" {
-		h.signalErr = fmt.Errorf(driverConfig.SignalErr)
 	}
 	return h
 }
@@ -541,7 +563,11 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 		return drivers.ErrTaskNotFound
 	}
 
-	return h.signalErr
+	if h.command.SignalErr == "" {
+		return nil
+	}
+
+	return errors.New(h.command.SignalErr)
 }
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
