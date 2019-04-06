@@ -1,17 +1,25 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/config"
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+	"github.com/ugorji/go/codec"
 )
 
 func TestAllocations_Restart(t *testing.T) {
@@ -360,5 +368,128 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
 		require.True(nstructs.IsErrUnknownAllocation(err))
+	}
+}
+
+func TestAlloc_ExecStreaming(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s := nomad.TestServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer cleanup()
+
+	expected := "Hello from the other side\n"
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+		"exec_command": map[string]interface{}{
+			"run_for":       "1ms",
+			"stdout_string": expected,
+			"exit_code":     3,
+		},
+	}
+
+	// Wait for client to be running job
+	testutil.WaitForRunning(t, s.RPC, job)
+
+	// Get the allocation ID
+	args := nstructs.AllocListRequest{}
+	args.Region = "global"
+	resp := nstructs.AllocListResponse{}
+	require.NoError(s.RPC("Alloc.List", &args, &resp))
+	require.Len(resp.Allocations, 1)
+	allocID := resp.Allocations[0].ID
+
+	// Make the request
+	req := &cstructs.AllocExecRequest{
+		AllocID:      allocID,
+		Task:         job.TaskGroups[0].Tasks[0].Name,
+		Tty:          true,
+		Cmd:          []string{"placeholder command"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
+	}
+
+	// Get the handler
+	handler, err := c.StreamingRpcHandler("Allocations.Exec")
+	require.Nil(err)
+
+	// Create a pipe
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	frames := make(chan *sframer.StreamFrame)
+
+	// Start the handler
+	go handler(p2)
+
+	// Start the decoder
+	go func() {
+		decoder := codec.NewDecoder(p1, nstructs.MsgpackHandle)
+
+		for {
+			var msg cstructs.StreamErrWrapper
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF || strings.Contains(err.Error(), "closed") {
+					return
+				}
+				t.Logf("received error decoding: %#v", err)
+				return
+
+				//errCh <- fmt.Errorf("error decoding: %v", err)
+			}
+
+			var frame sframer.StreamFrame
+			json.Unmarshal(msg.Payload, &frame)
+			t.Logf("received message: %#v", msg)
+			frames <- &frame
+		}
+	}()
+
+	// Send the request
+	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
+	require.Nil(encoder.Encode(req))
+
+	timeout := time.After(3 * time.Second)
+
+	received := ""
+	exitCode := -1
+
+OUTER:
+	for {
+		select {
+		case <-timeout:
+			t.Fatalf("timeout and exitCode: %v; received so far: %v ", exitCode, received)
+		case err := <-errCh:
+			t.Fatal(err)
+		case frame := <-frames:
+			t.Logf("received accumulated %v with new %v", received, frame)
+
+			switch frame.FileEvent {
+			case "":
+				received += string(frame.Data)
+			case "exit-code":
+				code, err := strconv.Atoi(string(frame.Data))
+				if err != nil {
+					panic(err)
+				}
+				exitCode = code
+			default:
+				t.Logf("received unexpected frame: %#v", frame)
+			}
+
+			if received == expected && exitCode == 3 {
+				break OUTER
+			}
+		}
 	}
 }
