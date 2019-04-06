@@ -48,8 +48,8 @@ func runCommand(c Command, stdout, stderr io.WriteCloser, cancelCh <-chan struct
 }
 
 func runCommandOutput(c Command, stdout, stderr io.WriteCloser, cancelCh <-chan struct{}, logger hclog.Logger, errCh chan error) {
-	defer stdout.Close()
-	defer stderr.Close()
+	//defer stdout.Close()
+	//defer stderr.Close()
 
 	if c.StdoutString == "" {
 		return
