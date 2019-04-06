@@ -3,6 +3,7 @@ package mock
 import (
 	"errors"
 	"io"
+	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -13,7 +14,18 @@ import (
 func runCommand(c Command, stdout, stderr io.WriteCloser, cancelCh <-chan struct{}, pluginExitTimer <-chan time.Time, logger hclog.Logger) *drivers.ExitResult {
 	errCh := make(chan error, 1)
 
-	go runCommandOutput(c, stdout, stderr, cancelCh, logger, errCh)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runCommandOutput(stdout, c.StdoutString, c.StdoutRepeat, c.stdoutRepeatDuration, cancelCh, logger, errCh)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runCommandOutput(stderr, c.StderrString, c.StderrRepeat, c.stderrRepeatDuration, cancelCh, logger, errCh)
+	}()
 
 	timer := time.NewTimer(c.runForDuration)
 	defer timer.Stop()
@@ -35,6 +47,8 @@ func runCommand(c Command, stdout, stderr io.WriteCloser, cancelCh <-chan struct
 		}
 	}
 
+	wg.Wait()
+
 	var exitErr error
 	if c.ExitErrMsg != "" {
 		exitErr = errors.New(c.ExitErrMsg)
@@ -47,27 +61,29 @@ func runCommand(c Command, stdout, stderr io.WriteCloser, cancelCh <-chan struct
 	}
 }
 
-func runCommandOutput(c Command, stdout, stderr io.WriteCloser, cancelCh <-chan struct{}, logger hclog.Logger, errCh chan error) {
-	//defer stdout.Close()
-	//defer stderr.Close()
+func runCommandOutput(writer io.WriteCloser,
+	output string, outputRepeat int, repeatDuration time.Duration,
+	cancelCh <-chan struct{}, logger hclog.Logger, errCh chan error) {
 
-	if c.StdoutString == "" {
+	defer writer.Close()
+
+	if output == "" {
 		return
 	}
 
-	if _, err := io.WriteString(stdout, c.StdoutString); err != nil {
+	if _, err := io.WriteString(writer, output); err != nil {
 		logger.Error("failed to write to stdout", "error", err)
 		errCh <- err
 		return
 	}
 
-	for i := 0; i < c.StdoutRepeat; i++ {
+	for i := 0; i < outputRepeat; i++ {
 		select {
 		case <-cancelCh:
-			logger.Warn("exiting before done writing output", "i", i, "total", c.StdoutRepeat)
+			logger.Warn("exiting before done writing output", "i", i, "total", outputRepeat)
 			return
-		case <-time.After(c.stdoutRepeatDuration):
-			if _, err := io.WriteString(stdout, c.StdoutString); err != nil {
+		case <-time.After(repeatDuration):
+			if _, err := io.WriteString(writer, output); err != nil {
 				logger.Error("failed to write to stdout", "error", err)
 				errCh <- err
 				return

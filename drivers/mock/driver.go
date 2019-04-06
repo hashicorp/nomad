@@ -84,6 +84,9 @@ var (
 		"stdout_string":          hclspec.NewAttr("stdout_string", "string", false),
 		"stdout_repeat":          hclspec.NewAttr("stdout_repeat", "number", false),
 		"stdout_repeat_duration": hclspec.NewAttr("stdout_repeat_duration", "string", false),
+		"stderr_string":          hclspec.NewAttr("stderr_string", "string", false),
+		"stderr_repeat":          hclspec.NewAttr("stderr_repeat", "number", false),
+		"stderr_repeat_duration": hclspec.NewAttr("stderr_repeat_duration", "string", false),
 
 		"exec_command": hclspec.NewBlock("exec_command", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"run_for":                hclspec.NewAttr("run_for", "string", false),
@@ -94,6 +97,9 @@ var (
 			"stdout_string":          hclspec.NewAttr("stdout_string", "string", false),
 			"stdout_repeat":          hclspec.NewAttr("stdout_repeat", "number", false),
 			"stdout_repeat_duration": hclspec.NewAttr("stdout_repeat_duration", "string", false),
+			"stderr_string":          hclspec.NewAttr("stderr_string", "string", false),
+			"stderr_repeat":          hclspec.NewAttr("stderr_repeat", "number", false),
+			"stderr_repeat_duration": hclspec.NewAttr("stderr_repeat_duration", "string", false),
 		})),
 	})
 
@@ -198,6 +204,16 @@ type Command struct {
 	// StdoutRepeatDur is the duration between repeated outputs.
 	StdoutRepeatDur      string `codec:"stdout_repeat_duration"`
 	stdoutRepeatDuration time.Duration
+
+	// StderrString is the string that should be sent to stderr
+	StderrString string `codec:"stderr_string"`
+
+	// StderrRepeat is the number of times the errput should be sent.
+	StderrRepeat int `codec:"stderr_repeat"`
+
+	// StderrRepeatDur is the duration between repeated errputs.
+	StderrRepeatDur      string `codec:"stderr_repeat_duration"`
+	stderrRepeatDuration time.Duration
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -355,6 +371,10 @@ func (c *Command) parseDurations() error {
 
 	if c.stdoutRepeatDuration, err = parseDuration(c.StdoutRepeatDur); err != nil {
 		return fmt.Errorf("stdout_repeat_duration %v not a valid duration: %v", c.stdoutRepeatDuration, err)
+	}
+
+	if c.stderrRepeatDuration, err = parseDuration(c.StderrRepeatDur); err != nil {
+		return fmt.Errorf("stderr_repeat_duration %v not a valid duration: %v", c.stderrRepeatDuration, err)
 	}
 
 	return nil
@@ -590,7 +610,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	d.logger.Warn("executing task", "command", h.execCommand, "task_id", taskID)
+	d.logger.Info("executing task", "command", h.execCommand, "task_id", taskID)
 
 	if h.execCommand == nil {
 		return nil, errors.New("no exec command is configured")
