@@ -357,7 +357,7 @@ using your own environment, please make sure Consul Template is installed. You
 can download it [here][ct-download].
 
 Provide the token you created in [Step
-8](#step-8-generate-a-token-based-on-tls-policy) to the Consul Template
+9](#step-9-generate-a-token-based-on-tls-policy) to the Consul Template
 configuration file located at `/etc/consul-template.d/consul-template.hcl`. You
 will also need to specify the [template stanza][ct-template-stanza] so you can
 render each of the following on your nodes at the specified location from the
