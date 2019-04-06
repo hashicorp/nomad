@@ -112,7 +112,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	// Decode the arguments
 	var req cstructs.AllocExecRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
-	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	encoder := newSyncEncoder(codec.NewEncoder(conn, structs.MsgpackHandle))
 
 	if err := decoder.Decode(&req); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
@@ -280,7 +280,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	return
 }
 
-func (a *Allocations) forwardOutput(encoder *codec.Encoder,
+func (a *Allocations) forwardOutput(encoder encoder,
 	reader io.Reader, source string) error {
 
 	buf := new(bytes.Buffer)
@@ -299,7 +299,7 @@ func (a *Allocations) forwardOutput(encoder *codec.Encoder,
 				FileEvent: "close",
 			}
 			frameCodec.MustEncode(frame)
-			encoder.Encode(cstructs.StreamErrWrapper{
+			err = encoder.Encode(cstructs.StreamErrWrapper{
 				Payload: buf.Bytes(),
 			})
 
@@ -318,4 +318,6 @@ func (a *Allocations) forwardOutput(encoder *codec.Encoder,
 		buf.Reset()
 		frameCodec.Reset(buf)
 	}
+
+	return nil
 }
