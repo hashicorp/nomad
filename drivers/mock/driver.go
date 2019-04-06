@@ -393,6 +393,7 @@ func newTaskHandle(cfg *drivers.TaskConfig, driverConfig *TaskConfig, logger hcl
 	h := &taskHandle{
 		taskConfig:      cfg,
 		command:         driverConfig.Command,
+		execCommand:     driverConfig.ExecCommand,
 		pluginExitAfter: driverConfig.pluginExitAfterDuration,
 		killAfter:       driverConfig.killAfterDuration,
 		logger:          logger.With("task_name", cfg.Name),
@@ -584,7 +585,18 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 }
 
 func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts drivers.ExecOptions) (*drivers.ExitResult, error) {
-	return nil, errors.New("not supported")
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, drivers.ErrTaskNotFound
+	}
+
+	if h.execCommand == nil {
+		return nil, errors.New("no exec command is configured")
+	}
+
+	cancelCh := make(chan struct{})
+	exitTimer := make(chan time.Time)
+	return runCommand(*h.execCommand, execOpts.Stdout, execOpts.Stderr, cancelCh, exitTimer, d.logger), nil
 }
 
 // GetTaskConfig is unique to the mock driver and for testing purposes only. It
