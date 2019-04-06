@@ -527,7 +527,7 @@ Reload Nomad's configuration on all nodes:
 ```shell
 $ systemctl reload nomad
 ```
-Once Nomad has been reloaded on all Nodes, go back to your server nodes and
+Once Nomad has been reloaded on all nodes, go back to your server nodes and
 change the `rpc_upgrade_mode` option to false (or remove the line since the
 option defaults to false) so that your Nomad servers will only accept TLS
 connections:
