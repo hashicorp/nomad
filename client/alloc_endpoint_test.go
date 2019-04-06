@@ -385,14 +385,16 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	})
 	defer cleanup()
 
-	expected := "Hello from the other side\n"
+	expectedStdout := "Hello from the other side\n"
+	expectedStderr := "Hello from the other side\n"
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "20s",
 		"exec_command": map[string]interface{}{
-			"run_for":       "1ms",
-			"stdout_string": expected,
+			"run_for":       "1s",
+			"stdout_string": expectedStdout,
+			"stderr_string": expectedStderr,
 			"exit_code":     3,
 		},
 	}
@@ -443,9 +445,9 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 					return
 				}
 				t.Logf("received error decoding: %#v", err)
-				return
 
-				//errCh <- fmt.Errorf("error decoding: %v", err)
+				errCh <- fmt.Errorf("error decoding: %v", err)
+				return
 			}
 
 			var frame sframer.StreamFrame
@@ -461,33 +463,38 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 
 	timeout := time.After(3 * time.Second)
 
-	received := ""
 	exitCode := -1
+	receivedStdout := ""
+	receivedStderr := ""
 
 OUTER:
 	for {
 		select {
 		case <-timeout:
-			t.Fatalf("timeout and exitCode: %v; received so far: %v ", exitCode, received)
+			// time out report
+			require.Equal(expectedStdout, receivedStderr, "didn't receive expected stdout")
+			require.Equal(expectedStderr, receivedStderr, "didn't receive expected stderr")
+			require.Equal(3, exitCode, "failed to get exit code")
+			require.FailNow("timed out")
 		case err := <-errCh:
 			t.Fatal(err)
-		case frame := <-frames:
-			t.Logf("received accumulated %v with new %v", received, frame)
-
-			switch frame.FileEvent {
-			case "":
-				received += string(frame.Data)
-			case "exit-code":
-				code, err := strconv.Atoi(string(frame.Data))
-				if err != nil {
-					panic(err)
-				}
+		case f := <-frames:
+			switch {
+			case f.File == "stdout" && f.FileEvent == "":
+				receivedStdout += string(f.Data)
+			case f.File == "stderr" && f.FileEvent == "":
+				receivedStderr += string(f.Data)
+			case f.FileEvent == "exit-code":
+				code, err := strconv.Atoi(string(f.Data))
+				require.NoError(err)
 				exitCode = code
+			case f.FileEvent == "close":
+				// do nothing
 			default:
-				t.Logf("received unexpected frame: %#v", frame)
+				require.Failf("unexpected frame", "event=%#v", f)
 			}
 
-			if received == expected && exitCode == 3 {
+			if expectedStdout == receivedStdout && expectedStderr == receivedStderr && exitCode == 3 {
 				break OUTER
 			}
 		}
