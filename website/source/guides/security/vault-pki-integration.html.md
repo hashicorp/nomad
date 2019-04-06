@@ -501,7 +501,7 @@ Add the following [tls stanza][nomad-tls-stanza] to the configuration of all
 Nomad agents (servers and clients) in the cluster (configuration file located at
 `/etc/nomad.d/nomad.hcl` in this example):
 
-```
+```hcl
 tls {
   http = true
   rpc  = true
@@ -514,11 +514,29 @@ tls {
   verify_https_client    = true
 }
 ```
-Reload Nomad's configuration:
+
+Additionally, ensure the [`rpc_upgrade_mode`][rpc-upgrade-mode] option is set to
+`true` on your server nodes (this is to ensure the Nomad servers will accept
+both TLS and non-TLS connections during the upgrade):
+
+```hcl
+rpc_upgrade_mode       = true
+```
+Reload Nomad's configuration on all nodes:
 
 ```shell
 $ systemctl reload nomad
 ```
+Once Nomad has been reloaded on all Nodes, go back to your server nodes and
+change the `rpc_upgrade_mode` option to false (or remove the line since the
+option defaults to false) so that your Nomad servers will only accept TLS
+connections:
+
+```hcl
+rpc_upgrade_mode       = false
+```
+You will need to reload Nomad on your servers after changing this setting. You
+can read more about RPC Upgrade Mode [here][rpc-upgrade].
 
 If you run `nomad status`, you will now receive the following error:
 
@@ -607,6 +625,8 @@ restart nomad`.
 [policies]: https://www.vaultproject.io/docs/concepts/policies.html#policies
 [pki-engine]: https://www.vaultproject.io/docs/secrets/pki/index.html
 [repo]: https://github.com/hashicorp/nomad/tree/master/terraform
+[rpc-upgrade-mode]: /docs/configuration/tls.html#rpc_upgrade_mode
+[rpc-upgrade]: /guides/security/securing-nomad.html#rpc-upgrade-mode-for-nomad-servers
 [seal]: https://www.vaultproject.io/docs/concepts/seal.html
 [secure-introduction]: https://learn.hashicorp.com/vault/identity-access-management/iam-secure-intro
 [token]: https://www.vaultproject.io/docs/concepts/tokens.html
