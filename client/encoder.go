@@ -6,6 +6,7 @@ import (
 
 type encoder interface {
 	Encode(v interface{}) error
+	MustEncode(v interface{})
 }
 
 type syncEncoder struct {
@@ -18,6 +19,13 @@ func (e *syncEncoder) Encode(v interface{}) error {
 	defer e.lock.Unlock()
 
 	return e.impl.Encode(v)
+}
+
+func (e *syncEncoder) MustEncode(v interface{}) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	e.impl.MustEncode(v)
 }
 
 func newSyncEncoder(e encoder) encoder {
