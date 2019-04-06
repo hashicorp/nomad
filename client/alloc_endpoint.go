@@ -28,7 +28,7 @@ type Allocations struct {
 
 func NewAllocationsEndpoint(c *Client) *Allocations {
 	a := &Allocations{c: c}
-	a.c.streamingRpcs.Register("Allocations.Exec", a.Exec)
+	a.c.streamingRpcs.Register("Allocations.Exec", a.exec)
 	return a
 }
 
@@ -105,7 +105,7 @@ func (a *Allocations) Stats(args *cstructs.AllocStatsRequest, reply *cstructs.Al
 	return nil
 }
 
-func (a *Allocations) Exec(conn io.ReadWriteCloser) {
+func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "allocations", "exec"}, time.Now())
 	defer conn.Close()
 
