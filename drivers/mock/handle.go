@@ -18,8 +18,9 @@ type taskHandle struct {
 	killAfter       time.Duration
 	waitCh          chan interface{}
 
-	taskConfig *drivers.TaskConfig
-	command    Command
+	taskConfig  *drivers.TaskConfig
+	command     Command
+	execCommand *Command
 
 	// stateLock guards the procState field
 	stateLock sync.RWMutex
