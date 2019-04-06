@@ -204,7 +204,7 @@ type Command struct {
 type TaskConfig struct {
 	Command
 
-	ExecCommand *Command `codec:"exec"`
+	ExecCommand *Command `codec:"exec_command"`
 
 	// PluginExitAfter is the duration after which the mock driver indicates the
 	// plugin has exited via the WaitTask call.
@@ -589,6 +589,8 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
 	}
+
+	d.logger.Warn("executing task", "command", h.execCommand, "task_id", taskID)
 
 	if h.execCommand == nil {
 		return nil, errors.New("no exec command is configured")
