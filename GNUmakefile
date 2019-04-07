@@ -34,7 +34,8 @@ endif
 
 ALL_TARGETS += linux_386 \
 	linux_amd64 \
-	linux_arm \
+	linux_armel \
+	linux_armhf \
 	linux_arm64 \
 	windows_386 \
 	windows_amd64
@@ -83,9 +84,17 @@ pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
 		-tags "$(GO_TAGS)" \
 		-o "$@"
 
-pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
+pkg/linux_armel/nomad: $(SOURCE_FILES) ## Build Nomad for linux/armel (Pi 1, Zero)
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=arm CC=arm-linux-gnueabihf-gcc-5 \
+	@CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=6 CC=arm-linux-gnueabi-gcc-5 \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+
+pkg/linux_armhf/nomad: $(SOURCE_FILES) ## Build Nomad for linux/armhf (Pi 2, 3)
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 CC=arm-linux-gnueabihf-gcc-5 \
 		go build \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
