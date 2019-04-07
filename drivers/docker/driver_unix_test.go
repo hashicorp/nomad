@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -787,6 +788,6 @@ func TestDockerExecTaskStreaming(t *testing.T) {
 
 	defer d.DestroyTask(task.ID, true)
 
-	dtestutils.ExecTaskStreamingConformanceTests(t, d, task.ID)
+	dtestutil.ExecTaskStreamingConformanceTests(t, d, task.ID)
 
 }
