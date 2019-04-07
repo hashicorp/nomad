@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -239,8 +240,11 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		}
 	}()
 
-	go a.forwardOutput(encoder, outReader, "stdout")
-	go a.forwardOutput(encoder, errReader, "stderr")
+	var outWg sync.WaitGroup
+	outWg.Add(2)
+
+	go a.forwardOutput(encoder, outReader, "stdout", &outWg)
+	go a.forwardOutput(encoder, errReader, "stderr", &outWg)
 
 	h := ar.GetTaskExecHandler(req.Task)
 	r, err := h(ctx, drivers.ExecOptions{
@@ -264,6 +268,8 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		})
 	}
 
+	outWg.Wait()
+
 	if err != nil {
 		sendFrame(&sframer.StreamFrame{
 			Data:      []byte(err.Error()),
@@ -280,8 +286,8 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	return
 }
 
-func (a *Allocations) forwardOutput(encoder encoder,
-	reader io.Reader, source string) error {
+func (a *Allocations) forwardOutput(encoder encoder, reader io.Reader, source string, wg *sync.WaitGroup) error {
+	defer wg.Done()
 
 	buf := new(bytes.Buffer)
 	frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
