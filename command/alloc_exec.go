@@ -248,7 +248,7 @@ func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), e
 	ctx, cancel := context.WithCancel(context.Background())
 
 	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, syscall.SIGWINCH)
+	setupWindowNotification(signalCh)
 
 	sendTerminalSize := func() {
 		s, err := term.GetWinsize(fd)
