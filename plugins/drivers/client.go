@@ -3,7 +3,6 @@ package drivers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"time"
 
@@ -397,37 +396,46 @@ func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.
 
 func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID string, opts ExecOptions) (*ExitResult, error) {
 
-	d.logger.Info("exec streaming called", "resizeCh", opts.ResizeCh)
+	cctx, cancelFn := context.WithCancel(ctx)
+	defer cancelFn()
+
 	stream, err := d.client.ExecTaskStreaming(ctx)
 	if err != nil {
 		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
-	err = stream.Send(&proto.ExecTaskStreamingRequest{
+	// all sends must happen in a single routine
+	// while receives happen on call goroutine
+	sendCh := make(chan *proto.ExecTaskStreamingRequest, 5)
+
+	go func() {
+		for m := range sendCh {
+			err := stream.Send(m)
+			if err != nil && m.Setup != nil {
+				return
+			}
+		}
+	}()
+
+	sendCh <- &proto.ExecTaskStreamingRequest{
 		Setup: &proto.ExecTaskStreamingRequest_Setup{
 			TaskId:  taskID,
 			Command: opts.Command,
 			Tty:     opts.Tty,
 		},
-	})
-	if err != nil {
-		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
 	go func() {
 		select {
-		case <-ctx.Done():
-			d.logger.Info("done in loop of terminal")
+		case <-cctx.Done():
 			return
 		case newSize := <-opts.ResizeCh:
-			fmt.Println("received new size", "size", newSize)
-			d.logger.Info("received new size", "size", newSize)
-			stream.Send(&proto.ExecTaskStreamingRequest{
+			sendCh <- &proto.ExecTaskStreamingRequest{
 				Resize: &proto.ExecTaskStreamingRequest_TerminalSize{
 					Height: int32(newSize.Height),
 					Width:  int32(newSize.Width),
 				},
-			})
+			}
 		}
 	}()
 
@@ -437,28 +445,27 @@ func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID strin
 		for {
 			n, err := opts.Stdin.Read(bytes)
 			if err == io.EOF || err == io.ErrClosedPipe {
-				_ = stream.Send(&proto.ExecTaskStreamingRequest{
+				sendCh <- &proto.ExecTaskStreamingRequest{
 					Input: &proto.ExecTaskStreamingRequest_Input{
 						Close: true,
 					},
-				})
+				}
 			}
 
 			if err != nil {
 				return
 			}
 
-			_ = stream.Send(&proto.ExecTaskStreamingRequest{
+			sendCh <- &proto.ExecTaskStreamingRequest{
 				Input: &proto.ExecTaskStreamingRequest_Input{
 					Value: bytes[:n],
 				},
-			})
-
+			}
 		}
 	}()
 
 	for {
-		if err := ctx.Err(); err != nil {
+		if err := cctx.Err(); err != nil {
 			return nil, err
 		}
 

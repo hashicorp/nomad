@@ -1203,6 +1203,14 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 }
 
 func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts drivers.ExecOptions) (*drivers.ExitResult, error) {
+	defer opts.Stdout.Close()
+	defer opts.Stderr.Close()
+
+	done := make(chan interface{})
+	defer close(done)
+
+	d.logger.Warn("exectask is called", "opts", fmt.Sprintf("%#v", opts))
+
 	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
@@ -1231,7 +1239,12 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts driv
 			select {
 			case <-ctx.Done():
 				return
-			case s := <-opts.ResizeCh:
+			case <-done:
+				return
+			case s, ok := <-opts.ResizeCh:
+				if !ok {
+					return
+				}
 				client.ResizeExecTTY(exec.ID, s.Height, s.Width)
 			}
 		}
@@ -1247,14 +1260,23 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts driv
 		Context:      ctx,
 	}
 	if err := client.StartExec(exec.ID, startOpts); err != nil {
+		d.logger.Warn("failed to start exec", "error", err)
 		return nil, fmt.Errorf("failed to start exec: %v", err)
 	}
 
-	res, err := client.InspectExec(exec.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to inspect exec result: %v", err)
+	var res *docker.ExecInspect
+	for res == nil || res.Running {
+		res, err = client.InspectExec(exec.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect exec result: %v", err)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
+	opts.Stdout.Close()
+	opts.Stderr.Close()
+
+	d.logger.Info("exec task finished", "exit_code", fmt.Sprintf("%#v", res))
 	return &drivers.ExitResult{
 		ExitCode: res.ExitCode,
 	}, nil
