@@ -35,7 +35,7 @@ func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID
 		customizeFn func(*drivers.ExecOptions, chan drivers.TerminalSize)
 	}{
 		{
-			name:     "basic non tty",
+			name:     "notty: basic",
 			command:  "echo hello stdout; echo hello stderr >&2; exit 43",
 			tty:      false,
 			stdout:   "hello stdout\n",
@@ -43,24 +43,39 @@ func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID
 			exitCode: 43,
 		},
 		{
-			name:     "streaming non tty",
+			name:     "notty: streaming",
 			command:  "for n in 1 2 3; do echo $n; sleep 1; done",
 			tty:      false,
 			stdout:   "1\n2\n3\n",
 			exitCode: 0,
 		},
 		{
-			name:     "stty check non tty",
-			command:  "sleep 0.1; stty size",
+			name:     "ntty: stty check",
+			command:  "stty size",
 			tty:      false,
 			stderr:   "stty: standard input: Inappropriate ioctl for device\n",
 			exitCode: 1,
 		},
 		{
-			name:     "stdin passing non tty",
+			name:     "notty: stdin passing",
 			command:  "echo hello from command; cat",
 			tty:      false,
 			stdin:    "hello from stdin\n",
+			stdout:   "hello from command\nhello from stdin\n",
+			exitCode: 0,
+		},
+		{
+			name:     "notty: stdin passing",
+			command:  "echo hello from command; cat",
+			tty:      false,
+			stdin:    "hello from stdin\n",
+			stdout:   "hello from command\nhello from stdin\n",
+			exitCode: 0,
+		},
+		{
+			name:     "notty: children processes",
+			command:  "(( sleep 6; echo from background ) & ); echo from main; exec sleep 1",
+			tty:      false,
 			stdout:   "hello from command\nhello from stdin\n",
 			exitCode: 0,
 		},
