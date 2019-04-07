@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -14,11 +15,15 @@ import (
 func ExecTaskStreamingConformanceTests(t *testing.T, driver *DriverHarness, taskID string) {
 	t.Helper()
 
+	if runtime.GOOS == "windows" {
+		// tests assume unix-ism now
+		t.Skip("test assume unix tasks")
+	}
+
 	ExecTaskStreamingBasicResponses(t, driver, taskID)
 }
 
 func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
-
 	cases := []struct {
 		name        string
 		command     string
