@@ -761,3 +761,32 @@ func copyFile(src, dst string, t *testing.T) {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
 }
+
+func TestDockerExecTaskStreaming(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "nc-demo",
+		AllocID:   uuid.Generate(),
+		Resources: basicResources,
+	}
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+	d := dockerDriverHarness(t, nil)
+	cleanup := d.MkAllocDir(task, true)
+	defer cleanup()
+	copyImage(t, task.TaskDir(), "busybox.tar")
+
+	_, _, err := d.StartTask(task)
+	require.NoError(t, err)
+
+	defer d.DestroyTask(task.ID, true)
+
+	dtestutils.ExecTaskStreamingConformanceTests(t, d, task.ID)
+
+}
