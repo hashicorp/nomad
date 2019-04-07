@@ -76,7 +76,7 @@ func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID
 			resizeCh := make(chan drivers.TerminalSize)
 
 			go func() {
-				resizeCh <- drivers.TerminalSize{100, 100}
+				resizeCh <- drivers.TerminalSize{Height: 100, Width: 100}
 			}()
 			opts := drivers.ExecOptions{
 				Command: []string{"/bin/sh", "-c", c.command},

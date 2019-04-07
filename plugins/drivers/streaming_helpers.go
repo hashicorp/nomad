@@ -40,7 +40,7 @@ func (h *serverExecTaskHelper) recvGoroutine() {
 
 	msg, err := h.server.Recv()
 	if err != nil {
-		h.recvDoneCh <- fmt.Errorf("failed to receive initial message: %v")
+		h.recvDoneCh <- fmt.Errorf("failed to receive initial message: %v", err)
 		close(h.setupRecvCh)
 		return
 	}
