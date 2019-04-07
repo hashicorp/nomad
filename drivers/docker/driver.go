@@ -1222,8 +1222,6 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts driv
 	done := make(chan interface{})
 	defer close(done)
 
-	d.logger.Warn("exectask is called", "opts", fmt.Sprintf("%#v", opts))
-
 	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, drivers.ErrTaskNotFound
