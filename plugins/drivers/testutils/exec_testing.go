@@ -73,10 +73,11 @@ func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID
 			exitCode: 0,
 		},
 		{
-			name:     "notty: children processes",
-			command:  "(( sleep 6; echo from background ) & ); echo from main; exec sleep 1",
-			tty:      false,
-			stdout:   "hello from command\nhello from stdin\n",
+			name:    "notty: children processes",
+			command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
+			tty:     false,
+			// when not using tty; wait for all processes to exit matching behavior of `docker exec`
+			stdout:   "from main\nfrom background\n",
 			exitCode: 0,
 		},
 	}
