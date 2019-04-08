@@ -4,8 +4,8 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -20,79 +20,73 @@ func ExecTaskStreamingConformanceTests(t *testing.T, driver *DriverHarness, task
 		t.Skip("test assume unix tasks")
 	}
 
-	ExecTaskStreamingBasicResponses(t, driver, taskID)
+	TestExecTaskStreamingBasicResponses(t, driver, taskID)
 }
 
-func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
-	cases := []struct {
-		name        string
-		command     string
-		tty         bool
-		stdin       string
-		stdout      string
-		stderr      string
-		exitCode    int
-		customizeFn func(*drivers.ExecOptions, chan drivers.TerminalSize)
-	}{
-		{
-			name:     "notty: basic",
-			command:  "echo hello stdout; echo hello stderr >&2; exit 43",
-			tty:      false,
-			stdout:   "hello stdout\n",
-			stderr:   "hello stderr\n",
-			exitCode: 43,
-		},
-		{
-			name:     "notty: streaming",
-			command:  "for n in 1 2 3; do echo $n; sleep 1; done",
-			tty:      false,
-			stdout:   "1\n2\n3\n",
-			exitCode: 0,
-		},
-		{
-			name:     "ntty: stty check",
-			command:  "stty size",
-			tty:      false,
-			stderr:   "stty: standard input: Inappropriate ioctl for device\n",
-			exitCode: 1,
-		},
-		{
-			name:     "notty: stdin passing",
-			command:  "echo hello from command; cat",
-			tty:      false,
-			stdin:    "hello from stdin\n",
-			stdout:   "hello from command\nhello from stdin\n",
-			exitCode: 0,
-		},
-		{
-			name:     "notty: stdin passing",
-			command:  "echo hello from command; cat",
-			tty:      false,
-			stdin:    "hello from stdin\n",
-			stdout:   "hello from command\nhello from stdin\n",
-			exitCode: 0,
-		},
-		{
-			name:    "notty: children processes",
-			command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
-			tty:     false,
-			// when not using tty; wait for all processes to exit matching behavior of `docker exec`
-			stdout:   "from main\nfrom background\n",
-			exitCode: 0,
-		},
-	}
+var ExecTaskStreamingBasicCases = []struct {
+	Name     string
+	Command  string
+	Tty      bool
+	Stdin    string
+	Stdout   string
+	Stderr   string
+	ExitCode int
+}{
+	{
+		Name:     "notty: basic",
+		Command:  "echo hello stdout; echo hello stderr >&2; exit 43",
+		Tty:      false,
+		Stdout:   "hello stdout\n",
+		Stderr:   "hello stderr\n",
+		ExitCode: 43,
+	},
+	{
+		Name:     "notty: streaming",
+		Command:  "for n in 1 2 3; do echo $n; sleep 1; done",
+		Tty:      false,
+		Stdout:   "1\n2\n3\n",
+		ExitCode: 0,
+	},
+	{
+		Name:     "ntty: stty check",
+		Command:  "stty size",
+		Tty:      false,
+		Stderr:   "stty: standard input: Inappropriate ioctl for device\n",
+		ExitCode: 1,
+	},
+	{
+		Name:     "notty: stdin passing",
+		Command:  "echo hello from command; cat",
+		Tty:      false,
+		Stdin:    "hello from stdin\n",
+		Stdout:   "hello from command\nhello from stdin\n",
+		ExitCode: 0,
+	},
+	{
+		Name:     "notty: stdin passing",
+		Command:  "echo hello from command; cat",
+		Tty:      false,
+		Stdin:    "hello from stdin\n",
+		Stdout:   "hello from command\nhello from stdin\n",
+		ExitCode: 0,
+	},
+	{
+		Name:    "notty: children processes",
+		Command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
+		Tty:     false,
+		// when not using tty; wait for all processes to exit matching behavior of `docker exec`
+		Stdout:   "from main\nfrom background\n",
+		ExitCode: 0,
+	},
+}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			stdout, err := ioutil.TempFile("", "nomad-exec-*")
-			require.NoError(t, err)
-			defer os.Remove(stdout.Name())
+func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
+	for _, c := range ExecTaskStreamingBasicCases {
+		t.Run(c.Name, func(t *testing.T) {
+			stdin, stdout, stderr, cleanupFn := NewIO(t, c.Tty)
+			defer cleanupFn()
 
-			stderr, err := ioutil.TempFile("", "nomad-exec-*")
-			require.NoError(t, err)
-			defer os.Remove(stderr.Name())
-
-			stdinReader := ioutil.NopCloser(strings.NewReader(c.stdin))
+			stdin.WriteString(c.Stdin)
 
 			resizeCh := make(chan drivers.TerminalSize)
 
@@ -100,23 +94,19 @@ func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID
 				resizeCh <- drivers.TerminalSize{Height: 100, Width: 100}
 			}()
 			opts := drivers.ExecOptions{
-				Command: []string{"/bin/sh", "-c", c.command},
-				Tty:     c.tty,
+				Command: []string{"/bin/sh", "-c", c.Command},
+				Tty:     c.Tty,
 
-				Stdin:  stdinReader,
+				Stdin:  stdin,
 				Stdout: stdout,
 				Stderr: stderr,
 
 				ResizeCh: resizeCh,
 			}
 
-			if c.customizeFn != nil {
-				go c.customizeFn(&opts, resizeCh)
-			}
-
 			result, err := driver.ExecTaskStreaming(context.Background(), taskID, opts)
 			require.NoError(t, err)
-			require.Equal(t, c.exitCode, result.ExitCode)
+			require.Equal(t, c.ExitCode, result.ExitCode)
 
 			// flush any pending writes
 			stdout.Close()
@@ -124,11 +114,30 @@ func ExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID
 
 			stdoutFound, err := ioutil.ReadFile(stdout.Name())
 			require.NoError(t, err)
-			require.Equal(t, c.stdout, string(stdoutFound))
+			require.Equal(t, c.Stdout, string(stdoutFound))
 
 			stderrFound, err := ioutil.ReadFile(stderr.Name())
 			require.NoError(t, err)
-			require.Equal(t, c.stderr, string(stderrFound))
+			require.Equal(t, c.Stderr, string(stderrFound))
 		})
 	}
+}
+
+func NewIO(t *testing.T, tty bool) (stdin, stdout, stderr *os.File, cleanupFn func()) {
+	tmpdir, err := ioutil.TempDir("", "nomad-exec-")
+	cleanupFn = func() {
+		os.RemoveAll(tmpdir)
+	}
+
+	stdin, err = os.Create(filepath.Join(tmpdir, "stdin"))
+	require.NoError(t, err)
+
+	stdout, err = os.Create(filepath.Join(tmpdir, "stdout"))
+	require.NoError(t, err)
+
+	stderr, err = os.Create(filepath.Join(tmpdir, "stderr"))
+	require.NoError(t, err)
+
+	return stdin, stdout, stderr, cleanupFn
+
 }
