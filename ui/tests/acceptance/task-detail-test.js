@@ -91,7 +91,7 @@ module('Acceptance | task detail', function(hooks) {
   });
 
   test('the addresses table lists all reserved and dynamic ports', async function(assert) {
-    const taskResources = allocation.taskResourcesIds
+    const taskResources = allocation.taskResourceIds
       .map(id => server.db.taskResources.find(id))
       .find(resources => resources.name === task.name);
     const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
@@ -102,7 +102,7 @@ module('Acceptance | task detail', function(hooks) {
   });
 
   test('each address row shows the label and value of the address', async function(assert) {
-    const taskResources = allocation.taskResourcesIds
+    const taskResources = allocation.taskResourceIds
       .map(id => server.db.taskResources.find(id))
       .findBy('name', task.name);
     const networkAddress = taskResources.resources.Networks[0].IP;
