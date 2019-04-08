@@ -56,15 +56,20 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// multiple allocations on the same node for this job.
 	s.jobAntiAff = NewJobAntiAffinityIterator(ctx, s.binPack, "")
 
+	// Apply node rescheduling penalty. This tries to avoid placing on a
+	// node where the allocation failed previously
 	s.nodeReschedulingPenalty = NewNodeReschedulingPenaltyIterator(ctx, s.jobAntiAff)
 
+	// Apply scores based on affinity stanza
 	s.nodeAffinity = NewNodeAffinityIterator(ctx, s.nodeReschedulingPenalty)
 
+	// Apply scores based on spread stanza
 	s.spread = NewSpreadIterator(ctx, s.nodeAffinity)
 
 	// Add the preemption options scoring iterator
 	preemptionScorer := NewPreemptionScoringIterator(ctx, s.spread)
 
+	// Normalizes scores by averaging them across various scorers
 	s.scoreNorm = NewScoreNormalizationIterator(ctx, preemptionScorer)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.

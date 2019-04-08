@@ -21,12 +21,13 @@ func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.
 	if option.PreemptedAllocs == nil {
 		return
 	}
-	// If this placement involves preemption, set DesiredState to evict for those allocations
 
+	// If this placement involves preemption, set DesiredState to evict for those allocations
 	var preemptedAllocIDs []string
 	for _, stop := range option.PreemptedAllocs {
 		s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
 		preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
+
 		if s.eval.AnnotatePlan && s.plan.Annotations != nil {
 			s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
 			if s.plan.Annotations.DesiredTGUpdates != nil {
@@ -35,6 +36,6 @@ func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.
 			}
 		}
 	}
-	alloc.PreemptedAllocations = preemptedAllocIDs
 
+	alloc.PreemptedAllocations = preemptedAllocIDs
 }

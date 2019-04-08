@@ -154,12 +154,6 @@ func (p *Preemptor) SetCandidates(allocs []*structs.Allocation) {
 		}
 
 		maxParallel := 0
-		// Ignore any allocations of the job being placed
-		// This filters out any previous allocs of the job, and any new allocs in the plan
-		if alloc.JobID == p.jobID.ID && alloc.Namespace == p.jobID.Namespace {
-			continue
-		}
-
 		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 		if tg != nil && tg.Migrate != nil {
 			maxParallel = tg.Migrate.MaxParallel

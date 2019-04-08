@@ -8,8 +8,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const rate = 0.0048
-const origin = 2048.0
+const (
+	// rate is the decay parameter of the logistic function used in scoring preemption options
+	rate = 0.0048
+
+	// origin controls the inflection point of the logistic function used in scoring preemption options
+	origin = 2048.0
+)
 
 // PreemptionScoringIterator is used to score nodes according to the
 // combination of preemptible allocations in them
@@ -23,7 +28,8 @@ type PreemptionScoringIterator struct {
 func NewPreemptionScoringIterator(ctx Context, source RankIterator) RankIterator {
 	return &PreemptionScoringIterator{
 		ctx:    ctx,
-		source: source}
+		source: source,
+	}
 }
 
 func (iter *PreemptionScoringIterator) Reset() {
@@ -32,17 +38,16 @@ func (iter *PreemptionScoringIterator) Reset() {
 
 func (iter *PreemptionScoringIterator) Next() *RankedNode {
 	option := iter.source.Next()
-	if option == nil {
+	if option == nil || option.PreemptedAllocs == nil {
 		return option
 	}
-	if option.PreemptedAllocs != nil {
-		netPriority := netAggregatePriority(option.PreemptedAllocs)
 
-		// preemption score is inversly proportional to netPriority
-		preemptionScore := preemptionScore(netPriority)
-		option.Scores = append(option.Scores, preemptionScore)
-		iter.ctx.Metrics().ScoreNode(option.Node, "preemption-score", preemptionScore)
-	}
+	netPriority := netAggregatePriority(option.PreemptedAllocs)
+	// preemption score is inversely proportional to netPriority
+	preemptionScore := preemptionScore(netPriority)
+	option.Scores = append(option.Scores, preemptionScore)
+	iter.ctx.Metrics().ScoreNode(option.Node, "preemption", preemptionScore)
+
 	return option
 }
 
@@ -51,8 +56,7 @@ func netAggregatePriority(allocs []*structs.Allocation) int {
 	priorities := map[int]struct{}{}
 	netPriority := 0
 	for _, alloc := range allocs {
-		_, ok := priorities[alloc.Job.Priority]
-		if !ok {
+		if _, ok := priorities[alloc.Job.Priority]; !ok {
 			priorities[alloc.Job.Priority] = struct{}{}
 			netPriority += alloc.Job.Priority
 		}

@@ -1,5 +1,4 @@
-// +build !pro
-// +build !ent
+// +build !pro,!ent
 
 package scheduler
 
