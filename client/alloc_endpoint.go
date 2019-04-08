@@ -269,6 +269,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		})
 	}
 
+	// ensure that exit messages are the last messages sent
 	outWg.Wait()
 
 	if err != nil {
