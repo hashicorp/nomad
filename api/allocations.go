@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -65,9 +67,58 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 	return &resp, qm, nil
 }
 
-func (a *Allocations) Exec(alloc *Allocation, task string, tty bool, command []string,
-	input io.Reader, cancel <-chan struct{},
-	terminalSizeCh <-chan TerminalSize,
+func (a *Allocations) Exec(ctx context.Context,
+	alloc *Allocation, task string, tty bool, command []string,
+	stdin io.Reader, stdout, stderr io.Writer,
+	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
+
+	frames, errCh := a.ExecFrames(ctx, alloc, task, tty, command, stdin, terminalSizeCh, q)
+	select {
+	case err := <-errCh:
+		return -1, err
+	default:
+	}
+
+	for {
+		select {
+		case err := <-errCh:
+			return -1, err
+		case <-ctx.Done():
+			return -1, ctx.Err()
+		case frame, ok := <-frames:
+			if !ok {
+				return -1, nil
+			}
+
+			switch frame.FileEvent {
+			case "":
+				w := stdout
+				if frame.File == "stderr" {
+					w = stderr
+				}
+
+				w.Write(frame.Data)
+			case "exit-error":
+				return -1, errors.New(string(frame.Data))
+			case "exit-code":
+				code, err := strconv.Atoi(string(frame.Data))
+				if err != nil {
+					return -1, fmt.Errorf("received unexpected exit code: %v", string(frame.Data))
+				}
+
+				return code, nil
+			case "close":
+				// TODO: what should we do about close, events?
+			default:
+				// unpexected file event, TODO: log it?!
+			}
+		}
+	}
+
+}
+
+func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
+	stdin io.Reader, terminalSizeCh <-chan TerminalSize,
 	q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
 	errCh := make(chan error, 1)
 
@@ -136,7 +187,7 @@ func (a *Allocations) Exec(alloc *Allocation, task string, tty bool, command []s
 		bytes := make([]byte, 1024)
 
 		for {
-			n, err := input.Read(bytes)
+			n, err := stdin.Read(bytes)
 			if err == io.EOF {
 				frame := StreamFrame{
 					FileEvent: "close",
@@ -173,7 +224,7 @@ func (a *Allocations) Exec(alloc *Allocation, task string, tty bool, command []s
 		for {
 			// Check if we have been cancelled
 			select {
-			case <-cancel:
+			case <-ctx.Done():
 				return
 			default:
 			}
