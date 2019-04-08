@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -211,7 +210,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		stdin = bytes.NewReader(nil)
 	}
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, command, os.Stdout, os.Stderr, stdin)
+	code, err := l.execImpl(client, alloc, task, ttyOpt, command, stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
@@ -281,83 +280,45 @@ func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), e
 }
 
 func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
-	command []string, outWriter, errWriter io.WriteCloser, inReader io.Reader) (int, error) {
+	command []string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
 	if tty {
-		if inReader == nil {
+		if stdin == nil {
 			return -1, fmt.Errorf("stdin is null")
 		}
 
-		inCleanup, err := setRawTerminal(inReader)
+		inCleanup, err := setRawTerminal(stdin)
 		if err != nil {
 			return -1, err
 		}
 		defer inCleanup()
 
-		outCleanup, err := setRawTerminal(outWriter)
+		outCleanup, err := setRawTerminal(stdout)
 		if err != nil {
 			return -1, err
 		}
 		defer outCleanup()
 
-		sizeCleanup, err := watchTerminalSize(outWriter, sizeCh)
+		sizeCleanup, err := watchTerminalSize(stdout, sizeCh)
 		if err != nil {
 			return -1, err
 		}
 		defer sizeCleanup()
 	}
 
-	cancel := make(chan struct{}, 1)
-	frames, errCh := client.Allocations().Exec(alloc, task, tty, command, inReader, cancel, sizeCh, nil)
-	select {
-	case err := <-errCh:
-		return -1, err
-	default:
-	}
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-
-	for {
-		select {
-		case err := <-errCh:
-			return -1, err
-		case <-signalCh:
-			cancel <- struct{}{}
-			return -1, errors.New("cancelled")
-		case frame, ok := <-frames:
-			if !ok {
-				return -1, nil
-			}
-
-			switch frame.FileEvent {
-			case "":
-				w := outWriter
-				if frame.File == "stderr" {
-					w = errWriter
-				}
-
-				w.Write(frame.Data)
-			case "exit-error":
-				return -1, errors.New(string(frame.Data))
-			case "exit-code":
-				code, err := strconv.Atoi(string(frame.Data))
-				if err != nil {
-					return -1, fmt.Errorf("received unexpected exit code: %v", string(frame.Data))
-				}
-
-				return code, nil
-			case "close":
-				// don't close stderr as we capture errors
-				if frame.File == "stdout" {
-					outWriter.Close()
-				}
-			default:
-				// unpexected file event, TODO: log it?!
-			}
-
+	go func() {
+		for range signalCh {
+			cancelFn()
 		}
-	}
+	}()
+
+	return client.Allocations().Exec(ctx,
+		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
 }
