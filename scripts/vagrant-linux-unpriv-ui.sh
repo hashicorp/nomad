@@ -14,7 +14,7 @@ nvm alias default 10
 npm install -g ember-cli
 
 # Install Yarn for front-end dependency management
-curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.7.0
+curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.15.2
 
 # Install Chrome for running tests (in headless mode)
 wget -qO- - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
