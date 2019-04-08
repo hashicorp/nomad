@@ -2,10 +2,12 @@ package testutils
 
 import (
 	"context"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -83,14 +85,8 @@ var ExecTaskStreamingBasicCases = []struct {
 func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
 	for _, c := range ExecTaskStreamingBasicCases {
 		t.Run(c.Name, func(t *testing.T) {
-			stdin, stdout, stderr, cleanupFn := NewIO(t, c.Tty)
+			stdin, stdout, stderr, readOutput, cleanupFn := NewIO(t, c.Tty, c.Stdin)
 			defer cleanupFn()
-
-			stdin.WriteString(c.Stdin)
-			stdin.Close()
-
-			stdinReader, err := os.Open(stdin.Name())
-			require.NoError(t, err)
 
 			resizeCh := make(chan drivers.TerminalSize)
 
@@ -101,7 +97,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 				Command: []string{"/bin/sh", "-c", c.Command},
 				Tty:     c.Tty,
 
-				Stdin:  stdinReader,
+				Stdin:  stdin,
 				Stdout: stdout,
 				Stderr: stderr,
 
@@ -116,32 +112,43 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 			stdout.Close()
 			stderr.Close()
 
-			stdoutFound, err := ioutil.ReadFile(stdout.Name())
-			require.NoError(t, err)
-			require.Equal(t, c.Stdout, string(stdoutFound))
-
-			stderrFound, err := ioutil.ReadFile(stderr.Name())
-			require.NoError(t, err)
-			require.Equal(t, c.Stderr, string(stderrFound))
+			stdoutFound, stderrFound := readOutput()
+			require.Equal(t, c.Stdout, stdoutFound)
+			require.Equal(t, c.Stderr, stderrFound)
 		})
 	}
 }
 
-func NewIO(t *testing.T, tty bool) (stdin, stdout, stderr *os.File, cleanupFn func()) {
-	tmpdir, err := ioutil.TempDir("", "nomad-exec-")
-	cleanupFn = func() {
-		os.RemoveAll(tmpdir)
+func NewIO(t *testing.T, tty bool, stdinInput string) (stdin io.ReadCloser, stdout, stderr io.WriteCloser,
+	read func() (stdout, stderr string), cleanup func()) {
+
+	if !tty {
+		stdin := ioutil.NopCloser(strings.NewReader(stdinInput))
+
+		tmpdir, err := ioutil.TempDir("", "nomad-exec-")
+		cleanupFn := func() {
+			os.RemoveAll(tmpdir)
+		}
+
+		stdout, err := os.Create(filepath.Join(tmpdir, "stdout"))
+		require.NoError(t, err)
+
+		stderr, err := os.Create(filepath.Join(tmpdir, "stderr"))
+		require.NoError(t, err)
+
+		readFn := func() (string, string) {
+			stdoutContent, err := ioutil.ReadFile(stdout.Name())
+			require.NoError(t, err)
+
+			stderrContent, err := ioutil.ReadFile(stderr.Name())
+			require.NoError(t, err)
+
+			return string(stdoutContent), string(stderrContent)
+		}
+
+		return stdin, stdout, stderr, readFn, cleanupFn
 	}
 
-	stdin, err = os.Create(filepath.Join(tmpdir, "stdin"))
-	require.NoError(t, err)
-
-	stdout, err = os.Create(filepath.Join(tmpdir, "stdout"))
-	require.NoError(t, err)
-
-	stderr, err = os.Create(filepath.Join(tmpdir, "stderr"))
-	require.NoError(t, err)
-
-	return stdin, stdout, stderr, cleanupFn
-
+	t.Fatal("not supported yet")
+	return
 }
