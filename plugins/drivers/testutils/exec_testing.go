@@ -87,6 +87,10 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 			defer cleanupFn()
 
 			stdin.WriteString(c.Stdin)
+			stdin.Close()
+
+			stdinReader, err := os.Open(stdin.Name())
+			require.NoError(t, err)
 
 			resizeCh := make(chan drivers.TerminalSize)
 
@@ -97,7 +101,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 				Command: []string{"/bin/sh", "-c", c.Command},
 				Tty:     c.Tty,
 
-				Stdin:  stdin,
+				Stdin:  stdinReader,
 				Stdout: stdout,
 				Stderr: stderr,
 
