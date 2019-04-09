@@ -57,6 +57,10 @@ var (
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"fs_isolation": hclspec.NewDefault(
+			hclspec.NewAttr("fs_isolation", "string", false),
+			hclspec.NewLiteral(fmt.Sprintf("%q", drivers.FSIsolationNone)),
+		),
 		"shutdown_periodic_after": hclspec.NewDefault(
 			hclspec.NewAttr("shutdown_periodic_after", "bool", false),
 			hclspec.NewLiteral("false"),
@@ -102,14 +106,6 @@ var (
 			"stderr_repeat_duration": hclspec.NewAttr("stderr_repeat_duration", "string", false),
 		})),
 	})
-
-	// capabilities is returned by the Capabilities RPC and indicates what
-	// optional features this driver supports
-	capabilities = &drivers.Capabilities{
-		SendSignals: true,
-		Exec:        true,
-		FSIsolation: drivers.FSIsolationNone,
-	}
 )
 
 // Driver is a mock DriverPlugin implementation
@@ -117,6 +113,10 @@ type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
+
+	// capabilities is returned by the Capabilities RPC and indicates what
+	// optional features this driver supports
+	capabilities *drivers.Capabilities
 
 	// config is the driver configuration set by the SetConfig RPC
 	config *Config
@@ -151,8 +151,16 @@ type Driver struct {
 func NewMockDriver(logger hclog.Logger) drivers.DriverPlugin {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger = logger.Named(pluginName)
+
+	capabilities := &drivers.Capabilities{
+		SendSignals: true,
+		Exec:        true,
+		FSIsolation: drivers.FSIsolationNone,
+	}
+
 	return &Driver{
 		eventer:        eventer.NewEventer(ctx, logger),
+		capabilities:   capabilities,
 		config:         &Config{},
 		tasks:          newTaskStore(),
 		ctx:            ctx,
@@ -163,6 +171,8 @@ func NewMockDriver(logger hclog.Logger) drivers.DriverPlugin {
 
 // Config is the configuration for the driver that applies to all tasks
 type Config struct {
+	FSIsolation string `codec:"fs_isolation"`
+
 	// ShutdownPeriodicAfter is a toggle that can be used during tests to
 	// "stop" a previously-functioning driver, allowing for testing of periodic
 	// drivers and fingerprinters
@@ -279,6 +289,12 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	if d.config.ShutdownPeriodicAfter {
 		d.shutdownFingerprintTime = time.Now().Add(d.config.ShutdownPeriodicDuration)
 	}
+
+	isolation := config.FSIsolation
+	if isolation != "" {
+		d.capabilities.FSIsolation = drivers.FSIsolation(isolation)
+	}
+
 	return nil
 }
 
@@ -287,7 +303,7 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
-	return capabilities, nil
+	return d.capabilities, nil
 }
 
 func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {

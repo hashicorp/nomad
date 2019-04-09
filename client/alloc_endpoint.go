@@ -314,7 +314,7 @@ func (a *Allocations) forwardOutput(encoder encoder, reader io.Reader, source st
 				FileEvent: "close",
 			}
 			frameCodec.MustEncode(frame)
-			encoder.MustEncode(cstructs.StreamErrWrapper{
+			encoder.Encode(cstructs.StreamErrWrapper{
 				Payload: buf.Bytes(),
 			})
 
@@ -326,9 +326,17 @@ func (a *Allocations) forwardOutput(encoder encoder, reader io.Reader, source st
 		frame.Data = bytes[:n]
 		frameCodec.MustEncode(frame)
 
-		encoder.MustEncode(cstructs.StreamErrWrapper{
+		err = encoder.Encode(cstructs.StreamErrWrapper{
 			Payload: buf.Bytes(),
 		})
+		if err == io.ErrClosedPipe {
+			return err
+		}
+
+		if err != nil {
+			// TODO: What should we do on error?
+			return err
+		}
 
 		buf.Reset()
 		frameCodec.Reset(buf)
