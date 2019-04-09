@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -58,15 +57,7 @@ var ExecTaskStreamingBasicCases = []struct {
 	},
 	{
 		Name:     "notty: stdin passing",
-		Command:  "echo hello from command; cat",
-		Tty:      false,
-		Stdin:    "hello from stdin\n",
-		Stdout:   "hello from command\nhello from stdin\n",
-		ExitCode: 0,
-	},
-	{
-		Name:     "notty: stdin passing",
-		Command:  "echo hello from command; cat",
+		Command:  "echo hello from command; head -n1",
 		Tty:      false,
 		Stdin:    "hello from stdin\n",
 		Stdout:   "hello from command\nhello from stdin\n",
@@ -78,6 +69,45 @@ var ExecTaskStreamingBasicCases = []struct {
 		Tty:     false,
 		// when not using tty; wait for all processes to exit matching behavior of `docker exec`
 		Stdout:   "from main\nfrom background\n",
+		ExitCode: 0,
+	},
+
+	// TTY cases - difference is new lines add `\r` and child process waiting is different
+	{
+		Name:     "tty: basic",
+		Command:  "echo hello stdout; echo hello stderr >&2; exit 43",
+		Tty:      true,
+		Stdout:   "hello stdout\r\nhello stderr\r\n",
+		ExitCode: 43,
+	},
+	{
+		Name:     "tty: streaming",
+		Command:  "for n in 1 2 3; do echo $n; sleep 1; done",
+		Tty:      true,
+		Stdout:   "1\r\n2\r\n3\r\n",
+		ExitCode: 0,
+	},
+	{
+		Name:     "tty: stty check",
+		Command:  "sleep 1; stty size",
+		Tty:      true,
+		Stdout:   "100 100\r\n",
+		ExitCode: 0,
+	},
+	{
+		Name:     "tty: stdin passing",
+		Command:  "head -n1",
+		Tty:      true,
+		Stdin:    "hello from stdin\n",
+		Stdout:   "hello from stdin\r\nhello from stdin\r\n",
+		ExitCode: 0,
+	},
+	{
+		Name:    "tty: children processes",
+		Command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
+		Tty:     true,
+		// when using tty; wait for lead process only, like `docker exec -it`
+		Stdout:   "from main\r\n",
 		ExitCode: 0,
 	},
 }
@@ -109,6 +139,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 			require.Equal(t, c.ExitCode, result.ExitCode)
 
 			// flush any pending writes
+			stdin.Close()
 			stdout.Close()
 			stderr.Close()
 
@@ -122,33 +153,38 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 func NewIO(t *testing.T, tty bool, stdinInput string) (stdin io.ReadCloser, stdout, stderr io.WriteCloser,
 	read func() (stdout, stderr string), cleanup func()) {
 
-	if !tty {
-		stdin := ioutil.NopCloser(strings.NewReader(stdinInput))
+	stdin, pw := io.Pipe()
+	go func() {
+		pw.Write([]byte(stdinInput))
 
-		tmpdir, err := ioutil.TempDir("", "nomad-exec-")
-		cleanupFn := func() {
-			os.RemoveAll(tmpdir)
+		// don't close stdin in tty, because closing early may cause
+		// tty to be closed and we would lose output
+		if !tty {
+			pw.Close()
 		}
+	}()
 
-		stdout, err := os.Create(filepath.Join(tmpdir, "stdout"))
-		require.NoError(t, err)
-
-		stderr, err := os.Create(filepath.Join(tmpdir, "stderr"))
-		require.NoError(t, err)
-
-		readFn := func() (string, string) {
-			stdoutContent, err := ioutil.ReadFile(stdout.Name())
-			require.NoError(t, err)
-
-			stderrContent, err := ioutil.ReadFile(stderr.Name())
-			require.NoError(t, err)
-
-			return string(stdoutContent), string(stderrContent)
-		}
-
-		return stdin, stdout, stderr, readFn, cleanupFn
+	tmpdir, err := ioutil.TempDir("", "nomad-exec-")
+	require.NoError(t, err)
+	cleanupFn := func() {
+		os.RemoveAll(tmpdir)
 	}
 
-	t.Fatal("not supported yet")
-	return
+	stdoutF, err := os.Create(filepath.Join(tmpdir, "stdout"))
+	require.NoError(t, err)
+
+	stderrF, err := os.Create(filepath.Join(tmpdir, "stderr"))
+	require.NoError(t, err)
+
+	readFn := func() (string, string) {
+		stdoutContent, err := ioutil.ReadFile(stdoutF.Name())
+		require.NoError(t, err)
+
+		stderrContent, err := ioutil.ReadFile(stderrF.Name())
+		require.NoError(t, err)
+
+		return string(stdoutContent), string(stderrContent)
+	}
+
+	return stdin, stdoutF, stderrF, readFn, cleanupFn
 }
