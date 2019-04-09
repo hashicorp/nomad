@@ -128,7 +128,6 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil {
-		// FIXME: check for AllocNodeExec if task is raw_exec
 		exec := aclObj.AllowNsOp(req.QueryOptions.Namespace, acl.NamespaceCapabilityAllocExec)
 		if !exec {
 			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)

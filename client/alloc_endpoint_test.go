@@ -14,8 +14,10 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -433,29 +435,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 
 	// Start the handler
 	go handler(p2)
-
-	// Start the decoder
-	go func() {
-		decoder := codec.NewDecoder(p1, nstructs.MsgpackHandle)
-
-		for {
-			var msg cstructs.StreamErrWrapper
-			if err := decoder.Decode(&msg); err != nil {
-				if err == io.EOF || strings.Contains(err.Error(), "closed") {
-					return
-				}
-				t.Logf("received error decoding: %#v", err)
-
-				errCh <- fmt.Errorf("error decoding: %v", err)
-				return
-			}
-
-			var frame sframer.StreamFrame
-			json.Unmarshal(msg.Payload, &frame)
-			t.Logf("received message: %#v", msg)
-			frames <- &frame
-		}
-	}()
+	go decodeFrames(t, p1, frames, errCh)
 
 	// Send the request
 	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
@@ -498,5 +478,183 @@ OUTER:
 				break OUTER
 			}
 		}
+	}
+}
+
+func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s := nomad.TestServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanup := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer cleanup()
+
+	// Make the request
+	req := &cstructs.AllocExecRequest{
+		AllocID:      uuid.Generate(),
+		Task:         "testtask",
+		Tty:          true,
+		Cmd:          []string{"placeholder command"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
+	}
+
+	// Get the handler
+	handler, err := c.StreamingRpcHandler("Allocations.Exec")
+	require.Nil(err)
+
+	// Create a pipe
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	frames := make(chan *sframer.StreamFrame)
+
+	// Start the handler
+	go handler(p2)
+	go decodeFrames(t, p1, frames, errCh)
+
+	// Send the request
+	encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
+	require.Nil(encoder.Encode(req))
+
+	timeout := time.After(3 * time.Second)
+
+	select {
+	case <-timeout:
+		require.FailNow("timed out")
+	case err := <-errCh:
+		require.True(nstructs.IsErrUnknownAllocation(err), "expected no allocation error but found: %v", err)
+	case f := <-frames:
+		require.Fail("received unexpected frame", "frame: %#v", f)
+	}
+}
+
+func TestAlloc_ExecStreaming_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Start a server and client
+	s, root := nomad.TestACLServer(t, nil)
+	defer s.Shutdown()
+	testutil.WaitForLeader(t, s.RPC)
+
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer cleanup()
+
+	// Create a bad token
+	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "",
+		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityReadFS})
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	cases := []struct {
+		Name          string
+		Token         string
+		ExpectedError string
+	}{
+		{
+			Name:          "bad token",
+			Token:         tokenBad.SecretID,
+			ExpectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:          "good token",
+			Token:         tokenGood.SecretID,
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
+		},
+		{
+			Name:          "root token",
+			Token:         root.SecretID,
+			ExpectedError: structs.ErrUnknownAllocationPrefix,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+
+			// Make the request
+			req := &cstructs.AllocExecRequest{
+				AllocID: uuid.Generate(),
+				Task:    "testtask",
+				Tty:     true,
+				Cmd:     []string{"placeholder command"},
+				QueryOptions: nstructs.QueryOptions{
+					Region:    "global",
+					AuthToken: c.Token,
+					Namespace: nstructs.DefaultNamespace,
+				},
+			}
+
+			// Get the handler
+			handler, err := client.StreamingRpcHandler("Allocations.Exec")
+			require.Nil(err)
+
+			// Create a pipe
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			errCh := make(chan error)
+			frames := make(chan *sframer.StreamFrame)
+
+			// Start the handler
+			go handler(p2)
+			go decodeFrames(t, p1, frames, errCh)
+
+			// Send the request
+			encoder := codec.NewEncoder(p1, nstructs.MsgpackHandle)
+			require.Nil(encoder.Encode(req))
+
+			timeout := time.After(3 * time.Second)
+
+			select {
+			case <-timeout:
+				require.FailNow("timed out")
+			case err := <-errCh:
+				require.Contains(err.Error(), c.ExpectedError)
+			case f := <-frames:
+				require.Fail("received unexpected frame", "frame: %#v", f)
+			}
+		})
+	}
+}
+
+func decodeFrames(t *testing.T, p1 net.Conn, frames chan<- *sframer.StreamFrame, errCh chan<- error) {
+	// Start the decoder
+	decoder := codec.NewDecoder(p1, nstructs.MsgpackHandle)
+
+	for {
+		var msg cstructs.StreamErrWrapper
+		if err := decoder.Decode(&msg); err != nil {
+			if err == io.EOF || strings.Contains(err.Error(), "closed") {
+				return
+			}
+			t.Logf("received error decoding: %#v", err)
+
+			errCh <- fmt.Errorf("error decoding: %v", err)
+			return
+		}
+
+		if msg.Error != nil {
+			errCh <- msg.Error
+			continue
+		}
+
+		var frame sframer.StreamFrame
+		json.Unmarshal(msg.Payload, &frame)
+		t.Logf("received message: %#v", msg)
+		frames <- &frame
 	}
 }
