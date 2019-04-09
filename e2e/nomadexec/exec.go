@@ -1,11 +1,8 @@
 package nomadexec
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -70,21 +67,32 @@ func (tc *NomadExecE2ETest) BeforeAll(f *framework.F) {
 func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 	for _, c := range dtestutils.ExecTaskStreamingBasicCases {
 		f.T().Run(c.Name, func(t *testing.T) {
-			var stdout, stderr bytes.Buffer
-			resize := make(chan api.TerminalSize)
+			stdin, stdout, stderr, readOutput, cleanupFn := dtestutils.NewIO(t, c.Tty, c.Stdin)
+			defer cleanupFn()
 
-			stdin := ioutil.NopCloser(strings.NewReader(c.Stdin))
+			resizeCh := make(chan api.TerminalSize)
+			go func() {
+				resizeCh <- api.TerminalSize{Height: 100, Width: 100}
+			}()
 
 			exitCode, err := tc.Nomad().Allocations().Exec(context.Background(),
 				&tc.alloc, "task", c.Tty,
 				[]string{"/bin/sh", "-c", c.Command},
-				stdin, &stdout, &stderr,
-				resize, nil)
+				stdin, stdout, stderr,
+				resizeCh, nil)
 
 			require.NoError(t, err)
+
 			require.Equal(t, c.ExitCode, exitCode)
-			require.Equal(t, c.Stdout, stdout.String())
-			require.Equal(t, c.Stderr, stderr.String())
+
+			// flush any pending writes
+			stdin.Close()
+			stdout.Close()
+			stderr.Close()
+
+			stdoutFound, stderrFound := readOutput()
+			require.Equal(t, c.Stdout, stdoutFound)
+			require.Equal(t, c.Stderr, stderrFound)
 		})
 	}
 }
