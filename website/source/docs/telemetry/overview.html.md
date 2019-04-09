@@ -128,10 +128,7 @@ when the CPU is at or above the reserved resources for the task.
 ## Job and Task Status
 
 We do not currently surface metrics for job and task/allocation status, although
-we will consider adding metrics where it makes sense. This PR will add metrics
-to improve monitoring of task state changes, for example. When a desired metric
-does not exist, the API can always be used to create triggers for any event that
-required monitoring.
+we will consider adding metrics where it makes sense. 
 
 ## Runtime Metrics
 
