@@ -44,6 +44,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/host"
 )
@@ -135,6 +136,7 @@ type AllocRunner interface {
 	RestartAll(taskEvent *structs.TaskEvent) error
 
 	GetTaskExecHandler(taskName string) drivermanager.TaskExecHandler
+	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
