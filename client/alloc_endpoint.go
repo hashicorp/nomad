@@ -123,7 +123,8 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	a.c.logger.Info("received exec request", "req", fmt.Sprintf("%#v", req))
 
 	// Check read permissions
-	if aclObj, err := a.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
+	aclObj, err := a.c.ResolveToken(req.QueryOptions.AuthToken)
+	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil {
@@ -157,6 +158,26 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 
 		handleStreamResultError(err, code, encoder)
 		return
+	}
+
+	capabilities, err := ar.GetTaskDriverCapabilities(req.Task)
+	if err != nil {
+		code := helper.Int64ToPtr(500)
+		if structs.IsErrUnknownAllocation(err) {
+			code = helper.Int64ToPtr(404)
+		}
+
+		handleStreamResultError(err, code, encoder)
+		return
+	}
+
+	// check node access
+	if aclObj != nil && capabilities.FSIsolation == drivers.FSIsolationNone {
+		exec := aclObj.AllowNsOp(req.QueryOptions.Namespace, acl.NamespaceCapabilityAllocNodeExec)
+		if !exec {
+			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+			return
+		}
 	}
 
 	allocState, err := a.c.GetAllocState(req.AllocID)
