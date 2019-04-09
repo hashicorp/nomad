@@ -2,7 +2,7 @@
 NOMAD_VERSION = 0.9.0-dev
 
 NOMAD_MAIN_VERSION := $(shell echo $(NOMAD_VERSION) | cut -d- -f1)
-NOMAD_PRERELEASE_VERSION := $(shell echo $(NOMAD_VERSION) | cut -d- -f2-)
+NOMAD_PRERELEASE_VERSION := $(shell echo $(NOMAD_VERSION) | sed 's|^[^-]*-\{0,1\}||g' )
 
 update_version:
 	@echo "updating version to $(NOMAD_MAIN_VERSION)-$(NOMAD_PRERELEASE_VERSION)"
