@@ -686,6 +686,34 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 	require.NoError(t, driver.Impl().(*Driver).cleanupImage(handle))
 }
 
+// Tests that images prefixed with "https://" are supported
+func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	taskCfg := TaskConfig{
+		Image: "https://gcr.io/google_containers/pause:0.8.0",
+	}
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "pause",
+		AllocID:   uuid.Generate(),
+		Resources: basicResources,
+	}
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+	d := dockerDriverHarness(t, nil)
+	cleanup := d.MkAllocDir(task, true)
+	defer cleanup()
+
+	_, _, err := d.StartTask(task)
+	require.NoError(t, err)
+
+	d.DestroyTask(task.ID, true)
+}
+
 func newTaskConfig(variant string, command []string) TaskConfig {
 	// busyboxImageID is the ID stored in busybox.tar
 	busyboxImageID := "busybox:1.29.3"
