@@ -1,19 +1,24 @@
 ---
 layout: "docs"
-page_title: "External Plugins"
-sidebar_current: "docs-external-plugins"
+page_title: "Task Driver Plugins: Community Supported"
+sidebar_current: "docs-drivers-community"
 description: |-
-  External plugins allow you easily extend Nomad's functionality and further
-  support customized workloads.
+  A list of community supported Task Driver Plugins.
 ---
 
-# External Plugins
+# Community Supported
 
-Starting with Nomad 0.9, task and device drivers are now pluggable. This gives users the flexibility to introduce their own drivers without having to recompile Nomad. You can view the [plugin stanza][plugin] documentation for examples on how to use the `plugin` stanza in Nomad's client configuration. 
+If you have authored a task driver plugin that you believe will be useful to the
+broader Nomad community and you are committed to maintaining the plugin, please
+file a PR to add your plugin to this page.
 
-Below is a list of external drivers you can use with Nomad:
+## Task Driver Plugins
+
+Nomad has a plugin system for defining task drivers. External task driver
+plugins will have the same user experience as built in drivers. 
+
+Below is a list of community-supported task drivers you can use with Nomad:
 
 - [LXC][lxc]
 
 [lxc]: /docs/drivers/external/lxc.html 
-[plugin]: /docs/configuration/plugin.html
