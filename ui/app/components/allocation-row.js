@@ -30,8 +30,8 @@ export default Component.extend({
     if (!this.get('allocation.isRunning')) return;
 
     return AllocationStatsTracker.create({
-      fetch: url => this.get('token').authorizedRequest(url),
-      allocation: this.get('allocation'),
+      fetch: url => this.token.authorizedRequest(url),
+      allocation: this.allocation,
     });
   }),
 
@@ -41,22 +41,22 @@ export default Component.extend({
   onClick() {},
 
   click(event) {
-    lazyClick([this.get('onClick'), event]);
+    lazyClick([this.onClick, event]);
   },
 
   didReceiveAttrs() {
-    const allocation = this.get('allocation');
+    const allocation = this.allocation;
 
     if (allocation) {
       run.scheduleOnce('afterRender', this, qualifyAllocation);
     } else {
-      this.get('fetchStats').cancelAll();
+      this.fetchStats.cancelAll();
     }
   },
 
   fetchStats: task(function*() {
     do {
-      if (this.get('stats')) {
+      if (this.stats) {
         try {
           yield this.get('stats.poll').perform();
           this.set('statsError', false);
@@ -66,14 +66,14 @@ export default Component.extend({
       }
 
       yield timeout(500);
-    } while (this.get('enablePolling'));
+    } while (this.enablePolling);
   }).drop(),
 });
 
 function qualifyAllocation() {
-  const allocation = this.get('allocation');
+  const allocation = this.allocation;
   return allocation.reload().then(() => {
-    this.get('fetchStats').perform();
+    this.fetchStats.perform();
 
     // Make sure that the job record in the store for this allocation
     // is complete and not a partial from the list endpoint

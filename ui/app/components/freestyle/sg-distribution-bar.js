@@ -14,7 +14,7 @@ export default Component.extend({
   }.on('init'),
 
   willDestroy() {
-    clearInterval(this.get('timer'));
+    clearInterval(this.timer);
   },
 
   distributionBarDatum: computed(() => {

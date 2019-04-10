@@ -20,24 +20,24 @@ export default Component.extend({
 
   // An instance of a StatsTracker. An alternative interface to resource
   tracker: computed('trackedResource', 'type', function() {
-    const resource = this.get('trackedResource');
-    return this.get('statsTrackersRegistry').getTracker(resource);
+    const resource = this.trackedResource;
+    return this.statsTrackersRegistry.getTracker(resource);
   }),
 
   type: computed('resource', function() {
-    const resource = this.get('resource');
+    const resource = this.resource;
     return resource && resource.constructor.modelName;
   }),
 
   trackedResource: computed('resource', 'type', function() {
     // TaskStates use the allocation stats tracker
-    return this.get('type') === 'task-state'
+    return this.type === 'task-state'
       ? this.get('resource.allocation')
-      : this.get('resource');
+      : this.resource;
   }),
 
   metricLabel: computed('metric', function() {
-    const metric = this.get('metric');
+    const metric = this.metric;
     const mappings = {
       cpu: 'CPU',
       memory: 'Memory',
@@ -46,10 +46,10 @@ export default Component.extend({
   }),
 
   data: computed('resource', 'metric', 'type', function() {
-    if (!this.get('tracker')) return [];
+    if (!this.tracker) return [];
 
-    const metric = this.get('metric');
-    if (this.get('type') === 'task-state') {
+    const metric = this.metric;
+    if (this.type === 'task-state') {
       // handle getting the right task out of the tracker
       const task = this.get('tracker.tasks').findBy('task', this.get('resource.name'));
       return task && task[metric];
@@ -59,9 +59,9 @@ export default Component.extend({
   }),
 
   reservedAmount: computed('resource', 'metric', 'type', function() {
-    const metricProperty = this.get('metric') === 'cpu' ? 'reservedCPU' : 'reservedMemory';
+    const metricProperty = this.metric === 'cpu' ? 'reservedCPU' : 'reservedMemory';
 
-    if (this.get('type') === 'task-state') {
+    if (this.type === 'task-state') {
       const task = this.get('tracker.tasks').findBy('task', this.get('resource.name'));
       return task[metricProperty];
     }
@@ -70,7 +70,7 @@ export default Component.extend({
   }),
 
   chartClass: computed('metric', function() {
-    const metric = this.get('metric');
+    const metric = this.metric;
     const mappings = {
       cpu: 'is-info',
       memory: 'is-danger',
@@ -87,13 +87,13 @@ export default Component.extend({
   }),
 
   didReceiveAttrs() {
-    if (this.get('tracker')) {
-      this.get('poller').perform();
+    if (this.tracker) {
+      this.poller.perform();
     }
   },
 
   willDestroy() {
-    this.get('poller').cancelAll();
+    this.poller.cancelAll();
     this.get('tracker.signalPause').perform();
   },
 });

@@ -45,7 +45,7 @@ export default Service.extend({
     }
 
     const tracker = Constructor.create({
-      fetch: url => this.get('token').authorizedRequest(url),
+      fetch: url => this.token.authorizedRequest(url),
       [resourceProp]: resource,
     });
 

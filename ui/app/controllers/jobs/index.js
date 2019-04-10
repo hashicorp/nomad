@@ -62,7 +62,7 @@ export default Controller.extend(Sortable, Searchable, {
   optionsDatacenter: computed('visibleJobs.[]', function() {
     const flatten = (acc, val) => acc.concat(val);
     const allDatacenters = new Set(
-      this.get('visibleJobs')
+      this.visibleJobs
         .mapBy('datacenters')
         .reduce(flatten, [])
     );
@@ -72,7 +72,7 @@ export default Controller.extend(Sortable, Searchable, {
     scheduleOnce('actions', () => {
       this.set(
         'qpDatacenter',
-        serialize(intersection(availableDatacenters, this.get('selectionDatacenter')))
+        serialize(intersection(availableDatacenters, this.selectionDatacenter))
       );
     });
 
@@ -85,7 +85,7 @@ export default Controller.extend(Sortable, Searchable, {
     const hasPrefix = /.[-._]/;
 
     // Collect and count all the prefixes
-    const allNames = this.get('visibleJobs').mapBy('name');
+    const allNames = this.visibleJobs.mapBy('name');
     const nameHistogram = allNames.reduce((hist, name) => {
       if (hasPrefix.test(name)) {
         const prefix = name.match(/(.+?)[-.]/)[1];
@@ -106,7 +106,7 @@ export default Controller.extend(Sortable, Searchable, {
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
-      this.set('qpPrefix', serialize(intersection(availablePrefixes, this.get('selectionPrefix'))));
+      this.set('qpPrefix', serialize(intersection(availablePrefixes, this.selectionPrefix)));
     });
 
     // Sort, format, and include the count in the label
@@ -126,7 +126,7 @@ export default Controller.extend(Sortable, Searchable, {
     const hasNamespaces = this.get('system.namespaces.length');
     const activeNamespace = this.get('system.activeNamespace.id') || 'default';
 
-    return this.get('model')
+    return this.model
       .compact()
       .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
       .filter(job => !job.get('parent.content'));
@@ -144,16 +144,11 @@ export default Controller.extend(Sortable, Searchable, {
         selectionStatus: statuses,
         selectionDatacenter: datacenters,
         selectionPrefix: prefixes,
-      } = this.getProperties(
-        'selectionType',
-        'selectionStatus',
-        'selectionDatacenter',
-        'selectionPrefix'
-      );
+      } = this;
 
       // A job must match ALL filter facets, but it can match ANY selection within a facet
       // Always return early to prevent unnecessary facet predicates.
-      return this.get('visibleJobs').filter(job => {
+      return this.visibleJobs.filter(job => {
         if (types.length && !types.includes(job.get('displayType'))) {
           return false;
         }

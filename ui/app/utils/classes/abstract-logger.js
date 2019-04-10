@@ -16,7 +16,7 @@ export default Mixin.create({
   endOffset: null,
 
   offsetParams: computed('endOffset', function() {
-    const endOffset = this.get('endOffset');
+    const endOffset = this.endOffset;
     return endOffset
       ? { origin: 'start', offset: endOffset }
       : { origin: 'end', offset: MAX_OUTPUT_LENGTH };
@@ -26,8 +26,8 @@ export default Mixin.create({
 
   fullUrl: computed('url', 'params', 'offsetParams', 'additionalParams', function() {
     const queryParams = queryString.stringify(
-      assign({}, this.get('params'), this.get('offsetParams'), this.get('additionalParams'))
+      assign({}, this.params, this.offsetParams, this.additionalParams)
     );
-    return `${this.get('url')}?${queryParams}`;
+    return `${this.url}?${queryParams}`;
   }),
 });

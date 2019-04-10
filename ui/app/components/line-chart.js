@@ -58,20 +58,20 @@ export default Component.extend(WindowResizable, {
   activeDatum: null,
 
   activeDatumLabel: computed('activeDatum', function() {
-    const datum = this.get('activeDatum');
+    const datum = this.activeDatum;
 
     if (!datum) return;
 
-    const x = datum[this.get('xProp')];
-    return this.xFormat(this.get('timeseries'))(x);
+    const x = datum[this.xProp];
+    return this.xFormat(this.timeseries)(x);
   }),
 
   activeDatumValue: computed('activeDatum', function() {
-    const datum = this.get('activeDatum');
+    const datum = this.activeDatum;
 
     if (!datum) return;
 
-    const y = datum[this.get('yProp')];
+    const y = datum[this.yProp];
     return this.yFormat()(y);
   }),
 
@@ -88,19 +88,19 @@ export default Component.extend(WindowResizable, {
   tooltipStyle: styleStringProperty('tooltipPosition'),
 
   xScale: computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset', function() {
-    const xProp = this.get('xProp');
-    const scale = this.get('timeseries') ? d3Scale.scaleTime() : d3Scale.scaleLinear();
-    const data = this.get('data');
+    const xProp = this.xProp;
+    const scale = this.timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
+    const data = this.data;
 
-    const domain = data.length ? d3Array.extent(this.get('data'), d => d[xProp]) : [0, 1];
+    const domain = data.length ? d3Array.extent(this.data, d => d[xProp]) : [0, 1];
 
-    scale.rangeRound([10, this.get('yAxisOffset')]).domain(domain);
+    scale.rangeRound([10, this.yAxisOffset]).domain(domain);
 
     return scale;
   }),
 
   xRange: computed('data.[]', 'xFormat', 'xProp', 'timeseries', function() {
-    const { xProp, timeseries, data } = this.getProperties('xProp', 'timeseries', 'data');
+    const { xProp, timeseries, data } = this;
     const range = d3Array.extent(data, d => d[xProp]);
     const formatter = this.xFormat(timeseries);
 
@@ -108,40 +108,40 @@ export default Component.extend(WindowResizable, {
   }),
 
   yRange: computed('data.[]', 'yFormat', 'yProp', function() {
-    const yProp = this.get('yProp');
-    const range = d3Array.extent(this.get('data'), d => d[yProp]);
+    const yProp = this.yProp;
+    const range = d3Array.extent(this.data, d => d[yProp]);
     const formatter = this.yFormat();
 
     return range.map(formatter);
   }),
 
   yScale: computed('data.[]', 'yProp', 'xAxisOffset', function() {
-    const yProp = this.get('yProp');
-    let max = d3Array.max(this.get('data'), d => d[yProp]) || 1;
+    const yProp = this.yProp;
+    let max = d3Array.max(this.data, d => d[yProp]) || 1;
     if (max > 1) {
       max = nice(max);
     }
 
     return d3Scale
       .scaleLinear()
-      .rangeRound([this.get('xAxisOffset'), 10])
+      .rangeRound([this.xAxisOffset, 10])
       .domain([0, max]);
   }),
 
   xAxis: computed('xScale', function() {
-    const formatter = this.xFormat(this.get('timeseries'));
+    const formatter = this.xFormat(this.timeseries);
 
     return d3Axis
       .axisBottom()
-      .scale(this.get('xScale'))
+      .scale(this.xScale)
       .ticks(5)
       .tickFormat(formatter);
   }),
 
   yTicks: computed('xAxisOffset', function() {
-    const height = this.get('xAxisOffset');
+    const height = this.xAxisOffset;
     const tickCount = Math.ceil(height / 120) * 2 + 1;
-    const domain = this.get('yScale').domain();
+    const domain = this.yScale.domain();
     const ticks = lerp(domain, tickCount);
     return domain[1] - domain[0] > 1 ? nice(ticks) : ticks;
   }),
@@ -151,20 +151,20 @@ export default Component.extend(WindowResizable, {
 
     return d3Axis
       .axisRight()
-      .scale(this.get('yScale'))
-      .tickValues(this.get('yTicks'))
+      .scale(this.yScale)
+      .tickValues(this.yTicks)
       .tickFormat(formatter);
   }),
 
   yGridlines: computed('yScale', function() {
     // The first gridline overlaps the x-axis, so remove it
-    const [, ...ticks] = this.get('yTicks');
+    const [, ...ticks] = this.yTicks;
 
     return d3Axis
       .axisRight()
-      .scale(this.get('yScale'))
+      .scale(this.yScale)
       .tickValues(ticks)
-      .tickSize(-this.get('yAxisOffset'))
+      .tickSize(-this.yAxisOffset)
       .tickFormat('');
   }),
 
@@ -185,20 +185,15 @@ export default Component.extend(WindowResizable, {
   }),
 
   xAxisOffset: computed('height', 'xAxisHeight', function() {
-    return this.get('height') - this.get('xAxisHeight');
+    return this.height - this.xAxisHeight;
   }),
 
   yAxisOffset: computed('width', 'yAxisWidth', function() {
-    return this.get('width') - this.get('yAxisWidth');
+    return this.width - this.yAxisWidth;
   }),
 
   line: computed('data.[]', 'xScale', 'yScale', function() {
-    const { xScale, yScale, xProp, yProp } = this.getProperties(
-      'xScale',
-      'yScale',
-      'xProp',
-      'yProp'
-    );
+    const { xScale, yScale, xProp, yProp } = this;
 
     const line = d3Shape
       .line()
@@ -206,16 +201,11 @@ export default Component.extend(WindowResizable, {
       .x(d => xScale(d[xProp]))
       .y(d => yScale(d[yProp]));
 
-    return line(this.get('data'));
+    return line(this.data);
   }),
 
   area: computed('data.[]', 'xScale', 'yScale', function() {
-    const { xScale, yScale, xProp, yProp } = this.getProperties(
-      'xScale',
-      'yScale',
-      'xProp',
-      'yProp'
-    );
+    const { xScale, yScale, xProp, yProp } = this;
 
     const area = d3Shape
       .area()
@@ -224,7 +214,7 @@ export default Component.extend(WindowResizable, {
       .y0(yScale(0))
       .y1(d => yScale(d[yProp]));
 
-    return area(this.get('data'));
+    return area(this.data);
   }),
 
   didInsertElement() {
@@ -258,13 +248,7 @@ export default Component.extend(WindowResizable, {
   },
 
   updateActiveDatum(mouseX) {
-    const { xScale, xProp, yScale, yProp, data } = this.getProperties(
-      'xScale',
-      'xProp',
-      'yScale',
-      'yProp',
-      'data'
-    );
+    const { xScale, xProp, yScale, yProp, data } = this;
 
     if (!data || !data.length) return;
 
@@ -318,17 +302,17 @@ export default Component.extend(WindowResizable, {
       // axis, the axes themselves are recomputed and need to
       // be re-rendered.
       this.mountD3Elements();
-      if (this.get('isActive')) {
-        this.updateActiveDatum(this.get('latestMouseX'));
+      if (this.isActive) {
+        this.updateActiveDatum(this.latestMouseX);
       }
     });
   },
 
   mountD3Elements() {
-    if (!this.get('isDestroyed') && !this.get('isDestroying')) {
-      d3.select(this.element.querySelector('.x-axis')).call(this.get('xAxis'));
-      d3.select(this.element.querySelector('.y-axis')).call(this.get('yAxis'));
-      d3.select(this.element.querySelector('.y-gridlines')).call(this.get('yGridlines'));
+    if (!this.isDestroyed && !this.isDestroying) {
+      d3.select(this.element.querySelector('.x-axis')).call(this.xAxis);
+      d3.select(this.element.querySelector('.y-axis')).call(this.yAxis);
+      d3.select(this.element.querySelector('.y-gridlines')).call(this.yGridlines);
     }
   },
 
