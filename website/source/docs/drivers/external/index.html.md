@@ -12,7 +12,7 @@ If you have authored a task driver plugin that you believe will be useful to the
 broader Nomad community and you are committed to maintaining the plugin, please
 file a PR to add your plugin to this page.
 
-## Authoring Task Driver Plugins
+## Task Driver Plugins
 
 Nomad has a plugin system for defining task drivers. External task driver
 plugins will have the same user experience as built in drivers. 
