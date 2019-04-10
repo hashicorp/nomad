@@ -11,6 +11,7 @@ export default Model.extend({
   // Available from list response
   name: attr('string'),
   datacenter: attr('string'),
+  nodeClass: attr('string'),
   isDraining: attr('boolean'),
   schedulingEligibility: attr('string'),
   status: attr('string'),

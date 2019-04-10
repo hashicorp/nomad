@@ -6,6 +6,7 @@
 /*.hcl
 .DS_Store
 Thumbs.db
+.idea
 
 # Folders
 _obj

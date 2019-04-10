@@ -2,16 +2,44 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
-    {{#if nodes.length}}
-      <div class="content">
-        <div>
+    <div class="toolbar">
+      {{#if nodes.length}}
+        <div class="toolbar-item">
           {{search-box
             searchTerm=(mut searchTerm)
             onChange=(action resetPagination)
             placeholder="Search clients..."}}
         </div>
+      {{/if}}
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+          {{multi-select-dropdown
+            data-test-class-facet
+            label="Class"
+            options=optionsClass
+            selection=selectionClass
+            onSelect=(action setFacetQueryParam "qpClass")}}
+          {{multi-select-dropdown
+            data-test-status-facet
+            label="Status"
+            options=optionsStatus
+            selection=selectionStatus
+            onSelect=(action setFacetQueryParam "qpStatus")}}
+          {{multi-select-dropdown
+            data-test-datacenter-facet
+            label="Datacenter"
+            options=optionsDatacenter
+            selection=selectionDatacenter
+            onSelect=(action setFacetQueryParam "qpDatacenter")}}
+          {{multi-select-dropdown
+            data-test-flags-facet
+            label="Flags"
+            options=optionsFlags
+            selection=selectionFlags
+            onSelect=(action setFacetQueryParam "qpFlags")}}
+        </div>
       </div>
-    {{/if}}
+    </div>
     {{#list-pagination
       source=sortedNodes
       size=pageSize
@@ -52,6 +80,11 @@
           <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Clients</h3>
           <p class="empty-message-body">
             The cluster currently has no client nodes.
+          </p>
+        {{else if (eq filteredNodes.length 0)}}
+          <h3 data-test-empty-clients-list-headline class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">
+            No clients match your current filter selection.
           </p>
         {{else if searchTerm}}
           <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Matches</h3>

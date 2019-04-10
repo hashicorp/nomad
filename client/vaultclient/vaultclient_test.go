@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
+	vaultconsts "github.com/hashicorp/vault/helper/consts"
 	"github.com/stretchr/testify/require"
 )
 
@@ -90,6 +91,25 @@ func TestVaultClient_TokenRenewals(t *testing.T) {
 	if c.heap.Length() != 0 {
 		t.Fatalf("bad: heap length: expected: 0, actual: %d", c.heap.Length())
 	}
+}
+
+// TestVaultClient_NamespaceSupport tests that the Vault namespace config, if present, will result in the
+// namespace header being set on the created Vault client.
+func TestVaultClient_NamespaceSupport(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	tr := true
+	testNs := "test-namespace"
+
+	logger := testlog.HCLogger(t)
+
+	conf := config.DefaultConfig()
+	conf.VaultConfig.Enabled = &tr
+	conf.VaultConfig.Token = "testvaulttoken"
+	conf.VaultConfig.Namespace = testNs
+	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
+	require.NoError(err)
+	require.Equal(testNs, c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
 }
 
 func TestVaultClient_Heap(t *testing.T) {

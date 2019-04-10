@@ -12,6 +12,14 @@ The `job revert` command is used to revert a job to a prior version of the
 job. The available versions to revert to can be found using [`job
 history`](/docs/commands/job/history.html) command.
 
+The revert command will use a Vault token with the following preference:
+first the `-vault-token` flag, then the `$VAULT_TOKEN` environment variable.
+Because the vault token used to [run](/docs/commands/job/run.html) the targeted
+job version was not persisted, it must be provided to revert if the targeted
+job version includes Vault policies and the Nomad servers were
+[configured](/docs/configuration/vault.html#allow_unauthenticated)
+to require authentication.
+
 ## Usage
 
 ```
@@ -30,6 +38,10 @@ to revert to.
 * `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval status](/docs/commands/eval-status.html) command
+
+* `-vault-token`: If set, the passed Vault token is sent along with the revert request
+  to the Nomad servers. This overrides the token found in the $VAULT_TOKEN environment
+  variable.
 
 * `-verbose`: Show full information.
 

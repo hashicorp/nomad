@@ -892,6 +892,7 @@ func parseVaultConfig(result **config.VaultConfig, list *ast.ObjectList) error {
 		"tls_server_name",
 		"tls_skip_verify",
 		"token",
+		"namespace",
 	}
 
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {

@@ -495,12 +495,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					TaskGroup:          tg.Name,
 					Metrics:            s.ctx.Metrics(),
 					NodeID:             option.Node.ID,
+					NodeName:           option.Node.Name,
 					DeploymentID:       deploymentID,
 					TaskResources:      resources.OldTaskResources(),
 					AllocatedResources: resources,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
-
 					SharedResources: &structs.Resources{
 						DiskMB: tg.EphemeralDisk.SizeMB,
 					},
