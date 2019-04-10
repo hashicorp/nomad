@@ -399,7 +399,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "20s",
 		"exec_command": map[string]interface{}{
-			"run_for":       "1s",
+			"run_for":       "1ms",
 			"stdout_string": expectedStdout,
 			"stderr_string": expectedStderr,
 			"exit_code":     3,
