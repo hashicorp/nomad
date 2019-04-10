@@ -18,7 +18,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/devices/gpu/nvidia"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -56,6 +55,9 @@ var (
 	// taskHandleVersion is the version of task handle which this driver sets
 	// and understands how to decode driver state
 	taskHandleVersion = 1
+
+	// Nvidia-container-runtime environment variable names
+	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
 type Driver struct {
@@ -684,7 +686,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		PidsLimit: driverConfig.PidsLimit,
 	}
 
-	if _, ok := task.DeviceEnv[nvidia.NvidiaVisibleDevices]; ok {
+	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
 		if !d.gpuRuntime {
 			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
 		}
