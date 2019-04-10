@@ -3,9 +3,17 @@ package agent
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/nomad/structs"
+
+	"github.com/hashicorp/nomad/nomad/mock"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,6 +61,68 @@ func TestHTTP_Metrics(t *testing.T) {
 			return len(res.Gauges) != 0, nil
 		}, func(err error) {
 			t.Fatalf("should have metrics: %v", err)
+		})
+	})
+}
+
+// When emitting metrics, the client should use the local copy of the allocs with
+// updated task states (not the copy submitted by the server).
+func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	numTasks := 10
+
+	httpTest(t, func(c *Config) {
+		c.Telemetry.PublishAllocationMetrics = true
+		c.Telemetry.PublishNodeMetrics = true
+		c.Telemetry.BackwardsCompatibleMetrics = false
+		c.Telemetry.DisableTaggedMetrics = false
+	}, func(s *TestAgent) {
+		// Create the job, wait for it to finish
+		job := mock.BatchJob()
+		job.TaskGroups[0].Count = numTasks
+		testutil.RegisterJob(t, s.RPC, job)
+		testutil.WaitForResult(func() (bool, error) {
+			args := &structs.JobSpecificRequest{}
+			args.JobID = job.ID
+			args.QueryOptions.Region = "global"
+			var resp structs.SingleJobResponse
+			err := s.RPC("Job.GetJob", args, &resp)
+			require.NoError(err)
+			return resp.Job.Status != "dead", nil
+		}, func(err error) {
+			require.Fail("timed-out waiting for job to complete")
+		})
+
+		// wait for metrics to converge
+		var pending, running, terminal float32 = -1.0, -1.0, -1.0
+		testutil.WaitForResultRetries(100, func() (bool, error) {
+			time.Sleep(100 * time.Millisecond)
+			// client alloc metrics should reflect that there is one running alloc and zero pending allocs
+			req, err := http.NewRequest("GET", "/v1/metrics", nil)
+			require.NoError(err)
+			respW := httptest.NewRecorder()
+
+			obj, err := s.Server.MetricsRequest(respW, req)
+			require.NoError(err)
+
+			metrics := obj.(metrics.MetricsSummary)
+			for _, g := range metrics.Gauges {
+				if strings.HasSuffix(g.Name, "client.allocations.pending") {
+					pending = g.Value
+				}
+				if strings.HasSuffix(g.Name, "client.allocations.running") {
+					running = g.Value
+				}
+				if strings.HasSuffix(g.Name, "client.allocations.terminal") {
+					terminal = g.Value
+				}
+			}
+			return pending == float32(0) && running == float32(0) &&
+				terminal == float32(numTasks), nil
+		}, func(err error) {
+			require.Fail("timed out waiting for metrics to converge",
+				"pending: %v, running: %v, terminal: %v", pending, running, terminal)
 		})
 	})
 }
