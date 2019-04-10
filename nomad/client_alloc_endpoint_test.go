@@ -1115,7 +1115,23 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	require.Nil(t, remoteState.UpsertJob(999, a.Job))
 	require.Nil(t, remoteState.UpsertAllocs(1003, []*structs.Allocation{a}))
 
-	testutil.WaitForRunning(t, localServer.RPC, a.Job)
+	// Wait for the client to run the allocation
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, err := localState.AllocByID(nil, a.ID)
+		if err != nil {
+			return false, err
+		}
+		if alloc == nil {
+			return false, fmt.Errorf("unknown alloc")
+		}
+		if alloc.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err, "task didn't start yet")
+	})
 
 	/////////  Actually run query now
 	cases := []struct {

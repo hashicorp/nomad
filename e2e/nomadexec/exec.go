@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	dtestutils "github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 type NomadExecE2ETest struct {
@@ -75,15 +76,19 @@ func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 				resizeCh <- api.TerminalSize{Height: 100, Width: 100}
 			}()
 
-			exitCode, err := tc.Nomad().Allocations().Exec(context.Background(),
+			ctx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancelFn()
+
+			exitCode, err := tc.Nomad().Allocations().Exec(ctx,
 				&tc.alloc, "task", c.Tty,
 				[]string{"/bin/sh", "-c", c.Command},
 				stdin, stdout, stderr,
 				resizeCh, nil)
 
-			require.NoError(t, err)
-
-			require.Equal(t, c.ExitCode, exitCode)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.Equal(t, c.ExitCode, exitCode)
+			}
 
 			// flush any pending writes
 			stdin.Close()
@@ -91,8 +96,8 @@ func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 			stderr.Close()
 
 			stdoutFound, stderrFound := readOutput()
-			require.Equal(t, c.Stdout, stdoutFound)
-			require.Equal(t, c.Stderr, stderrFound)
+			assert.Equal(t, c.Stdout, stdoutFound)
+			assert.Equal(t, c.Stderr, stderrFound)
 		})
 	}
 }

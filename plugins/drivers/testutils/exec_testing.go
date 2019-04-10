@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -134,9 +136,14 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 				ResizeCh: resizeCh,
 			}
 
-			result, err := driver.ExecTaskStreaming(context.Background(), taskID, opts)
-			require.NoError(t, err)
-			require.Equal(t, c.ExitCode, result.ExitCode)
+			ctx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancelFn()
+
+			result, err := driver.ExecTaskStreaming(ctx, taskID, opts)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.Equal(t, c.ExitCode, result.ExitCode)
+			}
 
 			// flush any pending writes
 			stdin.Close()
@@ -144,8 +151,8 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 			stderr.Close()
 
 			stdoutFound, stderrFound := readOutput()
-			require.Equal(t, c.Stdout, stdoutFound)
-			require.Equal(t, c.Stderr, stderrFound)
+			assert.Equal(t, c.Stdout, stdoutFound)
+			assert.Equal(t, c.Stderr, stderrFound)
 		})
 	}
 }
