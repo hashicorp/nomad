@@ -148,7 +148,6 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 	reqPath := fmt.Sprintf("/v1/client/allocation/%s/exec", alloc.ID)
 
 	pr, pw := io.Pipe()
-	enc := json.NewEncoder(pw)
 
 	r, err := nodeClient.rawPostQuery(reqPath, pr, q)
 	if err != nil {
@@ -159,12 +158,18 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 		}
 
 		// Try via the server
-		r, err = a.client.rawQuery(reqPath, q)
+		pr.Close()
+		pw.Close()
+
+		pr, pw = io.Pipe()
+		r, err = a.client.rawPostQuery(reqPath, pr, q)
 		if err != nil {
 			errCh <- err
 			return nil, errCh
 		}
 	}
+
+	enc := json.NewEncoder(pw)
 
 	go func() {
 		for s := range terminalSizeCh {
