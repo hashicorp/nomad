@@ -150,6 +150,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"alloc restart": func() (cli.Command, error) {
+			return &AllocRestartCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc status": func() (cli.Command, error) {
 			return &AllocStatusCommand{
 				Meta: meta,
