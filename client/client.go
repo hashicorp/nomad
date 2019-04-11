@@ -1227,14 +1227,30 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	}
 
 	// COMPAT(0.10): Remove in 0.10
-	if response.Resources != nil && !resourcesAreEqual(c.config.Node.Resources, response.Resources) {
-		nodeHasChanged = true
-		c.config.Node.Resources.Merge(response.Resources)
+	// update the response networks with the config
+	// if we still have node changes, merge them
+	if response.Resources != nil {
+		response.Resources.Networks = updateNetworks(
+			c.config.Node.Resources.Networks,
+			response.Resources.Networks,
+			c.config)
+		if !c.config.Node.Resources.Equals(response.Resources) {
+			c.config.Node.Resources.Merge(response.Resources)
+			nodeHasChanged = true
+		}
 	}
 
-	if response.NodeResources != nil && !c.config.Node.NodeResources.Equals(response.NodeResources) {
-		nodeHasChanged = true
-		c.config.Node.NodeResources.Merge(response.NodeResources)
+	// update the response networks with the config
+	// if we still have node changes, merge them
+	if response.NodeResources != nil {
+		response.NodeResources.Networks = updateNetworks(
+			c.config.Node.NodeResources.Networks,
+			response.NodeResources.Networks,
+			c.config)
+		if !c.config.Node.NodeResources.Equals(response.NodeResources) {
+			c.config.Node.NodeResources.Merge(response.NodeResources)
+			nodeHasChanged = true
+		}
 	}
 
 	if nodeHasChanged {
@@ -1244,32 +1260,27 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	return c.configCopy.Node
 }
 
-// resourcesAreEqual is a temporary function to compare whether resources are
-// equal. We can use this until we change fingerprinters to set pointers on a
-// return type.
-func resourcesAreEqual(first, second *structs.Resources) bool {
-	if first.CPU != second.CPU {
-		return false
-	}
-	if first.MemoryMB != second.MemoryMB {
-		return false
-	}
-	if first.DiskMB != second.DiskMB {
-		return false
-	}
-	if len(first.Networks) != len(second.Networks) {
-		return false
-	}
-	for i, e := range first.Networks {
-		if len(second.Networks) < i {
-			return false
+// updateNetworks preserves manually configured network options, but
+// applies fingerprint updates
+func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) structs.Networks {
+	if c.NetworkInterface == "" {
+		ns = up
+	} else {
+		// if a network is configured, use only that network
+		// use the fingerprinted data
+		for _, n := range up {
+			if c.NetworkInterface == n.Device {
+				ns = []*structs.NetworkResource{n}
+			}
 		}
-		f := second.Networks[i]
-		if !e.Equals(f) {
-			return false
+		// if not matched, ns has the old data
+	}
+	if c.NetworkSpeed != 0 {
+		for _, n := range ns {
+			n.MBits = c.NetworkSpeed
 		}
 	}
-	return true
+	return ns
 }
 
 // retryIntv calculates a retry interval value given the base

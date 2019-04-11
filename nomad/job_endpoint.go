@@ -263,7 +263,7 @@ func setImplicitConstraints(j *structs.Job) {
 
 		found := false
 		for _, c := range tg.Constraints {
-			if c.Equal(vaultConstraint) {
+			if c.Equals(vaultConstraint) {
 				found = true
 				break
 			}
@@ -288,7 +288,7 @@ func setImplicitConstraints(j *structs.Job) {
 
 		found := false
 		for _, c := range tg.Constraints {
-			if c.Equal(sigConstraint) {
+			if c.Equals(sigConstraint) {
 				found = true
 				break
 			}

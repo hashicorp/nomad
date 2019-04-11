@@ -1715,7 +1715,7 @@ type Resources struct {
 	DiskMB   int
 	IOPS     int // COMPAT(0.10): Only being used to issue warnings
 	Networks Networks
-	Devices  []*RequestedDevice
+	Devices  ResourceDevices
 }
 
 const (
@@ -1771,6 +1771,7 @@ func (r *Resources) Validate() error {
 }
 
 // Merge merges this resource with another resource.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
 		r.CPU = other.CPU
@@ -1789,6 +1790,52 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
+// COMPAT(0.10): Remove in 0.10
+func (r *Resources) Equals(o *Resources) bool {
+	if r == o {
+		return true
+	}
+	if r == nil || o == nil {
+		return false
+	}
+	return r.CPU == o.CPU &&
+		r.MemoryMB == o.MemoryMB &&
+		r.DiskMB == o.DiskMB &&
+		r.IOPS == o.IOPS &&
+		r.Networks.Equals(&o.Networks) &&
+		r.Devices.Equals(&o.Devices)
+}
+
+// COMPAT(0.10): Remove in 0.10
+// ResourceDevices are part of Resources
+type ResourceDevices []*RequestedDevice
+
+// COMPAT(0.10): Remove in 0.10
+// Equals ResourceDevices as set keyed by Name
+func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
+	if d == o {
+		return true
+	}
+	if d == nil || o == nil {
+		return false
+	}
+	if len(*d) != len(*o) {
+		return false
+	}
+	m := make(map[string]*RequestedDevice, len(*d))
+	for _, e := range *d {
+		m[e.Name] = e
+	}
+	for _, oe := range *o {
+		de, ok := m[oe.Name]
+		if !ok || !de.Equals(oe) {
+			return false
+		}
+	}
+	return true
+}
+
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
@@ -1807,6 +1854,7 @@ func (r *Resources) Canonicalize() {
 // MeetsMinResources returns an error if the resources specified are less than
 // the minimum allowed.
 // This is based on the minimums defined in the Resources type
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
 	minResources := MinResources()
@@ -1855,6 +1903,7 @@ func (r *Resources) Copy() *Resources {
 }
 
 // NetIndex finds the matching net index using device name
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) NetIndex(n *NetworkResource) int {
 	return r.Networks.NetIndex(n)
 }
@@ -1862,6 +1911,7 @@ func (r *Resources) NetIndex(n *NetworkResource) int {
 // Superset checks if one set of resources is a superset
 // of another. This ignores network resources, and the NetworkIndex
 // should be used for that.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Superset(other *Resources) (bool, string) {
 	if r.CPU < other.CPU {
 		return false, "cpu"
@@ -1877,6 +1927,7 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 
 // Add adds the resources of the delta to this, potentially
 // returning an error if not possible.
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) Add(delta *Resources) error {
 	if delta == nil {
 		return nil
@@ -1897,6 +1948,7 @@ func (r *Resources) Add(delta *Resources) error {
 	return nil
 }
 
+// COMPAT(0.10): Remove in 0.10
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
@@ -2074,11 +2126,24 @@ type RequestedDevice struct {
 
 	// Constraints are a set of constraints to apply when selecting the device
 	// to use.
-	Constraints []*Constraint
+	Constraints Constraints
 
 	// Affinities are a set of affinites to apply when selecting the device
 	// to use.
-	Affinities []*Affinity
+	Affinities Affinities
+}
+
+func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
+	if r == o {
+		return true
+	}
+	if r == nil || o == nil {
+		return false
+	}
+	return r.Name == o.Name &&
+		r.Count == o.Count &&
+		r.Constraints.Equals(&o.Constraints) &&
+		r.Affinities.Equals(&o.Affinities)
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -2249,14 +2314,8 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	if !n.Disk.Equals(&o.Disk) {
 		return false
 	}
-
-	if len(n.Networks) != len(o.Networks) {
+	if !n.Networks.Equals(&o.Networks) {
 		return false
-	}
-	for i, n := range n.Networks {
-		if !n.Equals(o.Networks[i]) {
-			return false
-		}
 	}
 
 	// Check the devices
@@ -2267,7 +2326,28 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 	return true
 }
 
-// DevicesEquals returns true if the two device arrays are equal
+// Equals equates Networks as a set
+func (n *Networks) Equals(o *Networks) bool {
+	if n == o {
+		return true
+	}
+	if n == nil || o == nil {
+		return false
+	}
+	if len(*n) != len(*o) {
+		return false
+	}
+	for _, ne := range *n {
+		for _, oe := range *o {
+			if !ne.Equals(oe) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// DevicesEquals returns true if the two device arrays are set equal
 func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 	if len(d1) != len(d2) {
 		return false
@@ -6415,10 +6495,11 @@ type Constraint struct {
 }
 
 // Equal checks if two constraints are equal
-func (c *Constraint) Equal(o *Constraint) bool {
-	return c.LTarget == o.LTarget &&
-		c.RTarget == o.RTarget &&
-		c.Operand == o.Operand
+func (c *Constraint) Equals(o *Constraint) bool {
+	return c == o ||
+		c.LTarget == o.LTarget &&
+			c.RTarget == o.RTarget &&
+			c.Operand == o.Operand
 }
 
 func (c *Constraint) Copy() *Constraint {
@@ -6494,6 +6575,29 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+type Constraints []*Constraint
+
+// Equals compares Constraints as a set
+func (xs *Constraints) Equals(ys *Constraints) bool {
+	if xs == ys {
+		return true
+	}
+	if xs == nil || ys == nil {
+		return false
+	}
+	if len(*xs) != len(*ys) {
+		return false
+	}
+	for _, x := range *xs {
+		for _, y := range *ys {
+			if !x.Equals(y) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Affinity is used to score placement options based on a weight
 type Affinity struct {
 	LTarget string // Left-hand target
@@ -6504,11 +6608,12 @@ type Affinity struct {
 }
 
 // Equal checks if two affinities are equal
-func (a *Affinity) Equal(o *Affinity) bool {
-	return a.LTarget == o.LTarget &&
-		a.RTarget == o.RTarget &&
-		a.Operand == o.Operand &&
-		a.Weight == o.Weight
+func (a *Affinity) Equals(o *Affinity) bool {
+	return a == o ||
+		a.LTarget == o.LTarget &&
+			a.RTarget == o.RTarget &&
+			a.Operand == o.Operand &&
+			a.Weight == o.Weight
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -6587,6 +6692,29 @@ type Spread struct {
 
 	// Memoized string representation
 	str string
+}
+
+type Affinities []*Affinity
+
+// Equals compares Affinities as a set
+func (xs *Affinities) Equals(ys *Affinities) bool {
+	if xs == ys {
+		return true
+	}
+	if xs == nil || ys == nil {
+		return false
+	}
+	if len(*xs) != len(*ys) {
+		return false
+	}
+	for _, x := range *xs {
+		for _, y := range *ys {
+			if !x.Equals(y) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (s *Spread) Copy() *Spread {
