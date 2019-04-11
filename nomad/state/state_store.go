@@ -175,12 +175,18 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		return err
 	}
 
-	err = snapshot.DenormalizeAllocationsSlice(results.AllocsStopped, results.Job)
+	allocsStopped, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsStopped, results.Job)
 	if err != nil {
 		return err
 	}
 
-	err = snapshot.DenormalizeAllocationsSlice(results.NodePreemptions, results.Job)
+	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted, results.Job)
+	if err != nil {
+		return err
+	}
+
+	// COMPAT 0.11: Remove this denormalization when NodePreemptions is removed
+	results.NodePreemptions, err = snapshot.DenormalizeAllocationSlice(results.NodePreemptions, results.Job)
 	if err != nil {
 		return err
 	}
@@ -210,31 +216,31 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		}
 	}
 
-	noOfAllocs := len(results.NodePreemptions)
-
-	if len(results.Alloc) > 0 {
+	numAllocs := 0
+	if len(results.Alloc) > 0 || len(results.NodePreemptions) > 0 {
 		// COMPAT 0.11: This branch will be removed, when Alloc is removed
 		// Attach the job to all the allocations. It is pulled out in the payload to
 		// avoid the redundancy of encoding, but should be denormalized prior to
 		// being inserted into MemDB.
 		addComputedAllocAttrs(results.Alloc, results.Job)
-		noOfAllocs += len(results.Alloc)
+		numAllocs = len(results.Alloc) + len(results.NodePreemptions)
 	} else {
 		// Attach the job to all the allocations. It is pulled out in the payload to
 		// avoid the redundancy of encoding, but should be denormalized prior to
 		// being inserted into MemDB.
 		addComputedAllocAttrs(results.AllocsUpdated, results.Job)
-		noOfAllocs += len(results.AllocsStopped) + len(results.AllocsUpdated)
+		numAllocs = len(allocsStopped) + len(results.AllocsUpdated) + len(allocsPreempted)
 	}
 
-	allocsToUpsert := make([]*structs.Allocation, 0, noOfAllocs)
+	allocsToUpsert := make([]*structs.Allocation, 0, numAllocs)
 
-	// COMPAT 0.11: This append should be removed when Alloc is removed
+	// COMPAT 0.11: Both these appends should be removed when Alloc and NodePreemptions are removed
 	allocsToUpsert = append(allocsToUpsert, results.Alloc...)
-
-	allocsToUpsert = append(allocsToUpsert, results.AllocsStopped...)
-	allocsToUpsert = append(allocsToUpsert, results.AllocsUpdated...)
 	allocsToUpsert = append(allocsToUpsert, results.NodePreemptions...)
+
+	allocsToUpsert = append(allocsToUpsert, allocsStopped...)
+	allocsToUpsert = append(allocsToUpsert, results.AllocsUpdated...)
+	allocsToUpsert = append(allocsToUpsert, allocsPreempted...)
 
 	if err := s.upsertAllocsImpl(index, allocsToUpsert, txn); err != nil {
 		return err
@@ -251,6 +257,8 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 	return nil
 }
 
+// addComputedAllocAttrs adds the computed/derived attributes to the allocation.
+// This method is used when an allocation is being denormalized.
 func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 	structs.DenormalizeAllocationJobs(job, allocs)
 
@@ -4111,24 +4119,40 @@ type StateSnapshot struct {
 // Allocation for each of the Allocation diffs and merges the updated attributes with
 // the existing Allocation, and attaches the Job provided
 func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*structs.Allocation, job *structs.Job) error {
-	for _, allocDiffs := range nodeAllocations {
-		if err := s.DenormalizeAllocationsSlice(allocDiffs, job); err != nil {
+	for nodeID, allocs := range nodeAllocations {
+		denormalizedAllocs, err := s.DenormalizeAllocationSlice(allocs, job)
+		if err != nil {
 			return err
 		}
+
+		nodeAllocations[nodeID] = denormalizedAllocs
 	}
 	return nil
 }
 
-// DenormalizeAllocationsSlice queries the Allocation for each of the Allocation diffs and merges
+// DenormalizeAllocationSlice queries the Allocation for each allocation diff
+// represented as an Allocation and merges the updated attributes with the existing
+// Allocation, and attaches the Job provided.
+func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation, job *structs.Job) ([]*structs.Allocation, error) {
+	allocDiffs := make([]*structs.AllocationDiff, len(allocs))
+	for i, alloc := range allocs {
+		allocDiffs[i] = alloc.AllocationDiff()
+	}
+
+	return s.DenormalizeAllocationDiffSlice(allocDiffs, job)
+}
+
+// DenormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
 // the updated attributes with the existing Allocation, and attaches the Job provided
-func (s *StateSnapshot) DenormalizeAllocationsSlice(allocDiffs []*structs.Allocation, job *structs.Job) error {
+func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff, job *structs.Job) ([]*structs.Allocation, error) {
 	// Output index for denormalized Allocations
 	j := 0
 
+	denormalizedAllocs := make([]*structs.Allocation, len(allocDiffs))
 	for _, allocDiff := range allocDiffs {
 		alloc, err := s.AllocByID(nil, allocDiff.ID)
 		if err != nil {
-			return fmt.Errorf("alloc lookup failed: %v", err)
+			return nil, fmt.Errorf("alloc lookup failed: %v", err)
 		}
 		if alloc == nil {
 			continue
@@ -4156,12 +4180,12 @@ func (s *StateSnapshot) DenormalizeAllocationsSlice(allocDiffs []*structs.Alloca
 		}
 
 		// Update the allocDiff in the slice to equal the denormalized alloc
-		allocDiffs[j] = allocCopy
+		denormalizedAllocs[j] = allocCopy
 		j++
 	}
 	// Retain only the denormalized Allocations in the slice
-	allocDiffs = allocDiffs[:j]
-	return nil
+	denormalizedAllocs = denormalizedAllocs[:j]
+	return denormalizedAllocs, nil
 }
 
 func getPreemptedAllocDesiredDescription(PreemptedByAllocID string) string {

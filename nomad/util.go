@@ -148,8 +148,9 @@ func isNomadServer(m serf.Member) (bool, *serverParts) {
 	return true, parts
 }
 
-// ServersMeetMinimumVersion returns whether the given alive servers are at least on the
-// given Nomad version
+// ServersMeetMinimumVersion returns whether the Nomad servers are at least on the
+// given Nomad version. The checkFailedServers parameter specifies whether version
+// for the failed servers should be verified.
 func ServersMeetMinimumVersion(members []serf.Member, minVersion *version.Version, checkFailedServers bool) bool {
 	for _, member := range members {
 		if valid, parts := isNomadServer(member); valid && (parts.Status == serf.StatusAlive || (checkFailedServers && parts.Status == serf.StatusFailed)) {

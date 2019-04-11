@@ -660,9 +660,15 @@ type ApplyPlanResultsRequest struct {
 	// the evaluation itself being updated.
 	EvalID string
 
-	// NodePreemptions is a slice of allocation diffs from other lower priority jobs
+	// COMPAT 0.11
+	// NodePreemptions is a slice of allocations from other lower priority jobs
 	// that are preempted. Preempted allocations are marked as evicted.
-	NodePreemptions []*AllocationDiff
+	// Deprecated: Replaced with AllocsPreempted which contains only the diff
+	NodePreemptions []*Allocation
+
+	// AllocsPreempted is a slice of allocation diffs from other lower priority jobs
+	// that are preempted. Preempted allocations are marked as evicted.
+	AllocsPreempted []*AllocationDiff
 
 	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
 	// have been preempted to place allocs in this plan
@@ -7294,10 +7300,6 @@ type Allocation struct {
 	ModifyTime int64
 }
 
-// AllocationDiff is a type alias for Allocation used to indicate that a diff is
-// and not the entire allocation
-type AllocationDiff = Allocation
-
 // Index returns the index of the allocation. If the allocation is from a task
 // group with count greater than 1, there will be multiple allocations for it.
 func (a *Allocation) Index() uint {
@@ -7686,6 +7688,19 @@ func (a *Allocation) Stub() *AllocListStub {
 		ModifyTime:            a.ModifyTime,
 	}
 }
+
+// AllocationDiff converts an Allocation type to an AllocationDiff type
+// If at any time, modification are made to AllocationDiff so that an
+// Allocation can no longer be safely converted to AllocationDiff,
+// this method should be changed accordingly.
+func (a *Allocation) AllocationDiff() *AllocationDiff {
+	return (*AllocationDiff)(a)
+}
+
+// AllocationDiff is another named type for Allocation (to use the same fields),
+// which is used to represent the delta for an Allocation. If you need a method
+// defined on the al
+type AllocationDiff Allocation
 
 // AllocListStub is used to return a subset of alloc information
 type AllocListStub struct {
@@ -8468,6 +8483,8 @@ func (p *Plan) IsNoOp() bool {
 		len(p.DeploymentUpdates) == 0
 }
 
+// NormalizeAllocations normalizes allocations to remove fields that can
+// be fetched from the MemDB instead of sending over the wire
 func (p *Plan) NormalizeAllocations() {
 	for _, allocs := range p.NodeUpdate {
 		for i, alloc := range allocs {

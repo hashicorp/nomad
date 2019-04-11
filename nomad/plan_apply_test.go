@@ -230,6 +230,8 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	assert.Equal(index, evalOut.ModifyIndex)
 }
 
+// Verifies that applyPlan properly updates the constituent objects in MemDB,
+// when the plan contains normalized allocs.
 func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
@@ -312,39 +314,41 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		EvalID:            eval.ID,
 	}
 
+	require := require.New(t)
+	assert := assert.New(t)
+
 	// Apply the plan
 	future, err := s1.applyPlan(plan, planRes, snap)
-	assert := assert.New(t)
-	assert.Nil(err)
+	require.NoError(err)
 
 	// Verify our optimistic snapshot is updated
 	ws := memdb.NewWatchSet()
 	allocOut, err := snap.AllocByID(ws, alloc.ID)
-	assert.Nil(err)
-	assert.NotNil(allocOut)
+	require.NoError(err)
+	require.NotNil(allocOut)
 
 	deploymentOut, err := snap.DeploymentByID(ws, plan.Deployment.ID)
-	assert.Nil(err)
-	assert.NotNil(deploymentOut)
+	require.NoError(err)
+	require.NotNil(deploymentOut)
 
 	// Check plan does apply cleanly
 	index, err := planWaitFuture(future)
-	assert.Nil(err)
+	require.NoError(err)
 	assert.NotEqual(0, index)
 
 	// Lookup the allocation
 	fsmState := s1.fsm.State()
 	allocOut, err = fsmState.AllocByID(ws, alloc.ID)
-	assert.Nil(err)
-	assert.NotNil(allocOut)
+	require.NoError(err)
+	require.NotNil(allocOut)
 	assert.True(allocOut.CreateTime > 0)
 	assert.True(allocOut.ModifyTime > 0)
 	assert.Equal(allocOut.CreateTime, allocOut.ModifyTime)
 
 	// Verify stopped alloc diff applied cleanly
 	updatedStoppedAlloc, err := fsmState.AllocByID(ws, stoppedAlloc.ID)
-	assert.Nil(err)
-	assert.NotNil(updatedStoppedAlloc)
+	require.NoError(err)
+	require.NotNil(updatedStoppedAlloc)
 	assert.True(updatedStoppedAlloc.ModifyTime > timestampBeforeCommit)
 	assert.Equal(updatedStoppedAlloc.DesiredDescription, stoppedAllocDiff.DesiredDescription)
 	assert.Equal(updatedStoppedAlloc.ClientStatus, stoppedAllocDiff.ClientStatus)
@@ -352,8 +356,8 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 
 	// Verify preempted alloc diff applied cleanly
 	updatedPreemptedAlloc, err := fsmState.AllocByID(ws, preemptedAlloc.ID)
-	assert.Nil(err)
-	assert.NotNil(updatedPreemptedAlloc)
+	require.NoError(err)
+	require.NotNil(updatedPreemptedAlloc)
 	assert.True(updatedPreemptedAlloc.ModifyTime > timestampBeforeCommit)
 	assert.Equal(updatedPreemptedAlloc.DesiredDescription,
 		"Preempted by alloc ID "+preemptedAllocDiff.PreemptedByAllocation)
@@ -361,20 +365,20 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 
 	// Lookup the new deployment
 	dout, err := fsmState.DeploymentByID(ws, plan.Deployment.ID)
-	assert.Nil(err)
-	assert.NotNil(dout)
+	require.NoError(err)
+	require.NotNil(dout)
 
 	// Lookup the updated deployment
 	dout2, err := fsmState.DeploymentByID(ws, oldDeployment.ID)
-	assert.Nil(err)
-	assert.NotNil(dout2)
+	require.NoError(err)
+	require.NotNil(dout2)
 	assert.Equal(desiredStatus, dout2.Status)
 	assert.Equal(desiredStatusDescription, dout2.StatusDescription)
 
 	// Lookup updated eval
 	evalOut, err := fsmState.EvalByID(ws, eval.ID)
-	assert.Nil(err)
-	assert.NotNil(evalOut)
+	require.NoError(err)
+	require.NotNil(evalOut)
 	assert.Equal(index, evalOut.ModifyIndex)
 }
 

@@ -11,6 +11,9 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
+// This test compares the size of the normalized + OmitEmpty raft plan log entry
+// with the earlier denormalized log.
+//
 // Whenever this test is changed, care should be taken to ensure the older msgpack size
 // is recalculated when new fields are introduced in ApplyPlanResultsRequest
 func TestPlanNormalize(t *testing.T) {
@@ -33,12 +36,12 @@ func TestPlanNormalize(t *testing.T) {
 	}
 
 	now := time.Now().UTC().UnixNano()
-	mockStoppedAllocSlice := make([]*structs.Allocation, numStoppedAllocs)
+	mockStoppedAllocSlice := make([]*structs.AllocationDiff, numStoppedAllocs)
 	for i := 0; i < numStoppedAllocs; i++ {
 		mockStoppedAllocSlice = append(mockStoppedAllocSlice, normalizeStoppedAlloc(mockAlloc, now))
 	}
 
-	mockPreemptionAllocSlice := make([]*structs.Allocation, numPreemptedAllocs)
+	mockPreemptionAllocSlice := make([]*structs.AllocationDiff, numPreemptedAllocs)
 	for i := 0; i < numPreemptedAllocs; i++ {
 		mockPreemptionAllocSlice = append(mockPreemptionAllocSlice, normalizePreemptedAlloc(mockAlloc, now))
 	}
@@ -49,7 +52,7 @@ func TestPlanNormalize(t *testing.T) {
 			AllocsUpdated: mockUpdatedAllocSlice,
 			AllocsStopped: mockStoppedAllocSlice,
 		},
-		NodePreemptions: mockPreemptionAllocSlice,
+		AllocsPreempted: mockPreemptionAllocSlice,
 	}
 
 	handle := structs.MsgpackHandle

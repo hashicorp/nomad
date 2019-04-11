@@ -157,7 +157,6 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		Deployment:        result.Deployment,
 		DeploymentUpdates: result.DeploymentUpdates,
 		EvalID:            plan.EvalID,
-		NodePreemptions:   make([]*structs.Allocation, 0, len(result.NodePreemptions)),
 	}
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
@@ -167,8 +166,9 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		// Initialize the allocs request using the new optimized log entry format.
 		// Determine the minimum number of updates, could be more if there
 		// are multiple updates per node
-		req.AllocsStopped = make([]*structs.Allocation, 0, len(result.NodeUpdate))
+		req.AllocsStopped = make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
 		req.AllocsUpdated = make([]*structs.Allocation, 0, len(result.NodeAllocation))
+		req.AllocsPreempted = make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
 
 		for _, updateList := range result.NodeUpdate {
 			for _, stoppedAlloc := range updateList {
@@ -186,7 +186,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		for _, preemptions := range result.NodePreemptions {
 			for _, preemptedAlloc := range preemptions {
-				req.NodePreemptions = append(req.NodePreemptions, normalizePreemptedAlloc(preemptedAlloc, now))
+				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, now))
 
 				// Gather jobids to create follow up evals
 				appendNamespacedJobID(preemptedJobIDs, preemptedAlloc)
@@ -201,8 +201,9 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		minUpdates := len(result.NodeUpdate)
 		minUpdates += len(result.NodeAllocation)
 
-		// Initialize the allocs request using the older log entry format
+		// Initialize using the older log entry format for Alloc and NodePreemptions
 		req.Alloc = make([]*structs.Allocation, 0, minUpdates)
+		req.NodePreemptions = make([]*structs.Allocation, 0, len(result.NodePreemptions))
 
 		for _, updateList := range result.NodeUpdate {
 			req.Alloc = append(req.Alloc, updateList...)
@@ -261,16 +262,24 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	return future, nil
 }
 
-func normalizePreemptedAlloc(preemptedAlloc *structs.Allocation, now int64) *structs.Allocation {
-	return &structs.Allocation{
+// normalizePreemptedAlloc removes redundant fields from a preempted allocation and
+// returns AllocationDiff. Since a preempted allocation is always an existing allocation,
+// the struct returned by this method contains only the differential, which can be
+// applied to an existing allocation, to yield the updated struct
+func normalizePreemptedAlloc(preemptedAlloc *structs.Allocation, now int64) *structs.AllocationDiff {
+	return &structs.AllocationDiff{
 		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: preemptedAlloc.PreemptedByAllocation,
 		ModifyTime:            now,
 	}
 }
 
-func normalizeStoppedAlloc(stoppedAlloc *structs.Allocation, now int64) *structs.Allocation {
-	return &structs.Allocation{
+// normalizeStoppedAlloc removes redundant fields from a stopped allocation and
+// returns AllocationDiff. Since a stopped allocation is always an existing allocation,
+// the struct returned by this method contains only the differential, which can be
+// applied to an existing allocation, to yield the updated struct
+func normalizeStoppedAlloc(stoppedAlloc *structs.Allocation, now int64) *structs.AllocationDiff {
+	return &structs.AllocationDiff{
 		ID:                 stoppedAlloc.ID,
 		DesiredDescription: stoppedAlloc.DesiredDescription,
 		ClientStatus:       stoppedAlloc.ClientStatus,
@@ -278,6 +287,7 @@ func normalizeStoppedAlloc(stoppedAlloc *structs.Allocation, now int64) *structs
 	}
 }
 
+// appendNamespacedJobID appends the namespaced Job ID for the alloc to the jobIDs set
 func appendNamespacedJobID(jobIDs map[structs.NamespacedID]struct{}, alloc *structs.Allocation) {
 	id := structs.NamespacedID{Namespace: alloc.Namespace, ID: alloc.JobID}
 	if _, ok := jobIDs[id]; !ok {
@@ -285,6 +295,8 @@ func appendNamespacedJobID(jobIDs map[structs.NamespacedID]struct{}, alloc *stru
 	}
 }
 
+// updateAllocTimestamps sets the CreateTime and ModifyTime for the allocations
+// to the timestamp provided
 func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 	for _, alloc := range allocations {
 		if alloc.CreateTime == 0 {

@@ -152,56 +152,50 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 
 	stoppedAlloc := mock.Alloc()
 	stoppedAlloc.Job = job
-	stoppedAllocDiff := &structs.Allocation{
+	stoppedAllocDiff := &structs.AllocationDiff{
 		ID:                 stoppedAlloc.ID,
 		DesiredDescription: "desired desc",
 		ClientStatus:       structs.AllocClientStatusLost,
 	}
 	preemptedAlloc := mock.Alloc()
 	preemptedAlloc.Job = job
-	preemptedAllocDiff := &structs.Allocation{
+	preemptedAllocDiff := &structs.AllocationDiff{
 		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: alloc.ID,
 	}
 
-	if err := state.UpsertAllocs(900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := state.UpsertJob(999, job); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require := require.New(t)
+	require.NoError(state.UpsertAllocs(900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
+	require.NoError(state.UpsertJob(999, job))
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
 
 	// Create an eval
-	if err := state.UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(state.UpsertEvals(1, []*structs.Evaluation{eval}))
 
 	// Create a plan result
 	res := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
 			AllocsUpdated: []*structs.Allocation{alloc},
-			AllocsStopped: []*structs.Allocation{stoppedAllocDiff},
+			AllocsStopped: []*structs.AllocationDiff{stoppedAllocDiff},
 			Job:           job,
 		},
 		EvalID:          eval.ID,
-		NodePreemptions: []*structs.Allocation{preemptedAllocDiff},
+		AllocsPreempted: []*structs.AllocationDiff{preemptedAllocDiff},
 	}
 	assert := assert.New(t)
 	planModifyIndex := uint64(1000)
 	err := state.UpsertPlanResults(planModifyIndex, &res)
-	assert.Nil(err)
+	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
-	assert.Nil(err)
+	require.NoError(err)
 	assert.Equal(alloc, out)
 
 	updatedStoppedAlloc, err := state.AllocByID(ws, stoppedAlloc.ID)
-	assert.Nil(err)
+	require.NoError(err)
 	assert.Equal(stoppedAllocDiff.DesiredDescription, updatedStoppedAlloc.DesiredDescription)
 	assert.Equal(structs.AllocDesiredStatusStop, updatedStoppedAlloc.DesiredStatus)
 	assert.Equal(stoppedAllocDiff.ClientStatus, updatedStoppedAlloc.ClientStatus)
@@ -209,23 +203,21 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	assert.Equal(planModifyIndex, updatedStoppedAlloc.AllocModifyIndex)
 
 	updatedPreemptedAlloc, err := state.AllocByID(ws, preemptedAlloc.ID)
-	assert.Nil(err)
+	require.NoError(err)
 	assert.Equal(structs.AllocDesiredStatusEvict, updatedPreemptedAlloc.DesiredStatus)
 	assert.Equal(preemptedAllocDiff.PreemptedByAllocation, updatedPreemptedAlloc.PreemptedByAllocation)
 	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
 	assert.Equal(planModifyIndex, updatedPreemptedAlloc.AllocModifyIndex)
 
 	index, err := state.Index("allocs")
-	assert.Nil(err)
+	require.NoError(err)
 	assert.EqualValues(planModifyIndex, index)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.False(watchFired(ws))
 
 	evalOut, err := state.EvalByID(ws, eval.ID)
-	assert.Nil(err)
-	assert.NotNil(evalOut)
+	require.NoError(err)
+	require.NotNil(evalOut)
 	assert.EqualValues(planModifyIndex, evalOut.ModifyIndex)
 }
 

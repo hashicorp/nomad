@@ -104,25 +104,12 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 
 	// Flatten evicts and allocs
 	now := time.Now().UTC().UnixNano()
-	allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
-	for _, updateList := range plan.NodeUpdate {
-		allocsStopped = append(allocsStopped, updateList...)
-	}
 
 	allocsUpdated := make([]*structs.Allocation, 0, len(result.NodeAllocation))
 	for _, allocList := range plan.NodeAllocation {
 		allocsUpdated = append(allocsUpdated, allocList...)
 	}
 	updateCreateTimestamp(allocsUpdated, now)
-
-	// Set modify time for preempted allocs and flatten them
-	var preemptedAllocs []*structs.Allocation
-	for _, preemptions := range result.NodePreemptions {
-		for _, alloc := range preemptions {
-			alloc.ModifyTime = now
-			preemptedAllocs = append(preemptedAllocs, alloc)
-		}
-	}
 
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
@@ -132,19 +119,53 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
-		NodePreemptions:   preemptedAllocs,
 	}
 
 	if h.optimizePlan {
-		req.AllocsStopped = allocsStopped
+		stoppedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodeUpdate))
+		for _, updateList := range plan.NodeUpdate {
+			for _, stoppedAlloc := range updateList {
+				stoppedAllocDiffs = append(stoppedAllocDiffs, stoppedAlloc.AllocationDiff())
+			}
+		}
+		req.AllocsStopped = stoppedAllocDiffs
+
 		req.AllocsUpdated = allocsUpdated
+
+		preemptedAllocDiffs := make([]*structs.AllocationDiff, 0, len(result.NodePreemptions))
+		for _, preemptions := range plan.NodePreemptions {
+			for _, preemptedAlloc := range preemptions {
+				allocDiff := preemptedAlloc.AllocationDiff()
+				allocDiff.ModifyTime = now
+				preemptedAllocDiffs = append(preemptedAllocDiffs, allocDiff)
+			}
+		}
+		req.AllocsPreempted = preemptedAllocDiffs
 	} else {
 		// COMPAT 0.11: Handles unoptimized log format
 		var allocs []*structs.Allocation
+
+		allocsStopped := make([]*structs.Allocation, 0, len(result.NodeUpdate))
+		for _, updateList := range plan.NodeUpdate {
+			allocsStopped = append(allocsStopped, updateList...)
+		}
 		allocs = append(allocs, allocsStopped...)
+
 		allocs = append(allocs, allocsUpdated...)
 		updateCreateTimestamp(allocs, now)
+
 		req.Alloc = allocs
+
+		// Set modify time for preempted allocs and flatten them
+		var preemptedAllocs []*structs.Allocation
+		for _, preemptions := range result.NodePreemptions {
+			for _, alloc := range preemptions {
+				alloc.ModifyTime = now
+				preemptedAllocs = append(preemptedAllocs, alloc)
+			}
+		}
+
+		req.NodePreemptions = preemptedAllocs
 	}
 
 	// Apply the full plan
