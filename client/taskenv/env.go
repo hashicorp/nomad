@@ -85,6 +85,9 @@ const (
 
 	// VaultToken is the environment variable for passing the Vault token
 	VaultToken = "VAULT_TOKEN"
+
+	// VaultNamespace is the environment variable for passing the Vault namespace, if applicable
+	VaultNamespace = "VAULT_NAMESPACE"
 )
 
 // The node values that can be interpreted.
@@ -305,6 +308,7 @@ type Builder struct {
 	allocName        string
 	groupName        string
 	vaultToken       string
+	vaultNamespace   string
 	injectVaultToken bool
 	jobName          string
 
@@ -421,6 +425,11 @@ func (b *Builder) Build() *TaskEnv {
 	// Build the Vault Token
 	if b.injectVaultToken && b.vaultToken != "" {
 		envMap[VaultToken] = b.vaultToken
+	}
+
+	// Build the Vault Namespace
+	if b.injectVaultToken && b.vaultNamespace != "" {
+		envMap[VaultNamespace] = b.vaultNamespace
 	}
 
 	// Copy task meta
@@ -753,9 +762,10 @@ func (b *Builder) SetTemplateEnv(m map[string]string) *Builder {
 	return b
 }
 
-func (b *Builder) SetVaultToken(token string, inject bool) *Builder {
+func (b *Builder) SetVaultToken(token, namespace string, inject bool) *Builder {
 	b.mu.Lock()
 	b.vaultToken = token
+	b.vaultNamespace = namespace
 	b.injectVaultToken = inject
 	b.mu.Unlock()
 	return b
