@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	rootcerts "github.com/hashicorp/go-rootcerts"
 )
@@ -655,21 +656,61 @@ func (c *Client) rawQuery(endpoint string, q *QueryOptions) (io.ReadCloser, erro
 	return resp.Body, nil
 }
 
-// rawPostQuery makes a POST request to the specified endpoint but returns just the
-// response body.
-func (c *Client) rawPostQuery(endpoint string, body io.Reader, q *QueryOptions) (io.ReadCloser, error) {
-	r, err := c.newRequest("POST", endpoint)
-	if err != nil {
-		return nil, err
+// websocket makes a websocket request tot he specific endpoint
+func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *http.Response, error) {
+
+	transport, ok := c.config.httpClient.Transport.(*http.Transport)
+	if !ok {
+		return nil, nil, fmt.Errorf("unsupported transport")
 	}
-	r.setQueryOptions(q)
-	r.body = body
-	_, resp, err := requireOK(c.doRequest(r))
-	if err != nil {
-		return nil, err
+	dialer := websocket.Dialer{
+		ReadBufferSize:   4096,
+		WriteBufferSize:  4096,
+		HandshakeTimeout: c.config.httpClient.Timeout,
+
+		// values to inherit from http client configuration
+		NetDial:         transport.Dial,
+		NetDialContext:  transport.DialContext,
+		Proxy:           transport.Proxy,
+		TLSClientConfig: transport.TLSClientConfig,
 	}
 
-	return resp.Body, nil
+	// build request object for header and parameters
+	r, err := c.newRequest("GET", endpoint)
+	if err != nil {
+		return nil, nil, err
+	}
+	r.setQueryOptions(q)
+
+	rhttp, err := r.toHTTP()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// convert scheme
+	wsScheme := ""
+	switch rhttp.URL.Scheme {
+	case "http":
+		wsScheme = "ws"
+	case "https":
+		wsScheme = "wss"
+	default:
+		return nil, nil, fmt.Errorf("unsupported scheme: %v", rhttp.URL.Scheme)
+	}
+	rhttp.URL.Scheme = wsScheme
+
+	conn, resp, err := dialer.Dial(rhttp.URL.String(), rhttp.Header)
+
+	// check resp status code, as it's more informative than handshake error we get from ws library
+	if resp != nil && resp.StatusCode != 101 {
+		var buf bytes.Buffer
+		io.Copy(&buf, resp.Body)
+		resp.Body.Close()
+
+		return nil, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
+	}
+
+	return conn, resp, err
 }
 
 // query is used to do a GET request against an endpoint
