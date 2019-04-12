@@ -8,26 +8,26 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
-  server.create('job', { type: 'batch' })
+  server.create('job', { type: 'batch', shallow: true })
 );
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
-  server.create('job', { type: 'system' })
+  server.create('job', { type: 'system', shallow: true })
 );
 moduleForJob('Acceptance | job detail (periodic)', 'children', () =>
-  server.create('job', 'periodic')
+  server.create('job', 'periodic', { shallow: true })
 );
 
 moduleForJob('Acceptance | job detail (parameterized)', 'children', () =>
-  server.create('job', 'parameterized')
+  server.create('job', 'parameterized', { shallow: true })
 );
 
 moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
-  const parent = server.create('job', 'periodic');
+  const parent = server.create('job', 'periodic', { childrenCount: 1, shallow: true });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
 
 moduleForJob('Acceptance | job detail (parameterized child)', 'allocations', () => {
-  const parent = server.create('job', 'parameterized');
+  const parent = server.create('job', 'parameterized', { childrenCount: 1, shallow: true });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
 
