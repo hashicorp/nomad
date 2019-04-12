@@ -65,7 +65,7 @@
               <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
               <td data-test-task-address-name>{{row.model.name}}</td>
               <td data-test-task-address-address>
-                <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank">
+                <a href="http://{{network.ip}}:{{row.model.port}}" target="_blank" rel="noopener noreferrer">
                   {{network.ip}}:{{row.model.port}}
                 </a>
               </td>

@@ -37,6 +37,10 @@ type VaultConfig struct {
 	// role the token is from.
 	Role string `mapstructure:"create_from_role"`
 
+	// Namespace sets the Vault namespace used for all calls against the
+	// Vault API. If this is unset, then Nomad does not use Vault namespaces.
+	Namespace string `mapstructure:"namespace"`
+
 	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
 	// without providing a Vault token proving they have access to these
 	// policies.
@@ -105,6 +109,9 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 
 	if b.Token != "" {
 		result.Token = b.Token
+	}
+	if b.Namespace != "" {
+		result.Namespace = b.Namespace
 	}
 	if b.Role != "" {
 		result.Role = b.Role

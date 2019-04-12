@@ -43,6 +43,7 @@ type CatalogNodeService struct {
 	ID                string
 	Service           string
 	Tags              ServiceTags
+	Meta              map[string]string
 	Port              int
 	Address           string
 	EnableTagOverride bool
@@ -116,6 +117,7 @@ func (d *CatalogNodeQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interf
 			ID:                v.ID,
 			Service:           v.Service,
 			Tags:              ServiceTags(deepCopyAndSortTags(v.Tags)),
+			Meta:              v.Meta,
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,

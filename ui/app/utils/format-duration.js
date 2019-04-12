@@ -1,4 +1,5 @@
 import moment from 'moment';
+import { pluralize } from 'ember-inflector';
 
 /**
  * Metadata for all unit types
@@ -26,10 +27,10 @@ const pluralizeUnits = (amount, unit, longForm) => {
   if (longForm && unit.longSuffix) {
     // Long form means always using full words (seconds insteand of s) which means
     // pluralization is necessary.
-    suffix = amount === 1 ? unit.longSuffix : unit.longSuffix.pluralize();
+    suffix = amount === 1 ? unit.longSuffix : pluralize(unit.longSuffix);
   } else {
     // In the normal case, only pluralize based on the pluralizable flag
-    suffix = amount === 1 || !unit.pluralizable ? unit.suffix : unit.suffix.pluralize();
+    suffix = amount === 1 || !unit.pluralizable ? unit.suffix : pluralize(unit.suffix);
   }
 
   // A space should go between the value and the unit when the unit is a full word

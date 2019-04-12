@@ -9,6 +9,8 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import facet from 'nomad-ui/tests/pages/components/facet';
+
 export default create({
   pageSize: 10,
 
@@ -52,7 +54,16 @@ export default create({
     isPresent: isPresent('[data-test-namespace-switcher]'),
     open: clickable('[data-test-namespace-switcher] .ember-power-select-trigger'),
     options: collection('.ember-power-select-option', {
+      testContainer: '#ember-testing',
+      resetScope: true,
       label: text(),
     }),
+  },
+
+  facets: {
+    type: facet('[data-test-type-facet]'),
+    status: facet('[data-test-status-facet]'),
+    datacenter: facet('[data-test-datacenter-facet]'),
+    prefix: facet('[data-test-prefix-facet]'),
   },
 });

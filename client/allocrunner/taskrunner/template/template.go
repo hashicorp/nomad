@@ -645,6 +645,9 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		conf.Vault.Address = &cc.VaultConfig.Addr
 		conf.Vault.Token = &config.VaultToken
 		conf.Vault.Grace = helper.TimeToPtr(vaultGrace)
+		if config.ClientConfig.VaultConfig.Namespace != "" {
+			conf.Vault.Namespace = &config.ClientConfig.VaultConfig.Namespace
+		}
 
 		if strings.HasPrefix(cc.VaultConfig.Addr, "https") || cc.VaultConfig.TLSCertFile != "" {
 			skipVerify := cc.VaultConfig.TLSSkipVerify != nil && *cc.VaultConfig.TLSSkipVerify

@@ -1326,6 +1326,38 @@ func TestTaskTemplateManager_Config_VaultGrace(t *testing.T) {
 	assert.Equal(10*time.Second, *ctconf.Vault.Grace, "Vault Grace Value")
 }
 
+// TestTaskTemplateManager_Config_VaultNamespace asserts the Vault namespace setting is
+// propagated to consul-template's configuration.
+func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	testNS := "test-namespace"
+	c := config.DefaultConfig()
+	c.Node = mock.Node()
+	c.VaultConfig = &sconfig.VaultConfig{
+		Enabled:       helper.BoolToPtr(true),
+		Addr:          "https://localhost/",
+		TLSServerName: "notlocalhost",
+		Namespace:     testNS,
+	}
+
+	alloc := mock.Alloc()
+	config := &TaskTemplateManagerConfig{
+		ClientConfig: c,
+		VaultToken:   "token",
+		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+	}
+
+	ctmplMapping, err := parseTemplateConfigs(config)
+	assert.Nil(err, "Parsing Templates")
+
+	ctconf, err := newRunnerConfig(config, ctmplMapping)
+	assert.Nil(err, "Building Runner Config")
+	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
+	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
+}
+
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

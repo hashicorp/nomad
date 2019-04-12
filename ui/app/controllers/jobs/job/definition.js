@@ -9,7 +9,7 @@ export default Controller.extend(WithNamespaceResetting, {
   isEditing: false,
 
   edit() {
-    this.get('job').set('_newDefinition', JSON.stringify(this.get('definition'), null, 2));
+    this.job.set('_newDefinition', JSON.stringify(this.definition, null, 2));
     this.set('isEditing', true);
   },
 

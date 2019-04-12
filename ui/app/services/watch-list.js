@@ -1,5 +1,5 @@
 import { readOnly } from '@ember/object/computed';
-import { copy } from '@ember/object/internals';
+import { copy } from 'ember-copy';
 import Service from '@ember/service';
 
 let list = {};

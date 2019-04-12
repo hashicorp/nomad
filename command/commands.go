@@ -130,6 +130,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl token list": func() (cli.Command, error) {
+			return &ACLTokenListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl token self": func() (cli.Command, error) {
 			return &ACLTokenSelfCommand{
 				Meta: meta,
@@ -147,6 +152,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"alloc logs": func() (cli.Command, error) {
 			return &AllocLogsCommand{
+				Meta: meta,
+			}, nil
+		},
+		"alloc restart": func() (cli.Command, error) {
+			return &AllocRestartCommand{
 				Meta: meta,
 			}, nil
 		},

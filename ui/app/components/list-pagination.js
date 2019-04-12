@@ -8,19 +8,19 @@ export default Component.extend({
   spread: 2,
 
   startsAt: computed('size', 'page', function() {
-    return (this.get('page') - 1) * this.get('size') + 1;
+    return (this.page - 1) * this.size + 1;
   }),
 
   endsAt: computed('source.[]', 'size', 'page', function() {
-    return Math.min(this.get('page') * this.get('size'), this.get('source.length'));
+    return Math.min(this.page * this.size, this.get('source.length'));
   }),
 
   lastPage: computed('source.[]', 'size', function() {
-    return Math.ceil(this.get('source.length') / this.get('size'));
+    return Math.ceil(this.get('source.length') / this.size);
   }),
 
   pageLinks: computed('source.[]', 'page', 'spread', function() {
-    const { spread, page, lastPage } = this.getProperties('spread', 'page', 'lastPage');
+    const { spread, page, lastPage } = this;
 
     // When there is only one page, don't bother with page links
     if (lastPage === 1) {
@@ -38,8 +38,8 @@ export default Component.extend({
   }),
 
   list: computed('source.[]', 'page', 'size', function() {
-    const size = this.get('size');
-    const start = (this.get('page') - 1) * size;
-    return this.get('source').slice(start, start + size);
+    const size = this.size;
+    const start = (this.page - 1) * size;
+    return this.source.slice(start, start + size);
   }),
 });

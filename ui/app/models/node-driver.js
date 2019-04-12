@@ -11,7 +11,7 @@ export default Fragment.extend({
 
   attributesShort: computed('name', 'attributes.attributesStructured', function() {
     const attributes = this.get('attributes.attributesStructured');
-    return get(attributes, `driver.${this.get('name')}`);
+    return get(attributes, `driver.${this.name}`);
   }),
 
   name: attr('string'),
@@ -21,6 +21,6 @@ export default Fragment.extend({
   updateTime: attr('date'),
 
   healthClass: computed('healthy', function() {
-    return this.get('healthy') ? 'running' : 'failed';
+    return this.healthy ? 'running' : 'failed';
   }),
 });

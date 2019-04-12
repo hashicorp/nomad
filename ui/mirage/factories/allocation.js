@@ -31,7 +31,7 @@ export default Factory.extend({
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
       const resources = taskGroup.taskIds.map(id =>
         server.create(
-          'task-resources',
+          'task-resource',
           {
             allocation,
             name: server.db.tasks.find(id).name,
@@ -40,7 +40,7 @@ export default Factory.extend({
         )
       );
 
-      allocation.update({ taskResourcesIds: resources.mapBy('id') });
+      allocation.update({ taskResourceIds: resources.mapBy('id') });
     },
   }),
 
@@ -49,7 +49,7 @@ export default Factory.extend({
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
       const resources = taskGroup.taskIds.map(id =>
         server.create(
-          'task-resources',
+          'task-resource',
           {
             allocation,
             name: server.db.tasks.find(id).name,
@@ -58,7 +58,7 @@ export default Factory.extend({
         )
       );
 
-      allocation.update({ taskResourcesIds: resources.mapBy('id') });
+      allocation.update({ taskResourceIds: resources.mapBy('id') });
     },
   }),
 
@@ -146,7 +146,7 @@ export default Factory.extend({
     );
 
     const resources = taskGroup.taskIds.map(id =>
-      server.create('task-resources', {
+      server.create('task-resource', {
         allocation,
         name: server.db.tasks.find(id).name,
       })
@@ -157,16 +157,16 @@ export default Factory.extend({
       jobId: job.id,
       nodeId: node.id,
       taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),
-      taskResourcesIds: allocation.clientStatus === 'pending' ? [] : resources.mapBy('id'),
+      taskResourceIds: allocation.clientStatus === 'pending' ? [] : resources.mapBy('id'),
       taskGroup: taskGroup.name,
       name: allocation.name || `${taskGroup.name}.[${faker.random.number(10)}]`,
     });
 
     // Each allocation has a corresponding allocation stats running on some client.
     // Create that record, even though it's not a relationship.
-    server.create('client-allocation-stats', {
+    server.create('client-allocation-stat', {
       id: allocation.id,
-      _tasks: states.mapBy('name'),
+      _taskNames: states.mapBy('name'),
     });
   },
 });
