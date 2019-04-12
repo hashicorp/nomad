@@ -468,27 +468,58 @@ func TestEnvironment_VaultToken(t *testing.T) {
 	n := mock.Node()
 	a := mock.Alloc()
 	env := NewBuilder(n, a, a.Job.TaskGroups[0].Tasks[0], "global")
-	env.SetVaultToken("123", false)
+	env.SetVaultToken("123", "vault-namespace", false)
 
 	{
 		act := env.Build().All()
 		if act[VaultToken] != "" {
 			t.Fatalf("Unexpected environment variables: %s=%q", VaultToken, act[VaultToken])
 		}
+		if act[VaultNamespace] != "" {
+			t.Fatalf("Unexpected environment variables: %s=%q", VaultNamespace, act[VaultNamespace])
+		}
 	}
 
 	{
-		act := env.SetVaultToken("123", true).Build().List()
+		act := env.SetVaultToken("123", "", true).Build().List()
 		exp := "VAULT_TOKEN=123"
 		found := false
+		foundNs := false
 		for _, entry := range act {
 			if entry == exp {
 				found = true
-				break
+			}
+			if strings.HasPrefix(entry, "VAULT_NAMESPACE=") {
+				foundNs = true
 			}
 		}
 		if !found {
 			t.Fatalf("did not find %q in:\n%s", exp, strings.Join(act, "\n"))
+		}
+		if foundNs {
+			t.Fatalf("found unwanted VAULT_NAMESPACE in:\n%s", strings.Join(act, "\n"))
+		}
+	}
+
+	{
+		act := env.SetVaultToken("123", "vault-namespace", true).Build().List()
+		exp := "VAULT_TOKEN=123"
+		expNs := "VAULT_NAMESPACE=vault-namespace"
+		found := false
+		foundNs := false
+		for _, entry := range act {
+			if entry == exp {
+				found = true
+			}
+			if entry == expNs {
+				foundNs = true
+			}
+		}
+		if !found {
+			t.Fatalf("did not find %q in:\n%s", exp, strings.Join(act, "\n"))
+		}
+		if !foundNs {
+			t.Fatalf("did not find %q in:\n%s", expNs, strings.Join(act, "\n"))
 		}
 	}
 }
