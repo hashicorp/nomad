@@ -11,7 +11,7 @@ module('Acceptance | namespaces (disabled)', function(hooks) {
   hooks.beforeEach(function() {
     server.create('agent');
     server.create('node');
-    server.createList('job', 5);
+    server.createList('job', 5, { createAllocations: false });
   });
 
   test('the namespace switcher is not in the gutter menu', async function(assert) {
