@@ -1,8 +1,9 @@
 package command
 
 import (
-	"github.com/mitchellh/cli"
 	"strings"
+
+	"github.com/mitchellh/cli"
 )
 
 type JobPeriodicCommand struct {
@@ -34,5 +35,3 @@ Usage: nomad job periodic <subcommand> [options] [args]
 `
 	return strings.TrimSpace(helpText)
 }
-
-

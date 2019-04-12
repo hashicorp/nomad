@@ -2,8 +2,9 @@ package command
 
 import (
 	"fmt"
-	"github.com/hashicorp/nomad/api"
 	"strings"
+
+	"github.com/hashicorp/nomad/api"
 
 	"github.com/posener/complete"
 )
@@ -45,8 +46,8 @@ func (c *JobPeriodicForceCommand) Synopsis() string {
 func (c *JobPeriodicForceCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":          complete.PredictNothing,
-			"-verbose":         complete.PredictNothing,
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
 		})
 }
 

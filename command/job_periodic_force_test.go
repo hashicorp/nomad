@@ -2,12 +2,13 @@ package command
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
-	"strings"
-	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/testutil"
@@ -112,7 +113,7 @@ func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
 	require.Equal(t, 0, code)
 
-	code = cmd.Run([]string{"-address="+url, "job_not_periodic"})
+	code = cmd.Run([]string{"-address=" + url, "job_not_periodic"})
 	require.Equal(t, 1, code, "expected exit code")
 	out := ui.ErrorWriter.String()
 	require.Contains(t, out, "No periodic job(s)", "non-periodic error message")
@@ -153,7 +154,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
 	_, _, err := client.Jobs().Register(j, nil)
 	require.NoError(t, err)
 
-	code := cmd.Run([]string{"-address="+url, "-detach", "job1_is_periodic"})
+	code := cmd.Run([]string{"-address=" + url, "-detach", "job1_is_periodic"})
 	require.Equal(t, 0, code, "expected no error code")
 	out := ui.OutputWriter.String()
 	require.Contains(t, out, "Force periodic successful")
@@ -195,7 +196,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
 	_, _, err := client.Jobs().Register(j, nil)
 	require.NoError(t, err)
 
-	code := cmd.Run([]string{"-address="+url, "job2_is_periodic"})
+	code := cmd.Run([]string{"-address=" + url, "job2_is_periodic"})
 	require.Equal(t, 0, code, "expected no error code")
 	out := ui.OutputWriter.String()
 	require.Contains(t, out, "Monitoring evaluation")
