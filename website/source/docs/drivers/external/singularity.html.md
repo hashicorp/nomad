@@ -21,18 +21,18 @@ task "lolcow" {
   driver = "Singularity"
 
   config {
-       // this example run an image from sylabs container library with the
-       // canonical example of lolcow
-       image = "library://sylabsed/examples/lolcow:latest"
-       // command can be run, exec or test
-       command = "run"
+     // this example run an image from sylabs container library with the
+     // canonical example of lolcow
+     image = "library://sylabsed/examples/lolcow:latest"
+     // command can be run, exec or test
+     command = "run"
   }
 }
 ```
 
 The `Singularity` driver supports the following configuration in the job spec:
 
-* `image` - The Singularity image to run. it can be a local path or a supported URI
+* `image` - The Singularity image to run. It can be a local path or a supported URI.
 
     ```hcl
     config {
@@ -58,7 +58,7 @@ Defaults to `false`.
     }
     ```
 
-* `command` - Singularity command action, can be `run`, `exec` or `test`.
+* `command` - Singularity command action; can be `run`, `exec` or `test`.
 
     ```hcl
     config {
@@ -75,7 +75,7 @@ Multiple args can be given by a comma separated list.
     }
     ```
 
-* [`binds`][bind] - (Optional) a user-bind path specification.  spec has the format `src[:dest[:opts]]`, where src and
+* [`binds`][bind] - (Optional) A user-bind path specification. This spec has the format `src[:dest[:opts]]`, where src and
 dest are outside and inside paths.  If dest is not given, it is set equal to src.
 Mount options ('opts') may be specified as 'ro' (read-only) or 'rw' (read/write, which
 is the default). Multiple bind paths can be given by a comma separated list.
@@ -86,7 +86,7 @@ is the default). Multiple bind paths can be given by a comma separated list.
     }
     ```
 
-* [`overlay`][overlay] - (Optional) Singularity command action flag, use an overlayFS image for persistent data
+* [`overlay`][overlay] - (Optional) Singularity command action flag, to enable an overlayFS image for persistent data
 storage or as read-only layer of container.  Multiple overlay paths can be given by a comma separated list.
 
     ```hcl
@@ -95,7 +95,7 @@ storage or as read-only layer of container.  Multiple overlay paths can be given
     }
     ```
 
-* [`security`][security] - (Optional) allows the root user to leverage security modules such as
+* [`security`][security] - (Optional) Allows the root user to leverage security modules such as
 SELinux, AppArmor, and seccomp within your Singularity container.
 You can also change the UID and GID of the user within the container at runtime.
 
@@ -105,7 +105,7 @@ You can also change the UID and GID of the user within the container at runtime.
     }
     ```
 
-* `contain` - (Optional) use minimal `/dev` and empty other directories (e.g. /tmp and $HOME) instead of sharing filesystems from your host
+* `contain` - (Optional) Use minimal `/dev` and empty other directories (e.g. /tmp and $HOME) instead of sharing filesystems from your host.
 
     ```hcl
     config {
@@ -113,7 +113,7 @@ You can also change the UID and GID of the user within the container at runtime.
     }
     ```
 
-* `workdir` - (Optional) working directory to be used for `/tmp`, `/var/tmp` and $HOME (if -c/--contain was also used)
+* `workdir` - (Optional) Working directory to be used for `/tmp`, `/var/tmp` and $HOME (if -c/--contain was also used).
 
     ```hcl
     config {
@@ -121,7 +121,7 @@ You can also change the UID and GID of the user within the container at runtime.
     }
     ```
 
-* `pwd` - (Optional) initial working directory for payload process inside the container
+* `pwd` - (Optional) Initial working directory for payload process inside the container.
 
     ```hcl
     config {
@@ -131,7 +131,7 @@ You can also change the UID and GID of the user within the container at runtime.
 
 ## Networking
 
-Currently the `Singularity` driver only supports host networking. For more detailed instructions on how to set up networking options please refer to the `Singularity` user guides [singularity-network]
+Currently the `Singularity` driver only supports host networking. For more detailed instructions on how to set up networking options, please refer to the `Singularity` user guides [singularity-network]
 
 ## Client Requirements
 
