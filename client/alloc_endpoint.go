@@ -127,7 +127,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	// Decode the arguments
 	var req cstructs.AllocExecRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
-	encoder := newSyncEncoder(codec.NewEncoder(conn, structs.MsgpackHandle))
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&req); err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
@@ -276,10 +276,17 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	}()
 
 	var outWg sync.WaitGroup
-	outWg.Add(2)
+	var encoderLock sync.Locker
+	encodeFn := func(v interface{}) error {
+		encoderLock.Lock()
+		defer encoderLock.Unlock()
 
-	go a.forwardOutput(encoder, outReader, "stdout", &outWg)
-	go a.forwardOutput(encoder, errReader, "stderr", &outWg)
+		return encoder.Encode(v)
+	}
+
+	outWg.Add(2)
+	go a.forwardOutput(encodeFn, outReader, "stdout", &outWg)
+	go a.forwardOutput(encodeFn, errReader, "stderr", &outWg)
 
 	h := ar.GetTaskExecHandler(req.Task)
 	r, err := h(ctx, drivers.ExecOptions{
@@ -293,6 +300,9 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		ResizeCh: resizeCh,
 	})
 
+	// ensure that exit messages are the last messages sent
+	outWg.Wait()
+
 	sendFrame := func(frame *sframer.StreamFrame) {
 		buf := new(bytes.Buffer)
 		frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
@@ -302,9 +312,6 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 			Payload: buf.Bytes(),
 		})
 	}
-
-	// ensure that exit messages are the last messages sent
-	outWg.Wait()
 
 	if err != nil {
 		sendFrame(&sframer.StreamFrame{
@@ -322,7 +329,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	return
 }
 
-func (a *Allocations) forwardOutput(encoder encoder, reader io.Reader, source string, wg *sync.WaitGroup) error {
+func (a *Allocations) forwardOutput(encodeFn func(v interface{}) error, reader io.Reader, source string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 
 	buf := new(bytes.Buffer)
@@ -341,7 +348,7 @@ func (a *Allocations) forwardOutput(encoder encoder, reader io.Reader, source st
 				FileEvent: "close",
 			}
 			frameCodec.MustEncode(frame)
-			encoder.Encode(cstructs.StreamErrWrapper{
+			encodeFn(cstructs.StreamErrWrapper{
 				Payload: buf.Bytes(),
 			})
 
@@ -353,7 +360,7 @@ func (a *Allocations) forwardOutput(encoder encoder, reader io.Reader, source st
 		frame.Data = bytes[:n]
 		frameCodec.MustEncode(frame)
 
-		err = encoder.Encode(cstructs.StreamErrWrapper{
+		err = encodeFn(cstructs.StreamErrWrapper{
 			Payload: buf.Bytes(),
 		})
 		if err == io.ErrClosedPipe {
