@@ -468,7 +468,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Compute penalty nodes for rescheduled allocs
 			selectOptions := getSelectOptions(prevAllocation, preferredNode)
-			option := s.stack.Select(tg, selectOptions)
+			option := s.selectNextOption(tg, selectOptions)
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
@@ -526,6 +526,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						Canary: true,
 					}
 				}
+
+				s.handlePreemptions(option, alloc, missing)
 
 				// Track the placement
 				s.plan.AppendAlloc(alloc)
