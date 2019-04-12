@@ -9,6 +9,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -149,9 +150,7 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 
 	reqPath := fmt.Sprintf("/v1/client/allocation/%s/exec", alloc.ID)
 
-	pr, pw := io.Pipe()
-
-	r, err := nodeClient.rawPostQuery(reqPath, pr, q)
+	conn, _, err := nodeClient.websocket(reqPath, q)
 	if err != nil {
 		// There was a networking error when talking directly to the client.
 		if _, ok := err.(net.Error); !ok {
@@ -159,19 +158,20 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 			return nil, errCh
 		}
 
-		// Try via the server
-		pr.Close()
-		pw.Close()
-
-		pr, pw = io.Pipe()
-		r, err = a.client.rawPostQuery(reqPath, pr, q)
+		conn, _, err = a.client.websocket(reqPath, q)
 		if err != nil {
 			errCh <- err
 			return nil, errCh
 		}
 	}
 
-	enc := json.NewEncoder(pw)
+	var sendLock sync.Mutex
+	sendFrame := func(frame *StreamFrame) error {
+		sendLock.Lock()
+		defer sendLock.Unlock()
+
+		return conn.WriteJSON(frame)
+	}
 
 	go func() {
 		for s := range terminalSizeCh {
@@ -186,7 +186,7 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 				File:      "tty",
 			}
 
-			enc.Encode(frame)
+			sendFrame(&frame)
 		}
 	}()
 
@@ -200,7 +200,7 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 					FileEvent: "close",
 					File:      "stdin",
 				}
-				enc.Encode(frame)
+				sendFrame(&frame)
 				return
 			}
 
@@ -214,7 +214,7 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 				File: "stdin",
 			}
 
-			enc.Encode(frame)
+			sendFrame(&frame)
 		}
 	}()
 
@@ -222,11 +222,7 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 	frames := make(chan *StreamFrame, 10)
 
 	go func() {
-		// Close the body
-		defer r.Close()
-
-		// Create a decoder
-		dec := json.NewDecoder(r)
+		defer conn.Close()
 
 		for {
 			// Check if we have been cancelled
@@ -238,7 +234,7 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 
 			// Decode the next frame
 			var frame StreamFrame
-			if err := dec.Decode(&frame); err != nil {
+			if err := conn.ReadJSON(&frame); err != nil {
 				if err == io.EOF || err == io.ErrClosedPipe {
 					close(frames)
 				} else {

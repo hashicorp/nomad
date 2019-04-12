@@ -3,7 +3,6 @@ package agent
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -12,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
-	framer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ugorji/go/codec"
@@ -318,35 +316,6 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	return s.fsStreamImpl(resp, req, "FileSystem.Logs", fsReq, fsReq.AllocID)
 }
 
-func (s *HTTPServer) forwardBody(encoder *codec.Encoder, reader io.Reader, errCh chan<- HTTPCodedError) {
-	if reader == nil {
-		return
-	}
-
-	decoder := json.NewDecoder(reader)
-
-	// reuse frame to avoid gc memory pressure
-	sf := &framer.StreamFrame{}
-
-	for {
-		sf.Clear()
-		err := decoder.Decode(sf)
-		if err == io.EOF {
-			return
-		}
-
-		if err != nil {
-			errCh <- CodedError(500, err.Error())
-			return
-		}
-
-		err = encoder.Encode(sf)
-		if err != nil {
-			errCh <- CodedError(500, err.Error())
-		}
-	}
-}
-
 // fsStreamImpl is used to make a streaming filesystem call that serializes the
 // args and then expects a stream of StreamErrWrapper results where the payload
 // is copied to the response body.
@@ -395,8 +364,6 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			return
 		}
 
-		go s.forwardBody(encoder, req.Body, errCh)
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -437,5 +404,6 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			strings.Contains(codedErr.Error(), "EOF")) {
 		codedErr = nil
 	}
+
 	return nil, codedErr
 }
