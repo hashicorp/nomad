@@ -501,7 +501,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					AllocatedResources: resources,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
-
 					SharedResources: &structs.Resources{
 						DiskMB: tg.EphemeralDisk.SizeMB,
 					},
