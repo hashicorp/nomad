@@ -25,7 +25,6 @@ func (f *JobPeriodicCommand) Help() string {
 Usage: nomad job periodic <subcommand> [options] [args]
 
   This command groups subcommands for interacting with periodic jobs.
-  This command groups subcommands for interacting with periodic jobs.
 
   Force a periodic job:
 

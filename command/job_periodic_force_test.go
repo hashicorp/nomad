@@ -2,18 +2,16 @@ package command
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJobPeriodicForceCommand_Implements(t *testing.T) {
@@ -27,21 +25,16 @@ func TestJobPeriodicForceCommand_Fails(t *testing.T) {
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	require.Equal(t, code, 1, "expected error")
+	out := ui.ErrorWriter.String()
+	require.Contains(t, out, commandErrorText(cmd), "expected help output")
 	ui.ErrorWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=nope", "12"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error forcing periodic job") {
-		t.Fatalf("expected failed to force error, got: %s", out)
-	}
-	ui.ErrorWriter.Reset()
+	code = cmd.Run([]string{"-address=nope", "12"})
+	require.Equal(t, code, 1, "expected error")
+	out = ui.ErrorWriter.String()
+	require.Contains(t, out, "Error forcing periodic job", "expected force error")
 }
 
 func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
@@ -99,7 +92,7 @@ func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %s", err)
+		require.NoError(t, err)
 	})
 
 	// Register a job
@@ -136,7 +129,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %s", err)
+		require.NoError(t, err)
 	})
 
 	// Register a job
@@ -178,7 +171,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("err: %s", err)
+		require.NoError(t, err)
 	})
 
 	// Register a job
