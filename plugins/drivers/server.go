@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	plugin "github.com/hashicorp/go-plugin"
@@ -280,17 +279,27 @@ func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRe
 }
 
 func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStreamingServer) error {
-
-	s := newExecTaskHelper(server)
-	msg, err := s.setupMessage()
+	msg, err := server.Recv()
 	if err != nil {
-		return fmt.Errorf("failed to receive message: %v", err)
+		return fmt.Errorf("failed to receive initial message: %v", err)
+	}
+
+	if msg.Setup == nil {
+		return fmt.Errorf("first message should always be setup")
 	}
 
 	inReader, inWriter := io.Pipe()
 	outReader, outWriter := io.Pipe()
 	errReader, errWriter := io.Pipe()
 	resize := make(chan TerminalSize, 2)
+
+	var sendLock sync.Mutex
+	sendMsg := func(m *proto.ExecTaskStreamingResponse) error {
+		sendLock.Lock()
+		defer sendLock.Unlock()
+
+		return server.Send(m)
+	}
 
 	// go routines for managing output
 	forwardOutput := func(reader io.Reader, typ proto.ExecTaskStreamingResponse_Output_OutputType, wg *sync.WaitGroup) {
@@ -302,24 +311,25 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 			n, err := reader.Read(bytes)
 
 			if err == io.EOF || err == io.ErrClosedPipe {
-				s.sendCh <- &proto.ExecTaskStreamingResponse{
+				sendMsg(&proto.ExecTaskStreamingResponse{
 					Output: &proto.ExecTaskStreamingResponse_Output{
 						Type:  typ,
 						Close: true,
 					},
-				}
+				})
 			}
 			if err != nil {
 				return
 			}
 
-			s.sendCh <- &proto.ExecTaskStreamingResponse{
+			sendLock.Lock()
+			sendMsg(&proto.ExecTaskStreamingResponse{
 				Output: &proto.ExecTaskStreamingResponse_Output{
 					Type:  typ,
 					Value: bytes[:n],
 				},
-			}
-
+			})
+			sendLock.Unlock()
 		}
 	}
 
@@ -330,22 +340,22 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 
 	go func() {
 		for {
-			select {
-			case <-s.recvDoneCh:
+			msg, err := server.Recv()
+			if err != nil {
+				// TODO: How to handle this?
 				return
-			case msg := <-s.recvCh:
+			}
 
-				switch {
-				case msg.Resize != nil:
-					resize <- TerminalSize{
-						Height: int(msg.Resize.Height),
-						Width:  int(msg.Resize.Width),
-					}
-				case msg.Input != nil && msg.Input.Close:
-					inWriter.Close()
-				case msg.Input != nil:
-					inWriter.Write(msg.Input.Value)
+			switch {
+			case msg.Resize != nil:
+				resize <- TerminalSize{
+					Height: int(msg.Resize.Height),
+					Width:  int(msg.Resize.Width),
 				}
+			case msg.Input != nil && msg.Input.Close:
+				inWriter.Close()
+			case msg.Input != nil:
+				inWriter.Write(msg.Input.Value)
 			}
 		}
 	}()
@@ -367,12 +377,9 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 	}
 
 	outWg.Wait()
-	s.sendCh <- &proto.ExecTaskStreamingResponse{
+	sendMsg(&proto.ExecTaskStreamingResponse{
 		Result: exitResultToProto(result),
-	}
-	close(s.sendCh)
-
-	s.drainSendQueue(15 * time.Second)
+	})
 
 	return err
 }
