@@ -146,7 +146,7 @@ The `Singularity` driver requires the following:
 
 * `enabled` - The `Singularity` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
-* `Singularity_path` - The location in which all containers are stored (commonly defaults to `/var/lib/Singularity`). See [`Singularity-create`][Singularity-create] for more details.
+* `Singularity_path` - The location in which all containers are stored (commonly defaults to `/var/lib/Singularity`). See [`Singularity-ache`][Singularity-cache] for more details.
 
 An example of using these plugin options with the new [plugin
 syntax][plugin] is shown below:
@@ -160,17 +160,6 @@ plugin "nomad-driver-Singularity" {
 }
 ```
 Please note the plugin name should match whatever name you have specified for the external driver in the [plugin_dir][plugin_dir] directory.
-
-## Client Configuration
-
-~> Only use this section for pre-0.9 releases of Nomad. If you are using Nomad
-0.9 or above, please see [plugin options][plugin-options]
-
-The `Singularity` driver has the following [client configuration
-options](/docs/configuration/client.html#options):
-
-* `Singularity.enable` - The `Singularity` driver may be disabled on hosts by setting this
-  option to `false` (defaults to `true`).
 
 ## Client Attributes
 
@@ -190,6 +179,7 @@ isolation is supported via `--net` and `--network` feature (Singularity v3.1.1+ 
 [plugin_dir]: /docs/configuration/index.html#plugin_dir
 [plugin-options]: #plugin_options
 [Singularity]: https://github.com/sylabs/singularity
+[Singularity-cache]: https://www.sylabs.io/guides/3.1/user-guide/appendix.html#c
 
 [bind]: https://www.sylabs.io/guides/3.1/user-guide/bind_paths_and_mounts.html
 [security]: https://www.sylabs.io/guides/3.1/user-guide/security_options.html
