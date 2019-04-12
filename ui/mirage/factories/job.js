@@ -15,7 +15,7 @@ export default Factory.extend({
     return this.id;
   },
 
-  groupsCount: () => faker.random.number({ min: 1, max: 5 }),
+  groupsCount: () => faker.random.number({ min: 1, max: 3 }),
 
   region: () => 'global',
   type: faker.list.random(...JOB_TYPES),
@@ -27,7 +27,7 @@ export default Factory.extend({
     faker.list.random(...DATACENTERS)
   ),
 
-  childrenCount: () => faker.random.number({ min: 1, max: 5 }),
+  childrenCount: () => faker.random.number({ min: 1, max: 3 }),
 
   periodic: trait({
     type: 'batch',
@@ -137,7 +137,7 @@ export default Factory.extend({
     });
 
     if (!job.noDeployments) {
-      Array(faker.random.number({ min: 1, max: 10 }))
+      Array(faker.random.number({ min: 1, max: 3 }))
         .fill(null)
         .map((_, index) => {
           return server.create('job-version', {
