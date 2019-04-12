@@ -262,7 +262,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	}()
 
 	var outWg sync.WaitGroup
-	var encoderLock sync.Locker
+	var encoderLock sync.Mutex
 	encodeFn := func(v interface{}) error {
 		encoderLock.Lock()
 		defer encoderLock.Unlock()
