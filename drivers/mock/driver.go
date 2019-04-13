@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -634,7 +635,20 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 
 	cancelCh := make(chan struct{})
 	exitTimer := make(chan time.Time)
-	return runCommand(*h.execCommand, execOpts.Stdout, execOpts.Stderr, cancelCh, exitTimer, d.logger), nil
+
+	cmd := *h.execCommand
+	if len(execOpts.Command) == 1 && execOpts.Command[0] == "showinput" {
+		stdin, _ := ioutil.ReadAll(execOpts.Stdin)
+		cmd = Command{
+			RunFor: "1ns",
+			StdoutString: fmt.Sprintf("TTY: %v\nStdin:\n%s\n",
+				execOpts.Tty,
+				stdin,
+			),
+		}
+	}
+
+	return runCommand(cmd, execOpts.Stdout, execOpts.Stderr, cancelCh, exitTimer, d.logger), nil
 }
 
 // GetTaskConfig is unique to the mock driver and for testing purposes only. It
