@@ -19,6 +19,10 @@ import (
 
 type AllocExecCommand struct {
 	Meta
+
+	Stdin  io.Reader
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
 }
 
 func (l *AllocExecCommand) Help() string {
@@ -126,7 +130,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		l.Ui.Error(commandErrorText(l))
 		return 1
 	} else if numArgs < 2 {
-		l.Ui.Error("This command takes command as arguments")
+		l.Ui.Error("A command is required")
 		l.Ui.Error(commandErrorText(l))
 		return 1
 	}
@@ -205,12 +209,22 @@ func (l *AllocExecCommand) Run(args []string) int {
 		}
 	}
 
-	var stdin io.Reader = os.Stdin
+	if l.Stdin == nil {
+		l.Stdin = os.Stdin
+	}
+	if l.Stdout == nil {
+		l.Stdout = os.Stdout
+	}
+	if l.Stderr == nil {
+		l.Stderr = os.Stderr
+	}
+
+	var stdin io.Reader = l.Stdin
 	if !stdinOpt {
 		stdin = bytes.NewReader(nil)
 	}
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, command, stdin, os.Stdout, os.Stderr)
+	code, err := l.execImpl(client, alloc, task, ttyOpt, command, stdin, l.Stdout, l.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
