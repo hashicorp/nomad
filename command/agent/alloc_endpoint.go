@@ -345,6 +345,10 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 	cancel()
 	codedErr := <-errCh
 
+	if isClosedError(codedErr) {
+		codedErr = nil
+	}
+
 	return nil, codedErr
 }
 
