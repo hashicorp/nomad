@@ -3,6 +3,7 @@ package command
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -161,20 +162,50 @@ func TestAllocExecCommand_Run(t *testing.T) {
 
 	})
 
-	ui := new(cli.MockUi)
-	var stdout, stderr bufferCloser
+	cases := []struct {
+		name    string
+		command string
+		stdin   string
 
-	cmd := &AllocExecCommand{
-		Meta:   Meta{Ui: ui},
-		Stdin:  bytes.NewReader(nil),
-		Stdout: &stdout,
-		Stderr: &stderr,
+		stdout   string
+		stderr   string
+		exitCode int
+	}{
+		{
+			name:     "basic stdout/err",
+			command:  "simplecommand",
+			stdin:    "",
+			stdout:   "sample stdout output",
+			stderr:   "sample stderr output",
+			exitCode: 21,
+		},
+		{
+			name:     "streamining input",
+			command:  "showinput",
+			stdin:    "hello from stdin",
+			stdout:   "TTY: false\nStdin:\nhello from stdin",
+			exitCode: 0,
+		},
 	}
 
-	code = cmd.Run([]string{"-address=" + url, allocId, "simpelcommand"})
-	assert.Equal(t, 21, code)
-	assert.Contains(t, stdout.String(), "sample stdout output")
-	assert.Contains(t, stderr.String(), "sample stderr output")
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ui := new(cli.MockUi)
+			var stdout, stderr bufferCloser
+
+			cmd := &AllocExecCommand{
+				Meta:   Meta{Ui: ui},
+				Stdin:  strings.NewReader(c.stdin),
+				Stdout: &stdout,
+				Stderr: &stderr,
+			}
+
+			code = cmd.Run([]string{"-address=" + url, allocId, c.command})
+			assert.Equal(t, c.exitCode, code)
+			assert.Equal(t, c.stdout, strings.TrimSpace(stdout.String()))
+			assert.Equal(t, c.stderr, strings.TrimSpace(stderr.String()))
+		})
+	}
 }
 
 type bufferCloser struct {
