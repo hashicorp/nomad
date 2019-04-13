@@ -137,14 +137,29 @@ func TestAllocExecCommand_Run(t *testing.T) {
 	code := waitForSuccess(evalUi, client, fullId, t, resp.EvalID)
 	require.Equal(t, 0, code, "failed to get status - output: %v", evalUi.ErrorWriter.String())
 
-	// get an alloc id
 	allocId := ""
-	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
-		if len(allocs) > 0 {
-			allocId = allocs[0].ID
+
+	testutil.WaitForResult(func() (bool, error) {
+		allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
+		if err != nil {
+			return false, fmt.Errorf("failed to get allocations: %v", err)
 		}
-	}
-	require.NotEmpty(t, allocId, "failed to find allocation")
+
+		if len(allocs) < 0 {
+			return false, fmt.Errorf("no allocations yet")
+		}
+
+		alloc := allocs[0]
+		if alloc.ClientStatus != "running" {
+			return false, fmt.Errorf("alloc is not running yet: %v", alloc.ClientStatus)
+		}
+
+		allocId = alloc.ID
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+
+	})
 
 	ui := new(cli.MockUi)
 	var stdout, stderr bufferCloser
