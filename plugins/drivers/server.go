@@ -322,14 +322,12 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 				return
 			}
 
-			sendLock.Lock()
 			sendMsg(&proto.ExecTaskStreamingResponse{
 				Output: &proto.ExecTaskStreamingResponse_Output{
 					Type:  typ,
 					Value: bytes[:n],
 				},
 			})
-			sendLock.Unlock()
 		}
 	}
 
