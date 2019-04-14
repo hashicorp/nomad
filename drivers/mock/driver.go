@@ -640,7 +640,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 	if len(execOpts.Command) == 1 && execOpts.Command[0] == "showinput" {
 		stdin, _ := ioutil.ReadAll(execOpts.Stdin)
 		cmd = Command{
-			RunFor: "1ns",
+			RunFor: "1ms",
 			StdoutString: fmt.Sprintf("TTY: %v\nStdin:\n%s\n",
 				execOpts.Tty,
 				stdin,
