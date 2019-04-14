@@ -296,6 +296,17 @@ type AllocStopResponse struct {
 	WriteMeta
 }
 
+type FileFD int
+
+var (
+	StdinFD  = FileFD(0)
+	StdoutFD = FileFD(1)
+	StderrFD = FileFD(2)
+)
+
+type FileOperation struct {
+}
+
 type TerminalSize struct {
 	Height int32
 	Width  int32
