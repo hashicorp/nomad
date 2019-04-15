@@ -29,7 +29,12 @@ type Manager interface {
 	Dispense(driver string) (drivers.DriverPlugin, error)
 }
 
-type TaskExecHandler func(ctx context.Context, execOpts drivers.ExecOptions) (*drivers.ExitResult, error)
+type TaskExecHandler func(
+	ctx context.Context,
+	command []string,
+	tty bool,
+	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
+	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error
 
 // EventHandler is a callback to be called for a task.
 // The handler should not block execution.

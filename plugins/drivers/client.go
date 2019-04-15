@@ -395,103 +395,64 @@ func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.
 }
 
 func (d *driverPluginClient) ExecTaskStreaming(ctx context.Context, taskID string, opts ExecOptions) (*ExitResult, error) {
+	return nil, errors.New("client only support raw")
+}
 
+var _ ExecTaskStreamingRaw = (*driverPluginClient)(nil)
+
+func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
+	taskID string,
+	command []string,
+	tty bool,
+	requests <-chan *ExecTaskStreamingRequestMsg,
+	responses chan<- *ExecTaskStreamingResponseMsg) error {
 	cctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
 	stream, err := d.client.ExecTaskStreaming(ctx)
 	if err != nil {
-		return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
-	// all sends must happen in a single routine
-	// while receives happen on call goroutine
-	sendCh := make(chan *proto.ExecTaskStreamingRequest, 5)
-
-	go func() {
-		for m := range sendCh {
-			err := stream.Send(m)
-			if err != nil && m.Setup != nil {
-				return
-			}
-		}
-	}()
-
-	sendCh <- &proto.ExecTaskStreamingRequest{
+	err = stream.Send(&proto.ExecTaskStreamingRequest{
 		Setup: &proto.ExecTaskStreamingRequest_Setup{
 			TaskId:  taskID,
-			Command: opts.Command,
-			Tty:     opts.Tty,
+			Command: command,
+			Tty:     tty,
 		},
+	})
+	if err != nil {
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		select {
-		case <-cctx.Done():
-			return
-		case newSize := <-opts.ResizeCh:
-			sendCh <- &proto.ExecTaskStreamingRequest{
-				Resize: &proto.ExecTaskStreamingRequest_TerminalSize{
-					Height: int32(newSize.Height),
-					Width:  int32(newSize.Width),
-				},
-			}
-		}
-	}()
-
-	go func() {
-		bytes := make([]byte, 1024)
-
 		for {
-			n, err := opts.Stdin.Read(bytes)
-			if err == io.EOF || err == io.ErrClosedPipe {
-				sendCh <- &proto.ExecTaskStreamingRequest{
-					Input: &proto.ExecTaskStreamingRequest_Input{
-						Close: true,
-					},
-				}
-			}
-
-			if err != nil {
+			select {
+			case <-cctx.Done():
 				return
-			}
-
-			sendCh <- &proto.ExecTaskStreamingRequest{
-				Input: &proto.ExecTaskStreamingRequest_Input{
-					Value: bytes[:n],
-				},
+			case msg := <-requests:
+				err := stream.Send(msg)
+				if err != nil {
+					errCh <- err
+				}
 			}
 		}
 	}()
 
 	for {
-		if err := cctx.Err(); err != nil {
-			return nil, err
+		select {
+		case <-cctx.Done():
+			return cctx.Err()
+		case err := <-errCh:
+			return err
 		}
 
 		out, err := stream.Recv()
 		if err != nil {
-			return nil, grpcutils.HandleGrpcErr(err, d.doneCtx)
+			return grpcutils.HandleGrpcErr(err, d.doneCtx)
 		}
 
-		switch {
-		case out.Output != nil:
-			switch out.Output.Type {
-			case proto.ExecTaskStreamingResponse_Output_STDOUT:
-				if out.Output.Close {
-					opts.Stdout.Close()
-				} else {
-					opts.Stdout.Write(out.Output.Value)
-				}
-			case proto.ExecTaskStreamingResponse_Output_STDERR:
-				if out.Output.Close {
-					opts.Stderr.Close()
-				} else {
-					opts.Stderr.Write(out.Output.Value)
-				}
-			}
-		case out.Result != nil:
-			return exitResultFromProto(out.Result), nil
-		}
+		responses <- out
 	}
 }
