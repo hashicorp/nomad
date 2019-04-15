@@ -446,6 +446,7 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 			return cctx.Err()
 		case err := <-errCh:
 			return err
+		default:
 		}
 
 		out, err := stream.Recv()
