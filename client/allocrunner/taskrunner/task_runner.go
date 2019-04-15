@@ -190,11 +190,6 @@ type TaskRunner struct {
 	// handlers
 	driverManager drivermanager.Manager
 
-	// runLaunched marks whether the Run goroutine has been started. It should
-	// be accessed via helpers
-	runLaunched     bool
-	runLaunchedLock sync.Mutex
-
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
 	maxEvents int
@@ -378,10 +373,6 @@ func (tr *TaskRunner) initLabels() {
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
 // Run closes WaitCh when it exits. Should be started in a goroutine.
 func (tr *TaskRunner) Run() {
-	// Mark that the run routine has been launched so that other functions can
-	// decide to use the wait channel or not.
-	tr.setRunLaunched()
-
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
 

@@ -101,20 +101,6 @@ func (tr *TaskRunner) getKillErr() error {
 	return tr.killErr
 }
 
-// setRunLaunched marks the fact that the Run loop has been started
-func (tr *TaskRunner) setRunLaunched() {
-	tr.runLaunchedLock.Lock()
-	defer tr.runLaunchedLock.Unlock()
-	tr.runLaunched = true
-}
-
-// hasRunLaunched returns whether the Run loop has been started
-func (tr *TaskRunner) hasRunLaunched() bool {
-	tr.runLaunchedLock.Lock()
-	defer tr.runLaunchedLock.Unlock()
-	return tr.runLaunched
-}
-
 // hookState returns the state for the given hook or nil if no state is
 // persisted for the hook.
 func (tr *TaskRunner) hookState(name string) *state.HookState {
