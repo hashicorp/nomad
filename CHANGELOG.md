@@ -3,10 +3,12 @@
 FEATURES:
 
  * vault: Add initial support for Vault namespaces [[GH-5520](https://github.com/hashicorp/nomad/pull/5520)]
+ * allocations: Add support for restarting allocations in-place [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
  
 IMPROVEMENTS:
 
  * core: Add node name to output of `nomad node status` command in verbose mode [[GH-5224](https://github.com/hashicorp/nomad/pull/5224)]
+ * core: Add `-verbose` flag to `nomad status` wrapper command [[GH-5516](https://github.com/hashicorp/nomad/pull/5516)]
 
 ## 0.9.0 (April 9, 2019)
 
