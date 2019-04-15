@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"sync"
 
 	"github.com/golang/protobuf/ptypes"
 	plugin "github.com/hashicorp/go-plugin"
@@ -288,94 +287,69 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 		return fmt.Errorf("first message should always be setup")
 	}
 
-	inReader, inWriter := io.Pipe()
-	outReader, outWriter := io.Pipe()
-	errReader, errWriter := io.Pipe()
-	resize := make(chan TerminalSize, 2)
+	requests := make(chan *ExecTaskStreamingRequestMsg)
+	responses := make(chan *ExecTaskStreamingResponseMsg)
 
-	var sendLock sync.Mutex
-	sendMsg := func(m *proto.ExecTaskStreamingResponse) error {
-		sendLock.Lock()
-		defer sendLock.Unlock()
-
-		return server.Send(m)
-	}
-
-	// go routines for managing output
-	forwardOutput := func(reader io.Reader, typ proto.ExecTaskStreamingResponse_Output_OutputType, wg *sync.WaitGroup) {
-		defer wg.Done()
-
-		bytes := make([]byte, 1024)
-
-		for {
-			n, err := reader.Read(bytes)
-
-			if err == io.EOF || err == io.ErrClosedPipe {
-				sendMsg(&proto.ExecTaskStreamingResponse{
-					Output: &proto.ExecTaskStreamingResponse_Output{
-						Type:  typ,
-						Close: true,
-					},
-				})
-			}
-			if err != nil {
-				return
-			}
-
-			sendMsg(&proto.ExecTaskStreamingResponse{
-				Output: &proto.ExecTaskStreamingResponse_Output{
-					Type:  typ,
-					Value: bytes[:n],
-				},
-			})
-		}
-	}
-
-	var outWg sync.WaitGroup
-	outWg.Add(2)
-	go forwardOutput(outReader, proto.ExecTaskStreamingResponse_Output_STDOUT, &outWg)
-	go forwardOutput(errReader, proto.ExecTaskStreamingResponse_Output_STDERR, &outWg)
-
-	go func() {
-		for {
+	if impl, ok := b.impl.(ExecTaskStreamingRaw); ok {
+		// requests
+		go func() {
 			msg, err := server.Recv()
 			if err != nil {
-				// TODO: How to handle this?
+				// TODO: handle this
 				return
 			}
 
-			switch {
-			case msg.Resize != nil:
-				resize <- TerminalSize{
-					Height: int(msg.Resize.Height),
-					Width:  int(msg.Resize.Width),
+			requests <- msg
+		}()
+
+		go func() {
+			for {
+				select {
+				case <-server.Context().Done():
+					return
+				case msg := <-responses:
+					err := server.Send(msg)
+					if err != nil {
+						// TODO: handle this
+						return
+					}
 				}
-			case msg.Input != nil && msg.Input.Close:
-				inWriter.Close()
-			case msg.Input != nil:
-				inWriter.Write(msg.Input.Value)
+
 			}
-		}
-	}()
+		}()
+
+		return impl.ExecTaskStreamingRaw(server.Context(),
+			msg.Setup.TaskId, msg.Setup.Command, msg.Setup.Tty,
+			requests, responses)
+	}
+
+	execOpts, errCh := StreamsToExecOptions(server.Context(),
+		msg.Setup.Command, msg.Setup.Tty,
+		requests, responses)
 
 	result, err := b.impl.ExecTaskStreaming(server.Context(),
-		msg.Setup.TaskId, ExecOptions{
-			Command: msg.Setup.Command,
-			Tty:     msg.Setup.Tty,
-
-			Stdin:  inReader,
-			Stdout: outWriter,
-			Stderr: errWriter,
-
-			ResizeCh: resize,
-		})
+		msg.Setup.TaskId, execOpts)
 
 	if err != nil {
 		return err
 	}
 
-	outWg.Wait()
-	sendMsg(&proto.ExecTaskStreamingResponse{
+	execOpts.Stdout.Close()
+	execOpts.Stderr.Close()
+
+	// wait for copy to be done
+	select {
+	case err = <-errCh:
+	case <-server.Context().Done():
+		err = fmt.Errorf("exec timed out: %v", server.Context().Err())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	server.Send(&ExecTaskStreamingResponseMsg{
+		Exited: true,
 		Result: exitResultToProto(result),
 	})
 

@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -61,8 +62,41 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 	return res.Stdout, res.ExitResult.ExitCode, res.ExitResult.Err
 }
 
-func (h *DriverHandle) ExecStreaming(ctx context.Context, execOpts drivers.ExecOptions) (*drivers.ExitResult, error) {
-	return h.driver.ExecTaskStreaming(ctx, h.taskID, execOpts)
+func (h *DriverHandle) ExecStreaming(ctx context.Context,
+	command []string,
+	tty bool,
+	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
+	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+
+	if impl, ok := h.driver.(drivers.ExecTaskStreamingRaw); ok {
+		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, requests, responses)
+	}
+
+	execOpts, doneCh := drivers.StreamsToExecOptions(
+		ctx, command, tty, requests, responses)
+
+	result, err := h.driver.ExecTaskStreaming(ctx, h.taskID, execOpts)
+	if err != nil {
+		return err
+	}
+
+	execOpts.Stdout.Close()
+	execOpts.Stderr.Close()
+
+	select {
+	case err = <-doneCh:
+	case <-ctx.Done():
+		err = fmt.Errorf("exec task timed out: %v", ctx.Err())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	responses <- drivers.NewExecStreamingResponseExit(result.ExitCode)
+	close(responses)
+
+	return nil
 }
 
 func (h *DriverHandle) Network() *drivers.DriverNetwork {
