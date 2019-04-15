@@ -12,9 +12,9 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
-	framer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/ugorji/go/codec"
 )
 
@@ -355,6 +355,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		for {
 			select {
 			case <-ctx.Done():
+				s.logger.Warn("ctx done")
 				errCh <- nil
 				return
 			default:
@@ -365,6 +366,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 			if isClosedError(err) {
 				ws.WriteControl(websocket.CloseMessage, nil, time.Now().Add(5*time.Second))
 				errCh <- nil
+				return
 			}
 
 			if err != nil {
@@ -394,6 +396,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 	if isClosedError(codedErr) {
 		codedErr = nil
 	}
+	ws.Close()
 
 	return nil, codedErr
 }
@@ -410,11 +413,8 @@ func isClosedError(err error) bool {
 }
 
 func forwardExecInput(encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- HTTPCodedError) {
-	// reuse frame to avoid gc memory pressure
-	sf := &framer.StreamFrame{}
-
 	for {
-		sf.Clear()
+		sf := &drivers.ExecTaskStreamingRequestMsg{}
 		err := ws.ReadJSON(sf)
 		if err == io.EOF {
 			return

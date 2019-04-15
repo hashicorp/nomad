@@ -3,17 +3,14 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/acl"
-	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -208,157 +205,70 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		return
 	}
 
-	resizeCh := make(chan drivers.TerminalSize, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	inReader, inWriter := io.Pipe()
-	outReader, outWriter := io.Pipe()
-	errReader, errWriter := io.Pipe()
+	requests := make(chan *drivers.ExecTaskStreamingRequestMsg)
+	responses := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
-	ctx, ctxCancel := context.WithCancel(context.Background())
-
-	cancel := func() {
-		ctxCancel()
-		outReader.Close()
-		errReader.Close()
-		inWriter.Close()
-		close(resizeCh)
-	}
-
-	// Create a goroutine to detect the remote side closing
-
-	// process input
 	go func() {
-		frame := &sframer.StreamFrame{}
 		for {
-			frame.Clear()
-			err := decoder.Decode(frame)
+			req := drivers.ExecTaskStreamingRequestMsg{}
+			err := decoder.Decode(&req)
 			if err == io.EOF || err == io.ErrClosedPipe {
 				cancel()
 				break
 			}
+
 			if err != nil {
-				a.c.logger.Warn("received unexpected error", "error", err)
+				// TODO: unexpected error
 				break
 			}
-			switch {
-			// stdin events
-			case frame.File == "stdin" && frame.FileEvent == "close":
-				inWriter.Close()
-			case frame.File == "stdin":
-				inWriter.Write(frame.Data)
 
-			// tty events
-			case frame.File == "tty" && frame.FileEvent == "resize":
-				t := drivers.TerminalSize{}
-				err := json.Unmarshal(frame.Data, &t)
-				if err != nil {
-					a.c.logger.Warn("failed to deserialize terminal size", "error", err, "value", string(frame.Data))
-					continue
+			requests <- &req
+		}
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		buf := new(bytes.Buffer)
+		frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
+
+		for {
+			buf.Reset()
+			frameCodec.Reset(buf)
+
+			select {
+			case <-ctx.Done():
+				return
+			case msg, ok := <-responses:
+				if !ok {
+					return
 				}
-				resizeCh <- t
+
+				frameCodec.MustEncode(msg)
+
+				err := encoder.Encode(cstructs.StreamErrWrapper{
+					Payload: buf.Bytes(),
+				})
+				if err != nil {
+					// TODO: handle this
+				}
 
 			}
 		}
 	}()
 
-	var outWg sync.WaitGroup
-	var encoderLock sync.Mutex
-	encodeFn := func(v interface{}) error {
-		encoderLock.Lock()
-		defer encoderLock.Unlock()
-
-		return encoder.Encode(v)
-	}
-
-	outWg.Add(2)
-	go a.forwardOutput(encodeFn, outReader, "stdout", &outWg)
-	go a.forwardOutput(encodeFn, errReader, "stderr", &outWg)
-
 	h := ar.GetTaskExecHandler(req.Task)
-	r, err := h(ctx, drivers.ExecOptions{
-		Command: req.Cmd,
-		Tty:     req.Tty,
-
-		Stdin:  inReader,
-		Stdout: outWriter,
-		Stderr: errWriter,
-
-		ResizeCh: resizeCh,
-	})
-
-	// ensure that exit messages are the last messages sent
-	outWg.Wait()
-
-	sendFrame := func(frame *sframer.StreamFrame) {
-		buf := new(bytes.Buffer)
-		frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
-		frameCodec.MustEncode(frame)
-
-		encoder.Encode(cstructs.StreamErrWrapper{
-			Payload: buf.Bytes(),
-		})
-	}
-
+	err = h(ctx, req.Cmd, req.Tty, requests, responses)
+	wg.Wait()
 	if err != nil {
-		sendFrame(&sframer.StreamFrame{
-			Data:      []byte(err.Error()),
-			FileEvent: "exit-error",
-		})
+		code := helper.Int64ToPtr(500)
+		handleStreamResultError(err, code, encoder)
 		return
 	}
 
-	sendFrame(&sframer.StreamFrame{
-		Data:      []byte(strconv.Itoa(r.ExitCode)),
-		FileEvent: "exit-code",
-	})
-
 	return
-}
-
-func (a *Allocations) forwardOutput(encodeFn func(v interface{}) error, reader io.Reader, source string, wg *sync.WaitGroup) error {
-	defer wg.Done()
-
-	buf := new(bytes.Buffer)
-	frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
-	frame := &sframer.StreamFrame{
-		File: source,
-	}
-
-	bytes := make([]byte, 1024)
-
-	for {
-		n, err := reader.Read(bytes)
-		if err == io.EOF || err == io.ErrClosedPipe {
-			frame := &sframer.StreamFrame{
-				File:      source,
-				FileEvent: "close",
-			}
-			frameCodec.MustEncode(frame)
-			encodeFn(cstructs.StreamErrWrapper{
-				Payload: buf.Bytes(),
-			})
-
-			return nil
-		} else if err != nil {
-			a.c.logger.Warn("failed to read exec output", "source", source, "error", err)
-		}
-
-		frame.Data = bytes[:n]
-		frameCodec.MustEncode(frame)
-
-		err = encodeFn(cstructs.StreamErrWrapper{
-			Payload: buf.Bytes(),
-		})
-		if err == io.ErrClosedPipe {
-			return err
-		}
-
-		if err != nil {
-			// TODO: What should we do on error?
-			return err
-		}
-
-		buf.Reset()
-		frameCodec.Reset(buf)
-	}
 }

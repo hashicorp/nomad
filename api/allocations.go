@@ -9,8 +9,9 @@ import (
 	"net"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -73,12 +74,68 @@ func (a *Allocations) Exec(ctx context.Context,
 	stdin io.Reader, stdout, stderr io.Writer,
 	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
 
-	frames, errCh := a.ExecFrames(ctx, alloc, task, tty, command, stdin, terminalSizeCh, q)
+	ctx, cancelFn := context.WithCancel(ctx)
+	defer cancelFn()
+
+	inputCh := make(chan *ExecStreamingInput)
+	errCh := make(chan error, 1)
+
+	frames := a.ExecFrames(ctx, alloc, task, tty, command, inputCh, errCh, q)
+
 	select {
 	case err := <-errCh:
 		return -1, err
 	default:
 	}
+
+	// forwarding stdin
+	go func() {
+
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			input := ExecStreamingInput{Stdin: &FileOperation{}}
+			bytes := make([]byte, 2048)
+
+			n, err := stdin.Read(bytes)
+			if err == io.EOF {
+				input.Stdin.Close = true
+				inputCh <- &input
+				return
+			} else if err != nil {
+				errCh <- err
+				return
+			}
+
+			input.Stdin.Data = bytes[:n]
+			inputCh <- &input
+		}
+	}()
+
+	// forwarding terminal size and heartbeats
+	go func() {
+		for {
+			resizeInput := ExecStreamingInput{}
+
+			select {
+			case <-ctx.Done():
+				return
+			case size, ok := <-terminalSizeCh:
+				if !ok {
+					continue
+				}
+				resizeInput.TTYSize = &size
+				inputCh <- &resizeInput
+
+			// heartbeat message
+			case <-time.After(10 * time.Second):
+				inputCh <- &ExecStreamingInputHeartbeat
+			}
+
+		}
+	}()
 
 	for {
 		select {
@@ -91,42 +148,34 @@ func (a *Allocations) Exec(ctx context.Context,
 				return -1, nil
 			}
 
-			switch frame.FileEvent {
-			case "":
-				w := stdout
-				if frame.File == "stderr" {
-					w = stderr
-				}
-
-				w.Write(frame.Data)
-			case "exit-error":
-				return -1, errors.New(string(frame.Data))
-			case "exit-code":
-				code, err := strconv.Atoi(string(frame.Data))
-				if err != nil {
-					return -1, fmt.Errorf("received unexpected exit code: %v", string(frame.Data))
-				}
-
-				return code, nil
-			case "close":
-				// TODO: what should we do about close, events?
+			switch {
+			case frame.Stdout != nil && len(frame.Stdout.Data) != 0:
+				stdout.Write(frame.Stdout.Data)
+			case frame.Stderr != nil && len(frame.Stderr.Data) != 0:
+				stderr.Write(frame.Stderr.Data)
+			case frame.Stdout != nil && frame.Stdout.Close:
+				// don't really do anything
+			case frame.Stderr != nil && frame.Stderr.Close:
+				// don't really do anything
+			case frame.Error != nil && *frame.Error != "":
+				return -1, errors.New(*frame.Error)
+			case frame.Exited && frame.Result != nil:
+				return frame.Result.ExitCode, nil
 			default:
-				// unpexected file event, TODO: log it?!
+				// unexpected event, TODO: log it?!
 			}
 		}
 	}
-
 }
 
 func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
-	stdin io.Reader, terminalSizeCh <-chan TerminalSize,
-	q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
-	errCh := make(chan error, 1)
+	inputCh <-chan *ExecStreamingInput, errCh chan<- error,
+	q *QueryOptions) <-chan *ExecStreamingOutput {
 
 	nodeClient, err := a.client.GetNodeClientWithTimeout(alloc.NodeID, ClientConnTimeout, q)
 	if err != nil {
 		errCh <- err
-		return nil, errCh
+		return nil
 	}
 
 	if q == nil {
@@ -139,7 +188,7 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 	commandBytes, err := json.Marshal(command)
 	if err != nil {
 		errCh <- fmt.Errorf("failed to marshal command: %s", err)
-		return nil, errCh
+		return nil
 	}
 
 	q.Params["tty"] = strconv.FormatBool(tty)
@@ -153,75 +202,39 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 		// There was a networking error when talking directly to the client.
 		if _, ok := err.(net.Error); !ok {
 			errCh <- err
-			return nil, errCh
+			return nil
 		}
 
 		conn, _, err = a.client.websocket(reqPath, q)
 		if err != nil {
 			errCh <- err
-			return nil, errCh
+			return nil
 		}
 	}
 
-	var sendLock sync.Mutex
-	sendFrame := func(frame *StreamFrame) error {
-		sendLock.Lock()
-		defer sendLock.Unlock()
-
-		return conn.WriteJSON(frame)
-	}
-
 	go func() {
-		for s := range terminalSizeCh {
-			sj, err := json.Marshal(s)
-			if err != nil {
-				errCh <- err
-				return
-			}
-			frame := StreamFrame{
-				Data:      sj,
-				FileEvent: "resize",
-				File:      "tty",
-			}
-
-			sendFrame(&frame)
-		}
-	}()
-
-	go func() {
-		bytes := make([]byte, 1024)
-
 		for {
-			n, err := stdin.Read(bytes)
-			if err == io.EOF {
-				frame := StreamFrame{
-					FileEvent: "close",
-					File:      "stdin",
+			select {
+			case <-ctx.Done():
+				return
+			case input, ok := <-inputCh:
+				if !ok {
+					return
 				}
-				sendFrame(&frame)
-				return
-			}
 
-			if err != nil {
-				errCh <- err
-				return
+				err := conn.WriteJSON(input)
+				if err != nil {
+					// TODO: handle this
+				}
 			}
-
-			frame := StreamFrame{
-				Data: bytes[:n],
-				File: "stdin",
-			}
-
-			sendFrame(&frame)
 		}
 	}()
 
 	// Create the output channel
-	frames := make(chan *StreamFrame, 10)
+	frames := make(chan *ExecStreamingOutput, 10)
 
 	go func() {
 		defer conn.Close()
-
 		for {
 			// Check if we have been cancelled
 			select {
@@ -231,26 +244,22 @@ func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task st
 			}
 
 			// Decode the next frame
-			var frame StreamFrame
-			if err := conn.ReadJSON(&frame); err != nil {
-				if err == io.EOF || err == io.ErrClosedPipe {
-					close(frames)
-				} else {
-					errCh <- err
-				}
-				return
-			}
+			var frame ExecStreamingOutput
+			err := conn.ReadJSON(&frame)
+			if websocket.IsCloseError(err, websocket.CloseNoStatusReceived) {
 
-			// Discard heartbeat frames
-			if frame.IsHeartbeat() {
-				continue
+				close(frames)
+				return
+			} else if err != nil {
+				errCh <- err
+				return
 			}
 
 			frames <- &frame
 		}
 	}()
 
-	return frames, errCh
+	return frames
 
 }
 
@@ -291,11 +300,32 @@ var (
 )
 
 type FileOperation struct {
+	Data  []byte
+	Close bool
 }
 
 type TerminalSize struct {
-	Height int32
-	Width  int32
+	Height int32 `json:"height,omitempty"`
+	Width  int32 `json:"width,omitempty"`
+}
+
+var ExecStreamingInputHeartbeat = ExecStreamingInput{}
+
+type ExecStreamingInput struct {
+	Stdin   *FileOperation `json:"stdin,omitempty"`
+	TTYSize *TerminalSize  `json:"tty_size,omitempty"`
+}
+
+type ExecStreamingOutput struct {
+	Stdout *FileOperation `json:"stdout,omitempty"`
+	Stderr *FileOperation `json:"stderr,omitempty"`
+
+	Exited bool `json:"exited,omitempty"`
+	Result *struct {
+		ExitCode int `json:"exit_code"`
+	} `json:"result,omitempty"`
+
+	Error *string `json:"error,omitempty"`
 }
 
 // Allocation is used for serialization of allocations.
