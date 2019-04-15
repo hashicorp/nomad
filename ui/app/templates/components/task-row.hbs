@@ -25,13 +25,13 @@
       {{#each network.reservedPorts as |port|}}
         <li data-test-port>
           <strong>{{port.Label}}:</strong>
-          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.Value}}</a>
         </li>
       {{/each}}
       {{#each network.dynamicPorts as |port|}}
         <li>
           <strong>{{port.Label}}:</strong>
-          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank">{{network.ip}}:{{port.Value}}</a>
+          <a href="http://{{network.ip}}:{{port.Value}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.Value}}</a>
         </li>
       {{/each}}
     {{/with}}

@@ -37,7 +37,7 @@ export default Component.extend({
   gotoJobsForNamespace(namespace) {
     if (!namespace || !namespace.get('id')) return;
 
-    this.get('router').transitionTo('jobs', {
+    this.router.transitionTo('jobs', {
       queryParams: { namespace: namespace.get('id') },
     });
   },

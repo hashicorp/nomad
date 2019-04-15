@@ -10,15 +10,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	tomb "gopkg.in/tomb.v2"
+	"gopkg.in/tomb.v2"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
-	vapi "github.com/hashicorp/vault/api"
-
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	vapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/mapstructure"
 
 	"golang.org/x/sync/errgroup"
@@ -173,8 +172,17 @@ type vaultClient struct {
 	// limiter is used to rate limit requests to Vault
 	limiter *rate.Limiter
 
-	// client is the Vault API client
+	// client is the Vault API client used for Namespace-relative integrations
+	// with the Vault API (anything except `/v1/sys`). If this server is not
+	// configured to reference a Vault namespace, this will point to the same
+	// client as clientSys
 	client *vapi.Client
+
+	// clientSys is the Vault API client used for non-Namespace-relative integrations
+	// with the Vault API (anything involving `/v1/sys`). This client is never configured
+	// with a Vault namespace, because these endpoints may return errors if a namespace
+	// header is provided
+	clientSys *vapi.Client
 
 	// auth is the Vault token auth API client
 	auth *vapi.TokenAuth
@@ -305,6 +313,7 @@ func (v *vaultClient) flush() {
 	defer v.l.Unlock()
 
 	v.client = nil
+	v.clientSys = nil
 	v.auth = nil
 	v.connEstablished = false
 	v.connEstablishedErr = nil
@@ -400,11 +409,25 @@ func (v *vaultClient) buildClient() error {
 		return err
 	}
 
-	// Set the token and store the client
+	// Store the client, create/assign the /sys client
+	v.client = client
+	if v.config.Namespace != "" {
+		v.logger.Debug("configuring Vault namespace", "namespace", v.config.Namespace)
+		v.clientSys, err = vapi.NewClient(apiConf)
+		if err != nil {
+			v.logger.Error("failed to create Vault sys client and not retrying", "error", err)
+			return err
+		}
+		client.SetNamespace(v.config.Namespace)
+	} else {
+		v.clientSys = client
+	}
+
+	// Set the token
 	v.token = v.config.Token
 	client.SetToken(v.token)
-	v.client = client
 	v.auth = client.Auth().Token()
+
 	return nil
 }
 
@@ -425,7 +448,7 @@ OUTER:
 		case <-retryTimer.C:
 			// Ensure the API is reachable
 			if !initStatus {
-				if _, err := v.client.Sys().InitStatus(); err != nil {
+				if _, err := v.clientSys.Sys().InitStatus(); err != nil {
 					v.logger.Warn("failed to contact Vault API", "retry", v.config.ConnectionRetryIntv, "error", err)
 					retryTimer.Reset(v.config.ConnectionRetryIntv)
 					continue OUTER

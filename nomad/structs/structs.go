@@ -560,6 +560,12 @@ type JobRevertRequest struct {
 	// version before reverting.
 	EnforcePriorVersion *uint64
 
+	// VaultToken is the Vault token that proves the submitter of the job revert
+	// has access to any Vault policies specified in the targeted job version. This
+	// field is only used to transfer the token and is not stored after the Job
+	// revert.
+	VaultToken string
+
 	WriteRequest
 }
 
@@ -708,6 +714,14 @@ type AllocSpecificRequest struct {
 // AllocsGetRequest is used to query a set of allocations
 type AllocsGetRequest struct {
 	AllocIDs []string
+	QueryOptions
+}
+
+// AllocRestartRequest is used to restart a specific allocations tasks.
+type AllocRestartRequest struct {
+	AllocID  string
+	TaskName string
+
 	QueryOptions
 }
 
@@ -7154,6 +7168,9 @@ type Allocation struct {
 	// NodeID is the node this is being placed on
 	NodeID string
 
+	// NodeName is the name of the node this is being placed on.
+	NodeName string
+
 	// Job is the parent job of the task group being allocated.
 	// This is copied at allocation time to avoid issues if the job
 	// definition is updated.
@@ -7615,6 +7632,7 @@ func (a *Allocation) Stub() *AllocListStub {
 		Name:               a.Name,
 		Namespace:          a.Namespace,
 		NodeID:             a.NodeID,
+		NodeName:           a.NodeName,
 		JobID:              a.JobID,
 		JobType:            a.Job.Type,
 		JobVersion:         a.Job.Version,
@@ -7642,6 +7660,7 @@ type AllocListStub struct {
 	Name               string
 	Namespace          string
 	NodeID             string
+	NodeName           string
 	JobID              string
 	JobType            string
 	JobVersion         uint64

@@ -16,11 +16,11 @@ export default Model.extend({
   region: attr('string'),
 
   rpcAddr: computed('address', 'port', function() {
-    const { address, rpcPort } = this.getProperties('address', 'rpcPort');
+    const { address, rpcPort } = this;
     return address && rpcPort && `${address}:${rpcPort}`;
   }),
 
   isLeader: computed('system.leader.rpcAddr', function() {
-    return this.get('system.leader.rpcAddr') === this.get('rpcAddr');
+    return this.get('system.leader.rpcAddr') === this.rpcAddr;
   }),
 });

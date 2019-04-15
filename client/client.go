@@ -124,6 +124,9 @@ type AllocRunner interface {
 	DestroyCh() <-chan struct{}
 	ShutdownCh() <-chan struct{}
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
+
+	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
+	RestartAll(taskEvent *structs.TaskEvent) error
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -701,6 +704,22 @@ func (c *Client) CollectAllocation(allocID string) bool {
 // state
 func (c *Client) CollectAllAllocs() {
 	c.garbageCollector.CollectAll()
+}
+
+func (c *Client) RestartAllocation(allocID, taskName string) error {
+	ar, err := c.getAllocRunner(allocID)
+	if err != nil {
+		return err
+	}
+
+	event := structs.NewTaskEvent(structs.TaskRestartSignal).
+		SetRestartReason("User requested restart")
+
+	if taskName != "" {
+		return ar.RestartTask(taskName, event)
+	}
+
+	return ar.RestartAll(event)
 }
 
 // Node returns the locally registered node

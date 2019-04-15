@@ -8,7 +8,7 @@ export default AbstractJobPage.extend({
 
   actions: {
     forceLaunch() {
-      this.get('job')
+      this.job
         .forcePeriodic()
         .catch(() => {
           this.set('errorMessage', {

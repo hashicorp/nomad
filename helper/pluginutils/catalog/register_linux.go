@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"github.com/hashicorp/nomad/devices/gpu/nvidia"
 	"github.com/hashicorp/nomad/drivers/rkt"
 )
 
@@ -10,5 +9,4 @@ import (
 // register_XXX.go file.
 func init() {
 	RegisterDeferredConfig(rkt.PluginID, rkt.PluginConfig, rkt.PluginLoader)
-	Register(nvidia.PluginID, nvidia.PluginConfig)
 }

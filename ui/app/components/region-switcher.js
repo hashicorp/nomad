@@ -14,7 +14,7 @@ export default Component.extend({
   }),
 
   gotoRegion(region) {
-    this.get('router').transitionTo('jobs', {
+    this.router.transitionTo('jobs', {
       queryParams: { region },
     });
   },

@@ -1,10 +1,11 @@
-package manager
+package renderer
 
 import (
 	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -148,6 +149,12 @@ func AtomicWrite(path string, createDestDirs bool, contents []byte, perms os.Fil
 			}
 		} else {
 			perms = currentInfo.Mode()
+
+			// The file exists, so try to preserve the ownership as well.
+			if err := preserveFilePermissions(f.Name(), currentInfo); err != nil {
+				log.Printf("[WARN] (runner) could not preserve file permissions for %q: %v",
+					f.Name(), err)
+			}
 		}
 	}
 

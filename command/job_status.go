@@ -413,12 +413,13 @@ func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLen
 
 	allocs := make([]string, len(stubs)+1)
 	if verbose {
-		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+		allocs[0] = "ID|Eval ID|Node ID|Node Name|Task Group|Version|Desired|Status|Created|Modified"
 		for i, alloc := range stubs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
+				alloc.NodeName,
 				alloc.TaskGroup,
 				alloc.JobVersion,
 				alloc.DesiredStatus,

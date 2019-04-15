@@ -2,9 +2,9 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
-    <div class="columns">
-      {{#if filteredJobs.length}}
-        <div class="column">
+    <div class="toolbar">
+      {{#if visibleJobs.length}}
+        <div class="toolbar-item">
           {{search-box
             data-test-jobs-search
             searchTerm=(mut searchTerm)
@@ -12,9 +12,44 @@
             placeholder="Search jobs..."}}
         </div>
       {{/if}}
-      <div class="column is-centered">
-        {{#link-to "jobs.run" data-test-run-job class="button is-primary is-pulled-right"}}Run Job{{/link-to}}
+      {{#if (media "isMobile")}}
+        <div class="toolbar-item is-right-aligned">
+          {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+        </div>
+      {{/if}}
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+          {{multi-select-dropdown
+            data-test-type-facet
+            label="Type"
+            options=optionsType
+            selection=selectionType
+            onSelect=(action setFacetQueryParam "qpType")}}
+          {{multi-select-dropdown
+            data-test-status-facet
+            label="Status"
+            options=optionsStatus
+            selection=selectionStatus
+            onSelect=(action setFacetQueryParam "qpStatus")}}
+          {{multi-select-dropdown
+            data-test-datacenter-facet
+            label="Datacenter"
+            options=optionsDatacenter
+            selection=selectionDatacenter
+            onSelect=(action setFacetQueryParam "qpDatacenter")}}
+          {{multi-select-dropdown
+            data-test-prefix-facet
+            label="Prefix"
+            options=optionsPrefix
+            selection=selectionPrefix
+            onSelect=(action setFacetQueryParam "qpPrefix")}}
+        </div>
       </div>
+      {{#if (not (media "isMobile"))}}
+        <div class="toolbar-item is-right-aligned">
+          {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+        </div>
+      {{/if}}
     </div>
     {{#list-pagination
       source=sortedJobs
@@ -52,10 +87,15 @@
       </div>
     {{else}}
       <div data-test-empty-jobs-list class="empty-message">
-        {{#if (eq filteredJobs.length 0)}}
+        {{#if (eq visibleJobs.length 0)}}
           <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Jobs</h3>
           <p class="empty-message-body">
             The cluster is currently empty.
+          </p>
+        {{else if (eq filteredJobs.length 0)}}
+          <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">
+            No jobs match your current filter selection.
           </p>
         {{else if searchTerm}}
           <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>

@@ -6,7 +6,7 @@ description: >
   The policy list command is used to list available ACL policies.
 ---
 
-# Command: acl policy info
+# Command: acl policy list
 
 The `acl policy list` command is used to list available ACL policies.
 
@@ -22,9 +22,9 @@ nomad acl policy list
 #
 ## List Options
 
-* `-json` : Output the namespaces in their JSON format.
+* `-json` : Output the policies in their JSON format.
 
-* `-t` : Format and display the namespaces using a Go template.
+* `-t` : Format and display the policies using a Go template.
 
 ## Examples
 
@@ -32,7 +32,7 @@ List all ACL policies:
 
 ```
 $ nomad acl policy list
-Name        Description
-default-ns  Write access to the default namespace
-node-read   Node read access
+Name      Description
+policy-1  The first policy
+policy-2  The second policy
 ```
