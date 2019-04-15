@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -2033,4 +2034,47 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	if diff := pretty.Diff(expectedSystemJob, systemStructsJob); len(diff) > 0 {
 		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
 	}
+}
+
+// TestHTTP_JobValidate_SystemMigrate asserts that a system job with a migrate
+// stanza fails to validate but does not panic (see #5477).
+func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := &api.Job{
+			Region:      helper.StringToPtr("global"),
+			Datacenters: []string{"dc1"},
+			ID:          helper.StringToPtr("systemmigrate"),
+			Name:        helper.StringToPtr("systemmigrate"),
+			TaskGroups: []*api.TaskGroup{
+				{Name: helper.StringToPtr("web")},
+			},
+
+			// System job...
+			Type: helper.StringToPtr("system"),
+
+			// ...with an empty migrate stanza
+			Migrate: &api.MigrateStrategy{},
+		}
+
+		args := api.JobValidateRequest{
+			Job:          job,
+			WriteRequest: api.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/validate/job", buf)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.ValidateJobRequest(respW, req)
+		require.NoError(t, err)
+
+		// Check the response
+		resp := obj.(structs.JobValidateResponse)
+		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
+	})
 }
