@@ -166,7 +166,6 @@ func TestAllocExecCommand_Run(t *testing.T) {
 		name    string
 		command string
 		stdin   string
-		tty     bool
 
 		stdout   string
 		stderr   string
@@ -185,14 +184,6 @@ func TestAllocExecCommand_Run(t *testing.T) {
 			command:  "showinput",
 			stdin:    "hello from stdin",
 			stdout:   "TTY: false\nStdin:\nhello from stdin",
-			exitCode: 0,
-		},
-		{
-			name:     "tty: streamining input",
-			command:  "showinput",
-			tty:      true,
-			stdin:    "hello from stdin",
-			stdout:   "TTY: true\nStdin:\nhello from stdin",
 			exitCode: 0,
 		},
 	}
