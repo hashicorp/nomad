@@ -334,7 +334,8 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 	go func() {
 		<-ctx.Done()
 		httpPipe.Close()
-		ws.Close()
+
+		// don't close ws - wait to drain messages
 	}()
 
 	// Create a channel that decodes the results
