@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,12 +13,12 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
-	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
@@ -1166,7 +1165,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 			defer p2.Close()
 
 			errCh := make(chan error)
-			frames := make(chan *sframer.StreamFrame)
+			frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 			// Start the handler
 			go handler(p2)
@@ -1186,9 +1185,8 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 				case err := <-errCh:
 					require.NoError(t, err)
 				case f := <-frames:
-					if f.FileEvent == "exit-code" {
-						code, err := strconv.Atoi(string(f.Data))
-						require.NoError(t, err)
+					if f.Exited && f.Result != nil {
+						code := int(f.Result.ExitCode)
 						require.Equal(t, 3, code)
 						break OUTER
 					}
@@ -1198,7 +1196,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	}
 }
 
-func decodeFrames(t *testing.T, p1 net.Conn, frames chan<- *sframer.StreamFrame, errCh chan<- error) {
+func decodeFrames(t *testing.T, p1 net.Conn, frames chan<- *drivers.ExecTaskStreamingResponseMsg, errCh chan<- error) {
 	// Start the decoder
 	decoder := codec.NewDecoder(p1, nstructs.MsgpackHandle)
 
@@ -1219,7 +1217,7 @@ func decodeFrames(t *testing.T, p1 net.Conn, frames chan<- *sframer.StreamFrame,
 			continue
 		}
 
-		var frame sframer.StreamFrame
+		var frame drivers.ExecTaskStreamingResponseMsg
 		json.Unmarshal(msg.Payload, &frame)
 		t.Logf("received message: %#v", msg)
 		frames <- &frame
