@@ -47,6 +47,7 @@ export default ApplicationSerializer.extend({
 
     hash.PreemptedAllocationIDs = hash.PreemptedAllocations || [];
     hash.PreemptedByAllocationID = hash.PreemptedByAllocation || null;
+    hash.WasPreempted = !!hash.PreemptedByAllocationID;
 
     return this._super(typeHash, hash);
   },

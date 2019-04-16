@@ -48,6 +48,7 @@ export default Model.extend({
 
   preemptedAllocations: hasMany('allocation', { inverse: 'preemptedByAllocation' }),
   preemptedByAllocation: belongsTo('allocation', { inverse: 'preemptedAllocations' }),
+  wasPreempted: attr('boolean'),
 
   followUpEvaluation: belongsTo('evaluation'),
 
