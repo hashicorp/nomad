@@ -6,14 +6,12 @@ import (
 	"io"
 	"net"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/config"
-	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -436,7 +434,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	defer p2.Close()
 
 	errCh := make(chan error)
-	frames := make(chan *sframer.StreamFrame)
+	frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 	// Start the handler
 	go handler(p2)
@@ -462,21 +460,17 @@ OUTER:
 			require.Equal(3, exitCode, "failed to get exit code")
 			require.FailNow("timed out")
 		case err := <-errCh:
-			t.Fatal(err)
+			require.NoError(err)
 		case f := <-frames:
 			switch {
-			case f.File == "stdout" && f.FileEvent == "":
-				receivedStdout += string(f.Data)
-			case f.File == "stderr" && f.FileEvent == "":
-				receivedStderr += string(f.Data)
-			case f.FileEvent == "exit-code":
-				code, err := strconv.Atoi(string(f.Data))
-				require.NoError(err)
-				exitCode = code
-			case f.FileEvent == "close":
-				// do nothing
+			case f.Stdout != nil && len(f.Stdout.Data) != 0:
+				receivedStdout += string(f.Stdout.Data)
+			case f.Stderr != nil && len(f.Stderr.Data) != 0:
+				receivedStderr += string(f.Stderr.Data)
+			case f.Exited && f.Result != nil:
+				exitCode = int(f.Result.ExitCode)
 			default:
-				require.Failf("unexpected frame", "event=%#v", f)
+				t.Logf("received unrelevant frame: %v", f)
 			}
 
 			if expectedStdout == receivedStdout && expectedStderr == receivedStderr && exitCode == 3 {
@@ -519,7 +513,7 @@ func TestAlloc_ExecStreaming_NoAllocation(t *testing.T) {
 	defer p2.Close()
 
 	errCh := make(chan error)
-	frames := make(chan *sframer.StreamFrame)
+	frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 	// Start the handler
 	go handler(p2)
@@ -612,7 +606,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 			defer p2.Close()
 
 			errCh := make(chan error)
-			frames := make(chan *sframer.StreamFrame)
+			frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 			// Start the handler
 			go handler(p2)
@@ -750,7 +744,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 			defer p2.Close()
 
 			errCh := make(chan error)
-			frames := make(chan *sframer.StreamFrame)
+			frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 			// Start the handler
 			go handler(p2)
@@ -899,7 +893,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 			defer p2.Close()
 
 			errCh := make(chan error)
-			frames := make(chan *sframer.StreamFrame)
+			frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 			// Start the handler
 			go handler(p2)
@@ -1043,7 +1037,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 			defer p2.Close()
 
 			errCh := make(chan error)
-			frames := make(chan *sframer.StreamFrame)
+			frames := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 			// Start the handler
 			go handler(p2)
@@ -1071,7 +1065,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 	}
 }
 
-func decodeFrames(t *testing.T, p1 net.Conn, frames chan<- *sframer.StreamFrame, errCh chan<- error) {
+func decodeFrames(t *testing.T, p1 net.Conn, frames chan<- *drivers.ExecTaskStreamingResponseMsg, errCh chan<- error) {
 	// Start the decoder
 	decoder := codec.NewDecoder(p1, nstructs.MsgpackHandle)
 
@@ -1092,7 +1086,7 @@ func decodeFrames(t *testing.T, p1 net.Conn, frames chan<- *sframer.StreamFrame,
 			continue
 		}
 
-		var frame sframer.StreamFrame
+		var frame drivers.ExecTaskStreamingResponseMsg
 		json.Unmarshal(msg.Payload, &frame)
 		t.Logf("received message: %#v", msg)
 		frames <- &frame
