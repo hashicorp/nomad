@@ -45,7 +45,7 @@ Defaults to `false`.
 
     ```hcl
     config {
-      verbosity = "false"
+      verbose = "false"
     }
     ```
 
@@ -146,7 +146,7 @@ The `Singularity` driver requires the following:
 
 * `enabled` - The `Singularity` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
-* `Singularity_path` - The location in which all containers are stored (commonly defaults to `/var/lib/Singularity`). See [`Singularity-ache`][Singularity-cache] for more details.
+* `singularity_path` - The location in which all containers are stored (commonly defaults to `/var/lib/singularity`). See [`Singularity-ache`][Singularity-cache] for more details.
 
 An example of using these plugin options with the new [plugin
 syntax][plugin] is shown below:
@@ -155,7 +155,7 @@ syntax][plugin] is shown below:
 plugin "nomad-driver-Singularity" {
   config {
     enabled = true
-    Singularity_path = "/var/lib/Singularity"
+    singularity_path = "/var/lib/singularity"
   }
 }
 ```
@@ -165,8 +165,8 @@ Please note the plugin name should match whatever name you have specified for th
 
 The `Singularity` driver will set the following client attributes:
 
-* `driver.Singularity` - Set to `1` if Singularity is found  and enabled on the host node.
-* `driver.Singularity.version` - Version of `Singularity` e.g.: `3.1.0`.
+* `driver.singularity` - Set to `1` if Singularity is found  and enabled on the host node.
+* `driver.singularity.version` - Version of `Singularity` e.g.: `3.1.0`.
 
 ## Resource Isolation
 
