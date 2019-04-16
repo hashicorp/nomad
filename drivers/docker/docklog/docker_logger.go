@@ -78,7 +78,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 	go func() {
 		defer close(d.doneCh)
 
-		stdout, stderr, err := d.openStreams(opts)
+		stdout, stderr, err := d.openStreams(ctx, opts)
 		if err != nil {
 			d.logger.Error("log streaming ended with terminal error", "error", err)
 			return
@@ -132,7 +132,9 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 }
 
-func (d *dockerLogger) openStreams(opts *StartOpts) (stdout, stderr io.WriteCloser, err error) {
+// openStreams open logger stdout/stderr; should be called in a background goroutine to avoid locking up
+// process to avoid locking goroutine process
+func (d *dockerLogger) openStreams(ctx context.Context, opts *StartOpts) (stdout, stderr io.WriteCloser, err error) {
 	d.stdLock.Lock()
 	stdoutF, stderrF := d.stdout, d.stderr
 	d.stdLock.Unlock()
@@ -141,6 +143,10 @@ func (d *dockerLogger) openStreams(opts *StartOpts) (stdout, stderr io.WriteClos
 		return stdoutF, stderrF, nil
 	}
 
+	// opening a fifo may block indefinitely until a reader end opens, so
+	// we preform open() without holding the stdLock, so Stop and interleave.
+	// This a defensive measure - logmon (the reader end) should be up and
+	// started before dockerLogger is started
 	if stdoutF == nil {
 		stdoutF, err = fifo.OpenWriter(opts.Stdout)
 		if err != nil {
@@ -153,6 +159,13 @@ func (d *dockerLogger) openStreams(opts *StartOpts) (stdout, stderr io.WriteClos
 		if err != nil {
 			return nil, nil, err
 		}
+	}
+
+	if ctx.Err() != nil {
+		// Stop was called and don't need files anymore
+		stdoutF.Close()
+		stderrF.Close()
+		return nil, nil, ctx.Err()
 	}
 
 	d.stdLock.Lock()
