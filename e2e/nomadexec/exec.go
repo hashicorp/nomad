@@ -107,11 +107,12 @@ func (tc *NomadExecE2ETest) AfterAll(f *framework.F) {
 }
 
 func newTestStdin(tty bool, d string) io.Reader {
-	// when testing TTY, leave conncetion open for the entire duration of command
 	pr, pw := io.Pipe()
 	go func() {
 		pw.Write([]byte(d))
 
+		// when testing TTY, leave connection open for the entire duration of command
+		// closing stdin may cause TTY session prematurely before command completes
 		if !tty {
 			pw.Close()
 		}
