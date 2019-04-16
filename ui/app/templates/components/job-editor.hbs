@@ -88,6 +88,34 @@
       {{/if}}
     </div>
   </div>
+  {{#if (and planOutput.preemptions.isFulfilled planOutput.preemptions.length)}}
+    <div class="boxed-section is-warning" data-test-preemptions>
+      <div class="boxed-section-head" data-test-preemptions-title>
+        Preemptions (if you choose to run this job, these allocations will be stopped)
+      </div>
+      <div class="boxed-section-body" data-test-preemptions-body>
+        {{#list-table
+          source=planOutput.preemptions
+          class="allocations is-isolated" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <th>ID</th>
+            <th>Task Group</th>
+            <th>Created</th>
+            <th>Modified</th>
+            <th>Status</th>
+            <th>Version</th>
+            <th>Node</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{allocation-row allocation=row.model context="job"}}
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
   <div class="content is-associative">
     <button class="button is-primary {{if submit.isRunning "is-loading"}}" type="button" onclick={{perform submit}} disabled={{submit.isRunning}} data-test-run>Run</button>
     <button class="button is-light" type="button" onclick={{action reset}} data-test-cancel>Cancel</button>
