@@ -94,10 +94,11 @@ var ExecTaskStreamingBasicCases = []struct {
 		ExitCode: 0,
 	},
 	{
-		Name:     "tty: stdin passing",
-		Command:  "head -n1",
-		Tty:      true,
-		Stdin:    "hello from stdin\n",
+		Name:    "tty: stdin passing",
+		Command: "head -n1",
+		Tty:     true,
+		Stdin:   "hello from stdin\n",
+		// in tty mode, we emit line twice: once for tty echoing and one for the actual head output
 		Stdout:   "hello from stdin\r\nhello from stdin\r\n",
 		ExitCode: 0,
 	},
