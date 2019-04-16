@@ -2,16 +2,13 @@ package testutils
 
 import (
 	"context"
-	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/stretchr/testify/assert"
+	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -117,81 +114,107 @@ var ExecTaskStreamingBasicCases = []struct {
 func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
 	for _, c := range ExecTaskStreamingBasicCases {
 		t.Run(c.Name, func(t *testing.T) {
-			stdin, stdout, stderr, readOutput, cleanupFn := NewIO(t, c.Tty, c.Stdin)
-			defer cleanupFn()
 
-			resizeCh := make(chan drivers.TerminalSize)
+			input := make(chan *drivers.ExecTaskStreamingRequestMsg)
+			output := make(chan *drivers.ExecTaskStreamingResponseMsg)
 
 			go func() {
-				resizeCh <- drivers.TerminalSize{Height: 100, Width: 100}
+				input <- &drivers.ExecTaskStreamingRequestMsg{
+					TtySize: &dproto.ExecTaskStreamingRequest_TerminalSize{
+						Height: 100,
+						Width:  100,
+					},
+				}
+				input <- &drivers.ExecTaskStreamingRequestMsg{
+					Stdin: &dproto.ExecTaskStreamingOperation{
+						Data: []byte(c.Stdin),
+					},
+				}
 			}()
-			opts := drivers.ExecOptions{
-				Command: []string{"/bin/sh", "-c", c.Command},
-				Tty:     c.Tty,
 
-				Stdin:  stdin,
-				Stdout: stdout,
-				Stderr: stderr,
+			resultFn := processOutput(t, output)
 
-				ResizeCh: resizeCh,
-			}
-
-			ctx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancelFn()
 
-			result, err := driver.ExecTaskStreaming(ctx, taskID, opts)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, c.ExitCode, result.ExitCode)
+			command := []string{"/bin/sh", "-c", c.Command}
+
+			isRaw := false
+			exitCode := -2
+			if raw, ok := driver.impl.(drivers.ExecTaskStreamingRaw); ok {
+				isRaw = true
+				err := raw.ExecTaskStreamingRaw(ctx, taskID,
+					command, c.Tty,
+					input, output)
+				require.NoError(t, err)
+			} else {
+				execOpts, errCh := drivers.StreamsToExecOptions(ctx, command, c.Tty, input, output)
+
+				r, err := driver.impl.ExecTaskStreaming(ctx, taskID, execOpts)
+				require.NoError(t, err)
+
+				select {
+				case err := <-errCh:
+					require.NoError(t, err)
+				default:
+					// all good
+				}
+
+				exitCode = r.ExitCode
 			}
 
-			// flush any pending writes
-			stdin.Close()
-			stdout.Close()
-			stderr.Close()
+			result := resultFn()
+			require.NoError(t, result.err)
 
-			stdoutFound, stderrFound := readOutput()
-			assert.Equal(t, c.Stdout, stdoutFound)
-			assert.Equal(t, c.Stderr, stderrFound)
+			if isRaw {
+				require.Equal(t, c.ExitCode, result.exitCode)
+			} else {
+				require.Equal(t, c.ExitCode, exitCode)
+			}
+
+			require.Equal(t, c.Stdout, result.stdout)
+			require.Equal(t, c.Stderr, result.stderr)
+
 		})
 	}
 }
 
-func NewIO(t *testing.T, tty bool, stdinInput string) (stdin io.ReadCloser, stdout, stderr io.WriteCloser,
-	read func() (stdout, stderr string), cleanup func()) {
+type execResult struct {
+	exitCode int
+	stdout   string
+	stderr   string
 
-	stdin, pw := io.Pipe()
+	err error
+}
+
+func processOutput(t *testing.T, output <-chan *drivers.ExecTaskStreamingResponseMsg) func() execResult {
+
+	r := execResult{exitCode: -2}
+	var lock sync.Mutex
+
 	go func() {
-		pw.Write([]byte(stdinInput))
+		for m := range output {
+			lock.Lock()
+			switch {
+			case m.Stdout != nil && m.Stdout.Data != nil:
+				t.Logf("received stdout: %s", string(m.Stdout.Data))
+				r.stdout += string(m.Stdout.Data)
+			case m.Stderr != nil && m.Stderr.Data != nil:
+				t.Logf("received stderr: %s", string(m.Stderr.Data))
+				r.stderr += string(m.Stderr.Data)
+			case m.Exited && m.Result != nil:
+				r.exitCode = int(m.Result.ExitCode)
 
-		// don't close stdin in tty, because closing early may cause
-		// tty to be closed and we would lose output
-		if !tty {
-			pw.Close()
+				lock.Unlock()
+				return
+			}
+			lock.Unlock()
 		}
 	}()
 
-	tmpdir, err := ioutil.TempDir("", "nomad-exec-")
-	require.NoError(t, err)
-	cleanupFn := func() {
-		os.RemoveAll(tmpdir)
+	return func() execResult {
+		lock.Lock()
+		defer lock.Unlock()
+		return r
 	}
-
-	stdoutF, err := os.Create(filepath.Join(tmpdir, "stdout"))
-	require.NoError(t, err)
-
-	stderrF, err := os.Create(filepath.Join(tmpdir, "stderr"))
-	require.NoError(t, err)
-
-	readFn := func() (string, string) {
-		stdoutContent, err := ioutil.ReadFile(stdoutF.Name())
-		require.NoError(t, err)
-
-		stderrContent, err := ioutil.ReadFile(stderrF.Name())
-		require.NoError(t, err)
-
-		return string(stdoutContent), string(stderrContent)
-	}
-
-	return stdin, stdoutF, stderrF, readFn, cleanupFn
 }
