@@ -1,8 +1,10 @@
 package nomadexec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	dtestutils "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type NomadExecE2ETest struct {
@@ -68,8 +71,9 @@ func (tc *NomadExecE2ETest) BeforeAll(f *framework.F) {
 func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 	for _, c := range dtestutils.ExecTaskStreamingBasicCases {
 		f.T().Run(c.Name, func(t *testing.T) {
-			stdin, stdout, stderr, readOutput, cleanupFn := dtestutils.NewIO(t, c.Tty, c.Stdin)
-			defer cleanupFn()
+
+			stdin := newTestStdin(c.Tty, c.Stdin)
+			var stdout, stderr bytes.Buffer
 
 			resizeCh := make(chan api.TerminalSize)
 			go func() {
@@ -82,22 +86,14 @@ func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 			exitCode, err := tc.Nomad().Allocations().Exec(ctx,
 				&tc.alloc, "task", c.Tty,
 				[]string{"/bin/sh", "-c", c.Command},
-				stdin, stdout, stderr,
+				stdin, &stdout, &stderr,
 				resizeCh, nil)
 
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, c.ExitCode, exitCode)
-			}
+			require.NoError(t, err)
 
-			// flush any pending writes
-			stdin.Close()
-			stdout.Close()
-			stderr.Close()
-
-			stdoutFound, stderrFound := readOutput()
-			assert.Equal(t, c.Stdout, stdoutFound)
-			assert.Equal(t, c.Stderr, stderrFound)
+			assert.Equal(t, c.ExitCode, exitCode)
+			assert.Equal(t, c.Stdout, stdout.String())
+			assert.Equal(t, c.Stderr, stderr.String())
 		})
 	}
 }
@@ -108,4 +104,19 @@ func (tc *NomadExecE2ETest) AfterAll(f *framework.F) {
 		jobs.Deregister(tc.jobID, true, nil)
 	}
 	tc.Nomad().System().GarbageCollect()
+}
+
+func newTestStdin(tty bool, d string) io.Reader {
+	// when testing TTY, leave conncetion open for the entire duration of command
+	pr, pw := io.Pipe()
+	go func() {
+		pw.Write([]byte(d))
+
+		if !tty {
+			pw.Close()
+		}
+
+	}()
+
+	return pr
 }
