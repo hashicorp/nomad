@@ -133,7 +133,7 @@ endef
 $(foreach t,$(ALL_TARGETS),$(eval $(call makePackageTarget,$(t))))
 
 .PHONY: bootstrap
-bootstrap: deps lint-deps # Install all dependencies
+bootstrap: deps lint-deps git-hooks # Install all dependencies
 
 .PHONY: deps
 deps:  ## Install build and development dependencies
@@ -152,6 +152,13 @@ lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
 	go get -u github.com/alecthomas/gometalinter
 	gometalinter --install
+
+.PHONY: git-hooks
+git-dir = $(shell git rev-parse --git-dir)
+git-hooks: $(git-dir)/hooks/pre-push
+$(git-dir)/hooks/%: dev/hooks/%
+	cp $^ $@
+	chmod 755 $@
 
 .PHONY: check
 check: ## Lint the source code
