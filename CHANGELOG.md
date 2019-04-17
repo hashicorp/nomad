@@ -193,7 +193,7 @@ BUG FIXES:
 * vault: Fix a regression in which Nomad was only compatible with Vault versions
   greater than 0.10.0 [[GH-4698](https://github.com/hashicorp/nomad/issues/4698)]
 
-# 0.8.5 (September 13, 2018)
+## 0.8.5 (September 13, 2018)
 
 IMPROVEMENTS:
 
