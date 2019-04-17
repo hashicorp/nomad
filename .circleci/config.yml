@@ -162,8 +162,6 @@ jobs:
             unset GOTEST_PKGS
           fi
 
-          env
-
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
       - store_test_results:
           path: /tmp
