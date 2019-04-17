@@ -87,4 +87,47 @@
       </div>
     </div>
   {{/if}}
+
+  {{#if model.wasPreempted}}
+    <div class="boxed-section is-warning" data-test-was-preempted>
+      <div class="boxed-section-head">Preempted By</div>
+      <div class="boxed-section-body">
+        {{#if (not preempter)}}
+          <div class="empty-message">
+            <h3 class="empty-message-headline">Allocation is gone</h3>
+            <p class="empty-message-body">This allocation has been stopped and garbage collected.</p>
+          </div>
+        {{else}}
+          <div class="boxed-section is-small">
+            <div class="boxed-section-body inline-definitions">
+              <span class="pair">
+                <span data-test-allocation-status class="tag {{preempter.statusClass}}">
+                  {{preempter.clientStatus}}
+                </span>
+              </span>
+              <span class="pair">
+                <span class="term">{{preempter.name}}</span>
+                {{#link-to "allocations.allocation" preempter data-test-allocation-link}}{{preempter.shortId}}{{/link-to}}
+              </span>
+              <span class="pair job-link"><span class="term">Job</span>
+                {{#link-to "jobs.job" preempter.job (query-params jobNamespace=preempter.job.namespace.id) data-test-job-link}}{{preempter.job.name}}{{/link-to}}
+              </span>
+              <span class="pair job-priority"><span class="term">Priority</span>
+                {{preempter.job.priority}}
+              </span>
+              <span class="pair node-link"><span class="term">Client</span>
+                {{#link-to "clients.client" preempter.node data-test-client-link}}{{preempter.node.shortId}}{{/link-to}}
+              </span>
+              <span class="pair"><span class="term">Reserved CPU</span>
+                {{preempter.resources.cpu}} MHz
+              </span>
+              <span class="pair"><span class="term">Reserved Memory</span>
+                {{preempter.resources.memory}} MiB
+              </span>
+            </div>
+          </div>
+        {{/if}}
+      </div>
+    </div>
+  {{/if}}
 </section>

@@ -1,6 +1,6 @@
-import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import Sortable from 'nomad-ui/mixins/sortable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 
@@ -17,6 +17,9 @@ export default Controller.extend(Sortable, {
 
   listToSort: alias('model.states'),
   sortedStates: alias('listSorted'),
+
+  // Set in the route
+  preempter: null,
 
   actions: {
     gotoTask(allocation, task) {
