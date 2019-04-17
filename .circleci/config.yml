@@ -59,6 +59,50 @@ jobs:
       - store_test_results:
           path: /tmp
 
+  test-rkt:
+    executor: go-machine
+    environment:
+      GOTEST_PKGS: "./drivers/rkt"
+      GOTESTSUM_JUNITFILE: /tmp/results.xml
+      GOPATH: /home/circleci/go
+      GOVERSION: 1.12.1
+      PROTOC_VERSION: 3.6.1
+      GOMAXPROCS: 1
+      NOMAD_SLOW_TEST: 1
+      RKT_VERSION: 1.29.0
+    steps:
+      - checkout
+      - run:
+          name: install go
+          command: |
+            sudo rm -rf /usr/local/go
+            wget https://dl.google.com/go/go$GOVERSION.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go$GOVERSION.linux-amd64.tar.gz
+      - run:
+          name: install protoc
+          command: |
+            sudo rm -rf /usr/bin/protoc
+            wget -q -O /tmp/protoc.zip https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip \
+                && unzip /tmp/protoc.zip -d /tmp/protoc3 \
+                && sudo mv /tmp/protoc3/bin/* /usr/local/bin/ \
+                && sudo mv /tmp/protoc3/include/* /usr/local/include/ \
+                && sudo ln -s /usr/local/bin/protoc /usr/bin/protoc \
+                && rm -rf /tmp/protoc*
+
+      - run:
+          name: install rkt
+          command: |
+            gpg --recv-key 18AD5014C99EF7E3BA5F6CE950BDD3E0FC8A365E
+            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb
+            wget https://github.com/rkt/rkt/releases/download/v$RKT_VERSION/rkt_$RKT_VERSION-1_amd64.deb.asc
+            gpg --verify rkt_$RKT_VERSION-1_amd64.deb.asc
+            sudo dpkg -i rkt_$RKT_VERSION-1_amd64.deb
+      - run: PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make bootstrap
+      - run: |
+          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+      - store_test_results:
+          path: /tmp
+
   test-machine:
     executor: go-machine
     parameters:
@@ -174,7 +218,7 @@ workflows:
           test_packages: "./devices/..."
       - test-machine:
           name: "test-other"
-          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices"
+          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices"
       - test-machine:
           name: "test-docker"
           test_packages: "./drivers/docker"
@@ -184,6 +228,7 @@ workflows:
       - test-machine:
           name: "test-shared-exec"
           test_packages: "./drivers/shared/executor"
+      - test-rkt
       # - build-deps-image:
       #     context: dani-test
       #     filters:
