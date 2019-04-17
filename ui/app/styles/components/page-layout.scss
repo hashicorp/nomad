@@ -36,7 +36,6 @@
 
       &.is-right {
         margin-left: $gutter-width;
-        overflow-x: auto;
       }
 
       @media #{$mq-hidden-gutter} {
