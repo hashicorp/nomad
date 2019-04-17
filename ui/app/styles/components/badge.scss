@@ -4,6 +4,7 @@
   line-height: 1;
   border-radius: $radius;
   padding: 0.25em 0.75em;
+  border: none;
 
   @each $name, $pair in $colors {
     $color: nth($pair, 1);
@@ -42,4 +43,8 @@
     color: darken($grey-blue, 30%);
     background: lighten($grey-blue, 10%);
   }
+}
+
+button.badge {
+  cursor: pointer;
 }
