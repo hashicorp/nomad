@@ -80,7 +80,7 @@ func (a *Allocations) Exec(ctx context.Context,
 	inputCh := make(chan *ExecStreamingInput)
 	errCh := make(chan error, 1)
 
-	frames := a.ExecFrames(ctx, alloc, task, tty, command, inputCh, errCh, q)
+	frames := a.execFrames(ctx, alloc, task, tty, command, inputCh, errCh, q)
 
 	select {
 	case err := <-errCh:
@@ -168,7 +168,7 @@ func (a *Allocations) Exec(ctx context.Context,
 	}
 }
 
-func (a *Allocations) ExecFrames(ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
+func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
 	inputCh <-chan *ExecStreamingInput, errCh chan<- error,
 	q *QueryOptions) <-chan *ExecStreamingOutput {
 
