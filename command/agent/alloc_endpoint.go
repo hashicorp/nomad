@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
@@ -442,7 +441,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 			var res cstructs.StreamErrWrapper
 			err := decoder.Decode(&res)
 			if isClosedError(err) {
-				ws.WriteControl(websocket.CloseMessage, nil, time.Now().Add(5*time.Second))
+				ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				errCh <- nil
 				return
 			}
@@ -484,6 +483,7 @@ func isClosedError(err error) bool {
 		return false
 	}
 
+	// TODO: disambiguite unexpectedly closed connections
 	return err == io.EOF ||
 		err == io.ErrClosedPipe ||
 		strings.Contains(err.Error(), "closed") ||
