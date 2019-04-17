@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -157,8 +156,6 @@ func (a *Allocations) Exec(ctx context.Context,
 				// don't really do anything
 			case frame.Stderr != nil && frame.Stderr.Close:
 				// don't really do anything
-			case frame.Error != nil && *frame.Error != "":
-				return -1, errors.New(*frame.Error)
 			case frame.Exited && frame.Result != nil:
 				return frame.Result.ExitCode, nil
 			default:
@@ -300,8 +297,8 @@ var (
 )
 
 type FileOperation struct {
-	Data  []byte
-	Close bool
+	Data  []byte `json:"data,omitempty"`
+	Close bool   `json:"close,omitempty"`
 }
 
 type TerminalSize struct {
@@ -316,16 +313,15 @@ type ExecStreamingInput struct {
 	TTYSize *TerminalSize  `json:"tty_size,omitempty"`
 }
 
+type ExecStreamingExitResult struct {
+	ExitCode int `json:"exit_code"`
+}
 type ExecStreamingOutput struct {
 	Stdout *FileOperation `json:"stdout,omitempty"`
 	Stderr *FileOperation `json:"stderr,omitempty"`
 
-	Exited bool `json:"exited,omitempty"`
-	Result *struct {
-		ExitCode int `json:"exit_code"`
-	} `json:"result,omitempty"`
-
-	Error *string `json:"error,omitempty"`
+	Exited bool                     `json:"exited,omitempty"`
+	Result *ExecStreamingExitResult `json:"result,omitempty"`
 }
 
 // Allocation is used for serialization of allocations.
