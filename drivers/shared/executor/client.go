@@ -215,6 +215,7 @@ func (d *grpcExecutorClient) ExecStreaming(ctx context.Context,
 			case <-cctx.Done():
 				return
 			case msg := <-requests:
+				d.logger.Warn("received input", "msg", msg)
 				err := stream.Send(msg)
 				if err != nil {
 					errCh <- err
@@ -233,6 +234,7 @@ func (d *grpcExecutorClient) ExecStreaming(ctx context.Context,
 		}
 
 		out, err := stream.Recv()
+		d.logger.Warn("received output", "msg", out)
 		if err != nil {
 			return grpcutils.HandleGrpcErr(err, d.doneCtx)
 		}
