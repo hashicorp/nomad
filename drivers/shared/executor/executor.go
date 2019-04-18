@@ -389,6 +389,10 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		if err != nil {
 			return fmt.Errorf("failed to make terminal raw")
 		}
+		_, err = terminal.MakeRaw(int(pty.Fd()))
+		if err != nil {
+			return fmt.Errorf("failed to make terminal raw")
+		}
 
 		if cmd.SysProcAttr != nil {
 			cmd.SysProcAttr = &syscall.SysProcAttr{}
