@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -69,9 +70,11 @@ func (h *DriverHandle) ExecStreaming(ctx context.Context,
 	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error {
 
 	if impl, ok := h.driver.(drivers.ExecTaskStreamingRaw); ok {
+		os.Stderr.Write([]byte(fmt.Sprintf("DRIVER IS RAW\n")))
 		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, requests, responses)
 	}
 
+	os.Stderr.Write([]byte(fmt.Sprintf("USING STREAMS TO EXEC\n")))
 	execOpts, doneCh := drivers.StreamsToExecOptions(
 		ctx, command, tty, requests, responses)
 
