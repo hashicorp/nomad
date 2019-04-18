@@ -2337,17 +2337,14 @@ func (n *Networks) Equals(o *Networks) bool {
 	if len(*n) != len(*o) {
 		return false
 	}
-	var found bool
+SETEQUALS:
 	for _, ne := range *n {
-		found = false
 		for _, oe := range *o {
 			if ne.Equals(oe) {
-				found = true
+				continue SETEQUALS
 			}
 		}
-		if !found {
-			return false
-		}
+		return false
 	}
 	return true
 }
@@ -6593,17 +6590,14 @@ func (xs *Constraints) Equals(ys *Constraints) bool {
 	if len(*xs) != len(*ys) {
 		return false
 	}
-	var found bool
+SETEQUALS:
 	for _, x := range *xs {
-		found = false
 		for _, y := range *ys {
 			if x.Equals(y) {
-				found = true
+				continue SETEQUALS
 			}
 		}
-		if !found {
-			return false
-		}
+		return false
 	}
 	return true
 }
@@ -6717,17 +6711,14 @@ func (xs *Affinities) Equals(ys *Affinities) bool {
 	if len(*xs) != len(*ys) {
 		return false
 	}
-	var found bool
+SETEQUALS:
 	for _, x := range *xs {
-		found = false
 		for _, y := range *ys {
 			if x.Equals(y) {
-				found = true
+				continue SETEQUALS
 			}
 		}
-		if !found {
-			return false
-		}
+		return false
 	}
 	return true
 }
