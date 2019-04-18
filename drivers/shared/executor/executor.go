@@ -24,6 +24,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pty"
+	"golang.org/x/crypto/ssh/terminal"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -383,6 +384,11 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		}
 		defer tty.Close()
 		defer pty.Close()
+
+		_, err = terminal.MakeRaw(int(tty.Fd()))
+		if err != nil {
+			return fmt.Errorf("failed to make terminal raw")
+		}
 
 		if cmd.SysProcAttr != nil {
 			cmd.SysProcAttr = &syscall.SysProcAttr{}
