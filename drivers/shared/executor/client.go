@@ -13,7 +13,9 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
+	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
 var _ Executor = (*grpcExecutorClient)(nil)
@@ -180,4 +182,61 @@ func (c *grpcExecutorClient) Exec(deadline time.Time, cmd string, args []string)
 	}
 
 	return resp.Output, int(resp.ExitCode), nil
+}
+
+func (d *grpcExecutorClient) ExecStreaming(ctx context.Context,
+	command []string,
+	tty bool,
+	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
+	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+
+	cctx, cancelFn := context.WithCancel(ctx)
+	defer cancelFn()
+
+	stream, err := d.client.ExecStreaming(ctx)
+	if err != nil {
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
+	}
+
+	err = stream.Send(&dproto.ExecTaskStreamingRequest{
+		Setup: &dproto.ExecTaskStreamingRequest_Setup{
+			Command: command,
+			Tty:     tty,
+		},
+	})
+	if err != nil {
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		for {
+			select {
+			case <-cctx.Done():
+				return
+			case msg := <-requests:
+				err := stream.Send(msg)
+				if err != nil {
+					errCh <- err
+				}
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-cctx.Done():
+			return cctx.Err()
+		case err := <-errCh:
+			return err
+		default:
+		}
+
+		out, err := stream.Recv()
+		if err != nil {
+			return grpcutils.HandleGrpcErr(err, d.doneCtx)
+		}
+
+		responses <- out
+	}
 }
