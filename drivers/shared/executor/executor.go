@@ -370,9 +370,11 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 
 	// Copy runtime environment from the main command
-	cmd.SysProcAttr = e.childCmd.SysProcAttr
-	cmd.Dir = e.childCmd.Dir
-	cmd.Env = e.childCmd.Env
+	//cmd.SysProcAttr = e.childCmd.SysProcAttr
+	//cmd.Dir = e.childCmd.Dir
+	//cmd.Env = e.childCmd.Env
+
+	cmd.Dir = "/"
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 2)
@@ -385,27 +387,31 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		defer tty.Close()
 		defer pty.Close()
 
-		_, err = terminal.MakeRaw(int(tty.Fd()))
-		if err != nil {
-			return fmt.Errorf("failed to make terminal raw")
-		}
-		_, err = terminal.MakeRaw(int(pty.Fd()))
-		if err != nil {
-			return fmt.Errorf("failed to make terminal raw")
-		}
+		ttyState, _ := terminal.GetState(int(tty.Fd()))
+		ptyState, _ := terminal.GetState(int(pty.Fd()))
+		stdinState, _ := terminal.GetState(int(os.Stdin.Fd()))
 
-		if cmd.SysProcAttr != nil {
+		//terminal.Restore(int(tty.Fd()), stdinState)
+
+		e.logger.Warn("terminal states",
+			"tty", fmt.Sprintf("%#v", ttyState),
+			"pty", fmt.Sprintf("%#v", ptyState),
+			"stdin", fmt.Sprintf("%#v", stdinState),
+		)
+
+		if cmd.SysProcAttr == nil {
 			cmd.SysProcAttr = &syscall.SysProcAttr{}
 		}
-		cmd.SysProcAttr.Setctty = true
+
 		cmd.SysProcAttr.Setsid = true
+		cmd.SysProcAttr.Setctty = true
 		cmd.SysProcAttr.Ctty = int(tty.Fd())
 
 		cmd.Stdin = tty
 		cmd.Stdout = tty
 		cmd.Stderr = tty
 
-		handleTTY(pty, wg, input, output, errCh)
+		handleTTY(e.logger, pty, wg, input, output, errCh)
 	} else {
 		stdinPipe, err := cmd.StdinPipe()
 		if err != nil {
@@ -425,13 +431,20 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		handleStderr(stderrPipe, wg, output, errCh)
 	}
 
-	err := cmd.Run()
+	err := cmd.Start()
 	if err != nil {
 		e.logger.Warn("failed to run cmd:", "error", err)
 	}
 
+	wg.Wait()
+	err = cmd.Wait()
+	if err != nil {
+		e.logger.Warn("failed to wait for cmd", "error", err)
+	}
+
 	// wait to flush out output
 	output <- cmdExitResult(cmd.ProcessState)
+	close(output)
 
 	select {
 	case err := <-errCh:
