@@ -526,3 +526,23 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts drivers.ExecOptions) (*drivers.ExitResult, error) {
 	return nil, errors.New("not supported")
 }
+
+var _ drivers.ExecTaskStreamingRaw = (*Driver)(nil)
+
+func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
+	taskID string,
+	command []string,
+	tty bool,
+	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
+	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+
+	if len(command) == 0 {
+		return fmt.Errorf("error cmd must have atleast one value")
+	}
+	handle, ok := d.tasks.Get(taskID)
+	if !ok {
+		return drivers.ErrTaskNotFound
+	}
+
+	return handle.exec.ExecStreaming(ctx, command, tty, requests, responses)
+}

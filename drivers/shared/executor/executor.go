@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/kr/pty"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -365,7 +366,69 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	input <-chan *drivers.ExecTaskStreamingRequestMsg,
 	output chan<- *drivers.ExecTaskStreamingResponseMsg) error {
 
-	return errors.New("not implemented yet")
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
+
+	// Copy runtime environment from the main command
+	cmd.SysProcAttr = e.childCmd.SysProcAttr
+	cmd.Dir = e.childCmd.Dir
+	cmd.Env = e.childCmd.Env
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
+
+	if tty {
+		pty, tty, err := pty.Open()
+		if err != nil {
+			return fmt.Errorf("failed to open a tty: %v", err)
+		}
+		defer tty.Close()
+		defer pty.Close()
+
+		if cmd.SysProcAttr != nil {
+			cmd.SysProcAttr = &syscall.SysProcAttr{}
+		}
+		cmd.SysProcAttr.Setctty = true
+		cmd.SysProcAttr.Setsid = true
+		cmd.SysProcAttr.Ctty = int(tty.Fd())
+
+		cmd.Stdin = tty
+		cmd.Stdout = tty
+		cmd.Stderr = tty
+
+		handleTTY(pty, wg, input, output, errCh)
+	} else {
+		stdinPipe, err := cmd.StdinPipe()
+		if err != nil {
+			return fmt.Errorf("failed to get stdin pipe: %v", err)
+		}
+		stdoutPipe, err := cmd.StdoutPipe()
+		if err != nil {
+			return fmt.Errorf("failed to get stdout pipe: %v", err)
+		}
+		stderrPipe, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Errorf("failed to get stdout pipe: %v", err)
+		}
+
+		handleStdin(stdinPipe, wg, input, errCh)
+		handleStdout(stdoutPipe, wg, output, errCh)
+		handleStderr(stderrPipe, wg, output, errCh)
+	}
+
+	err := cmd.Run()
+	if err != nil {
+		e.logger.Warn("failed to run cmd:", "error", err)
+	}
+
+	// wait to flush out output
+	output <- cmdExitResult(cmd.ProcessState)
+
+	select {
+	case err := <-errCh:
+		return err
+	default:
+		return nil
+	}
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
