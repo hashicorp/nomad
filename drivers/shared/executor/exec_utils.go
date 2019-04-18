@@ -1,12 +1,12 @@
 package executor
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"sync"
 	"syscall"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/kr/pty"
@@ -34,7 +34,7 @@ func cmdExitResult(ps *os.ProcessState) *drivers.ExecTaskStreamingResponseMsg {
 	}
 }
 
-func handleTTY(ptyf *os.File, wg sync.WaitGroup,
+func handleTTY(logger hclog.Logger, ptyf *os.File, wg sync.WaitGroup,
 	input <-chan *drivers.ExecTaskStreamingRequestMsg,
 	output chan<- *drivers.ExecTaskStreamingResponseMsg,
 	errCh chan<- error) {
@@ -65,9 +65,9 @@ func handleTTY(ptyf *os.File, wg sync.WaitGroup,
 
 		for {
 			buf := make([]byte, 4096)
-			os.Stderr.WriteString(fmt.Sprintf("ABOUT TO READ %v\n", ptyf))
+			logger.Warn("about to read")
 			n, err := ptyf.Read(buf)
-			os.Stderr.WriteString(fmt.Sprintf("READ %v %s\n", err, string(buf[:n])))
+			logger.Warn("read some output", "error", err, "buf", string(buf[:n]))
 			if err == io.EOF {
 				output <- &drivers.ExecTaskStreamingResponseMsg{
 					Stdout: &dproto.ExecTaskStreamingOperation{
