@@ -65,6 +65,7 @@ func handleTTY(ptyf *os.File, wg sync.WaitGroup,
 
 		for {
 			buf := make([]byte, 4096)
+			os.Stderr.WriteString(fmt.Sprintf("ABOUT TO READ %v\n", ptyf))
 			n, err := ptyf.Read(buf)
 			os.Stderr.WriteString(fmt.Sprintf("READ %v %s\n", err, string(buf[:n])))
 			if err == io.EOF {
