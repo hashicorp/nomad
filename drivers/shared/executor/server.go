@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"fmt"
 	"syscall"
 	"time"
 
@@ -153,4 +154,52 @@ func (s *grpcExecutorServer) Exec(ctx context.Context, req *proto.ExecRequest) (
 		Output:   out,
 		ExitCode: int32(exit),
 	}, nil
+}
+
+func (s *grpcExecutorServer) ExecStreaming(server proto.Executor_ExecStreamingServer) error {
+	msg, err := server.Recv()
+	if err != nil {
+		return fmt.Errorf("failed to receive initial message: %v", err)
+	}
+
+	if msg.Setup == nil {
+		return fmt.Errorf("first message should always be setup")
+	}
+
+	requests := make(chan *drivers.ExecTaskStreamingRequestMsg)
+	responses := make(chan *drivers.ExecTaskStreamingResponseMsg)
+
+	// requests
+	go func() {
+		msg, err := server.Recv()
+		if err != nil {
+			// TODO: handle this
+			return
+		}
+
+		requests <- msg
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-server.Context().Done():
+				return
+			case msg, ok := <-responses:
+				if !ok {
+					return
+				}
+				err := server.Send(msg)
+				if err != nil {
+					// TODO: handle this
+					return
+				}
+			}
+
+		}
+	}()
+
+	return s.impl.ExecStreaming(server.Context(),
+		msg.Setup.Command, msg.Setup.Tty,
+		requests, responses)
 }

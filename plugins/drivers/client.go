@@ -406,6 +406,7 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 	tty bool,
 	requests <-chan *ExecTaskStreamingRequestMsg,
 	responses chan<- *ExecTaskStreamingResponseMsg) error {
+
 	cctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 

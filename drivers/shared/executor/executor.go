@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -77,6 +78,10 @@ type Executor interface {
 	// Exec executes the given command and args inside the executor context
 	// and returns the output and exit code.
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
+
+	ExecStreaming(ctx context.Context, cmd []string, tty bool,
+		input <-chan *drivers.ExecTaskStreamingRequestMsg,
+		response chan<- *drivers.ExecTaskStreamingResponseMsg) error
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -354,6 +359,13 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 		return buf.Bytes(), exitCode, nil
 	}
 	return buf.Bytes(), 0, nil
+}
+
+func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string, tty bool,
+	input <-chan *drivers.ExecTaskStreamingRequestMsg,
+	output chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+
+	return errors.New("not implemented yet")
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors

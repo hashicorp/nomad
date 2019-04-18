@@ -4,6 +4,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -502,6 +503,13 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 		return nil, 0, context.DeadlineExceeded
 	}
 
+}
+
+func (e *UniversalExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
+	input <-chan *drivers.ExecTaskStreamingRequestMsg,
+	response chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+
+	return errors.New("not implemented yet")
 }
 
 type waitResult struct {

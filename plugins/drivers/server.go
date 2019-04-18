@@ -307,7 +307,10 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 				select {
 				case <-server.Context().Done():
 					return
-				case msg := <-responses:
+				case msg, ok := <-responses:
+					if !ok {
+						return
+					}
 					err := server.Send(msg)
 					if err != nil {
 						// TODO: handle this
