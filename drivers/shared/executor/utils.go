@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/plugins/base"
-	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
 const (
@@ -139,10 +138,4 @@ func processStateFromProto(pb *proto.ProcessState) (*ProcessState, error) {
 		Signal:   int(pb.Signal),
 		Time:     timestamp,
 	}, nil
-}
-
-func codeToExitResult(exitCode int) *dproto.ExitResult {
-	return &dproto.ExitResult{
-		ExitCode: int32(exitCode),
-	}
 }
