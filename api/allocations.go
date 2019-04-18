@@ -155,28 +155,30 @@ type NodeScoreMeta struct {
 // AllocationListStub is used to return a subset of an allocation
 // during list operations.
 type AllocationListStub struct {
-	ID                 string
-	EvalID             string
-	Name               string
-	Namespace          string
-	NodeID             string
-	NodeName           string
-	JobID              string
-	JobType            string
-	JobVersion         uint64
-	TaskGroup          string
-	DesiredStatus      string
-	DesiredDescription string
-	ClientStatus       string
-	ClientDescription  string
-	TaskStates         map[string]*TaskState
-	DeploymentStatus   *AllocDeploymentStatus
-	FollowupEvalID     string
-	RescheduleTracker  *RescheduleTracker
-	CreateIndex        uint64
-	ModifyIndex        uint64
-	CreateTime         int64
-	ModifyTime         int64
+	ID                    string
+	EvalID                string
+	Name                  string
+	Namespace             string
+	NodeID                string
+	NodeName              string
+	JobID                 string
+	JobType               string
+	JobVersion            uint64
+	TaskGroup             string
+	DesiredStatus         string
+	DesiredDescription    string
+	ClientStatus          string
+	ClientDescription     string
+	TaskStates            map[string]*TaskState
+	DeploymentStatus      *AllocDeploymentStatus
+	FollowupEvalID        string
+	RescheduleTracker     *RescheduleTracker
+	PreemptedAllocations  []string
+	PreemptedByAllocation string
+	CreateIndex           uint64
+	ModifyIndex           uint64
+	CreateTime            int64
+	ModifyTime            int64
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the
