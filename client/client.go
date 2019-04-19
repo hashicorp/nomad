@@ -419,6 +419,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
 	}
 
+	// wait until drivers are healthy before restoring or registering with servers
+	select {
+	case <-c.Ready():
+	case <-time.After(batchFirstFingerprintsTimeout):
+		logger.Warn("batched fingerprint, registering node with registered so far")
+	}
+
 	// Restore the state
 	if err := c.restoreState(); err != nil {
 		logger.Error("failed to restore state", "error", err)
@@ -1458,10 +1465,8 @@ func (c *Client) watchNodeEvents() {
 
 	// Create and drain the timer
 	timer := time.NewTimer(0)
-	timer.Stop()
-	select {
-	case <-timer.C:
-	default:
+	if !timer.Stop() {
+		<-timer.C
 	}
 	defer timer.Stop()
 
@@ -1918,7 +1923,12 @@ func (c *Client) updateNodeLocked() {
 // it will update the client node copy and re-register the node.
 func (c *Client) watchNodeUpdates() {
 	var hasChanged bool
-	timer := time.NewTimer(c.retryIntv(nodeUpdateRetryIntv))
+
+	// Create and drain the timer
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		<-timer.C
+	}
 	defer timer.Stop()
 
 	for {
