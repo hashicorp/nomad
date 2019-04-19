@@ -1307,6 +1307,73 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 	if val, ok := h.Evals[0].QueuedAllocations["web"]; !ok || val != 0 {
 		t.Fatalf("bad queued allocations: %#v", h.Evals[0].QueuedAllocations)
 	}
+
+}
+
+// No errors reported when constraints prevent placement
+func TestSystemSched_ConstraintErrors(t *testing.T) {
+	h := NewHarness(t)
+
+	// Register some nodes
+	for _, tag := range []string{"aaaaaa", "foo", "foo"} {
+		node := mock.Node()
+		node.Meta["tag"] = tag
+		node.ComputeClass()
+		require.Nil(t, h.State.UpsertNode(h.NextIndex(), node))
+	}
+
+	// Make a job with a partially matching constraint
+	job := mock.SystemJob()
+	job.Constraints = append(job.Constraints,
+		&structs.Constraint{
+			LTarget: "${meta.tag}",
+			RTarget: "foo",
+			Operand: "=",
+		})
+
+	require.Nil(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	// Evaluate the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	require.Nil(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+	require.Nil(t, h.Process(NewSystemScheduler, eval))
+	require.Equal(t, "complete", h.Evals[0].Status)
+
+	// QueuedAllocations is drained
+	val, ok := h.Evals[0].QueuedAllocations["web"]
+	require.True(t, ok)
+	require.Equal(t, 0, val)
+
+	// The plan has two NodeAllocations
+	require.Equal(t, 1, len(h.Plans))
+	require.Nil(t, h.Plans[0].Annotations)
+	require.Equal(t, 2, len(h.Plans[0].NodeAllocation))
+
+	// Two nodes were allocated and are running
+	ws := memdb.NewWatchSet()
+	as, err := h.State.AllocsByJob(ws, structs.DefaultNamespace, job.ID, false)
+	require.Nil(t, err)
+
+	running := 0
+	for _, a := range as {
+		if "running" == a.Job.Status {
+			running++
+		}
+	}
+
+	require.Equal(t, 2, len(as))
+	require.Equal(t, 2, running)
+
+	// Failed allocations is empty
+	require.Equal(t, 0, len(h.Evals[0].FailedTGAllocs))
 }
 
 func TestSystemSched_ChainedAlloc(t *testing.T) {
