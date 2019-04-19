@@ -120,6 +120,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	factory, err := libcontainer.New(
 		path.Join(command.TaskDir, "../alloc/container"),
 		libcontainer.Cgroupfs,
+		// note that os.Args[0] refers to the executor shim typically
+		// and first args arguments is ignored now due
+		// until https://github.com/opencontainers/runc/pull/1888 is merged
 		libcontainer.InitArgs(os.Args[0], "libcontainer-shim"),
 	)
 	if err != nil {
