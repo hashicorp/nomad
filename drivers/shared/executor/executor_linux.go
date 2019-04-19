@@ -19,7 +19,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -99,11 +98,6 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	l.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
-	// Find the nomad executable to launch the executor process with
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
-	}
 
 	if command.Resources == nil {
 		command.Resources = &drivers.Resources{
@@ -126,7 +120,10 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	factory, err := libcontainer.New(
 		path.Join(command.TaskDir, "../alloc/container"),
 		libcontainer.Cgroupfs,
-		libcontainer.InitArgs(bin, "libcontainer-shim"),
+		// note that os.Args[0] refers to the executor shim typically
+		// and first args arguments is ignored now due
+		// until https://github.com/opencontainers/runc/pull/1888 is merged
+		libcontainer.InitArgs(os.Args[0], "libcontainer-shim"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create factory: %v", err)
