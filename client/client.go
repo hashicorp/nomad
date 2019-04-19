@@ -425,7 +425,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	select {
 	case <-c.Ready():
 	case <-time.After(batchFirstFingerprintsProcessingGrace):
-		logger.Warn("batched fingerprint, registering node with registered so far")
+		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
 	}
 
 	// Restore the state
