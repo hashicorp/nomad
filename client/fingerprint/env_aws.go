@@ -106,10 +106,6 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	}
 	for k, unique := range keys {
 		res, err := client.Get(metadataURL + k)
-		if res.StatusCode != http.StatusOK {
-			f.logger.Debug("could not read attribute value", "attribute", k)
-			continue
-		}
 		if err != nil {
 			// if it's a URL error, assume we're not in an AWS environment
 			// TODO: better way to detect AWS? Check xen virtualization?
@@ -118,6 +114,9 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 			}
 			// not sure what other errors it would return
 			return err
+		} else if res.StatusCode != http.StatusOK {
+			f.logger.Debug("could not read attribute value", "attribute", k)
+			continue
 		}
 		resp, err := ioutil.ReadAll(res.Body)
 		res.Body.Close()
