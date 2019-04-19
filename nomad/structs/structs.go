@@ -6504,6 +6504,10 @@ func (c *Constraint) Equals(o *Constraint) bool {
 			c.Operand == o.Operand
 }
 
+func (c *Constraint) Equal(o *Constraint) bool {
+	return c.Equals(o)
+}
+
 func (c *Constraint) Copy() *Constraint {
 	if c == nil {
 		return nil
@@ -6618,6 +6622,10 @@ func (a *Affinity) Equals(o *Affinity) bool {
 			a.RTarget == o.RTarget &&
 			a.Operand == o.Operand &&
 			a.Weight == o.Weight
+}
+
+func (a *Affinity) Equal(o *Affinity) bool {
+	return a.Equals(o)
 }
 
 func (a *Affinity) Copy() *Affinity {
