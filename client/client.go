@@ -93,6 +93,11 @@ const (
 	allocSyncRetryIntv = 5 * time.Second
 )
 
+var (
+	// grace period to allow for batch fingerprint processing
+	batchFirstFingerprintsProcessingGrace = batchFirstFingerprintsTimeout + 5*time.Second
+)
+
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
 // Client
 type ClientStatsReporter interface {
@@ -417,6 +422,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Setup the vault client for token and secret renewals
 	if err := c.setupVaultClient(); err != nil {
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
+	}
+
+	// wait until drivers are healthy before restoring or registering with servers
+	select {
+	case <-c.Ready():
+	case <-time.After(batchFirstFingerprintsProcessingGrace):
+		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
 	}
 
 	// Restore the state
@@ -1456,13 +1468,7 @@ func (c *Client) watchNodeEvents() {
 	// batchEvents stores events that have yet to be published
 	var batchEvents []*structs.NodeEvent
 
-	// Create and drain the timer
-	timer := time.NewTimer(0)
-	timer.Stop()
-	select {
-	case <-timer.C:
-	default:
-	}
+	timer := stoppedTimer()
 	defer timer.Stop()
 
 	for {
@@ -1918,7 +1924,8 @@ func (c *Client) updateNodeLocked() {
 // it will update the client node copy and re-register the node.
 func (c *Client) watchNodeUpdates() {
 	var hasChanged bool
-	timer := time.NewTimer(c.retryIntv(nodeUpdateRetryIntv))
+
+	timer := stoppedTimer()
 	defer timer.Stop()
 
 	for {
