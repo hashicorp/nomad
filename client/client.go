@@ -93,6 +93,11 @@ const (
 	allocSyncRetryIntv = 5 * time.Second
 )
 
+var (
+	// grace period to allow for batch fingerprint processing
+	batchFirstFingerprintsProcessingGrace = batchFirstFingerprintsTimeout + 5*time.Second
+)
+
 // ClientStatsReporter exposes all the APIs related to resource usage of a Nomad
 // Client
 type ClientStatsReporter interface {
@@ -417,6 +422,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Setup the vault client for token and secret renewals
 	if err := c.setupVaultClient(); err != nil {
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
+	}
+
+	// wait until drivers are healthy before restoring or registering with servers
+	select {
+	case <-c.Ready():
+	case <-time.After(batchFirstFingerprintsProcessingGrace):
+		logger.Warn("batched fingerprint, registering node with registered so far")
 	}
 
 	// Restore the state

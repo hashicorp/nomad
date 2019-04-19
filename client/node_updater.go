@@ -14,7 +14,7 @@ import (
 var (
 	// batchFirstFingerprintsTimeout is the maximum amount of time to wait for
 	// initial fingerprinting to complete before sending a batched Node update
-	batchFirstFingerprintsTimeout = 5 * time.Second
+	batchFirstFingerprintsTimeout = 50 * time.Second
 )
 
 // batchFirstFingerprints waits for the first fingerprint response from all
