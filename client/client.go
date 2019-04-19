@@ -1468,13 +1468,7 @@ func (c *Client) watchNodeEvents() {
 	// batchEvents stores events that have yet to be published
 	var batchEvents []*structs.NodeEvent
 
-	// Create and drain the timer
-	timer := time.NewTimer(0)
-	timer.Stop()
-	select {
-	case <-timer.C:
-	default:
-	}
+	timer := stoppedTimer()
 	defer timer.Stop()
 
 	for {
@@ -1930,7 +1924,8 @@ func (c *Client) updateNodeLocked() {
 // it will update the client node copy and re-register the node.
 func (c *Client) watchNodeUpdates() {
 	var hasChanged bool
-	timer := time.NewTimer(c.retryIntv(nodeUpdateRetryIntv))
+
+	timer := stoppedTimer()
 	defer timer.Stop()
 
 	for {
