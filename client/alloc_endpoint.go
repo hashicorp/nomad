@@ -229,6 +229,14 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		}
 	}()
 
+	h := ar.GetTaskExecHandler(req.Task)
+	if h == nil {
+		handleStreamResultError(
+			fmt.Errorf("task %q is not running.", req.Task),
+			helper.Int64ToPtr(404),
+			encoder)
+		return
+	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -261,7 +269,6 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		}
 	}()
 
-	h := ar.GetTaskExecHandler(req.Task)
 	err = h(ctx, req.Cmd, req.Tty, requests, responses)
 	wg.Wait()
 	if err != nil {
