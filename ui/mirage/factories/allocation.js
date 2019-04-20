@@ -124,6 +124,20 @@ export default Factory.extend({
     },
   }),
 
+  preempted: trait({
+    afterCreate(allocation, server) {
+      const preempter = server.create('allocation', { preemptedAllocations: [allocation.id] });
+      allocation.update({ preemptedByAllocation: preempter.id });
+    },
+  }),
+
+  preempter: trait({
+    afterCreate(allocation, server) {
+      const preempted = server.create('allocation', { preemptedByAllocation: allocation.id });
+      allocation.update({ preemptedAllocations: [preempted.id] });
+    },
+  }),
+
   afterCreate(allocation, server) {
     Ember.assert(
       '[Mirage] No jobs! make sure jobs are created before allocations',
