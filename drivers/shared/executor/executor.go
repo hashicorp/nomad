@@ -366,13 +366,8 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 
-	// Copy runtime environment from the main command
-	//cmd.SysProcAttr = e.childCmd.SysProcAttr
-	e.logger.Warn("command details", "sysprocattr", fmt.Sprintf("%#v", e.childCmd.SysProcAttr), "dir", e.childCmd.Dir)
-	//cmd.Dir = e.childCmd.Dir
-	cmd.Env = e.childCmd.Env
-
 	cmd.Dir = "/"
+	cmd.Env = e.childCmd.Env
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 3)
