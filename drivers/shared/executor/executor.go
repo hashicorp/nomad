@@ -375,7 +375,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	cmd.Dir = "/"
 
 	var wg sync.WaitGroup
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 3)
 
 	var sendLock sync.Mutex
 	send := func(v *drivers.ExecTaskStreamingResponseMsg) error {
@@ -423,13 +423,10 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		}
 
 		handleStdin(e.logger, pty, stream, errCh)
-		// tty only reports  stdout
+		// when tty is on, stdout and stderr point to the same pty so only read once
 		handleStdout(e.logger, pty, &wg, send, errCh)
 
-		e.logger.Warn("waiting for output")
-		wg.Wait()
-		e.logger.Warn("output done - waiting for command")
-		// stdout would never close basically
+		// pty doesn't get EOF here for some reason (until process is reaped?!), so don't wait for wg
 	} else {
 		stdinPipe, err := cmd.StdinPipe()
 		if err != nil {
@@ -450,12 +447,12 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		}
 
 		handleStdin(e.logger, stdinPipe, stream, errCh)
+
 		handleStdout(e.logger, stdoutPipe, &wg, send, errCh)
 		handleStderr(e.logger, stderrPipe, &wg, send, errCh)
 
-		e.logger.Warn("waiting for output")
+		// wait until we get all process output
 		wg.Wait()
-		e.logger.Warn("output done - waiting for command")
 	}
 
 	err := cmd.Wait()
