@@ -6,10 +6,8 @@ import (
 	"sync"
 	"syscall"
 
-	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
-	"github.com/kr/pty"
 )
 
 func cmdExitResult(ps *os.ProcessState) *drivers.ExecTaskStreamingResponseMsg {
@@ -34,69 +32,20 @@ func cmdExitResult(ps *os.ProcessState) *drivers.ExecTaskStreamingResponseMsg {
 	}
 }
 
-func handleTTY(logger hclog.Logger, ptyf *os.File, wg sync.WaitGroup,
-	input <-chan *drivers.ExecTaskStreamingRequestMsg,
-	output chan<- *drivers.ExecTaskStreamingResponseMsg,
-	errCh chan<- error) {
-
-	wg.Add(2)
-
-	// input handler
-	go func() {
-		defer wg.Done()
-
-		for m := range input {
-			if m.Stdin != nil && len(m.Stdin.Data) != 0 {
-				ptyf.Write(m.Stdin.Data)
-			} else if m.Stdin != nil && m.Stdin.Close {
-				// it's odd to close a tty of a running session, so ignore it
-			} else if m.TtySize != nil {
-				pty.Setsize(ptyf, &pty.Winsize{
-					Rows: uint16(m.TtySize.Height),
-					Cols: uint16(m.TtySize.Width),
-				})
-			}
-		}
-	}()
-
-	// handle output
+func handleStdin(stdin io.WriteCloser, wg sync.WaitGroup, stream drivers.ExecTaskStream, errCh chan<- error) {
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
 		for {
-			buf := make([]byte, 4096)
-			logger.Warn("about to read")
-			n, err := ptyf.Read(buf)
-			logger.Warn("read some output", "error", err, "buf", string(buf[:n]))
+			m, err := stream.Recv()
 			if err == io.EOF {
-				output <- &drivers.ExecTaskStreamingResponseMsg{
-					Stdout: &dproto.ExecTaskStreamingOperation{
-						Close: true,
-					},
-				}
 				return
 			} else if err != nil {
 				errCh <- err
 				return
 			}
 
-			// tty only reports stdout
-			output <- &drivers.ExecTaskStreamingResponseMsg{
-				Stdout: &dproto.ExecTaskStreamingOperation{
-					Data: buf[:n],
-				},
-			}
-
-		}
-	}()
-}
-
-func handleStdin(stdin io.WriteCloser, wg sync.WaitGroup, input <-chan *drivers.ExecTaskStreamingRequestMsg, errCh chan<- error) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for m := range input {
 			if m.Stdin != nil && len(m.Stdin.Data) != 0 {
 				_, err := stdin.Write(m.Stdin.Data)
 				if err != nil {
@@ -112,7 +61,7 @@ func handleStdin(stdin io.WriteCloser, wg sync.WaitGroup, input <-chan *drivers.
 	}()
 }
 
-func handleStdout(reader io.Reader, wg sync.WaitGroup, output chan<- *drivers.ExecTaskStreamingResponseMsg, errCh chan<- error) {
+func handleStdout(reader io.Reader, wg sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
 	wg.Add(1)
 
 	go func() {
@@ -122,27 +71,34 @@ func handleStdout(reader io.Reader, wg sync.WaitGroup, output chan<- *drivers.Ex
 			buf := make([]byte, 4096)
 			n, err := reader.Read(buf)
 			if err == io.EOF {
-				output <- &drivers.ExecTaskStreamingResponseMsg{
+				if err := send(&drivers.ExecTaskStreamingResponseMsg{
 					Stdout: &dproto.ExecTaskStreamingOperation{
 						Close: true,
 					},
+				}); err != nil {
+					errCh <- err
+					return
 				}
 			} else if err != nil {
 				errCh <- err
+				return
 			}
 
-			// tty only reports stdout
-			output <- &drivers.ExecTaskStreamingResponseMsg{
+			// tty only reportsstdout
+			if err := send(&drivers.ExecTaskStreamingResponseMsg{
 				Stdout: &dproto.ExecTaskStreamingOperation{
 					Data: buf[:n],
 				},
+			}); err != nil {
+				errCh <- err
+				return
 			}
 
 		}
 	}()
 }
 
-func handleStderr(reader io.Reader, wg sync.WaitGroup, output chan<- *drivers.ExecTaskStreamingResponseMsg, errCh chan<- error) {
+func handleStderr(reader io.Reader, wg sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
 	wg.Add(1)
 
 	go func() {
@@ -152,20 +108,26 @@ func handleStderr(reader io.Reader, wg sync.WaitGroup, output chan<- *drivers.Ex
 			buf := make([]byte, 4096)
 			n, err := reader.Read(buf)
 			if err == io.EOF {
-				output <- &drivers.ExecTaskStreamingResponseMsg{
+				if err := send(&drivers.ExecTaskStreamingResponseMsg{
 					Stderr: &dproto.ExecTaskStreamingOperation{
 						Close: true,
 					},
+				}); err != nil {
+					errCh <- err
+					return
 				}
 			} else if err != nil {
 				errCh <- err
+				return
 			}
 
-			// tty only reports stdout
-			output <- &drivers.ExecTaskStreamingResponseMsg{
+			if err := send(&drivers.ExecTaskStreamingResponseMsg{
 				Stderr: &dproto.ExecTaskStreamingOperation{
 					Data: buf[:n],
 				},
+			}); err != nil {
+				errCh <- err
+				return
 			}
 
 		}

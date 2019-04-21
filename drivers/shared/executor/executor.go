@@ -82,8 +82,7 @@ type Executor interface {
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
 
 	ExecStreaming(ctx context.Context, cmd []string, tty bool,
-		input <-chan *drivers.ExecTaskStreamingRequestMsg,
-		response chan<- *drivers.ExecTaskStreamingResponseMsg) error
+		stream drivers.ExecTaskStream) error
 }
 
 // ExecCommand holds the user command, args, and other isolation related
@@ -364,8 +363,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 }
 
 func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string, tty bool,
-	input <-chan *drivers.ExecTaskStreamingRequestMsg,
-	output chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+	stream drivers.ExecTaskStream) error {
 
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 
@@ -378,6 +376,14 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 2)
+
+	var sendLock sync.Mutex
+	send := func(v *drivers.ExecTaskStreamingResponseMsg) error {
+		sendLock.Lock()
+		defer sendLock.Unlock()
+
+		return stream.Send(v)
+	}
 
 	if tty {
 		pty, tty, err := pty.Open()
@@ -411,7 +417,9 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		cmd.Stdout = tty
 		cmd.Stderr = tty
 
-		handleTTY(e.logger, pty, wg, input, output, errCh)
+		handleStdin(pty, wg, stream, errCh)
+		// tty only reports  stdout
+		handleStdout(pty, wg, send, errCh)
 	} else {
 		stdinPipe, err := cmd.StdinPipe()
 		if err != nil {
@@ -426,9 +434,9 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return fmt.Errorf("failed to get stdout pipe: %v", err)
 		}
 
-		handleStdin(stdinPipe, wg, input, errCh)
-		handleStdout(stdoutPipe, wg, output, errCh)
-		handleStderr(stderrPipe, wg, output, errCh)
+		handleStdin(stdinPipe, wg, stream, errCh)
+		handleStdout(stdoutPipe, wg, send, errCh)
+		handleStderr(stderrPipe, wg, send, errCh)
 	}
 
 	err := cmd.Start()
@@ -443,8 +451,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	}
 
 	// wait to flush out output
-	output <- cmdExitResult(cmd.ProcessState)
-	close(output)
+	stream.Send(cmdExitResult(cmd.ProcessState))
 
 	select {
 	case err := <-errCh:

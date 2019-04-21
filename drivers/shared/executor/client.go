@@ -187,11 +187,7 @@ func (c *grpcExecutorClient) Exec(deadline time.Time, cmd string, args []string)
 func (d *grpcExecutorClient) ExecStreaming(ctx context.Context,
 	command []string,
 	tty bool,
-	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
-	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error {
-
-	cctx, cancelFn := context.WithCancel(ctx)
-	defer cancelFn()
+	execStream drivers.ExecTaskStream) error {
 
 	stream, err := d.client.ExecStreaming(ctx)
 	if err != nil {
@@ -211,34 +207,38 @@ func (d *grpcExecutorClient) ExecStreaming(ctx context.Context,
 	errCh := make(chan error, 1)
 	go func() {
 		for {
-			select {
-			case <-cctx.Done():
+			m, err := execStream.Recv()
+			if err == io.EOF {
 				return
-			case msg := <-requests:
-				d.logger.Warn("received input", "msg", msg)
-				err := stream.Send(msg)
-				if err != nil {
-					errCh <- err
-				}
+			} else if err != nil {
+				errCh <- err
+				return
 			}
+
+			if err := stream.Send(m); err != nil {
+				errCh <- err
+				return
+			}
+
 		}
 	}()
 
 	for {
 		select {
-		case <-cctx.Done():
-			return cctx.Err()
 		case err := <-errCh:
 			return err
 		default:
 		}
 
-		out, err := stream.Recv()
-		d.logger.Warn("received output", "msg", out)
-		if err != nil {
-			return grpcutils.HandleGrpcErr(err, d.doneCtx)
+		m, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
 		}
 
-		responses <- out
+		if err := execStream.Send(m); err != nil {
+			return err
+		}
 	}
 }
