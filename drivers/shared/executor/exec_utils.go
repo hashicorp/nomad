@@ -32,11 +32,8 @@ func cmdExitResult(ps *os.ProcessState) *drivers.ExecTaskStreamingResponseMsg {
 	}
 }
 
-func handleStdin(stdin io.WriteCloser, wg sync.WaitGroup, stream drivers.ExecTaskStream, errCh chan<- error) {
-	wg.Add(1)
+func handleStdin(stdin io.WriteCloser, stream drivers.ExecTaskStream, errCh chan<- error) {
 	go func() {
-		defer wg.Done()
-
 		for {
 			m, err := stream.Recv()
 			if err == io.EOF {
@@ -53,7 +50,6 @@ func handleStdin(stdin io.WriteCloser, wg sync.WaitGroup, stream drivers.ExecTas
 				}
 			} else if m.Stdin != nil && m.Stdin.Close {
 				stdin.Close()
-				// it's odd to close a tty of a running session, so ignore it
 			} else {
 				// ignore heartbeats or unexpected tty events
 			}
@@ -61,7 +57,7 @@ func handleStdin(stdin io.WriteCloser, wg sync.WaitGroup, stream drivers.ExecTas
 	}()
 }
 
-func handleStdout(reader io.Reader, wg sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
+func handleStdout(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
 	wg.Add(1)
 
 	go func() {
@@ -98,7 +94,7 @@ func handleStdout(reader io.Reader, wg sync.WaitGroup, send func(*drivers.ExecTa
 	}()
 }
 
-func handleStderr(reader io.Reader, wg sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
+func handleStderr(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
 	wg.Add(1)
 
 	go func() {
