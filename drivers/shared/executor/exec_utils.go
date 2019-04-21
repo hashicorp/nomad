@@ -3,11 +3,14 @@ package executor
 import (
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
+	"golang.org/x/sys/unix"
 )
 
 func cmdExitResult(ps *os.ProcessState) *drivers.ExecTaskStreamingResponseMsg {
@@ -32,11 +35,12 @@ func cmdExitResult(ps *os.ProcessState) *drivers.ExecTaskStreamingResponseMsg {
 	}
 }
 
-func handleStdin(stdin io.WriteCloser, stream drivers.ExecTaskStream, errCh chan<- error) {
+func handleStdin(logger hclog.Logger, stdin io.WriteCloser, stream drivers.ExecTaskStream, errCh chan<- error) {
 	go func() {
 		for {
 			m, err := stream.Recv()
-			if err == io.EOF {
+			logger.Info("received stdin", "msg", m, "error", err)
+			if isClosedError(err) {
 				return
 			} else if err != nil {
 				errCh <- err
@@ -57,7 +61,7 @@ func handleStdin(stdin io.WriteCloser, stream drivers.ExecTaskStream, errCh chan
 	}()
 }
 
-func handleStdout(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
+func handleStdout(logger hclog.Logger, reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
 	wg.Add(1)
 
 	go func() {
@@ -66,7 +70,8 @@ func handleStdout(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecT
 		for {
 			buf := make([]byte, 4096)
 			n, err := reader.Read(buf)
-			if err == io.EOF {
+			logger.Info("sending stdout", "bytes", string(buf[:n]), "error", err, "isioe", isClosedError(err))
+			if isClosedError(err) {
 				if err := send(&drivers.ExecTaskStreamingResponseMsg{
 					Stdout: &dproto.ExecTaskStreamingOperation{
 						Close: true,
@@ -75,6 +80,7 @@ func handleStdout(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecT
 					errCh <- err
 					return
 				}
+				return
 			} else if err != nil {
 				errCh <- err
 				return
@@ -94,7 +100,7 @@ func handleStdout(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecT
 	}()
 }
 
-func handleStderr(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
+func handleStderr(logger hclog.Logger, reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecTaskStreamingResponseMsg) error, errCh chan<- error) {
 	wg.Add(1)
 
 	go func() {
@@ -103,7 +109,8 @@ func handleStderr(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecT
 		for {
 			buf := make([]byte, 4096)
 			n, err := reader.Read(buf)
-			if err == io.EOF {
+			logger.Info("sending stdout", "bytes", string(buf[:n]), "error", err)
+			if isClosedError(err) {
 				if err := send(&drivers.ExecTaskStreamingResponseMsg{
 					Stderr: &dproto.ExecTaskStreamingOperation{
 						Close: true,
@@ -112,6 +119,7 @@ func handleStderr(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecT
 					errCh <- err
 					return
 				}
+				return
 			} else if err != nil {
 				errCh <- err
 				return
@@ -128,4 +136,14 @@ func handleStderr(reader io.Reader, wg *sync.WaitGroup, send func(*drivers.ExecT
 
 		}
 	}()
+}
+
+func isClosedError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return err == io.EOF ||
+		err == io.ErrClosedPipe ||
+		strings.Contains(err.Error(), unix.EIO.Error())
 }
