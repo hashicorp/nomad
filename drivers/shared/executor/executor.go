@@ -397,7 +397,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		ptyState, _ := terminal.GetState(int(pty.Fd()))
 		stdinState, _ := terminal.GetState(int(os.Stdin.Fd()))
 
-		terminal.MakeRaw(int(tty.Fd()))
+		//terminal.MakeRaw(int(tty.Fd()))
 
 		e.logger.Warn("terminal states",
 			"tty", fmt.Sprintf("%#v", ttyState),
