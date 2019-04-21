@@ -417,9 +417,9 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		cmd.Stdout = tty
 		cmd.Stderr = tty
 
-		handleStdin(pty, wg, stream, errCh)
+		handleStdin(pty, stream, errCh)
 		// tty only reports  stdout
-		handleStdout(pty, wg, send, errCh)
+		handleStdout(pty, &wg, send, errCh)
 	} else {
 		stdinPipe, err := cmd.StdinPipe()
 		if err != nil {
@@ -434,9 +434,9 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return fmt.Errorf("failed to get stdout pipe: %v", err)
 		}
 
-		handleStdin(stdinPipe, wg, stream, errCh)
-		handleStdout(stdoutPipe, wg, send, errCh)
-		handleStderr(stderrPipe, wg, send, errCh)
+		handleStdin(stdinPipe, stream, errCh)
+		handleStdout(stdoutPipe, &wg, send, errCh)
+		handleStderr(stderrPipe, &wg, send, errCh)
 	}
 
 	err := cmd.Start()
