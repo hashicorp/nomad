@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 	tu "github.com/hashicorp/nomad/testutil"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/stretchr/testify/assert"
@@ -603,41 +602,4 @@ func TestExecutor_Start_NonExecutableBinaries(pt *testing.T) {
 		})
 	}
 
-}
-
-func TestExecutorExec(t *testing.T) {
-	t.Parallel()
-
-	exec := NewExecutor(testlog.HCLogger(t))
-
-	ctx := context.Background()
-
-	input := make(chan *drivers.ExecTaskStreamingRequestMsg)
-	output := make(chan *drivers.ExecTaskStreamingResponseMsg)
-
-	doneCh := make(chan error, 1)
-	go func() {
-		input <- &drivers.ExecTaskStreamingRequestMsg{
-			Stdin: &dproto.ExecTaskStreamingOperation{
-				Data: []byte("echo hi; exit 0"),
-			},
-		}
-	}()
-	go func() {
-		for o := range output {
-			t.Logf("received output: %v", o)
-		}
-		doneCh <- nil
-	}()
-
-	err := exec.ExecStreaming(ctx, []string{"nomad", "--version"}, true, input, output)
-	require.NoError(t, err)
-
-	select {
-	case <-doneCh:
-	case <-time.After(5 * time.Second):
-		require.Fail(t, "timed out")
-	}
-
-	t.Fatal("fail now")
 }
