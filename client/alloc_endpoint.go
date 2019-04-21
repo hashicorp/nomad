@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sync"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -208,27 +207,6 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	requests := make(chan *drivers.ExecTaskStreamingRequestMsg)
-	responses := make(chan *drivers.ExecTaskStreamingResponseMsg)
-
-	go func() {
-		for {
-			req := drivers.ExecTaskStreamingRequestMsg{}
-			err := decoder.Decode(&req)
-			if err == io.EOF || err == io.ErrClosedPipe {
-				cancel()
-				break
-			}
-
-			if err != nil {
-				// TODO: unexpected error
-				break
-			}
-
-			requests <- &req
-		}
-	}()
-
 	h := ar.GetTaskExecHandler(req.Task)
 	if h == nil {
 		handleStreamResultError(
@@ -237,40 +215,8 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 			encoder)
 		return
 	}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		buf := new(bytes.Buffer)
-		frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
 
-		for {
-			buf.Reset()
-			frameCodec.Reset(buf)
-
-			select {
-			case <-ctx.Done():
-				return
-			case msg, ok := <-responses:
-				if !ok {
-					return
-				}
-
-				frameCodec.MustEncode(msg)
-
-				err := encoder.Encode(cstructs.StreamErrWrapper{
-					Payload: buf.Bytes(),
-				})
-				if err != nil {
-					// TODO: handle this
-				}
-
-			}
-		}
-	}()
-
-	err = h(ctx, req.Cmd, req.Tty, requests, responses)
-	wg.Wait()
+	err = h(ctx, req.Cmd, req.Tty, newExecStream(cancel, decoder, encoder))
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		handleStreamResultError(err, code, encoder)
@@ -278,4 +224,44 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	}
 
 	return
+}
+
+func newExecStream(cancelFn func(), decoder *codec.Decoder, encoder *codec.Encoder) drivers.ExecTaskStream {
+	buf := new(bytes.Buffer)
+	return &execStream{
+		cancelFn: cancelFn,
+		decoder:  decoder,
+
+		buf:        buf,
+		encoder:    encoder,
+		frameCodec: codec.NewEncoder(buf, structs.JsonHandle),
+	}
+}
+
+type execStream struct {
+	cancelFn func()
+	decoder  *codec.Decoder
+
+	encoder    *codec.Encoder
+	buf        *bytes.Buffer
+	frameCodec *codec.Encoder
+}
+
+func (s *execStream) Send(m *drivers.ExecTaskStreamingResponseMsg) error {
+	s.buf.Reset()
+	s.frameCodec.Reset(s.buf)
+
+	s.frameCodec.MustEncode(m)
+	return s.encoder.Encode(cstructs.StreamErrWrapper{
+		Payload: s.buf.Bytes(),
+	})
+}
+
+func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
+	req := drivers.ExecTaskStreamingRequestMsg{}
+	err := s.decoder.Decode(&req)
+	if err == io.EOF || err == io.ErrClosedPipe {
+		s.cancelFn()
+	}
+	return &req, err
 }

@@ -436,13 +436,16 @@ func (d *DriverNetwork) Hash() []byte {
 type ExecTaskStreamingRequestMsg = proto.ExecTaskStreamingRequest
 type ExecTaskStreamingResponseMsg = proto.ExecTaskStreamingResponse
 
+type ExecTaskStream interface {
+	Send(*ExecTaskStreamingResponseMsg) error
+	Recv() (*ExecTaskStreamingRequestMsg, error)
+}
+
 type ExecTaskStreamingRaw interface {
 	ExecTaskStreamingRaw(
 		ctx context.Context,
 		taskID string,
 		command []string,
 		tty bool,
-		requests <-chan *ExecTaskStreamingRequestMsg,
-		responses chan<- *ExecTaskStreamingResponseMsg,
-	) error
+		stream ExecTaskStream) error
 }

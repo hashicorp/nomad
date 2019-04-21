@@ -533,8 +533,7 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 	taskID string,
 	command []string,
 	tty bool,
-	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
-	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+	stream drivers.ExecTaskStream) error {
 
 	if len(command) == 0 {
 		return fmt.Errorf("error cmd must have atleast one value")
@@ -544,5 +543,5 @@ func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
 		return drivers.ErrTaskNotFound
 	}
 
-	return handle.exec.ExecStreaming(ctx, command, tty, requests, responses)
+	return handle.exec.ExecStreaming(ctx, command, tty, stream)
 }

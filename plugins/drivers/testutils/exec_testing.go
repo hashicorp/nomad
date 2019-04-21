@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"context"
+	"io"
 	"runtime"
 	"sync"
 	"testing"
@@ -116,24 +117,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 	for _, c := range ExecTaskStreamingBasicCases {
 		t.Run(c.Name, func(t *testing.T) {
 
-			input := make(chan *drivers.ExecTaskStreamingRequestMsg)
-			output := make(chan *drivers.ExecTaskStreamingResponseMsg)
-
-			go func() {
-				input <- &drivers.ExecTaskStreamingRequestMsg{
-					TtySize: &dproto.ExecTaskStreamingRequest_TerminalSize{
-						Height: 100,
-						Width:  100,
-					},
-				}
-				input <- &drivers.ExecTaskStreamingRequestMsg{
-					Stdin: &dproto.ExecTaskStreamingOperation{
-						Data: []byte(c.Stdin),
-					},
-				}
-			}()
-
-			resultFn := processOutput(t, output)
+			stream := newTestExecStream(t, c.Stdin)
 
 			ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancelFn()
@@ -145,11 +129,10 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 			if raw, ok := driver.impl.(drivers.ExecTaskStreamingRaw); ok {
 				isRaw = true
 				err := raw.ExecTaskStreamingRaw(ctx, taskID,
-					command, c.Tty,
-					input, output)
+					command, c.Tty, stream)
 				require.NoError(t, err)
 			} else {
-				execOpts, errCh := drivers.StreamsToExecOptions(ctx, command, c.Tty, input, output)
+				execOpts, errCh := drivers.StreamsToExecOptions(ctx, command, c.Tty, stream)
 
 				r, err := driver.impl.ExecTaskStreaming(ctx, taskID, execOpts)
 				require.NoError(t, err)
@@ -164,7 +147,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 				exitCode = r.ExitCode
 			}
 
-			result := resultFn()
+			result := stream.currentResult()
 			require.NoError(t, result.err)
 
 			if isRaw {
@@ -188,34 +171,74 @@ type execResult struct {
 	err error
 }
 
-func processOutput(t *testing.T, output <-chan *drivers.ExecTaskStreamingResponseMsg) func() execResult {
-
-	r := execResult{exitCode: -2}
-	var lock sync.Mutex
-
-	go func() {
-		for m := range output {
-			lock.Lock()
-			switch {
-			case m.Stdout != nil && m.Stdout.Data != nil:
-				t.Logf("received stdout: %s", string(m.Stdout.Data))
-				r.stdout += string(m.Stdout.Data)
-			case m.Stderr != nil && m.Stderr.Data != nil:
-				t.Logf("received stderr: %s", string(m.Stderr.Data))
-				r.stderr += string(m.Stderr.Data)
-			case m.Exited && m.Result != nil:
-				r.exitCode = int(m.Result.ExitCode)
-
-				lock.Unlock()
-				return
-			}
-			lock.Unlock()
-		}
-	}()
-
-	return func() execResult {
-		lock.Lock()
-		defer lock.Unlock()
-		return r
+func newTestExecStream(t *testing.T, stdin string) *testExecStream {
+	return &testExecStream{
+		t:      t,
+		stdin:  stdin,
+		result: &execResult{exitCode: -2},
 	}
+}
+
+var _ drivers.ExecTaskStream = (*testExecStream)(nil)
+
+type testExecStream struct {
+	t *testing.T
+
+	stdin string
+
+	// input
+	recvCalled int
+
+	// result so far
+	resultLock sync.Mutex
+	result     *execResult
+}
+
+func (s *testExecStream) currentResult() execResult {
+	s.resultLock.Lock()
+	defer s.resultLock.Unlock()
+
+	// make a copy
+	return *s.result
+}
+
+func (s *testExecStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
+	s.recvCalled++
+
+	switch s.recvCalled {
+	case 1:
+		return &drivers.ExecTaskStreamingRequestMsg{
+			TtySize: &dproto.ExecTaskStreamingRequest_TerminalSize{
+				Height: 100,
+				Width:  100,
+			},
+		}, nil
+	case 2:
+		return &drivers.ExecTaskStreamingRequestMsg{
+			Stdin: &dproto.ExecTaskStreamingOperation{
+				Data: []byte(s.stdin),
+			},
+		}, nil
+	default:
+		return nil, io.EOF
+
+	}
+}
+
+func (s *testExecStream) Send(m *drivers.ExecTaskStreamingResponseMsg) error {
+	s.resultLock.Lock()
+	defer s.resultLock.Unlock()
+
+	switch {
+	case m.Stdout != nil && m.Stdout.Data != nil:
+		s.t.Logf("received stdout: %s", string(m.Stdout.Data))
+		s.result.stdout += string(m.Stdout.Data)
+	case m.Stderr != nil && m.Stderr.Data != nil:
+		s.t.Logf("received stderr: %s", string(m.Stderr.Data))
+		s.result.stderr += string(m.Stderr.Data)
+	case m.Exited && m.Result != nil:
+		s.result.exitCode = int(m.Result.ExitCode)
+	}
+
+	return nil
 }

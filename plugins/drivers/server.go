@@ -287,48 +287,15 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 		return fmt.Errorf("first message should always be setup")
 	}
 
-	requests := make(chan *ExecTaskStreamingRequestMsg)
-	responses := make(chan *ExecTaskStreamingResponseMsg)
-
 	if impl, ok := b.impl.(ExecTaskStreamingRaw); ok {
-		// requests
-		go func() {
-			msg, err := server.Recv()
-			if err != nil {
-				// TODO: handle this
-				return
-			}
-
-			requests <- msg
-		}()
-
-		go func() {
-			for {
-				select {
-				case <-server.Context().Done():
-					return
-				case msg, ok := <-responses:
-					if !ok {
-						return
-					}
-					err := server.Send(msg)
-					if err != nil {
-						// TODO: handle this
-						return
-					}
-				}
-
-			}
-		}()
-
 		return impl.ExecTaskStreamingRaw(server.Context(),
 			msg.Setup.TaskId, msg.Setup.Command, msg.Setup.Tty,
-			requests, responses)
+			server)
 	}
 
 	execOpts, errCh := StreamsToExecOptions(server.Context(),
 		msg.Setup.Command, msg.Setup.Tty,
-		requests, responses)
+		server)
 
 	result, err := b.impl.ExecTaskStreaming(server.Context(),
 		msg.Setup.TaskId, execOpts)

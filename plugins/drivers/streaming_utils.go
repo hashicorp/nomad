@@ -17,8 +17,7 @@ func StreamsToExecOptions(
 	ctx context.Context,
 	command []string,
 	tty bool,
-	requests <-chan *ExecTaskStreamingRequestMsg,
-	responses chan<- *ExecTaskStreamingResponseMsg) (ExecOptions, <-chan error) {
+	stream ExecTaskStream) (ExecOptions, <-chan error) {
 
 	inReader, inWriter := io.Pipe()
 	outReader, outWriter := io.Pipe()
@@ -30,31 +29,39 @@ func StreamsToExecOptions(
 	// handle input
 	go func() {
 		for {
-			select {
-			case <-ctx.Done():
+			msg, err := stream.Recv()
+			if err == io.EOF {
 				return
-			case msg := <-requests:
-				if msg.Stdin != nil && !msg.Stdin.Close {
-					_, err := inWriter.Write(msg.Stdin.Data)
-					if err != nil {
-						errCh <- err
-						return
-					}
-				} else if msg.Stdin != nil && msg.Stdin.Close {
-					inWriter.Close()
-				} else if msg.TtySize != nil {
-					resize <- TerminalSize{
-						Height: int(msg.TtySize.Height),
-						Width:  int(msg.TtySize.Width),
-					}
-				} else if isHeartbeat(msg) {
-					// do nothing
-				} else {
-					errCh <- fmt.Errorf("unexpected message type: %#v", msg)
+			}
+
+			if msg.Stdin != nil && !msg.Stdin.Close {
+				_, err := inWriter.Write(msg.Stdin.Data)
+				if err != nil {
+					errCh <- err
+					return
 				}
+			} else if msg.Stdin != nil && msg.Stdin.Close {
+				inWriter.Close()
+			} else if msg.TtySize != nil {
+				resize <- TerminalSize{
+					Height: int(msg.TtySize.Height),
+					Width:  int(msg.TtySize.Width),
+				}
+			} else if isHeartbeat(msg) {
+				// do nothing
+			} else {
+				errCh <- fmt.Errorf("unexpected message type: %#v", msg)
 			}
 		}
 	}()
+
+	var sendLock sync.Mutex
+	send := func(v *ExecTaskStreamingResponseMsg) error {
+		sendLock.Lock()
+		defer sendLock.Unlock()
+
+		return stream.Send(v)
+	}
 
 	var outWg sync.WaitGroup
 	outWg.Add(2)
@@ -63,16 +70,15 @@ func StreamsToExecOptions(
 		defer outWg.Done()
 
 		reader := outReader
+		bytes := make([]byte, 1024)
+		msg := &ExecTaskStreamingResponseMsg{Stdout: &proto.ExecTaskStreamingOperation{}}
 
 		for {
-			msg := &ExecTaskStreamingResponseMsg{Stdout: &proto.ExecTaskStreamingOperation{}}
-			bytes := make([]byte, 1024)
-
 			n, err := reader.Read(bytes)
 			if err == io.EOF || err == io.ErrClosedPipe {
 				msg.Stdout.Data = nil
 				msg.Stdout.Close = true
-				responses <- msg
+				send(msg)
 				break
 			}
 			if err != nil {
@@ -81,7 +87,7 @@ func StreamsToExecOptions(
 			}
 
 			msg.Stdout.Data = bytes[:n]
-			responses <- msg
+			send(msg)
 		}
 
 	}()
@@ -90,16 +96,15 @@ func StreamsToExecOptions(
 		defer outWg.Done()
 
 		reader := errReader
+		bytes := make([]byte, 1024)
+		msg := &ExecTaskStreamingResponseMsg{Stderr: &proto.ExecTaskStreamingOperation{}}
 
 		for {
-			msg := &ExecTaskStreamingResponseMsg{Stderr: &proto.ExecTaskStreamingOperation{}}
-			bytes := make([]byte, 1024)
-
 			n, err := reader.Read(bytes)
 			if err == io.EOF || err == io.ErrClosedPipe {
 				msg.Stderr.Data = nil
 				msg.Stderr.Close = true
-				responses <- msg
+				send(msg)
 				break
 			}
 			if err != nil {
@@ -108,7 +113,7 @@ func StreamsToExecOptions(
 			}
 
 			msg.Stderr.Data = bytes[:n]
-			responses <- msg
+			send(msg)
 		}
 
 	}()
