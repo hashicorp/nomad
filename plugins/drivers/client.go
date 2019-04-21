@@ -404,11 +404,7 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 	taskID string,
 	command []string,
 	tty bool,
-	requests <-chan *ExecTaskStreamingRequestMsg,
-	responses chan<- *ExecTaskStreamingResponseMsg) error {
-
-	cctx, cancelFn := context.WithCancel(ctx)
-	defer cancelFn()
+	execStream ExecTaskStream) error {
 
 	stream, err := d.client.ExecTaskStreaming(ctx)
 	if err != nil {
@@ -427,34 +423,41 @@ func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
 	}
 
 	errCh := make(chan error, 1)
+
 	go func() {
 		for {
-			select {
-			case <-cctx.Done():
+			m, err := execStream.Recv()
+			if err == io.EOF {
 				return
-			case msg := <-requests:
-				err := stream.Send(msg)
-				if err != nil {
-					errCh <- err
-				}
+			} else if err != nil {
+				errCh <- err
+				return
 			}
+
+			if err := stream.Send(m); err != nil {
+				errCh <- err
+				return
+			}
+
 		}
 	}()
 
 	for {
 		select {
-		case <-cctx.Done():
-			return cctx.Err()
 		case err := <-errCh:
 			return err
 		default:
 		}
 
-		out, err := stream.Recv()
-		if err != nil {
-			return grpcutils.HandleGrpcErr(err, d.doneCtx)
+		m, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
 		}
 
-		responses <- out
+		if err := execStream.Send(m); err != nil {
+			return err
+		}
 	}
 }

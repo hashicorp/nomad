@@ -66,17 +66,16 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 func (h *DriverHandle) ExecStreaming(ctx context.Context,
 	command []string,
 	tty bool,
-	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
-	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error {
+	stream drivers.ExecTaskStream) error {
 
 	if impl, ok := h.driver.(drivers.ExecTaskStreamingRaw); ok {
 		os.Stderr.Write([]byte(fmt.Sprintf("DRIVER IS RAW\n")))
-		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, requests, responses)
+		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, stream)
 	}
 
 	os.Stderr.Write([]byte(fmt.Sprintf("USING STREAMS TO EXEC\n")))
 	execOpts, doneCh := drivers.StreamsToExecOptions(
-		ctx, command, tty, requests, responses)
+		ctx, command, tty, stream)
 
 	result, err := h.driver.ExecTaskStreaming(ctx, h.taskID, execOpts)
 	if err != nil {
@@ -96,8 +95,7 @@ func (h *DriverHandle) ExecStreaming(ctx context.Context,
 		return err
 	}
 
-	responses <- drivers.NewExecStreamingResponseExit(result.ExitCode)
-	close(responses)
+	stream.Send(drivers.NewExecStreamingResponseExit(result.ExitCode))
 
 	return nil
 }
