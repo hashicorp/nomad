@@ -368,7 +368,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 
 	// Copy runtime environment from the main command
 	//cmd.SysProcAttr = e.childCmd.SysProcAttr
-	e.logger.Warn("command details", "sysprocattr", fmt.Sprintf("%#v", cmd.SysProcAttr), "dir", e.childCmd.Dir)
+	e.logger.Warn("command details", "sysprocattr", fmt.Sprintf("%#v", e.childCmd.SysProcAttr), "dir", e.childCmd.Dir)
 	//cmd.Dir = e.childCmd.Dir
 	cmd.Env = e.childCmd.Env
 
