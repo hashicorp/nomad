@@ -506,9 +506,7 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 }
 
 func (e *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
-	input <-chan *drivers.ExecTaskStreamingRequestMsg,
-	response chan<- *drivers.ExecTaskStreamingResponseMsg) error {
-
+	stream drivers.ExecTaskStream) error {
 	return errors.New("not implemented yet")
 }
 
