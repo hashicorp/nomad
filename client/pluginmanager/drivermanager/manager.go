@@ -33,8 +33,7 @@ type TaskExecHandler func(
 	ctx context.Context,
 	command []string,
 	tty bool,
-	requests <-chan *drivers.ExecTaskStreamingRequestMsg,
-	responses chan<- *drivers.ExecTaskStreamingResponseMsg) error
+	stream drivers.ExecTaskStream) error
 
 // EventHandler is a callback to be called for a task.
 // The handler should not block execution.
