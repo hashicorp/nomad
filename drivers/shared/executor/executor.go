@@ -417,9 +417,19 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		cmd.Stdout = tty
 		cmd.Stderr = tty
 
-		handleStdin(pty, stream, errCh)
+		if err := cmd.Start(); err != nil {
+			e.logger.Warn("failed to run cmd:", "error", err)
+			return fmt.Errorf("failed to start command: %v", err)
+		}
+
+		handleStdin(e.logger, pty, stream, errCh)
 		// tty only reports  stdout
-		handleStdout(pty, &wg, send, errCh)
+		handleStdout(e.logger, pty, &wg, send, errCh)
+
+		e.logger.Warn("waiting for output")
+		wg.Wait()
+		e.logger.Warn("output done - waiting for command")
+		// stdout would never close basically
 	} else {
 		stdinPipe, err := cmd.StdinPipe()
 		if err != nil {
@@ -434,18 +444,22 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return fmt.Errorf("failed to get stdout pipe: %v", err)
 		}
 
-		handleStdin(stdinPipe, stream, errCh)
-		handleStdout(stdoutPipe, &wg, send, errCh)
-		handleStderr(stderrPipe, &wg, send, errCh)
+		if err := cmd.Start(); err != nil {
+			e.logger.Warn("failed to run cmd:", "error", err)
+			return fmt.Errorf("failed to start command: %v", err)
+		}
+
+		handleStdin(e.logger, stdinPipe, stream, errCh)
+		handleStdout(e.logger, stdoutPipe, &wg, send, errCh)
+		handleStderr(e.logger, stderrPipe, &wg, send, errCh)
+
+		e.logger.Warn("waiting for output")
+		wg.Wait()
+		e.logger.Warn("output done - waiting for command")
 	}
 
-	err := cmd.Start()
-	if err != nil {
-		e.logger.Warn("failed to run cmd:", "error", err)
-	}
-
-	wg.Wait()
-	err = cmd.Wait()
+	err := cmd.Wait()
+	e.logger.Warn("command done", "error", err)
 	if err != nil {
 		e.logger.Warn("failed to wait for cmd", "error", err)
 	}
