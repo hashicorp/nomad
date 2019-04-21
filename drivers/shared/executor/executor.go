@@ -24,7 +24,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pty"
-	"golang.org/x/crypto/ssh/terminal"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -368,11 +367,9 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 
 	// Copy runtime environment from the main command
-	//cmd.SysProcAttr = e.childCmd.SysProcAttr
-	//cmd.Dir = e.childCmd.Dir
-	//cmd.Env = e.childCmd.Env
-
-	cmd.Dir = "/"
+	cmd.SysProcAttr = e.childCmd.SysProcAttr
+	cmd.Dir = e.childCmd.Dir
+	cmd.Env = e.childCmd.Env
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 3)
@@ -392,18 +389,6 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		}
 		defer tty.Close()
 		defer pty.Close()
-
-		ttyState, _ := terminal.GetState(int(tty.Fd()))
-		ptyState, _ := terminal.GetState(int(pty.Fd()))
-		stdinState, _ := terminal.GetState(int(os.Stdin.Fd()))
-
-		//terminal.MakeRaw(int(tty.Fd()))
-
-		e.logger.Warn("terminal states",
-			"tty", fmt.Sprintf("%#v", ttyState),
-			"pty", fmt.Sprintf("%#v", ptyState),
-			"stdin", fmt.Sprintf("%#v", stdinState),
-		)
 
 		if cmd.SysProcAttr == nil {
 			cmd.SysProcAttr = &syscall.SysProcAttr{}
