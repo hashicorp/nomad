@@ -434,8 +434,6 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		handleStdout(e.logger, stdoutPipe, &wg, send, errCh)
 		handleStderr(e.logger, stderrPipe, &wg, send, errCh)
 
-		// wait until we get all process output
-		wg.Wait()
 	}
 
 	err := cmd.Wait()
@@ -443,6 +441,9 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	if err != nil {
 		e.logger.Warn("failed to wait for cmd", "error", err)
 	}
+
+	// wait until we get all process output
+	wg.Wait()
 
 	// wait to flush out output
 	stream.Send(cmdExitResult(cmd.ProcessState))
