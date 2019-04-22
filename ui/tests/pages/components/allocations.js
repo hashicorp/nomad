@@ -1,8 +1,8 @@
 import { attribute, collection, clickable, isPresent, text } from 'ember-cli-page-object';
 
-export default function(selector = '[data-test-allocation]') {
+export default function(selector = '[data-test-allocation]', propKey = 'allocations') {
   return {
-    allocations: collection(selector, {
+    [propKey]: collection(selector, {
       id: attribute('data-test-allocation'),
       shortId: text('[data-test-short-id]'),
       createTime: text('[data-test-create-time]'),

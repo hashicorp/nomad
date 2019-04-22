@@ -8,6 +8,8 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
+import allocations from 'nomad-ui/tests/pages/components/allocations';
+
 export default create({
   visit: visitable('/allocations/:id'),
 
@@ -50,6 +52,24 @@ export default create({
   hasRescheduleEvents: isPresent('[data-test-reschedule-events]'),
 
   isEmpty: isPresent('[data-test-empty-tasks-list]'),
+
+  wasPreempted: isPresent('[data-test-was-preempted]'),
+  preempter: {
+    scope: '[data-test-was-preempted]',
+
+    status: text('[data-test-allocation-status]'),
+    name: text('[data-test-allocation-name]'),
+    priority: text('[data-test-job-priority]'),
+    reservedCPU: text('[data-test-allocation-cpu]'),
+    reservedMemory: text('[data-test-allocation-memory]'),
+
+    visit: clickable('[data-test-allocation-id]'),
+    visitJob: clickable('[data-test-job-link]'),
+    visitClient: clickable('[data-test-client-link]'),
+  },
+
+  preempted: isPresent('[data-test-preemptions]'),
+  ...allocations('[data-test-preemptions] [data-test-allocation]', 'preemptions'),
 
   error: {
     isShown: isPresent('[data-test-error]'),
