@@ -24,12 +24,12 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/kr/pty"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
+	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
@@ -506,6 +506,18 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 
 }
 
+func (l *LibcontainerExecutor) newTerminalSocket() (master func() (*os.File, error), socket *os.File, err error) {
+	l.logger.Warn("creating a terminal")
+	parent, child, err := lutils.NewSockPair("socket")
+	if err != nil {
+		l.logger.Warn("error creating terminal", "error", err)
+		return nil, nil, err
+	}
+
+	return func() (*os.File, error) { return lutils.RecvFd(parent) }, child, err
+
+}
+
 func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
 	stream drivers.ExecTaskStream) error {
 
@@ -521,11 +533,9 @@ func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, 
 	execHelper := &execHelper{
 		logger: l.logger,
 
-		newTerminal: pty.Open,
+		newTerminal: l.newTerminalSocket,
 		setTTY: func(tty *os.File) error {
-			process.Stdin = tty
-			process.Stdout = tty
-			process.Stderr = tty
+			process.ConsoleSocket = tty
 			return nil
 		},
 		setIO: func(stdin io.Reader, stdout, stderr io.Writer) error {
