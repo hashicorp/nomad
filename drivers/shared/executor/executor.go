@@ -371,7 +371,14 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	execHelper := &execHelper{
 		logger: e.logger,
 
-		newTerminal: pty.Open,
+		newTerminal: func() (func() (*os.File, error), *os.File, error) {
+			pty, tty, err := pty.Open()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			return func() (*os.File, error) { return pty, nil }, tty, err
+		},
 		setTTY: func(tty *os.File) error {
 			cmd.SysProcAttr = &syscall.SysProcAttr{
 				Setsid:  true,
