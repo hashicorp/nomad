@@ -2638,7 +2638,7 @@ func (c *Client) emitClientMetrics() {
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
 	for _, ar := range c.getAllocRunners() {
-		switch ar.Alloc().ClientStatus {
+		switch ar.AllocState().ClientStatus {
 		case structs.AllocClientStatusPending:
 			switch {
 			case ar.IsWaiting():
