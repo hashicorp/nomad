@@ -14,14 +14,13 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 // TestTaskRunner_LogmonHook_StartCrashStop simulates logmon crashing while the
 // Nomad client is restarting and asserts failing to reattach to logmon causes
-// a recoverable error (task restart).
+// nomad to spawn a new logmon.
 func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 	t.Parallel()
 
@@ -46,6 +45,7 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 	require.NoError(t, hook.Prestart(context.Background(), &req, &resp))
 	defer hook.Stop(context.Background(), nil, nil)
 
+	origState := resp.State
 	origHookData := resp.State[logmonReattachKey]
 	require.NotEmpty(t, origHookData)
 
@@ -80,9 +80,8 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 	}
 	resp = interfaces.TaskPrestartResponse{}
 	err = hook.Prestart(context.Background(), &req, &resp)
-	require.Error(t, err)
-	require.True(t, structs.IsRecoverable(err))
-	require.Empty(t, resp.State)
+	require.NoError(t, err)
+	require.NotEqual(t, origState, resp.State)
 
 	// Running stop should shutdown logmon
 	require.NoError(t, hook.Stop(context.Background(), nil, nil))

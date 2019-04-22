@@ -95,22 +95,29 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
-	// Create a logmon client by reattaching or launching a new instance
-	if h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
+	// Attempt to reattach to logmon
+	if h.logmonPluginClient == nil {
 		reattachConfig, err := reattachConfigFromHookData(req.PreviousState)
 		if err != nil {
 			h.logger.Error("failed to load reattach config", "error", err)
 			return err
 		}
+		if reattachConfig != nil {
+			if err := h.launchLogMon(reattachConfig); err != nil {
+				h.logger.Warn("failed to reattach to logmon process", "error", err)
+			}
+		}
 
-		// Launch or reattach logmon instance for the task.
-		if err := h.launchLogMon(reattachConfig); err != nil {
-			// Retry errors launching logmon as logmon may have crashed and
+	}
+
+	// We did not reattach to a plugin and one is still not running.
+	if h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
+		if err := h.launchLogMon(nil); err != nil {
+			// Retry errors launching logmon as logmon may have crashed on start and
 			// subsequent attempts will start a new one.
 			h.logger.Error("failed to launch logmon process", "error", err)
 			return structs.NewRecoverableError(err, true)
 		}
-
 	}
 
 	err := h.logmon.Start(&logmon.LogConfig{
