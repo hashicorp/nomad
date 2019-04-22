@@ -251,14 +251,14 @@ func startExecNoTty(ctx context.Context,
 	handleStdout(logger, stdoutPr, &wg, send, errCh)
 	handleStderr(logger, stderrPr, &wg, send, errCh)
 
+	// wait until we get all process output
+	wg.Wait()
+
 	ps, err := waitFn()
 	logger.Warn("command done", "error", err)
 	if err != nil {
 		logger.Warn("failed to wait for cmd", "error", err)
 	}
-
-	// wait until we get all process output
-	wg.Wait()
 
 	if ps != nil {
 		// wait to flush out output
