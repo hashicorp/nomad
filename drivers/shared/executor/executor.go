@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/kr/pty"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -367,8 +368,11 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	cmd.Dir = "/"
 	cmd.Env = e.childCmd.Env
 
-	return startExec(ctx, tty, e.logger, stream,
-		func(tty *os.File) error {
+	execHelper := &execHelper{
+		logger: e.logger,
+
+		newTerminal: pty.Open,
+		setTTY: func(tty *os.File) error {
 			cmd.SysProcAttr = &syscall.SysProcAttr{
 				Setsid:  true,
 				Setctty: true,
@@ -380,18 +384,20 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			cmd.Stderr = tty
 			return nil
 		},
-		func(stdin io.Reader, stdout, stderr io.Writer) error {
+		setIO: func(stdin io.Reader, stdout, stderr io.Writer) error {
 			cmd.Stdin = stdin
 			cmd.Stdout = stdout
 			cmd.Stderr = stderr
 			return nil
 		},
-		cmd.Start,
-		func() (*os.ProcessState, error) {
+		processStart: cmd.Start,
+		processWait: func() (*os.ProcessState, error) {
 			err := cmd.Wait()
 			return cmd.ProcessState, err
 		},
-	)
+	}
+
+	return execHelper.run(ctx, tty, stream)
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
