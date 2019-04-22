@@ -13,6 +13,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
+	"github.com/kr/pty"
 	"golang.org/x/sys/unix"
 )
 
@@ -60,9 +61,21 @@ func handleStdin(logger hclog.Logger, stdin io.WriteCloser, stream drivers.ExecT
 				_, err := stdin.Write(m.Stdin.Data)
 				if err != nil {
 					errCh <- err
+					return
 				}
 			} else if m.Stdin != nil && m.Stdin.Close {
 				stdin.Close()
+			} else if m.TtySize != nil {
+				if f, ok := stdin.(*os.File); ok {
+					pty.Setsize(f, &pty.Winsize{
+						Rows: uint16(m.TtySize.Height),
+						Cols: uint16(m.TtySize.Width),
+					})
+				} else {
+					errCh <- fmt.Errorf("attempted to resize a non-tty session")
+					return
+				}
+
 			} else {
 				// ignore heartbeats or unexpected tty events
 			}
