@@ -97,11 +97,11 @@
     <div class="boxed-section-head">
       <div>
         Allocations
-        <button role="button" class="badge is-white" onclick={{action "setPreemptionFilter" false}}>
+        <button role="button" class="badge is-white" onclick={{action "setPreemptionFilter" false}} data-test-filter-all>
           {{model.allocations.length}}
         </button>
         {{#if preemptions.length}}
-          <button role="button" class="badge is-warning" onclick={{action "setPreemptionFilter" true}}>
+          <button role="button" class="badge is-warning" onclick={{action "setPreemptionFilter" true}} data-test-filter-preemptions>
             {{preemptions.length}} {{pluralize "preemption" preemptions.length}}
           </button>
         {{/if}}

@@ -45,6 +45,13 @@ export default create({
 
   ...allocations(),
 
+  allocationFilter: {
+    preemptions: clickable('[data-test-filter-preemptions]'),
+    all: clickable('[data-test-filter-all]'),
+    preemptionsCount: text('[data-test-filter-preemptions]'),
+    allCount: text('[data-test-filter-all]'),
+  },
+
   attributesTable: isPresent('[data-test-attributes]'),
   metaTable: isPresent('[data-test-meta]'),
   emptyMetaMessage: isPresent('[data-test-empty-meta-message]'),

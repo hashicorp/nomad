@@ -12,6 +12,8 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 
 let node;
 
+const wasPreemptedFilter = allocation => !!allocation.preemptedByAllocation;
+
 module('Acceptance | client detail', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
@@ -24,6 +26,7 @@ module('Acceptance | client detail', function(hooks) {
     server.create('agent');
     server.create('job', { createAllocations: false });
     server.createList('allocation', 3, { nodeId: node.id, clientStatus: 'running' });
+    server.create('allocation', 'preempted', { nodeId: node.id, clientStatus: 'running' });
   });
 
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function(assert) {
@@ -216,6 +219,65 @@ module('Acceptance | client detail', function(hooks) {
       currentURL(),
       `/jobs/${job.id}`,
       'Allocation rows link to the job detail page for the allocation'
+    );
+  });
+
+  test('the allocation section should show the count of preempted allocations on the client', async function(assert) {
+    const allocations = server.db.allocations.where({ nodeId: node.id });
+
+    await ClientDetail.visit({ id: node.id });
+
+    assert.equal(
+      ClientDetail.allocationFilter.allCount,
+      allocations.length,
+      'All filter/badge shows all allocations count'
+    );
+    assert.ok(
+      ClientDetail.allocationFilter.preemptionsCount.startsWith(
+        allocations.filter(wasPreemptedFilter).length
+      ),
+      'Preemptions filter/badge shows preempted allocations count'
+    );
+  });
+
+  test('clicking the preemption badge filters the allocations table and sets a query param', async function(assert) {
+    const allocations = server.db.allocations.where({ nodeId: node.id });
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.allocationFilter.preemptions();
+
+    assert.equal(
+      ClientDetail.allocations.length,
+      allocations.filter(wasPreemptedFilter).length,
+      'Only preempted allocations are shown'
+    );
+    assert.equal(
+      currentURL(),
+      `/clients/${node.id}?preemptions=true`,
+      'Filter is persisted in the URL'
+    );
+  });
+
+  test('clicking the total allocations badge resets the filter and removes the query param', async function(assert) {
+    const allocations = server.db.allocations.where({ nodeId: node.id });
+
+    await ClientDetail.visit({ id: node.id });
+    await ClientDetail.allocationFilter.preemptions();
+    await ClientDetail.allocationFilter.all();
+
+    assert.equal(ClientDetail.allocations.length, allocations.length, 'All allocations are shown');
+    assert.equal(currentURL(), `/clients/${node.id}`, 'Filter is persisted in the URL');
+  });
+
+  test('navigating directly to the client detail page with the preemption query param set will filter the allocations table', async function(assert) {
+    const allocations = server.db.allocations.where({ nodeId: node.id });
+
+    await ClientDetail.visit({ id: node.id, preemptions: true });
+
+    assert.equal(
+      ClientDetail.allocations.length,
+      allocations.filter(wasPreemptedFilter).length,
+      'Only preempted allocations are shown'
     );
   });
 
