@@ -199,3 +199,106 @@ module('Acceptance | allocation detail (not running)', function(hooks) {
     );
   });
 });
+
+module('Acceptance | allocation detail (preemptions)', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function() {
+    server.create('agent');
+    node = server.create('node');
+    job = server.create('job', { createAllocations: false });
+  });
+
+  test('shows a dedicated section to the allocation that preempted this allocation', async function(assert) {
+    allocation = server.create('allocation', 'preempted');
+    const preempter = server.schema.find('allocation', allocation.preemptedByAllocation);
+    const preempterJob = server.schema.find('job', preempter.jobId);
+    const preempterClient = server.schema.find('node', preempter.nodeId);
+
+    await Allocation.visit({ id: allocation.id });
+    assert.ok(Allocation.wasPreempted, 'Preempted allocation section is shown');
+    assert.equal(Allocation.preempter.status, preempter.clientStatus, 'Preempter status matches');
+    assert.equal(Allocation.preempter.name, preempter.name, 'Preempter name matches');
+    assert.equal(
+      Allocation.preempter.priority,
+      preempterJob.priority,
+      'Preempter priority matches'
+    );
+
+    await Allocation.preempter.visit();
+    assert.equal(
+      currentURL(),
+      `/allocations/${preempter.id}`,
+      'Clicking the preempter id navigates to the preempter allocation detail page'
+    );
+
+    await Allocation.visit({ id: allocation.id });
+    await Allocation.preempter.visitJob();
+    assert.equal(
+      currentURL(),
+      `/jobs/${preempterJob.id}`,
+      'Clicking the preempter job link navigates to the preempter job page'
+    );
+
+    await Allocation.visit({ id: allocation.id });
+    await Allocation.preempter.visitClient();
+    assert.equal(
+      currentURL(),
+      `/clients/${preempterClient.id}`,
+      'Clicking the preempter client link navigates to the preempter client page'
+    );
+  });
+
+  test('shows a dedicated section to the allocations this allocation preempted', async function(assert) {
+    allocation = server.create('allocation', 'preempter');
+    await Allocation.visit({ id: allocation.id });
+    assert.ok(Allocation.preempted, 'The allocations this allocation preempted are shown');
+  });
+
+  test('each preempted allocation in the table lists basic allocation information', async function(assert) {
+    allocation = server.create('allocation', 'preempter');
+    await Allocation.visit({ id: allocation.id });
+
+    const preemption = allocation.preemptedAllocations
+      .map(id => server.schema.find('allocation', id))
+      .sortBy('modifyIndex')
+      .reverse()[0];
+    const preemptionRow = Allocation.preemptions.objectAt(0);
+
+    assert.equal(
+      Allocation.preemptions.length,
+      allocation.preemptedAllocations.length,
+      'The preemptions table has a row for each preempted allocation'
+    );
+
+    assert.equal(preemptionRow.shortId, preemption.id.split('-')[0], 'Preemption short id');
+    assert.equal(
+      preemptionRow.createTime,
+      moment(preemption.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
+      'Preemption create time'
+    );
+    assert.equal(
+      preemptionRow.modifyTime,
+      moment(preemption.modifyTime / 1000000).fromNow(),
+      'Preemption modify time'
+    );
+    assert.equal(preemptionRow.status, preemption.clientStatus, 'Client status');
+    assert.equal(preemptionRow.jobVersion, preemption.jobVersion, 'Job Version');
+    assert.equal(
+      preemptionRow.client,
+      server.db.nodes.find(preemption.nodeId).id.split('-')[0],
+      'Node ID'
+    );
+
+    await preemptionRow.visitClient();
+    assert.equal(currentURL(), `/clients/${preemption.nodeId}`, 'Node links to node page');
+  });
+
+  test('when an allocation both preempted allocations and was preempted itself, both preemptions sections are shown', async function(assert) {
+    allocation = server.create('allocation', 'preempter', 'preempted');
+    await Allocation.visit({ id: allocation.id });
+    assert.ok(Allocation.preempted, 'The allocations this allocation preempted are shown');
+    assert.ok(Allocation.wasPreempted, 'Preempted allocation section is shown');
+  });
+});
