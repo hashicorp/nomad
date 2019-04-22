@@ -160,7 +160,7 @@ func isClosedError(err error) bool {
 type execHelper struct {
 	logger hclog.Logger
 
-	newTerminal func() (master, slave *os.File, err error)
+	newTerminal func() (master func() (*os.File, error), slave *os.File, err error)
 	setTTY      func(*os.File) error
 	setIO       func(stdin io.Reader, stdout, stderr io.Writer) error
 
@@ -176,12 +176,11 @@ func (e *execHelper) run(ctx context.Context, tty bool, stream drivers.ExecTaskS
 }
 
 func (e *execHelper) runTTY(ctx context.Context, stream drivers.ExecTaskStream) error {
-	pty, tty, err := e.newTerminal()
+	ptyF, tty, err := e.newTerminal()
 	if err != nil {
 		return fmt.Errorf("failed to open a tty: %v", err)
 	}
 	defer tty.Close()
-	defer pty.Close()
 
 	if err := e.setTTY(tty); err != nil {
 		return fmt.Errorf("failed to set command tty: %v", err)
@@ -193,6 +192,12 @@ func (e *execHelper) runTTY(ctx context.Context, stream drivers.ExecTaskStream) 
 	var wg sync.WaitGroup
 	errCh := make(chan error, 3)
 
+	pty, err := ptyF()
+	if err != nil {
+		return fmt.Errorf("failed to get tty master: %v", err)
+	}
+
+	defer pty.Close()
 	handleStdin(e.logger, pty, stream, errCh)
 	// when tty is on, stdout and stderr point to the same pty so only read once
 	handleStdout(e.logger, pty, &wg, stream.Send, errCh)
