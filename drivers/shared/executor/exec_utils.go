@@ -199,7 +199,7 @@ func startExecTty(ctx context.Context,
 		logger.Warn("failed to wait for cmd", "error", err)
 	}
 
-	pty.Close()
+	tty.Close()
 
 	// wait until we get all process output
 	wg.Wait()
