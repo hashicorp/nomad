@@ -4,8 +4,8 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/kr/pty"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
@@ -505,9 +506,43 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 
 }
 
-func (e *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
+func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
 	stream drivers.ExecTaskStream) error {
-	return errors.New("not implemented yet")
+
+	// the task process will be started by the container
+	process := &libcontainer.Process{
+		Args: cmd,
+		Env:  l.userProc.Env,
+		User: l.userProc.User,
+		Init: false,
+		Cwd:  "/",
+	}
+
+	execHelper := &execHelper{
+		logger: l.logger,
+
+		newTerminal: pty.Open,
+		setTTY: func(tty *os.File) error {
+			process.Stdin = tty
+			process.Stdout = tty
+			process.Stderr = tty
+			return nil
+		},
+		setIO: func(stdin io.Reader, stdout, stderr io.Writer) error {
+			process.Stdin = stdin
+			process.Stdout = stdout
+			process.Stderr = stderr
+			return nil
+		},
+
+		processStart: func() error { return l.container.Run(process) },
+		processWait: func() (*os.ProcessState, error) {
+			return process.Wait()
+		},
+	}
+
+	return execHelper.run(ctx, tty, stream)
+
 }
 
 type waitResult struct {
