@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -23,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/kr/pty"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -369,91 +367,31 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 	cmd.Dir = "/"
 	cmd.Env = e.childCmd.Env
 
-	var wg sync.WaitGroup
-	errCh := make(chan error, 3)
+	return startExec(ctx, tty, e.logger, stream,
+		func(tty *os.File) error {
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				Setsid:  true,
+				Setctty: true,
+				Ctty:    int(tty.Fd()),
+			}
 
-	var sendLock sync.Mutex
-	send := func(v *drivers.ExecTaskStreamingResponseMsg) error {
-		sendLock.Lock()
-		defer sendLock.Unlock()
-
-		return stream.Send(v)
-	}
-
-	if tty {
-		pty, tty, err := pty.Open()
-		if err != nil {
-			return fmt.Errorf("failed to open a tty: %v", err)
-		}
-		defer tty.Close()
-		defer pty.Close()
-
-		if cmd.SysProcAttr == nil {
-			cmd.SysProcAttr = &syscall.SysProcAttr{}
-		}
-
-		cmd.SysProcAttr.Setsid = true
-		cmd.SysProcAttr.Setctty = true
-		cmd.SysProcAttr.Ctty = int(tty.Fd())
-
-		cmd.Stdin = tty
-		cmd.Stdout = tty
-		cmd.Stderr = tty
-
-		if err := cmd.Start(); err != nil {
-			e.logger.Warn("failed to run cmd:", "error", err)
-			return fmt.Errorf("failed to start command: %v", err)
-		}
-
-		handleStdin(e.logger, pty, stream, errCh)
-		// when tty is on, stdout and stderr point to the same pty so only read once
-		handleStdout(e.logger, pty, &wg, send, errCh)
-
-		// pty doesn't get EOF here for some reason (until process is reaped?!), so don't wait for wg
-	} else {
-		stdinPipe, err := cmd.StdinPipe()
-		if err != nil {
-			return fmt.Errorf("failed to get stdin pipe: %v", err)
-		}
-		stdoutPipe, err := cmd.StdoutPipe()
-		if err != nil {
-			return fmt.Errorf("failed to get stdout pipe: %v", err)
-		}
-		stderrPipe, err := cmd.StderrPipe()
-		if err != nil {
-			return fmt.Errorf("failed to get stdout pipe: %v", err)
-		}
-
-		if err := cmd.Start(); err != nil {
-			e.logger.Warn("failed to run cmd:", "error", err)
-			return fmt.Errorf("failed to start command: %v", err)
-		}
-
-		handleStdin(e.logger, stdinPipe, stream, errCh)
-
-		handleStdout(e.logger, stdoutPipe, &wg, send, errCh)
-		handleStderr(e.logger, stderrPipe, &wg, send, errCh)
-
-	}
-
-	err := cmd.Wait()
-	e.logger.Warn("command done", "error", err)
-	if err != nil {
-		e.logger.Warn("failed to wait for cmd", "error", err)
-	}
-
-	// wait until we get all process output
-	wg.Wait()
-
-	// wait to flush out output
-	stream.Send(cmdExitResult(cmd.ProcessState))
-
-	select {
-	case err := <-errCh:
-		return err
-	default:
-		return nil
-	}
+			cmd.Stdin = tty
+			cmd.Stdout = tty
+			cmd.Stderr = tty
+			return nil
+		},
+		func(stdin io.Reader, stdout, stderr io.Writer) error {
+			cmd.Stdin = stdin
+			cmd.Stdout = stdout
+			cmd.Stderr = stderr
+			return nil
+		},
+		cmd.Start,
+		func() (*os.ProcessState, error) {
+			err := cmd.Wait()
+			return cmd.ProcessState, err
+		},
+	)
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors

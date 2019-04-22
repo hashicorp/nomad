@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
+	"github.com/kr/pty"
 	"golang.org/x/sys/unix"
 )
 
@@ -146,4 +149,126 @@ func isClosedError(err error) bool {
 	return err == io.EOF ||
 		err == io.ErrClosedPipe ||
 		strings.Contains(err.Error(), unix.EIO.Error())
+}
+
+func startExec(ctx context.Context, tty bool,
+	logger hclog.Logger,
+	stream drivers.ExecTaskStream,
+	setTTY func(*os.File) error,
+	setIO func(stdin io.Reader, stdout, stderr io.Writer) error,
+	startFn func() error,
+	waitFn func() (*os.ProcessState, error),
+) error {
+	if tty {
+		return startExecTty(ctx, logger, stream, setTTY, startFn, waitFn)
+	}
+	return startExecNoTty(ctx, logger, stream, setIO, startFn, waitFn)
+}
+
+func startExecTty(ctx context.Context,
+	logger hclog.Logger,
+	stream drivers.ExecTaskStream,
+	setTTY func(tty *os.File) error,
+	startFn func() error,
+	waitFn func() (*os.ProcessState, error),
+) error {
+	pty, tty, err := pty.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open a tty: %v", err)
+	}
+	defer tty.Close()
+	defer pty.Close()
+
+	if err := setTTY(tty); err != nil {
+		return fmt.Errorf("failed to set command tty: %v", err)
+	}
+	if err := startFn(); err != nil {
+		return fmt.Errorf("failed to start command: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, 3)
+
+	handleStdin(logger, pty, stream, errCh)
+	// when tty is on, stdout and stderr point to the same pty so only read once
+	handleStdout(logger, pty, &wg, stream.Send, errCh)
+
+	ps, err := waitFn()
+	logger.Warn("command done", "error", err)
+	if err != nil {
+		logger.Warn("failed to wait for cmd", "error", err)
+	}
+
+	pty.Close()
+
+	// wait until we get all process output
+	wg.Wait()
+
+	if ps != nil {
+		// wait to flush out output
+		stream.Send(cmdExitResult(ps))
+	}
+
+	select {
+	case cerr := <-errCh:
+		return cerr
+	default:
+		return err
+	}
+}
+
+func startExecNoTty(ctx context.Context,
+	logger hclog.Logger,
+	stream drivers.ExecTaskStream,
+	setIO func(stdin io.Reader, stdout, stderr io.Writer) error,
+	startFn func() error,
+	waitFn func() (*os.ProcessState, error),
+) error {
+	var sendLock sync.Mutex
+	send := func(v *drivers.ExecTaskStreamingResponseMsg) error {
+		sendLock.Lock()
+		defer sendLock.Unlock()
+
+		return stream.Send(v)
+	}
+
+	stdinPr, stdinPw := io.Pipe()
+	stdoutPr, stdoutPw := io.Pipe()
+	stderrPr, stderrPw := io.Pipe()
+
+	if err := setIO(stdinPr, stdoutPw, stderrPw); err != nil {
+		return fmt.Errorf("failed to set command io: %v", err)
+	}
+
+	if err := startFn(); err != nil {
+		return fmt.Errorf("failed to start command: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, 3)
+
+	handleStdin(logger, stdinPw, stream, errCh)
+	handleStdout(logger, stdoutPr, &wg, send, errCh)
+	handleStderr(logger, stderrPr, &wg, send, errCh)
+
+	ps, err := waitFn()
+	logger.Warn("command done", "error", err)
+	if err != nil {
+		logger.Warn("failed to wait for cmd", "error", err)
+	}
+
+	// wait until we get all process output
+	wg.Wait()
+
+	if ps != nil {
+		// wait to flush out output
+		stream.Send(cmdExitResult(ps))
+	}
+
+	select {
+	case cerr := <-errCh:
+		return cerr
+	default:
+		return err
+	}
 }
