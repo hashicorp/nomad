@@ -104,7 +104,7 @@ func (h *logmonHook) Prestart(ctx context.Context,
 		}
 		if reattachConfig != nil {
 			if err := h.launchLogMon(reattachConfig); err != nil {
-				h.logger.Error("failed to reattach to logmon process", "error", err)
+				h.logger.Warn("failed to reattach to logmon process", "error", err)
 			}
 		}
 
