@@ -38,7 +38,7 @@ These setup steps should be completed on all Nomad hosts:
 Precompiled Nomad binaries are available for download at [https://releases.hashicorp.com/nomad/](https://releases.hashicorp.com/nomad/) and Nomad Enterprise binaries are available for download by following the instructions made available to HashiCorp Enterprise customers.
 
 ```text
-export NOMAD_VERSION="0.8.7"
+export NOMAD_VERSION="0.9.0"
 curl --silent --remote-name https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip
 ```
 
