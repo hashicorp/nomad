@@ -14,6 +14,7 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
+ * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
 
 ## 0.9.0 (April 9, 2019)
 
