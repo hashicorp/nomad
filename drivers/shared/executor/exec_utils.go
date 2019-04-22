@@ -236,6 +236,9 @@ func startExecNoTty(ctx context.Context,
 	stdoutPr, stdoutPw := io.Pipe()
 	stderrPr, stderrPw := io.Pipe()
 
+	defer stdoutPw.Close()
+	defer stderrPw.Close()
+
 	if err := setIO(stdinPr, stdoutPw, stderrPw); err != nil {
 		return fmt.Errorf("failed to set command io: %v", err)
 	}
@@ -251,14 +254,17 @@ func startExecNoTty(ctx context.Context,
 	handleStdout(logger, stdoutPr, &wg, send, errCh)
 	handleStderr(logger, stderrPr, &wg, send, errCh)
 
-	// wait until we get all process output
-	wg.Wait()
-
 	ps, err := waitFn()
 	logger.Warn("command done", "error", err)
 	if err != nil {
 		logger.Warn("failed to wait for cmd", "error", err)
 	}
+
+	stdoutPw.Close()
+	stderrPw.Close()
+
+	// wait until we get all process output
+	wg.Wait()
 
 	if ps != nil {
 		// wait to flush out output
