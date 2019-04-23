@@ -7,7 +7,6 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -351,6 +350,12 @@ var nonoptConfig = &Config{
 
 func TestConfig_Parse(t *testing.T) {
 	t.Parallel()
+
+	// inconsequential changes to parsed data
+	basicConfig.Telemetry.CollectionInterval = "" // tmp field to hold the string value
+	pluginConfig.addDefaults()
+	nonoptConfig.addDefaults()
+
 	cases := []struct {
 		File   string
 		Result *Config
@@ -412,14 +417,6 @@ func removeHelperAttributes(c *Config) *Config {
 	return c
 }
 
-func Test_removeEqualFold(t *testing.T) {
-	xs := []string{"foo", "bar"}
-	removeEqualFold(&xs, "foo")
-	pretty.Log(xs)
-	removeEqualFold(&xs, "bar")
-	pretty.Log(xs)
-}
-
 func (c *Config) addDefaults() {
 	if c.Client.ServerJoin == nil {
 		c.Client.ServerJoin = &ServerJoin{}
@@ -447,56 +444,16 @@ func (c *Config) addDefaults() {
 	}
 }
 
-func TestParseDirectHCL(t *testing.T) {
-	t.Parallel()
-
-	// inconsequential changes to parsed data
-	basicConfig.Telemetry.CollectionInterval = "" // tmp field to hold the string value
-	pluginConfig.addDefaults()
-	nonoptConfig.addDefaults()
-
-	cases := []struct {
-		File   string
-		Result *Config
-		Err    bool
-	}{
-		{"basic.hcl", basicConfig, false},
-		{"basic.json", basicConfig, false},
-		{"plugin.hcl", pluginConfig, false},
-		{"plugin.json", pluginConfig, false},
-		{"non-optional.hcl", nonoptConfig, false},
-		{"non-optional.json", nonoptConfig, false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.File, func(t *testing.T) {
-			require := require.New(t)
-			path, err := filepath.Abs(filepath.Join("./testdata", tc.File))
-			if err != nil {
-				t.Fatalf("file: %s\n\n%s", tc.File, err)
-			}
-
-			actual, err := ParseConfigFileDirectHCL(path)
-			if (err != nil) != tc.Err {
-				t.Fatalf("file: %s\n\n%s", tc.File, err)
-			}
-
-			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
-			require.EqualValues(removeHelperAttributes(actual), tc.Result)
-		})
-	}
-}
-
 // this tests for a panic parsing json with an object of exactly
 // length 1 described in
 // https://github.com/hashicorp/nomad/issues/1290
-func TestParseDirectHCLPanic(t *testing.T) {
-	c, err := ParseConfigFileDirectHCL("./testdata/obj-len-one.hcl")
+func TestConfig_ParsePanic(t *testing.T) {
+	c, err := ParseConfigFile("./testdata/obj-len-one.hcl")
 	if err != nil {
 		t.Fatalf("parse error: %s\n", err)
 	}
 
-	d, err := ParseConfigFileDirectHCL("./testdata/obj-len-one.json")
+	d, err := ParseConfigFile("./testdata/obj-len-one.json")
 	if err != nil {
 		t.Fatalf("parse error: %s\n", err)
 	}
@@ -506,8 +463,8 @@ func TestParseDirectHCLPanic(t *testing.T) {
 
 // this tests for top level keys left by hcl when parsing slices in
 // the config structure
-func TestParseDirectHCLSliceExtra(t *testing.T) {
-	c, err := ParseConfigFileDirectHCL("./testdata/config-slices.json")
+func TestConfig_ParseSliceExtra(t *testing.T) {
+	c, err := ParseConfigFile("./testdata/config-slices.json")
 	if err != nil {
 		t.Fatalf("parse error: %s\n", err)
 	}
@@ -526,7 +483,7 @@ func TestParseDirectHCLSliceExtra(t *testing.T) {
 	require.EqualValues(t, srv, c.Server.RetryJoin)
 
 	// the alt format is also accepted by hcl as valid config data
-	c, err = ParseConfigFileDirectHCL("./testdata/config-slices-alt.json")
+	c, err = ParseConfigFile("./testdata/config-slices-alt.json")
 	if err != nil {
 		t.Fatalf("parse error: %s\n", err)
 	}
@@ -540,7 +497,7 @@ func TestParseDirectHCLSliceExtra(t *testing.T) {
 	require.EqualValues(t, srv, c.Server.RetryJoin)
 
 	// small files keep more extra keys than large ones
-	_, err = ParseConfigFileDirectHCL("./testdata/obj-len-one-server.json")
+	_, err = ParseConfigFile("./testdata/obj-len-one-server.json")
 	if err != nil {
 		t.Fatalf("parse error: %s\n", err)
 	}
