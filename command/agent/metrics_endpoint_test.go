@@ -7,15 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
-
-	"github.com/hashicorp/nomad/nomad/mock"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
@@ -83,13 +80,13 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 		job.TaskGroups[0].Count = numTasks
 		testutil.RegisterJob(t, s.RPC, job)
 		testutil.WaitForResult(func() (bool, error) {
+			time.Sleep(200 * time.Millisecond)
 			args := &structs.JobSpecificRequest{}
 			args.JobID = job.ID
 			args.QueryOptions.Region = "global"
 			var resp structs.SingleJobResponse
 			err := s.RPC("Job.GetJob", args, &resp)
-			require.NoError(err)
-			return resp.Job.Status != "dead", nil
+			return err == nil && resp.Job.Status == "dead", err
 		}, func(err error) {
 			require.Fail("timed-out waiting for job to complete")
 		})
@@ -98,13 +95,14 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 		var pending, running, terminal float32 = -1.0, -1.0, -1.0
 		testutil.WaitForResultRetries(100, func() (bool, error) {
 			time.Sleep(100 * time.Millisecond)
-			// client alloc metrics should reflect that there is one running alloc and zero pending allocs
 			req, err := http.NewRequest("GET", "/v1/metrics", nil)
 			require.NoError(err)
 			respW := httptest.NewRecorder()
 
 			obj, err := s.Server.MetricsRequest(respW, req)
-			require.NoError(err)
+			if err != nil {
+				return false, err
+			}
 
 			metrics := obj.(metrics.MetricsSummary)
 			for _, g := range metrics.Gauges {
@@ -118,6 +116,7 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 					terminal = g.Value
 				}
 			}
+			// client alloc metrics should reflect that there is numTasks terminal allocs and no other allocs
 			return pending == float32(0) && running == float32(0) &&
 				terminal == float32(numTasks), nil
 		}, func(err error) {
