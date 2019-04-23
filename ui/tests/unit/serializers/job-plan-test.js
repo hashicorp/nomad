@@ -38,7 +38,11 @@ module('Unit | Serializer | JobPlan', function(hooks) {
               },
             ],
           },
-          relationships: {},
+          relationships: {
+            preemptions: {
+              data: [],
+            },
+          },
         },
       },
     },
@@ -78,7 +82,57 @@ module('Unit | Serializer | JobPlan', function(hooks) {
               },
             ],
           },
-          relationships: {},
+          relationships: {
+            preemptions: {
+              data: [],
+            },
+          },
+        },
+      },
+    },
+
+    {
+      name: 'With preemptions',
+      in: {
+        ID: 'test-plan',
+        Diff: {
+          Arbitrary: 'Value',
+        },
+        FailedTGAllocs: {
+          task: {
+            NodesAvailable: 10,
+          },
+        },
+        Annotations: {
+          PreemptedAllocs: [
+            { ID: 'preemption-one-allocation' },
+            { ID: 'preemption-two-allocation' },
+          ],
+        },
+      },
+      out: {
+        data: {
+          id: 'test-plan',
+          type: 'job-plan',
+          attributes: {
+            diff: {
+              Arbitrary: 'Value',
+            },
+            failedTGAllocs: [
+              {
+                name: 'task',
+                nodesAvailable: 10,
+              },
+            ],
+          },
+          relationships: {
+            preemptions: {
+              data: [
+                { id: 'preemption-one-allocation', type: 'allocation' },
+                { id: 'preemption-two-allocation', type: 'allocation' },
+              ],
+            },
+          },
         },
       },
     },

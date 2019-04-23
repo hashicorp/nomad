@@ -44,6 +44,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
                 failed: false,
               },
             ],
+            wasPreempted: false,
           },
           relationships: {
             followUpEvaluation: {
@@ -53,6 +54,12 @@ module('Unit | Serializer | Allocation', function(hooks) {
               data: null,
             },
             previousAllocation: {
+              data: null,
+            },
+            preemptedAllocations: {
+              data: [],
+            },
+            preemptedByAllocation: {
               data: null,
             },
             job: {
@@ -108,6 +115,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
                 failed: true,
               },
             ],
+            wasPreempted: false,
           },
           relationships: {
             followUpEvaluation: {
@@ -118,6 +126,82 @@ module('Unit | Serializer | Allocation', function(hooks) {
             },
             previousAllocation: {
               data: null,
+            },
+            preemptedAllocations: {
+              data: [],
+            },
+            preemptedByAllocation: {
+              data: null,
+            },
+            job: {
+              data: {
+                id: '["test-summary","test-namespace"]',
+                type: 'job',
+              },
+            },
+          },
+        },
+      },
+    },
+
+    {
+      name: 'With preemptions',
+      in: {
+        ID: 'test-allocation',
+        JobID: 'test-summary',
+        Name: 'test-summary[1]',
+        Namespace: 'test-namespace',
+        TaskGroup: 'test-group',
+        CreateTime: +sampleDate * 1000000,
+        ModifyTime: +sampleDate * 1000000,
+        TaskStates: {
+          task: {
+            State: 'running',
+            Failed: false,
+          },
+        },
+        PreemptedByAllocation: 'preempter-allocation',
+        PreemptedAllocations: ['preempted-one-allocation', 'preempted-two-allocation'],
+      },
+      out: {
+        data: {
+          id: 'test-allocation',
+          type: 'allocation',
+          attributes: {
+            taskGroupName: 'test-group',
+            name: 'test-summary[1]',
+            modifyTime: sampleDate,
+            createTime: sampleDate,
+            states: [
+              {
+                name: 'task',
+                state: 'running',
+                failed: false,
+              },
+            ],
+            wasPreempted: true,
+          },
+          relationships: {
+            followUpEvaluation: {
+              data: null,
+            },
+            nextAllocation: {
+              data: null,
+            },
+            previousAllocation: {
+              data: null,
+            },
+            preemptedAllocations: {
+              data: [
+                { id: 'preempted-one-allocation', type: 'allocation' },
+                { id: 'preempted-two-allocation', type: 'allocation' },
+              ],
+            },
+            preemptedByAllocation: {
+              data: {
+                id: 'preempter-allocation',
+                type: 'allocation',
+              },
             },
             job: {
               data: {
