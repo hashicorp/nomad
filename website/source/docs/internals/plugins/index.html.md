@@ -22,9 +22,9 @@ The following components are currently plugable within Nomad:
 
 The Nomad plugin framework uses the [go-plugin][goplugin] project to expose
 a language independent plugin interface. Plugins implement a set of GRPC
-services, and Nomad manages running the plugin and calling the implemented
-RPCs. This means that plugins are free to be implemented in the author's
-language of choice.
+services and methods which Nomad manages by running the plugin and calling the
+implemented RPCs. This means that plugins are free to be implemented in the
+author's language of choice.
 
 To make plugin development easier, a set of go interfaces and structs exist for
 each plugin type that abstract away go-plugin and the GRPC interface. The

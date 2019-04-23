@@ -33,7 +33,7 @@ PluginInfoResponse{
 
 #### `ConfigSchema() (*hclspec.Spec, error)`
 
-The `ConfigScheme` function allows a plugin to tell Nomad the schema for it's
+The `ConfigSchema` function allows a plugin to tell Nomad the schema for it's
 configuration. This configuration is given in a [plugin block][pluginblock] of
 the client configuration. The schema is defined with the [hclspec][hclspec]
 package.
@@ -48,7 +48,7 @@ which is given to all plugins.
 
 ## HCL Specifications
 
-`*hclspec.Spec` is a struct that defines the schema to validate a hcl entity
+`*hclspec.Spec` is a struct that defines the schema to validate an HCL entity
 against. The full documentation of the different hcl attribute types can be
 found on the [hclspec godoc][hclspec].
 
