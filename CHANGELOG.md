@@ -4,6 +4,8 @@ FEATURES:
 
  * vault: Add initial support for Vault namespaces [[GH-5520](https://github.com/hashicorp/nomad/pull/5520)]
  * allocations: Add support for restarting allocations in-place [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
+ * allocations: Add support for stopping and rescheduling an allocation
+   [[GH-5512](https://github.com/hashicorp/nomad/pull/5512)]
 
 IMPROVEMENTS:
 
@@ -15,6 +17,8 @@ BUG FIXES:
 
  * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
  * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
+ * logging: Fix respawning logmon during task restarts when the logmon process
+   has been terminated [[GH-5577](https://github.com/hashicorp/nomad/pull/5577)]
 
 ## 0.9.0 (April 9, 2019)
 
