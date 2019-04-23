@@ -40,7 +40,7 @@ plugin][baseplugin] documentation.
 
 ### `Capabilities() (*Capabilities, error)`
 
-Capabilities signals to Nomad what features the driver implements. Example:
+Capabilities define what features the driver implements. Example:
 
 ```go
 Capabilities {
@@ -50,7 +50,7 @@ Capabilities {
     // environment?
 	Exec:        true,
     // What filesystem isolation is supported by the driver. Options include
-    // FSIsolationImage, FSIsolationChroot and FSIsolationNone
+    // FSIsolationImage, FSIsolationChroot, and FSIsolationNone
 	FSIsolation: FSIsolationImage,
 }
 ```
@@ -58,19 +58,19 @@ Capabilities {
 ### `Fingerprint(context.Context) (<-chan *Fingerprint, error)`
 
 This function is called by the client when the plugin is started. It allows the
-driver to indicate it's health to the client. The channel returned should
+driver to indicate its health to the client. The channel returned should
 immediately send an initial Fingerprint, then send periodic updates at an
 interval that is appropriate for the driver until the context is canceled.
 
 The fingerprint consists of a `HealthState` and `HealthDescription` to inform
-the client about it's health. Additionally an `Attributes` field is available
+the client about its health. Additionally an `Attributes` field is available
 for the driver to add additional attributes to the client node. The fingerprint
 `HealthState` can be one of three states.
 
 - `HealthStateUndetected`: Indicates that the necessary dependencies for the
-driver are not detected on the system. Ex. java runtime for the java driver
+  driver are not detected on the system. Ex. java runtime for the java driver
 - `HealthStateUnhealthy`: Indicates that something is wrong with the driver
-  runtime. Ex. docker daemon stopped for the docker driver
+  runtime. Ex. docker daemon stopped for the Docker driver
 - `HealthStateHealthy`: All systems go
 
 ### `StartTask(*TaskConfig) (*TaskHandle, *DriverNetwork, error)`
@@ -79,22 +79,22 @@ This function takes a [`TaskConfig`][taskconfig] which includes all of the confi
 needed to launch the task. Additionally the driver configuration can be decoded
 from the `TaskConfig` by calling `*TaskConfig.DecodeDriverConfig(t interface{})`
 passing in a pointer to the driver specific configuration struct. The
-`TaskConfig` includes an `ID` field which future operations to the task will be
+`TaskConfig` includes an `ID` field which future operations on the task will be
 referenced by.
 
-A [`*TaskHandle`][taskhandle] is to be returned by the driver which contains
-the required information to for the driver to reattach to the running task if
-it looses track of it (due to a crash for example). Some of this required state
+Drivers return a [`*TaskHandle`][taskhandle] which contains
+the required information for the driver to reattach to the running task in the
+case of plugin crashes or restarts. Some of this required state
 will be specific to the driver implementation, thus a `DriverState` field
 exists to allow the driver to encode custom state into the struct. Helper
 fields exist on the `TaskHandle` to `GetDriverState` and `SetDriverState`
 removing the need for the driver to handle serialization.
 
 A `*DriverNetwork` can optionally be returned to describe the network of the
-task if it is modified by the driver. An example of this is in the docker
-driver where tasks can be attached to a specific docker network.
+task if it is modified by the driver. An example of this is in the Docker
+driver where tasks can be attached to a specific Docker network.
 
-If an error occurs, it is expected that the driver will cleanup and created
+If an error occurs, it is expected that the driver will cleanup any created
 resources prior to returning the error.
 
 #### Logging
@@ -103,12 +103,12 @@ Nomad handles all rotation and plumbing of task logs. In order for task stdout
 and stderr to be received by Nomad, they must be written to the correct
 location. Prior to starting the task through the driver, the Nomad client
 creates FIFOs for stdout and stderr. These paths are given to the driver in the
-`TaskConfig`. The [`fifo` package][fifopackage] can be used to easily support
+`TaskConfig`. The [`fifo` package][fifopackage] can be used to support
 cross platform writing to these paths.
 
 #### TaskHandle Schema Versioning
 
-A `Version` field is available on the TaskHandle struct to facility backwards
+A `Version` field is available on the TaskHandle struct to facilitate backwards
 compatible recovery of tasks. This field is opaque to Nomad, but allows the
 driver to handle recover tasks that were created by an older version of the
 plugin.
@@ -118,8 +118,8 @@ plugin.
 When a driver is restarted it is not expected to persist any internal state to
 disk. To support this, Nomad will attempt to recover a task that was
 previously started if the driver does not recognize the task ID. During task
-recovery, the driver calls `RecoverTask` passing the `TaskHandle` that was
-built by the driver as a result of `StartTask`. If no error was returned, it is
+recovery, Nomad calls `RecoverTask` passing the `TaskHandle` that was
+returned by the `StartTask` function. If no error was returned, it is
 expected that the driver can now operate on the task by referencing the task
 ID. If an error occurs, the Nomad client will mark the task as `lost`.
 
@@ -127,7 +127,7 @@ ID. If an error occurs, the Nomad client will mark the task as `lost`.
 
 The `WaitTask` function is expected to return a channel that will send an
 `*ExitResult` when the task exits or close the channel when the context is
-cancel. It is also expected that calling `WaitTask` on an exited task will
+canceled. It is also expected that calling `WaitTask` on an exited task will
 immediately send an `*ExitResult` on the returned channel.
 
 ### `StopTask(taskID string, timeout time.Duration, signal string) error`
@@ -144,7 +144,9 @@ should be handled.
 
 The `DestroyTask` function cleans up and removes a task that has terminated. If
 force is set to true, the driver must destroy the task even if it is still
-running.
+running. If `WaitTask` is called after `DestroyTask`, it should return
+`drivers.ErrTaskNotFound` as no task state should exist after `DestroyTask` is
+called.
 
 ### `InspectTask(taskID string) (*TaskStatus, error)`
 
@@ -164,9 +166,8 @@ The Nomad client publishes events associated with an allocation. The
 tasks and the Nomad client will associate them with the correct allocation.
 
 An `Eventer` utility is available in the
-`github.com/hashicorp/nomad/drivers/shared/eventer` package which implements an
-event loop and publishing mechanisim to make it easy to implement the
-`TaskEvents` function.
+`github.com/hashicorp/nomad/drivers/shared/eventer` package implements an
+event loop and publishing mechanism for use in the `TaskEvents` function.
 
 ### `SignalTask(taskID string, signal string) error`
 
@@ -182,7 +183,7 @@ and is listed as a capability in the driver `Capabilities` struct.
 
 The `ExecTask` function is used by the Nomad client to execute commands inside
 the task execution context. For example, the Docker driver executes commands
-inside the running container. 
+inside the running container. `ExecTask` is called for Consul script checks.
 
 
 
