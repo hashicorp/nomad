@@ -7,7 +7,8 @@ BUG FIXES:
 * client: Fix deadlock on client startup after reboot [[GH-5568](https://github.com/hashicorp/nomad/pull/5568)]
 * client: Fix issue with node registration where newly registered nodes would not run system jobs [[GH-5585](https://github.com/hashicorp/nomad/pull/5585)]
 * driver/docker: Fix regression around volume handling [[GH-5572](https://github.com/hashicorp/nomad/pull/5572)]
-* metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
+
+ * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
 
 ## 0.9.0 (April 9, 2019)
 
