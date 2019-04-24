@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -140,6 +141,10 @@ func (a *Allocations) Exec(ctx context.Context,
 	for {
 		select {
 		case err := <-errCh:
+			// drop websocket code, not relevant to user
+			if wsErr, ok := err.(*websocket.CloseError); ok && wsErr.Text != "" {
+				return -1, errors.New(wsErr.Text)
+			}
 			return -1, err
 		case <-ctx.Done():
 			return -1, ctx.Err()
