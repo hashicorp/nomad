@@ -146,7 +146,7 @@ The `Singularity` driver requires the following:
 
 * `enabled` - The `Singularity` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
-* `singularity_path` - The location in which all containers are stored (commonly defaults to `/var/lib/singularity`). See [`Singularity-cache`][Singularity-cache] for more details.
+* `singularity_cache` - The location in which all containers are stored (commonly defaults to `/var/lib/singularity`). See [`Singularity-cache`][Singularity-cache] for more details.
 
 An example of using these plugin options with the new [plugin
 syntax][plugin] is shown below:
