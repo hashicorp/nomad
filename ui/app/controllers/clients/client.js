@@ -10,6 +10,7 @@ export default Controller.extend(Sortable, Searchable, {
     searchTerm: 'search',
     sortProperty: 'sort',
     sortDescending: 'desc',
+    onlyPreemptions: 'preemptions',
   },
 
   currentPage: 1,
@@ -20,9 +21,24 @@ export default Controller.extend(Sortable, Searchable, {
 
   searchProps: computed(() => ['shortId', 'name']),
 
-  listToSort: alias('model.allocations'),
+  onlyPreemptions: false,
+
+  visibleAllocations: computed(
+    'model.allocations.[]',
+    'preemptions.[]',
+    'onlyPreemptions',
+    function() {
+      return this.onlyPreemptions ? this.preemptions : this.model.allocations;
+    }
+  ),
+
+  listToSort: alias('visibleAllocations'),
   listToSearch: alias('listSorted'),
   sortedAllocations: alias('listSearched'),
+
+  preemptions: computed('model.allocations.@each.wasPreempted', function() {
+    return this.model.allocations.filterBy('wasPreempted');
+  }),
 
   sortedEvents: computed('model.events.@each.time', function() {
     return this.get('model.events')
@@ -37,6 +53,10 @@ export default Controller.extend(Sortable, Searchable, {
   actions: {
     gotoAllocation(allocation) {
       this.transitionToRoute('allocations.allocation', allocation);
+    },
+
+    setPreemptionFilter(value) {
+      this.set('onlyPreemptions', value);
     },
   },
 });

@@ -9,6 +9,11 @@
       {{x-icon "history" class="is-faded"}}
     </span>
   {{/if}}
+  {{#if allocation.wasPreempted}}
+    <span data-test-icon="preemption" class="tooltip text-center" role="tooltip" aria-label="Allocation was preempted">
+      {{x-icon "boot" class="is-faded"}}
+    </span>
+  {{/if}}
 </td>
 <td data-test-short-id>
   {{#link-to "allocations.allocation" allocation class="is-primary"}}
