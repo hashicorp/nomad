@@ -2,10 +2,14 @@ package testutils
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -24,6 +28,7 @@ func ExecTaskStreamingConformanceTests(t *testing.T, driver *DriverHarness, task
 	}
 
 	TestExecTaskStreamingBasicResponses(t, driver, taskID)
+	TestExecFSIsolation(t, driver, taskID)
 }
 
 var ExecTaskStreamingBasicCases = []struct {
@@ -51,7 +56,7 @@ var ExecTaskStreamingBasicCases = []struct {
 		ExitCode: 0,
 	},
 	{
-		Name:     "ntty: stty check",
+		Name:     "notty: stty check",
 		Command:  "stty size",
 		Tty:      false,
 		Stderr:   regexp.MustCompile("stty: .?standard input.?: Inappropriate ioctl for device\n"),
@@ -117,46 +122,11 @@ var ExecTaskStreamingBasicCases = []struct {
 
 func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
 	for _, c := range ExecTaskStreamingBasicCases {
-		t.Run(c.Name, func(t *testing.T) {
+		t.Run("basic: "+c.Name, func(t *testing.T) {
 
-			stream := newTestExecStream(t, c.Tty, c.Stdin)
+			result := execTask(t, driver, taskID, c.Command, c.Tty, c.Stdin)
 
-			ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancelFn()
-
-			command := []string{"/bin/sh", "-c", c.Command}
-
-			isRaw := false
-			exitCode := -2
-			if raw, ok := driver.impl.(drivers.ExecTaskStreamingRaw); ok {
-				isRaw = true
-				err := raw.ExecTaskStreamingRaw(ctx, taskID,
-					command, c.Tty, stream)
-				require.NoError(t, err)
-			} else {
-				execOpts, errCh := drivers.StreamsToExecOptions(ctx, command, c.Tty, stream)
-
-				r, err := driver.impl.ExecTaskStreaming(ctx, taskID, execOpts)
-				require.NoError(t, err)
-
-				select {
-				case err := <-errCh:
-					require.NoError(t, err)
-				default:
-					// all good
-				}
-
-				exitCode = r.ExitCode
-			}
-
-			result := stream.currentResult()
-			require.NoError(t, result.err)
-
-			if isRaw {
-				require.Equal(t, c.ExitCode, result.exitCode)
-			} else {
-				require.Equal(t, c.ExitCode, exitCode)
-			}
+			require.Equal(t, c.ExitCode, result.exitCode)
 
 			switch s := c.Stdout.(type) {
 			case string:
@@ -182,6 +152,90 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 
 		})
 	}
+}
+
+// TestExecFSIsolation asserts that exec occurs inside chroot/isolation environment rather than
+// on host
+func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
+	t.Run("isolation", func(t *testing.T) {
+		caps, err := driver.Capabilities()
+		require.NoError(t, err)
+
+		isolated := (caps.FSIsolation != drivers.FSIsolationNone)
+
+		text := "hello from the other side"
+
+		// write to a file and check it presence in host
+		w := execTask(t, driver, taskID,
+			fmt.Sprintf(`FILE=$(mktemp); echo "$FILE"; echo %q >> "${FILE}"`, text),
+			false, "")
+		require.Zero(t, w.exitCode)
+
+		tempfile := strings.TrimSpace(w.stdout)
+		if !isolated {
+			defer os.Remove(tempfile)
+		}
+
+		t.Logf("created file in task: %v", tempfile)
+
+		// read from host
+		b, err := ioutil.ReadFile(tempfile)
+		if !isolated {
+			require.NoError(t, err)
+			require.Equal(t, text, strings.TrimSpace(string(b)))
+		} else {
+			require.Error(t, err)
+			require.True(t, os.IsNotExist(err))
+		}
+
+		// read should succeed from task again
+		r := execTask(t, driver, taskID,
+			fmt.Sprintf("cat %q", tempfile),
+			false, "")
+		require.Zero(t, r.exitCode)
+		require.Equal(t, text, strings.TrimSpace(r.stdout))
+	})
+}
+
+func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) execResult {
+	stream := newTestExecStream(t, tty, stdin)
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelFn()
+
+	command := []string{"/bin/sh", "-c", cmd}
+
+	isRaw := false
+	exitCode := -2
+	if raw, ok := driver.impl.(drivers.ExecTaskStreamingRaw); ok {
+		isRaw = true
+		err := raw.ExecTaskStreamingRaw(ctx, taskID,
+			command, tty, stream)
+		require.NoError(t, err)
+	} else {
+		execOpts, errCh := drivers.StreamsToExecOptions(ctx, command, tty, stream)
+
+		r, err := driver.impl.ExecTaskStreaming(ctx, taskID, execOpts)
+		require.NoError(t, err)
+
+		select {
+		case err := <-errCh:
+			require.NoError(t, err)
+		default:
+			// all good
+		}
+
+		exitCode = r.ExitCode
+	}
+
+	result := stream.currentResult()
+	require.NoError(t, result.err)
+
+	if !isRaw {
+		result.exitCode = exitCode
+	}
+
+	return result
 }
 
 type execResult struct {
