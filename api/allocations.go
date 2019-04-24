@@ -307,14 +307,6 @@ func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal st
 	return err
 }
 
-type FileFD int
-
-var (
-	StdinFD  = FileFD(0)
-	StdoutFD = FileFD(1)
-	StderrFD = FileFD(2)
-)
-
 type FileOperation struct {
 	Data  []byte `json:"data,omitempty"`
 	Close bool   `json:"close,omitempty"`
