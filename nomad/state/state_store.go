@@ -4155,7 +4155,7 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			return nil, fmt.Errorf("alloc lookup failed: %v", err)
 		}
 		if alloc == nil {
-			continue
+			return nil, fmt.Errorf("alloc %v doesn't exist", allocDiff.ID)
 		}
 
 		// Merge the updates to the Allocation
