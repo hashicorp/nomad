@@ -6,7 +6,7 @@ description: |-
   This deployment guide covers the steps required to install and
   configure a single HashiCorp Nomad cluster as defined in the
   Nomad Reference Architecture
-product_version: 0.8
+ea_version: 0.9
 ---
 
 # Nomad Deployment Guide
