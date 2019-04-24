@@ -756,7 +756,7 @@ func copyFile(src, dst string, t *testing.T) {
 	}
 }
 
-func TestDockerExecTaskStreaming(t *testing.T) {
+func TestDocker_ExecTaskStreaming(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
 	}
