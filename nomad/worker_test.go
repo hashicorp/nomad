@@ -396,7 +396,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	s1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.EnabledSchedulers = []string{structs.JobTypeService}
-		c.Build = "0.9.1"
+		c.Build = "0.9.2"
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)

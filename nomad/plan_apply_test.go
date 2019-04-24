@@ -235,7 +235,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
-		c.Build = "0.9.1"
+		c.Build = "0.9.2"
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
