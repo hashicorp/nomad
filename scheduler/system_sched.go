@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -210,18 +210,18 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNotNeeded, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNotNeeded, "")
 	}
 
 	// Add all the allocs to migrate
 	for _, e := range diff.migrate {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocNodeTainted, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNodeTainted, "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range diff.lost {
-		s.plan.AppendUpdate(e.Alloc, structs.AllocDesiredStatusStop, allocLost, structs.AllocClientStatusLost)
+		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost)
 	}
 
 	// Attempt to do the upgrades in place
@@ -351,7 +351,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			if option.PreemptedAllocs != nil {
 				var preemptedAllocIDs []string
 				for _, stop := range option.PreemptedAllocs {
-					s.plan.AppendPreemptedAlloc(stop, structs.AllocDesiredStatusEvict, alloc.ID)
+					s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 
 					preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
 					if s.eval.AnnotatePlan && s.plan.Annotations != nil {

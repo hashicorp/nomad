@@ -310,6 +310,12 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 	// Add the evaluation token to the plan
 	plan.EvalToken = w.evalToken
 
+	// Normalize stopped and preempted allocs before RPC
+	normalizePlan := ServersMeetMinimumVersion(w.srv.Members(), MinVersionPlanNormalization, true)
+	if normalizePlan {
+		plan.NormalizeAllocations()
+	}
+
 	// Setup the request
 	req := structs.PlanRequest{
 		Plan: plan,

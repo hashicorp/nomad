@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
@@ -2840,6 +2840,100 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			continue
 		}
 	}
+}
+
+func TestPlan_NormalizeAllocations(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodeUpdate:      make(map[string][]*Allocation),
+		NodePreemptions: make(map[string][]*Allocation),
+	}
+	stoppedAlloc := MockAlloc()
+	desiredDesc := "Desired desc"
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
+	preemptedAlloc := MockAlloc()
+	preemptingAllocID := uuid.Generate()
+	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
+
+	plan.NormalizeAllocations()
+
+	actualStoppedAlloc := plan.NodeUpdate[stoppedAlloc.NodeID][0]
+	expectedStoppedAlloc := &Allocation{
+		ID:                 stoppedAlloc.ID,
+		DesiredDescription: desiredDesc,
+		ClientStatus:       AllocClientStatusLost,
+	}
+	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
+	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
+	expectedPreemptedAlloc := &Allocation{
+		ID:                    preemptedAlloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+	}
+	assert.Equal(t, expectedPreemptedAlloc, actualPreemptedAlloc)
+}
+
+func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodeUpdate: make(map[string][]*Allocation),
+	}
+	alloc := MockAlloc()
+	desiredDesc := "Desired desc"
+
+	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost)
+
+	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
+	expectedAlloc := new(Allocation)
+	*expectedAlloc = *alloc
+	expectedAlloc.DesiredDescription = desiredDesc
+	expectedAlloc.DesiredStatus = AllocDesiredStatusStop
+	expectedAlloc.ClientStatus = AllocClientStatusLost
+	expectedAlloc.Job = nil
+	assert.Equal(t, expectedAlloc, appendedAlloc)
+	assert.Equal(t, alloc.Job, plan.Job)
+}
+
+func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		NodePreemptions: make(map[string][]*Allocation),
+	}
+	alloc := MockAlloc()
+	preemptingAllocID := uuid.Generate()
+
+	plan.AppendPreemptedAlloc(alloc, preemptingAllocID)
+
+	appendedAlloc := plan.NodePreemptions[alloc.NodeID][0]
+	expectedAlloc := &Allocation{
+		ID:                    alloc.ID,
+		PreemptedByAllocation: preemptingAllocID,
+		JobID:                 alloc.JobID,
+		Namespace:             alloc.Namespace,
+		DesiredStatus:         AllocDesiredStatusEvict,
+		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
+		AllocatedResources:    alloc.AllocatedResources,
+		TaskResources:         alloc.TaskResources,
+		SharedResources:       alloc.SharedResources,
+	}
+	assert.Equal(t, expectedAlloc, appendedAlloc)
+}
+
+func TestAllocation_MsgPackTags(t *testing.T) {
+	t.Parallel()
+	planType := reflect.TypeOf(Allocation{})
+
+	msgPackTags, _ := planType.FieldByName("_struct")
+
+	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
+}
+
+func TestEvaluation_MsgPackTags(t *testing.T) {
+	t.Parallel()
+	planType := reflect.TypeOf(Evaluation{})
+
+	msgPackTags, _ := planType.FieldByName("_struct")
+
+	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
 }
 
 func TestAllocation_Terminated(t *testing.T) {

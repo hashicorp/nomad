@@ -5,8 +5,8 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -366,7 +366,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Handle the stop
 	for _, stop := range results.stop {
-		s.plan.AppendUpdate(stop.alloc, structs.AllocDesiredStatusStop, stop.statusDescription, stop.clientStatus)
+		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus)
 	}
 
 	// Handle the in-place updates
@@ -464,7 +464,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
 			prevAllocation := missing.PreviousAllocation()
 			if stopPrevAlloc {
-				s.plan.AppendUpdate(prevAllocation, structs.AllocDesiredStatusStop, stopPrevAllocDesc, "")
+				s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "")
 			}
 
 			// Compute penalty nodes for rescheduled allocs

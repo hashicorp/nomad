@@ -28,8 +28,8 @@ import (
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/consul/api"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
-	multierror "github.com/hashicorp/go-multierror"
-	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
@@ -660,9 +660,15 @@ type ApplyPlanResultsRequest struct {
 	// the evaluation itself being updated.
 	EvalID string
 
+	// COMPAT 0.11
 	// NodePreemptions is a slice of allocations from other lower priority jobs
 	// that are preempted. Preempted allocations are marked as evicted.
+	// Deprecated: Replaced with AllocsPreempted which contains only the diff
 	NodePreemptions []*Allocation
+
+	// AllocsPreempted is a slice of allocation diffs from other lower priority jobs
+	// that are preempted. Preempted allocations are marked as evicted.
+	AllocsPreempted []*AllocationDiff
 
 	// PreemptionEvals is a slice of follow up evals for jobs whose allocations
 	// have been preempted to place allocs in this plan
@@ -673,8 +679,17 @@ type ApplyPlanResultsRequest struct {
 // to cause evictions or to assign new allocations. Both can be done
 // within a single transaction
 type AllocUpdateRequest struct {
+	// COMPAT 0.11
 	// Alloc is the list of new allocations to assign
+	// Deprecated: Replaced with two separate slices, one containing stopped allocations
+	// and another containing updated allocations
 	Alloc []*Allocation
+
+	// Allocations to stop. Contains only the diff, not the entire allocation
+	AllocsStopped []*AllocationDiff
+
+	// New or updated allocations
+	AllocsUpdated []*Allocation
 
 	// Evals is the list of new evaluations to create
 	// Evals are valid only when used in the Raft RPC
@@ -7168,6 +7183,9 @@ const (
 
 // Allocation is used to allocate the placement of a task group to a node.
 type Allocation struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	// ID of the allocation (UUID)
 	ID string
 
@@ -7296,11 +7314,12 @@ func (a *Allocation) Index() uint {
 	return uint(num)
 }
 
+// Copy provides a copy of the allocation and deep copies the job
 func (a *Allocation) Copy() *Allocation {
 	return a.copyImpl(true)
 }
 
-// Copy provides a copy of the allocation but doesn't deep copy the job
+// CopySkipJob provides a copy of the allocation but doesn't deep copy the job
 func (a *Allocation) CopySkipJob() *Allocation {
 	return a.copyImpl(false)
 }
@@ -7670,6 +7689,19 @@ func (a *Allocation) Stub() *AllocListStub {
 	}
 }
 
+// AllocationDiff converts an Allocation type to an AllocationDiff type
+// If at any time, modification are made to AllocationDiff so that an
+// Allocation can no longer be safely converted to AllocationDiff,
+// this method should be changed accordingly.
+func (a *Allocation) AllocationDiff() *AllocationDiff {
+	return (*AllocationDiff)(a)
+}
+
+// AllocationDiff is another named type for Allocation (to use the same fields),
+// which is used to represent the delta for an Allocation. If you need a method
+// defined on the al
+type AllocationDiff Allocation
+
 // AllocListStub is used to return a subset of alloc information
 type AllocListStub struct {
 	ID                    string
@@ -8037,6 +8069,9 @@ const (
 // potentially taking action (allocation of work) or doing nothing if the state
 // of the world does not require it.
 type Evaluation struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	// ID is a randomly generated UUID used for this evaluation. This
 	// is assigned upon the creation of the evaluation.
 	ID string
@@ -8304,6 +8339,9 @@ func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
 // are submitted to the leader which verifies that resources have
 // not been overcommitted before admitting the plan.
 type Plan struct {
+	// msgpack omit empty fields during serialization
+	_struct bool `codec:",omitempty"` // nolint: structcheck
+
 	// EvalID is the evaluation ID this plan is associated with
 	EvalID string
 
@@ -8355,9 +8393,9 @@ type Plan struct {
 	NodePreemptions map[string][]*Allocation
 }
 
-// AppendUpdate marks the allocation for eviction. The clientStatus of the
+// AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
 // allocation may be optionally set by passing in a non-empty value.
-func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clientStatus string) {
+func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus string) {
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
 
@@ -8373,7 +8411,7 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 	// Strip the resources as it can be rebuilt.
 	newAlloc.Resources = nil
 
-	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.DesiredStatus = AllocDesiredStatusStop
 	newAlloc.DesiredDescription = desiredDesc
 
 	if clientStatus != "" {
@@ -8387,12 +8425,12 @@ func (p *Plan) AppendUpdate(alloc *Allocation, desiredStatus, desiredDesc, clien
 
 // AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
 // To minimize the size of the plan, this only sets a minimal set of fields in the allocation
-func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, desiredStatus, preemptingAllocID string) {
+func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string) {
 	newAlloc := &Allocation{}
 	newAlloc.ID = alloc.ID
 	newAlloc.JobID = alloc.JobID
 	newAlloc.Namespace = alloc.Namespace
-	newAlloc.DesiredStatus = desiredStatus
+	newAlloc.DesiredStatus = AllocDesiredStatusEvict
 	newAlloc.PreemptedByAllocation = preemptingAllocID
 
 	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
@@ -8443,6 +8481,29 @@ func (p *Plan) IsNoOp() bool {
 		len(p.NodeAllocation) == 0 &&
 		p.Deployment == nil &&
 		len(p.DeploymentUpdates) == 0
+}
+
+// NormalizeAllocations normalizes allocations to remove fields that can
+// be fetched from the MemDB instead of sending over the wire
+func (p *Plan) NormalizeAllocations() {
+	for _, allocs := range p.NodeUpdate {
+		for i, alloc := range allocs {
+			allocs[i] = &Allocation{
+				ID:                 alloc.ID,
+				DesiredDescription: alloc.DesiredDescription,
+				ClientStatus:       alloc.ClientStatus,
+			}
+		}
+	}
+
+	for _, allocs := range p.NodePreemptions {
+		for i, alloc := range allocs {
+			allocs[i] = &Allocation{
+				ID:                    alloc.ID,
+				PreemptedByAllocation: alloc.PreemptedByAllocation,
+			}
+		}
+	}
 }
 
 // PlanResult is the result of a plan submitted to the leader.
