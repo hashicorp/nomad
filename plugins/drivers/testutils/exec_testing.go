@@ -117,7 +117,7 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 	for _, c := range ExecTaskStreamingBasicCases {
 		t.Run(c.Name, func(t *testing.T) {
 
-			stream := newTestExecStream(t, c.Stdin)
+			stream := newTestExecStream(t, c.Tty, c.Stdin)
 
 			ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancelFn()
@@ -171,12 +171,42 @@ type execResult struct {
 	err error
 }
 
-func newTestExecStream(t *testing.T, stdin string) *testExecStream {
+func newTestExecStream(t *testing.T, tty bool, stdin string) *testExecStream {
+
 	return &testExecStream{
 		t:      t,
-		stdin:  stdin,
+		input:  newInputStream(tty, stdin),
 		result: &execResult{exitCode: -2},
 	}
+}
+
+func newInputStream(tty bool, stdin string) []*drivers.ExecTaskStreamingRequestMsg {
+	input := []*drivers.ExecTaskStreamingRequestMsg{}
+	if tty {
+		input = append(input, &drivers.ExecTaskStreamingRequestMsg{
+			TtySize: &dproto.ExecTaskStreamingRequest_TerminalSize{
+				Height: 100,
+				Width:  100,
+			}})
+
+	}
+
+	input = append(input, &drivers.ExecTaskStreamingRequestMsg{
+		Stdin: &dproto.ExecTaskStreamingOperation{
+			Data: []byte(stdin),
+		},
+	})
+
+	if !tty {
+		// don't close stream in interactive session and risk closing tty prematurely
+		input = append(input, &drivers.ExecTaskStreamingRequestMsg{
+			Stdin: &dproto.ExecTaskStreamingOperation{
+				Close: true,
+			},
+		})
+	}
+
+	return input
 }
 
 var _ drivers.ExecTaskStream = (*testExecStream)(nil)
@@ -184,9 +214,8 @@ var _ drivers.ExecTaskStream = (*testExecStream)(nil)
 type testExecStream struct {
 	t *testing.T
 
-	stdin string
-
 	// input
+	input      []*drivers.ExecTaskStreamingRequestMsg
 	recvCalled int
 
 	// result so far
@@ -203,26 +232,13 @@ func (s *testExecStream) currentResult() execResult {
 }
 
 func (s *testExecStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
-	s.recvCalled++
-
-	switch s.recvCalled {
-	case 1:
-		return &drivers.ExecTaskStreamingRequestMsg{
-			TtySize: &dproto.ExecTaskStreamingRequest_TerminalSize{
-				Height: 100,
-				Width:  100,
-			},
-		}, nil
-	case 2:
-		return &drivers.ExecTaskStreamingRequestMsg{
-			Stdin: &dproto.ExecTaskStreamingOperation{
-				Data: []byte(s.stdin),
-			},
-		}, nil
-	default:
+	if s.recvCalled >= len(s.input) {
 		return nil, io.EOF
-
 	}
+
+	i := s.input[s.recvCalled]
+	s.recvCalled++
+	return i, nil
 }
 
 func (s *testExecStream) Send(m *drivers.ExecTaskStreamingResponseMsg) error {
