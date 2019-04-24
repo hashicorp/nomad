@@ -3,6 +3,8 @@ package testutils
 import (
 	"context"
 	"io"
+	"reflect"
+	"regexp"
 	"runtime"
 	"sync"
 	"testing"
@@ -29,8 +31,8 @@ var ExecTaskStreamingBasicCases = []struct {
 	Command  string
 	Tty      bool
 	Stdin    string
-	Stdout   string
-	Stderr   string
+	Stdout   interface{}
+	Stderr   interface{}
 	ExitCode int
 }{
 	{
@@ -52,7 +54,7 @@ var ExecTaskStreamingBasicCases = []struct {
 		Name:     "ntty: stty check",
 		Command:  "stty size",
 		Tty:      false,
-		Stderr:   "stty: standard input: Inappropriate ioctl for device\n",
+		Stderr:   regexp.MustCompile("stty: .?standard input.?: Inappropriate ioctl for device\n"),
 		ExitCode: 1,
 	},
 	{
@@ -156,8 +158,27 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 				require.Equal(t, c.ExitCode, exitCode)
 			}
 
-			require.Equal(t, c.Stdout, result.stdout)
-			require.Equal(t, c.Stderr, result.stderr)
+			switch s := c.Stdout.(type) {
+			case string:
+				require.Equal(t, s, result.stdout)
+			case *regexp.Regexp:
+				require.Regexp(t, s, result.stdout)
+			case nil:
+				require.Empty(t, result.stdout)
+			default:
+				require.Fail(t, "unexpected stdout type", "found %v (%v), but expected string or regexp", s, reflect.TypeOf(s))
+			}
+
+			switch s := c.Stderr.(type) {
+			case string:
+				require.Equal(t, s, result.stderr)
+			case *regexp.Regexp:
+				require.Regexp(t, s, result.stderr)
+			case nil:
+				require.Empty(t, result.stderr)
+			default:
+				require.Fail(t, "unexpected stderr type", "found %v (%v), but expected string or regexp", s, reflect.TypeOf(s))
+			}
 
 		})
 	}
