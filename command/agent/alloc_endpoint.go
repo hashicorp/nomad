@@ -472,10 +472,23 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 
 	if isClosedError(codedErr) {
 		codedErr = nil
+	} else if codedErr != nil {
+		ws.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(toWsCode(codedErr.Code()), codedErr.Error()))
 	}
 	ws.Close()
 
 	return nil, codedErr
+}
+
+func toWsCode(httpCode int) int {
+	switch httpCode {
+	case 500:
+		return websocket.CloseInternalServerErr
+	default:
+		// placeholder error code
+		return websocket.ClosePolicyViolation
+	}
 }
 
 func isClosedError(err error) bool {
