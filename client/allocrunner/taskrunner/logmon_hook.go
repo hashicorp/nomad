@@ -111,6 +111,10 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	}
 
 	// We did not reattach to a plugin and one is still not running.
+	// Note that the Exited check is racy and used as a fast check: If
+	// plugin is shutting down but process hasn't exited completely, the
+	// Start call would fail with UNAVAILABLE grpc error, so need to retry
+	// some Start call failures too
 	if h.logmonPluginClient == nil || h.logmonPluginClient.Exited() {
 		if err := h.launchLogMon(nil); err != nil {
 			// Retry errors launching logmon as logmon may have crashed on start and
@@ -131,7 +135,10 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	})
 	if err != nil {
 		h.logger.Error("failed to start logmon", "error", err)
-		return err
+		// we treat start logmon failure as recoverable to attempt again, specially if they are
+		// grpc errors
+		// TODO: do we know of permanent errors here that aren't worth retrying?
+		return structs.NewRecoverableError(err, true)
 	}
 
 	rCfg := pstructs.ReattachConfigFromGoPlugin(h.logmonPluginClient.ReattachConfig())
