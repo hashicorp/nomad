@@ -351,7 +351,7 @@ var nonoptConfig = &Config{
 func TestConfig_Parse(t *testing.T) {
 	t.Parallel()
 
-	// inconsequential changes to parsed data
+	// Inconsequential changes to parsed data
 	basicConfig.Telemetry.CollectionInterval = "" // tmp field to hold the string value
 	pluginConfig.addDefaults()
 	nonoptConfig.addDefaults()
@@ -444,7 +444,7 @@ func (c *Config) addDefaults() {
 	}
 }
 
-// this tests for a panic parsing json with an object of exactly
+// Tests for a panic parsing json with an object of exactly
 // length 1 described in
 // https://github.com/hashicorp/nomad/issues/1290
 func TestConfig_ParsePanic(t *testing.T) {
@@ -461,8 +461,8 @@ func TestConfig_ParsePanic(t *testing.T) {
 	require.EqualValues(t, c, d)
 }
 
-// this tests for top level keys left by hcl when parsing slices in
-// the config structure
+// Top level keys left by hcl when parsing slices in the config
+// structure should not be unexpected
 func TestConfig_ParseSliceExtra(t *testing.T) {
 	c, err := ParseConfigFile("./testdata/config-slices.json")
 	if err != nil {
