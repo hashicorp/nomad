@@ -1,11 +1,10 @@
-## 0.9.1 (Unreleased)
+## 0.9.2 (Unreleased)
 
 FEATURES:
 
  * vault: Add initial support for Vault namespaces [[GH-5520](https://github.com/hashicorp/nomad/pull/5520)]
- * allocations: Add support for restarting allocations in-place [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
- * allocations: Add support for stopping and rescheduling an allocation
-   [[GH-5512](https://github.com/hashicorp/nomad/pull/5512)]
+ * core: Add `nomad alloc restart` command to restart allocs and tasks [[GH-5502](https://github.com/hashicorp/nomad/pull/5502)]
+ * core: Add `nomad alloc stop` command to reschedule allocs [[GH-5512](https://github.com/hashicorp/nomad/pull/5512)]
 
 IMPROVEMENTS:
 
@@ -18,9 +17,18 @@ BUG FIXES:
 
  * vault: Fix renewal time to be 1/2 lease duration with jitter [[GH-5479](https://github.com/hashicorp/nomad/issues/5479)]
  * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
- * logging: Fix respawning logmon during task restarts when the logmon process
-   has been terminated [[GH-5577](https://github.com/hashicorp/nomad/pull/5577)]
  * client: Fix network fingerprinting to honor manual configuration [[GH-2619](https://github.com/hashicorp/nomad/issues/2619)]
+
+## 0.9.1 (April 29, 2019)
+
+BUG FIXES:
+
+* core: Fix bug with incorrect metrics on pending allocations [[GH-5541](https://github.com/hashicorp/nomad/pull/5541)]
+* client: Fix issue with recovering from logmon failures [[GH-5577](https://github.com/hashicorp/nomad/pull/5577)]
+* client: Fix deadlock on client startup after reboot [[GH-5568](https://github.com/hashicorp/nomad/pull/5568)]
+* client: Fix issue with node registration where newly registered nodes would not run system jobs [[GH-5585](https://github.com/hashicorp/nomad/pull/5585)]
+* driver/docker: Fix regression around volume handling [[GH-5572](https://github.com/hashicorp/nomad/pull/5572)]
+* driver/exec: Fix an issue where raw_exec and exec processes are leaked when nomad agent is restarted [[GH-5598](https://github.com/hashicorp/nomad/pull/5598)]
 
 ## 0.9.0 (April 9, 2019)
 
