@@ -142,6 +142,7 @@ func (d *Driver) setupNewDockerLogger(container *docker.Container, cfg *drivers.
 	if err := dlogger.Start(&docklog.StartOpts{
 		Endpoint:    d.config.Endpoint,
 		ContainerID: container.ID,
+		TTY:         container.Config.Tty,
 		Stdout:      cfg.StdoutPath,
 		Stderr:      cfg.StderrPath,
 		TLSCert:     d.config.TLS.Cert,

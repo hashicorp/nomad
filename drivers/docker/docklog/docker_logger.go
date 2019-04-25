@@ -29,6 +29,7 @@ type StartOpts struct {
 
 	// ContainerID of the container to monitor logs for
 	ContainerID string
+	TTY         bool
 
 	// Stdout path to fifo
 	Stdout string
@@ -97,6 +98,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 				Follow:       true,
 				Stdout:       true,
 				Stderr:       true,
+				RawTerminal:  opts.TTY,
 			}
 
 			err := client.Logs(logOpts)
