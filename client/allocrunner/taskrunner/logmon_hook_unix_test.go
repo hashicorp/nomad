@@ -135,6 +135,8 @@ func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
 	// exited; so this causes process to be non-exited at beginning of call
 	// then we kill process while Start call is running
 	require.NoError(t, proc.Signal(syscall.SIGSTOP))
+	// sleep for the signal to take effect
+	time.Sleep(1 * time.Second)
 
 	go func() {
 		time.Sleep(2 * time.Second)
