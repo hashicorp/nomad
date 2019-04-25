@@ -258,6 +258,12 @@ func newTestExecStream(t *testing.T, tty bool, stdin string) *testExecStream {
 func newInputStream(tty bool, stdin string) []*drivers.ExecTaskStreamingRequestMsg {
 	input := []*drivers.ExecTaskStreamingRequestMsg{}
 	if tty {
+		// emit two resize to ensure we honor latest
+		input = append(input, &drivers.ExecTaskStreamingRequestMsg{
+			TtySize: &dproto.ExecTaskStreamingRequest_TerminalSize{
+				Height: 50,
+				Width:  40,
+			}})
 		input = append(input, &drivers.ExecTaskStreamingRequestMsg{
 			TtySize: &dproto.ExecTaskStreamingRequest_TerminalSize{
 				Height: 100,
