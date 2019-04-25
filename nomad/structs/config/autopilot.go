@@ -15,12 +15,12 @@ type AutopilotConfig struct {
 	// in a stable, healthy state before it can be added to the cluster. Only
 	// applicable with Raft protocol version 3 or higher.
 	ServerStabilizationTime    time.Duration
-	ServerStabilizationTimeHCL string `hcl:"server_stabilization_time"`
+	ServerStabilizationTimeHCL string `hcl:"server_stabilization_time" json:"-"`
 
 	// LastContactThreshold is the limit on the amount of time a server can go
 	// without leader contact before being considered unhealthy.
 	LastContactThreshold    time.Duration
-	LastContactThresholdHCL string `hcl:"last_contact_threshold"`
+	LastContactThresholdHCL string `hcl:"last_contact_threshold" json:"-"`
 
 	// MaxTrailingLogs is the amount of entries in the Raft Log that a server can
 	// be behind before being considered unhealthy.
@@ -39,7 +39,7 @@ type AutopilotConfig struct {
 	EnableCustomUpgrades *bool `hcl:"enable_custom_upgrades"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // DefaultAutopilotConfig() returns the canonical defaults for the Nomad

@@ -57,7 +57,7 @@ type ConsulConfig struct {
 
 	// Timeout is used by Consul HTTP Client
 	Timeout    time.Duration
-	TimeoutHCL string `hcl:"timeout"`
+	TimeoutHCL string `hcl:"timeout" json:"-"`
 
 	// Token is used to provide a per-request ACL token. This options overrides
 	// the agent's default token
@@ -91,7 +91,7 @@ type ConsulConfig struct {
 	ClientAutoJoin *bool `hcl:"client_auto_join"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // DefaultConsulConfig() returns the canonical defaults for the Nomad

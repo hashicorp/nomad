@@ -69,6 +69,9 @@ type TLSConfig struct {
 	// ciphersuite. If true then the server's preference, as expressed in
 	// the order of elements in CipherSuites, is used.
 	TLSPreferServerCipherSuites bool `hcl:"tls_prefer_server_cipher_suites"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 type KeyLoader struct {

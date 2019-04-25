@@ -144,7 +144,7 @@ type Config struct {
 	Plugins []*config.PluginConfig `hcl:"plugin"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // ClientConfig is configuration specific to the client mode
@@ -209,7 +209,7 @@ type ClientConfig struct {
 	// GCInterval is the time interval at which the client triggers garbage
 	// collection
 	GCInterval    time.Duration
-	GCIntervalHCL string `hcl:"gc_interval"`
+	GCIntervalHCL string `hcl:"gc_interval" json:"-"`
 
 	// GCParallelDestroys is the number of parallel destroys the garbage
 	// collector will allow.
@@ -235,7 +235,7 @@ type ClientConfig struct {
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // ACLConfig is configuration specific to the ACL system
@@ -248,14 +248,14 @@ type ACLConfig struct {
 	// to "30s". Reducing this impacts performance by forcing more
 	// frequent resolution.
 	TokenTTL    time.Duration
-	TokenTTLHCL string `hcl:"token_ttl"`
+	TokenTTLHCL string `hcl:"token_ttl" json:"-"`
 
 	// PolicyTTL controls how long we cache ACL policies. This controls
 	// how stale they can be when we are enforcing policies. Defaults
 	// to "30s". Reducing this impacts performance by forcing more
 	// frequent resolution.
 	PolicyTTL    time.Duration
-	PolicyTTLHCL string `hcl:"policy_ttl"`
+	PolicyTTLHCL string `hcl:"policy_ttl" json:"-"`
 
 	// ReplicationToken is used by servers to replicate tokens and policies
 	// from the authoritative region. This must be a valid management token
@@ -263,7 +263,7 @@ type ACLConfig struct {
 	ReplicationToken string `hcl:"replication_token"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // ServerConfig is configuration specific to the server mode
@@ -322,12 +322,12 @@ type ServerConfig struct {
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
 	HeartbeatGrace    time.Duration
-	HeartbeatGraceHCL string `hcl:"heartbeat_grace"`
+	HeartbeatGraceHCL string `hcl:"heartbeat_grace" json:"-"`
 
 	// MinHeartbeatTTL is the minimum time between heartbeats. This is used as
 	// a floor to prevent excessive updates.
 	MinHeartbeatTTL    time.Duration
-	MinHeartbeatTTLHCL string `hcl:"min_heartbeat_ttl"`
+	MinHeartbeatTTLHCL string `hcl:"min_heartbeat_ttl" json:"-"`
 
 	// MaxHeartbeatsPerSecond is the maximum target rate of heartbeats
 	// being processed per second. This allows the TTL to be increased
@@ -355,7 +355,7 @@ type ServerConfig struct {
 	// the default is 30s.
 	// Deprecated in Nomad 0.10
 	RetryInterval    time.Duration
-	RetryIntervalHCL string `hcl:"retry_interval"`
+	RetryIntervalHCL string `hcl:"retry_interval" json:"-"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
 	// When set to false (default), a leave causes Consul to not rejoin
@@ -381,7 +381,7 @@ type ServerConfig struct {
 	ServerJoin *ServerJoin `hcl:"server_join"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // ServerJoin is used in both clients and servers to bootstrap connections to
@@ -405,10 +405,10 @@ type ServerJoin struct {
 	// attempts on agent start. The minimum allowed value is 1 second and
 	// the default is 30s.
 	RetryInterval    time.Duration
-	RetryIntervalHCL string `hcl:"retry_interval"`
+	RetryIntervalHCL string `hcl:"retry_interval" json:"-"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 func (s *ServerJoin) Merge(b *ServerJoin) *ServerJoin {
@@ -550,7 +550,7 @@ type Telemetry struct {
 	CirconusBrokerSelectTag string `hcl:"circonus_broker_select_tag"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
@@ -578,7 +578,7 @@ type Ports struct {
 	RPC  int `hcl:"rpc"`
 	Serf int `hcl:"serf"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // Addresses encapsulates all of the addresses we bind to for various
@@ -588,7 +588,7 @@ type Addresses struct {
 	RPC  string `hcl:"rpc"`
 	Serf string `hcl:"serf"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // AdvertiseAddrs is used to control the addresses we advertise out for
@@ -599,7 +599,7 @@ type AdvertiseAddrs struct {
 	RPC  string `hcl:"rpc"`
 	Serf string `hcl:"serf"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 type Resources struct {
@@ -608,7 +608,7 @@ type Resources struct {
 	DiskMB        int    `hcl:"disk"`
 	ReservedPorts string `hcl:"reserved_ports"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys"`
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // CanParseReserved returns if the reserved ports specification is parsable.
