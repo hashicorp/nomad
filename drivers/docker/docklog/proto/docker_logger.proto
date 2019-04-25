@@ -15,6 +15,7 @@ message StartRequest {
     string tls_cert = 5;
     string tls_key = 6;
     string tls_ca = 7;
+    bool tty = 8;
 }
 
 message StartResponse {

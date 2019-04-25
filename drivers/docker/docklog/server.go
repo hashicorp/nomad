@@ -20,6 +20,7 @@ func (s *dockerLoggerServer) Start(ctx context.Context, req *proto.StartRequest)
 		ContainerID: req.ContainerId,
 		Stdout:      req.StdoutFifo,
 		Stderr:      req.StderrFifo,
+		TTY:         req.Tty,
 
 		TLSCert: req.TlsCert,
 		TLSKey:  req.TlsKey,
