@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shirou/gopsutil/process"
 	"github.com/stretchr/testify/require"
 )
 
@@ -126,23 +127,36 @@ func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
 	pid := reattach.Pid
 	require.NotZero(t, pid)
 
-	proc, _ := os.FindProcess(pid)
+	proc, err := process.NewProcess(int32(pid))
+	require.NoError(t, err)
 
 	// Assert logmon is running
-	require.NoError(t, proc.Signal(syscall.Signal(0)))
+	require.NoError(t, proc.SendSignal(syscall.Signal(0)))
 
 	// SIGSTOP would freeze process without it being considered
 	// exited; so this causes process to be non-exited at beginning of call
 	// then we kill process while Start call is running
-	require.NoError(t, proc.Signal(syscall.SIGSTOP))
-	// sleep for the signal to take effect
-	time.Sleep(1 * time.Second)
+	require.NoError(t, proc.SendSignal(syscall.SIGSTOP))
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := proc.Status()
+		if err != nil {
+			return false, err
+		}
+
+		if status != "T" && status != "T+" {
+			return false, fmt.Errorf("process is not asleep yet: %v", status)
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 
 	go func() {
 		time.Sleep(2 * time.Second)
 
-		proc.Signal(syscall.SIGCONT)
-		proc.Signal(os.Kill)
+		proc.SendSignal(syscall.SIGCONT)
+		proc.Kill()
 	}()
 
 	req.PreviousState = map[string]string{
