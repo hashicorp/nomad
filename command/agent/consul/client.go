@@ -513,7 +513,7 @@ func (c *ServiceClient) sync() error {
 		// Nomad managed checks if this is not a client agent.
 		// This is to prevent server agents from removing checks
 		// registered by client agents
-		if !isNomadService(check.ServiceID) || !c.isClientAgent {
+		if !isNomadService(check.ServiceID) || !c.isClientAgent || !isNomadCheck(check.CheckID) {
 			// Service not managed by Nomad, skip
 			continue
 		}
@@ -1180,6 +1180,12 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)
 	}
 	return &chkReg, nil
+}
+
+// isNomadCheck returns true if the ID matches the pattern of a Nomad managed
+// check.
+func isNomadCheck(id string) bool {
+	return strings.HasPrefix(id, nomadCheckPrefix)
 }
 
 // isNomadService returns true if the ID matches the pattern of a Nomad managed
