@@ -356,14 +356,6 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 	}
 }
 
-func TestAllocations_Signal_Subtask(t *testing.T) {
-	t.Parallel()
-}
-
-func TestAllocations_Signal_EntireAlloc(t *testing.T) {
-	t.Parallel()
-}
-
 func TestAllocations_Stats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

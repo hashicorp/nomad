@@ -1,9 +1,16 @@
 package command
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,4 +54,89 @@ func TestAllocSignalCommand_Fails(t *testing.T) {
 	require.Equal(1, cmd.Run([]string{"-address=" + url, "2"}))
 	require.Contains(ui.ErrorWriter.String(), "must contain at least two characters.")
 	ui.ErrorWriter.Reset()
+}
+
+func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
+	assert := assert.New(t)
+
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create a fake alloc
+	state := srv.Agent.Server().State()
+	a := mock.Alloc()
+	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+
+	prefix := a.ID[:5]
+	args := complete.Args{All: []string{"signal", prefix}, Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	// Match Allocs
+	res := predictor.Predict(args)
+	assert.Equal(1, len(res))
+	assert.Equal(a.ID, res[0])
+}
+
+func TestAllocSignalCommand_Run(t *testing.T) {
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	require := require.New(t)
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if _, ok := node.Drivers["mock_driver"]; ok &&
+				node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui}}
+
+	jobID := "job1_sfx"
+	job1 := testJob(jobID)
+	resp, _, err := client.Jobs().Register(job1, nil)
+	require.NoError(err)
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
+		t.Fatalf("status code non zero saw %d", code)
+	}
+	// get an alloc id
+	allocId1 := ""
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+		if len(allocs) > 0 {
+			allocId1 = allocs[0].ID
+		}
+	}
+	require.NotEmpty(allocId1, "unable to find allocation")
+
+	// Wait for alloc to be running
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, _, err := client.Allocations().Info(allocId1, nil)
+		if err != nil {
+			return false, err
+		}
+		if alloc.ClientStatus == api.AllocClientStatusRunning {
+			return true, nil
+		}
+		return false, fmt.Errorf("alloc is not running, is: %s", alloc.ClientStatus)
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.Equal(cmd.Run([]string{"-address=" + url, allocId1}), 0, "expected successful exit code")
+
+	ui.OutputWriter.Reset()
 }

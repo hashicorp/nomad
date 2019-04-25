@@ -3,6 +3,9 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type AllocSignalCommand struct {
@@ -71,11 +74,6 @@ func (c *AllocSignalCommand) Run(args []string) int {
 
 	allocID = sanitizeUUIDPrefix(allocID)
 
-	var taskName string
-	if len(args) == 2 {
-		taskName = args[1]
-	}
-
 	// Get the HTTP client
 	client, err := c.Meta.Client()
 	if err != nil {
@@ -108,6 +106,17 @@ func (c *AllocSignalCommand) Run(args []string) int {
 		return 1
 	}
 
+	var taskName string
+	if len(args) == 2 {
+		// Validate Task
+		taskName = args[1]
+		err := validateTaskExistsInAllocation(taskName, alloc)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+	}
+
 	err = client.Allocations().Signal(alloc, nil, taskName, signal)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error signalling allocation: %s", err))
@@ -119,4 +128,30 @@ func (c *AllocSignalCommand) Run(args []string) int {
 
 func (a *AllocSignalCommand) Synopsis() string {
 	return "Signal a running allocation"
+}
+
+func (c *AllocSignalCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-s":       complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
+}
+func (c *AllocSignalCommand) AutocompleteArgs() complete.Predictor {
+	// Here we only autocomplete allocation names. Eventually we may consider
+	// expanding this to also autocomplete task names. To do so, we'll need to
+	// either change the autocompletion api, or implement parsing such that we can
+	// easily compute the current arg position.
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := c.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Allocs, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Allocs]
+	})
 }
