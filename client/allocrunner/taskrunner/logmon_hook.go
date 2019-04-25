@@ -97,18 +97,20 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
-	tries := 0
+	attempts := 0
 	for {
 		err := h.prestartOneLoop(ctx, req)
 		if err == bstructs.ErrPluginShutdown {
 			h.logger.Warn("logmon shutdown while making request", "error", err)
 
-			if tries > 3 {
+			if attempts > 3 {
+				h.logger.Warn("logmon shutdown while making request; giving up", "attempts", attempts, "error", err)
 				return err
 			}
 
 			// retry after killing process and ensure we start a new logmon process
-			tries++
+			attempts++
+			h.logger.Warn("logmon shutdown while making request; retrying", "attempts", attempts, "error", err)
 			h.logmonPluginClient.Kill()
 			time.Sleep(1 * time.Second)
 			continue
