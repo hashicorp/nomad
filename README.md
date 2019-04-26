@@ -77,55 +77,55 @@ Resources
 
 Who Uses Nomad
 --------------------
-1) CircleCI
-- [Security & Scheduling are Not Your Core Competencies](https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
-2) Citadel
-* [End-to-End Production Nomad at Citadel](https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel)
+* CircleCI
+  * [Security & Scheduling are Not Your Core Competencies](https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
+* Citadel
+  * [End-to-End Production Nomad at Citadel](https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel)
   * [Extreme Scaling with HashiCorp Nomad & Consul](https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul)
-3) Deluxe Entertainment
+* Deluxe Entertainment
   * [How Deluxe Uses the Complete HashiStack for Video Production](https://www.hashicorp.com/resources/deluxe-hashistack-video-production)
-4) Jet.com (Walmart)
+* Jet.com (Walmart)
   * [Driving down costs at Jet.com with HashiCorp Nomad](https://www.hashicorp.com/resources/jet-walmart-hashicorp-nomad-azure-run-apps)
-5) PagerDuty
+* PagerDuty
   * [PagerDuty’s Nomadic Journey](https://www.hashicorp.com/resources/pagerduty-nomad-journey)
-6) Pandora
+* Pandora
   * [How Pandora Uses Nomad](https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s)
-7) SAP Ariba
+* SAP Ariba
   * [HashiCorp Nomad @ SAP Ariba](https://www.hashicorp.com/resources/nomad-community-call-core-team-sap-ariba)
-8) SeatGeek
+* SeatGeek
   * [Nomad Helper Tools](https://github.com/seatgeek/nomad-helper)
-9) Spaceflight Industries
+* Spaceflight Industries
   * [Spaceflight’s Hub-And-Spoke Infrastructure](https://www.hashicorp.com/blog/spaceflight-uses-hashicorp-consul-for-service-discovery-and-real-time-updates-to-their-hub-and-spoke-network-architecture)
-10) SpotInst
+* SpotInst
   * [Spotinst and HashiCorp Nomad to Reduce EC2 Costs for Users](https://www.hashicorp.com/blog/spotinst-and-hashicorp-nomad-to-reduce-ec2-costs-fo)
-11) Target
+* Target
   * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds](https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
-12) Trivago
+* Trivago
   * [Maybe You Don’t Need Kubernetes](https://matthias-endler.de/2019/maybe-you-dont-need-kubernetes/)
   * [Nomad - Our Experiences and Best Practices](https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/)
-13) Roblox
+* Roblox
   * [How Roblox runs a platform for 70 million gamers on HashiCorp Nomad](https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/)
-14) Oscar Health
+* Oscar Health
   * [Scalable CI at Oscar Health with Nomad and Docker](https://www.hashicorp.com/resources/scalable-ci-oscar-health-insurance-nomad-docker)
-15) eBay
+* eBay
   * [HashiStack at eBay: A Fully Containerized Platform Based on Infrastructure as Code](https://www.hashicorp.com/resources/ebay-hashistack-fully-containerized-platform-iac)
-16) Joyent
+* Joyent
   * [Build Your Own Autoscaling Feature with HashiCorp Nomad](https://www.hashicorp.com/resources/autoscaling-hashicorp-nomad)
-17) Dutch National Police
+* Dutch National Police
   * [Going Cloud-Native at the Dutch National Police](https://www.hashicorp.com/resources/going-cloud-native-at-the-dutch-national-police)
-18) N26
+* N26
   * [Tech at N26 - The Bank in the Cloud](https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b)
-19) Elsevier
+* Elsevier
   * [Eslevier’s Container Framework with Nomad, Terraform, and Consul](https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo)
-20) Palantir
+* Palantir
   * [Enterprise Security at Palantir with the HashiCorp stack](https://www.hashicorp.com/resources/enterprise-security-hashicorp-stack)
-21) Graymeta
+* Graymeta
   * [Backend Batch Processing At Scale with Nomad](https://www.hashicorp.com/resources/backend-batch-processing-nomad)
-22) NIH NCBI
+* NIH NCBI
   * [NCBI’s Legacy Migration to Hybrid Cloud with Consul & Nomad](https://www.hashicorp.com/resources/ncbi-legacy-migration-hybrid-cloud-consul-nomad)
-23) Q2Ebanking
+* Q2Ebanking
   * [Q2’s Nomad Use and Overview](https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499)
-24) Region Syddanmark
+* Region Syddanmark
 
 And more!
 
