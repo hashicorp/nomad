@@ -74,7 +74,7 @@ func (h *DriverHandle) ExecStreaming(ctx context.Context,
 	}
 
 	os.Stderr.Write([]byte(fmt.Sprintf("USING STREAMS TO EXEC\n")))
-	execOpts, doneCh := drivers.StreamsToExecOptions(
+	execOpts, doneCh := drivers.StreamToExecOptions(
 		ctx, command, tty, stream)
 
 	result, err := h.driver.ExecTaskStreaming(ctx, h.taskID, execOpts)
