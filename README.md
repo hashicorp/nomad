@@ -1,71 +1,138 @@
 Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travis-ci.org/hashicorp/nomad) [![Join the chat at https://gitter.im/hashicorp-nomad/Lobby](https://badges.gitter.im/hashicorp-nomad/Lobby.svg)](https://gitter.im/hashicorp-nomad/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 =========
 
-* Website: [www.nomadproject.io](https://www.nomadproject.io)
-* Mailing list: [Google Groups](https://groups.google.com/group/nomad-tool)
-
 <p align="center" style="text-align:center;">
   <img src="https://cdn.rawgit.com/hashicorp/nomad/master/website/source/assets/images/logo-text.svg" width="500" />
 </p>
 
-Nomad is a cluster manager, designed for both long lived services and short
-lived batch processing workloads. Developers use a declarative job specification
-to submit work, and Nomad ensures constraints are satisfied and resource utilization
-is optimized by efficient task packing. Nomad supports all major operating systems
-and virtualized, containerized, or standalone applications.
-
-The key features of Nomad are:
-
-* **Docker Support**: Jobs can specify tasks which are Docker containers.
-  Nomad will automatically run the containers on clients which have Docker
-  installed, scale up and down based on the number of instances requested, and
-  automatically recover from failures.
-
-* **Operationally Simple**: Nomad runs as a single binary that can be
-  either a client or server, and is completely self contained. Nomad does
-  not require any external services for storage or coordination. This means
-  Nomad combines the features of a resource manager and scheduler in a single
-  system.
-
-* **Multi-Datacenter and Multi-Region Aware**: Nomad is designed to be
-  a global-scale scheduler. Multiple datacenters can be managed as part
-  of a larger region, and jobs can be scheduled across datacenters if
-  requested. Multiple regions join together and federate jobs making it
-  easy to run jobs anywhere.
-
-* **Flexible Workloads**: Nomad has extensible support for task drivers, allowing it to run
-  containerized, virtualized, and standalone applications. Users can easily start Docker
-  containers, VMs, or application runtimes like Java. Nomad supports Linux, Windows, BSD, and OSX,
-  providing the flexibility to run any workload.
-
-* **Built for Scale**: Nomad was designed from the ground up to support global scale
-  infrastructure. Nomad is distributed and highly available, using both
-  leader election and state replication to provide availability in the face
-  of failures. Nomad is optimistically concurrent, enabling all servers to participate
-  in scheduling decisions which increases the total throughput and reduces latency
-  to support demanding workloads. Nomad has been proven to scale to cluster sizes that
-  exceed 10k nodes in real-world production environments.
-
-* **HashiCorp Ecosystem**: HashiCorp Ecosystem: Nomad integrates with the 
-entire HashiCorp ecosystem of tools. Like all HashiCorp tools, Nomad follows 
-the UNIX design philosophy of doing something specific and doing it well. 
-Nomad integrates with Terraform, Consul, and Vault for provisioning, service 
-discovery, and secrets management.
-
-For more information, see the [introduction section](https://www.nomadproject.io/intro)
-of the Nomad website.
-
-Getting Started & Documentation
+Overview
 -------------------------------
 
-All documentation is available on the [Nomad website](https://www.nomadproject.io).
+Nomad is a flexible, lightweight, easy-to-use, performant workload orchestrator that deploys:
 
-Developing Nomad
+* [Containers] (https://www.nomadproject.io/docs/drivers/docker.html)
+* [Legacy applications] (https://www.nomadproject.io/docs/drivers/exec.html)
+* [Virtual machines] (https://www.nomadproject.io/docs/drivers/qemu.html)
+
+Nomad enables developers to use declarative infrastructure-as-code for deploying their applications (jobs).  Nomad uses bin packing to efficiently schedule jobs and optimize for resource utilization.  Nomad is supported on MacOS, Windows, and Linux.
+
+Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe Entertainment, and more.   
+
+* **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure.  Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable task drivers.
+
+* **Simple & Reliable**:  Nomad runs as a single 75MB binary and is entirely self contained - combining resource management and scheduling into a single system.  Nomad does not require any external services for storage or coordination.  Nomad automatically handles application, node, and driver failures.  Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.   
+
+* **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI).  Nomad uses device plugins to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
+
+* **Federation for Multi-Region, Multi-Cloud**: Nomad was designed to support infrastructure at a global scale.  Nomad supports federation out-of-the-box and can deploy jobs across multiple regions and clouds.
+
+* **Proven Scalability**: Nomad is optimistically concurrent, which increases throughput and reduces latency for workloads.  Nomad has been proven to scale to clusters of 10K+ nodes in real-world production environments.
+
+* **HashiCorp Ecosystem**: Nomad integrates seamlessly with Terraform, Consul, Vault for provisioning, service discovery, and secrets management.
+
+Getting Started
+-------------------------------
+
+Get started with Nomad quickly in a sandbox environment on the public cloud or on your computer.
+
+* Local
+  * [Vagrant Installation] (https://www.nomadproject.io/intro/getting-started/install.html)
+* AWS
+  * [Terraform Installation] (https://github.com/hashicorp/nomad/tree/master/terraform/aws)
+* Azure
+  * [Terraform Installation] (https://github.com/hashicorp/nomad/tree/master/terraform/azure)
+
+These methods are not meant for production.
+
+Documentation & Guides
+-------------------------------
+
+* [Installing Nomad for Production] (https://www.nomadproject.io/guides/operations/install/index.html)
+* [Increasing Nomad Fault Tolerance with Spread] (https://www.nomadproject.io/guides/advanced-scheduling/spread.html)
+* [Load Balancing on Nomad with Fabio & Consul] (https://www.nomadproject.io/guides/load-balancing/fabio.html)
+* [Deploying Stateful Workloads via Portworx] (https://www.nomadproject.io/guides/stateful-workloads/portworx.html)
+* [Running Apache Spark on Nomad] (https://www.nomadproject.io/guides/spark/spark.html)
+* [Integrating Vault with Nomad for Secrets Management] (https://www.nomadproject.io/guides/operations/vault-integration/index.html)
+* [Securing Nomad with TLS] (https://www.nomadproject.io/guides/security/securing-nomad.html)
+* [Advanced Job Scheduling on Nomad with Affinities] (https://www.nomadproject.io/guides/advanced-scheduling/affinity.html)
+
+Documentation is available on the Nomad website [here] (https://www.nomadproject.io/docs/index.html).
+
+Resources
+-------------------------------
+
+* Website
+  * www.nomadproject.io
+* Mailing List
+  * [Google Groups] (https://groups.google.com/group/nomad-tool)
+* Webinars
+  * [Running Microservices with Nomad] (https://www.hashicorp.com/resources/solutions-engineering-hangout-microservices-with-nomad)
+  * [Running Heterogeneous Apps on Nomad] (https://www.hashicorp.com/resources/se-hangout-running-heterogeneous-apps-nomad)
+  * [Supporting Multiple Teams on a Single Nomad Cluster] (https://www.hashicorp.com/resources/supporting-multiple-teams-single-nomad-cluster)
+  * [Moving Your Legacy VMWare Workloads to Nomad] (https://www.hashicorp.com/resources/move-your-vmware-workloads-nomad)
+  * [Machine Learning Workflows with HashiCorp Nomad & Apache Spark] (https://www.hashicorp.com/resources/machine-learning-workflows-hashicorp-nomad-apache-spark)
+* Community Calls
+  * [04/03/2019 with Pandora & Q2EBanking] (https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s)
+  * [05/24/2018 with SAP Ariba] (https://www.youtube.com/watch?v=eSwZwVVTDqw&t=2660s)
+
+Who Uses Nomad
+--------------------
+1) CircleCI
+  * [Security & Scheduling are Not Your Core Competencies] (https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
+2) Citadel
+  * [End-to-End Production Nomad at Citadel] (https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel)
+  * [Extreme Scaling with HashiCorp Nomad & Consul] (https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul)
+3) Deluxe Entertainment
+  * [How Deluxe Uses the Complete HashiStack for Video Production] (https://www.hashicorp.com/resources/deluxe-hashistack-video-production)
+4) Jet.com (Walmart)
+  * [Driving down costs at Jet.com with HashiCorp Nomad] (https://www.hashicorp.com/resources/jet-walmart-hashicorp-nomad-azure-run-apps)
+5) PagerDuty
+  * [PagerDuty’s Nomadic Journey] (https://www.hashicorp.com/resources/pagerduty-nomad-journey)
+6) Pandora
+  * [How Pandora Uses Nomad] (https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s)
+7) SAP Ariba
+  * [HashiCorp Nomad @ SAP Ariba] (https://www.hashicorp.com/resources/nomad-community-call-core-team-sap-ariba)
+8) SeatGeek
+  * [Nomad Helper Tools] (https://github.com/seatgeek/nomad-helper)
+9) Spaceflight Industries
+  * [Spaceflight’s Hub-And-Spoke Infrastructure] (https://www.hashicorp.com/blog/spaceflight-uses-hashicorp-consul-for-service-discovery-and-real-time-updates-to-their-hub-and-spoke-network-architecture)
+10) SpotInst
+  * [Spotinst and HashiCorp Nomad to Reduce EC2 Costs for Users] (https://www.hashicorp.com/blog/spotinst-and-hashicorp-nomad-to-reduce-ec2-costs-fo)
+11) Target
+  * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds] (https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
+12) Trivago
+  * [Maybe You Don’t Need Kubernetes] (https://matthias-endler.de/2019/maybe-you-dont-need-kubernetes/)
+  * [Nomad - Our Experiences and Best Practices] (https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/)
+13) Roblox
+  * [How Roblox runs a platform for 70 million gamers on HashiCorp Nomad] (https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/)
+14) Oscar Health
+  * [Scalable CI at Oscar Health with Nomad and Docker] (https://www.hashicorp.com/resources/scalable-ci-oscar-health-insurance-nomad-docker)
+15) eBay
+  * [HashiStack at eBay: A Fully Containerized Platform Based on Infrastructure as Code] (https://www.hashicorp.com/resources/ebay-hashistack-fully-containerized-platform-iac)
+16) Joyent
+  * [Build Your Own Autoscaling Feature with HashiCorp Nomad] (https://www.hashicorp.com/resources/autoscaling-hashicorp-nomad)
+17) Dutch National Police
+  * [Going Cloud-Native at the Dutch National Police] (https://www.hashicorp.com/resources/going-cloud-native-at-the-dutch-national-police)
+18) N26
+  * [Tech at N26 - The Bank in the Cloud] (https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b)
+19) Elsevier
+  * [Eslevier’s Container Framework with Nomad, Terraform, and Consul] (https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo)
+20) Palantir
+  * [Enterprise Security at Palantir with the HashiCorp stack] (https://www.hashicorp.com/resources/enterprise-security-hashicorp-stack)
+21) Graymeta
+  * [Backend Batch Processing At Scale with Nomad] (https://www.hashicorp.com/resources/backend-batch-processing-nomad)
+22) NIH NCBI
+  * [NCBI’s Legacy Migration to Hybrid Cloud with Consul & Nomad] (https://www.hashicorp.com/resources/ncbi-legacy-migration-hybrid-cloud-consul-nomad)
+23) Q2Ebanking
+  * [Q2’s Nomad Use and Overview] (https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499)
+24) Region Syddanmark
+
+And more!
+
+Contributing to Nomad
 --------------------
 
-If you wish to work on Nomad itself or any of its built-in systems,
-you will first need [Go](https://www.golang.org) installed on your
-machine (version 1.10.2+ is *required*).
+If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.10.2+ is *required*).
 
 **Developing with Vagrant**
 There is an included Vagrantfile that can help bootstrap the process. The
