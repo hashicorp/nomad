@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
@@ -101,6 +103,23 @@ type AllocStopResponse struct {
 	EvalID string
 
 	WriteMeta
+}
+
+func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
+	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
+	if err != nil {
+		return err
+	}
+
+	req := structs.AllocSignalRequest{
+		AllocID: alloc.ID,
+		Signal:  signal,
+		Task:    task,
+	}
+
+	var resp structs.GenericResponse
+	_, err = nodeClient.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
+	return err
 }
 
 // Allocation is used for serialization of allocations.

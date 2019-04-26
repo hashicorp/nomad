@@ -963,3 +963,29 @@ func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
 
 	return err.ErrorOrNil()
 }
+
+// Signal sends a signal request to task runners inside an allocation. If the
+// taskName is empty, then it is sent to all tasks.
+func (ar *allocRunner) Signal(taskName, signal string) error {
+	event := structs.NewTaskEvent(structs.TaskSignaling).SetSignalText(signal)
+
+	if taskName != "" {
+		tr, ok := ar.tasks[taskName]
+		if !ok {
+			return fmt.Errorf("Task not found")
+		}
+
+		return tr.Signal(event, signal)
+	}
+
+	var err *multierror.Error
+
+	for tn, tr := range ar.tasks {
+		rerr := tr.Signal(event.Copy(), signal)
+		if rerr != nil {
+			err = multierror.Append(err, fmt.Errorf("Failed to signal task: %s, err: %v", tn, rerr))
+		}
+	}
+
+	return err.ErrorOrNil()
+}
