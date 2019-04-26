@@ -127,7 +127,7 @@ Who Uses Nomad
   * [Q2’s Nomad Use and Overview](https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499)
 * Region Syddanmark
 
-And more!
+...and more!
 
 Contributing to Nomad
 --------------------
