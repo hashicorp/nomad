@@ -617,6 +617,52 @@ func TestJob_RequiredSignals(t *testing.T) {
 	}
 }
 
+// test new Equal comparisons for components of Jobs
+func TestJob_PartEqual(t *testing.T) {
+	ns := &Networks{}
+	require.True(t, ns.Equals(&Networks{}))
+
+	ns = &Networks{
+		&NetworkResource{Device: "eth0"},
+	}
+	require.True(t, ns.Equals(&Networks{
+		&NetworkResource{Device: "eth0"},
+	}))
+
+	ns = &Networks{
+		&NetworkResource{Device: "eth0"},
+		&NetworkResource{Device: "eth1"},
+		&NetworkResource{Device: "eth2"},
+	}
+	require.True(t, ns.Equals(&Networks{
+		&NetworkResource{Device: "eth2"},
+		&NetworkResource{Device: "eth0"},
+		&NetworkResource{Device: "eth1"},
+	}))
+
+	cs := &Constraints{
+		&Constraint{"left0", "right0", "=", ""},
+		&Constraint{"left1", "right1", "=", ""},
+		&Constraint{"left2", "right2", "=", ""},
+	}
+	require.True(t, cs.Equals(&Constraints{
+		&Constraint{"left0", "right0", "=", ""},
+		&Constraint{"left2", "right2", "=", ""},
+		&Constraint{"left1", "right1", "=", ""},
+	}))
+
+	as := &Affinities{
+		&Affinity{"left0", "right0", "=", 0, ""},
+		&Affinity{"left1", "right1", "=", 0, ""},
+		&Affinity{"left2", "right2", "=", 0, ""},
+	}
+	require.True(t, as.Equals(&Affinities{
+		&Affinity{"left0", "right0", "=", 0, ""},
+		&Affinity{"left2", "right2", "=", 0, ""},
+		&Affinity{"left1", "right1", "=", 0, ""},
+	}))
+}
+
 func TestTaskGroup_Validate(t *testing.T) {
 	j := testJob()
 	tg := &TaskGroup{
