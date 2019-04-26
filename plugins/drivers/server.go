@@ -293,7 +293,7 @@ func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStrea
 			server)
 	}
 
-	execOpts, errCh := StreamsToExecOptions(server.Context(),
+	execOpts, errCh := StreamToExecOptions(server.Context(),
 		msg.Setup.Command, msg.Setup.Tty,
 		server)
 

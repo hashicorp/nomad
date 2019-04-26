@@ -9,11 +9,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
-func isHeartbeat(r *ExecTaskStreamingRequestMsg) bool {
-	return r.Stdin == nil && r.Setup == nil && r.TtySize == nil
-}
-
-func StreamsToExecOptions(
+// StreamToExecOptions is a convenience method to convert exec stream into
+// ExecOptions object.
+func StreamToExecOptions(
 	ctx context.Context,
 	command []string,
 	tty bool,
@@ -151,4 +149,8 @@ func NewExecStreamingResponseExit(exitCode int) *ExecTaskStreamingResponseMsg {
 		},
 	}
 
+}
+
+func isHeartbeat(r *ExecTaskStreamingRequestMsg) bool {
+	return r.Stdin == nil && r.Setup == nil && r.TtySize == nil
 }
