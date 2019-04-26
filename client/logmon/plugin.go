@@ -73,5 +73,8 @@ func (p *Plugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 }
 
 func (p *Plugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &logmonClient{client: proto.NewLogMonClient(c)}, nil
+	return &logmonClient{
+		doneCtx: ctx,
+		client:  proto.NewLogMonClient(c),
+	}, nil
 }
