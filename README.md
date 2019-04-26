@@ -78,7 +78,7 @@ Resources
 Who Uses Nomad
 --------------------
 1) CircleCI
-* [Security & Scheduling are Not Your Core Competencies](https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
+- [Security & Scheduling are Not Your Core Competencies](https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
 2) Citadel
 * [End-to-End Production Nomad at Citadel](https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel)
   * [Extreme Scaling with HashiCorp Nomad & Consul](https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul)
