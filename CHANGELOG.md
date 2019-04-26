@@ -20,6 +20,7 @@ BUG FIXES:
  * metrics: Fixed stale metrics [[GH-5540](https://github.com/hashicorp/nomad/issues/5540)]
  * logging: Fix respawning logmon during task restarts when the logmon process
    has been terminated [[GH-5577](https://github.com/hashicorp/nomad/pull/5577)]
+ * client: Fix network fingerprinting to honor manual configuration [[GH-2619](https://github.com/hashicorp/nomad/issues/2619)]
 
 ## 0.9.0 (April 9, 2019)
 
