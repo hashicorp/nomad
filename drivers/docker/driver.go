@@ -611,9 +611,11 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	}
 
 	for _, userbind := range driverConfig.Volumes {
-		parts := strings.Split(userbind, ":")
-		if len(parts) < 2 {
-			return nil, fmt.Errorf("invalid docker volume: %q", userbind)
+		// This assumes host OS = docker container OS.
+		// Not true, when we support Linux containers on Windows
+		src, dst, mode, err := parseVolumeSpec(userbind, runtime.GOOS)
+		if err != nil {
+			return nil, fmt.Errorf("invalid docker volume %q: %v", userbind, err)
 		}
 
 		// Paths inside task dir are always allowed when using the default driver,
@@ -623,17 +625,21 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 		// Otherwise, we assume we receive a relative path binding in the format
 		// relative/to/task:/also/in/container
 		if taskLocalBindVolume {
-			parts[0] = expandPath(task.TaskDir().Dir, parts[0])
+			src = expandPath(task.TaskDir().Dir, src)
 		} else {
 			// Resolve dotted path segments
-			parts[0] = filepath.Clean(parts[0])
+			src = filepath.Clean(src)
 		}
 
-		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, parts[0]) {
+		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, src) {
 			return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
 		}
 
-		binds = append(binds, strings.Join(parts, ":"))
+		bind := src + ":" + dst
+		if mode != "" {
+			bind += ":" + mode
+		}
+		binds = append(binds, bind)
 	}
 
 	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
