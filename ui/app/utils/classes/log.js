@@ -7,6 +7,7 @@ import queryString from 'query-string';
 import { task } from 'ember-concurrency';
 import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 import PollLogger from 'nomad-ui/utils/classes/poll-logger';
+import Anser from 'anser';
 
 const MAX_OUTPUT_LENGTH = 50000;
 
@@ -37,7 +38,8 @@ const Log = EmberObject.extend(Evented, {
   // The top or bottom of the log, depending on whether
   // the logPointer is pointed at head or tail
   output: computed('logPointer', 'head', 'tail', function() {
-    return this.logPointer === 'head' ? this.head : this.tail;
+    let logs = this.logPointer === 'head' ? this.head : this.tail;
+    return Anser.ansiToHtml(logs);
   }),
 
   init() {
