@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -130,8 +131,29 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		return
 	}
 
+	aclObj, token, err := a.c.resolveTokenAndACL(req.QueryOptions.AuthToken)
+	{
+		// log access
+		execID := uuid.Generate()
+		tokenName, tokenID := "", ""
+		if token != nil {
+			tokenName, tokenID = token.Name, token.AccessorID
+		}
+
+		a.c.logger.Info("task exec session starting",
+			"exec_id", execID,
+			"alloc_id", req.AllocID,
+			"task", req.Task,
+			"command", req.Cmd,
+			"tty", req.Tty,
+			"access_token_name", tokenName,
+			"access_token_id", tokenID,
+		)
+
+		defer a.c.logger.Info("task exec session ended", "exec_id", execID)
+	}
+
 	// Check read permissions
-	aclObj, err := a.c.ResolveToken(req.QueryOptions.AuthToken)
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
