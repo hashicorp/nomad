@@ -1,5 +1,6 @@
 import { alias } from '@ember/object/computed';
 import { assert } from '@ember/debug';
+import { htmlSafe } from '@ember/template';
 import Evented from '@ember/object/evented';
 import EmberObject, { computed } from '@ember/object';
 import { assign } from '@ember/polyfills';
@@ -39,7 +40,8 @@ const Log = EmberObject.extend(Evented, {
   // the logPointer is pointed at head or tail
   output: computed('logPointer', 'head', 'tail', function() {
     let logs = this.logPointer === 'head' ? this.head : this.tail;
-    return Anser.ansiToHtml(logs);
+    let colouredLogs = Anser.ansiToHtml(logs);
+    return htmlSafe(colouredLogs);
   }),
 
   init() {
