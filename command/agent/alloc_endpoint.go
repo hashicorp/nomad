@@ -432,7 +432,6 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		for {
 			select {
 			case <-ctx.Done():
-				s.logger.Warn("ctx done")
 				errCh <- nil
 				return
 			default:
