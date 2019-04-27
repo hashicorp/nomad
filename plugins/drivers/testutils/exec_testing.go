@@ -213,7 +213,7 @@ func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tt
 			command, tty, stream)
 		require.NoError(t, err)
 	} else {
-		execOpts, errCh := drivers.StreamsToExecOptions(ctx, command, tty, stream)
+		execOpts, errCh := drivers.StreamToExecOptions(ctx, command, tty, stream)
 
 		r, err := driver.impl.ExecTaskStreaming(ctx, taskID, execOpts)
 		require.NoError(t, err)
