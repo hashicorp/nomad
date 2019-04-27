@@ -130,8 +130,6 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 		return
 	}
 
-	a.c.logger.Info("received exec request", "req", fmt.Sprintf("%#v", req))
-
 	// Check read permissions
 	aclObj, err := a.c.ResolveToken(req.QueryOptions.AuthToken)
 	if err != nil {

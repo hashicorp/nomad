@@ -332,8 +332,6 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	f.c.logger.Info("received logs request", "req", fmt.Sprintf("%#v", req))
-
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
 		handleStreamResultError(err, nil, encoder)

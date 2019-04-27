@@ -73,10 +73,6 @@ func (e *execHelper) runTTY(ctx context.Context, stream drivers.ExecTaskStream) 
 	handleStdout(e.logger, pty, &wg, stream.Send, errCh)
 
 	ps, err := e.processWait()
-	e.logger.Warn("command done", "error", err)
-	if err != nil {
-		e.logger.Warn("failed to wait for cmd", "error", err)
-	}
 
 	// force close streams to close out the stream copying goroutines
 	tty.Close()
@@ -127,10 +123,6 @@ func (e *execHelper) runNoTTY(ctx context.Context, stream drivers.ExecTaskStream
 	handleStderr(e.logger, stderrPr, &wg, send, errCh)
 
 	ps, err := e.processWait()
-	e.logger.Warn("command done", "error", err)
-	if err != nil {
-		e.logger.Warn("failed to wait for cmd", "error", err)
-	}
 
 	// force close streams to close out the stream copying goroutines
 	stdinPr.Close()
@@ -182,7 +174,6 @@ func handleStdin(logger hclog.Logger, stdin io.WriteCloser, stream drivers.ExecT
 	go func() {
 		for {
 			m, err := stream.Recv()
-			logger.Info("received stdin", "msg", m, "error", err)
 			if isClosedError(err) {
 				return
 			} else if err != nil {
@@ -225,7 +216,6 @@ func handleStdout(logger hclog.Logger, reader io.Reader, wg *sync.WaitGroup, sen
 		for {
 			buf := make([]byte, 4096)
 			n, err := reader.Read(buf)
-			logger.Info("sending stdout", "bytes", string(buf[:n]), "error", err, "isioe", isClosedError(err))
 			if isClosedError(err) {
 				if err := send(&drivers.ExecTaskStreamingResponseMsg{
 					Stdout: &dproto.ExecTaskStreamingOperation{
@@ -264,7 +254,6 @@ func handleStderr(logger hclog.Logger, reader io.Reader, wg *sync.WaitGroup, sen
 		for {
 			buf := make([]byte, 4096)
 			n, err := reader.Read(buf)
-			logger.Info("sending stdout", "bytes", string(buf[:n]), "error", err)
 			if isClosedError(err) {
 				if err := send(&drivers.ExecTaskStreamingResponseMsg{
 					Stderr: &dproto.ExecTaskStreamingOperation{

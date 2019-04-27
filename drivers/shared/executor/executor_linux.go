@@ -507,11 +507,9 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 }
 
 func (l *LibcontainerExecutor) newTerminalSocket() (master func() (*os.File, error), socket *os.File, err error) {
-	l.logger.Warn("creating a terminal")
 	parent, child, err := lutils.NewSockPair("socket")
 	if err != nil {
-		l.logger.Warn("error creating terminal", "error", err)
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create terminal: %v", err)
 	}
 
 	return func() (*os.File, error) { return lutils.RecvFd(parent) }, child, err

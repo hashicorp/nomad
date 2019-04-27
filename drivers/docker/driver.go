@@ -1271,7 +1271,6 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts driv
 		Context:      ctx,
 	}
 	if err := client.StartExec(exec.ID, startOpts); err != nil {
-		d.logger.Warn("failed to start exec", "error", err)
 		return nil, fmt.Errorf("failed to start exec: %v", err)
 	}
 
@@ -1287,7 +1286,6 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts driv
 	opts.Stdout.Close()
 	opts.Stderr.Close()
 
-	d.logger.Info("exec task finished", "exit_code", fmt.Sprintf("%#v", res))
 	return &drivers.ExitResult{
 		ExitCode: res.ExitCode,
 	}, nil
