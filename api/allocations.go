@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"time"
-
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
@@ -111,13 +109,13 @@ func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal st
 		return err
 	}
 
-	req := structs.AllocSignalRequest{
+	req := AllocSignalRequest{
 		AllocID: alloc.ID,
 		Signal:  signal,
 		Task:    task,
 	}
 
-	var resp structs.GenericResponse
+	var resp GenericResponse
 	_, err = nodeClient.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
 	return err
 }
@@ -293,6 +291,18 @@ func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
 
 type AllocationRestartRequest struct {
 	TaskName string
+}
+
+type AllocSignalRequest struct {
+	AllocID string
+	Task    string
+	Signal  string
+}
+
+// GenericResponse is used to respond to a request where no
+// specific response information is needed.
+type GenericResponse struct {
+	WriteMeta
 }
 
 // RescheduleTracker encapsulates previous reschedule events
