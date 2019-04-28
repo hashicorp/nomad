@@ -196,3 +196,37 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
+
+func TestRawExec_ExecTaskStreaming(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "darwin" {
+		t.Skip("skip running exec tasks on darwin as darwin has restrictions on starting tty shells")
+	}
+	require := require.New(t)
+
+	d := NewRawExecDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "sleep",
+	}
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "9000s"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
+
+	_, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer d.DestroyTask(task.ID, true)
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
+
+}
