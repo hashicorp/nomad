@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -185,25 +186,10 @@ func (l *AllocLogsCommand) Run(args []string) int {
 		}
 
 	} else {
-		// Try to determine the tasks name from the allocation
-		var tasks []*api.Task
-		for _, tg := range alloc.Job.TaskGroups {
-			if *tg.Name == alloc.TaskGroup {
-				if len(tg.Tasks) == 1 {
-					task = tg.Tasks[0].Name
-					break
-				}
+		task, err = lookupAllocTask(alloc)
 
-				tasks = tg.Tasks
-				break
-			}
-		}
-
-		if task == "" {
-			l.Ui.Error(fmt.Sprintf("Allocation %q is running the following tasks:", limit(alloc.ID, length)))
-			for _, t := range tasks {
-				l.Ui.Error(fmt.Sprintf("  * %s", t.Name))
-			}
+		if err != nil {
+			l.Ui.Error(err.Error())
 			l.Ui.Error("\nPlease specify the task.")
 			return 1
 		}
@@ -293,4 +279,23 @@ func (l *AllocLogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 	}()
 
 	return r, nil
+}
+
+func lookupAllocTask(alloc *api.Allocation) (string, error) {
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		return "", fmt.Errorf("Could not find allocation task group: %s", alloc.TaskGroup)
+	}
+
+	if len(tg.Tasks) == 1 {
+		return tg.Tasks[0].Name, nil
+	}
+
+	var errStr strings.Builder
+	fmt.Fprintf(&errStr, "Allocation %q is running the following tasks:\n", limit(alloc.ID, shortId))
+	for _, t := range tg.Tasks {
+		fmt.Fprintf(&errStr, "  * %s\n", t.Name)
+	}
+	fmt.Fprintf(&errStr, "\nPlease specify the task.")
+	return "", errors.New(errStr.String())
 }
