@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -91,6 +92,20 @@ var (
 		"stderr_string":          hclspec.NewAttr("stderr_string", "string", false),
 		"stderr_repeat":          hclspec.NewAttr("stderr_repeat", "number", false),
 		"stderr_repeat_duration": hclspec.NewAttr("stderr_repeat_duration", "string", false),
+
+		"exec_command": hclspec.NewBlock("exec_command", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"run_for":                hclspec.NewAttr("run_for", "string", false),
+			"exit_code":              hclspec.NewAttr("exit_code", "number", false),
+			"exit_signal":            hclspec.NewAttr("exit_signal", "number", false),
+			"exit_err_msg":           hclspec.NewAttr("exit_err_msg", "string", false),
+			"signal_error":           hclspec.NewAttr("signal_error", "string", false),
+			"stdout_string":          hclspec.NewAttr("stdout_string", "string", false),
+			"stdout_repeat":          hclspec.NewAttr("stdout_repeat", "number", false),
+			"stdout_repeat_duration": hclspec.NewAttr("stdout_repeat_duration", "string", false),
+			"stderr_string":          hclspec.NewAttr("stderr_string", "string", false),
+			"stderr_repeat":          hclspec.NewAttr("stderr_repeat", "number", false),
+			"stderr_repeat_duration": hclspec.NewAttr("stderr_repeat_duration", "string", false),
+		})),
 	})
 )
 
@@ -215,6 +230,8 @@ type Command struct {
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
 	Command
+
+	ExecCommand *Command `codec:"exec_command"`
 
 	// PluginExitAfter is the duration after which the mock driver indicates the
 	// plugin has exited via the WaitTask call.
@@ -413,6 +430,7 @@ func newTaskHandle(cfg *drivers.TaskConfig, driverConfig *TaskConfig, logger hcl
 	h := &taskHandle{
 		taskConfig:      cfg,
 		command:         driverConfig.Command,
+		execCommand:     driverConfig.ExecCommand,
 		pluginExitAfter: driverConfig.pluginExitAfterDuration,
 		killAfter:       driverConfig.killAfterDuration,
 		logger:          logger.With("task_name", cfg.Name),
@@ -601,6 +619,38 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 		ExitResult: &drivers.ExitResult{},
 	}
 	return &res, nil
+}
+
+var _ drivers.ExecTaskStreamingDriver = (*Driver)(nil)
+
+func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts *drivers.ExecOptions) (*drivers.ExitResult, error) {
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, drivers.ErrTaskNotFound
+	}
+
+	d.logger.Info("executing task", "command", h.execCommand, "task_id", taskID)
+
+	if h.execCommand == nil {
+		return nil, errors.New("no exec command is configured")
+	}
+
+	cancelCh := make(chan struct{})
+	exitTimer := make(chan time.Time)
+
+	cmd := *h.execCommand
+	if len(execOpts.Command) == 1 && execOpts.Command[0] == "showinput" {
+		stdin, _ := ioutil.ReadAll(execOpts.Stdin)
+		cmd = Command{
+			RunFor: "1ms",
+			StdoutString: fmt.Sprintf("TTY: %v\nStdin:\n%s\n",
+				execOpts.Tty,
+				stdin,
+			),
+		}
+	}
+
+	return runCommand(cmd, execOpts.Stdout, execOpts.Stderr, cancelCh, exitTimer, d.logger), nil
 }
 
 // GetTaskConfig is unique to the mock driver and for testing purposes only. It
