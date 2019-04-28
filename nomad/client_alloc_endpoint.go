@@ -2,11 +2,16 @@ package nomad
 
 import (
 	"errors"
+	"fmt"
+	"io"
+	"net"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/ugorji/go/codec"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -17,6 +22,10 @@ import (
 type ClientAllocations struct {
 	srv    *Server
 	logger log.Logger
+}
+
+func (a *ClientAllocations) register() {
+	a.srv.streamingRpcs.Register("Allocations.Exec", a.exec)
 }
 
 // GarbageCollectAll is used to garbage collect all allocations on a client.
@@ -286,4 +295,125 @@ func (a *ClientAllocations) Stats(args *cstructs.AllocStatsRequest, reply *cstru
 
 	// Make the RPC
 	return NodeRpc(state.Session, "Allocations.Stats", args, reply)
+}
+
+func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
+	defer conn.Close()
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "exec"}, time.Now())
+
+	// Decode the arguments
+	var args cstructs.AllocExecRequest
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	if err := decoder.Decode(&args); err != nil {
+		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+
+	// Check if we need to forward to a different region
+	if r := args.RequestRegion(); r != a.srv.Region() {
+		forwardRegionStreamingRpc(a.srv, conn, encoder, &args, "Allocations.Exec",
+			args.AllocID, &args.QueryOptions)
+		return
+	}
+
+	// Check node read permissions
+	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	} else if aclObj != nil {
+		// client ultimately checks if AllocNodeExec is required
+		exec := aclObj.AllowNsOp(args.QueryOptions.Namespace, acl.NamespaceCapabilityAllocExec)
+		if !exec {
+			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+			return
+		}
+	}
+
+	// Verify the arguments.
+	if args.AllocID == "" {
+		handleStreamResultError(errors.New("missing AllocID"), helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	// Retrieve the allocation
+	snap, err := a.srv.State().Snapshot()
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	alloc, err := snap.AllocByID(nil, args.AllocID)
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+	if alloc == nil {
+		handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
+		return
+	}
+	nodeID := alloc.NodeID
+
+	// Make sure Node is valid and new enough to support RPC
+	node, err := snap.NodeByID(nil, nodeID)
+	if err != nil {
+		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
+		return
+	}
+
+	if node == nil {
+		err := fmt.Errorf("Unknown node %q", nodeID)
+		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	if err := nodeSupportsRpc(node); err != nil {
+		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+		return
+	}
+
+	// Get the connection to the client either by forwarding to another server
+	// or creating a direct stream
+	var clientConn net.Conn
+	state, ok := a.srv.getNodeConn(nodeID)
+	if !ok {
+		// Determine the Server that has a connection to the node.
+		srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
+		if err != nil {
+			var code *int64
+			if structs.IsErrNoNodeConn(err) {
+				code = helper.Int64ToPtr(404)
+			}
+			handleStreamResultError(err, code, encoder)
+			return
+		}
+
+		// Get a connection to the server
+		conn, err := a.srv.streamingRpc(srv, "Allocations.Exec")
+		if err != nil {
+			handleStreamResultError(err, nil, encoder)
+			return
+		}
+
+		clientConn = conn
+	} else {
+		stream, err := NodeStreamingRpc(state.Session, "Allocations.Exec")
+		if err != nil {
+			handleStreamResultError(err, nil, encoder)
+			return
+		}
+		clientConn = stream
+	}
+	defer clientConn.Close()
+
+	// Send the request.
+	outEncoder := codec.NewEncoder(clientConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	}
+
+	structs.Bridge(conn, clientConn)
+	return
 }
