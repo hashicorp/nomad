@@ -77,6 +77,9 @@ type Executor interface {
 	// Exec executes the given command and args inside the executor context
 	// and returns the output and exit code.
 	Exec(deadline time.Time, cmd string, args []string) ([]byte, int, error)
+
+	ExecStreaming(ctx context.Context, cmd []string, tty bool,
+		stream drivers.ExecTaskStream) error
 }
 
 // ExecCommand holds the user command, args, and other isolation related
