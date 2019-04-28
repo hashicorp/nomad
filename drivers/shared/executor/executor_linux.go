@@ -5,6 +5,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -28,6 +29,7 @@ import (
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
+	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
@@ -501,6 +503,53 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 		process.Signal(os.Kill)
 		return nil, 0, context.DeadlineExceeded
 	}
+
+}
+
+func (l *LibcontainerExecutor) newTerminalSocket() (master func() (*os.File, error), socket *os.File, err error) {
+	parent, child, err := lutils.NewSockPair("socket")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create terminal: %v", err)
+	}
+
+	return func() (*os.File, error) { return lutils.RecvFd(parent) }, child, err
+
+}
+
+func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	// the task process will be started by the container
+	process := &libcontainer.Process{
+		Args: cmd,
+		Env:  l.userProc.Env,
+		User: l.userProc.User,
+		Init: false,
+		Cwd:  "/",
+	}
+
+	execHelper := &execHelper{
+		logger: l.logger,
+
+		newTerminal: l.newTerminalSocket,
+		setTTY: func(tty *os.File) error {
+			process.ConsoleSocket = tty
+			return nil
+		},
+		setIO: func(stdin io.Reader, stdout, stderr io.Writer) error {
+			process.Stdin = stdin
+			process.Stdout = stdout
+			process.Stderr = stderr
+			return nil
+		},
+
+		processStart: func() error { return l.container.Run(process) },
+		processWait: func() (*os.ProcessState, error) {
+			return process.Wait()
+		},
+	}
+
+	return execHelper.run(ctx, tty, stream)
 
 }
 
