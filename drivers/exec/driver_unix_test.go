@@ -77,3 +77,33 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
+
+func TestExec_ExecTaskStreaming(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	d := NewExecDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "sleep",
+	}
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	tc := &TaskConfig{
+		Command: "/bin/sleep",
+		Args:    []string{"9000"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+
+	_, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer d.DestroyTask(task.ID, true)
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
+
+}
