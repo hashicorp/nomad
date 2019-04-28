@@ -70,38 +70,43 @@ func (c *cachedACLValue) Age() time.Duration {
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
 func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
+	a, _, err := c.resolveTokenAndACL(secretID)
+	return a, err
+}
+
+func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToken, error) {
 	// Fast-path if ACLs are disabled
 	if !c.config.ACLEnabled {
-		return nil, nil
+		return nil, nil, nil
 	}
 	defer metrics.MeasureSince([]string{"client", "acl", "resolve_token"}, time.Now())
 
 	// Resolve the token value
 	token, err := c.resolveTokenValue(secretID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if token == nil {
-		return nil, structs.ErrTokenNotFound
+		return nil, nil, structs.ErrTokenNotFound
 	}
 
 	// Check if this is a management token
 	if token.Type == structs.ACLManagementToken {
-		return acl.ManagementACL, nil
+		return acl.ManagementACL, token, nil
 	}
 
 	// Resolve the policies
 	policies, err := c.resolvePolicies(token.SecretID, token.Policies)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Resolve the ACL object
 	aclObj, err := structs.CompileACLObject(c.aclCache, policies)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return aclObj, nil
+	return aclObj, token, nil
 }
 
 // resolveTokenValue is used to translate a secret ID into an ACL token with caching
