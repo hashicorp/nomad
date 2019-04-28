@@ -144,6 +144,23 @@ type StreamErrWrapper struct {
 	Payload []byte
 }
 
+// AllocExecRequest is the initial request for execing into an Alloc task
+type AllocExecRequest struct {
+	// AllocID is the allocation to stream logs from
+	AllocID string
+
+	// Task is the task to stream logs from
+	Task string
+
+	// Tty indicates whether to allocate a pseudo-TTY
+	Tty bool
+
+	// Cmd is the command to be executed
+	Cmd []string
+
+	structs.QueryOptions
+}
+
 // AllocStatsRequest is used to request the resource usage of a given
 // allocation, potentially filtering by task
 type AllocStatsRequest struct {

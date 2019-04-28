@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -59,6 +60,46 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 		return nil, 0, err
 	}
 	return res.Stdout, res.ExitResult.ExitCode, res.ExitResult.Err
+}
+
+func (h *DriverHandle) ExecStreaming(ctx context.Context,
+	command []string,
+	tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	if impl, ok := h.driver.(drivers.ExecTaskStreamingRawDriver); ok {
+		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, stream)
+	}
+
+	d, ok := h.driver.(drivers.ExecTaskStreamingDriver)
+	if !ok {
+		return fmt.Errorf("task driver does not support exec")
+	}
+
+	execOpts, doneCh := drivers.StreamToExecOptions(
+		ctx, command, tty, stream)
+
+	result, err := d.ExecTaskStreaming(ctx, h.taskID, execOpts)
+	if err != nil {
+		return err
+	}
+
+	execOpts.Stdout.Close()
+	execOpts.Stderr.Close()
+
+	select {
+	case err = <-doneCh:
+	case <-ctx.Done():
+		err = fmt.Errorf("exec task timed out: %v", ctx.Err())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	stream.Send(drivers.NewExecStreamingResponseExit(result.ExitCode))
+
+	return nil
 }
 
 func (h *DriverHandle) Network() *drivers.DriverNetwork {
