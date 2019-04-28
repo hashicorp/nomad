@@ -392,5 +392,68 @@ func (d *driverPluginClient) ExecTask(taskID string, cmd []string, timeout time.
 	}
 
 	return result, nil
+}
 
+var _ ExecTaskStreamingRawDriver = (*driverPluginClient)(nil)
+
+func (d *driverPluginClient) ExecTaskStreamingRaw(ctx context.Context,
+	taskID string,
+	command []string,
+	tty bool,
+	execStream ExecTaskStream) error {
+
+	stream, err := d.client.ExecTaskStreaming(ctx)
+	if err != nil {
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
+	}
+
+	err = stream.Send(&proto.ExecTaskStreamingRequest{
+		Setup: &proto.ExecTaskStreamingRequest_Setup{
+			TaskId:  taskID,
+			Command: command,
+			Tty:     tty,
+		},
+	})
+	if err != nil {
+		return grpcutils.HandleGrpcErr(err, d.doneCtx)
+	}
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		for {
+			m, err := execStream.Recv()
+			if err == io.EOF {
+				return
+			} else if err != nil {
+				errCh <- err
+				return
+			}
+
+			if err := stream.Send(m); err != nil {
+				errCh <- err
+				return
+			}
+
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errCh:
+			return err
+		default:
+		}
+
+		m, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		if err := execStream.Send(m); err != nil {
+			return err
+		}
+	}
 }
