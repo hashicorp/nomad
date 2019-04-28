@@ -70,6 +70,10 @@ service Driver {
 
     // ExecTask executes a command inside the tasks execution context
     rpc ExecTask(ExecTaskRequest) returns (ExecTaskResponse) {}
+
+    // ExecTaskStreaming executes a command inside the tasks execution context
+    // and streams back results
+    rpc ExecTaskStreaming(stream ExecTaskStreamingRequest) returns (stream ExecTaskStreamingResponse) {}
 }
 
 message TaskConfigSchemaRequest {}

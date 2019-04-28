@@ -277,6 +277,60 @@ func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRe
 	return resp, nil
 }
 
+func (b *driverPluginServer) ExecTaskStreaming(server proto.Driver_ExecTaskStreamingServer) error {
+	msg, err := server.Recv()
+	if err != nil {
+		return fmt.Errorf("failed to receive initial message: %v", err)
+	}
+
+	if msg.Setup == nil {
+		return fmt.Errorf("first message should always be setup")
+	}
+
+	if impl, ok := b.impl.(ExecTaskStreamingRawDriver); ok {
+		return impl.ExecTaskStreamingRaw(server.Context(),
+			msg.Setup.TaskId, msg.Setup.Command, msg.Setup.Tty,
+			server)
+	}
+
+	d, ok := b.impl.(ExecTaskStreamingDriver)
+	if !ok {
+		return fmt.Errorf("driver does not support exec")
+	}
+
+	execOpts, errCh := StreamToExecOptions(server.Context(),
+		msg.Setup.Command, msg.Setup.Tty,
+		server)
+
+	result, err := d.ExecTaskStreaming(server.Context(),
+		msg.Setup.TaskId, execOpts)
+
+	if err != nil {
+		return err
+	}
+
+	execOpts.Stdout.Close()
+	execOpts.Stderr.Close()
+
+	// wait for copy to be done
+	select {
+	case err = <-errCh:
+	case <-server.Context().Done():
+		err = fmt.Errorf("exec timed out: %v", server.Context().Err())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	server.Send(&ExecTaskStreamingResponseMsg{
+		Exited: true,
+		Result: exitResultToProto(result),
+	})
+
+	return err
+}
+
 func (b *driverPluginServer) SignalTask(ctx context.Context, req *proto.SignalTaskRequest) (*proto.SignalTaskResponse, error) {
 	err := b.impl.SignalTask(req.TaskId, req.Signal)
 	if err != nil {
