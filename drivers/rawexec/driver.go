@@ -521,3 +521,22 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 		},
 	}, nil
 }
+
+var _ drivers.ExecTaskStreamingRawDriver = (*Driver)(nil)
+
+func (d *Driver) ExecTaskStreamingRaw(ctx context.Context,
+	taskID string,
+	command []string,
+	tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	if len(command) == 0 {
+		return fmt.Errorf("error cmd must have at least one value")
+	}
+	handle, ok := d.tasks.Get(taskID)
+	if !ok {
+		return drivers.ErrTaskNotFound
+	}
+
+	return handle.exec.ExecStreaming(ctx, command, tty, stream)
+}
