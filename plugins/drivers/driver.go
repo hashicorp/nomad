@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/zclconf/go-cty/cty"
@@ -54,6 +55,28 @@ type DriverPlugin interface {
 
 	SignalTask(taskID string, signal string) error
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
+}
+
+// ExecTaskStreamingDriver marks that a driver supports streaming exec task.  This represents a user friendly
+// interface to implement, as an alternative to the ExecTaskStreamingRawDriver, the low level interface.
+type ExecTaskStreamingDriver interface {
+	ExecTaskStreaming(ctx context.Context, taskID string, execOptions *ExecOptions) (*ExitResult, error)
+}
+
+type ExecOptions struct {
+	// Command is command to run
+	Command []string
+
+	// Tty indicates whether pseudo-terminal is to be allocated
+	Tty bool
+
+	// streams
+	Stdin  io.ReadCloser
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
+
+	// terminal size channel
+	ResizeCh <-chan TerminalSize
 }
 
 // InternalDriverPlugin is an interface that exposes functions that are only
@@ -125,6 +148,11 @@ type Capabilities struct {
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
 	FSIsolation FSIsolation
+}
+
+type TerminalSize struct {
+	Height int
+	Width  int
 }
 
 type TaskConfig struct {
@@ -406,3 +434,40 @@ func (d *DriverNetwork) Hash() []byte {
 	}
 	return h.Sum(nil)
 }
+
+//// helper types for operating on raw exec operation
+// we alias proto instances as much as possible to avoid conversion overhead
+
+// ExecTaskStreamingRawDriver represents a low-level interface for executing a streaming exec
+// call, and is intended to be used when driver instance is to delegate exec handling to another
+// backend, e.g. to a executor or a driver behind a grpc/rpc protocol
+//
+// Nomad client would prefer this interface method over `ExecTaskStreaming` if driver implements it.
+type ExecTaskStreamingRawDriver interface {
+	ExecTaskStreamingRaw(
+		ctx context.Context,
+		taskID string,
+		command []string,
+		tty bool,
+		stream ExecTaskStream) error
+}
+
+// ExecTaskStream represents a stream of exec streaming messages,
+// and is a handle to get stdin and tty size and send back
+// stdout/stderr and exit operations.
+//
+// The methods are not concurrent safe; callers must ensure that methods are called
+// from at most one goroutine.
+type ExecTaskStream interface {
+	// Send relays response message back to API.
+	//
+	// The call is synchronous and no references to message is held: once
+	// method call completes, the message reference can be reused or freed.
+	Send(*ExecTaskStreamingResponseMsg) error
+
+	// Receive exec streaming messages from API.  Returns `io.EOF` on completion of stream.
+	Recv() (*ExecTaskStreamingRequestMsg, error)
+}
+
+type ExecTaskStreamingRequestMsg = proto.ExecTaskStreamingRequest
+type ExecTaskStreamingResponseMsg = proto.ExecTaskStreamingResponse
