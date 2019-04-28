@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -52,6 +53,7 @@ func (h *DriverHandle) Signal(s string) error {
 	return h.driver.SignalTask(h.taskID, s)
 }
 
+// Exec is the handled used by client endpoint handler to invoke the appropriate task driver exec.
 func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
 	command := append([]string{cmd}, args...)
 	res, err := h.driver.ExecTask(h.taskID, command, timeout)
@@ -59,6 +61,46 @@ func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([
 		return nil, 0, err
 	}
 	return res.Stdout, res.ExitResult.ExitCode, res.ExitResult.Err
+}
+
+// ExecStreaming is the handled used by client endpoint handler to invoke the appropriate task driver exec.
+// while allowing to stream input and output
+func (h *DriverHandle) ExecStreaming(ctx context.Context,
+	command []string,
+	tty bool,
+	stream drivers.ExecTaskStream) error {
+
+	if impl, ok := h.driver.(drivers.ExecTaskStreamingRawDriver); ok {
+		return impl.ExecTaskStreamingRaw(ctx, h.taskID, command, tty, stream)
+	}
+
+	d, ok := h.driver.(drivers.ExecTaskStreamingDriver)
+	if !ok {
+		return fmt.Errorf("task driver does not support exec")
+	}
+
+	execOpts, doneCh := drivers.StreamToExecOptions(
+		ctx, command, tty, stream)
+
+	result, err := d.ExecTaskStreaming(ctx, h.taskID, execOpts)
+	if err != nil {
+		return err
+	}
+
+	execOpts.Stdout.Close()
+	execOpts.Stderr.Close()
+
+	select {
+	case err = <-doneCh:
+	case <-ctx.Done():
+		err = fmt.Errorf("exec task timed out: %v", ctx.Err())
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return stream.Send(drivers.NewExecStreamingResponseExit(result.ExitCode))
 }
 
 func (h *DriverHandle) Network() *drivers.DriverNetwork {
