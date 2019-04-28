@@ -1215,6 +1215,84 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 	return h.Exec(ctx, cmd[0], cmd[1:])
 }
 
+var _ drivers.ExecTaskStreamingDriver = (*Driver)(nil)
+
+func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *drivers.ExecOptions) (*drivers.ExitResult, error) {
+	defer opts.Stdout.Close()
+	defer opts.Stderr.Close()
+
+	done := make(chan interface{})
+	defer close(done)
+
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return nil, drivers.ErrTaskNotFound
+	}
+
+	if len(opts.Command) == 0 {
+		return nil, fmt.Errorf("cmd is required but was empty")
+	}
+
+	createExecOpts := docker.CreateExecOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          opts.Tty,
+		Cmd:          opts.Command,
+		Container:    h.containerID,
+		Context:      ctx,
+	}
+	exec, err := h.client.CreateExec(createExecOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exec object: %v", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case s, ok := <-opts.ResizeCh:
+				if !ok {
+					return
+				}
+				client.ResizeExecTTY(exec.ID, s.Height, s.Width)
+			}
+		}
+	}()
+
+	startOpts := docker.StartExecOptions{
+		Detach:       false,
+		Tty:          opts.Tty,
+		RawTerminal:  opts.Tty,
+		InputStream:  opts.Stdin,
+		OutputStream: opts.Stdout,
+		ErrorStream:  opts.Stderr,
+		Context:      ctx,
+	}
+	if err := client.StartExec(exec.ID, startOpts); err != nil {
+		return nil, fmt.Errorf("failed to start exec: %v", err)
+	}
+
+	var res *docker.ExecInspect
+	for res == nil || res.Running {
+		res, err = client.InspectExec(exec.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect exec result: %v", err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	opts.Stdout.Close()
+	opts.Stderr.Close()
+
+	return &drivers.ExitResult{
+		ExitCode: res.ExitCode,
+	}, nil
+}
+
 // dockerClients creates two *docker.Client, one for long running operations and
 // the other for shorter operations. In test / dev mode we can use ENV vars to
 // connect to the docker daemon. In production mode we will read docker.endpoint

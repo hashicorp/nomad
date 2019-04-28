@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -753,4 +754,33 @@ func copyFile(src, dst string, t *testing.T) {
 	if err := out.Sync(); err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
+}
+
+func TestDocker_ExecTaskStreaming(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "nc-demo",
+		AllocID:   uuid.Generate(),
+		Resources: basicResources,
+	}
+	require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+	d := dockerDriverHarness(t, nil)
+	cleanup := d.MkAllocDir(task, true)
+	defer cleanup()
+	copyImage(t, task.TaskDir(), "busybox.tar")
+
+	_, _, err := d.StartTask(task)
+	require.NoError(t, err)
+
+	defer d.DestroyTask(task.ID, true)
+
+	dtestutil.ExecTaskStreamingConformanceTests(t, d, task.ID)
+
 }
