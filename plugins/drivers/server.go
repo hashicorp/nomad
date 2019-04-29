@@ -39,8 +39,10 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 	}
 	resp := &proto.CapabilitiesResponse{
 		Capabilities: &proto.DriverCapabilities{
-			SendSignals: caps.SendSignals,
-			Exec:        caps.Exec,
+			SendSignals:           caps.SendSignals,
+			Exec:                  caps.Exec,
+			MustCreateNetwork:     caps.MustInitiateNetwork,
+			NetworkIsolationModes: []proto.NetworkIsolationSpec_NetworkIsolationMode{},
 		},
 	}
 
@@ -53,6 +55,10 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_IMAGE
 	default:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
+	}
+
+	for _, mode := range caps.NetIsolationModes {
+		resp.Capabilities.NetworkIsolationModes = append(resp.Capabilities.NetworkIsolationModes, netIsolationModeToProto(mode))
 	}
 	return resp, nil
 }
@@ -319,4 +325,12 @@ func (b *driverPluginServer) TaskEvents(req *proto.TaskEventsRequest, srv proto.
 		}
 	}
 	return nil
+}
+
+func (b *driverPluginServer) CreateNetwork(ctx context.Context, req *proto.CreateNetworkRequest) (*proto.CreateNetworkResponse, error) {
+	return nil, nil
+}
+
+func (b *driverPluginServer) DestroyNetwork(ctx context.Context, req *proto.DestroyNetworkRequest) (*proto.DestroyNetworkResponse, error) {
+	return nil, nil
 }

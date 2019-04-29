@@ -70,6 +70,14 @@ service Driver {
 
     // ExecTask executes a command inside the tasks execution context
     rpc ExecTask(ExecTaskRequest) returns (ExecTaskResponse) {}
+
+    // CreateNetwork is implemented when the driver needs to create the network
+    // namespace instead of allowing the Nomad client to do.
+    rpc CreateNetwork(CreateNetworkRequest) returns (CreateNetworkResponse) {}
+
+    // DestroyNetwork destroys a previously created network. This rpc is only
+    // implemented if the driver needs to manage network namespace creation.
+    rpc DestroyNetwork(DestroyNetworkRequest) returns (DestroyNetworkResponse) {}
 }
 
 message TaskConfigSchemaRequest {}
@@ -280,6 +288,27 @@ message ExecTaskResponse {
     ExitResult result = 3;
 }
 
+message CreateNetworkRequest {
+
+    // AllodID of the allocation the network is associated with
+    string alloc_id = 1;
+}
+
+message CreateNetworkResponse {
+
+    NetworkIsolationSpec isolation_spec = 1;
+}
+
+message DestroyNetworkRequest {
+
+    // AllodID of the allocation the network is associated with
+    string alloc_id = 1;
+
+    NetworkIsolationSpec isolation_spec = 2;
+}
+
+message DestroyNetworkResponse {}
+
 message DriverCapabilities {
 
     // SendSignals indicates that the driver can send process signals (ex. SIGUSR1)
@@ -297,6 +326,24 @@ message DriverCapabilities {
     }
     // FsIsolation indicates what kind of filesystem isolation a driver supports.
     FSIsolation fs_isolation = 3;
+
+    repeated NetworkIsolationSpec.NetworkIsolationMode network_isolation_modes = 4;
+
+    bool must_create_network = 5;
+}
+
+message NetworkIsolationSpec {
+  enum NetworkIsolationMode {
+    HOST = 0;
+    GROUP = 1;
+    TASK = 2;
+    NONE = 3;
+  }
+  NetworkIsolationMode mode = 1;
+
+  string path = 2;
+
+  map<string,string> labels = 3;
 }
 
 message TaskConfig {
@@ -350,6 +397,10 @@ message TaskConfig {
 
     // AllocId is the ID of the associated allocation
     string alloc_id = 15;
+
+    // NetworkIsolationSpec specifies the configuration for the network namespace
+    // to use for the task. *Only supported on Linux
+    NetworkIsolationSpec network_isolation_spec = 16;
 }
 
 message Resources {

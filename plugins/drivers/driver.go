@@ -56,6 +56,14 @@ type DriverPlugin interface {
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
 }
 
+// DriverNetworkManager is the interface with exposes function for creating a
+// network namespace for which tasks can join. This only needs to be implemented
+// if the driver MUST create the network namespace
+type DriverNetworkManager interface {
+	CreateNetwork(allocID string) (*NetworkIsolationSpec, error)
+	DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error
+}
+
 // InternalDriverPlugin is an interface that exposes functions that are only
 // implemented by internal driver plugins.
 type InternalDriverPlugin interface {
@@ -125,24 +133,55 @@ type Capabilities struct {
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
 	FSIsolation FSIsolation
+
+	//NetIsolationModes lists the set of isolation modes supported by the driver
+	NetIsolationModes []NetIsolationMode
+
+	// MustInitiateNetwork tells Nomad that the driver must create the network
+	// namespace and that the CreateNetwork and DestroyNetwork RPCs are implemented.
+	MustInitiateNetwork bool
+}
+
+type NetIsolationMode string
+
+var (
+	// NetIsolationModeHost disables network isolation and uses the host network
+	NetIsolationModeHost = NetIsolationMode("host")
+
+	// NetIsolationModeGroup uses the group network namespace for isolation
+	NetIsolationModeGroup = NetIsolationMode("group")
+
+	// NetIsolationModeTask isolates the network to just the task
+	NetIsolationModeTask = NetIsolationMode("task")
+
+	// NetIsolationModeNone indicates that there is no network to isolate and is
+	// inteded to be used for tasks that the client manages remotely
+	NetIsolationModeNone = NetIsolationMode("none")
+)
+
+type NetworkIsolationSpec struct {
+	Mode   NetIsolationMode
+	Path   string
+	Labels map[string]string
 }
 
 type TaskConfig struct {
-	ID              string
-	JobName         string
-	TaskGroupName   string
-	Name            string
-	Env             map[string]string
-	DeviceEnv       map[string]string
-	Resources       *Resources
-	Devices         []*DeviceConfig
-	Mounts          []*MountConfig
-	User            string
-	AllocDir        string
-	rawDriverConfig []byte
-	StdoutPath      string
-	StderrPath      string
-	AllocID         string
+	ID               string
+	JobName          string
+	TaskGroupName    string
+	Name             string
+	Env              map[string]string
+	DeviceEnv        map[string]string
+	Resources        *Resources
+	Devices          []*DeviceConfig
+	Mounts           []*MountConfig
+	User             string
+	AllocDir         string
+	rawDriverConfig  []byte
+	StdoutPath       string
+	StderrPath       string
+	AllocID          string
+	NetworkIsolation *NetworkIsolationSpec
 }
 
 func (tc *TaskConfig) Copy() *TaskConfig {
