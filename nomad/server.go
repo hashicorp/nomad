@@ -1169,7 +1169,12 @@ func (s *Server) setupRaft() error {
 			}
 		} else if _, err := os.Stat(peersFile); err == nil {
 			s.logger.Info("found peers.json file, recovering Raft configuration...")
-			configuration, err := raft.ReadPeersJSON(peersFile)
+			var configuration raft.Configuration
+			if s.config.RaftConfig.ProtocolVersion < 3 {
+				configuration, err = raft.ReadPeersJSON(peersFile)
+			} else {
+				configuration, err = raft.ReadConfigJSON(peersFile)
+			}
 			if err != nil {
 				return fmt.Errorf("recovery failed to parse peers.json: %v", err)
 			}
