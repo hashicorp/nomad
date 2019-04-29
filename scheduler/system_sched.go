@@ -297,6 +297,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 					desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
 					desired.Place -= 1
 				}
+				continue
 			}
 
 			// Check if this task group has already failed
@@ -304,6 +305,20 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				metric.CoalescedFailures += 1
 				continue
 			}
+
+			// Store the available nodes by datacenter
+			s.ctx.Metrics().NodesAvailable = s.nodesByDC
+
+			// Compute top K scoring node metadata
+			s.ctx.Metrics().PopulateScoreMetaData()
+
+			// Lazy initialize the failed map
+			if s.failedTGAllocs == nil {
+				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
+			}
+
+			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
+			continue
 		}
 
 		// Store the available nodes by datacenter
@@ -313,67 +328,58 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		s.ctx.Metrics().PopulateScoreMetaData()
 
 		// Set fields based on if we found an allocation option
-		if option != nil {
-			resources := &structs.AllocatedResources{
-				Tasks: option.TaskResources,
-				Shared: structs.AllocatedSharedResources{
-					DiskMB: int64(missing.TaskGroup.EphemeralDisk.SizeMB),
-				},
-			}
+		resources := &structs.AllocatedResources{
+			Tasks: option.TaskResources,
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: int64(missing.TaskGroup.EphemeralDisk.SizeMB),
+			},
+		}
 
-			// Create an allocation for this
-			alloc := &structs.Allocation{
-				ID:                 uuid.Generate(),
-				Namespace:          s.job.Namespace,
-				EvalID:             s.eval.ID,
-				Name:               missing.Name,
-				JobID:              s.job.ID,
-				TaskGroup:          missing.TaskGroup.Name,
-				Metrics:            s.ctx.Metrics(),
-				NodeID:             option.Node.ID,
-				NodeName:           option.Node.Name,
-				TaskResources:      resources.OldTaskResources(),
-				AllocatedResources: resources,
-				DesiredStatus:      structs.AllocDesiredStatusRun,
-				ClientStatus:       structs.AllocClientStatusPending,
-				SharedResources: &structs.Resources{
-					DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
-				},
-			}
+		// Create an allocation for this
+		alloc := &structs.Allocation{
+			ID:                 uuid.Generate(),
+			Namespace:          s.job.Namespace,
+			EvalID:             s.eval.ID,
+			Name:               missing.Name,
+			JobID:              s.job.ID,
+			TaskGroup:          missing.TaskGroup.Name,
+			Metrics:            s.ctx.Metrics(),
+			NodeID:             option.Node.ID,
+			NodeName:           option.Node.Name,
+			TaskResources:      resources.OldTaskResources(),
+			AllocatedResources: resources,
+			DesiredStatus:      structs.AllocDesiredStatusRun,
+			ClientStatus:       structs.AllocClientStatusPending,
+			SharedResources: &structs.Resources{
+				DiskMB: missing.TaskGroup.EphemeralDisk.SizeMB,
+			},
+		}
 
-			// If the new allocation is replacing an older allocation then we
-			// set the record the older allocation id so that they are chained
-			if missing.Alloc != nil {
-				alloc.PreviousAllocation = missing.Alloc.ID
-			}
+		// If the new allocation is replacing an older allocation then we
+		// set the record the older allocation id so that they are chained
+		if missing.Alloc != nil {
+			alloc.PreviousAllocation = missing.Alloc.ID
+		}
 
-			// If this placement involves preemption, set DesiredState to evict for those allocations
-			if option.PreemptedAllocs != nil {
-				var preemptedAllocIDs []string
-				for _, stop := range option.PreemptedAllocs {
-					s.plan.AppendPreemptedAlloc(stop, alloc.ID)
+		// If this placement involves preemption, set DesiredState to evict for those allocations
+		if option.PreemptedAllocs != nil {
+			var preemptedAllocIDs []string
+			for _, stop := range option.PreemptedAllocs {
+				s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 
-					preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
-					if s.eval.AnnotatePlan && s.plan.Annotations != nil {
-						s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
-						if s.plan.Annotations.DesiredTGUpdates != nil {
-							desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
-							desired.Preemptions += 1
-						}
+				preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
+				if s.eval.AnnotatePlan && s.plan.Annotations != nil {
+					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
+					if s.plan.Annotations.DesiredTGUpdates != nil {
+						desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
+						desired.Preemptions += 1
 					}
 				}
-				alloc.PreemptedAllocations = preemptedAllocIDs
 			}
-
-			s.plan.AppendAlloc(alloc)
-		} else {
-			// Lazy initialize the failed map
-			if s.failedTGAllocs == nil {
-				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
-			}
-
-			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
+			alloc.PreemptedAllocations = preemptedAllocIDs
 		}
+
+		s.plan.AppendAlloc(alloc)
 	}
 
 	return nil
