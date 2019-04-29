@@ -1,0 +1,28 @@
+package allocrunner
+
+import "github.com/hashicorp/nomad/nomad/structs"
+
+type networkHook struct {
+
+	// alloc set by new func
+	alloc *structs.Allocation
+
+	networks []*structs.NetworkResource
+}
+
+func newNetworkHook() *networkHook {
+
+	return nil
+}
+
+func (n *networkHook) Name() string {
+	return "network"
+}
+
+func (n *networkHook) Prerun() error {
+	if len(n.networks) == 0 || n.networks[0].Mode == "host" {
+		return nil
+	}
+
+	return nil
+}
