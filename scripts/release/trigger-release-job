@@ -3,9 +3,9 @@
 set -e
 set -o pipefail
 
-if [ "$#" -ne 3 ]
+if [ "$#" -ne 3 ] && [ "$#" -ne 5 ]
 then
-    echo "Usage: $0 VERSION OSS_REVISION ENTERPRISE_REVISION"
+    echo "Usage: $0 VERSION OSS_REVISION ENTERPRISE_REVISION [OSS_BRANCH ENTERPRISE_BRANCH] "
     exit 1
 fi
 
@@ -20,15 +20,19 @@ readonly nomad_version="$1"
 readonly nomad_oss_revision="$2"
 readonly nomad_enterprise_revision="$3"
 
+readonly nomad_oss_branch="${4:-master}"
+readonly nomad_enterprise_branch="${5:-master}"
+
 readonly script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly project_url=https://circleci.hashicorp.engineering/api/v1.1/project/github/hashicorp/nomad-enterprise/tree/master
-
 
 curl --fail --silent --show-error \
     --user "${CIRCLE_API_TOKEN}:" \
     --form "build_parameters[CIRCLE_JOB]=build" \
     --form "build_parameters[NOMAD_OSS_REVISION]=${nomad_oss_revision}" \
     --form "build_parameters[NOMAD_ENTERPRISE_REVISION]=${nomad_enterprise_revision}" \
+    --form "build_parameters[NOMAD_OSS_BRANCH]=${nomad_oss_branch}" \
+    --form "build_parameters[NOMAD_ENTERPRISE_BRANCH]=${nomad_enterprise_branch}" \
     --form "build_parameters[NOMAD_VERSION]=${nomad_version}" \
     --form "config=@${script_dir}/circleci-release.yaml" \
     ${project_url} | grep "build_url"

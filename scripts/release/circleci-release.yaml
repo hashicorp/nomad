@@ -40,6 +40,8 @@ jobs:
         name: inspect information
         command: |
           echo "RELEASE VERSION     : ${NOMAD_VERSION}"
+          echo "OSS BRANCH          : ${NOMAD_OSS_BRANCH}"
+          echo "ENTERPRISE BRANCH   : ${NOMAD_ENTERPRISE_BRANCH}"
           echo "OSS REVISION        : ${NOMAD_OSS_REVISION}"
           echo "ENTERPRISE REVISION : ${NOMAD_ENTERPRISE_REVISION}"
 
@@ -49,6 +51,7 @@ jobs:
         command: |
           git clone git@github.com:hashicorp/nomad.git ~/nomad-oss
           cd ~/nomad-oss
+          git checkout "${NOMAD_OSS_BRANCH}" || git checkout -b "${NOMAD_OSS_BRANCH}"
           git reset --hard "${NOMAD_OSS_REVISION}"
 
     - run:
@@ -167,6 +170,7 @@ jobs:
         command: |
           git clone git@github.com:hashicorp/nomad-enterprise.git ~/nomad-ent
           cd ~/nomad-ent
+          git checkout "${NOMAD_ENTERPRISE_BRANCH}" || git checkout -b "${NOMAD_ENTERPRISE_BRANCH}"
           git reset --hard "${NOMAD_ENTERPRISE_REVISION}"
 
           # merge OSS
@@ -237,6 +241,7 @@ jobs:
         command: |
           git clone /tmp/artifacts/nomad-ENT-artifacts/repo/.git ~/nomad-pro
           cd ~/nomad-pro
+          git checkout "${NOMAD_ENTERPRISE_BRANCH}"
           git remote set-url origin git@github.com:hashicorp/nomad-enterprise.git
 
     - run:
