@@ -9,11 +9,13 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -195,9 +197,30 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.systemCpuStats = stats.NewCpuStats()
 
 	// Starts the task
-	if err := container.Run(process); err != nil {
-		container.Destroy()
-		return nil, err
+	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
+		// Lock to the thread we're changing the network namespace of
+		runtime.LockOSThread()
+		netns, err := ns.GetNS(command.NetworkIsolation.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		// Start the container in the network namespace
+		err = netns.Do(func(ns.NetNS) error {
+			if err := container.Run(process); err != nil {
+				container.Destroy()
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err := container.Run(process); err != nil {
+			container.Destroy()
+			return nil, err
+		}
 	}
 
 	pid, err := process.Pid()
