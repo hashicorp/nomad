@@ -1994,11 +1994,13 @@ func (r *Resources) GoString() string {
 type Port struct {
 	Label string
 	Value int
+	To    int
 }
 
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
+	Mode          string // Mode of the network
 	Device        string // Name of the device
 	CIDR          string // CIDR block of addresses
 	IP            string // Host IP address
@@ -2008,6 +2010,10 @@ type NetworkResource struct {
 }
 
 func (nr *NetworkResource) Equals(other *NetworkResource) bool {
+	if nr.Mode != other.Mode {
+		return false
+	}
+
 	if nr.Device != other.Device {
 		return false
 	}
@@ -2953,15 +2959,17 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 
 // AllocatedSharedResources are the set of resources allocated to a task group.
 type AllocatedSharedResources struct {
-	DiskMB int64
+	Networks Networks
+	DiskMB   int64
 }
 
 func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	if delta == nil {
 		return
 	}
-
+	a.Networks = append(a.Networks, delta.Networks...)
 	a.DiskMB += delta.DiskMB
+
 }
 
 func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
@@ -2969,6 +2977,17 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 		return
 	}
 
+	diff := map[*NetworkResource]bool{}
+	for _, n := range delta.Networks {
+		diff[n] = true
+	}
+	var nets Networks
+	for _, n := range a.Networks {
+		if _, ok := diff[n]; !ok {
+			nets = append(nets, n)
+		}
+	}
+	a.Networks = nets
 	a.DiskMB -= delta.DiskMB
 }
 
@@ -4581,6 +4600,10 @@ type TaskGroup struct {
 	// Spread can be specified at the task group level to express spreading
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
+
+	// Networks are the network configuration for the task group. This can be
+	// overriden in the task.
+	Networks Networks
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4595,6 +4618,15 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
+
+	// Copy the network objects
+	if tg.Networks != nil {
+		n := len(tg.Networks)
+		ntg.Networks = make([]*NetworkResource, n)
+		for i := 0; i < n; i++ {
+			ntg.Networks[i] = tg.Networks[i].Copy()
+		}
+	}
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))

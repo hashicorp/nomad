@@ -869,6 +869,50 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"tg-network.hcl",
+			&api.Job{
+				ID:          helper.StringToPtr("foo"),
+				Name:        helper.StringToPtr("foo"),
+				Datacenters: []string{"dc1"},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  helper.StringToPtr("bar"),
+						Count: helper.IntToPtr(3),
+						Networks: []*api.NetworkResource{
+							{
+								Mode: "bridge",
+								ReservedPorts: []api.Port{
+									{
+										Label: "http",
+										Value: 80,
+										To:    8080,
+									},
+								},
+							},
+						},
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": "bash",
+									"args":    []interface{}{"-c", "echo hi"},
+								},
+								Resources: &api.Resources{
+									Networks: []*api.NetworkResource{
+										{
+											MBits: helper.IntToPtr(10),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

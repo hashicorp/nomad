@@ -493,6 +493,7 @@ type TaskGroup struct {
 	EphemeralDisk    *EphemeralDisk
 	Update           *UpdateStrategy
 	Migrate          *MigrateStrategy
+	Networks         []*NetworkResource
 	Meta             map[string]string
 }
 
@@ -602,6 +603,9 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 	for _, a := range g.Affinities {
 		a.Canonicalize()
+	}
+	for _, n := range g.Networks {
+		n.Canonicalize()
 	}
 }
 
