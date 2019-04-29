@@ -48,6 +48,8 @@ var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 	PreemptionConfig: structs.PreemptionConfig{
 		SystemSchedulerEnabled: true,
+		BatchEnabled:           true,
+		ServiceEnabled:         true,
 	},
 }
 
