@@ -4644,7 +4644,7 @@ type TaskGroup struct {
 	Spreads []*Spread
 
 	// Networks are the network configuration for the task group. This can be
-	// overriden in the task.
+	// overridden in the task.
 	Networks Networks
 }
 

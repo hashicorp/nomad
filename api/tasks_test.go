@@ -269,7 +269,7 @@ func TestTask_Require(t *testing.T) {
 			{
 				CIDR:          "0.0.0.0/0",
 				MBits:         intToPtr(100),
-				ReservedPorts: []Port{{"", 80}, {"", 443}},
+				ReservedPorts: []Port{{"", 80, 0}, {"", 443, 0}},
 			},
 		},
 	}
