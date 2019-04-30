@@ -30,7 +30,7 @@ func (*volumeHook) Name() string {
 }
 
 func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	volumes := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).Volumes
+	volumes := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup).HostVolumes
 
 	mounts := h.runner.hookResources.getMounts()
 
@@ -40,13 +40,8 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 			return fmt.Errorf("Could not find volume declaration named: %s", m.Volume)
 		}
 
-		if volumeRequest.Type != "host" {
-			// We currently only handle host volumes in this hook, and other types
-			// should not get scheduled yet.
-			continue
-		}
-
-		hostVolume, ok := h.runner.clientConfig.Node.HostVolumes[volumeRequest.Name]
+		// Look up the local Host Volume based on the Source parameter
+		hostVolume, ok := h.runner.clientConfig.Node.HostVolumes[volumeRequest.Config.Source]
 		if !ok {
 			h.logger.Error("Failed to find host volume", "existing", h.runner.clientConfig.Node.HostVolumes, "requested", volumeRequest)
 			return fmt.Errorf("Could not find host volume named: %s", m.Volume)
@@ -55,7 +50,7 @@ func (h *volumeHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 		mcfg := &drivers.MountConfig{
 			HostPath: hostVolume.Source,
 			TaskPath: m.Destination,
-			Readonly: hostVolume.ReadOnly || volumeRequest.ReadOnly || m.ReadOnly,
+			Readonly: hostVolume.ReadOnly || volumeRequest.Volume.ReadOnly || m.ReadOnly,
 		}
 		mounts = append(mounts, mcfg)
 	}

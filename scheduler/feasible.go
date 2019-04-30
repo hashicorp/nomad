@@ -100,7 +100,7 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 // the host volumes necessary to schedule a task group.
 type HostVolumeChecker struct {
 	ctx     Context
-	volumes map[string]*structs.Volume
+	volumes map[string]*structs.HostVolumeRequest
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
@@ -110,16 +110,15 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	}
 }
 
-// SetVolumes takes the volumes required by a task group, filters them down to
-// only the host volumes, and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.Volume) {
-	filtered := make(map[string]*structs.Volume)
-	for k, v := range volumes {
-		if v.Type == "host" {
-			filtered[k] = v
-		}
+// SetVolumes takes the volumes required by a task group and updates the checker.
+func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.HostVolumeRequest) {
+	nm := make(map[string]*structs.HostVolumeRequest, len(volumes))
+	// Convert the map from map[DesiredName]Request to map[Source]Request to improve
+	// lookup performance.
+	for _, req := range volumes {
+		nm[req.Config.Source] = req
 	}
-	h.volumes = filtered
+	h.volumes = nm
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
@@ -135,13 +134,13 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	hLen := len(h.volumes)
 	nLen := len(n.HostVolumes)
 
-	// Requesting more volumes than the node has, can't meet the criteria.
+	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
 	if hLen > nLen {
 		return false
 	}
 
-	for k := range h.volumes {
-		if _, ok := n.HostVolumes[k]; !ok {
+	for source := range h.volumes {
+		if _, ok := n.HostVolumes[source]; !ok {
 			return false
 		}
 	}

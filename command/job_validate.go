@@ -117,7 +117,8 @@ func (c *JobValidateCommand) Run(args []string) int {
 func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateResponse, error) {
 	var out api.JobValidateResponse
 
-	job := agent.ApiJobToStructJob(aj)
+	// TODO: Handle errors from volumes here / move those errors into canonicalize
+	job, _ := agent.ApiJobToStructJob(aj)
 	canonicalizeWarnings := job.Canonicalize()
 
 	if vErr := job.Validate(); vErr != nil {

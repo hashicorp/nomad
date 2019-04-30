@@ -1579,7 +1579,7 @@ type Node struct {
 	Drivers map[string]*DriverInfo
 
 	// HostVolumes is a map of host volume names to their configuration
-	HostVolumes map[string]*HostVolumeConfig
+	HostVolumes map[string]*ClientHostVolumeConfig
 
 	// Raft Indexes
 	CreateIndex uint64
@@ -1658,13 +1658,13 @@ func copyNodeDrivers(drivers map[string]*DriverInfo) map[string]*DriverInfo {
 }
 
 // copyNodeHostVolumes is a helper to copy a map of string to Volume
-func copyNodeHostVolumes(volumes map[string]*HostVolumeConfig) map[string]*HostVolumeConfig {
+func copyNodeHostVolumes(volumes map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
 	l := len(volumes)
 	if l == 0 {
 		return nil
 	}
 
-	c := make(map[string]*HostVolumeConfig, l)
+	c := make(map[string]*ClientHostVolumeConfig, l)
 	for volume, v := range volumes {
 		c[volume] = v.Copy()
 	}
@@ -4643,9 +4643,9 @@ type TaskGroup struct {
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
 
-	// Volumes can be specified at the task group level to make volumes available
-	// to tasks within a task group.
-	Volumes map[string]*Volume
+	// HostVolumes is a map of host volumes that have been requested by the task
+	// group.
+	HostVolumes map[string]*HostVolumeRequest
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -4660,7 +4660,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.ReschedulePolicy = ntg.ReschedulePolicy.Copy()
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
-	ntg.Volumes = CopyMapVolumes(ntg.Volumes)
+	ntg.HostVolumes = CopyMapHostVolumeRequest(ntg.HostVolumes)
 
 	if tg.Tasks != nil {
 		tasks := make([]*Task, len(ntg.Tasks))

@@ -4,8 +4,12 @@ import (
 	"github.com/mitchellh/copystructure"
 )
 
-// HostVolumeConfig is used to configure access to host paths on a Nomad Client
-type HostVolumeConfig struct {
+const (
+	VolumeTypeHost = "host"
+)
+
+// ClientHostVolumeConfig is used to configure access to host paths on a Nomad Client
+type ClientHostVolumeConfig struct {
 	Name     string
 	Type     string
 	Source   string
@@ -13,18 +17,18 @@ type HostVolumeConfig struct {
 	Hidden   bool
 }
 
-func (p *HostVolumeConfig) Copy() *HostVolumeConfig {
+func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {
 	if p == nil {
 		return nil
 	}
 
-	c := new(HostVolumeConfig)
+	c := new(ClientHostVolumeConfig)
 	*c = *p
 	return c
 }
 
-func HostVolumeSetMerge(a, b map[string]*HostVolumeConfig) map[string]*HostVolumeConfig {
-	n := make(map[string]*HostVolumeConfig, len(a))
+func HostVolumeSetMerge(a, b map[string]*ClientHostVolumeConfig) map[string]*ClientHostVolumeConfig {
+	n := make(map[string]*ClientHostVolumeConfig, len(a))
 	for k, v := range a {
 		n[k] = v.Copy()
 	}
@@ -33,6 +37,22 @@ func HostVolumeSetMerge(a, b map[string]*HostVolumeConfig) map[string]*HostVolum
 	}
 
 	return n
+}
+
+// HostVolumeConfig is the struct that is expected inside the `config` section
+// of a `host` type volume.
+type HostVolumeConfig struct {
+	// Source is the name of the desired HostVolume.
+	Source string
+}
+
+func (h *HostVolumeConfig) Copy() *HostVolumeConfig {
+	if h == nil {
+		return nil
+	}
+	nh := new(HostVolumeConfig)
+	*nh = *h
+	return nh
 }
 
 // Volume is a representation of a storage volume that a TaskGroup wishes to use.
@@ -100,6 +120,35 @@ func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
 	c := make([]*VolumeMount, l)
 	for i, v := range s {
 		c[i] = v.Copy()
+	}
+	return c
+}
+
+type HostVolumeRequest struct {
+	Volume *Volume
+	Config *HostVolumeConfig
+}
+
+func (h *HostVolumeRequest) Copy() *HostVolumeRequest {
+	if h == nil {
+		return nil
+	}
+
+	nh := new(HostVolumeRequest)
+	nh.Volume = h.Volume.Copy()
+	nh.Config = h.Config.Copy()
+	return nh
+}
+
+func CopyMapHostVolumeRequest(m map[string]*HostVolumeRequest) map[string]*HostVolumeRequest {
+	if m == nil {
+		return nil
+	}
+
+	l := len(m)
+	c := make(map[string]*HostVolumeRequest, l)
+	for k, v := range m {
+		c[k] = v.Copy()
 	}
 	return c
 }
