@@ -1314,13 +1314,20 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 func TestSystemSched_ConstraintErrors(t *testing.T) {
 	h := NewHarness(t)
 
+	var node *structs.Node
 	// Register some nodes
-	for _, tag := range []string{"aaaaaa", "foo", "foo"} {
-		node := mock.Node()
+	// the tag "aaaaaa" is hashed so that the nodes are processed
+	// in an order other than good, good, bad
+	for _, tag := range []string{"aaaaaa", "foo", "foo", "foo"} {
+		node = mock.Node()
 		node.Meta["tag"] = tag
 		node.ComputeClass()
 		require.Nil(t, h.State.UpsertNode(h.NextIndex(), node))
 	}
+
+	// Mark the last node as ineligible
+	node.SchedulingEligibility = structs.NodeSchedulingIneligible
+	// node.ComputeClass() // should only need to be updated at registration?
 
 	// Make a job with a partially matching constraint
 	job := mock.SystemJob()
