@@ -47,7 +47,7 @@ These methods are not meant for production.
 Documentation & Guides
 -------------------------------
 
-* [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/install/index.html)
+* [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html#install-nomad)
 * [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/advanced-scheduling/affinity.html)
 * [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/advanced-scheduling/spread.html)
 * [Load Balancing on Nomad with Fabio & Consul](https://www.nomadproject.io/guides/load-balancing/fabio.html)
