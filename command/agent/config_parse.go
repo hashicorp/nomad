@@ -93,7 +93,6 @@ func durations(xs []td) error {
 			}
 
 			*x.td = d
-			*x.str = "" // empty the string to match test data
 		}
 	}
 

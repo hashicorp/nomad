@@ -43,6 +43,7 @@ var basicConfig = &Config{
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:    time.Duration(15) * time.Second,
+			RetryIntervalHCL: "15s",
 			RetryMaxAttempts: 3,
 		},
 		Meta: map[string]string{
@@ -71,6 +72,7 @@ var basicConfig = &Config{
 			ReservedPorts: "1,100,10-12",
 		},
 		GCInterval:            6 * time.Second,
+		GCIntervalHCL:         "6s",
 		GCParallelDestroys:    6,
 		GCDiskUsageThreshold:  82,
 		GCInodeUsageThreshold: 91,
@@ -91,11 +93,14 @@ var basicConfig = &Config{
 		JobGCThreshold:         "12h",
 		DeploymentGCThreshold:  "12h",
 		HeartbeatGrace:         30 * time.Second,
+		HeartbeatGraceHCL:      "30s",
 		MinHeartbeatTTL:        33 * time.Second,
+		MinHeartbeatTTLHCL:     "33s",
 		MaxHeartbeatsPerSecond: 11.0,
 		RetryJoin:              []string{"1.1.1.1", "2.2.2.2"},
 		StartJoin:              []string{"1.1.1.1", "2.2.2.2"},
 		RetryInterval:          15 * time.Second,
+		RetryIntervalHCL:       "15s",
 		RejoinAfterLeave:       true,
 		RetryMaxAttempts:       3,
 		NonVotingServer:        true,
@@ -105,13 +110,16 @@ var basicConfig = &Config{
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:    time.Duration(15) * time.Second,
+			RetryIntervalHCL: "15s",
 			RetryMaxAttempts: 3,
 		},
 	},
 	ACL: &ACLConfig{
 		Enabled:          true,
 		TokenTTL:         60 * time.Second,
+		TokenTTLHCL:      "60s",
 		PolicyTTL:        60 * time.Second,
+		PolicyTTLHCL:     "60s",
 		ReplicationToken: "foobar",
 	},
 	Telemetry: &Telemetry{
@@ -200,13 +208,15 @@ var basicConfig = &Config{
 		},
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers:      &trueValue,
-		ServerStabilizationTime: 23057 * time.Second,
-		LastContactThreshold:    12705 * time.Second,
-		MaxTrailingLogs:         17849,
-		EnableRedundancyZones:   &trueValue,
-		DisableUpgradeMigration: &trueValue,
-		EnableCustomUpgrades:    &trueValue,
+		CleanupDeadServers:         &trueValue,
+		ServerStabilizationTime:    23057 * time.Second,
+		ServerStabilizationTimeHCL: "23057s",
+		LastContactThreshold:       12705 * time.Second,
+		LastContactThresholdHCL:    "12705s",
+		MaxTrailingLogs:            17849,
+		EnableRedundancyZones:      &trueValue,
+		DisableUpgradeMigration:    &trueValue,
+		EnableCustomUpgrades:       &trueValue,
 	},
 	Plugins: []*config.PluginConfig{
 		{
@@ -351,8 +361,7 @@ var nonoptConfig = &Config{
 func TestConfig_Parse(t *testing.T) {
 	t.Parallel()
 
-	// Inconsequential changes to parsed data
-	basicConfig.Telemetry.CollectionInterval = "" // tmp field to hold the string value
+	basicConfig.addDefaults()
 	pluginConfig.addDefaults()
 	nonoptConfig.addDefaults()
 
@@ -402,7 +411,7 @@ func TestConfig_Parse(t *testing.T) {
 			}
 
 			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
-			require.EqualValues(removeHelperAttributes(actual), tc.Result)
+			require.EqualValues(tc.Result, removeHelperAttributes(actual))
 		})
 	}
 }
@@ -418,6 +427,9 @@ func removeHelperAttributes(c *Config) *Config {
 }
 
 func (c *Config) addDefaults() {
+	if c.Client == nil {
+		c.Client = &ClientConfig{}
+	}
 	if c.Client.ServerJoin == nil {
 		c.Client.ServerJoin = &ServerJoin{}
 	}
@@ -528,7 +540,7 @@ var sample0 = &Config{
 	Telemetry: &Telemetry{
 		PrometheusMetrics:        true,
 		DisableHostname:          true,
-		CollectionInterval:       "",
+		CollectionInterval:       "60s",
 		collectionInterval:       60 * time.Second,
 		PublishAllocationMetrics: true,
 		PublishNodeMetrics:       true,
