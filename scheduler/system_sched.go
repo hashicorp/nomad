@@ -284,7 +284,10 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		option := s.stack.Select(missing.TaskGroup, nil)
 
 		if option == nil {
-			// If nodes were filtered because of constraint mismatches and we
+			// If the task can't be placed on this node, update reporting data
+			// and continue to short circuit the loop
+
+			// If this node was filtered because of constraint mismatches and we
 			// couldn't create an allocation then decrementing queued for that
 			// task group
 			if s.ctx.metrics.NodesFiltered > 0 {
@@ -297,10 +300,12 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 					desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
 					desired.Place -= 1
 				}
+
+				// Filtered nodes are not reported to users, just omitted from the job status
 				continue
 			}
 
-			// Check if this task group has already failed
+			// Check if this task group has already failed, reported to the user as a count
 			if metric, ok := s.failedTGAllocs[missing.TaskGroup.Name]; ok {
 				metric.CoalescedFailures += 1
 				continue
@@ -317,6 +322,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 			}
 
+			// Actual failure to start this task on this candidate node, report it individually
 			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 			continue
 		}
@@ -355,8 +361,8 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			},
 		}
 
-		// If the new allocation is replacing an older allocation then we
-		// set the record the older allocation id so that they are chained
+		// If the new allocation is replacing an older allocation then we record the
+		// older allocation id so that they are chained
 		if missing.Alloc != nil {
 			alloc.PreviousAllocation = missing.Alloc.ID
 		}

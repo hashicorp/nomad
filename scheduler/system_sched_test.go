@@ -1327,9 +1327,8 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 
 	// Mark the last node as ineligible
 	node.SchedulingEligibility = structs.NodeSchedulingIneligible
-	// node.ComputeClass() // should only need to be updated at registration?
 
-	// Make a job with a partially matching constraint
+	// Make a job with a constraint that matches a subset of the nodes
 	job := mock.SystemJob()
 	job.Constraints = append(job.Constraints,
 		&structs.Constraint{
