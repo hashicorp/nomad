@@ -47,7 +47,7 @@ These methods are not meant for production.
 Documentation & Guides
 -------------------------------
 
-* [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html#install-nomad)
+* [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html)
 * [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/advanced-scheduling/affinity.html)
 * [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/advanced-scheduling/spread.html)
 * [Load Balancing on Nomad with Fabio & Consul](https://www.nomadproject.io/guides/load-balancing/fabio.html)
@@ -99,7 +99,7 @@ Who Uses Nomad
 * Spaceflight Industries
   * [Spaceflight’s Hub-And-Spoke Infrastructure](https://www.hashicorp.com/blog/spaceflight-uses-hashicorp-consul-for-service-discovery-and-real-time-updates-to-their-hub-and-spoke-network-architecture)
 * SpotInst
-  * [Spotinst and HashiCorp Nomad to Reduce EC2 Costs for Users](https://www.hashicorp.com/blog/spotinst-and-hashicorp-nomad-to-reduce-ec2-costs-fo)
+  * [SpotInst and HashiCorp Nomad to Reduce EC2 Costs for Users](https://www.hashicorp.com/blog/spotinst-and-hashicorp-nomad-to-reduce-ec2-costs-fo)
 * Target
   * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds](https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
 * Trivago
