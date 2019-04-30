@@ -8,7 +8,7 @@ Nomad [![Build Status](https://travis-ci.org/hashicorp/nomad.svg)](https://travi
 Overview
 -------------------------------
 
-Nomad is a flexible, lightweight, easy-to-use, performant workload orchestrator that deploys:
+Nomad is an easy-to-use, flexible, and performant workload orchestrator that deploys:
 
 * [Containers](https://www.nomadproject.io/docs/drivers/docker.html)
 * [Legacy applications](https://www.nomadproject.io/docs/drivers/exec.html)
@@ -65,6 +65,8 @@ Resources
   * [www.nomadproject.io](www.nomadproject.io)
 * Mailing List
   * [Google Groups](https://groups.google.com/group/nomad-tool)
+* Gitter
+  * [Nomad Chat Room](https://gitter.im/hashicorp-nomad/Lobby)
 * Webinars
   * [Running Microservices with Nomad](https://www.hashicorp.com/resources/solutions-engineering-hangout-microservices-with-nomad)
   * [Running Heterogeneous Apps on Nomad](https://www.hashicorp.com/resources/se-hangout-running-heterogeneous-apps-nomad)
