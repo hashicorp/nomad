@@ -502,3 +502,85 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 		t.Fatalf("parse error: %s\n", err)
 	}
 }
+
+var sample0 = &Config{
+	Region:     "global",
+	Datacenter: "dc1",
+	DataDir:    "/opt/data/nomad/data",
+	LogLevel:   "INFO",
+	BindAddr:   "0.0.0.0",
+	AdvertiseAddrs: &AdvertiseAddrs{
+		HTTP: "host.example.com",
+		RPC:  "host.example.com",
+		Serf: "host.example.com",
+	},
+	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	Server: &ServerConfig{
+		Enabled:         true,
+		BootstrapExpect: 3,
+		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
+		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
+		ServerJoin:      &ServerJoin{},
+	},
+	ACL: &ACLConfig{
+		Enabled: true,
+	},
+	Telemetry: &Telemetry{
+		PrometheusMetrics:        true,
+		DisableHostname:          true,
+		CollectionInterval:       "",
+		collectionInterval:       60 * time.Second,
+		PublishAllocationMetrics: true,
+		PublishNodeMetrics:       true,
+	},
+	LeaveOnInt:     true,
+	LeaveOnTerm:    true,
+	EnableSyslog:   true,
+	SyslogFacility: "LOCAL0",
+	Consul: &config.ConsulConfig{
+		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+		ServerAutoJoin: helper.BoolToPtr(false),
+		ClientAutoJoin: helper.BoolToPtr(false),
+		// Defaults
+		ServerServiceName:   "nomad",
+		ServerHTTPCheckName: "Nomad Server HTTP Check",
+		ServerSerfCheckName: "Nomad Server Serf Check",
+		ServerRPCCheckName:  "Nomad Server RPC Check",
+		ClientServiceName:   "nomad-client",
+		ClientHTTPCheckName: "Nomad Client HTTP Check",
+		AutoAdvertise:       helper.BoolToPtr(true),
+		ChecksUseAdvertise:  helper.BoolToPtr(false),
+		Timeout:             5 * time.Second,
+		EnableSSL:           helper.BoolToPtr(false),
+		VerifySSL:           helper.BoolToPtr(true),
+	},
+	Vault: &config.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Role:    "nomad-cluster",
+		Addr:    "http://host.example.com:8200",
+		// Defaults
+		AllowUnauthenticated: helper.BoolToPtr(true),
+		ConnectionRetryIntv:  30 * time.Second,
+	},
+	TLSConfig: &config.TLSConfig{
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               "/opt/data/nomad/certs/nomad-ca.pem",
+		CertFile:             "/opt/data/nomad/certs/server.pem",
+		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
+	},
+	Autopilot: &config.AutopilotConfig{
+		CleanupDeadServers: helper.BoolToPtr(true),
+		// Defaults
+		ServerStabilizationTime: 10 * time.Second,
+		LastContactThreshold:    200 * time.Millisecond,
+		MaxTrailingLogs:         250,
+	},
+}
+
+func TestConfig_ParseSample0(t *testing.T) {
+	c, err := ParseConfigFile("./testdata/sample0.json")
+	require.Nil(t, err)
+	require.EqualValues(t, sample0, c)
+}
