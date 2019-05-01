@@ -55,6 +55,8 @@ Documentation & Guides
 * [Running Apache Spark on Nomad](https://www.nomadproject.io/guides/spark/spark.html)
 * [Integrating Vault with Nomad for Secrets Management](https://www.nomadproject.io/guides/operations/vault-integration/index.html)
 * [Securing Nomad with TLS](https://www.nomadproject.io/guides/security/securing-nomad.html)
+* [Continuous Deployment with Nomad and Terraform](https://www.hashicorp.com/blog/continuous-deployment-with-nomad-and-terraform)
+* [Auto-bootstrapping a Nomad Cluster](https://www.hashicorp.com/blog/auto-bootstrapping-a-nomad-cluster)
 
 Documentation is available on the Nomad website [here](https://www.nomadproject.io/docs/index.html).
 
@@ -80,6 +82,7 @@ Resources
 Who Uses Nomad
 --------------------
 * CircleCI
+  * [How CircleCI Processes 4.5 Million Builds Per Month](https://stackshare.io/circleci/how-circleci-processes-4-5-million-builds-per-month)
   * [Security & Scheduling are Not Your Core Competencies](https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
 * Citadel
   * [End-to-End Production Nomad at Citadel](https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel)
@@ -102,6 +105,7 @@ Who Uses Nomad
   * [SpotInst and HashiCorp Nomad to Reduce EC2 Costs for Users](https://www.hashicorp.com/blog/spotinst-and-hashicorp-nomad-to-reduce-ec2-costs-fo)
 * Target
   * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds](https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
+  * [Playing with Nomad from HashiCorp](https://danielparker.me/nomad/hashicorp/schedulers/nomad/)
 * Trivago
   * [Maybe You Don’t Need Kubernetes](https://matthias-endler.de/2019/maybe-you-dont-need-kubernetes/)
   * [Nomad - Our Experiences and Best Practices](https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/)
@@ -127,6 +131,8 @@ Who Uses Nomad
   * [NCBI’s Legacy Migration to Hybrid Cloud with Consul & Nomad](https://www.hashicorp.com/resources/ncbi-legacy-migration-hybrid-cloud-consul-nomad)
 * Q2Ebanking
   * [Q2’s Nomad Use and Overview](https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499)
+* imgix
+  * [Cluster Schedulers & Why We Chose Nomad Over Kubernetes](https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896)
 * Region Syddanmark
 
 ...and more!
