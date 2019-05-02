@@ -1291,15 +1291,21 @@ func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) 
 	if c.NetworkInterface == "" {
 		ns = up
 	} else {
-		// if a network is configured, use only that network
-		// use the fingerprinted data
+		// If a network device is configured, filter up to contain details for only
+		// that device
+		upd := []*structs.NetworkResource{}
 		for _, n := range up {
 			if c.NetworkInterface == n.Device {
-				ns = []*structs.NetworkResource{n}
+				upd = append(upd, n)
 			}
 		}
-		// if not matched, ns has the old data
+		if len(upd) > 0 {
+			ns = upd
+		}
+		// Otherwise, ns has the old data
 	}
+
+	// ns is set, apply the config NetworkSpeed to all
 	if c.NetworkSpeed != 0 {
 		for _, n := range ns {
 			n.MBits = c.NetworkSpeed
