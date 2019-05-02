@@ -986,7 +986,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	assert := assert.New(t)
 
 	s1, addr := testServer(t, func(c *nomad.Config) {
-		c.Region = "regionFoo"
+		c.Region = "global"
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1006,7 +1006,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	{
 		req := structs.NodeSpecificRequest{
 			NodeID:       c1.Node().ID,
-			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
 
 		testutil.WaitForResult(func() (bool, error) {
@@ -1040,7 +1040,7 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	{
 		req := structs.NodeSpecificRequest{
 			NodeID:       c1.Node().ID,
-			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
 		testutil.WaitForResult(func() (bool, error) {
 			var out structs.SingleNodeResponse
@@ -1062,7 +1062,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	assert := assert.New(t)
 
 	s1, addr := testServer(t, func(c *nomad.Config) {
-		c.Region = "regionFoo"
+		c.Region = "global"
 	})
 	defer s1.Shutdown()
 	testutil.WaitForLeader(t, s1.RPC)
@@ -1091,7 +1091,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	{
 		req := structs.NodeSpecificRequest{
 			NodeID:       c1.Node().ID,
-			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
 		testutil.WaitForResult(func() (bool, error) {
 			var out structs.SingleNodeResponse
@@ -1116,7 +1116,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	{
 		req := structs.NodeSpecificRequest{
 			NodeID:       c1.Node().ID,
-			QueryOptions: structs.QueryOptions{Region: "regionFoo"},
+			QueryOptions: structs.QueryOptions{Region: "global"},
 		}
 		testutil.WaitForResult(func() (bool, error) {
 			var out structs.SingleNodeResponse

@@ -210,7 +210,7 @@ func TestServer_Regions(t *testing.T) {
 func TestServer_Reload_Vault(t *testing.T) {
 	t.Parallel()
 	s1 := TestServer(t, func(c *Config) {
-		c.Region = "region1"
+		c.Region = "global"
 	})
 	defer s1.Shutdown()
 

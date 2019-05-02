@@ -188,7 +188,7 @@ func TestConfig_Merge(t *testing.T) {
 	}
 
 	c3 := &Config{
-		Region:                    "region2",
+		Region:                    "global",
 		Datacenter:                "dc2",
 		NodeName:                  "node2",
 		DataDir:                   "/tmp/dir2",

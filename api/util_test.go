@@ -39,7 +39,7 @@ func testJob() *Job {
 			SizeMB: intToPtr(25),
 		})
 
-	job := NewBatchJob("job1", "redis", "region1", 1).
+	job := NewBatchJob("job1", "redis", "global", 1).
 		AddDatacenter("dc1").
 		AddTaskGroup(group)
 

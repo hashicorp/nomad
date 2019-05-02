@@ -37,7 +37,7 @@ func TestCompose(t *testing.T) {
 		AddTask(task)
 
 	// Compose a job
-	job := NewServiceJob("job1", "myjob", "region1", 2).
+	job := NewServiceJob("job1", "myjob", "global", 2).
 		SetMeta("foo", "bar").
 		AddDatacenter("dc1").
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
@@ -45,7 +45,7 @@ func TestCompose(t *testing.T) {
 
 	// Check that the composed result looks correct
 	expect := &Job{
-		Region:   stringToPtr("region1"),
+		Region:   stringToPtr("global"),
 		ID:       stringToPtr("job1"),
 		Name:     stringToPtr("myjob"),
 		Type:     stringToPtr(JobTypeService),
