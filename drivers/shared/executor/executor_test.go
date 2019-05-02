@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -415,8 +416,15 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
 	require.Nil(err)
 
+	pretty.Log(tmpDir)
+	pretty.Log(filePath)
+
 	// Lookup with full path to binary
 	_, err = lookupBin("dummy", filePath)
+	require.Nil(err)
+
+	// Lookout with an absolute path to the binary
+	_, err = lookupBin(tmpDir, "/foo/tmp.txt")
 	require.Nil(err)
 
 	// Write a file under local subdir
@@ -436,6 +444,13 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	_, err = lookupBin(tmpDir, "tmp.txt")
 	require.Nil(err)
 
+	// Lookup a host path
+	_, err = lookupBin(tmpDir, "/bin/sh")
+	require.Error(err)
+
+	// Lookup a host path via $PATH
+	_, err = lookupBin(tmpDir, "sh")
+	require.Error(err)
 }
 
 // setupRoootfs setups the rootfs for libcontainer executor
