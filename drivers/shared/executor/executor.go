@@ -546,19 +546,12 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 }
 
 // lookupBin looks for path to the binary to run by looking for the binary in
-// the following locations, in-order: task/local/, task/, based on host $PATH.
+// the following locations, in-order:
+// task/local/, task/, on the host file system, in host $PATH
 // The return path is absolute.
 func lookupBin(taskDir string, bin string) (string, error) {
-	// Check in the local directory
-	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
-	if _, err := os.Stat(local); err == nil {
-		return local, nil
-	}
-
-	// Check at the root of the task's directory
-	root := filepath.Join(taskDir, bin)
-	if _, err := os.Stat(root); err == nil {
-		return root, nil
+	if p, err := lookupTaskBin(taskDir, bin); err == nil {
+		return p, nil
 	}
 
 	// when checking host paths, check with Stat first if path is absolute
@@ -575,6 +568,22 @@ func lookupBin(taskDir string, bin string) (string, error) {
 	}
 
 	return "", fmt.Errorf("binary %q could not be found", bin)
+}
+
+// LookTaskBin finds the file in taskDir/local or taskDir and returns an absolute path
+func lookupTaskBin(taskDir string, bin string) (string, error) {
+	// Check in the local directory
+	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
+	if _, err := os.Stat(local); err == nil {
+		return local, nil
+	}
+
+	// Check at the root of the task's directory
+	root := filepath.Join(taskDir, bin)
+	if _, err := os.Stat(root); err == nil {
+		return root, nil
+	}
+	return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
 }
 
 // makeExecutable makes the given file executable for root,group,others.
