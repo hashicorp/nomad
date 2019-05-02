@@ -142,7 +142,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.container = container
 
 	// Look up the binary path and make it executable
-	absPath, err := lookupBin(command.TaskDir, command.Cmd)
+	absPath, err := lookupTaskBin(command.TaskDir, command.Cmd)
+
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +154,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	path := absPath
 
-	// Determine the path to run as it may have to be relative to the chroot.
+	// Ensure that the path is contained in the chroot, and find it relative to the container
 	rel, err := filepath.Rel(command.TaskDir, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
