@@ -160,6 +160,27 @@ ld.so.conf.d/`
 	}, func(err error) { t.Error(err) })
 }
 
+// Exec Launch looks for the binary only inside the chroot
+func TestExecutor_EscapeContainer(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/kill" // missing from the chroot container
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	_, err := executor.Launch(execCmd)
+	require.Error(err)
+	require.Regexp("^file /bin/kill not found under path", err)
+}
+
 func TestExecutor_ClientCleanup(t *testing.T) {
 	t.Parallel()
 	testutil.ExecCompatible(t)
