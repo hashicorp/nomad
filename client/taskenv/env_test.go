@@ -228,12 +228,11 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 				Device: "eth0",
 				IP:     "192.168.0.100",
 				ReservedPorts: []structs.Port{
-					{Label: "admin", Value: 5000},
 					{Label: "ssh", Value: 22},
 					{Label: "other", Value: 1234},
 				},
 				MBits:        50,
-				DynamicPorts: []structs.Port{{Label: "http"}},
+				DynamicPorts: []structs.Port{{Label: "http", Value: 2000}},
 			},
 		},
 	}
@@ -244,10 +243,10 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 			Networks: []*structs.NetworkResource{
 				{
 					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+					IP:            "127.0.0.1",
+					ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
 					MBits:         50,
-					DynamicPorts:  []structs.Port{{Label: "http", Value: 2000}},
+					DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
 				},
 			},
 		},
@@ -270,10 +269,11 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 		"taskEnvKey": "taskEnvVal",
 	}
 	task.Resources.Networks = []*structs.NetworkResource{
+		// Nomad 0.8 didn't fully populate the fields in task Resource Networks
 		{
-			IP:            "127.0.0.1",
-			ReservedPorts: []structs.Port{{Label: "http", Value: 80}},
-			DynamicPorts:  []structs.Port{{Label: "https", Value: 8080}},
+			IP:            "",
+			ReservedPorts: []structs.Port{{Label: "https"}},
+			DynamicPorts:  []structs.Port{{Label: "http"}},
 		},
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
