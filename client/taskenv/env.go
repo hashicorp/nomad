@@ -544,15 +544,9 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 	if task.Resources == nil {
 		b.memLimit = 0
 		b.cpuLimit = 0
-		b.networks = []*structs.NetworkResource{}
 	} else {
 		b.memLimit = int64(task.Resources.MemoryMB)
 		b.cpuLimit = int64(task.Resources.CPU)
-		// Copy networks to prevent sharing
-		b.networks = make([]*structs.NetworkResource, len(task.Resources.Networks))
-		for i, n := range task.Resources.Networks {
-			b.networks[i] = n.Copy()
-		}
 	}
 	return b
 }
@@ -622,6 +616,15 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 	} else if alloc.TaskResources != nil {
+		if tr, ok := alloc.TaskResources[b.taskName]; ok {
+			// Copy networks to prevent sharing
+			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
+			for i, n := range tr.Networks {
+				b.networks[i] = n.Copy()
+			}
+
+		}
+
 		for taskName, resources := range alloc.TaskResources {
 			// Add ports from other tasks
 			if taskName == b.taskName {
