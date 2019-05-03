@@ -146,6 +146,8 @@ type Driver struct {
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
+
+	drivers.NetworkManagementNotSupported
 }
 
 func NewQemuDriver(logger hclog.Logger) drivers.DriverPlugin {

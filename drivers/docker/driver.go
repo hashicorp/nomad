@@ -61,6 +61,7 @@ var (
 )
 
 type Driver struct {
+	drivers.NetworkManagementNotSupported
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
