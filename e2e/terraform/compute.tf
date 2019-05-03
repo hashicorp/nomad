@@ -60,6 +60,7 @@ resource "aws_instance" "server" {
       "sudo cp /tmp/server.hcl /etc/nomad.d/nomad.hcl",
       "sudo chmod 0755 /usr/local/bin/nomad",
       "sudo chown root:root /usr/local/bin/nomad",
+      "sudo systemctl enable nomad.service",
       "sudo systemctl start nomad.service"
     ]
 
@@ -112,6 +113,7 @@ resource "aws_instance" "client" {
       "sudo cp /tmp/client.hcl /etc/nomad.d/nomad.hcl",
       "sudo chmod 0755 /usr/local/bin/nomad",
       "sudo chown root:root /usr/local/bin/nomad",
+			"sudo systemctl enable nomad.service",
       "sudo systemctl start nomad.service"
     ]
 
