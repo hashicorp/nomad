@@ -179,6 +179,22 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 	_, err := executor.Launch(execCmd)
 	require.Error(err)
 	require.Regexp("^file /bin/kill not found under path", err)
+
+	// Bare files are looked up using the system path, inside the container
+	allocDir.Destroy()
+	testExecCmd = testExecutorCommandWithChroot(t)
+	execCmd, allocDir = testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "kill"
+	_, err = executor.Launch(execCmd)
+	require.Error(err)
+	require.Regexp("^file kill not found under path", err)
+
+	allocDir.Destroy()
+	testExecCmd = testExecutorCommandWithChroot(t)
+	execCmd, allocDir = testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "echo"
+	_, err = executor.Launch(execCmd)
+	require.NoError(err)
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
