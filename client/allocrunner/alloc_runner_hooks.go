@@ -98,6 +98,7 @@ func (ar *allocRunner) initRunnerHooks() {
 
 	// determine how the network must be created
 	ns := &allocNetworkIsolationSetter{ar: ar}
+	nm, _ := ar.initNetworkManager()
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
@@ -106,7 +107,7 @@ func (ar *allocRunner) initRunnerHooks() {
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, ar.Alloc(), hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(ns, hookLogger, ar.Alloc(), &defaultNetworkManager{}),
+		newNetworkHook(ns, hookLogger, ar.Alloc(), nm),
 	}
 }
 
