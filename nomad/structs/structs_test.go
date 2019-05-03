@@ -846,6 +846,28 @@ func TestTaskGroup_Validate(t *testing.T) {
 	if !strings.Contains(err.Error(), "System jobs should not have a reschedule policy") {
 		t.Fatalf("err: %s", err)
 	}
+
+	tg = &TaskGroup{
+		Networks: []*NetworkResource{
+			{
+				DynamicPorts: []Port{{"http", 0, 80}},
+			},
+		},
+		Tasks: []*Task{
+			{
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							DynamicPorts: []Port{{"http", 0, 80}},
+						},
+					},
+				},
+			},
+		},
+	}
+	err = tg.Validate(j)
+	require.Contains(t, err.Error(), "Port label http already in use")
+	require.Contains(t, err.Error(), "Port mapped to 80 already in use")
 }
 
 func TestTask_Validate(t *testing.T) {
