@@ -551,8 +551,16 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 // task/local/, task/, on the host file system, in host $PATH
 // The return path is absolute.
 func lookupBin(taskDir string, bin string) (string, error) {
-	if p, err := lookupTaskBin(taskDir, bin); err == nil {
-		return p, nil
+	// Check in the local directory
+	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
+	if _, err := os.Stat(local); err == nil {
+		return local, nil
+	}
+
+	// Check at the root of the task's directory
+	root := filepath.Join(taskDir, bin)
+	if _, err := os.Stat(root); err == nil {
+		return root, nil
 	}
 
 	// when checking host paths, check with Stat first if path is absolute
@@ -571,10 +579,13 @@ func lookupBin(taskDir string, bin string) (string, error) {
 	return "", fmt.Errorf("binary %q could not be found", bin)
 }
 
-// LookTaskBin finds the file in taskDir/local or taskDir and returns an absolute path
+// lookupTaskBin finds the file in:
+// taskDir/local, taskDir, PATH search inside taskDir
+// and returns an absolute path
 func lookupTaskBin(taskDir string, bin string) (string, error) {
 	// Check in the local directory
-	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
+	localDir := filepath.Join(taskDir, allocdir.TaskLocal)
+	local := filepath.Join(localDir, bin)
 	if _, err := os.Stat(local); err == nil {
 		return local, nil
 	}
@@ -584,6 +595,28 @@ func lookupTaskBin(taskDir string, bin string) (string, error) {
 	if _, err := os.Stat(root); err == nil {
 		return root, nil
 	}
+
+	// Check the host PATH anchored inside the taskDir
+	if !strings.Contains(bin, "/") {
+		envPath := os.Getenv("PATH")
+		for _, dir := range filepath.SplitList(envPath) {
+			if dir == "" {
+				// match unix shell behavior, empty path element == .
+				dir = "."
+			}
+			for _, root := range []string{localDir, taskDir} {
+				path := filepath.Join(root, dir, bin)
+				f, err := os.Stat(path)
+				if err != nil {
+					continue
+				}
+				if m := f.Mode(); !m.IsDir() {
+					return path, nil
+				}
+			}
+		}
+	}
+
 	return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
 }
 
