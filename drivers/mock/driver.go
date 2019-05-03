@@ -576,3 +576,11 @@ func (d *Driver) GetHandle(taskID string) *taskHandle {
 func (d *Driver) Shutdown() {
 	d.signalShutdown()
 }
+
+func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {
+	return nil, nil
+}
+
+func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
+	return nil
+}

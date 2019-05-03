@@ -105,6 +105,8 @@ type Driver struct {
 	// whether it has been successful
 	fingerprintSuccess *bool
 	fingerprintLock    sync.Mutex
+
+	drivers.NetworkManagementNotSupported
 }
 
 // TaskConfig is the driver configuration of a task within a job

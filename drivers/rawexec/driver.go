@@ -102,6 +102,7 @@ var (
 // resource isolation and just fork/execs. The Exec driver should be preferred
 // and this should only be used when explicitly needed.
 type Driver struct {
+	drivers.NetworkManagementNotSupported
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer

@@ -54,6 +54,7 @@ type DriverPlugin interface {
 
 	SignalTask(taskID string, signal string) error
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
+	DriverNetworkManager
 }
 
 // DriverNetworkManager is the interface with exposes function for creating a
@@ -62,6 +63,15 @@ type DriverPlugin interface {
 type DriverNetworkManager interface {
 	CreateNetwork(allocID string) (*NetworkIsolationSpec, error)
 	DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error
+}
+
+type NetworkManagementNotSupported struct{}
+
+func (NetworkManagementNotSupported) CreateNetwork(string) (*NetworkIsolationSpec, error) {
+	return nil, fmt.Errorf("CreateNetwork is not supported by this driver")
+}
+func (NetworkManagementNotSupported) DestroyNetwork(string, *NetworkIsolationSpec) error {
+	return fmt.Errorf("DestroyNetwork is not supported by this driver")
 }
 
 // InternalDriverPlugin is an interface that exposes functions that are only
