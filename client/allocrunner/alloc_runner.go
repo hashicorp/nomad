@@ -551,7 +551,7 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 	if a.ClientTerminalStatus() {
 		alloc := ar.Alloc()
 
-		// If we are part of a deployment and the task has failed, mark the
+		// If we are part of a deployment and the alloc has failed, mark the
 		// alloc as unhealthy. This guards against the watcher not be started.
 		// If the health status is already set then terminal allocations should not
 		if a.ClientStatus == structs.AllocClientStatusFailed &&
