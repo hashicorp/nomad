@@ -248,7 +248,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	e.logger.Debug("launch prep", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	e.commandCfg = command
 
@@ -303,6 +303,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
+	e.logger.Debug("launching", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 	if err := e.childCmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
