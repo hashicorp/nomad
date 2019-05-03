@@ -4776,10 +4776,42 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	// Check for duplicate tasks, that there is only leader task if any,
-	// and no duplicated static ports
-	tasks := make(map[string]int)
+	portLabels := make(map[string]string)
 	staticPorts := make(map[int]string)
+	mappedPorts := make(map[int]string)
+
+	for _, net := range tg.Networks {
+		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
+			if other, ok := portLabels[port.Label]; ok {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Port label %s already in use by %s", port.Label, other))
+			} else {
+				portLabels[port.Label] = "taskgroup network"
+			}
+
+			if port.Value != 0 {
+				// static port
+				if other, ok := staticPorts[port.Value]; ok {
+					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					staticPorts[port.Value] = fmt.Sprintf("taskgroup network:%s", port.Label)
+				}
+			}
+
+			if port.To != 0 {
+				if other, ok := mappedPorts[port.To]; ok {
+					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
+					mErr.Errors = append(mErr.Errors, err)
+				} else {
+					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
+				}
+			}
+		}
+	}
+
+	// Check for duplicate tasks or port labels, that there is only leader task if any,
+	// and no duplicated static or mapped ports
+	tasks := make(map[string]int)
 	leaderTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
@@ -4799,12 +4831,27 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 
 		for _, net := range task.Resources.Networks {
-			for _, port := range net.ReservedPorts {
-				if other, ok := staticPorts[port.Value]; ok {
-					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
-					mErr.Errors = append(mErr.Errors, err)
-				} else {
-					staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
+			for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
+				if other, ok := portLabels[port.Label]; ok {
+					mErr.Errors = append(mErr.Errors, fmt.Errorf("Port label %s already in use by %s", port.Label, other))
+				}
+
+				if port.Value != 0 {
+					if other, ok := staticPorts[port.Value]; ok {
+						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else {
+						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
+					}
+				}
+
+				if port.To != 0 {
+					if other, ok := mappedPorts[port.To]; ok {
+						err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else {
+						mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
+					}
 				}
 			}
 		}
