@@ -102,7 +102,7 @@ func TestExecDriver_StartWait(t *testing.T) {
 	}
 
 	tc := &TaskConfig{
-		Command: "cat",
+		Command: "echo",
 		Args:    []string{"/proc/self/cgroup"},
 	}
 	require.NoError(task.EncodeConcreteDriverConfig(&tc))
