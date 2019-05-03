@@ -47,9 +47,9 @@ var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 // Default configuration for scheduler with preemption enabled for system jobs
 var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 	PreemptionConfig: structs.PreemptionConfig{
-		SystemSchedulerEnabled: true,
-		BatchEnabled:           true,
-		ServiceEnabled:         true,
+		SystemSchedulerEnabled:  true,
+		BatchSchedulerEnabled:   true,
+		ServiceSchedulerEnabled: true,
 	},
 }
 

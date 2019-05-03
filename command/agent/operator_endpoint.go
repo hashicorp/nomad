@@ -251,9 +251,9 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 
 	args.Config = structs.SchedulerConfiguration{
 		PreemptionConfig: structs.PreemptionConfig{
-			SystemSchedulerEnabled: conf.PreemptionConfig.SystemSchedulerEnabled,
-			BatchEnabled:           conf.PreemptionConfig.BatchEnabled,
-			ServiceEnabled:         conf.PreemptionConfig.ServiceEnabled},
+			SystemSchedulerEnabled:  conf.PreemptionConfig.SystemSchedulerEnabled,
+			BatchSchedulerEnabled:   conf.PreemptionConfig.BatchSchedulerEnabled,
+			ServiceSchedulerEnabled: conf.PreemptionConfig.ServiceSchedulerEnabled},
 	}
 
 	// Check for cas value

@@ -2976,7 +2976,7 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 		Config: structs.SchedulerConfiguration{
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled: true,
-				BatchEnabled:           true,
+				BatchSchedulerEnabled:  true,
 			},
 		},
 	}
@@ -2993,11 +2993,11 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	require.Nil(err)
 
 	require.Equal(config.PreemptionConfig.SystemSchedulerEnabled, req.Config.PreemptionConfig.SystemSchedulerEnabled)
-	require.Equal(config.PreemptionConfig.BatchEnabled, req.Config.PreemptionConfig.BatchEnabled)
+	require.Equal(config.PreemptionConfig.BatchSchedulerEnabled, req.Config.PreemptionConfig.BatchSchedulerEnabled)
 
 	// Now use CAS and provide an old index
 	req.CAS = true
-	req.Config.PreemptionConfig = structs.PreemptionConfig{SystemSchedulerEnabled: false, BatchEnabled: false}
+	req.Config.PreemptionConfig = structs.PreemptionConfig{SystemSchedulerEnabled: false, BatchSchedulerEnabled: false}
 	req.Config.ModifyIndex = config.ModifyIndex - 1
 	buf, err = structs.Encode(structs.SchedulerConfigRequestType, req)
 	require.Nil(err)
@@ -3011,5 +3011,5 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	require.Nil(err)
 	// Verify that preemption is still enabled
 	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
-	require.True(config.PreemptionConfig.BatchEnabled)
+	require.True(config.PreemptionConfig.BatchSchedulerEnabled)
 }

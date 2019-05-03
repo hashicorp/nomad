@@ -154,11 +154,11 @@ type PreemptionConfig struct {
 	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs
 	SystemSchedulerEnabled bool
 
-	// BatchEnabled specifies if preemption is enabled for batch jobs
-	BatchEnabled bool
+	// BatchSchedulerEnabled specifies if preemption is enabled for batch jobs
+	BatchSchedulerEnabled bool
 
-	// ServiceEnabled specifies if preemption is enabled for service jobs
-	ServiceEnabled bool
+	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
+	ServiceSchedulerEnabled bool
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the
