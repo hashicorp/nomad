@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
-	"github.com/kr/pretty"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -402,9 +401,9 @@ func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 
 func TestUniversalExecutor_LookupPath(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	// Create a temp dir
 	tmpDir, err := ioutil.TempDir("", "")
-	require := require.New(t)
 	require.Nil(err)
 	defer os.Remove(tmpDir)
 
@@ -416,24 +415,13 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
 	require.Nil(err)
 
-	pretty.Log(tmpDir)
-	pretty.Log(filePath)
-
-	// Lookup with full path to binary
-	_, err = lookupBin("dummy", filePath)
+	// Lookup with full path on host to binary
+	path, err := lookupBin("not_tmpDir", filePath)
 	require.Nil(err)
+	require.Equal(filePath, path)
 
 	// Lookout with an absolute path to the binary
 	_, err = lookupBin(tmpDir, "/foo/tmp.txt")
-	require.Nil(err)
-
-	// Write a file under local subdir
-	os.MkdirAll(filepath.Join(tmpDir, "local"), 0700)
-	filePath2 := filepath.Join(tmpDir, "local", "tmp.txt")
-	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
-
-	// Lookup with file name, should find the one we wrote above
-	_, err = lookupBin(tmpDir, "tmp.txt")
 	require.Nil(err)
 
 	// Write a file under task dir
@@ -441,15 +429,61 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	ioutil.WriteFile(filePath3, []byte{1, 2}, os.ModeAppend)
 
 	// Lookup with file name, should find the one we wrote above
-	_, err = lookupBin(tmpDir, "tmp.txt")
+	path, err = lookupBin(tmpDir, "tmp.txt")
 	require.Nil(err)
+	require.Equal(filepath.Join(tmpDir, "tmp.txt"), path)
+
+	// Write a file under local subdir
+	os.MkdirAll(filepath.Join(tmpDir, "local"), 0700)
+	filePath2 := filepath.Join(tmpDir, "local", "tmp.txt")
+	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
+
+	// Lookup with file name, should find the one we wrote above
+	path, err = lookupBin(tmpDir, "tmp.txt")
+	require.Nil(err)
+	require.Equal(filepath.Join(tmpDir, "local", "tmp.txt"), path)
 
 	// Lookup a host path
 	_, err = lookupBin(tmpDir, "/bin/sh")
-	require.Error(err)
+	require.NoError(err)
 
 	// Lookup a host path via $PATH
 	_, err = lookupBin(tmpDir, "sh")
+	require.NoError(err)
+}
+
+func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// Create a temp dir
+	tmpDir, err := ioutil.TempDir("", "")
+	require.Nil(err)
+	defer os.Remove(tmpDir)
+
+	// Make a foo subdir
+	os.MkdirAll(filepath.Join(tmpDir, "foo"), 0700)
+
+	// Write a file under foo
+	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
+	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
+	require.NoError(err)
+
+	// Lookout with an absolute path to the binary
+	_, err = lookupTaskBin(tmpDir, "/foo/tmp.txt")
+	require.NoError(err)
+
+	// Write a file under local subdir
+	os.MkdirAll(filepath.Join(tmpDir, "local"), 0700)
+	filePath2 := filepath.Join(tmpDir, "local", "tmp.txt")
+	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
+
+	// Lookup with file name, should find the one we wrote above
+	_, err = lookupTaskBin(tmpDir, "tmp.txt")
+	require.NoError(err)
+
+	// Lookup a host absolute path
+	_, err = lookupTaskBin(tmpDir, "/bin/sh")
 	require.Error(err)
 }
 
