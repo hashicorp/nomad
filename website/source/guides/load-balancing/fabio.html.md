@@ -201,7 +201,7 @@ will see that you still get routed to the Apache home page by accessing
 any client node on port `9999`. Accordingly, the routing table
 in the web interface on port `9999` will reflect the changes.
 
-### Step 5: Place Nomad Client Nodes Behing AWS Load Balancer
+### Step 5: Place Nomad Client Nodes Behind AWS Load Balancer
 
 At this point, you are ready to place your Nomad client nodes behind an AWS load
 balancer. Your Nomad client nodes may change over time, and it is important
