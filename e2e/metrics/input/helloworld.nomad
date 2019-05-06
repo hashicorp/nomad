@@ -19,7 +19,7 @@ job "hello" {
       }
 
       artifact {
-        source = "https://s3.amazonaws.com/nomad-community-demo/hellov1"
+        source = "https://nomad-community-demo.s3.amazonaws.com/hellov1"
         destination = "local/hello"
         mode = "file"
       }
