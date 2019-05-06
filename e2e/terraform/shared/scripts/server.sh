@@ -28,7 +28,8 @@ sed -i "s/RETRY_JOIN/$RETRY_JOIN/g" $CONFIGDIR/consul.json
 sudo cp $CONFIGDIR/consul.json $CONSULCONFIGDIR
 sudo cp $CONFIGDIR/consul_$CLOUD.service /etc/systemd/system/consul.service
 
-sudo systemctl start consul.service
+sudo systemctl enable consul.service
+sudo systemctl start  consul.service
 sleep 10
 export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
@@ -38,7 +39,8 @@ sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/vault.hcl
 sudo cp $CONFIGDIR/vault.hcl $VAULTCONFIGDIR
 sudo cp $CONFIGDIR/vault.service /etc/systemd/system/vault.service
 
-sudo systemctl start vault.service
+sudo systemctl enable vault.service
+sudo systemctl start  vault.service
 
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 
