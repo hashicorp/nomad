@@ -66,8 +66,8 @@ passing in a configuration payload via stdin:
 ```
 $ cat << EOF | nomad job dispatch video-encode -
 {
-  "s3-input": "https://s3-us-west-1.amazonaws.com/video-bucket/cb31dabb1",
-  "s3-output": "https://s3-us-west-1.amazonaws.com/video-bucket/a149adbe3",
+  "s3-input": "https://video-bucket.s3-us-west-1.amazonaws.com/cb31dabb1",
+  "s3-output": "https://video-bucket.s3-us-west-1.amazonaws.com/a149adbe3",
   "input-codec": "mp4",
   "output-codec": "webm",
   "quality": "1080p"
