@@ -208,7 +208,7 @@
 		{"path":"github.com/hashicorp/go-version","checksumSHA1":"r0pj5dMHCghpaQZ3f1BRGoKiSWw=","revision":"b5a281d3160aa11950a6182bd9a9dc2cb1e02d50","revisionTime":"2018-08-24T00:43:55Z"},
 		{"path":"github.com/hashicorp/golang-lru","checksumSHA1":"d9PxF1XQGLMJZRct2R8qVM/eYlE=","revision":"a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4","revisionTime":"2016-02-07T21:47:19Z"},
 		{"path":"github.com/hashicorp/golang-lru/simplelru","checksumSHA1":"2nOpYjx8Sn57bqlZq17yM4YJuM4=","revision":"a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4"},
-		{"path":"github.com/hashicorp/hcl","checksumSHA1":"8OPDk+bKyRGJoKcS4QNw9F7dpE8=","revision":"6e968a3fcdcbab092f5307fd0d85479d5af1e4dc","revisionTime":"2016-11-01T18:00:25Z"},
+		{"path":"github.com/hashicorp/hcl","checksumSHA1":"bPPNuq11pA/YSJzwxS0163WnhCo=","revision":"99e2f22d1c94b272184d97dd9d252866409100ab","revisionTime":"2019-04-30T13:52:23Z"},
 		{"path":"github.com/hashicorp/hcl/hcl/ast","checksumSHA1":"XQmjDva9JCGGkIecOgwtBEMCJhU=","revision":"6e968a3fcdcbab092f5307fd0d85479d5af1e4dc","revisionTime":"2016-11-01T18:00:25Z"},
 		{"path":"github.com/hashicorp/hcl/hcl/parser","checksumSHA1":"croNloscHsjX87X+4/cKOURf1EY=","revision":"6e968a3fcdcbab092f5307fd0d85479d5af1e4dc","revisionTime":"2016-11-01T18:00:25Z"},
 		{"path":"github.com/hashicorp/hcl/hcl/scanner","checksumSHA1":"lgR7PSAZ0RtvAc9OCtCnNsF/x8g=","revision":"6e968a3fcdcbab092f5307fd0d85479d5af1e4dc","revisionTime":"2016-11-01T18:00:25Z"},
