@@ -2427,26 +2427,6 @@ DISCOLOOP:
 
 	consulLogger.Info("discovered following servers", "servers", nomadServers)
 
-	// Check if the list of servers discovered is identical to the list we already have
-	// If so, we don't need to reset the server list unnecessarily
-	knownServers := make(map[string]struct{})
-	serverList := c.servers.GetServers()
-	for _, s := range serverList {
-		knownServers[s.Addr.String()] = struct{}{}
-	}
-
-	allFound := true
-	for _, s := range nomadServers {
-		_, known := knownServers[s.Addr.String()]
-		if !known {
-			allFound = false
-			break
-		}
-	}
-	if allFound && len(nomadServers) == len(serverList) {
-		c.logger.Info("Not replacing server list, current server list is identical to servers discovered in Consul")
-		return nil
-	}
 	// Fire the retry trigger if we have updated the set of servers.
 	if c.servers.SetServers(nomadServers) {
 		// Start rebalancing

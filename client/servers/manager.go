@@ -201,18 +201,39 @@ func (m *Manager) SetServers(servers Servers) bool {
 	m.Lock()
 	defer m.Unlock()
 
-	// Sort both the  existing and incoming servers
-	servers.Sort()
-	m.servers.Sort()
-
 	// Determine if they are equal
-	equal := servers.Equal(m.servers)
+	equal := m.serversAreEqual(servers)
+
+	// If server list is equal don't change the list and return immediatly
+	// This prevents unnecessary shuffling of a failed server that was moved to the
+	// bottom of the list
+	if equal {
+		m.logger.Debug("Not replacing server list, current server list is identical to servers discovered in Consul")
+		return !equal
+	}
 
 	// Randomize the incoming servers
 	servers.shuffle()
 	m.servers = servers
 
 	return !equal
+}
+
+// Method to check if the arg list of servers is equal to the one we already have
+func (m *Manager) serversAreEqual(servers Servers) bool {
+	// We use a copy of the server list here because determining
+	// equality requires a sort step which modifies the order of the server list
+	var copy Servers
+	copy = make([]*Server, 0, len(m.servers))
+	for _, s := range m.servers {
+		copy = append(copy, s.Copy())
+	}
+
+	// Sort both the  existing and incoming servers
+	copy.Sort()
+	servers.Sort()
+
+	return copy.Equal(servers)
 }
 
 // FindServer returns a server to send an RPC too. If there are no servers, nil
