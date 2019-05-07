@@ -15,5 +15,8 @@ file a PR to add your plugin to this page.
 ## Authoring Device Plugins
 
 Nomad has a plugin system for defining device drivers. External device plugins
-will have the same user experience as built in drivers. For details on authoring
-a device plugin, please refer to the plugin authoring guide.
+will have the same user experience as built in drivers. For details on
+authoring a device plugin, please refer to the [plugin authoring
+guide][plugin_guide].
+
+[plugin_guide]: /docs/internals/plugins/index.html
