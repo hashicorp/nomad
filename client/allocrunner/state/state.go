@@ -59,3 +59,13 @@ func (s *State) Copy() *State {
 		TaskStates:        taskStates,
 	}
 }
+
+// ClientTerminalStatus returns if the client status is terminal and will no longer transition
+func (a *State) ClientTerminalStatus() bool {
+	switch a.ClientStatus {
+	case structs.AllocClientStatusComplete, structs.AllocClientStatusFailed, structs.AllocClientStatusLost:
+		return true
+	default:
+		return false
+	}
+}
