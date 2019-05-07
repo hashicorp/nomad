@@ -60,18 +60,18 @@ defaults by job type:
 
     ```hcl
     restart {
-      attempts = 15
+      attempts = 3
       delay    = "15s"
-      interval = "168h"
+      interval = "24h"
       mode     = "fail"
     }
     ```
 
-- The default non-batch restart policy is:
+- The default service and system job restart policy is:
 
     ```hcl
     restart {
-      interval = "1m"
+      interval = "30m"
       attempts = 2
       delay    = "15s"
       mode     = "fail"
