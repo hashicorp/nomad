@@ -48,6 +48,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		"/lib64":            "/lib64",
 		"/usr/lib":          "/usr/lib",
 		"/bin/ls":           "/bin/ls",
+		"/bin/cat":          "/bin/cat",
 		"/bin/echo":         "/bin/echo",
 		"/bin/bash":         "/bin/bash",
 		"/bin/sleep":        "/bin/sleep",
