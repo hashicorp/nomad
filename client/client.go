@@ -2713,7 +2713,7 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 	allocatedDeviceMbits := make(map[string]int)
 	for _, ar := range c.getAllocRunners() {
 		alloc := ar.Alloc()
-		if ar.Alloc().ServerTerminalStatus() || ar.AllocState().ClientTerminalStatus() {
+		if alloc.ServerTerminalStatus() || ar.AllocState().ClientTerminalStatus() {
 			continue
 		}
 
