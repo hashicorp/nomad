@@ -18,3 +18,8 @@ The list of supported device plugins is provided on the left of this page.
 Each device plugin documents its configuration and installation requirements,
 the attributes it fingerprints, and the environment variables it exposes to
 tasks.
+
+For details on authoring a device plugin, please refer to the [plugin authoring
+guide][plugin_guide].
+
+[plugin_guide]: /docs/internals/plugins/index.html
