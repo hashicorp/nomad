@@ -98,7 +98,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	l.logger.Debug("launch prep", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	l.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	if command.Resources == nil {
 		command.Resources = &drivers.Resources{

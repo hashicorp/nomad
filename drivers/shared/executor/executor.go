@@ -248,7 +248,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Debug("launch prep", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	e.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	e.commandCfg = command
 
